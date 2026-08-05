@@ -26,6 +26,12 @@ export const productBookingModeSchema = z.enum([
 export const productCapacityModeSchema = z.enum(["free_sale", "limited", "on_request"])
 export const productVisibilitySchema = z.enum(["public", "private", "hidden"])
 export const productActivationModeSchema = z.enum(["manual", "scheduled", "channel_controlled"])
+/**
+ * Operator-facing schedule term token — Session / Occurrence / Departure. A
+ * presentation classification derived from the resolved Product duration; the
+ * operator UI localizes it. See `resolveScheduleTerm` in `@voyant-travel/inventory`.
+ */
+export const scheduleTermSchema = z.enum(["session", "occurrence", "departure"])
 export const productTicketFulfillmentSchema = z.enum([
   "none",
   "per_booking",

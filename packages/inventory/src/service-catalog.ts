@@ -1044,6 +1044,7 @@ export const catalogProductsService = {
           durationMinutes: classification.durationMinutes,
           durationDays: classification.durationDays,
           durationProvenance: classification.durationProvenance,
+          scheduleTerm: classification.scheduleTerm,
           reviewRequired: classification.reviewRequired,
           reviewReasons: classification.reviewReasons,
           categoryIds: product.categories.map((category) => category.id),

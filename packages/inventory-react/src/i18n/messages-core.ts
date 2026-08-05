@@ -41,6 +41,16 @@ export type ProductsUiCoreMessages = {
     productBookingModeBasis: Record<ProductBookingMode, string>
     productCapacityModeLabels: Record<ProductCapacityMode, string>
     productVisibilityLabels: Record<ProductVisibility, string>
+    /**
+     * Operator-facing schedule term labels (Session / Occurrence / Departure).
+     * One localized label per resolved `scheduleTerm` token; the token itself is
+     * resolved once in `@voyant-travel/inventory` (`resolveScheduleTerm`).
+     */
+    scheduleTermLabels: {
+      session: { singular: string; plural: string }
+      occurrence: { singular: string; plural: string }
+      departure: { singular: string; plural: string }
+    }
   }
   comboboxes: {
     product: {
@@ -78,6 +88,19 @@ export type ProductsUiCoreMessages = {
   productsPage: {
     title: string
     description: string
+  }
+  productAuthoringNav: {
+    /** Accessible label for the authoring group navigation landmark. */
+    label: string
+    groups: {
+      overview: string
+      content: string
+      plan: string
+      options: string
+      availability: string
+      distribution: string
+      history: string
+    }
   }
   productDetailPage: {
     actions: {

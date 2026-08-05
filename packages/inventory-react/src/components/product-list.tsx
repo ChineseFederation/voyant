@@ -631,26 +631,36 @@ export function ProductList({ pageSize = 25, onSelectProduct }: ProductListProps
                     )}
                   </TableCell>
                   <TableCell>
-                    <div className="flex items-center gap-1.5">
-                      <span>
-                        {product.classification?.familyName ??
-                          product.productTypeName ??
-                          productMessages.noValue}
-                      </span>
-                      {product.classification?.reviewRequired ? (
-                        <Badge
-                          variant="outline"
-                          className="border-amber-400 text-amber-700 text-xs dark:text-amber-300"
-                          title={product.classification.reviewReasons
-                            .map((reason) =>
-                              reason === "missing_family"
-                                ? productMessages.reviewMissingFamily
-                                : productMessages.reviewMissingDuration,
-                            )
-                            .join("; ")}
-                        >
-                          {productMessages.reviewBadge}
-                        </Badge>
+                    <div className="flex flex-col gap-0.5">
+                      <div className="flex items-center gap-1.5">
+                        <span>
+                          {product.classification?.familyName ??
+                            product.productTypeName ??
+                            productMessages.noValue}
+                        </span>
+                        {product.classification?.reviewRequired ? (
+                          <Badge
+                            variant="outline"
+                            className="border-amber-400 text-amber-700 text-xs dark:text-amber-300"
+                            title={product.classification.reviewReasons
+                              .map((reason) =>
+                                reason === "missing_family"
+                                  ? productMessages.reviewMissingFamily
+                                  : productMessages.reviewMissingDuration,
+                              )
+                              .join("; ")}
+                          >
+                            {productMessages.reviewBadge}
+                          </Badge>
+                        ) : null}
+                      </div>
+                      {product.classification?.scheduleTerm ? (
+                        <span className="text-muted-foreground text-xs">
+                          {
+                            messages.common.scheduleTermLabels[product.classification.scheduleTerm]
+                              .plural
+                          }
+                        </span>
                       ) : null}
                     </div>
                   </TableCell>

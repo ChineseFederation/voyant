@@ -1189,6 +1189,9 @@
       "@voyant-travel/hono/middleware/error-boundary": [
         "../hono/dist/middleware/error-boundary.d.ts"
       ],
+      "@voyant-travel/hono/middleware/legacy-redirects": [
+        "../hono/dist/middleware/legacy-redirects.d.ts"
+      ],
       "@voyant-travel/hono/middleware/logger": ["../hono/dist/middleware/logger.d.ts"],
       "@voyant-travel/hono/middleware/rate-limit": ["../hono/dist/middleware/rate-limit.d.ts"],
       "@voyant-travel/hono/middleware/require-actor": [

@@ -51,6 +51,7 @@ export const productClassificationSchema = z.object({
   durationMinutes: z.number().int().nullable(),
   durationDays: z.number().int().nullable(),
   durationProvenance: z.enum(["explicit", "itinerary-derived", "unresolved"]),
+  scheduleTerm: z.enum(["session", "occurrence", "departure"]),
   reviewRequired: z.boolean(),
   reviewReasons: z.array(z.enum(["missing_family", "unresolved_duration"])),
 })

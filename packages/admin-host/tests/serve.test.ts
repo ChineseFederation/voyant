@@ -21,6 +21,24 @@ const ctx: ExecutionContext = {
   props: undefined,
 }
 
+/**
+ * Minimal usage store. Hand-rolled rather than imported so this test asserts the
+ * host actually records something, not that a particular store implementation
+ * works — that is covered where the store lives.
+ */
+function recordingStore() {
+  const hits: { key: string; at: string }[] = []
+  return {
+    hits,
+    store: {
+      record(key: string, at: Date) {
+        hits.push({ key, at: at.toISOString() })
+      },
+      snapshot: () => [],
+    },
+  }
+}
+
 describe("serveAdminHost", () => {
   it("serves built client assets", async () => {
     const clientAssetsDir = createAssetsDir()
@@ -92,5 +110,60 @@ describe("serveAdminHost", () => {
       expect(response.headers.get("cross-origin-opener-policy")).toBe("same-origin")
       expect(response.headers.get("content-security-policy")).not.toContain("stripe.com")
     }
+  })
+})
+
+describe("serveAdminHost compatibility redirects", () => {
+  it("redirects a superseded deep link and counts the hit before the app ever sees it", async () => {
+    const clientAssetsDir = createAssetsDir()
+    const { hits, store } = recordingStore()
+    let appCalls = 0
+    const web = serveAdminHost({
+      clientAssetsDir,
+      legacyPathUsage: store,
+      app: () => {
+        appCalls += 1
+        return new Response("SSR NOT-FOUND", { status: 404 })
+      },
+    })
+
+    const response = await web.request("/availability/slots/avsl_1?tab=manifest", {}, {}, ctx)
+
+    expect(response.status).toBe(308)
+    expect(response.headers.get("location")).toBe("/operations/availability/avsl_1?tab=manifest")
+    expect(hits).toEqual([{ key: "availability.slot", at: hits[0]?.at }])
+    // The SSR handler would have rendered a not-found page for this bookmark.
+    expect(appCalls).toBe(0)
+  })
+
+  it("leaves the canonical successor alone", async () => {
+    const clientAssetsDir = createAssetsDir()
+    const { hits, store } = recordingStore()
+    const web = serveAdminHost({
+      clientAssetsDir,
+      legacyPathUsage: store,
+      app: () => new Response("APP", { status: 200 }),
+    })
+
+    const response = await web.request("/operations/availability/avsl_1", {}, {}, ctx)
+
+    expect(response.status).toBe(200)
+    expect(await response.text()).toBe("APP")
+    expect(hits).toEqual([])
+  })
+
+  it("does not intercept the API surface", async () => {
+    const clientAssetsDir = createAssetsDir()
+    const { hits, store } = recordingStore()
+    const web = serveAdminHost({
+      clientAssetsDir,
+      legacyPathUsage: store,
+      app: () => Response.json({ ok: true }),
+    })
+
+    const response = await web.request("/api/v1/admin/products/prod_9", {}, {}, ctx)
+
+    expect(response.status).toBe(200)
+    expect(hits).toEqual([])
   })
 })

@@ -144,6 +144,61 @@ export function resolveProductDuration(input: ResolveDurationInput): ResolvedDur
 /** Reasons a product needs classification review. */
 export type ClassificationReviewReason = "missing_family" | "unresolved_duration"
 
+/**
+ * The operator-facing schedule term a Product's occurrences are named by.
+ * Purely a *presentation* token: one implementation resolves it here, and the
+ * operator UI maps the token to a localized label (Session / Occurrence /
+ * Departure). It never forks the domain — a departure, a session and an
+ * occurrence are the same `availability_slots` row underneath.
+ *
+ *   - `session`    — a timed, sub-day occurrence that repeats through the day
+ *                    (the 60-minute whale-watch Boat Tour, a timed Activity, a
+ *                    scheduled transfer).
+ *   - `departure`  — a day-spanning occurrence (a Day Tour, a Multi-day Tour).
+ *   - `occurrence` — a single dated happening or open admission with no
+ *                    authored duration (an Event date, an opening-hours
+ *                    Attraction Admission).
+ */
+export type ScheduleTerm = "session" | "occurrence" | "departure"
+
+export const SCHEDULE_TERMS: readonly ScheduleTerm[] = ["session", "occurrence", "departure"]
+
+export interface ResolveScheduleTermInput {
+  durationMinutes: number | null
+  durationDays: number | null
+  durationProvenance: DurationProvenance
+}
+
+/**
+ * Resolve the operator-facing schedule term from a Product's *resolved
+ * duration* — the single, locale-independent decision. The operator UI turns
+ * the returned token into a Session / Occurrence / Departure label per locale;
+ * this function is the one place the choice is made.
+ *
+ * Keyed on duration shape, which is genuine Product behaviour and already
+ * resolved by `resolveProductDuration`, so it needs no availability read and
+ * never reads mutable Product truth:
+ *
+ *   - an explicit sub-day duration is a timed, repeatable **session**;
+ *   - an explicit full-day-or-longer duration, or an itinerary-derived day
+ *     span, is a **departure**;
+ *   - an unresolved duration (a single date / open admission) is an
+ *     **occurrence**.
+ *
+ * Family never overrides the term: a Tour that runs sixty-minute sessions is
+ * still shown as running Sessions, and a Tour that spans days runs Departures —
+ * exactly as the duration says.
+ */
+export function resolveScheduleTerm(input: ResolveScheduleTermInput): ScheduleTerm {
+  if (input.durationProvenance === "explicit" && input.durationMinutes != null) {
+    return input.durationMinutes < MINUTES_PER_DAY ? "session" : "departure"
+  }
+  if (input.durationProvenance === "itinerary-derived") {
+    return "departure"
+  }
+  return "occurrence"
+}
+
 export interface ResolvedProductClassification {
   /** Stable family code (e.g. `tour`), or null when unclassified/dangling. */
   familyCode: string | null
@@ -154,6 +209,11 @@ export interface ResolvedProductClassification {
   durationMinutes: number | null
   durationDays: number | null
   durationProvenance: DurationProvenance
+  /**
+   * Operator-facing schedule term token (Session / Occurrence / Departure).
+   * Derived from the resolved duration; the UI localizes it. One implementation.
+   */
+  scheduleTerm: ScheduleTerm
   /** True when the product should surface an actionable review warning. */
   reviewRequired: boolean
   reviewReasons: ClassificationReviewReason[]
@@ -192,6 +252,11 @@ export function resolveProductClassification(
     durationMinutes: duration.minutes,
     durationDays: duration.days,
     durationProvenance: duration.provenance,
+    scheduleTerm: resolveScheduleTerm({
+      durationMinutes: duration.minutes,
+      durationDays: duration.days,
+      durationProvenance: duration.provenance,
+    }),
     reviewRequired: reviewReasons.length > 0,
     reviewReasons,
   }

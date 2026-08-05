@@ -2,6 +2,7 @@ import { OpenAPIHono } from "@hono/zod-openapi"
 import { openApiValidationHook } from "@voyant-travel/hono"
 import { Hono } from "hono"
 
+import { acceptanceAdminRoutes } from "./acceptance-routes.js"
 import { availabilityAdminRoutes, availabilityRoutes } from "./availability/routes.js"
 import {
   type BookingActionRoutesOptions,
@@ -31,6 +32,7 @@ operationsAdminRoutes.route("/availability", availabilityAdminRoutes)
 operationsAdminRoutes.route("/", resourcesRoutes)
 operationsAdminRoutes.route("/", groundRoutes)
 operationsAdminRoutes.route("/", facilitiesRoutes)
+operationsAdminRoutes.route("/", acceptanceAdminRoutes)
 
 export function createOperationsAdminRoutes(options?: BookingActionRoutesOptions) {
   const routes = new OpenAPIHono({ defaultHook: openApiValidationHook })
@@ -38,6 +40,7 @@ export function createOperationsAdminRoutes(options?: BookingActionRoutesOptions
     .route("/", resourcesRoutes)
     .route("/", groundRoutes)
     .route("/", facilitiesRoutes)
+    .route("/", acceptanceAdminRoutes)
   return options ? routes.route("/", createBookingActionAdminRoutes(options)) : routes
 }
 

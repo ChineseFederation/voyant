@@ -4,7 +4,7 @@ import {
   publicCatalogProductDetailSchema,
   publicCatalogProductSummarySchema,
 } from "./validation-public.js"
-import { languageTagSchema } from "./validation-shared.js"
+import { languageTagSchema, scheduleTermSchema } from "./validation-shared.js"
 
 export const localizedCatalogProductSummarySchema = publicCatalogProductSummarySchema
 export const localizedCatalogProductDetailSchema = publicCatalogProductDetailSchema
@@ -37,6 +37,9 @@ export const catalogSearchDocumentSchema = z.object({
   durationMinutes: z.number().int().nullable(),
   durationDays: z.number().int().nullable(),
   durationProvenance: z.enum(["explicit", "itinerary-derived", "unresolved"]),
+  // Operator-facing schedule term (Session / Occurrence / Departure), derived
+  // from the resolved duration. Denormalized so catalog views can facet on it.
+  scheduleTerm: scheduleTermSchema,
   // Actionable review state for unresolved legacy classification/duration.
   reviewRequired: z.boolean(),
   reviewReasons: z.array(z.enum(["missing_family", "unresolved_duration"])),

@@ -67,6 +67,11 @@ export const productsUiCoreRo = {
       private: "Privat",
       hidden: "Ascuns",
     },
+    scheduleTermLabels: {
+      session: { singular: "Sesiune", plural: "Sesiuni" },
+      occurrence: { singular: "Apariție", plural: "Apariții" },
+      departure: { singular: "Plecare", plural: "Plecări" },
+    },
   },
   comboboxes: {
     product: {
@@ -104,6 +109,18 @@ export const productsUiCoreRo = {
   productsPage: {
     title: "Produse",
     description: "Administreaza produsele pe care le vinzi.",
+  },
+  productAuthoringNav: {
+    label: "Secțiuni de configurare a produsului",
+    groups: {
+      overview: "Prezentare și pregătire",
+      content: "Conținut",
+      plan: "Plan",
+      options: "Opțiuni și prețuri",
+      availability: "Disponibilitate",
+      distribution: "Distribuție",
+      history: "Istoric",
+    },
   },
   productDetailPage: {
     actions: {

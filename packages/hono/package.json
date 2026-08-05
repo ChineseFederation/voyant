@@ -24,6 +24,7 @@
     "./middleware/require-actor": "./src/middleware/require-actor.ts",
     "./middleware/require-permission": "./src/middleware/require-permission.ts",
     "./middleware/security-headers": "./src/middleware/security-headers.ts",
+    "./middleware/legacy-redirects": "./src/middleware/legacy-redirects.ts",
     "./middleware/logger": "./src/middleware/logger.ts",
     "./auth": "./src/auth/index.ts",
     "./auth/session-jwt": "./src/auth/session-jwt.ts",
@@ -172,6 +173,11 @@
         "types": "./dist/middleware/security-headers.d.ts",
         "import": "./dist/middleware/security-headers.js",
         "default": "./dist/middleware/security-headers.js"
+      },
+      "./middleware/legacy-redirects": {
+        "types": "./dist/middleware/legacy-redirects.d.ts",
+        "import": "./dist/middleware/legacy-redirects.js",
+        "default": "./dist/middleware/legacy-redirects.js"
       },
       "./middleware/logger": {
         "types": "./dist/middleware/logger.d.ts",

@@ -11,6 +11,8 @@ import {
   useProductLocale,
 } from "./host.js"
 import { ProductActivitySection } from "./product-activity-section.js"
+import { authoringGroupAnchorId } from "./product-authoring-nav.js"
+import { ProductAuthoringNav } from "./product-authoring-nav-view.js"
 import { DepartureDialog } from "./product-departure-dialog.js"
 import { DeparturePricingOverrideDialog } from "./product-departure-pricing-override-dialog.js"
 import { ProductDialog } from "./product-detail-dialog.js"
@@ -116,126 +118,165 @@ export function ProductDetailPage({ id }: { id: string }) {
         }}
       />
 
+      {/* Authoring is organized around seven ordered, deep-linkable groups:
+          Overview & readiness, Content, Plan, Options & pricing, Availability,
+          Distribution, History. `ProductAuthoringNav` renders the contextual
+          deep links; each group below anchors to its stable id. */}
+      <ProductAuthoringNav productId={id} />
+
       {/* Content — two-column layout */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
         {/* ── Left column (main) ── */}
         <div className="flex min-w-0 flex-col gap-6">
-          <ProductDetailsSection product={product} onEdit={dialogs.edit.openNow} />
+          <section
+            id={authoringGroupAnchorId("overview")}
+            className="flex scroll-mt-16 flex-col gap-6"
+          >
+            <ProductDetailsSection product={product} onEdit={dialogs.edit.openNow} />
+          </section>
 
-          <ProductSeoSharingSection
-            product={product}
-            media={galleryMedia}
-            isUploading={mutations.uploadMedia.isPending}
-            isSavingImage={mutations.setOpenGraph.isPending}
-            onUpload={async (file) => {
-              const result = await mutations.uploadMedia.mutateAsync({ file })
-              return result.data
-            }}
-            onSetOpenGraph={(mediaId) => mutations.setOpenGraph.mutateAsync(mediaId)}
-          />
-
-          <ProductMediaSection
-            productId={id}
-            media={galleryMedia}
-            isUploading={mutations.uploadMedia.isPending}
-            onUpload={(file) => mutations.uploadMedia.mutate({ file })}
-            onSelectFromLibrary={(assets) => mutations.addMediaFromLibrary.mutate({ assets })}
-            onSetCover={(mediaId) => mutations.setCover.mutate(mediaId)}
-            onDelete={async (mediaId) => {
-              if (
-                await confirmDialog({
-                  description: productMessages.deleteMediaConfirm,
-                  destructive: true,
-                })
-              ) {
-                mutations.deleteMedia.mutate(mediaId)
-              }
-            }}
-          />
-
-          <ProductDeparturesSection
-            slots={slots}
-            itineraryNameById={itineraryNameById}
-            slotIdsWithOverrides={slotIdsWithOverrides}
-            onCreate={dialogs.departure.openNew}
-            onEdit={dialogs.departure.openEdit}
-            onOverridePrice={dialogs.departureOverride.openEdit}
-            onManageAvailability={(slot) => navigate.toAvailability(slot.id)}
-            onDelete={async (slotId) => {
-              if (
-                await confirmDialog({
-                  description: productMessages.deleteDepartureConfirm,
-                  destructive: true,
-                })
-              ) {
-                mutations.deleteSlot.mutate(slotId)
-              }
-            }}
-          />
-
-          <ProductSchedulesSection
-            rules={rules}
-            onCreate={dialogs.schedule.openNew}
-            onEdit={dialogs.schedule.openEdit}
-            onDelete={async (ruleId) => {
-              if (
-                await confirmDialog({
-                  description: productMessages.deleteScheduleConfirm,
-                  destructive: true,
-                })
-              ) {
-                mutations.deleteRule.mutate(ruleId)
-              }
-            }}
-          />
-
-          <ProductDetailItinerarySection productId={id} />
-
-          <ProductEditorialOverlaySection productId={id} />
-
-          <ProductsUiMessagesProvider locale={resolvedLocale}>
-            <ProductOptionsSection
-              productId={id}
-              renderOptionDetails={(option) => (
-                <PricingPanel
-                  productId={id}
-                  optionId={option.id}
-                  optionName={option.name}
-                  productCurrency={product.sellCurrency}
-                  layout={deriveOptionPricingLayout(product.bookingMode)}
-                  extras={renderOptionExtras?.(id, option.id)}
-                />
-              )}
+          <section
+            id={authoringGroupAnchorId("content")}
+            className="flex scroll-mt-16 flex-col gap-6"
+          >
+            <ProductSeoSharingSection
+              product={product}
+              media={galleryMedia}
+              isUploading={mutations.uploadMedia.isPending}
+              isSavingImage={mutations.setOpenGraph.isPending}
+              onUpload={async (file) => {
+                const result = await mutations.uploadMedia.mutateAsync({ file })
+                return result.data
+              }}
+              onSetOpenGraph={(mediaId) => mutations.setOpenGraph.mutateAsync(mediaId)}
             />
-          </ProductsUiMessagesProvider>
 
-          <ProductPaymentPolicySection product={product} onSuccess={invalidateProduct} />
-          <ProductMarketRulesSection productId={id} />
+            <ProductMediaSection
+              productId={id}
+              media={galleryMedia}
+              isUploading={mutations.uploadMedia.isPending}
+              onUpload={(file) => mutations.uploadMedia.mutate({ file })}
+              onSelectFromLibrary={(assets) => mutations.addMediaFromLibrary.mutate({ assets })}
+              onSetCover={(mediaId) => mutations.setCover.mutate(mediaId)}
+              onDelete={async (mediaId) => {
+                if (
+                  await confirmDialog({
+                    description: productMessages.deleteMediaConfirm,
+                    destructive: true,
+                  })
+                ) {
+                  mutations.deleteMedia.mutate(mediaId)
+                }
+              }}
+            />
+
+            <ProductEditorialOverlaySection productId={id} />
+          </section>
+
+          <section id={authoringGroupAnchorId("plan")} className="flex scroll-mt-16 flex-col gap-6">
+            <ProductDetailItinerarySection productId={id} />
+          </section>
+
+          <section
+            id={authoringGroupAnchorId("options")}
+            className="flex scroll-mt-16 flex-col gap-6"
+          >
+            <ProductsUiMessagesProvider locale={resolvedLocale}>
+              <ProductOptionsSection
+                productId={id}
+                renderOptionDetails={(option) => (
+                  <PricingPanel
+                    productId={id}
+                    optionId={option.id}
+                    optionName={option.name}
+                    productCurrency={product.sellCurrency}
+                    layout={deriveOptionPricingLayout(product.bookingMode)}
+                    extras={renderOptionExtras?.(id, option.id)}
+                  />
+                )}
+              />
+            </ProductsUiMessagesProvider>
+
+            <ProductPaymentPolicySection product={product} onSuccess={invalidateProduct} />
+            <ProductMarketRulesSection productId={id} />
+          </section>
+
+          <section
+            id={authoringGroupAnchorId("availability")}
+            className="flex scroll-mt-16 flex-col gap-6"
+          >
+            <ProductDeparturesSection
+              slots={slots}
+              itineraryNameById={itineraryNameById}
+              slotIdsWithOverrides={slotIdsWithOverrides}
+              onCreate={dialogs.departure.openNew}
+              onEdit={dialogs.departure.openEdit}
+              onOverridePrice={dialogs.departureOverride.openEdit}
+              onManageAvailability={(slot) => navigate.toAvailability(slot.id)}
+              onDelete={async (slotId) => {
+                if (
+                  await confirmDialog({
+                    description: productMessages.deleteDepartureConfirm,
+                    destructive: true,
+                  })
+                ) {
+                  mutations.deleteSlot.mutate(slotId)
+                }
+              }}
+            />
+
+            <ProductSchedulesSection
+              rules={rules}
+              onCreate={dialogs.schedule.openNew}
+              onEdit={dialogs.schedule.openEdit}
+              onDelete={async (ruleId) => {
+                if (
+                  await confirmDialog({
+                    description: productMessages.deleteScheduleConfirm,
+                    destructive: true,
+                  })
+                ) {
+                  mutations.deleteRule.mutate(ruleId)
+                }
+              }}
+            />
+          </section>
         </div>
 
         {/* ── Right column (sidebar) ── */}
         <div className="flex flex-col gap-6">
-          <ProductChannelsSection
-            allChannels={channels}
-            mappings={mappings}
-            onAddChannel={(channelId) => mutations.addChannelMapping.mutate(channelId)}
-            onRemoveChannel={(mappingId) => mutations.removeChannelMapping.mutate(mappingId)}
-          />
+          <section
+            id={authoringGroupAnchorId("distribution")}
+            className="flex scroll-mt-16 flex-col gap-6"
+          >
+            <ProductChannelsSection
+              allChannels={channels}
+              mappings={mappings}
+              onAddChannel={(channelId) => mutations.addChannelMapping.mutate(channelId)}
+              onRemoveChannel={(mappingId) => mutations.removeChannelMapping.mutate(mappingId)}
+            />
 
-          <ProductOrganizeSection product={product} onEdit={dialogs.edit.openNow} />
+            <ProductOrganizeSection product={product} onEdit={dialogs.edit.openNow} />
 
-          <ProductBrochureSection
-            brochure={brochure}
-            isGenerating={mutations.generateBrochure.isPending}
-            generateError={
-              mutations.generateBrochure.error
-                ? mutations.generateBrochure.error.message || productMessages.brochureGenerateFailed
-                : null
-            }
-            onGenerate={() => mutations.generateBrochure.mutate()}
-          />
+            <ProductBrochureSection
+              brochure={brochure}
+              isGenerating={mutations.generateBrochure.isPending}
+              generateError={
+                mutations.generateBrochure.error
+                  ? mutations.generateBrochure.error.message ||
+                    productMessages.brochureGenerateFailed
+                  : null
+              }
+              onGenerate={() => mutations.generateBrochure.mutate()}
+            />
+          </section>
 
-          <ProductActivitySection productId={id} />
+          <section
+            id={authoringGroupAnchorId("history")}
+            className="flex scroll-mt-16 flex-col gap-6"
+          >
+            <ProductActivitySection productId={id} />
+          </section>
         </div>
       </div>
 

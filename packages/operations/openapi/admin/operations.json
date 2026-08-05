@@ -45095,6 +45095,133 @@
         "x-voyant-module": "operations",
         "x-voyant-surface": "admin"
       }
+    },
+    "/v1/admin/operations/acceptance/aggregates": {
+      "get": {
+        "description": "Acceptance dashboard metrics for the unified Product/Departure rollout: readiness failures, reconciliation drift, unassigned travelers, missing costs, compatibility redirect (legacy-path) usage, and rollup disagreement. Every field is a count or a route-keyed usage row — no traveler identity is read or emitted. Served uncached: legacy-path usage gates a deletion review and must not answer from a snapshot.",
+        "responses": {
+          "200": {
+            "description": "Acceptance dashboard metrics",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "readinessFailures": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "reconciliationDrift": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "unassignedTravelers": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "missingCosts": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "rollupDisagreement": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "legacyPathUsage": {
+                          "type": "object",
+                          "properties": {
+                            "totalHits": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "allZero": {
+                              "type": "boolean"
+                            },
+                            "byKey": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "key": {
+                                    "type": "string"
+                                  },
+                                  "family": {
+                                    "type": "string",
+                                    "enum": [
+                                      "extras",
+                                      "catalog",
+                                      "product",
+                                      "availability"
+                                    ]
+                                  },
+                                  "hits": {
+                                    "type": "integer",
+                                    "minimum": 0
+                                  },
+                                  "lastSeenAt": {
+                                    "type": [
+                                      "string",
+                                      "null"
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "key",
+                                  "family",
+                                  "hits",
+                                  "lastSeenAt"
+                                ]
+                              }
+                            }
+                          },
+                          "required": [
+                            "totalHits",
+                            "allZero",
+                            "byKey"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "readinessFailures",
+                        "reconciliationDrift",
+                        "unassignedTravelers",
+                        "missingCosts",
+                        "rollupDisagreement",
+                        "legacyPathUsage"
+                      ]
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "financeProviderBound": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "financeProviderBound"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "getAdminOperationsAcceptanceAggregates",
+        "summary": "GET /v1/admin/operations/acceptance/aggregates",
+        "tags": [
+          "operations"
+        ],
+        "x-voyant-module": "operations",
+        "x-voyant-surface": "admin"
+      }
     }
   },
   "webhooks": {}

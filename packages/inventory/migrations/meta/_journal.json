@@ -78,6 +78,13 @@
       "when": 1785858423775,
       "tag": "0010_inventory_baseline",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1785931200000,
+      "tag": "20260804120000_conservative_family_backfill",
+      "breakpoints": true
     }
   ]
 }

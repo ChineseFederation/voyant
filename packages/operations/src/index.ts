@@ -57,6 +57,19 @@ export const createOperationsVoyantRuntime = defineGraphRuntimeFactory(
 
 // Only the request side is package API. Binding the channel is deployment
 // wiring and stays with the runtime contributor.
+export type {
+  AcceptanceMetrics,
+  AcceptanceMetricsProviders,
+} from "./acceptance-metrics.js"
+export {
+  acceptanceMetricsSchema,
+  computeAcceptanceMetrics,
+  legacyPathUsageRowSchema,
+} from "./acceptance-metrics.js"
+export type { AcceptanceMetricsProviderOptions } from "./acceptance-metrics-providers.js"
+export { createAcceptanceMetricsProviders } from "./acceptance-metrics-providers.js"
+export type { AcceptanceAdminRoutes } from "./acceptance-routes.js"
+export { acceptanceAdminRoutes } from "./acceptance-routes.js"
 export {
   OPERATIONS_EXPIRED_HOLDS_JOB_ID,
   requestAvailabilityHoldExpiryWake,

@@ -362,6 +362,8 @@ jobs:
                 tests/integration/promotion-created-command.test.ts
               pnpm --filter @voyant-travel/cruises exec vitest run \
                 tests/integration/created-target-tools.test.ts
+              pnpm --filter @voyant-travel/inventory exec vitest run \
+                tests/integration/conservative-family-backfill.test.ts
               pnpm --filter @voyant-travel/finance exec vitest run \
                 tests/integration/booking-create.test.ts
               pnpm --filter @voyant-travel/finance exec vitest run \
@@ -384,6 +386,8 @@ jobs:
                 tests/availability/integration/departure-service-operations.test.ts
               pnpm --filter @voyant-travel/operations exec vitest run \
                 tests/availability/integration/departure-summary.test.ts
+              pnpm --filter @voyant-travel/operations exec vitest run \
+                tests/availability/integration/experience-families-tracer.test.ts
               pnpm --filter @voyant-travel/operations exec vitest run \
                 tests/availability/integration/allocation-audit-atomicity.test.ts
               pnpm --filter @voyant-travel/operations exec vitest run \

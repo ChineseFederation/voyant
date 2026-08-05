@@ -1,4 +1,8 @@
 import { serveStatic } from "@hono/node-server/serve-static"
+import {
+  type LegacyRedirectsOptions,
+  legacyRedirects,
+} from "@voyant-travel/hono/middleware/legacy-redirects"
 import { securityHeaders } from "@voyant-travel/hono/middleware/security-headers"
 import type { ExecutionContext } from "hono"
 import { Hono } from "hono"
@@ -21,6 +25,14 @@ export interface ServeAdminHostOptions<Env extends object> {
    * bindings, and the execution context.
    */
   app: (request: Request, env: Env, ctx: ExecutionContext) => Response | Promise<Response>
+  /**
+   * Where compatibility-redirect hits are counted. Defaults to the process-wide
+   * binding in `@voyant-travel/core`, which is the store the acceptance
+   * dashboard reads back — so the counter is wired by construction and a host
+   * cannot accidentally serve redirects nobody is counting. Pass one only in a
+   * test, or when the host owns a durable store it has not bound globally.
+   */
+  legacyPathUsage?: LegacyRedirectsOptions["store"]
 }
 
 /**
@@ -35,6 +47,10 @@ export interface ServeAdminHostOptions<Env extends object> {
  * This packages the static-host + fall-through that admin hosts (the operator
  * starter and hosted admin deployments, voyant#3044) previously held
  * inline as a `web` Hono app.
+ *
+ * It also carries the compatibility redirects for the deep links the unified
+ * Product/Departure model superseded (voyant#4038) — see the mount below for
+ * why they belong here and nowhere else.
  */
 export function serveAdminHost<Env extends object = Record<string, unknown>>(
   options: ServeAdminHostOptions<Env>,
@@ -52,6 +68,15 @@ export function serveAdminHost<Env extends object = Record<string, unknown>>(
       stripeConnect: { pathPrefixes: ["/"], documentResponsesOnly: true },
     }),
   )
+  // Compatibility redirects for the deep-link families the unified
+  // Product/Departure model superseded (voyant#4038). This is the only seam
+  // that sees them: they are origin-root UI paths, so they never reach the
+  // composed API app, and the SSR fall-through below would answer a superseded
+  // bookmark with a not-found page. Mounted ahead of static serving and of the
+  // API/SSR fall-through, and unconditionally — a redirect layer that a host
+  // has to opt into is a redirect layer that eventually nobody opts into, and
+  // an uncounted hit is indistinguishable from no hit at all.
+  web.use("*", legacyRedirects({ store: options.legacyPathUsage }))
   web.use("*", serveStatic({ root: options.clientAssetsDir }))
   web.all("*", (c) => options.app(c.req.raw, c.env, c.executionCtx))
   return web

@@ -18,6 +18,7 @@ export {
   idempotencyKey,
   purgeExpiredIdempotencyKeys,
 } from "./idempotency-key.js"
+export { type LegacyRedirectsOptions, legacyRedirects } from "./legacy-redirects.js"
 export { consoleLoggerProvider, logger } from "./logger.js"
 export {
   type PublicCacheOptions,

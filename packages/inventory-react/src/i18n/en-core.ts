@@ -68,6 +68,11 @@ export const productsUiCoreEn = {
       private: "Private",
       hidden: "Hidden",
     },
+    scheduleTermLabels: {
+      session: { singular: "Session", plural: "Sessions" },
+      occurrence: { singular: "Occurrence", plural: "Occurrences" },
+      departure: { singular: "Departure", plural: "Departures" },
+    },
   },
   comboboxes: {
     product: {
@@ -105,6 +110,18 @@ export const productsUiCoreEn = {
   productsPage: {
     title: "Products",
     description: "Manage the products you sell.",
+  },
+  productAuthoringNav: {
+    label: "Product authoring sections",
+    groups: {
+      overview: "Overview & readiness",
+      content: "Content",
+      plan: "Plan",
+      options: "Options & pricing",
+      availability: "Availability",
+      distribution: "Distribution",
+      history: "History",
+    },
   },
   productDetailPage: {
     actions: {

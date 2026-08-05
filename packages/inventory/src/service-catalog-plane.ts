@@ -645,6 +645,7 @@ async function projectProductClassification(
     ["durationMinutes", classification.durationMinutes],
     ["durationDays", classification.durationDays],
     ["durationProvenance", classification.durationProvenance],
+    ["scheduleTerm", classification.scheduleTerm],
     ["classificationReviewRequired", classification.reviewRequired],
     ["classificationReviewReasons", classification.reviewReasons],
   ])

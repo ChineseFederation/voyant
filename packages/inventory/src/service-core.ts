@@ -4,6 +4,7 @@ import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import type { z } from "zod"
 import { nextDepartureAt, upcomingDepartureExists } from "./availability-slot-access.js"
 import { resolveProductClassification } from "./classification.js"
+import { classificationReviewPredicate } from "./classification-review-query.js"
 import type { ProductReadinessIssue } from "./readiness.js"
 import {
   productCategoryProducts,
@@ -203,6 +204,13 @@ export const coreProductsService = {
 
     if (query.productSubtypeCode) {
       conditions.push(eq(products.productSubtypeCode, query.productSubtypeCode))
+    }
+
+    if (query.classificationReview) {
+      // Operator review queue: surface rows with an unresolved family and/or
+      // duration using the SAME semantics `resolveProductClassification` derives
+      // the review badge from, so the queue and the badge never disagree.
+      conditions.push(classificationReviewPredicate(query.classificationReview))
     }
 
     if (query.contractTemplateId) {

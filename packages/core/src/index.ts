@@ -53,6 +53,21 @@ export type {
 export { createEventBus, generateEventId } from "./events.js"
 export { hooks } from "./hooks.js"
 export type {
+  LegacyPathUsageRow,
+  LegacyPathUsageStore,
+  LegacyRedirect,
+  LegacyRouteFamily,
+} from "./legacy-compat.js"
+export {
+  getLegacyPathUsageStore,
+  InMemoryLegacyPathUsageStore,
+  LEGACY_REDIRECT_KEYS,
+  resetLegacyPathUsageStore,
+  resolveAndCountLegacyRedirect,
+  resolveLegacyRedirect,
+  setLegacyPathUsageStore,
+} from "./legacy-compat.js"
+export type {
   LinkableDefinition,
   LinkCardinality,
   LinkDefinition,

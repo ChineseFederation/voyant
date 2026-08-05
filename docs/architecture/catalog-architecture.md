@@ -270,6 +270,26 @@ elsewhere in this document, e.g. §3.3, §8.2) is contextual vocabulary, not a
 `<= 1-day` family — a product casually called an "excursion" still carries
 whichever family and subtype actually apply, most often Tour.
 
+The same shared resolver also derives an operator-facing **schedule term**
+(`scheduleTerm`: `session` \| `occurrence` \| `departure`) from the resolved
+duration alone, so the choice is made once and every surface agrees:
+
+- an explicit sub-day duration is a **Session** (the sixty-minute whale-watch
+  Boat Tour, a timed Activity, a scheduled transfer);
+- an explicit full-day-or-longer duration, or an itinerary-derived day span, is
+  a **Departure** (a Day Tour, a Multi-day Tour);
+- an unresolved duration — a single Event date or an opening-hours Attraction
+  Admission — is an **Occurrence**.
+
+`scheduleTerm` is a **presentation** token, not a domain fork: a Session, an
+Occurrence and a Departure are the same immutable `availability_slots` row bound
+to the same Product Version, operated through the same Departure workspace. The
+operator UI (`@voyant-travel/inventory-react`) maps the token to a localized
+label (`common.scheduleTermLabels`, en + ro) so the same product reads as
+"Sessions" or "Departures" per its behaviour and the operator's locale, while
+one implementation underneath (`resolveScheduleTerm` in
+`@voyant-travel/inventory`) never reads mutable Product truth to decide it.
+
 ## 4. The field-policy contract
 
 The field-policy registry is the load-bearing schema decision of this architecture. Every field on every CatalogEntry, in every vertical, is declared with a row in a per-vertical policy file. The contract has 12 attributes (one path identifier plus 11 governance attributes).
