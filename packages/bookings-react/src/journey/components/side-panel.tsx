@@ -398,7 +398,9 @@ function BillingDetails({
   const messages = useBookingsUiMessagesOrDefault()
   const c = draft.billing.contact
   const a = draft.billing.address
-  const addressLine = [a.line1, a.line2, a.city, a.postal, a.country].filter(Boolean).join(", ")
+  const addressLine = [a.line1, a.line2, a.city, a.region, a.postal, a.country]
+    .filter(Boolean)
+    .join(", ")
   const contactName =
     (draft.billing.buyerType === "B2B" ? draft.billing.company?.name : undefined) ||
     [c.firstName, c.lastName].filter(Boolean).join(" ")

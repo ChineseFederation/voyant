@@ -159,13 +159,36 @@ export const bookingSelectionPublicV1 = z.object({
         /** CRM person id when the lead was picked from CRM (vs typed). */
         personId: z.string().optional(),
       }),
+      /**
+       * Billing address.
+       *
+       * Field widths match the `contact_*` columns these land in via
+       * booking-create, so an address this schema admits cannot be rejected
+       * later by the commit — the failure belongs at the Session edge, where
+       * the caller can still see which field was too long.
+       */
       address: z
         .object({
-          line1: z.string().optional(),
-          line2: z.string().optional(),
-          city: z.string().optional(),
-          postal: z.string().optional(),
-          country: z.string().optional(),
+          line1: z.string().max(500).optional(),
+          line2: z.string().max(500).optional(),
+          city: z.string().max(100).optional(),
+          /**
+           * Administrative subdivision below the country — state, province,
+           * county, `judet`. Free-form because the Booking column it lands in
+           * is, and it already holds both codes and names; **ISO 3166-2
+           * subdivision codes (`RO-CJ`, `US-CA`) are the recommended
+           * encoding** because they are the only country-agnostic one.
+           *
+           * Romania needs it twice over: an invoice carries the `judet`, and
+           * Bucharest has no ordinary city/county pair — it is six Sectors
+           * acting as the county-level subdivision. Model that as the Sector
+           * in `city` and `RO-B` in `region`, not by overloading an address
+           * line (voyant#4290).
+           */
+          region: z.string().max(100).optional(),
+          postal: z.string().max(20).optional(),
+          /** ISO 3166-1 alpha-2 country code. */
+          country: z.string().max(2).optional(),
         })
         .default({}),
       company: z

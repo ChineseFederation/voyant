@@ -305,6 +305,12 @@ async function quoteThenDerive(
       contactLastName: "Traveler",
       contactEmail: "guest@example.com",
       contactPhone: null,
+      contactCountry: "RO",
+      contactRegion: "RO-B",
+      contactCity: "Sector 3",
+      contactAddressLine1: null,
+      contactAddressLine2: null,
+      contactPostalCode: null,
     },
   })
   if (result.status !== "ok") throw new Error(`expected ok, got ${result.status}`)

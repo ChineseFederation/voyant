@@ -38,6 +38,7 @@ type BillingControl =
   | "line1"
   | "line2"
   | "city"
+  | "region"
   | "postal"
   | "country"
   | "companyName"
@@ -52,6 +53,7 @@ const BILLING_GROUP_CONTROLS: Record<string, BillingControl> = {
   "address.line1": "line1",
   "address.line2": "line2",
   "address.city": "city",
+  "address.region": "region",
   "address.postal": "postal",
   "address.country": "country",
 }
@@ -292,6 +294,19 @@ export function BillingStep({
                   setDraft(
                     patchBilling(draft, {
                       address: { ...billing.address, city: v },
+                    }),
+                  )
+                }
+              />
+              <Field
+                id="bj-billing-region"
+                label={messages.bookingJourney.billing.region}
+                value={billing.address.region ?? ""}
+                error={bookingField("region")}
+                onChange={(v) =>
+                  setDraft(
+                    patchBilling(draft, {
+                      address: { ...billing.address, region: v },
                     }),
                   )
                 }

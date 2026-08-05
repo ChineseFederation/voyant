@@ -408,6 +408,9 @@ export function resolveContractVariables(
         line1: address.line1 ?? "",
         line2: address.line2 ?? "",
         city: address.city ?? "",
+        // A Romanian contract prints the judet; without it the template has
+        // to reconstruct one from the address lines (voyant#4290).
+        region: address.region ?? "",
         postal: address.postal ?? "",
         country: address.country ?? "",
       },

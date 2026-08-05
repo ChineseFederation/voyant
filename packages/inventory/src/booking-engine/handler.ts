@@ -77,7 +77,15 @@ export interface DraftLike {
   billing?: {
     buyerType?: "B2C" | "B2B"
     contact?: { firstName?: string; lastName?: string; email?: string; phone?: string }
-    address?: { country?: string }
+    address?: {
+      line1?: string
+      line2?: string
+      city?: string
+      /** Administrative subdivision, preferably ISO 3166-2 (voyant#4290). */
+      region?: string
+      postal?: string
+      country?: string
+    }
   }
   travelers?: Array<{
     rowId?: string
@@ -879,6 +887,12 @@ export function createProductsBookingHandler(
           contactLastName: request.billing.contactLastName,
           contactEmail: request.billing.contactEmail,
           contactPhone: request.billing.contactPhone,
+          contactCountry: request.billing.contactCountry,
+          contactRegion: request.billing.contactRegion,
+          contactCity: request.billing.contactCity,
+          contactAddressLine1: request.billing.contactAddressLine1,
+          contactAddressLine2: request.billing.contactAddressLine2,
+          contactPostalCode: request.billing.contactPostalCode,
           travelers,
           ...(itemLines ? { itemLines } : {}),
           ...(extraLines && extraLines.length > 0 ? { extraLines } : {}),

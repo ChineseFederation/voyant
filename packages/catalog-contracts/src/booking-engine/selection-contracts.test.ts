@@ -8,6 +8,9 @@ const ENTITY = {
   sourceKind: "owned",
 }
 
+/** `billing.contact` is required, so an address-only case still has to carry one. */
+const CONTACT = { firstName: "Test", lastName: "Traveler", email: "test@example.com" }
+
 describe("booking selection contracts", () => {
   it("rejects malformed billing contact emails", () => {
     const parsed = bookingSelectionV1.safeParse({
@@ -19,6 +22,44 @@ describe("booking selection contracts", () => {
           email: "not-an-email",
         },
       },
+    })
+
+    expect(parsed.success).toBe(false)
+  })
+
+  it("carries an administrative subdivision on the billing address", () => {
+    // Romania is the case that forced this (voyant#4290): the invoice needs
+    // the judet, and Bucharest has no ordinary city/county pair — its six
+    // Sectors ARE the county-level subdivision. Sector in `city`, county in
+    // `region`, neither overloaded into an address line.
+    const parsed = bookingSelectionV1.safeParse({
+      entity: ENTITY,
+      billing: { contact: CONTACT, address: { city: "Sector 3", region: "RO-B", country: "RO" } },
+    })
+
+    expect(parsed.success).toBe(true)
+    expect(parsed.data?.billing.address.region).toBe("RO-B")
+  })
+
+  it("leaves the region free-form so a county name is as valid as an ISO code", () => {
+    // The Booking column this lands in is free text and already holds both
+    // "Cluj" and "Ile-de-France". Enforcing ISO 3166-2 here would reject data
+    // the destination accepts; the code is the recommendation, not the gate.
+    for (const region of ["RO-CJ", "Cluj", "Ile-de-France"]) {
+      const parsed = bookingSelectionV1.safeParse({
+        entity: ENTITY,
+        billing: { contact: CONTACT, address: { region } },
+      })
+      expect(parsed.success, region).toBe(true)
+    }
+  })
+
+  it("rejects address values wider than the columns they settle into", () => {
+    // Admitting these would move the failure to commit time, where the caller
+    // can no longer tell which field was at fault.
+    const parsed = bookingSelectionV1.safeParse({
+      entity: ENTITY,
+      billing: { contact: CONTACT, address: { region: "x".repeat(101) } },
     })
 
     expect(parsed.success).toBe(false)

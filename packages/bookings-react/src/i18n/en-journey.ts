@@ -125,6 +125,7 @@ export const bookingsUiEnJourney = {
       addressLine1: "Address line 1",
       addressLine2Optional: "Address line 2 (optional)",
       city: "City",
+      region: "County / region",
       postalCode: "Postal code",
       country: "Country",
       companyName: "Company name",

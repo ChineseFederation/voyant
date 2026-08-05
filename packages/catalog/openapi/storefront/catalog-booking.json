@@ -13993,19 +13993,28 @@
                             "type": "object",
                             "properties": {
                               "line1": {
-                                "type": "string"
+                                "type": "string",
+                                "maxLength": 500
                               },
                               "line2": {
-                                "type": "string"
+                                "type": "string",
+                                "maxLength": 500
                               },
                               "city": {
-                                "type": "string"
+                                "type": "string",
+                                "maxLength": 100
+                              },
+                              "region": {
+                                "type": "string",
+                                "maxLength": 100
                               },
                               "postal": {
-                                "type": "string"
+                                "type": "string",
+                                "maxLength": 20
                               },
                               "country": {
-                                "type": "string"
+                                "type": "string",
+                                "maxLength": 2
                               }
                             },
                             "default": {}

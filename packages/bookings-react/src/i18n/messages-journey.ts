@@ -100,6 +100,7 @@ export type BookingsUiJourneyMessages = {
       addressLine1: string
       addressLine2Optional: string
       city: string
+      region: string
       postalCode: string
       country: string
       companyName: string

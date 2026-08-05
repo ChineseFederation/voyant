@@ -22,6 +22,13 @@ export interface CreateSourcedBookingCommitmentInput {
   contactLastName?: string | null
   contactEmail?: string | null
   contactPhone?: string | null
+  contactCountry?: string | null
+  /** Administrative subdivision, preferably ISO 3166-2 (voyant#4290). */
+  contactRegion?: string | null
+  contactCity?: string | null
+  contactAddressLine1?: string | null
+  contactAddressLine2?: string | null
+  contactPostalCode?: string | null
   sellCurrency: string
   sellAmountCents: number
   title: string
@@ -78,6 +85,12 @@ export async function createSourcedBookingCommitment(
     contactLastName: input.contactLastName ?? null,
     contactEmail: input.contactEmail ?? null,
     contactPhone: input.contactPhone ?? null,
+    contactCountry: input.contactCountry ?? null,
+    contactRegion: input.contactRegion ?? null,
+    contactCity: input.contactCity ?? null,
+    contactAddressLine1: input.contactAddressLine1 ?? null,
+    contactAddressLine2: input.contactAddressLine2 ?? null,
+    contactPostalCode: input.contactPostalCode ?? null,
     sellCurrency: input.sellCurrency,
     sellAmountCents: input.sellAmountCents,
     startDate,

@@ -59,6 +59,11 @@ export interface LeadContactPickerProps {
       line1?: string
       line2?: string
       city?: string
+      /**
+       * Administrative subdivision — the CRM address has carried a `region`
+       * all along, and the billing address can now hold it (voyant#4290).
+       */
+      region?: string
       postal?: string
       country?: string
     }

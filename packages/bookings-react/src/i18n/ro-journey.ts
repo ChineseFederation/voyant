@@ -131,6 +131,7 @@ export const bookingsUiRoJourney = {
       addressLine1: "Adresa linia 1",
       addressLine2Optional: "Adresa linia 2 (optional)",
       city: "Oras",
+      region: "Judet / regiune",
       postalCode: "Cod postal",
       country: "Tara",
       companyName: "Nume companie",

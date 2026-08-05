@@ -132,7 +132,15 @@ describe("normalizeProductSelection", () => {
           phone: " +400000000 ",
           ignored: "client-only",
         },
-        address: { country: " RO ", street: "not accepted yet" },
+        address: {
+          line1: " Str. Lipscani 12 ",
+          line2: " Ap. 4 ",
+          city: " Cluj-Napoca ",
+          region: " RO-CJ ",
+          postal: " 400114 ",
+          country: " RO ",
+          street: "not accepted yet",
+        },
       },
       travelers: [
         { firstName: "Ada", lastName: "Lovelace", email: "ada@example.test", rowId: "trav_1" },
@@ -159,13 +167,44 @@ describe("normalizeProductSelection", () => {
           email: "ada@example.test",
           phone: "+400000000",
         },
-        address: { country: "RO" },
+        address: {
+          line1: "Str. Lipscani 12",
+          line2: "Ap. 4",
+          city: "Cluj-Napoca",
+          region: "RO-CJ",
+          postal: "400114",
+          country: "RO",
+        },
       },
       travelers: [
         { rowId: "trav_1", firstName: "Ada", lastName: "Lovelace", email: "ada@example.test" },
       ],
       accommodation: { travelerAssignments: { room_1: "trav_1" } },
       addons: [{ extraId: "extra_1", quantity: 1 }],
+    })
+  })
+
+  it("models a Bucharest Sector as the city and the county as an ISO 3166-2 region", () => {
+    // Bucharest has no ordinary city/county pair: the six Sectors act as the
+    // county-level subdivision. The Sector belongs in `city` and `RO-B` in
+    // `region` — the point of voyant#4290 is that neither has to be smuggled
+    // through an address line.
+    const normalized = normalizeProductSelection(PRODUCT_TARGET, {
+      billing: { address: { city: "Sector 3", region: "RO-B", country: "RO" } },
+    })
+
+    expect(normalized.billing).toEqual({
+      address: { city: "Sector 3", region: "RO-B", country: "RO" },
+    })
+  })
+
+  it("keeps a free-form county name, since the Booking column it lands in is free-form", () => {
+    const normalized = normalizeProductSelection(PRODUCT_TARGET, {
+      billing: { address: { region: " Ile-de-France ", country: "FR" } },
+    })
+
+    expect(normalized.billing).toEqual({
+      address: { region: "Ile-de-France", country: "FR" },
     })
   })
 

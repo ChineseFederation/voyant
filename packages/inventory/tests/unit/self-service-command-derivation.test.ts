@@ -26,6 +26,23 @@ describe("products deriveSelfServiceCommand", () => {
     })
   })
 
+  it("carries the resolved billing address onto the command", async () => {
+    const result = await derive()
+
+    // Without these the Booking's contact_* columns come back empty and an
+    // invoice cannot state the buyer's county — voyant#4290. `contactRegion`
+    // holds the ISO 3166-2 subdivision; a Bucharest Sector rides in
+    // `contactCity`, which is what makes `RO-B` unambiguous.
+    expect(result).toMatchObject({
+      status: "ok",
+      command: {
+        contactCountry: "RO",
+        contactRegion: "RO-B",
+        contactCity: "Sector 3",
+      },
+    })
+  })
+
   it.each([
     ["priceOverride", { priceOverride: { amountCents: 1, reason: "free please" } }],
     ["suppressNotifications", { suppressNotifications: true }],
@@ -99,6 +116,12 @@ async function derive(
       contactLastName: "L",
       contactEmail: "guest@example.com",
       contactPhone: null,
+      contactCountry: "RO",
+      contactRegion: "RO-B",
+      contactCity: "Sector 3",
+      contactAddressLine1: null,
+      contactAddressLine2: null,
+      contactPostalCode: null,
     },
   })
 }

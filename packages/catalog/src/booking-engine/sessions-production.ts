@@ -464,6 +464,12 @@ async function commitSourcedBooking(
       contactLastName: billing.contactLastName,
       contactEmail: billing.contactEmail,
       contactPhone: billing.contactPhone,
+      contactCountry: billing.contactCountry,
+      contactRegion: billing.contactRegion,
+      contactCity: billing.contactCity,
+      contactAddressLine1: billing.contactAddressLine1,
+      contactAddressLine2: billing.contactAddressLine2,
+      contactPostalCode: billing.contactPostalCode,
       sellCurrency: input.quote.pricing.currency,
       sellAmountCents: input.quote.pricing.total,
       title: sourced.title,
@@ -695,6 +701,7 @@ async function resolveBilling(
 function billingContact(payload: Record<string, unknown>) {
   const billing = asRecord(payload.billing)
   const contact = asRecord(billing?.contact)
+  const address = asRecord(billing?.address)
   const staffBooking = asRecord(payload.staffBooking)
   const trim = (value: unknown) => (typeof value === "string" && value.trim() ? value.trim() : null)
   return {
@@ -704,6 +711,12 @@ function billingContact(payload: Record<string, unknown>) {
     contactLastName: trim(contact?.lastName),
     contactEmail: trim(contact?.email),
     contactPhone: trim(contact?.phone),
+    contactCountry: trim(address?.country),
+    contactRegion: trim(address?.region),
+    contactCity: trim(address?.city),
+    contactAddressLine1: trim(address?.line1),
+    contactAddressLine2: trim(address?.line2),
+    contactPostalCode: trim(address?.postal),
   }
 }
 
@@ -991,7 +1004,20 @@ export function normalizeBookingSelection(
         email: stringValue(billingContact?.email),
         phone: stringValue(billingContact?.phone),
       }),
-      address: pruneEmpty({ country: stringValue(billingAddress?.country) }),
+      // The whole declared address, not just the country. The tracer
+      // (voyant#4039) projected the rest away, so a caller that filled the
+      // billing step lost every line of it at the Session edge and the
+      // Booking's contact_* columns came back empty. `region` is new
+      // (voyant#4290); the other four were declared all along and simply
+      // never survived to the commit.
+      address: pruneEmpty({
+        line1: stringValue(billingAddress?.line1),
+        line2: stringValue(billingAddress?.line2),
+        city: stringValue(billingAddress?.city),
+        region: stringValue(billingAddress?.region),
+        postal: stringValue(billingAddress?.postal),
+        country: stringValue(billingAddress?.country),
+      }),
     }),
     travelers: arrayValue(source.travelers)
       ?.map(normalizeTraveler)

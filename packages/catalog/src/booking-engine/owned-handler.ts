@@ -150,6 +150,20 @@ export interface SelfServiceBillingParty {
   contactLastName: string | null
   contactEmail: string | null
   contactPhone: string | null
+  /**
+   * Billing address, named as the Booking's `contact_*` columns rather than as
+   * the selection's `address` block, because the command is what this party
+   * feeds and the command speaks the Booking's vocabulary.
+   *
+   * `contactRegion` holds the administrative subdivision — state, province,
+   * county, `judet` — preferably an ISO 3166-2 code (voyant#4290).
+   */
+  contactCountry: string | null
+  contactRegion: string | null
+  contactCity: string | null
+  contactAddressLine1: string | null
+  contactAddressLine2: string | null
+  contactPostalCode: string | null
 }
 
 export interface DeriveSelfServiceCommandRequest {
