@@ -89,6 +89,10 @@ function main(): void {
           $comment: BASELINE_COMMENT,
           pairs: Object.fromEntries([...counts].sort()),
           writePairs: Object.fromEntries([...writeCounts].sort()),
+          // Carried through verbatim. These are read conclusions, not derived
+          // data — regenerating the counts must not silently discard the reason
+          // a pair is on the list.
+          ...(manifest.writeNotes ? { writeNotes: manifest.writeNotes } : {}),
         },
         null,
         2,

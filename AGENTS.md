@@ -75,22 +75,28 @@ for anything. Cross-package FKs are settled separately and are fine when
 
 > **Does the owning module do something on its own writes that this bypasses?**
 
-Measured, the answer varies enough that a single number is misleading:
+**Every pair has now been read, and none of them clear it.** The per-pair verdict
+and its evidence live in `writeNotes` in the baseline file, next to the counts:
 
-| pair | writes | owner's gate |
-|---|---|---|
-| `inventory->commerce` | 16 | **real** — `createOptionPriceRule` validates, demotes other defaults, emits `ruleChanged`. A direct write can leave **two default rules** in one scope |
-| `apps->custom-fields` | 2 | **real** — 403 when a definition is owned by someone else, plus value lifecycle on key rename |
-| `finance->bookings` | 12 | **weak** — bookings' own update is the same `revision + 1` statement, with no validation, event or hook to bypass |
-| audit-log appends | — | **none** — append-only tables; the value in routing them was removing duplicated row shapes, not encapsulation |
+- **inventory->commerce (16)** and **inventory->operations (4)** — all in
+  `inventory/src/authoring`, all writing into a product scope they just created.
+  `demoteOtherDefaultRules` is a no-op in a fresh scope, so the single-default
+  invariant cannot be broken by a pre-existing row.
+- **finance->bookings (12)**, **commerce->bookings (2)**, **commerce->finance
+  (2)** — the same statements the owner runs itself, with no validation, event
+  or hook around them.
+- **apps->custom-fields (2)** — lifecycle transitions on definitions the app
+  already owns; custom-fields has no lifecycle method or gate at all.
 
-So convert a write when the owner has a gate, and leave it when it does not.
-Routing `finance->bookings` through a service that adds nothing is the ADR-0007
-indirection ADR-0016 rejected, and it would cost a hop to buy a smaller number.
+So the number is not a backlog and should not be driven down. Converting any of
+these buys a hop and nothing else, which is the ADR-0007 indirection ADR-0016
+rejected. Re-examine a pair when its **owner grows a gate** — not when the count
+moves.
 
-Reads follow the same test and mostly fail it: a cross-module read is type-safe
-and `tsc` finds every caller on a rename. A `*Ref` mirror earns its place when it
-documents a genuinely narrow view, not as a target to hit 184 times.
+Reads follow the same test and mostly fail it too: a cross-module read is
+type-safe, and `tsc` finds every caller on a rename. A `*Ref` mirror earns its
+place when it documents a genuinely narrow view, not as a target to hit 184
+times.
 
 **The ratchet's job is drift, not cleanup.** No new pair, no new write. That is
 cheap and it holds the line; the number falling is a side effect of someone

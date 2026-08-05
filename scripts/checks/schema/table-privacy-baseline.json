@@ -4,11 +4,15 @@
     "A pair may shrink, never grow; a new pair fails. Regenerate with --update-baseline",
     "ONLY when tightening. Foundation packages (db, core, utils, types, schema-kit) are exempt.",
     "",
-    "`writePairs` counts the subset that MUTATE another module's tables. A read has",
-    "two answers — the owner's service, or a local *Ref mirror. A write has one: a",
-    "mirror is read-only by construction. Writes bypass whatever the owner does on",
-    "its own writes (revision bumps, validation, events), so they should reach zero",
-    "rather than merely stop growing."
+    "`writePairs` counts the subset that MUTATE another module's tables, which a",
+    "*Ref mirror cannot answer — a mirror is read-only by construction.",
+    "",
+    "The target is NOT zero. Convert a write when the owning module does something",
+    "on its own writes that a direct write bypasses — validation, an invariant, an",
+    "event. inventory->commerce qualifies (a direct write can leave two default",
+    "pricing rules in one scope); finance->bookings does not (bookings' own update",
+    "is the same `revision + 1` with no gate). This ratchet exists to stop DRIFT,",
+    "not to be driven down: no new pair, no new write."
   ],
   "pairs": {
     "accommodations->bookings": 2,
@@ -54,5 +58,20 @@
     "finance->bookings": 12,
     "inventory->commerce": 16,
     "inventory->operations": 4
+  },
+  "writeNotes": {
+    "$comment": [
+      "Per-pair verdict on the gate test: does the owning module do something on",
+      "its own writes that a direct write bypasses? Every pair below was read.",
+      "Recorded so the answer is not re-derived, and so the counts are not mistaken",
+      "for a backlog. Re-examine a pair when its OWNER grows a gate, not when the",
+      "count changes."
+    ],
+    "inventory->commerce": "No. Every site is inventory/src/authoring — clone-pricing, clone-content, builder — and all write into a product scope they just created (builder.ts inserts the product, then rules under that id; clone maps each source optionId to a fresh target). demoteOtherDefaultRules is a no-op in a fresh scope, so the single-default invariant cannot be broken by a pre-existing row. emitRuleChanged is optional even in commerce's own path (`if (!eventBus) return`).",
+    "finance->bookings": "No. bookings' own update is the same statement finance's is — `.set({ ..., revision: revision + 1 })` — with no validation, event or hook around it. finance uses the action ledger more than bookings does (18 files vs 3). Routing these through a service would add a hop and buy nothing.",
+    "inventory->operations": "No. Same authoring path as inventory->commerce: availability rules, slots and start-times materialized for a product being created or cloned.",
+    "apps->custom-fields": "No. Both sites are lifecycle transitions on definitions the app already owns, scoped by ownerKind/ownerId/namespace. custom-fields has no lifecycle-transition method and no gate around lifecycleState; apps is in fact its primary writer. The 403 ownership check guards updateDefinition, a different operation.",
+    "commerce->bookings": "No. One `.set({ internalNotes, revision: revision + 1 })`, identical in shape to bookings' own; one audit-log append.",
+    "commerce->finance": "No. bookingItemTaxLines delete + insert with onConflictDoNothing — the same raw statements finance runs itself in service-booking-item-billing.ts."
   }
 }
