@@ -18,6 +18,12 @@ export const stayBookingItems = pgTable(
   "stay_booking_items",
   {
     id: typeId("stay_booking_items"),
+    // The vertical-extension case from docs/architecture/schema-discipline.md:
+    // stay_booking_items is a required per-item extension of booking_items, the
+    // column is notNull, and accommodations depends on bookings one-way and is
+    // never used without it. accommodations declares "@voyant-travel/bookings"
+    // in voyant.requiresSchemas, so migrations are ordered and `cascade` keeps
+    // the extension row from outliving the item it extends.
     bookingItemId: typeIdRef("booking_item_id")
       .notNull()
       .references(() => bookingItems.id, { onDelete: "cascade" }),

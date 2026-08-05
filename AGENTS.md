@@ -65,6 +65,23 @@ Three run as ratchets, holding a line rather than demanding it be clean today:
 baselines may only shrink.** Regenerate one only when tightening it; never to
 make a failure go away.
 
+`verify:table-privacy` carries **225 reach-ins across 37 module pairs**, and
+that is recorded as **debt with a target, not an acceptable steady state**
+([#4273](https://github.com/voyant-travel/voyant/issues/4273)). `bookings` is
+reached into by 8 modules; that coupling is why "modules are separately
+shippable" is not true of this repo.
+
+**The mechanism for paying it down is consolidation — merging modules — not
+extracting service calls.** ADR-0016 decision 7 is explicit that there are no
+ports for business modules, so replacing a direct table read with a service hop
+is the ADR-0007 refactor under a new name and is not wanted. Merging
+`availability` into `operations` alone removes ~41 reach-ins, which is more than
+any plausible refactor of the same seams
+([#4271](https://github.com/voyant-travel/voyant/issues/4271)).
+
+So: do not add a pair, do not "fix" a pair with an indirection layer, and expect
+the number to fall in steps when modules merge rather than continuously.
+
 `verify:typecheck-coverage` enforces that every test file is typechecked by some
 CI job. A package whose tsconfig includes only `src/**` gets no typecheck job at
 all — `build` still checks its `src`, but nothing checks its tests, so a fixture
@@ -104,10 +121,29 @@ substring.** You already have the context loaded; converting cold costs far more
 Some assertions are none of these — they pin a call shape or a signature inside a
 factory. Leave those alone rather than forcing a fit, and say so in the PR.
 
-There is deliberately **no campaign** to convert the rest. The corpus shrinks as
-a side effect of normal work, which is cheaper than a sweep and puts each
-conversion in the hands of someone who knows what the module does. See
-[#3898](https://github.com/voyant-travel/voyant/issues/3898).
+There is deliberately **no campaign** to convert the rest, because converting
+cold costs far more than converting while you already have the module loaded.
+See [#3898](https://github.com/voyant-travel/voyant/issues/3898).
+
+**Do not read that as a shrink plan.** It is not one, and measuring it says so.
+Between ADR-0016 (2026-07-30) and 2026-08-05 the corpus went 47 scripts / 5,578
+lines / 38 using `.includes()` → **47 / 5,522 / 38**: not one script retired,
+while `verify:architecture` grew from 62 chain links to 80. Opportunistic
+conversion is real but it does not keep pace with new checks, so the imperative
+corpus is flat and the chain is growing.
+
+What actually holds the line is the **new-check rule** below, not attrition.
+
+### A new architecture check is declarative by default
+
+Add a rule to an existing rule file, or add a new rule file. Reach for a new
+`scripts/check-*.mjs` only when the rule cannot be expressed as data — it pins a
+call shape, a signature inside a factory, or needs a TypeScript program — and
+**say which in the PR description**.
+
+This is the half of the problem that is moving. A declarative rule costs one
+line to extend and cannot rot into substring matching; an imperative script is a
+permanent line item in a 80-link chain.
 
 ## Local Verification Lanes
 

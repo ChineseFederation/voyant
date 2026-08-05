@@ -24,6 +24,10 @@ export const groundExecutionEvents = pgTable(
     eventType: groundExecutionEventTypeEnum("event_type").notNull().default("note"),
     occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull().defaultNow(),
     facilityId: typeIdRef("facility_id"),
+    // Cross-package FK into identity, allowed because operations declares
+    // "@voyant-travel/identity" in voyant.requiresSchemas — see
+    // docs/architecture/schema-discipline.md. identity_addresses is hard-deleted,
+    // so `set null` is what stops this column holding a dangling id.
     addressId: typeIdRef("address_id").references(() => identityAddresses.id, {
       onDelete: "set null",
     }),
@@ -101,6 +105,10 @@ export const groundDispatchLegs = pgTable(
     sequence: integer("sequence").notNull().default(0),
     legType: groundDispatchLegTypeEnum("leg_type").notNull().default("pickup"),
     facilityId: typeIdRef("facility_id"),
+    // Cross-package FK into identity, allowed because operations declares
+    // "@voyant-travel/identity" in voyant.requiresSchemas — see
+    // docs/architecture/schema-discipline.md. identity_addresses is hard-deleted,
+    // so `set null` is what stops this column holding a dangling id.
     addressId: typeIdRef("address_id").references(() => identityAddresses.id, {
       onDelete: "set null",
     }),
@@ -211,6 +219,10 @@ export const groundDispatchCheckpoints = pgTable(
     plannedAt: timestamp("planned_at", { withTimezone: true }),
     actualAt: timestamp("actual_at", { withTimezone: true }),
     facilityId: typeIdRef("facility_id"),
+    // Cross-package FK into identity, allowed because operations declares
+    // "@voyant-travel/identity" in voyant.requiresSchemas — see
+    // docs/architecture/schema-discipline.md. identity_addresses is hard-deleted,
+    // so `set null` is what stops this column holding a dangling id.
     addressId: typeIdRef("address_id").references(() => identityAddresses.id, {
       onDelete: "set null",
     }),

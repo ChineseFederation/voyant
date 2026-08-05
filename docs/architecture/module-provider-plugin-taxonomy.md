@@ -178,31 +178,33 @@ Rule:
 If the package customizes an existing module rather than defining a new
 capability, it is an extension.
 
-### 6. Plugins are deprecated graph-unit debt
+### 6. The plugin graph kind is retired in this repository
 
-`package.json#voyant.kind: "plugin"` and `voyant.plugin.v1` manifests remain
-recognized for backward compatibility only. New executable npm packages must
-declare their actual deployment role: module, extension, adapter, or provider.
+**No workspace package declares `voyant.kind: "plugin"`.** The migration
+described below is complete, and `pnpm verify:deprecated-graph-kinds` is now a
+**denial**: a workspace package under `packages/`, `apps/`, or `examples/` that
+declares the kind fails `verify:architecture`. It is no longer warn-only.
 
-Historical plugin packages must migrate to their correct target:
+Historical plugin packages migrated to their correct target:
 
-- payment, search, and storage integrations become adapters or providers
-- CRM, accounting, and remote-sync integrations become remote apps when they
+- payment, search, and storage integrations became adapters or providers
+- CRM, accounting, and remote-sync integrations became remote apps where they
   can operate through scoped APIs, events, webhooks, app-owned custom fields,
   and remote admin UI
-- SmartBill migration is tracked by `voyant#3443`
-- Payload and Sanity CMS package migrations remain open taxonomy debt
 
-The terminal state deletes the plugin graph kind after the remaining packages
-migrate. Until then, `pnpm verify:deprecated-graph-kinds` runs as a warn-only
-architecture check and prints `[deprecated-kind]` lines for workspace packages
-that still declare `voyant.kind: "plugin"`. The check exits 0 and must not fail
-CI.
+What remains, deliberately:
+
+- `VoyantGraphUnitKind` in `@voyant-travel/graph-contracts` still includes
+  `"plugin"`, and the `voyant.plugin.v1` lowering path still resolves. That is
+  for **external** packages that have not migrated — deleting the kind from the
+  graph contract is a separate, breaking change, not part of this rule.
+- Authored `plugins` entries in a deployment config remain legacy compatibility
+  inputs for those external packages.
 
 Rule:
 
-Do not introduce new plugin graph units. Keep existing plugin declarations only
-where required for compatibility while migration work is active.
+Do not introduce plugin graph units. A new executable npm package declares its
+actual deployment role: module, extension, adapter, or provider.
 
 Package-owned extensions remain extension contributions in the resolved graph.
 They do not become plugins merely because the runtime lowers them to an

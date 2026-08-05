@@ -2,9 +2,21 @@ import { existsSync, readdirSync, readFileSync } from "node:fs"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
 
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
+// RFC #3395 retired "plugin" as a classification. Every workspace package has
+// migrated to its actual deployment role, so this check is a denial rather than
+// the warn-only nudge it was during the migration: a workspace package may not
+// declare voyant.kind "plugin" again.
+//
+// The graph runtime still *recognizes* the kind — `VoyantGraphUnitKind` and the
+// `voyant.plugin.v1` lowering path stay for external packages that have not
+// migrated. This check governs what lives in this repository.
+const defaultRepoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
 const workspaceRoots = ["packages", "apps", "examples"]
-const targetByPackage = new Map([["@voyant-travel/plugin-smartbill", "remote app"]])
+
+// `--root <dir>` scans somewhere other than this repository. Only the vacuity
+// test uses it, so the checker can be proven to still go red without dropping
+// probe files into a real workspace package.
+const repoRoot = parseRootFlag(process.argv.slice(2)) ?? defaultRepoRoot
 
 const deprecated = []
 for (const root of workspaceRoots) {
@@ -18,11 +30,27 @@ if (deprecated.length === 0) {
   console.log('[deprecated-kind] OK: no workspace packages declare voyant.kind "plugin".')
 } else {
   for (const entry of deprecated) {
-    const target = targetByPackage.get(entry.name) ?? inferTarget(entry.name)
-    console.log(
-      `[deprecated-kind] ${entry.name} declares voyant.kind "plugin" in ${entry.relativePath}; RFC target: ${target}.`,
+    console.error(
+      `[deprecated-kind] ${entry.name} declares voyant.kind "plugin" in ${entry.relativePath}; ` +
+        `declare its actual deployment role instead: ${inferTarget(entry.name)}.`,
     )
   }
+  console.error(
+    "[deprecated-kind] See docs/architecture/module-provider-plugin-taxonomy.md section 6.",
+  )
+  process.exitCode = 1
+}
+
+/** Returns the `--root` value, or undefined when the flag is absent or unpaired. */
+function parseRootFlag(argv) {
+  const index = argv.indexOf("--root")
+  if (index === -1) return undefined
+  const value = argv[index + 1]
+  if (value === undefined || value.startsWith("--")) {
+    console.error("[deprecated-kind] --root requires a directory argument.")
+    process.exit(2)
+  }
+  return path.resolve(value)
 }
 
 function collectDeprecatedPluginPackages(directory, result) {

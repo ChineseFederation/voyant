@@ -18,6 +18,11 @@ export const groundTransferPreferences = pgTable(
     bookingItemId: text("booking_item_id"),
     pickupFacilityId: typeIdRef("pickup_facility_id"),
     dropoffFacilityId: typeIdRef("dropoff_facility_id"),
+    // Cross-package FK into identity, allowed because operations declares
+    // "@voyant-travel/identity" in voyant.requiresSchemas — see
+    // docs/architecture/schema-discipline.md. identity_addresses is hard-deleted
+    // (deleteAddress in packages/identity/src/service.ts, no deletedAt column),
+    // so `set null` is what stops these columns holding a dangling id.
     pickupAddressId: typeIdRef("pickup_address_id").references(() => identityAddresses.id, {
       onDelete: "set null",
     }),
