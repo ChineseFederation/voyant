@@ -1,5 +1,12 @@
 # @voyant-travel/distribution
 
+## 0.227.12
+
+### Patch Changes
+
+- Updated dependencies [076c246]
+  - @voyant-travel/catalog@0.245.0
+
 ## 0.227.11
 
 ### Patch Changes

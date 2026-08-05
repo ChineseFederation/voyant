@@ -1,5 +1,12 @@
 # @voyant-travel/cruises-contracts
 
+## 0.105.24
+
+### Patch Changes
+
+- Updated dependencies [076c246]
+  - @voyant-travel/catalog-contracts@0.125.0
+
 ## 0.105.23
 
 ### Patch Changes
