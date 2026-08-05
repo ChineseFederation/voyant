@@ -864,6 +864,13 @@ export function resolveGeneratedRuntimeDeployment(): VoyantNodeRuntimeDeployment
   return {
     mode: candidate.mode,
     providers,
+    // The graph artifact records \`mode\`, not the concrete Redis binding. The
+    // runtime takes an explicit binding and does not infer one, so the artifact
+    // states the posture its mode has always implied.
+    redis:
+      candidate.mode === "managed-cloud"
+        ? { isolation: "shared", network: "untrusted" }
+        : { isolation: "dedicated", network: "trusted" },
     ...(candidate.responseCache === undefined
       ? {}
       : { responseCache: generatedResponseCachePosture(candidate.responseCache) }),

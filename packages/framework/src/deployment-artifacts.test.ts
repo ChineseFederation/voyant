@@ -506,6 +506,10 @@ describe("deployment graph artifacts", () => {
     expect(source).toContain("startVoyantNodeRuntime")
     expect(source).not.toContain("profileSnapshotPath:")
     expect(source).toContain("const deployment = resolveGeneratedRuntimeDeployment()")
+    // The runtime takes an explicit Redis binding and infers nothing from mode,
+    // so the generated deployment has to state one.
+    expect(source).toContain('{ isolation: "shared", network: "untrusted" }')
+    expect(source).toContain('{ isolation: "dedicated", network: "trusted" }')
     expect(source).toContain("deployment,")
     expect(source).toContain("deploymentRequirements: resolveGeneratedDeploymentRequirements()")
     expect(source).toContain('from "./graph-runtime.generated.js"')

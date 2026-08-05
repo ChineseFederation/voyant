@@ -102,4 +102,37 @@ describe("resolveStaffAccess", () => {
       }),
     ).resolves.toEqual({ organizationId: null, scopes: ["catalog:read"] })
   })
+
+  // The two states below are the reason local member permissions cannot be made
+  // fail-closed in one release: real deployments hold rows in both, and both
+  // currently read as full access. Pin them so that a change to the fallback has
+  // to be a deliberate edit to these expectations rather than a silent lockout.
+  it.each([
+    { label: "an unassigned permission set", rows: [{ permissions: null }] },
+    { label: "no profile row at all", rows: [] },
+  ])("resolves local staff with $label to full access", async ({ rows }) => {
+    const database = databaseReturning(rows)
+
+    await expect(
+      resolveStaffAccess({
+        accessCatalog: ACCESS_CATALOG,
+        authMode: "local",
+        db: database.db as never,
+        userId: "user_staff_1",
+      }),
+    ).resolves.toEqual({ organizationId: null, scopes: ["*"] })
+  })
+
+  it("preserves an explicitly empty local scope set instead of reading it as full access", async () => {
+    const database = databaseReturning([{ permissions: [] }])
+
+    await expect(
+      resolveStaffAccess({
+        accessCatalog: ACCESS_CATALOG,
+        authMode: "local",
+        db: database.db as never,
+        userId: "user_staff_1",
+      }),
+    ).resolves.toEqual({ organizationId: null, scopes: [] })
+  })
 })

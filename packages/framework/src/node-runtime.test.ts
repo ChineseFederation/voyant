@@ -169,6 +169,11 @@ const BASE_PROVIDERS = {
   payments: "none",
 } satisfies VoyantDeploymentProviders
 
+/** The binding a managed-cloud deployment has always bound: one Redis, many tenants. */
+const SHARED_UNTRUSTED_REDIS = { isolation: "shared", network: "untrusted" } as const
+/** The binding a self-hosted deployment has always bound: its own Redis, private network. */
+const DEDICATED_TRUSTED_REDIS = { isolation: "dedicated", network: "trusted" } as const
+
 afterEach(() => {
   redisOperations.length = 0
   tcpRedisConnections.length = 0
@@ -430,7 +435,11 @@ describe("loadVoyantNodeRuntime Redis URL validation", () => {
           wakeup: true,
         },
       ],
-      deployment: { mode: "self-hosted", providers: BASE_PROVIDERS },
+      deployment: {
+        mode: "self-hosted",
+        providers: BASE_PROVIDERS,
+        redis: DEDICATED_TRUSTED_REDIS,
+      },
       deploymentRequirements: { resources: [] },
       runtimePorts: {
         [outboxRuntimePort.id]: {
@@ -464,7 +473,7 @@ describe("loadVoyantNodeRuntime Redis URL validation", () => {
     const runtime = await loadVoyantNodeRuntime({
       graphRuntime: emptyGraphRuntime(providers),
       jobs: [],
-      deployment: { mode: "self-hosted", providers },
+      deployment: { mode: "self-hosted", providers, redis: DEDICATED_TRUSTED_REDIS },
       deploymentRequirements: { resources: [] },
       env: { ORIGIN_TRUST_SECRET: "secret" },
     })
@@ -489,7 +498,7 @@ describe("loadVoyantNodeRuntime Redis URL validation", () => {
       loadVoyantNodeRuntime({
         graphRuntime: emptyGraphRuntime(providers),
         jobs: [],
-        deployment: { mode: "managed-cloud", providers },
+        deployment: { mode: "managed-cloud", providers, redis: SHARED_UNTRUSTED_REDIS },
         deploymentRequirements: { resources: [] },
         env: {
           REDIS_URL: "https://example.upstash.io?token=test-token",
@@ -509,7 +518,7 @@ describe("loadVoyantNodeRuntime Redis URL validation", () => {
       loadVoyantNodeRuntime({
         graphRuntime: emptyGraphRuntime(providers),
         jobs: [],
-        deployment: { mode: "managed-cloud", providers },
+        deployment: { mode: "managed-cloud", providers, redis: SHARED_UNTRUSTED_REDIS },
         deploymentRequirements: { resources: [] },
         env: {
           REDIS_URL: "http://example.upstash.io?token=test-token",
@@ -536,7 +545,7 @@ describe("loadVoyantNodeRuntime Redis URL validation", () => {
       loadVoyantNodeRuntime({
         graphRuntime: emptyGraphRuntime(providers),
         jobs: [],
-        deployment: { mode: "managed-cloud", providers },
+        deployment: { mode: "managed-cloud", providers, redis: SHARED_UNTRUSTED_REDIS },
         deploymentRequirements: { resources: [] },
         env: {
           REDIS_URL: redisUrl,
@@ -550,7 +559,7 @@ describe("loadVoyantNodeRuntime Redis URL validation", () => {
       loadVoyantNodeRuntime({
         graphRuntime: emptyGraphRuntime(providers),
         jobs: [],
-        deployment: { mode: "managed-cloud", providers },
+        deployment: { mode: "managed-cloud", providers, redis: SHARED_UNTRUSTED_REDIS },
         deploymentRequirements: { resources: [] },
         env: {
           REDIS_URL: redisUrl,
@@ -572,7 +581,7 @@ describe("loadVoyantNodeRuntime Redis URL validation", () => {
       loadVoyantNodeRuntime({
         graphRuntime: emptyGraphRuntime(providers),
         jobs: [],
-        deployment: { mode: "managed-cloud", providers },
+        deployment: { mode: "managed-cloud", providers, redis: SHARED_UNTRUSTED_REDIS },
         deploymentRequirements: { resources: [] },
         env: {
           REDIS_URL: "https://example.upstash.io?token=test-token",
@@ -603,7 +612,7 @@ describe("loadVoyantNodeRuntime Redis URL validation", () => {
       loadVoyantNodeRuntime({
         graphRuntime: emptyGraphRuntime(providers),
         jobs: [],
-        deployment: { mode: "managed-cloud", providers },
+        deployment: { mode: "managed-cloud", providers, redis: SHARED_UNTRUSTED_REDIS },
         deploymentRequirements: { resources: [] },
         env: {
           REDIS_URL: redisUrl,
@@ -630,7 +639,7 @@ describe("loadVoyantNodeRuntime Redis URL validation", () => {
       loadVoyantNodeRuntime({
         graphRuntime: emptyGraphRuntime(providers),
         jobs: [],
-        deployment: { mode: "self-hosted", providers },
+        deployment: { mode: "self-hosted", providers, redis: DEDICATED_TRUSTED_REDIS },
         deploymentRequirements: { resources: [] },
         env: { ORIGIN_TRUST_SECRET: "secret" },
       }),
@@ -654,7 +663,7 @@ describe("loadVoyantNodeRuntime Redis URL validation", () => {
       loadVoyantNodeRuntime({
         graphRuntime: emptyGraphRuntime(providers),
         jobs: [],
-        deployment: { mode: "self-hosted", providers },
+        deployment: { mode: "self-hosted", providers, redis: DEDICATED_TRUSTED_REDIS },
         deploymentRequirements: { resources: [] },
         env: {
           REDIS_URL: redisUrl,
@@ -709,7 +718,7 @@ describe("loadVoyantNodeRuntime Redis URL validation", () => {
     ).rejects.toThrow(/a Redis binding on an untrusted network requires rediss:\/\//)
   })
 
-  it("does not infer Redis constraints from mode when the binding declares them", async () => {
+  it("reads Redis constraints from the binding, never from the deployment mode", async () => {
     const providers = {
       ...BASE_PROVIDERS,
       adminAuth: "better-auth",

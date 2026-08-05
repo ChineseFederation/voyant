@@ -114,8 +114,15 @@ export interface DisableSignupWhenUsersExistOptions {
    * with only other explicit surfaces can still be created by customer-facing
    * auth plugins such as phone OTP.
    *
-   * Defaults to ["admin"]. Users without an explicit surfaces array are
-   * treated as admin users for backward compatibility.
+   * Defaults to ["admin"]. A create payload without an explicit surfaces array
+   * is treated as an admin signup, which is the fail-closed reading and not a
+   * compatibility shim: `surfaces` is a transient property of the create
+   * payload, never a column on the user table, and it is only ever set by
+   * `customerSignupSurfaces` stamping on a customer-facing signup endpoint.
+   * Every admin signup path — email/password, email OTP, social — therefore
+   * arrives here with no surfaces, so this default is what makes the guard
+   * engage at all. Defaulting the other way would open self-registration on
+   * every deployment.
    */
   surfaces?: readonly string[]
 }
@@ -178,6 +185,9 @@ function signupBlockAppliesToUser(
     return blockedSurfaces.includes(surfaces.trim())
   }
 
+  // No declared surface reads as an admin signup. This is the guard's main
+  // path, not a fallback: nothing persists `surfaces`, so only a customer
+  // signup endpoint with `customerSignupSurfaces` configured ever declares one.
   return blockedSurfaces.includes("admin")
 }
 

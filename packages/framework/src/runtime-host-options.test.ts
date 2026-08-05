@@ -194,7 +194,11 @@ describe("deployment host options", () => {
     await loadVoyantNodeRuntime({
       graphRuntime: runtimeWithUnits({ "@acme/bookings": factory }),
       jobs: [],
-      deployment: { mode: "self-hosted", providers: NODE_PROVIDERS },
+      deployment: {
+        mode: "self-hosted",
+        providers: NODE_PROVIDERS,
+        redis: { isolation: "dedicated", network: "trusted" },
+      },
       deploymentRequirements: { resources: [] },
       hostOptions: { "@acme/bookings": { resolveMonthlyBookingLimit: () => 25 } },
     })

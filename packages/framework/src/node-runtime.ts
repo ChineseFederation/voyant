@@ -204,8 +204,14 @@ export interface VoyantNodeRuntimeDeployment {
   mode?: VoyantDeploymentMode
   providers: Readonly<Record<string, string>> &
     Partial<Pick<VoyantDeploymentProviders, "scheduledJobs">>
-  /** Explicit properties of the concrete Redis binding selected at boot. */
-  redis?: VoyantRedisBindingConstraints
+  /**
+   * Explicit properties of the concrete Redis binding selected at boot.
+   *
+   * Required: the host that composes a deployment knows which Redis it bound,
+   * and the runtime must not guess. A caller that cannot state the binding is
+   * a caller whose Redis safety posture nobody has decided.
+   */
+  redis: VoyantRedisBindingConstraints
   /** How shared public responses reach requesters. Absent reads as no edge tier. */
   responseCache?: VoyantResponseCachePosture
 }
@@ -376,7 +382,7 @@ export async function loadVoyantNodeRuntime(
   assertVoyantNodeRuntimeSupport({
     providers: options.deployment.providers,
     providerPlan,
-    redis: resolveRedisBindingConstraints(options.deployment),
+    redis: options.deployment.redis,
     requirements,
     env,
     hasAuthIntegration: Boolean(auth),
@@ -798,18 +804,6 @@ function reportVoyantNodeDeploymentPosture(input: VoyantNodeDeploymentPostureInp
   for (const report of voyantNodeDeploymentPostureReports(input)) {
     console.warn(`[node-runtime] ${report}`)
   }
-}
-
-function resolveRedisBindingConstraints(
-  deployment: VoyantNodeRuntimeDeployment,
-): VoyantRedisBindingConstraints {
-  if (deployment.redis) return deployment.redis
-  // Generated runtimes before the runtime-binding contract carried only mode.
-  // Preserve their exact safety posture while keeping all new policy on the
-  // binding itself.
-  return deployment.mode === "managed-cloud"
-    ? { isolation: "shared", network: "untrusted" }
-    : { isolation: "dedicated", network: "trusted" }
 }
 
 function nodeRuntimeEnvIssues(
