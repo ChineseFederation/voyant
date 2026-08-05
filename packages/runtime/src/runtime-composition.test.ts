@@ -1,6 +1,7 @@
 import { mkdir, writeFile } from "node:fs/promises"
 import path from "node:path"
 import { customerBusinessAccountOnboardingRuntimePort } from "@voyant-travel/auth/customer-business-onboarding-runtime-port"
+import { storefrontRuntimePort } from "@voyant-travel/auth/storefront-runtime-port"
 import { createVoyantGraphRuntime } from "@voyant-travel/framework/deployment-artifacts"
 import { legalDocumentArtifactProviderPort } from "@voyant-travel/legal"
 import { describe, expect, it, vi } from "vitest"
@@ -13,6 +14,21 @@ import {
   getRuntimeCompositionMocks,
   loadVoyantProject,
 } from "./runtime-composition.test-support.js"
+
+// The link-service binding reader needs a live deployment database; the runtime
+// wiring under test is which resolver consults it, not how it reads rows.
+vi.mock("@voyant-travel/auth/storefront-channel-binding-provider", () => ({
+  createLinkServiceStorefrontChannelBindingProvider: () => ({
+    getStorefrontChannelBinding: async (_context: unknown, storefrontId: string) => ({
+      storefrontId,
+      channelId: "chan_web",
+      channelName: "Web",
+      channelStatus: "active",
+      createdAt: null,
+      updatedAt: null,
+    }),
+  }),
+}))
 
 const mocks = getRuntimeCompositionMocks()
 
@@ -316,6 +332,58 @@ describe("Voyant project runtime composition", () => {
       activeModules: ["catalog", "@acme/loyalty"],
       resolveCustomerAuthContext,
     })
+  })
+
+  it("resolves the storefront channel a host customer-auth context never carries", async () => {
+    // A `voyant-cloud` deployment supplies its own resolver and its control
+    // plane has no channel concept, so the context comes back without one and
+    // every public catalog read 403s (#4323). The binding itself is local.
+    const resolveCustomerAuthContext = async () => ({
+      baseURL: "https://shop.example.com",
+      trustedOrigins: ["https://shop.example.com"],
+      methods: { emailCode: true, emailPassword: true },
+    })
+    mocks.runtimePorts[storefrontRuntimePort.id] = {
+      resolveStorefrontByApiKey: async () => ({
+        storefront: { id: "sf_1", allowedOrigins: ["https://shop.example.com"] },
+        key: { id: "sfk_1" },
+      }),
+      resolveStorefrontByOrigin: async () => null,
+    }
+    try {
+      const projectRoot = await createGeneratedProject()
+      await loadVoyantProject({
+        projectRoot,
+        adminAssetsDir: path.join(projectRoot, "admin"),
+        env: { DATABASE_URL: "postgres://example.invalid/voyant" },
+        host: { resolveCustomerAuthContext },
+      })
+
+      const wired = mocks.authRuntimeOptions[0]?.resolveCustomerAuthContext as (
+        env: unknown,
+        request: Request,
+      ) => Promise<{ baseURL: string; storefrontChannel?: Record<string, string> }>
+      expect(wired).not.toBe(resolveCustomerAuthContext)
+
+      const context = await wired(
+        {},
+        new Request("https://api.example.com/api/v1/public/catalog/search", {
+          method: "POST",
+          headers: {
+            "x-voyant-storefront-origin": "https://shop.example.com",
+            "x-api-key": "vpk_token",
+          },
+        }),
+      )
+      expect(context.baseURL).toBe("https://shop.example.com")
+      expect(context.storefrontChannel).toEqual({
+        storefrontId: "sf_1",
+        channelId: "chan_web",
+        channelStatus: "active",
+      })
+    } finally {
+      delete mocks.runtimePorts[storefrontRuntimePort.id]
+    }
   })
 
   it("passes a provider-neutral host auth email sender to the auth runtime", async () => {

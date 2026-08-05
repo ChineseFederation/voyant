@@ -22,6 +22,7 @@ import {
 } from "./storefront-origins.js"
 import type {
   StorefrontChannelBindingDto,
+  StorefrontDto,
   StorefrontResolveContext,
   StorefrontRuntimeProvider,
 } from "./storefront-runtime-port.js"
@@ -219,6 +220,162 @@ export function createLocalStorefrontCustomerAuthResolver<Env>(
           channelStatus: channelBinding.channelStatus,
         },
       }
+    } finally {
+      await dispose?.()
+    }
+  }
+}
+
+/**
+ * What augmenting a customer-auth context with the storefront's sales channel
+ * concluded. Every non-`resolved` variant leaves the public surface without a
+ * channel, and they are deliberately distinguishable: "no storefront", "no
+ * binding" and "binding inactive" have different fixes, and a blanket 403 that
+ * names none of them is what made #4323 take days instead of minutes.
+ */
+export type StorefrontChannelResolutionOutcome =
+  | "host_provided"
+  | "resolved"
+  | "storefront_not_resolved"
+  | "channel_binding_missing"
+  | "channel_inactive"
+  | "lookup_failed"
+
+export interface StorefrontChannelDiagnostic {
+  outcome: StorefrontChannelResolutionOutcome
+  /** Request origin the storefront was (or would have been) matched on. */
+  origin: string | null
+  storefrontId?: string
+  channelId?: string
+  channelStatus?: string
+  error?: unknown
+}
+
+export interface ResolvedStorefrontChannelConfig<Env>
+  extends Omit<LocalStorefrontCustomerAuthResolverConfig<Env>, "resolveStorefrontChannelBinding"> {
+  /** Request-time Storefront -> Channel binding reader (deployment database). */
+  resolveStorefrontChannelBinding: (
+    context: StorefrontResolveContext,
+    storefrontId: string,
+  ) => Promise<StorefrontChannelBindingDto | null>
+  /** Observability sink; called exactly once per resolution. */
+  onDiagnostic?: (diagnostic: StorefrontChannelDiagnostic) => void
+}
+
+/**
+ * Resolve the storefront a request speaks for, without re-authenticating it.
+ * The presented key selects one exactly; a deployment whose keys are minted
+ * elsewhere still declares its origins locally, so fall back to the origin —
+ * the same signal keyless CORS preflight is authorized on, and one that
+ * `resolveStorefrontByOrigin` refuses to answer ambiguously.
+ */
+async function resolveStorefrontForChannel<Env>(
+  config: ResolvedStorefrontChannelConfig<Env>,
+  context: StorefrontResolveContext,
+  request: Request,
+  origin: string | null,
+): Promise<StorefrontDto | null> {
+  const token = request.headers.get(config.keyHeader ?? STOREFRONT_KEY_HEADER)?.trim()
+  if (token) {
+    const resolved = await config.provider.resolveStorefrontByApiKey(context, token)
+    if (resolved) return resolved.storefront
+  }
+  if (!origin) return null
+  return config.provider.resolveStorefrontByOrigin(context, origin)
+}
+
+/**
+ * Decorate a `resolveCustomerAuthContext` so the resulting context always
+ * carries the deployment's Storefront -> Channel binding when one exists.
+ *
+ * The local resolver above derives `storefrontChannel` itself. A managed
+ * deployment supplies its own resolver instead, which brokers credentials
+ * through a control plane that has no channel concept — so the context came
+ * back without a channel and every `/v1/public/*` catalog read 403ed on a guard
+ * that profile could never satisfy, while the link rows describing the binding
+ * sat unread in the deployment database ([#4323](https://github.com/voyant-travel/voyant/issues/4323)).
+ * Reading them here keeps the two auth profiles from diverging on whether a
+ * public surface can obtain a channel.
+ *
+ * Best effort by construction: a context that already carries a channel is
+ * returned untouched, and a failure to resolve one returns the host's context
+ * unchanged — the downstream guards still apply — while reporting which state
+ * it was in.
+ */
+export function withResolvedStorefrontChannel<Env>(
+  resolveCustomerAuthContext: (
+    env: Env,
+    request: Request,
+  ) => CustomerAuthRuntimeContext | Promise<CustomerAuthRuntimeContext>,
+  config: ResolvedStorefrontChannelConfig<Env>,
+): (env: Env, request: Request) => Promise<CustomerAuthRuntimeContext> {
+  const originHeader = config.originHeader ?? STOREFRONT_ORIGIN_HEADER
+  const report = (diagnostic: StorefrontChannelDiagnostic) => {
+    try {
+      config.onDiagnostic?.(diagnostic)
+    } catch {
+      // a diagnostic sink must never break authentication
+    }
+  }
+
+  return async (env, request) => {
+    const context = await resolveCustomerAuthContext(env, request)
+    const origin = resolveStorefrontRequestOrigin(request, originHeader)
+    if (context.storefrontChannel) {
+      report({
+        outcome: "host_provided",
+        origin,
+        storefrontId: context.storefrontChannel.storefrontId,
+        channelId: context.storefrontChannel.channelId,
+        ...(context.storefrontChannel.channelStatus
+          ? { channelStatus: context.storefrontChannel.channelStatus }
+          : {}),
+      })
+      return context
+    }
+
+    const { context: resolveContext, dispose } = await config.openResolveContext(env, request)
+    try {
+      const storefront = await resolveStorefrontForChannel(config, resolveContext, request, origin)
+      if (!storefront) {
+        report({ outcome: "storefront_not_resolved", origin })
+        return context
+      }
+      const binding = await config.resolveStorefrontChannelBinding(resolveContext, storefront.id)
+      if (!binding) {
+        report({ outcome: "channel_binding_missing", origin, storefrontId: storefront.id })
+        return context
+      }
+      if (binding.channelStatus !== "active") {
+        report({
+          outcome: "channel_inactive",
+          origin,
+          storefrontId: storefront.id,
+          channelId: binding.channelId,
+          channelStatus: binding.channelStatus,
+        })
+        return context
+      }
+      report({
+        outcome: "resolved",
+        origin,
+        storefrontId: binding.storefrontId,
+        channelId: binding.channelId,
+        channelStatus: binding.channelStatus,
+      })
+      return {
+        ...context,
+        storefrontChannel: {
+          storefrontId: binding.storefrontId,
+          channelId: binding.channelId,
+          channelStatus: binding.channelStatus,
+        },
+      }
+    } catch (error) {
+      // The host already authenticated this request; a channel lookup that
+      // faults must not turn a working sign-in into a 500.
+      report({ outcome: "lookup_failed", origin, error })
+      return context
     } finally {
       await dispose?.()
     }

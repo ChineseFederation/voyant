@@ -1,12 +1,15 @@
 import { describe, expect, it } from "vitest"
 
+import type { CustomerAuthRuntimeContext } from "../../src/node-runtime.js"
 import {
   createLocalStorefrontCorsOriginResolver,
   createLocalStorefrontCustomerAuthResolver,
   resolveStorefrontRequestOrigin,
   STOREFRONT_KEY_HEADER,
   STOREFRONT_ORIGIN_HEADER,
+  type StorefrontChannelDiagnostic,
   StorefrontCustomerAuthResolutionError,
+  withResolvedStorefrontChannel,
 } from "../../src/storefront-customer-auth-resolver.js"
 import { isStorefrontOriginAllowed } from "../../src/storefront-origins.js"
 import type {
@@ -292,6 +295,139 @@ describe("createLocalStorefrontCustomerAuthResolver", () => {
     // A known key from a disallowed origin is a 403 (forbidden), not a 401.
     expect(error.status).toBe(403)
     expect(error.code).toBe("forbidden")
+  })
+})
+
+describe("withResolvedStorefrontChannel", () => {
+  /** A managed host resolver: real credentials, never a channel. */
+  const hostContext: CustomerAuthRuntimeContext = {
+    baseURL: "https://shop.example.com",
+    trustedOrigins: ["https://shop.example.com"],
+    methods: { emailCode: true, emailPassword: false, socialProviders: {} },
+  }
+
+  function makeAugmented(options?: {
+    provider?: StorefrontRuntimeProvider
+    binding?: () => Promise<StorefrontChannelBindingDto | null>
+    host?: () => Promise<CustomerAuthRuntimeContext>
+  }) {
+    const diagnostics: StorefrontChannelDiagnostic[] = []
+    let disposed = 0
+    const resolver = withResolvedStorefrontChannel<Record<string, never>>(
+      options?.host ?? (async () => hostContext),
+      {
+        provider: options?.provider ?? fakeProvider(),
+        resolveStorefrontChannelBinding: options?.binding ?? (async () => ACTIVE_BINDING),
+        onDiagnostic: (diagnostic) => diagnostics.push(diagnostic),
+        async openResolveContext() {
+          return {
+            context: { bindings: {}, db: {} as never },
+            dispose: async () => {
+              disposed += 1
+            },
+          }
+        },
+      },
+    )
+    return { resolver, diagnostics, disposed: () => disposed }
+  }
+
+  const publicRequest = () =>
+    request({
+      [STOREFRONT_ORIGIN_HEADER]: "https://shop.example.com",
+      [STOREFRONT_KEY_HEADER]: "vpk_token",
+    })
+
+  it("adds the storefront channel a managed host context never carries", async () => {
+    const { resolver, diagnostics, disposed } = makeAugmented()
+
+    const context = await resolver({}, publicRequest())
+
+    expect(context.storefrontChannel).toEqual({
+      storefrontId: "sf_1",
+      channelId: "chan_web",
+      channelStatus: "active",
+    })
+    // The host's own resolution is preserved verbatim.
+    expect(context.baseURL).toBe("https://shop.example.com")
+    expect(diagnostics).toEqual([
+      {
+        outcome: "resolved",
+        origin: "https://shop.example.com",
+        storefrontId: "sf_1",
+        channelId: "chan_web",
+        channelStatus: "active",
+      },
+    ])
+    expect(disposed()).toBe(1)
+  })
+
+  it("leaves a host-provided channel untouched", async () => {
+    const channel = { storefrontId: "sf_host", channelId: "chan_host", channelStatus: "active" }
+    const { resolver, diagnostics } = makeAugmented({
+      host: async () => ({ ...hostContext, storefrontChannel: channel }),
+      binding: async () => {
+        throw new Error("must not consult the binding when the host resolved one")
+      },
+    })
+
+    const context = await resolver({}, publicRequest())
+
+    expect(context.storefrontChannel).toEqual(channel)
+    expect(diagnostics[0]?.outcome).toBe("host_provided")
+  })
+
+  it("falls back to the declared origin when the key is not resolvable locally", async () => {
+    const { resolver, diagnostics } = makeAugmented({
+      provider: fakeProvider({ resolveStorefrontByApiKey: async () => null }),
+    })
+
+    const context = await resolver({}, publicRequest())
+
+    expect(context.storefrontChannel?.channelId).toBe("chan_web")
+    expect(diagnostics[0]?.outcome).toBe("resolved")
+  })
+
+  it("reports the three no-channel states distinguishably and leaves the context alone", async () => {
+    const unknownStorefront = makeAugmented({
+      provider: fakeProvider({
+        resolveStorefrontByApiKey: async () => null,
+        resolveStorefrontByOrigin: async () => null,
+      }),
+    })
+    const noBinding = makeAugmented({ binding: async () => null })
+    const inactive = makeAugmented({
+      binding: async () => ({ ...ACTIVE_BINDING, channelStatus: "archived" }),
+    })
+
+    for (const { resolver } of [unknownStorefront, noBinding, inactive]) {
+      const context = await resolver({}, publicRequest())
+      expect(context.storefrontChannel).toBeUndefined()
+    }
+
+    expect(unknownStorefront.diagnostics[0]?.outcome).toBe("storefront_not_resolved")
+    expect(noBinding.diagnostics[0]).toMatchObject({
+      outcome: "channel_binding_missing",
+      storefrontId: "sf_1",
+    })
+    expect(inactive.diagnostics[0]).toMatchObject({
+      outcome: "channel_inactive",
+      channelStatus: "archived",
+    })
+  })
+
+  it("never turns a channel lookup fault into a failed sign-in", async () => {
+    const { resolver, diagnostics, disposed } = makeAugmented({
+      binding: async () => {
+        throw new Error("channels table is unreachable")
+      },
+    })
+
+    const context = await resolver({}, publicRequest())
+
+    expect(context).toEqual(hostContext)
+    expect(diagnostics[0]?.outcome).toBe("lookup_failed")
+    expect(disposed()).toBe(1)
   })
 })
 

@@ -24,6 +24,8 @@ import { createLinkServiceStorefrontChannelBindingProvider } from "@voyant-trave
 import {
   createLocalStorefrontCorsOriginResolver,
   createLocalStorefrontCustomerAuthResolver,
+  type StorefrontChannelDiagnostic,
+  withResolvedStorefrontChannel,
 } from "@voyant-travel/auth/storefront-customer-auth-resolver"
 import {
   type StorefrontResolveContext,
@@ -153,6 +155,26 @@ export interface VoyantProjectHost {
 export interface VoyantProjectAuth {
   getBootstrapStatusForRequest(request: Request, env: VoyantNodeRuntimeEnv): Promise<unknown>
   getCurrentUserForRequest(request: Request, env: VoyantNodeRuntimeEnv): Promise<unknown>
+}
+
+/**
+ * Log the states in which a public request ends up without a sales channel.
+ * Each one produces the same opaque 403 downstream, so the log line is the only
+ * thing that distinguishes "this storefront is unknown here" from "it has no
+ * binding" from "its channel is not active" — the distinction #4323 had to be
+ * reverse-engineered from built image diffs for want of.
+ */
+function reportStorefrontChannelDiagnostic(diagnostic: StorefrontChannelDiagnostic): void {
+  if (diagnostic.outcome === "resolved" || diagnostic.outcome === "host_provided") return
+  const { outcome, origin, storefrontId, channelId, channelStatus, error } = diagnostic
+  console.warn("[voyant:storefront-channel] public request has no sales channel", {
+    outcome,
+    origin,
+    ...(storefrontId ? { storefrontId } : {}),
+    ...(channelId ? { channelId } : {}),
+    ...(channelStatus ? { channelStatus } : {}),
+    ...(error ? { error: error instanceof Error ? error.message : String(error) } : {}),
+  })
 }
 
 /** Load the generated graph and create the framework-owned Node/admin host. */
@@ -372,6 +394,23 @@ export async function loadVoyantProject(
             storefrontChannelBinding.getStorefrontChannelBinding(context, storefrontId),
         })
       : undefined
+  // A host-supplied resolver (a `voyant-cloud` deployment) authenticates the
+  // storefront against its control plane, which has no channel concept, so the
+  // context it returns never carries one and every public catalog read 403s on a
+  // guard it cannot satisfy (#4323). The binding rows are local either way —
+  // read them here so both auth profiles agree on whether a public surface has
+  // a channel.
+  const hostCustomerAuthContext = options.host?.resolveCustomerAuthContext
+  const customerAuthContextResolver =
+    hostCustomerAuthContext && storefrontRuntimeProvider
+      ? withResolvedStorefrontChannel<OperatorAuthNodeEnv>(hostCustomerAuthContext, {
+          provider: storefrontRuntimeProvider,
+          openResolveContext: openStorefrontResolveContext,
+          resolveStorefrontChannelBinding: (context, storefrontId) =>
+            storefrontChannelBinding.getStorefrontChannelBinding(context, storefrontId),
+          onDiagnostic: reportStorefrontChannelDiagnostic,
+        })
+      : (hostCustomerAuthContext ?? localStorefrontCustomerAuth)
   const localStorefrontCorsOrigin =
     storefrontRuntimeProvider && !options.host?.resolveCustomerCorsOrigin
       ? createLocalStorefrontCorsOriginResolver({
@@ -389,11 +428,8 @@ export async function loadVoyantProject(
     reporter,
     ...(customerBusinessAccountOnboarding ? { customerBusinessAccountOnboarding } : {}),
     resolveEmailSender: options.host?.resolveAuthEmailSender ?? resolveVoyantCloudAuthEmailSender,
-    ...(options.host?.resolveCustomerAuthContext || localStorefrontCustomerAuth
-      ? {
-          resolveCustomerAuthContext:
-            options.host?.resolveCustomerAuthContext ?? localStorefrontCustomerAuth,
-        }
+    ...(customerAuthContextResolver
+      ? { resolveCustomerAuthContext: customerAuthContextResolver }
       : {}),
     ...(options.host?.resolveCustomerCorsOrigin || localStorefrontCorsOrigin
       ? {
