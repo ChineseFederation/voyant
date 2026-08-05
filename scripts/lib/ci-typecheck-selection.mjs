@@ -99,6 +99,61 @@ export function classifyTypecheck({ directory, manifest }) {
   return { required: false, reason: "build-covers-typecheck" }
 }
 
+/**
+ * Every file a CI run actually typechecks for this workspace.
+ *
+ * Two jobs can do it. `build` runs for every workspace, so its project counts
+ * unless the command opts out of checking. `typecheck` runs only when
+ * classifyTypecheck marks it required — that is precisely what
+ * run-ci-typechecks.mjs selects on — so a project the classifier skips
+ * contributes nothing, however wide its `include` is.
+ */
+export function collectCiCheckedFiles({ directory, manifest }) {
+  const files = new Set()
+
+  const buildCommand = manifest.scripts?.build
+  if (buildCommand && !buildCommand.includes("--noCheck")) {
+    for (const project of extractTypeScriptProjects(buildCommand, directory)) {
+      for (const file of safeReadProjectFiles(project)) files.add(file)
+    }
+  }
+
+  const typecheckCommand = manifest.scripts?.typecheck
+  if (typecheckCommand && classifyTypecheck({ directory, manifest }).required) {
+    for (const project of extractTypeScriptProjects(typecheckCommand, directory)) {
+      for (const file of safeReadProjectFiles(project)) files.add(file)
+    }
+  }
+
+  return files
+}
+
+/**
+ * Projects a CI script references that cannot be read here.
+ *
+ * `apps/operator` typechecks three projects under `.voyant/`, which its
+ * `prepare:verify` step generates — they do not exist in a clean checkout. A
+ * caller measuring coverage must not read "absent" as "covers nothing", or it
+ * reports every operator test as unchecked when the generated project may well
+ * cover them. Callers should treat a workspace with unresolved projects as not
+ * analysable rather than guessing in either direction.
+ */
+export function unresolvedCiProjects({ directory, manifest }) {
+  const commands = [manifest.scripts?.build, manifest.scripts?.typecheck].filter(Boolean)
+  return commands
+    .flatMap((command) => extractTypeScriptProjects(command, directory))
+    .filter((project) => !fs.existsSync(project))
+}
+
+function safeReadProjectFiles(configPath) {
+  if (!fs.existsSync(configPath)) return []
+  try {
+    return readProject(configPath).files
+  } catch {
+    return []
+  }
+}
+
 function extractTypeScriptProjects(command, directory) {
   const invocations = command.match(/\btsc\b[^;&|]*/g) ?? []
 

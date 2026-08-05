@@ -59,10 +59,31 @@ it names the only paths (globs allowed) that may reference the symbol, so a new
 file anywhere else fails on its own. An authority wants `onlyIn`: it is the
 difference between guarding the meaning and guarding a list of filenames.
 
-Two run as ratchets, holding a line rather than demanding it be clean today:
-`verify:table-privacy` (cross-module table reach-ins) and
-`verify:package-descriptions`. **Their baselines may only shrink.** Regenerate
-one only when tightening it; never to make a failure go away.
+Three run as ratchets, holding a line rather than demanding it be clean today:
+`verify:table-privacy` (cross-module table reach-ins),
+`verify:package-descriptions`, and `verify:typecheck-coverage`. **Their
+baselines may only shrink.** Regenerate one only when tightening it; never to
+make a failure go away.
+
+`verify:typecheck-coverage` enforces that every test file is typechecked by some
+CI job. A package whose tsconfig includes only `src/**` gets no typecheck job at
+all — `build` still checks its `src`, but nothing checks its tests, so a fixture
+may drift from the type it claims to match and the test still passes. 56
+packages carry 844 such test files today ([#4244](https://github.com/voyant-travel/voyant/issues/4244));
+the baseline is on **membership**, so a listed package may still gain tests but
+an unlisted one may never start. Fix a package with the tsconfig split from
+[#4243](https://github.com/voyant-travel/voyant/pull/4243):
+
+- `tsconfig.json` — shared/editor project, `include: ["src/**/*", "tests/**/*"]`,
+  **no** `outDir`/`rootDir`
+- `tsconfig.build.json` — stands alone, re-declares the emit geometry and
+  `include: ["src/**/*"]` so tests never reach `dist`
+- `tsconfig.typecheck.json` — unchanged; inherits the wider include
+
+Widening `tsconfig.typecheck.json` directly instead produces `TS6059` wherever a
+test imports a sibling package by relative path, because `rootDir: "src"` is
+inherited. Moving the emit geometry out of the shared project is what resolves
+it.
 
 ### Converting an authority script you are already editing
 
