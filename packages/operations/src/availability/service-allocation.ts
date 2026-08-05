@@ -4,15 +4,12 @@
 // traveler helpers below. It was already over the limit before #4164 wrapped
 // the mutations' audit writes in their transactions; splitting the manifest
 // read out is a separate refactor, not part of this bug fix.
-import {
-  type allocationResources,
-  availabilitySlots,
-  sharingGroupLabels,
-} from "@voyant-travel/availability/schema"
+
 import { eq, sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import type { z } from "zod"
 import { activeBookingAllocationStatusesSql, activeBookingStatusesSql } from "./booking-statuses.js"
+import { type allocationResources, availabilitySlots, sharingGroupLabels } from "./schema.js"
 import { recordAllocationAudit } from "./service-allocation-audit.js"
 import {
   type AssignmentConstraintDecision,

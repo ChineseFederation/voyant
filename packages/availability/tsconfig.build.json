@@ -1,3 +1,0 @@
-{
-  "extends": ["./tsconfig.json", "../typescript-config/dep-paths.json"]
-}

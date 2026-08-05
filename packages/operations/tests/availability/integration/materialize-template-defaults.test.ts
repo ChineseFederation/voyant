@@ -1,11 +1,11 @@
+import { newId } from "@voyant-travel/db/lib/typeid"
+import { cleanupTestDb, createTestDb } from "@voyant-travel/db/test-utils"
 import {
   allocationResources,
   availabilityRules,
   availabilitySlots,
   productOptionResourceTemplates,
-} from "@voyant-travel/availability/schema"
-import { newId } from "@voyant-travel/db/lib/typeid"
-import { cleanupTestDb, createTestDb } from "@voyant-travel/db/test-utils"
+} from "@voyant-travel/operations/schema"
 import { eq, sql } from "drizzle-orm"
 import { beforeAll, beforeEach, describe, expect, it } from "vitest"
 import { bookingAllocations, bookingItems, bookings } from "../../../../bookings/src/schema.js"

@@ -34,7 +34,6 @@
     "@hono/zod-openapi": "catalog:",
     "@voyant-travel/action-ledger": "workspace:^",
     "@voyant-travel/allotments": "workspace:^",
-    "@voyant-travel/availability": "workspace:^",
     "@voyant-travel/bookings": "workspace:^",
     "@voyant-travel/bookings-contracts": "workspace:^",
     "@voyant-travel/catalog": "workspace:^",
@@ -158,7 +157,6 @@
     },
     "schema": "./schema",
     "requiresSchemas": [
-      "@voyant-travel/availability",
       "@voyant-travel/db",
       "@voyant-travel/identity"
     ],

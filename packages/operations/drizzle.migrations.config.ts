@@ -10,7 +10,7 @@ import { defineConfig } from "drizzle-kit"
 
 export default defineConfig({
   // operations OWNS ground + places + resources. The availability schema lives
-  // in @voyant-travel/availability now; operations' barrel re-exports it for
+  // in ./src/availability now; operations' barrel re-exports it for
   // runtime consumers, but operations must NOT create those tables in its own
   // migration — so this config lists operations' owned schema files explicitly
   // (the barrel's availability re-export is intentionally excluded here).

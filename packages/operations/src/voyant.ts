@@ -138,6 +138,13 @@ export const operationsVoyantModule = defineModule({
     {
       id: "@voyant-travel/operations#migrations",
       source: "./migrations",
+      // Absorbed from the retired @voyant-travel/availability package (#4271).
+      // Its four tags moved here byte-identical, so their content hashes still
+      // match; the ledger is keyed (source, tag) and `source` is the unscoped
+      // package name, so without this a database that already applied them
+      // would not find them under "operations" and would re-run them against
+      // tables that exist.
+      legacySources: ["availability"],
     },
   ],
   links: [

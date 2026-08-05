@@ -1,7 +1,7 @@
-import { allocationResources } from "@voyant-travel/availability/schema"
 import { asc, eq, sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import { activeBookingAllocationStatusesSql, activeBookingStatusesSql } from "./booking-statuses.js"
+import { allocationResources } from "./schema.js"
 import { executeRows, type SqlExecutor, sqlTextArray } from "./service-allocation-sql.js"
 
 export async function listAllocationResources(db: PostgresJsDatabase, slotId: string) {

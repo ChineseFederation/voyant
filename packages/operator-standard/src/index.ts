@@ -226,7 +226,6 @@ export const STANDARD_OPERATOR_DISTRIBUTION_POLICY: {
     { resolve: "@voyant-travel/realtime" },
     { resolve: "@voyant-travel/mice" },
     { resolve: "@voyant-travel/db" },
-    { resolve: "@voyant-travel/availability" },
     { resolve: "@voyant-travel/catalog-authoring" },
     { resolve: "@voyant-travel/reporting" },
   ],

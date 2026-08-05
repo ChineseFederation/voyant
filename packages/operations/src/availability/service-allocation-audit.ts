@@ -1,7 +1,7 @@
-import { allocationAuditLog } from "@voyant-travel/availability/schema"
 import { newId } from "@voyant-travel/db/lib/typeid"
 import { desc, eq, sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
+import { allocationAuditLog } from "./schema.js"
 import type { SqlExecutor } from "./service-allocation-sql.js"
 
 export interface AllocationAuditLogEntry {

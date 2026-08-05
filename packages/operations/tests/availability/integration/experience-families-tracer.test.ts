@@ -15,9 +15,10 @@
 // against the one shared summary, and the operator-facing schedule term is the
 // one resolver deciding Session vs Occurrence vs Departure from Product
 // behaviour.
-import { availabilitySlots } from "@voyant-travel/availability/schema"
+
 import { newId } from "@voyant-travel/db/lib/typeid"
 import { cleanupTestDb, createTestDb } from "@voyant-travel/db/test-utils"
+import { availabilitySlots } from "@voyant-travel/operations/schema"
 import { sql } from "drizzle-orm"
 import { beforeAll, beforeEach, describe, expect, it } from "vitest"
 

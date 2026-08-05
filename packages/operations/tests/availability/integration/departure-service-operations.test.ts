@@ -1,6 +1,6 @@
-import { availabilityRules, availabilitySlots } from "@voyant-travel/availability/schema"
 import { newId } from "@voyant-travel/db/lib/typeid"
 import { cleanupTestDb, createTestDb } from "@voyant-travel/db/test-utils"
+import { availabilityRules, availabilitySlots } from "@voyant-travel/operations/schema"
 import { and, asc, eq } from "drizzle-orm"
 import { beforeAll, beforeEach, describe, expect, it } from "vitest"
 import {

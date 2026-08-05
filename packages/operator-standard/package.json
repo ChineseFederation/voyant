@@ -32,7 +32,6 @@
     "@voyant-travel/apps-react": "workspace:*",
     "@voyant-travel/auth": "workspace:*",
     "@voyant-travel/auth-react": "workspace:*",
-    "@voyant-travel/availability": "workspace:*",
     "@voyant-travel/bookings": "workspace:*",
     "@voyant-travel/bookings-react": "workspace:*",
     "@voyant-travel/catalog": "workspace:*",

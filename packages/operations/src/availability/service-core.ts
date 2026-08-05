@@ -1,8 +1,3 @@
-import {
-  type AvailabilitySlot,
-  availabilityCloseouts,
-  availabilitySlots,
-} from "@voyant-travel/availability/schema"
 import type { EventBus } from "@voyant-travel/core"
 import { RequestValidationError } from "@voyant-travel/hono"
 import { and, asc, desc, eq, getTableColumns, gte, lt, sql } from "drizzle-orm"
@@ -10,6 +5,7 @@ import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import { AVAILABILITY_SLOT_CHANGED_EVENT, type AvailabilitySlotChangedEvent } from "./events.js"
 import { materializeDepartureServiceOperations } from "./materialize-departure-operations.js"
 import { productOptionsRef, productsRef, resolveCurrentProductVersionId } from "./products-ref.js"
+import { type AvailabilitySlot, availabilityCloseouts, availabilitySlots } from "./schema.js"
 import { assertProductAllowsStaticAvailability } from "./service-product-guard.js"
 import type {
   AvailabilityCloseoutListQuery,

@@ -37,11 +37,11 @@
  * `relation does not exist` stack trace.
  */
 
-import type { AllocationResource } from "@voyant-travel/availability/schema"
 import { newId } from "@voyant-travel/db/lib/typeid"
 import { sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import type { z } from "zod"
+import type { AllocationResource } from "./schema.js"
 import type { AllocationMutationOptions } from "./service-allocation.js"
 import { recordAllocationAudit } from "./service-allocation-audit.js"
 import { AllocationServiceError } from "./service-allocation-errors.js"

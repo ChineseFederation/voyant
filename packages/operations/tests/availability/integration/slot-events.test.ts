@@ -1,7 +1,7 @@
-import { availabilitySlots } from "@voyant-travel/availability/schema"
 import { createEventBus } from "@voyant-travel/core"
 import { newId } from "@voyant-travel/db/lib/typeid"
 import { cleanupTestDb, createTestDb } from "@voyant-travel/db/test-utils"
+import { availabilitySlots } from "@voyant-travel/operations/schema"
 import { eq } from "drizzle-orm"
 import { beforeAll, beforeEach, describe, expect, it } from "vitest"
 import { products } from "../../../../inventory/src/schema.js"

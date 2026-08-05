@@ -105,7 +105,7 @@ export const bookingAllocations = pgTable(
     optionUnitId: text("option_unit_id"),
     pricingCategoryId: text("pricing_category_id"),
     // Plain id (indexed below), not a hard cross-package FK — availability_slots
-    // is owned by @voyant-travel/availability; bookings references it loosely
+    // is owned by @voyant-travel/operations; bookings references it loosely
     // per module decoupling.
     availabilitySlotId: typeIdRef("availability_slot_id"),
     quantity: integer("quantity").notNull().default(1),

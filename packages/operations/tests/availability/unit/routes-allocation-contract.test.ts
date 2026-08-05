@@ -3,7 +3,7 @@ import type {
   allocationResources,
   productOptionResourceTemplates,
   sharingGroupLabels,
-} from "@voyant-travel/availability/schema"
+} from "@voyant-travel/operations/schema"
 import type { InferSelectModel } from "drizzle-orm"
 import { describe, expect, it } from "vitest"
 import { z } from "zod"

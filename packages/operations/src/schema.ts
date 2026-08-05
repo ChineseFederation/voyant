@@ -1,4 +1,4 @@
-export * from "@voyant-travel/availability/schema"
+export * from "./availability/schema.js"
 export * from "./booking-actions/schema.js"
 export * from "./ground/schema.js"
 export * from "./places/schema.js"

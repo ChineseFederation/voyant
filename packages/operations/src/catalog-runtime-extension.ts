@@ -1,7 +1,7 @@
-import { availabilitySlots } from "@voyant-travel/availability/schema"
 import type { CatalogOperationsRuntimeExtension } from "@voyant-travel/catalog/runtime-contracts"
 import { and, asc, eq, gte } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
+import { availabilitySlots } from "./availability/schema.js"
 
 import { createProductDeparturesProjectionExtension } from "./availability/service-catalog-plane-departures.js"
 

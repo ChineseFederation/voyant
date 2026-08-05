@@ -1,6 +1,6 @@
-import { availabilitySlots } from "@voyant-travel/availability/schema"
 import { and, eq, gte, isNull, sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
+import { availabilitySlots } from "./schema.js"
 
 type SlotStatus = (typeof availabilitySlots.$inferSelect)["status"]
 

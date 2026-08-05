@@ -79,6 +79,8 @@ export interface VoyantProjectSchemaMigration {
   idempotencyKey: string
   owner: string
   packageName?: string
+  /** Retired ledger source names this migration source absorbed. */
+  legacySources?: readonly string[]
   source:
     | {
         kind: "package"
@@ -1016,6 +1018,7 @@ export function buildMigrationPlan(
         idempotencyKey: `schema:${migration.id}`,
         owner: unit.id,
         packageName: unit.packageName,
+        ...(migration.legacySources?.length ? { legacySources: migration.legacySources } : {}),
         source: {
           kind: "package" as const,
           packageName: unit.packageName,

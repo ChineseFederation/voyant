@@ -6,7 +6,7 @@
  * ones in the module that read a traveler's *commercial* facts (which option
  * unit they bought) alongside their *rooming* facts (bed preference, category).
  * Every read is raw SQL through `executeRows`: `allocation_resources` is owned
- * by @voyant-travel/availability and the `operations->availability` table
+ * by this module's availability schema and the former `operations->availability` table
  * reach-in ratchet has no headroom, so this file adds no schema imports.
  */
 

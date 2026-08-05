@@ -1,11 +1,7 @@
-import {
-  availabilityPickupPoints,
-  availabilityRules,
-  availabilitySlots,
-} from "@voyant-travel/availability/schema"
 import { and, asc, eq, getTableColumns, gte, inArray, notExists, sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import { productsRef } from "./products-ref.js"
+import { availabilityPickupPoints, availabilityRules, availabilitySlots } from "./schema.js"
 
 export interface AvailabilityOverviewOptions {
   productId?: string

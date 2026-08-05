@@ -24,14 +24,13 @@
  * the whole departure, not by counting what a page happened to return.
  */
 
-import type { AvailabilitySlot } from "@voyant-travel/availability/schema"
 import type {
   FinanceDepartureProfitabilityReport,
   FinanceDepartureProfitabilityRow,
 } from "@voyant-travel/finance-contracts/runtime-port"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
-
 import { readDepartureProfitabilityReport } from "./departure-profitability-runtime.js"
+import type { AvailabilitySlot } from "./schema.js"
 import {
   type BookingRow,
   derivePaidAmountCents,

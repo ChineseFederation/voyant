@@ -1,5 +1,5 @@
-import { type AllocationResource, allocationResources } from "@voyant-travel/availability/schema"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
+import { type AllocationResource, allocationResources } from "./schema.js"
 import { assertVehicleChildCapacity } from "./service-allocation-resource-invariants.js"
 import type { SeatLayoutCell, SeatLayoutSpec } from "./validation.js"
 import { seatLayoutSpecSchema } from "./validation.js"

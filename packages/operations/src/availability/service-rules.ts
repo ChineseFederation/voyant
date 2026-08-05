@@ -7,11 +7,10 @@
  * they move as a unit with no behaviour change.
  */
 
-import { availabilityRules, availabilityStartTimes } from "@voyant-travel/availability/schema"
 import { and, desc, eq, getTableColumns, sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
-
 import { productsRef } from "./products-ref.js"
+import { availabilityRules, availabilityStartTimes } from "./schema.js"
 import { assertProductAllowsStaticAvailability } from "./service-product-guard.js"
 import type {
   AvailabilityRuleListQuery,

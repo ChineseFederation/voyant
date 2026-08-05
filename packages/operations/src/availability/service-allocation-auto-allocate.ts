@@ -6,11 +6,9 @@
  * materialisation only. The two halves share nothing but the allocator.
  */
 
-import type { AllocationResource } from "@voyant-travel/availability/schema"
 import { sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import type { z } from "zod"
-
 import {
   type AllocationCompromise,
   type AllocationUnplacedGroup,
@@ -20,6 +18,7 @@ import {
   planVehicleSeatAllocation,
 } from "./auto-allocator.js"
 import { activeBookingAllocationStatusesSql, activeBookingStatusesSql } from "./booking-statuses.js"
+import type { AllocationResource } from "./schema.js"
 import {
   type AllocationMutationOptions,
   getSlotAllocationManifest,

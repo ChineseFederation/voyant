@@ -52,10 +52,10 @@
  * otherwise only be guessed at from `durationDays`.
  */
 
-import { availabilitySlots } from "@voyant-travel/availability/schema"
 import type { IndexerSlice } from "@voyant-travel/catalog"
 import type { AnyDrizzleDb } from "@voyant-travel/db"
 import { and, asc, eq, gt, lt } from "drizzle-orm"
+import { availabilitySlots } from "./schema.js"
 
 import { instantToSlotLocal } from "./slot-timezone.js"
 

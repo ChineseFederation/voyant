@@ -1,7 +1,7 @@
-import { availabilitySlots } from "@voyant-travel/availability/schema"
 import { createDbClient } from "@voyant-travel/db"
 import { newId } from "@voyant-travel/db/lib/typeid"
 import { cleanupTestDb } from "@voyant-travel/db/test-utils"
+import { availabilitySlots } from "@voyant-travel/operations/schema"
 import { sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest"

@@ -41,7 +41,7 @@ export type DepartureServiceOperationStatus =
  *
  * `slotId`, `productVersionId`, `facilityId`, `supplierId` and
  * `supplierServiceId` are soft references (plain text): `availability_slots` is
- * owned by @voyant-travel/availability, `product_versions` by inventory, and
+ * owned by this module's availability schema, `product_versions` by inventory, and
  * facilities/suppliers by other modules — a cross-domain foreign key would
  * violate schema discipline, exactly as `availability_slots.product_version_id`
  * documents.

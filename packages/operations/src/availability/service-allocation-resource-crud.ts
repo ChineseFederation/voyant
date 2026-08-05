@@ -1,6 +1,6 @@
-import { allocationResources, availabilitySlots } from "@voyant-travel/availability/schema"
 import { and, eq } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
+import { allocationResources, availabilitySlots } from "./schema.js"
 import type {
   AllocationMutationOptions,
   CreateAllocationResourceInput,

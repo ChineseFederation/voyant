@@ -1,7 +1,7 @@
-import { productOptionResourceTemplates } from "@voyant-travel/availability/schema"
 import { and, eq, sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import type { z } from "zod"
+import { productOptionResourceTemplates } from "./schema.js"
 import { AllocationServiceError } from "./service-allocation-errors.js"
 import { executeRows, sqlTextArray } from "./service-allocation-sql.js"
 import type { upsertResourceTemplateSchema } from "./validation.js"

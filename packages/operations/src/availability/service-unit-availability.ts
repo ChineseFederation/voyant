@@ -1,9 +1,9 @@
-import { availabilitySlots } from "@voyant-travel/availability/schema"
 import { and, asc, eq, inArray, sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import { ACTIVE_BOOKING_STATUSES } from "./booking-statuses.js"
 import { bookingItemsRef, bookingsRef } from "./bookings-ref.js"
 import { optionUnitsRef } from "./option-units-ref.js"
+import { availabilitySlots } from "./schema.js"
 
 export interface SlotUnitAvailability {
   optionUnitId: string

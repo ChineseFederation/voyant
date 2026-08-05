@@ -20,6 +20,8 @@ import { existsSync, readdirSync, readFileSync } from "node:fs"
 import { createRequire } from "node:module"
 import { join } from "node:path"
 
+import { cutlineTagsFor, loadCutlineManifest } from "./cutline-manifest.mjs"
+
 const require = createRequire(new URL("../../apps/operator/package.json", import.meta.url))
 const { Client } = require("pg")
 
@@ -79,14 +81,12 @@ function loadFrameworkCutlineBundle() {
 // increment correctly diverges from the (frozen) bundle, so comparing it would
 // be wrong. Apply-all still happens for the collision check; only the column
 // comparison + ownership are scoped to the cutline.
-const CUTLINE = (() => {
-  const p = join(ROOT, "packages/framework-migrations/cutline.generated.json")
-  return existsSync(p) ? (JSON.parse(readFileSync(p, "utf8")).cutline ?? {}) : {}
-})()
+const CUTLINE_MANIFEST = loadCutlineManifest(ROOT)
+const CUTLINE = CUTLINE_MANIFEST.cutline
 
 /** Statements for a folder restricted to its cutline tags (dir = source name). */
 function loadFolderCutline(folder, dir) {
-  const covered = new Set(CUTLINE[dir] ?? [])
+  const covered = new Set(cutlineTagsFor(CUTLINE_MANIFEST, dir))
   return journalTags(folder)
     .filter((tag) => covered.has(tag))
     .flatMap((tag) => splitStatements(readFileSync(join(folder, `${tag}.sql`), "utf8")))

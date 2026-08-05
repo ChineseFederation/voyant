@@ -1,7 +1,7 @@
 {
   "$comment": [
     "Packages carrying test files that no CI job typechecks. Issue #4244.",
-    "The set may only SHRINK — a package with no entry here may not start carrying",
+    "The set may only SHRINK \u2014 a package with no entry here may not start carrying",
     "unchecked tests. Fix a package with the tsconfig split from #4243, then",
     "regenerate with --update-baseline. Never regenerate to clear a failure."
   ],
@@ -15,7 +15,6 @@
     "@voyant-travel/admin-react",
     "@voyant-travel/allotments",
     "@voyant-travel/auth",
-    "@voyant-travel/availability",
     "@voyant-travel/bookings",
     "@voyant-travel/catalog",
     "@voyant-travel/catalog-authoring",

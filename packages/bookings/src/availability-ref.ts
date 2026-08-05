@@ -3,8 +3,8 @@ import { boolean, date, integer, pgTable, text, timestamp } from "drizzle-orm/pg
 
 /**
  * DELIBERATE local mirror of `availability_slots` (owned by
- * `@voyant-travel/availability`). DO NOT replace this with an import from
- * `@voyant-travel/availability` — bookings is a retail-spine package and must not
+ * `@voyant-travel/operations`). DO NOT replace this with an import from
+ * `@voyant-travel/operations` — bookings is a retail-spine package and must not
  * take a hard runtime dependency on the Availability/Operations runtime
  * (enforced by scripts/check-retail-spine-closure.mjs). This local table object
  * lets the refund workflow write back remaining capacity by table name without

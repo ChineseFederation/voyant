@@ -1,12 +1,12 @@
+import { and, eq, inArray, sql } from "drizzle-orm"
+import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
+import { activeBookingAllocationStatusesSql, activeBookingStatusesSql } from "./booking-statuses.js"
 import {
   type AllocationResource,
   allocationResources,
   availabilitySlots,
   productOptionResourceTemplates,
-} from "@voyant-travel/availability/schema"
-import { and, eq, inArray, sql } from "drizzle-orm"
-import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
-import { activeBookingAllocationStatusesSql, activeBookingStatusesSql } from "./booking-statuses.js"
+} from "./schema.js"
 import { type AllocationMutationOptions, recordAllocationAudit } from "./service-allocation.js"
 import type {
   AllocationAutomationInput,

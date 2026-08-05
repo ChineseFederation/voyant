@@ -2,7 +2,7 @@ import type {
   availabilityCloseouts,
   availabilityRules,
   availabilitySlots,
-} from "@voyant-travel/availability/schema"
+} from "@voyant-travel/operations/schema"
 import { listResponse, listResponseSchema } from "@voyant-travel/types"
 import type { InferSelectModel } from "drizzle-orm"
 import { describe, expect, it } from "vitest"

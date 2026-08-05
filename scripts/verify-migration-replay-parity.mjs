@@ -28,6 +28,8 @@ import { existsSync, readFileSync } from "node:fs"
 import { createRequire } from "node:module"
 import { join } from "node:path"
 
+import { cutlineTagsFor, loadCutlineManifest } from "./migrations/cutline-manifest.mjs"
+
 const require = createRequire(new URL("../apps/operator/package.json", import.meta.url))
 const { Client } = require("pg")
 
@@ -90,12 +92,14 @@ function loadFolder(folder) {
 }
 
 function loadCutline() {
-  const p = join(ROOT, "packages/framework-migrations/cutline.generated.json")
-  return existsSync(p) ? (JSON.parse(readFileSync(p, "utf8")).cutline ?? {}) : {}
+  return loadCutlineManifest(ROOT)
 }
 
 function loadFolderAfterCutline(folder, sourceName, cutline) {
-  const covered = new Set(cutline[sourceName] ?? [])
+  // Union with any absorbed source's tags: an absorbed tag is already
+  // materialised, so treating it as a post-cutline increment replays it on top
+  // of the frozen bundle that already created those objects.
+  const covered = new Set(cutlineTagsFor(cutline, sourceName))
   const journal = JSON.parse(readFileSync(join(folder, "meta", "_journal.json"), "utf8"))
   return [...journal.entries]
     .sort((a, b) => a.when - b.when)

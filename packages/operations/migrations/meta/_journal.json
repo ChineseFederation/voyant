@@ -12,36 +12,64 @@
     {
       "idx": 1,
       "version": "7",
+      "when": 1781954969333,
+      "tag": "0000_availability_baseline",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
       "when": 1782153618391,
       "tag": "0001_operations_baseline",
       "breakpoints": true
     },
     {
-      "idx": 2,
+      "idx": 3,
       "version": "7",
       "when": 1782155908888,
       "tag": "0002_operations_baseline",
       "breakpoints": true
     },
     {
-      "idx": 3,
+      "idx": 4,
       "version": "7",
       "when": 1782921600000,
       "tag": "0003_resource_pool_members_unique_pair",
       "breakpoints": true
     },
     {
-      "idx": 4,
+      "idx": 5,
+      "version": "7",
+      "when": 1784090529380,
+      "tag": "20260715044209_booking_hold_conversion",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
       "version": "7",
       "when": 1785699380030,
       "tag": "0004_operations_baseline",
       "breakpoints": true
     },
     {
-      "idx": 5,
+      "idx": 7,
+      "version": "7",
+      "when": 1785777005358,
+      "tag": "0002_slot_product_version",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
       "version": "7",
       "when": 1785849274902,
       "tag": "0005_operations_baseline",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1785857706857,
+      "tag": "0003_room_occupancy",
       "breakpoints": true
     }
   ]

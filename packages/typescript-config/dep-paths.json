@@ -289,9 +289,6 @@
       "@voyant-travel/auth/tools": ["../auth/dist/mcp-runtime.d.ts"],
       "@voyant-travel/auth/voyant": ["../auth/dist/voyant.d.ts"],
       "@voyant-travel/auth/workspace": ["../auth/dist/workspace.d.ts"],
-      "@voyant-travel/availability": ["../availability/dist/index.d.ts"],
-      "@voyant-travel/availability/schema": ["../availability/dist/schema.d.ts"],
-      "@voyant-travel/availability/voyant": ["../availability/dist/voyant.d.ts"],
       "@voyant-travel/bookings": ["../bookings/dist/index.d.ts"],
       "@voyant-travel/bookings-contracts": ["../bookings-contracts/dist/index.d.ts"],
       "@voyant-travel/bookings-contracts/amendments": [

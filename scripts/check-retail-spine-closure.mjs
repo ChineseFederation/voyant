@@ -44,7 +44,6 @@ const forbiddenPackages = new Map([
   ["@voyant-travel/inventory-react", "operated Inventory authoring UI"],
   ["@voyant-travel/products", "operated Inventory authoring runtime"],
   ["@voyant-travel/products-react", "operated Inventory authoring UI"],
-  ["@voyant-travel/availability", "operated Availability/Operations runtime"],
   ["@voyant-travel/availability-react", "operated Availability/Operations UI"],
   ["@voyant-travel/resources", "operated Operations runtime"],
   ["@voyant-travel/resources-react", "operated Operations UI"],

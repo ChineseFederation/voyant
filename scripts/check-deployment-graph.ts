@@ -32,7 +32,6 @@ const operatorRoot = join(repoRoot, "apps", "operator")
 
 const OPERATOR_SCHEMA_ONLY_MODULE_SPECIFIERS = [
   "@voyant-travel/db",
-  "@voyant-travel/availability",
   "@voyant-travel/catalog-authoring",
 ] as const
 const PACKAGE_OWNED_RUNTIME_MODULE_SPECIFIERS = [

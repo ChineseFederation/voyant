@@ -11,9 +11,9 @@
  * `allocation-departure-resources.test.ts`.
  */
 
-import { allocationResources, availabilitySlots } from "@voyant-travel/availability/schema"
 import { newId } from "@voyant-travel/db/lib/typeid"
 import { cleanupTestDb, createTestDb } from "@voyant-travel/db/test-utils"
+import { allocationResources, availabilitySlots } from "@voyant-travel/operations/schema"
 import { eq, sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import { beforeAll, beforeEach, describe, expect, it } from "vitest"

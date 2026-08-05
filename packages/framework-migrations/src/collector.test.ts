@@ -811,6 +811,82 @@ describe.skipIf(!DB_URL)("applyMigrations (integration)", () => {
     expect(await tableExists("acme_notes")).toBe(true)
   })
 
+  it("a consolidated source adopts the absorbed source's history without replaying it", async () => {
+    // Module consolidation (voyant#4271): `operations` absorbs the retired
+    // `availability` package's migration history. The tags move byte-identical,
+    // so the hashes still match, but the ledger is keyed (source, tag) and the
+    // source name changes. Without the alias the tags are not found under the
+    // new name and re-run against tables that already exist.
+    //
+    // The SQL below is a bare CREATE TABLE on purpose: if the adoption fails to
+    // suppress it, this test does not merely assert a wrong count — it throws.
+    const absorbedSql = `CREATE TABLE ${SCHEMA}.availability_slots (id text PRIMARY KEY);`
+
+    const retired: MigrationSource = {
+      name: "availability",
+      priority: 0,
+      migrations: [{ tag: "0000_availability_baseline", sql: absorbedSql }],
+    }
+    const first = await applyMigrations(client, [retired], ledgerOpts)
+    expect(first.executed).toEqual(["availability/0000_availability_baseline"])
+    expect(await tableExists("availability_slots")).toBe(true)
+
+    const consolidated: MigrationSource = {
+      name: "operations",
+      legacyNames: ["availability"],
+      priority: 0,
+      migrations: [
+        { tag: "0000_operations_baseline", sql: `CREATE TABLE ${SCHEMA}.facilities (id text);` },
+        { tag: "0000_availability_baseline", sql: absorbedSql },
+      ],
+    }
+    const second = await applyMigrations(client, [consolidated], ledgerOpts)
+
+    // The operations tag is new and runs; the absorbed tag is adopted, not replayed.
+    expect(second.executed).toEqual(["operations/0000_operations_baseline"])
+    expect(second.baselined).toEqual([])
+    expect(await tableExists("facilities")).toBe(true)
+
+    const ledger = await client.query(
+      `SELECT "source" FROM ${SCHEMA}._voyant_migrations WHERE "tag" = $1 ORDER BY "source"`,
+      ["0000_availability_baseline"],
+    )
+    expect(ledger.rows.map((row) => row.source)).toEqual(["availability", "operations"])
+  })
+
+  it("a consolidated source still rejects absorbed SQL that changed", async () => {
+    const retired: MigrationSource = {
+      name: "availability",
+      priority: 0,
+      migrations: [
+        { tag: "0000_availability_baseline", sql: `CREATE TABLE ${SCHEMA}.slots (id text);` },
+      ],
+    }
+    await applyMigrations(client, [retired], ledgerOpts)
+
+    await expect(
+      applyMigrations(
+        client,
+        [
+          {
+            name: "operations",
+            legacyNames: ["availability"],
+            priority: 0,
+            migrations: [
+              // Same tag, different SQL — absorbing a history must not become a
+              // way to smuggle an edit past the immutability gate.
+              {
+                tag: "0000_availability_baseline",
+                sql: `CREATE TABLE ${SCHEMA}.slots (id text, extra text);`,
+              },
+            ],
+          },
+        ],
+        ledgerOpts,
+      ),
+    ).rejects.toBeInstanceOf(MigrationImmutabilityError)
+  })
+
   it("re-run is idempotent (applies nothing)", async () => {
     const s = sources()
     await applyMigrations(client, [s.db, s.deployment], ledgerOpts)
