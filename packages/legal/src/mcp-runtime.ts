@@ -7,8 +7,8 @@ import {
   executeAdmittedCreatedTargetCommand,
   mapActionLedgerRequestContext,
 } from "@voyant-travel/action-ledger"
-import { shouldRevealBookingPii } from "@voyant-travel/bookings"
-import { bookingItems, bookingPiiAccessLog, bookings } from "@voyant-travel/bookings/schema"
+import { bookingsService, shouldRevealBookingPii } from "@voyant-travel/bookings"
+import { bookingItems, bookings } from "@voyant-travel/bookings/schema"
 import type { EventBus } from "@voyant-travel/core"
 import {
   defineToolContextContribution,
@@ -173,7 +173,7 @@ export function createLegalToolServices(
     async listApplicableBookingTemplates(input) {
       const result = await listApplicableBookingContractTemplates(db, input)
       if (result.bookingFound) {
-        await db.insert(bookingPiiAccessLog).values({
+        await bookingsService.recordPiiAccess(db, {
           bookingId: input.bookingId,
           travelerId: null,
           actorId:
@@ -198,7 +198,7 @@ export function createLegalToolServices(
     async getBookingContractReview({ contractId }) {
       const review = await getBookingContractReview(db, contractId)
       if (review) {
-        await db.insert(bookingPiiAccessLog).values({
+        await bookingsService.recordPiiAccess(db, {
           bookingId: review.booking.id,
           travelerId: null,
           actorId:
@@ -489,7 +489,7 @@ async function authorizeLegalContractDraftBookingSnapshotRead(
     enforceRbac: true,
   })
 
-  await db.insert(bookingPiiAccessLog).values({
+  await bookingsService.recordPiiAccess(db, {
     bookingId,
     travelerId: null,
     actorId:
@@ -935,7 +935,7 @@ export function createLegalContractDocumentToolServices(input: {
         attachmentId,
       )
       if (delivery && row?.contract.bookingId && hasManagedBookingWorkflow(row.contract.metadata)) {
-        await input.db.insert(bookingPiiAccessLog).values({
+        await bookingsService.recordPiiAccess(input.db, {
           bookingId: row.contract.bookingId,
           travelerId: null,
           actorId:

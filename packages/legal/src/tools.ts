@@ -1,6 +1,6 @@
 // agent-quality: file-size exception -- owner: legal; contract lifecycle tools stay co-located because create/read/update/document handlers share one admission and schema surface.
 
-import { bookingPiiAccessLog } from "@voyant-travel/bookings/schema"
+import { bookingsService } from "@voyant-travel/bookings"
 import {
   admitHandlerActionPolicy,
   defineTool,
@@ -584,8 +584,10 @@ async function requireBookingPiiReadScope(
   input: { bookingId?: string | null; contractId?: string; attachmentId?: string },
 ) {
   if (hasBookingPiiReadScope(ctx)) return
-  const db = ctx.db as { insert?: (table: unknown) => { values(input: unknown): Promise<unknown> } }
-  await db.insert?.(bookingPiiAccessLog).values({
+  // Some tool contexts carry a stub db with no writer; the original guarded on
+  // `insert` existing, so keep that rather than assume one.
+  if (typeof (ctx.db as { insert?: unknown }).insert !== "function") return
+  await bookingsService.recordPiiAccess(ctx.db as PostgresJsDatabase, {
     bookingId: input.bookingId ?? null,
     travelerId: null,
     actorId:

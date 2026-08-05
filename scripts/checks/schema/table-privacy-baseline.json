@@ -29,7 +29,7 @@
     "inventory->bookings": 1,
     "inventory->commerce": 25,
     "inventory->operations": 9,
-    "legal->bookings": 7,
+    "legal->bookings": 4,
     "legal->distribution": 2,
     "legal->relationships": 4,
     "mice->accommodations": 2,
@@ -53,7 +53,6 @@
     "commerce->finance": 2,
     "finance->bookings": 12,
     "inventory->commerce": 16,
-    "inventory->operations": 4,
-    "legal->bookings": 5
+    "inventory->operations": 4
   }
 }

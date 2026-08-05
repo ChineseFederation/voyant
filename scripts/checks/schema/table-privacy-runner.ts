@@ -67,7 +67,9 @@ function main(): void {
       }
     }
     const names: string[] = []
-    for (const match of text.matchAll(/\.(?:update|insert|delete)\(\s*(\w+)\s*[),]/g)) {
+    // `?.(` as well as `(`: a defensive `db.insert?.(table)` is still a write,
+    // and treating it as anything else leaves a hole the ratchet cannot see.
+    for (const match of text.matchAll(/\.(?:update|insert|delete)\??\.?\(\s*(\w+)\s*[),]/g)) {
       if (imported.has(match[1] as string)) names.push(match[1] as string)
     }
     if (names.length > 0) writeSites.push({ importer, names })

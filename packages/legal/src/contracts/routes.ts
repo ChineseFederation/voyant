@@ -18,8 +18,7 @@
 // in-handler; multipart upload + redirect download legs declare their non-JSON
 // shapes explicitly. The factory/provider wiring + business logic are unchanged.
 import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi"
-import { shouldRevealBookingPii } from "@voyant-travel/bookings"
-import { bookingPiiAccessLog } from "@voyant-travel/bookings/schema"
+import { bookingsService, shouldRevealBookingPii } from "@voyant-travel/bookings"
 import type { EventBus, ModuleContainer } from "@voyant-travel/core"
 import {
   idempotencyKey,
@@ -100,32 +99,29 @@ async function auditManagedBookingAttachmentDelivery(
     reason: "contract_document_delivery_reveal" | "insufficient_scope"
   },
 ) {
-  await c
-    .get("db")
-    .insert(bookingPiiAccessLog)
-    .values({
-      bookingId: input.bookingId,
-      travelerId: null,
-      actorId: routeActorId(c),
-      actorType: c.get("actor") ?? null,
-      callerType: c.get("callerType") ?? null,
-      action: "read",
-      outcome: input.outcome,
-      reason: input.reason,
-      metadata:
-        input.outcome === "denied"
-          ? {
-              contractId: input.contractId,
-              attachmentId: input.attachmentId,
-              reveal: false,
-              requiredScopes: ["legal:read", "bookings-pii:read"],
-            }
-          : {
-              contractId: input.contractId,
-              attachmentId: input.attachmentId,
-              reveal: true,
-            },
-    })
+  await bookingsService.recordPiiAccess(c.get("db"), {
+    bookingId: input.bookingId,
+    travelerId: null,
+    actorId: routeActorId(c),
+    actorType: c.get("actor") ?? null,
+    callerType: c.get("callerType") ?? null,
+    action: "read",
+    outcome: input.outcome,
+    reason: input.reason,
+    metadata:
+      input.outcome === "denied"
+        ? {
+            contractId: input.contractId,
+            attachmentId: input.attachmentId,
+            reveal: false,
+            requiredScopes: ["legal:read", "bookings-pii:read"],
+          }
+        : {
+            contractId: input.contractId,
+            attachmentId: input.attachmentId,
+            reveal: true,
+          },
+  })
 }
 
 type Env = {

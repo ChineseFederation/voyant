@@ -75,10 +75,12 @@ import {
   bookingItems,
   bookingItemTravelers,
   bookingNotes,
+  bookingPiiAccessLog,
   bookingRedemptionEvents,
   bookingSupplierStatuses,
   bookings,
   bookingTravelers,
+  type NewBookingPiiAccessLog,
 } from "./schema.js"
 import { cleanupGroupOnBookingCancelled } from "./service-groups.js"
 import { type BookingStatus, canTransitionBooking, transitionBooking } from "./state-machine.js"
@@ -2032,6 +2034,45 @@ function toRows<T>(result: unknown): T[] {
 }
 
 const bookingsServiceInternal = {
+  /**
+   * Append a PII-access audit record.
+   *
+   * `booking_pii_access_log` is bookings' table, and every reveal of traveller
+   * PII has to land in it whichever module performed the reveal — `legal` does
+   * so for contract templates, reviews, drafts and document delivery. Those
+   * callers went through `db.insert(bookingPiiAccessLog)` directly, which meant
+   * five copies of the row shape outside the module that defines it, and no
+   * single place to change if the audit record ever grows a required field.
+   *
+   * Append-only by construction: there is no update or delete counterpart.
+   */
+  async recordPiiAccess(
+    db: PostgresJsDatabase,
+    entry: {
+      bookingId?: string | null
+      travelerId?: string | null
+      actorId?: string | null
+      actorType?: string | null
+      callerType?: string | null
+      action: NewBookingPiiAccessLog["action"]
+      outcome: NewBookingPiiAccessLog["outcome"]
+      reason?: string | null
+      metadata?: Record<string, unknown> | null
+    },
+  ) {
+    await db.insert(bookingPiiAccessLog).values({
+      bookingId: entry.bookingId ?? null,
+      travelerId: entry.travelerId ?? null,
+      actorId: entry.actorId ?? null,
+      actorType: entry.actorType ?? null,
+      callerType: entry.callerType ?? null,
+      action: entry.action,
+      outcome: entry.outcome,
+      reason: entry.reason ?? null,
+      metadata: entry.metadata ?? null,
+    })
+  },
+
   /**
    * Pre-aggregated dashboard numbers for the admin bookings surface. Replaces
    * the pattern of fetching a large `listBookings` page and deriving KPIs
