@@ -146,3 +146,93 @@ test("identifiers are matched, not substrings", () => {
     [],
   )
 })
+
+// ---- importsAbsentFrom ------------------------------------------------------
+//
+// The other polarities match identifiers, which cannot express "must not import
+// X": a package can be depended on without naming a symbol from it, and the
+// substring pins this replaces also matched the package name in a comment.
+
+const importSources = new Map([
+  [
+    "packages/catalog/src/runtime-support.ts",
+    parse(
+      "packages/catalog/src/runtime-support.ts",
+      'import { thing } from "@voyant-travel/core"\nexport const x = thing',
+    ),
+  ],
+  [
+    "packages/catalog/src/offender.ts",
+    parse(
+      "packages/catalog/src/offender.ts",
+      'import { p } from "@voyant-travel/inventory/schema"\nexport const y = p',
+    ),
+  ],
+  [
+    "packages/catalog/src/mentions-only.ts",
+    parse(
+      "packages/catalog/src/mentions-only.ts",
+      '// @voyant-travel/inventory is deliberately not imported here\nexport const note = "@voyant-travel/inventory"',
+    ),
+  ],
+])
+
+test("importsAbsentFrom flags an import beneath the banned package", () => {
+  const violations = checkSymbolPolicy(importSources, {
+    importsAbsentFrom: { "@voyant-travel/inventory": ["packages/catalog/**"] },
+  })
+  assert.equal(violations.length, 1)
+  assert.match(
+    violations[0],
+    /offender\.ts: must not import @voyant-travel\/inventory \(imports @voyant-travel\/inventory\/schema\)/,
+  )
+})
+
+test("importsAbsentFrom ignores a comment or string that merely names the package", () => {
+  // The substring pin this replaces could not tell these apart.
+  const violations = checkSymbolPolicy(
+    new Map([
+      [
+        "packages/catalog/src/mentions-only.ts",
+        importSources.get("packages/catalog/src/mentions-only.ts"),
+      ],
+    ]),
+    { importsAbsentFrom: { "@voyant-travel/inventory": ["packages/catalog/**"] } },
+  )
+  assert.deepEqual(violations, [])
+})
+
+test("importsAbsentFrom catches side-effect, dynamic and re-export forms", () => {
+  const forms = new Map([
+    ["packages/a/side.ts", parse("packages/a/side.ts", 'import "@voyant-travel/inventory"')],
+    [
+      "packages/a/dyn.ts",
+      parse("packages/a/dyn.ts", 'export const f = () => import("@voyant-travel/inventory")'),
+    ],
+    ["packages/a/re.ts", parse("packages/a/re.ts", 'export * from "@voyant-travel/inventory"')],
+  ])
+  const violations = checkSymbolPolicy(forms, {
+    importsAbsentFrom: { "@voyant-travel/inventory": ["packages/a/**"] },
+  })
+  assert.equal(violations.length, 3, violations.join("; "))
+})
+
+test("importsAbsentFrom matches a relative path into a banned directory", () => {
+  const relative = new Map([
+    [
+      "packages/a/x.ts",
+      parse("packages/a/x.ts", 'import { z } from "../../apps/operator/thing.js"'),
+    ],
+  ])
+  const violations = checkSymbolPolicy(relative, {
+    importsAbsentFrom: { "apps/operator": ["packages/a/**"] },
+  })
+  assert.equal(violations.length, 1, violations.join("; "))
+})
+
+test("importsAbsentFrom leaves files outside its globs alone", () => {
+  const violations = checkSymbolPolicy(importSources, {
+    importsAbsentFrom: { "@voyant-travel/inventory": ["packages/other/**"] },
+  })
+  assert.deepEqual(violations, [])
+})

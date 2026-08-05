@@ -7,161 +7,6 @@
   ],
   "retiredPaths": [
     {
-      "path": "packages/admin-host/src/standard-api-docs.tsx",
-      "retiredBy": ["operator-product-ui-authority"]
-    },
-    {
-      "path": "packages/admin-host/src/standard-frontend.tsx",
-      "retiredBy": ["operator-product-ui-authority"]
-    },
-    {
-      "path": "packages/admin-host/src/standard-route-files.ts",
-      "retiredBy": ["operator-product-ui-authority"]
-    },
-    {
-      "path": "packages/admin-host/src/standard-styles.css",
-      "retiredBy": ["operator-product-ui-authority"]
-    },
-    {
-      "path": "packages/bookings-node/package.json",
-      "retiredBy": ["node-runtime-product-authority"]
-    },
-    {
-      "path": "packages/catalog-node",
-      "retiredBy": ["catalog-runtime-authority", "node-runtime-product-authority"]
-    },
-    {
-      "path": "packages/catalog/src/indexer/contract.ts",
-      "retiredBy": ["catalog-runtime-authority"],
-      "$comment": [
-        "Compatibility re-export of",
-        "`@voyant-travel/catalog-contracts/indexer/contract`, plus the",
-        "`./indexer/contract` subpath that pointed at it. Nothing imported the",
-        "re-export; every consumer already names the contracts package."
-      ]
-    },
-    {
-      "path": "packages/catalog/src/booking-engine/quote.ts",
-      "retiredBy": ["beta-quote-path-authority"],
-      "$comment": [
-        "The beta `quoteEntity` / `quoteEntitiesBatch` lifecycle, deleted in",
-        "voyant#4188. Its identifiers are pinned to nowhere by the",
-        "beta-quote-path-authority symbol policy; this entry holds the path as",
-        "well, because a file can return carrying different names."
-      ]
-    },
-    {
-      "path": "packages/catalog/src/booking-engine/quote-enricher.test.ts",
-      "retiredBy": ["beta-quote-path-authority"]
-    },
-    {
-      "path": "packages/operations-react/src/availability/components/availability-slot-detail-financials.tsx",
-      "retiredBy": ["operations-departure-workspace-authority"],
-      "$comment": [
-        "`KpiStrip` and `aggregateSlotFinancials` — a browser-side settlement",
-        "roll-up over one loaded page of the allocation manifest, superseded by",
-        "the whole-departure `GET /slots/{id}/summary` figures the departure",
-        "workspace headline reads. Nothing mounted or called either."
-      ]
-    },
-    {
-      "path": "packages/inventory-react/src/extras-compat.ts",
-      "retiredBy": ["client-package-boundaries"],
-      "$comment": [
-        "A two-line forwarder to `./extras.js` that existed only to hold an",
-        "older import path stable. Both importers were inside the package and",
-        "now name `./extras.js` directly."
-      ]
-    },
-    {
-      "path": "packages/inventory/src/catalog-runtime-extension.test.ts",
-      "retiredBy": ["beta-quote-path-authority"],
-      "$comment": [
-        "Covered only `enrichProductQuoteShape`, the beta shape-enrichment seam",
-        "superseded by the owned handler's `computeRequirements`."
-      ]
-    },
-    {
-      "path": "packages/catalog/src/booking-engine/book.ts",
-      "retiredBy": ["booking-create-authority"],
-      "$comment": [
-        "Kept deliberately. This was a whole route module, and a route is",
-        "registered by shape rather than by naming an owned identifier, so the",
-        "booking-create-authority symbol policy cannot police it. Its sibling",
-        "entries moved to that policy in voyant#4188."
-      ]
-    },
-    {
-      "path": "packages/charters/src/service-bookings-local.ts",
-      "retiredBy": ["booking-create-authority"],
-      "$comment": [
-        "Kept deliberately. Its exports were `createPerSuiteBooking` and",
-        "`createWholeYachtBooking`, which are still legitimate CharterAdapter",
-        "contract methods in packages/charters/src/adapters — so neither name can",
-        "be pinned to nowhere. The path is the only thing left to hold."
-      ]
-    },
-    {
-      "path": "packages/finance/src/standard-node-runtime.ts",
-      "retiredBy": ["node-runtime-product-authority"]
-    },
-    {
-      "path": "packages/framework/src/managed-jobs.ts",
-      "retiredBy": ["operator-application-executable-surface-authority"]
-    },
-    {
-      "path": "packages/framework/src/runtime-contributors.generated.ts",
-      "retiredBy": ["catalog-runtime-authority", "generated-runtime-contributor-authority"]
-    },
-    {
-      "path": "packages/framework/src/runtime-packages.generated.ts",
-      "retiredBy": ["catalog-runtime-authority", "generated-runtime-contributor-authority"]
-    },
-    {
-      "path": "packages/legal-node",
-      "retiredBy": ["legal-document-runtime-authority"]
-    },
-    {
-      "path": "packages/operator-runtime",
-      "retiredBy": ["node-runtime-authority"]
-    },
-    {
-      "path": "packages/relationships-contracts/src/validation/custom-fields.ts",
-      "retiredBy": ["custom-fields-settings-authority"]
-    },
-    {
-      "path": "packages/relationships/src/routes/custom-fields.ts",
-      "retiredBy": ["custom-fields-settings-authority"]
-    },
-    {
-      "path": "packages/relationships/src/service/custom-fields-registry.ts",
-      "retiredBy": ["custom-fields-settings-authority"]
-    },
-    {
-      "path": "packages/relationships/src/service/custom-fields-value-mapping.ts",
-      "retiredBy": ["custom-fields-settings-authority"]
-    },
-    {
-      "path": "packages/relationships/src/service/custom-fields.ts",
-      "retiredBy": ["custom-fields-settings-authority"]
-    },
-    {
-      "path": "packages/relationships/tests/integration/custom-fields-values.test.ts",
-      "retiredBy": ["custom-fields-settings-authority"]
-    },
-    {
-      "path": "packages/relationships/tests/integration/custom-fields.test.ts",
-      "retiredBy": ["custom-fields-settings-authority"]
-    },
-    {
-      "path": "packages/relationships/tests/unit/custom-fields-value-mapping.test.ts",
-      "retiredBy": ["custom-fields-settings-authority"]
-    },
-    {
-      "path": "packages/storefront/src/booking-bootstrap-subscriber-runtime.ts",
-      "retiredBy": ["storefront-subscriber-authority"]
-    },
-    {
       "path": "apps/operator/src/api-dispatch.test.ts",
       "retiredBy": ["node-host-dispatch-authority"]
     },
@@ -403,6 +248,161 @@
     {
       "path": "apps/operator/src/workflow-runtime.test.ts",
       "retiredBy": ["node-host-dispatch-authority"]
+    },
+    {
+      "path": "packages/admin-host/src/standard-api-docs.tsx",
+      "retiredBy": ["operator-product-ui-authority"]
+    },
+    {
+      "path": "packages/admin-host/src/standard-frontend.tsx",
+      "retiredBy": ["operator-product-ui-authority"]
+    },
+    {
+      "path": "packages/admin-host/src/standard-route-files.ts",
+      "retiredBy": ["operator-product-ui-authority"]
+    },
+    {
+      "path": "packages/admin-host/src/standard-styles.css",
+      "retiredBy": ["operator-product-ui-authority"]
+    },
+    {
+      "path": "packages/bookings-node/package.json",
+      "retiredBy": ["node-runtime-product-authority"]
+    },
+    {
+      "path": "packages/catalog-node",
+      "retiredBy": ["catalog-runtime-authority", "node-runtime-product-authority"]
+    },
+    {
+      "path": "packages/catalog/src/booking-engine/book.ts",
+      "retiredBy": ["booking-create-authority"],
+      "$comment": [
+        "Kept deliberately. This was a whole route module, and a route is",
+        "registered by shape rather than by naming an owned identifier, so the",
+        "booking-create-authority symbol policy cannot police it. Its sibling",
+        "entries moved to that policy in voyant#4188."
+      ]
+    },
+    {
+      "path": "packages/catalog/src/booking-engine/quote-enricher.test.ts",
+      "retiredBy": ["beta-quote-path-authority"]
+    },
+    {
+      "path": "packages/catalog/src/booking-engine/quote.ts",
+      "retiredBy": ["beta-quote-path-authority"],
+      "$comment": [
+        "The beta `quoteEntity` / `quoteEntitiesBatch` lifecycle, deleted in",
+        "voyant#4188. Its identifiers are pinned to nowhere by the",
+        "beta-quote-path-authority symbol policy; this entry holds the path as",
+        "well, because a file can return carrying different names."
+      ]
+    },
+    {
+      "path": "packages/catalog/src/indexer/contract.ts",
+      "retiredBy": ["catalog-runtime-authority"],
+      "$comment": [
+        "Compatibility re-export of",
+        "`@voyant-travel/catalog-contracts/indexer/contract`, plus the",
+        "`./indexer/contract` subpath that pointed at it. Nothing imported the",
+        "re-export; every consumer already names the contracts package."
+      ]
+    },
+    {
+      "path": "packages/charters/src/service-bookings-local.ts",
+      "retiredBy": ["booking-create-authority"],
+      "$comment": [
+        "Kept deliberately. Its exports were `createPerSuiteBooking` and",
+        "`createWholeYachtBooking`, which are still legitimate CharterAdapter",
+        "contract methods in packages/charters/src/adapters \u2014 so neither name can",
+        "be pinned to nowhere. The path is the only thing left to hold."
+      ]
+    },
+    {
+      "path": "packages/finance/src/standard-node-runtime.ts",
+      "retiredBy": ["node-runtime-product-authority"]
+    },
+    {
+      "path": "packages/framework/src/managed-jobs.ts",
+      "retiredBy": ["operator-application-executable-surface-authority"]
+    },
+    {
+      "path": "packages/framework/src/runtime-contributors.generated.ts",
+      "retiredBy": ["catalog-runtime-authority", "generated-runtime-contributor-authority"]
+    },
+    {
+      "path": "packages/framework/src/runtime-packages.generated.ts",
+      "retiredBy": ["catalog-runtime-authority", "generated-runtime-contributor-authority"]
+    },
+    {
+      "path": "packages/inventory-react/src/extras-compat.ts",
+      "retiredBy": ["client-package-boundaries"],
+      "$comment": [
+        "A two-line forwarder to `./extras.js` that existed only to hold an",
+        "older import path stable. Both importers were inside the package and",
+        "now name `./extras.js` directly."
+      ]
+    },
+    {
+      "path": "packages/inventory/src/catalog-runtime-extension.test.ts",
+      "retiredBy": ["beta-quote-path-authority"],
+      "$comment": [
+        "Covered only `enrichProductQuoteShape`, the beta shape-enrichment seam",
+        "superseded by the owned handler's `computeRequirements`."
+      ]
+    },
+    {
+      "path": "packages/legal-node",
+      "retiredBy": ["legal-document-runtime-authority"]
+    },
+    {
+      "path": "packages/operations-react/src/availability/components/availability-slot-detail-financials.tsx",
+      "retiredBy": ["operations-departure-workspace-authority"],
+      "$comment": [
+        "`KpiStrip` and `aggregateSlotFinancials` \u2014 a browser-side settlement",
+        "roll-up over one loaded page of the allocation manifest, superseded by",
+        "the whole-departure `GET /slots/{id}/summary` figures the departure",
+        "workspace headline reads. Nothing mounted or called either."
+      ]
+    },
+    {
+      "path": "packages/operator-runtime",
+      "retiredBy": ["node-runtime-authority"]
+    },
+    {
+      "path": "packages/relationships-contracts/src/validation/custom-fields.ts",
+      "retiredBy": ["custom-fields-settings-authority"]
+    },
+    {
+      "path": "packages/relationships/src/routes/custom-fields.ts",
+      "retiredBy": ["custom-fields-settings-authority"]
+    },
+    {
+      "path": "packages/relationships/src/service/custom-fields-registry.ts",
+      "retiredBy": ["custom-fields-settings-authority"]
+    },
+    {
+      "path": "packages/relationships/src/service/custom-fields-value-mapping.ts",
+      "retiredBy": ["custom-fields-settings-authority"]
+    },
+    {
+      "path": "packages/relationships/src/service/custom-fields.ts",
+      "retiredBy": ["custom-fields-settings-authority"]
+    },
+    {
+      "path": "packages/relationships/tests/integration/custom-fields-values.test.ts",
+      "retiredBy": ["custom-fields-settings-authority"]
+    },
+    {
+      "path": "packages/relationships/tests/integration/custom-fields.test.ts",
+      "retiredBy": ["custom-fields-settings-authority"]
+    },
+    {
+      "path": "packages/relationships/tests/unit/custom-fields-value-mapping.test.ts",
+      "retiredBy": ["custom-fields-settings-authority"]
+    },
+    {
+      "path": "packages/storefront/src/booking-bootstrap-subscriber-runtime.ts",
+      "retiredBy": ["storefront-subscriber-authority"]
     }
   ]
 }

@@ -60,7 +60,7 @@
       "$comment": [
         "A Booking is created by exactly one durable command: Finance's",
         "booking-create command. Commit is its only cross-module caller, and",
-        "everything else — every vertical, every route, every hook — is a client",
+        "everything else \u2014 every vertical, every route, every hook \u2014 is a client",
         "of that command rather than a second implementation of it. See",
         "issue #3747, which removed the parallel implementations, and #4188.",
         "",
@@ -154,13 +154,18 @@
       },
       "absentFrom": {
         "buildTypesenseIndexer": ["packages/commerce/src/runtime.ts"]
+      },
+      "importsAbsentFrom": {
+        "apps/operator": ["packages/catalog/src/runtime-support.ts"],
+        "@voyant-travel/inventory": ["packages/catalog/src/runtime-support.ts"],
+        "@voyant-travel/commerce": ["packages/catalog/src/runtime-support.ts"]
       }
     },
     "operator-admin-shell-context": {
       "$comment": [
         "Every Voyant<Domain>Provider is an alias of the one VoyantReactProvider,",
         "so rendering one below the operator admin shell replaces the shell's",
-        "{ baseUrl, fetcher } for the whole tree — including the admin Better Auth",
+        "{ baseUrl, fetcher } for the whole tree \u2014 including the admin Better Auth",
         "realm scoping, which silently 404s every auth-react call. Domain hooks read",
         "the shell's context directly and need no re-provider. See issue #4182."
       ],

@@ -44,6 +44,22 @@ export interface SymbolPolicy {
   absentFrom?: Record<string, readonly string[]>
   /** file -> identifiers that must be referenced in it. */
   presentIn?: Record<string, readonly string[]>
+  /**
+   * module specifier -> globs or exact paths that must not import it.
+   *
+   * The other polarities match IDENTIFIERS through the AST, which cannot
+   * express "this file must not import `@voyant-travel/inventory`": a specifier
+   * is a string literal, not an identifier, and a package can be depended on
+   * without naming any symbol from it (a side-effect import, or a type-only
+   * import that is erased). Authority scripts assert this shape by substring —
+   * `source.includes("@voyant-travel/inventory")` — which also matches the
+   * package name in a comment or an unrelated string.
+   *
+   * A rule matches a specifier that IS the rule, or that sits beneath it:
+   * banning `@voyant-travel/inventory` also bans `@voyant-travel/inventory/schema`,
+   * and banning `apps/operator` also bans `../../apps/operator/thing.js`.
+   */
+  importsAbsentFrom?: Record<string, readonly string[]>
 }
 
 /**
@@ -77,6 +93,41 @@ function referencesIdentifier(source: ts.SourceFile, identifier: string): boolea
 /**
  * Returns one violation string per breach; empty means the policy holds.
  */
+/** Every module specifier a source imports, re-exports, or dynamically loads. */
+function importedSpecifiers(source: ts.SourceFile): string[] {
+  const specifiers: string[] = []
+  walk(source, (node) => {
+    if (
+      (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) &&
+      node.moduleSpecifier !== undefined &&
+      ts.isStringLiteral(node.moduleSpecifier)
+    ) {
+      specifiers.push(node.moduleSpecifier.text)
+      return
+    }
+    // `import("x")` and `require("x")`
+    if (ts.isCallExpression(node)) {
+      const isDynamicImport = node.expression.kind === ts.SyntaxKind.ImportKeyword
+      const isRequire = ts.isIdentifier(node.expression) && node.expression.text === "require"
+      const [first] = node.arguments
+      if ((isDynamicImport || isRequire) && first !== undefined && ts.isStringLiteral(first)) {
+        specifiers.push(first.text)
+      }
+    }
+  })
+  return specifiers
+}
+
+/** True when `specifier` is `rule` or sits beneath it as a path. */
+function specifierMatches(specifier: string, rule: string): boolean {
+  return (
+    specifier === rule ||
+    specifier.startsWith(`${rule}/`) ||
+    specifier.includes(`/${rule}/`) ||
+    specifier.endsWith(`/${rule}`)
+  )
+}
+
 export function checkSymbolPolicy(sources: SourceMap, policy: SymbolPolicy): string[] {
   const violations: string[] = []
 
@@ -139,6 +190,25 @@ export function checkSymbolPolicy(sources: SourceMap, policy: SymbolPolicy): str
     for (const identifier of identifiers) {
       if (!referencesIdentifier(source, identifier)) {
         violations.push(`${file}: must reference ${identifier}`)
+      }
+    }
+  }
+
+  for (const [specifier, patterns] of Object.entries(policy.importsAbsentFrom ?? {})) {
+    const matchers = patterns.map(globToRegExp)
+    // An absence rule, so a deleted file or a glob matching nothing satisfies it
+    // trivially — file existence is retired-paths.json's job, as with absentFrom.
+    for (const [file, source] of sources) {
+      if (!matchers.some((matcher) => matcher.test(file))) continue
+      const offending = importedSpecifiers(source).find((imported) =>
+        specifierMatches(imported, specifier),
+      )
+      if (offending !== undefined) {
+        violations.push(
+          offending === specifier
+            ? `${file}: must not import ${specifier}`
+            : `${file}: must not import ${specifier} (imports ${offending})`,
+        )
       }
     }
   }
