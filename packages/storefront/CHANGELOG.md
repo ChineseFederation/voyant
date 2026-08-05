@@ -1,5 +1,16 @@
 # @voyant-travel/storefront
 
+## 0.250.0
+
+### Patch Changes
+
+- Updated dependencies [380dad7]
+  - @voyant-travel/payments@0.11.0
+  - @voyant-travel/finance@0.241.0
+  - @voyant-travel/catalog@0.247.0
+  - @voyant-travel/commerce@0.48.3
+  - @voyant-travel/legal@0.247.0
+
 ## 0.249.0
 
 ### Patch Changes

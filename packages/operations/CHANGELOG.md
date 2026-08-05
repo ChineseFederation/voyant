@@ -1,5 +1,12 @@
 # @voyant-travel/operations
 
+## 0.22.1
+
+### Patch Changes
+
+- Updated dependencies [380dad7]
+  - @voyant-travel/catalog@0.247.0
+
 ## 0.22.0
 
 ### Minor Changes

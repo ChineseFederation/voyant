@@ -1,5 +1,19 @@
 # @voyant-travel/trips
 
+## 0.232.4
+
+### Patch Changes
+
+- Updated dependencies [380dad7]
+  - @voyant-travel/payments@0.11.0
+  - @voyant-travel/finance@0.241.0
+  - @voyant-travel/inventory@0.38.0
+  - @voyant-travel/catalog@0.247.0
+  - @voyant-travel/operator-settings@0.17.21
+  - @voyant-travel/storefront@0.250.0
+  - @voyant-travel/commerce@0.48.3
+  - @voyant-travel/flights@0.236.18
+
 ## 0.232.3
 
 ### Patch Changes
