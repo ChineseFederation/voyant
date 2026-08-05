@@ -119,8 +119,7 @@ function main(): void {
   const writeTotal = [...writeCounts.values()].reduce((sum, n) => sum + n, 0)
   console.log(
     `verify:table-privacy: ${total} reach-ins across ${counts.size} pairs, none new. ` +
-      `Of those, ${writeTotal} are cross-module WRITES across ${writeCounts.size} pairs — ` +
-      "these have no mirror answer and should reach zero.",
+      `Of those, ${writeTotal} are cross-module WRITES across ${writeCounts.size} pairs.`,
   )
 }
 
@@ -129,11 +128,15 @@ const BASELINE_COMMENT = [
   "A pair may shrink, never grow; a new pair fails. Regenerate with --update-baseline",
   "ONLY when tightening. Foundation packages (db, core, utils, types, schema-kit) are exempt.",
   "",
-  "`writePairs` counts the subset that MUTATE another module's tables. A read has",
-  "two answers — the owner's service, or a local *Ref mirror. A write has one: a",
-  "mirror is read-only by construction. Writes bypass whatever the owner does on",
-  "its own writes (revision bumps, validation, events), so they should reach zero",
-  "rather than merely stop growing.",
+  "`writePairs` counts the subset that MUTATE another module's tables, which a",
+  "*Ref mirror cannot answer — a mirror is read-only by construction.",
+  "",
+  "The target is NOT zero. Convert a write when the owning module does something",
+  "on its own writes that a direct write bypasses — validation, an invariant, an",
+  "event. inventory->commerce qualifies (a direct write can leave two default",
+  "pricing rules in one scope); finance->bookings does not (bookings' own update",
+  "is the same `revision + 1` with no gate). This ratchet exists to stop DRIFT,",
+  "not to be driven down: no new pair, no new write.",
 ]
 
 /** Adds an import binding, stripping an `x as y` alias to its local name. */
