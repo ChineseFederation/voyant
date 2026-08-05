@@ -25,7 +25,10 @@ import type {
   UpdateBookingSessionV1,
 } from "@voyant-travel/catalog-contracts/booking-engine/session-contracts"
 import { DEFAULT_BOOKING_SESSION_SCOPE } from "@voyant-travel/catalog-contracts/booking-engine/session-contracts"
+import type { AnalyticsPort } from "@voyant-travel/core/analytics"
+import { createSafeAnalytics } from "@voyant-travel/core/analytics"
 import { newId } from "@voyant-travel/db/lib/typeid"
+import { withBookingSessionAnalytics } from "./analytics.js"
 import type {
   BookingLifecycleCommitOutcomeV1,
   BookingRequirementsV1,
@@ -510,6 +513,14 @@ export interface BookingSessionModulePorts {
 
 export interface BookingSessionModuleOptions {
   ports: BookingSessionModulePorts
+  /**
+   * Host-bound product analytics. Absent means unbound, which is a supported,
+   * silent state: no wrapper is installed and the module behaves exactly as it
+   * did before the port existed. See `./analytics.ts`.
+   */
+  analytics?: AnalyticsPort
+  /** Millisecond clock for analytics durations. Injectable for deterministic tests. */
+  analyticsClock?: () => number
   now?: () => Date
   sessionTtlMs?: number
   quoteTtlMs?: number
@@ -749,7 +760,7 @@ export function createBookingSessionModule(
     }
   }
 
-  return {
+  const bookingSessionModule: BookingSessionModule = {
     createSession(input, access) {
       return createSessionRecord(input, access)
     },
@@ -1724,6 +1735,15 @@ export function createBookingSessionModule(
       return { purged }
     },
   }
+
+  // Unbound is the default and costs nothing: no wrapper, no allocation, no
+  // behavioural difference from before the port existed.
+  return options.analytics
+    ? withBookingSessionAnalytics(bookingSessionModule, {
+        analytics: createSafeAnalytics(options.analytics),
+        ...(options.analyticsClock ? { clock: options.analyticsClock } : {}),
+      })
+    : bookingSessionModule
 }
 
 async function consumeCommittedSources(input: {

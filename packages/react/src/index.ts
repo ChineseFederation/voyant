@@ -1,4 +1,9 @@
 export {
+  useVoyantAnalytics,
+  VoyantAnalyticsProvider,
+  type VoyantAnalyticsProviderProps,
+} from "./analytics.js"
+export {
   defaultFetcher,
   useOptionalVoyantReactContext,
   useVoyantReactContext,

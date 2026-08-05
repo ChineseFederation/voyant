@@ -28,6 +28,7 @@ import { Skeleton } from "@voyant-travel/ui/components/skeleton"
 import { cn } from "@voyant-travel/ui/lib/utils"
 import { Component, type ReactNode, useEffect, useMemo, useRef, useState } from "react"
 
+import { useAdminExtensionAnalytics } from "../analytics.js"
 import { useOperatorAdminI18n } from "../providers/operator-admin-messages.js"
 import { isUiExtensionCompatible } from "./compat.js"
 
@@ -272,6 +273,11 @@ function UiExtensionFrame({
       window.removeEventListener("message", handleMessage)
     }
   }, [slot, timeoutMs, descriptor.entryUrl])
+
+  // Reported on `ready`, not on mount: a frame that never completes the
+  // handshake was never opened, and counting it would hide exactly the
+  // extensions that are broken.
+  useAdminExtensionAnalytics(descriptor.key, status === "ready")
 
   // Forward context updates once the handshake has completed.
   useEffect(() => {

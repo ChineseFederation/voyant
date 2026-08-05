@@ -5,6 +5,7 @@ import {
   createSupplierOperationOperatorService,
 } from "@voyant-travel/catalog/booking-engine"
 import { createDrizzleBookingSessionRepository } from "@voyant-travel/catalog/booking-engine/sessions-drizzle"
+import type { AnalyticsPort } from "@voyant-travel/core/analytics"
 import type { AnyDrizzleDb } from "@voyant-travel/db"
 import type { FinanceServiceRuntime, PaymentAdapter } from "@voyant-travel/finance"
 import type { FinanceOperatorSettingsRuntime } from "@voyant-travel/finance/runtime-port"
@@ -27,6 +28,8 @@ export function createOperatorCatalogBookingRouteModuleOptions(options: {
   resolveFinanceServiceRuntime?: (context: Context) => FinanceServiceRuntime
   settings: FinanceOperatorSettingsRuntime
   resolvePaymentAdapter?: () => PaymentAdapter | null | Promise<PaymentAdapter | null>
+  /** Host-bound product analytics. Unbound is the default and emits nothing. */
+  analytics?: AnalyticsPort
 }): CatalogBookingRouteModuleOptions {
   const { distribution, inventory, operations } = catalogRuntimeExtensions()
   return {
@@ -36,6 +39,7 @@ export function createOperatorCatalogBookingRouteModuleOptions(options: {
         const db = (dbOverride ?? getCatalogBookingDb(c)) as PostgresJsDatabase
         return createProductionBookingSessionModule({
           db,
+          ...(options.analytics ? { analytics: options.analytics } : {}),
           repository: createDrizzleBookingSessionRepository(db),
           resolveOwnedHandlers: () => getOwnedBookingHandlerRegistryFromContext(c),
           resolveSourceRegistry: () => getBookingEngineRegistryFromContext(c),

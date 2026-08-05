@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./analytics": "./src/analytics.ts",
     "./env": "./src/env.ts",
     "./module": "./src/module.ts",
     "./hooks": "./src/hooks.ts",
@@ -46,6 +47,11 @@
         "types": "./dist/index.d.ts",
         "import": "./dist/index.js",
         "default": "./dist/index.js"
+      },
+      "./analytics": {
+        "types": "./dist/analytics.d.ts",
+        "import": "./dist/analytics.js",
+        "default": "./dist/analytics.js"
       },
       "./env": {
         "types": "./dist/env.d.ts",

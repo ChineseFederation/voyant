@@ -1,4 +1,10 @@
 export {
+  type CustomerPortalAnalytics,
+  useCustomerPortalAnalytics,
+  useCustomerPortalBookingAnalytics,
+  useCustomerPortalSessionAnalytics,
+} from "./analytics.js"
+export {
   defaultFetcher,
   fetchWithValidation,
   VoyantApiError,

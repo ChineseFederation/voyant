@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query"
 
+import { useCustomerPortalBookingAnalytics } from "../analytics.js"
 import { useVoyantCustomerPortalContext } from "../provider.js"
 import { getCustomerPortalBookingQueryOptions } from "../query-options.js"
 
@@ -16,8 +17,12 @@ export function useCustomerPortalBooking(
   const { baseUrl, fetcher } = useVoyantCustomerPortalContext()
   const { enabled = true } = options
 
-  return useQuery({
+  const query = useQuery({
     ...getCustomerPortalBookingQueryOptions({ baseUrl, fetcher }, bookingId ?? ""),
     enabled: enabled && Boolean(bookingId),
   })
+
+  useCustomerPortalBookingAnalytics(query.data ? bookingId : null)
+
+  return query
 }

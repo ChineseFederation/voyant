@@ -5,6 +5,7 @@ import { CATALOG_PRESENTATION_SUBJECT_MODULES } from "@voyant-travel/catalog/pre
 import type { CatalogSearchRuntime } from "@voyant-travel/catalog/search/routes"
 import { createReferencedSubjectReindexFanout } from "@voyant-travel/catalog/services/indexer"
 import type { VoyantRuntimeHostPrimitives } from "@voyant-travel/core"
+import type { AnalyticsPort } from "@voyant-travel/core/analytics"
 import type { FinanceServiceRuntime, PaymentAdapter } from "@voyant-travel/finance"
 import type { FinanceOperatorSettingsRuntime } from "@voyant-travel/finance/runtime-port"
 import type { Context } from "hono"
@@ -51,6 +52,8 @@ export function createCatalogRuntime(
     resolveBookingsRelationshipsRuntime?: () => Promise<BookingsRelationshipsRuntime | null>
     resolveFinanceServiceRuntime?: (context: unknown) => FinanceServiceRuntime
     resolvePaymentAdapter?: () => PaymentAdapter | null | Promise<PaymentAdapter | null>
+    /** Host-bound product analytics. Unbound is the default and emits nothing. */
+    analytics?: AnalyticsPort
   } = {},
 ): CatalogRuntimePortContribution {
   configureCatalogRuntimeHost(primitives, extensions)
@@ -93,6 +96,7 @@ export function createCatalogRuntime(
     resolveBookingsRelationshipsRuntime: options.resolveBookingsRelationshipsRuntime,
     resolveFinanceServiceRuntime: options.resolveFinanceServiceRuntime,
     resolvePaymentAdapter: options.resolvePaymentAdapter,
+    ...(options.analytics ? { analytics: options.analytics } : {}),
   })
   const services: CatalogRuntimeServices = {
     defaultSlices: DEFAULT_SLICES,

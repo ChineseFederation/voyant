@@ -10,8 +10,11 @@ vi.mock("@tanstack/react-router", async (importOriginal) => {
   return {
     ...actual,
     useRouter: () => ({ navigate: vi.fn() }),
+    // `matches` as well as `location`: the shell reads the matched route
+    // pattern for `admin.nav.viewed`, so a mock with only a pathname no longer
+    // stands in for router state.
     useRouterState: ({ select }: { select: (state: unknown) => unknown }) =>
-      select({ location: { pathname: "/" } }),
+      select({ location: { pathname: "/" }, matches: [{ routeId: "/" }] }),
   }
 })
 

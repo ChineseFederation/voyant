@@ -201,6 +201,9 @@ describe("catalog deployment manifest", () => {
         // Optional: resolves the billing party for a verified guest. Without
         // it only authenticated customers can self-serve.
         { id: "bookings.relationships.runtime", optional: true },
+        // Optional, and unbound is the intended default for a self-hosted
+        // deployment — nothing in the engine depends on an analytics vendor.
+        { id: "analytics.runtime", optional: true },
       ],
     })
     expect(catalogBookingEngineVoyantModule.tools).toEqual(

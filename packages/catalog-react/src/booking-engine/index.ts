@@ -33,6 +33,11 @@
  */
 
 export {
+  type BookingJourneyAnalytics,
+  referrerOrigin,
+  useBookingJourneyAnalytics,
+} from "./analytics.js"
+export {
   abandonBookingSession,
   adoptBookingSession,
   type BookingSessionApi,

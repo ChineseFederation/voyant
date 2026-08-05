@@ -6,6 +6,8 @@ import {
   useMutation,
   useQuery,
 } from "@tanstack/react-query"
+import { useVoyantAnalytics } from "@voyant-travel/react"
+import { adminErrorCode, adminResourceType, adminSearchResultCount } from "./analytics.js"
 import type {
   AnyOperation,
   DeploymentCapabilities,
@@ -13,7 +15,6 @@ import type {
   InferOutput,
   InferParams,
 } from "./client/index.js"
-
 import { useAdminClient } from "./provider.js"
 import { ADMIN_QUERY_ROOT, adminQueryKey } from "./query-keys.js"
 
@@ -43,9 +44,20 @@ export function useAdminQuery<D extends AnyOperation>(
   options?: Omit<UseQueryOptions<InferOutput<D>, Error>, "queryKey" | "queryFn">,
 ): UseQueryResult<InferOutput<D>, Error> {
   const client = useAdminClient()
+  const analytics = useVoyantAnalytics()
   return useQuery({
     queryKey: adminQueryKey(op, vars),
-    queryFn: () => client.execute(op, (vars?.params ?? {}) as InferParams<D>, vars?.input),
+    queryFn: async () => {
+      const result = await client.execute(op, (vars?.params ?? {}) as InferParams<D>, vars?.input)
+      // Emitted from the query function, not from an effect on `data`: React
+      // Query replays cached data on every mount, and an effect would report
+      // one search again each time the page was revisited.
+      const resultCount = adminSearchResultCount(vars?.input, result)
+      if (resultCount !== null) {
+        analytics.track("admin.search.performed", { result_count: resultCount })
+      }
+      return result
+    },
     ...options,
   })
 }
@@ -59,10 +71,42 @@ export function useAdminMutation<D extends AnyOperation>(
   options?: Omit<UseMutationOptions<InferOutput<D>, Error, AdminVars<D>>, "mutationFn">,
 ): UseMutationResult<InferOutput<D>, Error, AdminVars<D>> {
   const client = useAdminClient()
+  const analytics = useVoyantAnalytics()
   return useMutation({
     mutationFn: (vars: AdminVars<D>) =>
       client.execute(op, (vars.params ?? {}) as InferParams<D>, vars.input),
     ...options,
+    // Layered over any caller-supplied handler rather than replacing it: the
+    // spread above would otherwise let a call site silently opt its writes out
+    // of the taxonomy just by wanting its own `onSuccess`.
+    onSuccess: (data, variables, context, mutation) => {
+      // Spelled out per branch rather than computed: the conformance checker
+      // reads event names as string literals, and a name assembled at runtime
+      // is a name the catalogue cannot see.
+      const resource_type = adminResourceType(op)
+      switch (op.method) {
+        case "POST":
+          analytics.track("admin.resource.created", { resource_type })
+          break
+        case "PATCH":
+        case "PUT":
+          analytics.track("admin.resource.updated", { resource_type })
+          break
+        case "DELETE":
+          analytics.track("admin.resource.deleted", { resource_type })
+          break
+        default:
+          break
+      }
+      options?.onSuccess?.(data, variables, context, mutation)
+    },
+    onError: (error, variables, context, mutation) => {
+      analytics.track("admin.action.failed", {
+        action: op.id,
+        error_code: adminErrorCode(error),
+      })
+      options?.onError?.(error, variables, context, mutation)
+    },
   })
 }
 

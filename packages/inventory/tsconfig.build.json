@@ -736,6 +736,7 @@
       "@voyant-travel/commerce/validation": ["../commerce/dist/validation.d.ts"],
       "@voyant-travel/commerce/voyant": ["../commerce/dist/voyant.d.ts"],
       "@voyant-travel/core": ["../core/dist/index.d.ts"],
+      "@voyant-travel/core/analytics": ["../core/dist/analytics.d.ts"],
       "@voyant-travel/core/container": ["../core/dist/container.d.ts"],
       "@voyant-travel/core/custom-fields": ["../core/dist/custom-fields.d.ts"],
       "@voyant-travel/core/document-rendering": ["../core/dist/document-rendering.d.ts"],
@@ -1701,6 +1702,7 @@
         "../public-document-delivery/dist/voyant.d.ts"
       ],
       "@voyant-travel/react": ["../react/dist/index.d.ts"],
+      "@voyant-travel/react/analytics": ["../react/dist/analytics.d.ts"],
       "@voyant-travel/react/provider": ["../react/dist/provider.d.ts"],
       "@voyant-travel/realtime": ["../realtime/dist/index.d.ts"],
       "@voyant-travel/realtime-react": ["../realtime-react/dist/index.d.ts"],

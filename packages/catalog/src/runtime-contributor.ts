@@ -33,6 +33,11 @@ import {
   catalogProjectionRuntimePort,
 } from "@voyant-travel/catalog/subscriber-runtime-ports"
 import type { VoyantRuntimeHostPrimitives } from "@voyant-travel/core"
+import {
+  type AnalyticsPort,
+  analyticsPort,
+  createDeferredAnalytics,
+} from "@voyant-travel/core/analytics"
 import type { VoyantPort } from "@voyant-travel/core/project"
 import type { AnyDrizzleDb } from "@voyant-travel/db"
 import type { PaymentAdapter } from "@voyant-travel/finance"
@@ -107,6 +112,14 @@ export function createCatalogRuntimePortContribution(
 ): Readonly<Record<string, unknown>> {
   const hasIndexerPort = host.hasRuntimePort?.(catalogIndexerProviderPort) === true
   const hasSourcesPort = host.hasRuntimePort?.(catalogSourcesRuntimeExtensionPort) === true
+  // Bound synchronously even though the host resolves the port lazily:
+  // `createDeferredAnalytics` queues emission behind the pending provider, so
+  // the Sessions a process serves before the binding settles are recorded
+  // rather than silently dropped.
+  const analytics =
+    host.hasRuntimePort?.(analyticsPort) === true
+      ? createDeferredAnalytics(Promise.resolve(host.getRuntimePort<AnalyticsPort>(analyticsPort)))
+      : undefined
   const dependencies = Promise.resolve().then(() =>
     Promise.all([
       host.getRuntimePort<CatalogAccommodationsRuntimeExtension>(
@@ -174,6 +187,7 @@ export function createCatalogRuntimePortContribution(
             if (host.hasRuntimePort?.(paymentAdapterRuntimePortReference) !== true) return null
             return host.getRuntimePort<PaymentAdapter>(paymentAdapterRuntimePortReference)
           },
+          ...(analytics ? { analytics } : {}),
         },
       )
     },
@@ -210,6 +224,7 @@ export function createCatalogRuntimePortContribution(
         const [, , , distribution, , inventory, , settings] = await dependencies
         return createProductionBookingSessionModule({
           db,
+          ...(analytics ? { analytics } : {}),
           repository: createDrizzleBookingSessionRepository(db),
           resolveOwnedHandlers: () => services.getOwnedHandlers(host.primitives.env(undefined)),
           resolveSourceRegistry: () =>

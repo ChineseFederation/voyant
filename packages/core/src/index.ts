@@ -1,3 +1,22 @@
+export type {
+  AnalyticsEmitter,
+  AnalyticsEventName,
+  AnalyticsEventProperties,
+  AnalyticsFailureReason,
+  AnalyticsPort,
+  AnalyticsProperties,
+  AnalyticsPropertyValue,
+} from "./analytics.js"
+export {
+  ANALYTICS_EVENT_CATALOGUE,
+  ANALYTICS_EVENT_NAMES,
+  ANALYTICS_FAILURE_REASONS,
+  analyticsFailureReason,
+  analyticsPort,
+  analyticsProperties,
+  createSafeAnalytics,
+  noopAnalytics,
+} from "./analytics.js"
 export type { ModuleContainer } from "./container.js"
 export { createContainer } from "./container.js"
 export type {

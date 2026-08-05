@@ -1,0 +1,56 @@
+{
+  "$comment": [
+    "The product-analytics taxonomy, and the three places it exists: a declared",
+    "constant, an architecture document, and the track() calls themselves.",
+    "",
+    "Rules are data here for the same reason route-sets.json is: adding an event",
+    "costs one line, and the check cannot rot into substring matching.",
+    "",
+    "`emitters` lists the tracked directories whose .ts/.tsx files may emit. It",
+    "is a whitelist rather than the whole tree so the scan stays cheap and so a",
+    "stray `.track(` in an unrelated package (a queue, a metric, a media player)",
+    "cannot fail the check by accident."
+  ],
+  "vendors": {
+    "$comment": [
+      "Package names that would make this repository non-neutral. The port",
+      "exists precisely so a host binds these and this repo never does.",
+      "Checked against every tracked package.json and every import specifier in",
+      "the emitter directories."
+    ],
+    "forbidden": [
+      "posthog-js",
+      "posthog-node",
+      "@posthog/",
+      "mixpanel",
+      "mixpanel-browser",
+      "@amplitude/",
+      "amplitude-js",
+      "@segment/",
+      "analytics-node",
+      "@sentry/analytics",
+      "heap-api",
+      "@heap/",
+      "rudder-sdk-node",
+      "@rudderstack/",
+      "@june-so/",
+      "@vercel/analytics"
+    ]
+  },
+  "catalogues": [
+    {
+      "source": "packages/core/src/analytics-events.ts",
+      "export": "ANALYTICS_EVENT_CATALOGUE",
+      "doc": "docs/architecture/analytics-events.md",
+      "marker": "analytics-events: ANALYTICS_EVENT_CATALOGUE",
+      "emitters": [
+        "packages/admin/src",
+        "packages/admin-react/src",
+        "packages/catalog/src",
+        "packages/catalog-react/src",
+        "packages/storefront/src",
+        "packages/storefront-react/src"
+      ]
+    }
+  ]
+}

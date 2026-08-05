@@ -37,6 +37,14 @@ export {
 } from "@voyant-travel/catalog-contracts/booking-engine/requirements-defaults"
 export type { PricingBasis } from "../snapshot/schema.js"
 export {
+  type BookingJourneyStep,
+  type BookingSessionAnalyticsOptions,
+  commitResolution,
+  errorFailureReason,
+  outcomeFailureReason,
+  withBookingSessionAnalytics,
+} from "./analytics.js"
+export {
   type CancelEntityDeps,
   type CancelEntityRequest,
   type CancelEntityResult,

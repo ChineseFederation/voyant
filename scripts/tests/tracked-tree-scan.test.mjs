@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import { execFileSync } from "node:child_process"
-import { mkdirSync, rmdirSync, rmSync, writeFileSync } from "node:fs"
+import { mkdirSync, readFileSync, rmdirSync, rmSync, writeFileSync } from "node:fs"
 import path from "node:path"
 import test from "node:test"
 
@@ -139,6 +139,64 @@ for (const checker of CHECKERS) {
     })
   })
 }
+
+/**
+ * The analytics checker is TypeScript and needs the tsx loader, so it does not
+ * fit the `.mjs` loop above. It gets its own pair for the same reason the
+ * others have one.
+ */
+function runAnalyticsConformance() {
+  try {
+    execFileSync(
+      process.execPath,
+      ["--import", "tsx", path.join(repoRoot, "scripts/checks/analytics/index.ts")],
+      { cwd: repoRoot, encoding: "utf8", stdio: "pipe" },
+    )
+    return { ok: true, output: "" }
+  } catch (error) {
+    return { ok: false, output: `${error.stdout ?? ""}${error.stderr ?? ""}` }
+  }
+}
+
+test("analytics-conformance ignores an untracked emitter inside a scanned package", () => {
+  // Planted where the checker actually looks, not off in `worktrees/`: a
+  // checker that walked the filesystem would find this and fail on an event
+  // no catalogue declares. Only a tracked-tree read makes it invisible.
+  const stray = path.join(repoRoot, "packages", "catalog", "src", "__analytics_scan_probe__.ts")
+  try {
+    writeFileSync(
+      stray,
+      `export const probe = (a) => a.track("engine.probe.emitted", { nope: 1 })\n`,
+    )
+    const result = runAnalyticsConformance()
+    assert.ok(result.ok, `analytics-conformance read untracked content:\n${result.output}`)
+    assert.doesNotMatch(result.output, /__analytics_scan_probe__/)
+  } finally {
+    rmSync(stray, { force: true })
+  }
+})
+
+test("analytics-conformance still goes red when the doc drops a declared event", () => {
+  const doc = path.join(repoRoot, "docs", "architecture", "analytics-events.md")
+  // Read from disk rather than from HEAD: this file is edited and restored
+  // in `finally`, and depending on HEAD would make the test unrunnable in the
+  // very commit that introduces the doc.
+  const original = readFileSync(doc, "utf8")
+  try {
+    writeFileSync(
+      doc,
+      original
+        .split("\n")
+        .filter((line) => !line.startsWith("engine.commit.failed"))
+        .join("\n"),
+    )
+    const result = runAnalyticsConformance()
+    assert.ok(!result.ok, "an undocumented declared event must fail the check")
+    assert.match(result.output, /engine\.commit\.failed/)
+  } finally {
+    writeFileSync(doc, original)
+  }
+})
 
 test("retail-spine-closure still goes red on a tracked violation", () => {
   // The pair that makes the assertions above mean something: a checker that

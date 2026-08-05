@@ -26,6 +26,11 @@ export {
   withAdminRouteMessagesProvider,
 } from "./admin-route-messages.js"
 export {
+  adminModuleOf,
+  useAdminExtensionAnalytics,
+  useAdminNavigationAnalytics,
+} from "./analytics.js"
+export {
   type AdminBreadcrumbSegment,
   AdminBreadcrumbsProvider,
   type AdminBreadcrumbsProviderProps,

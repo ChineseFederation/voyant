@@ -11,7 +11,8 @@
   "sideEffects": false,
   "exports": {
     ".": "./src/index.ts",
-    "./provider": "./src/provider.tsx"
+    "./provider": "./src/provider.tsx",
+    "./analytics": "./src/analytics.tsx"
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
@@ -49,10 +50,18 @@
         "types": "./dist/provider.d.ts",
         "import": "./dist/provider.js",
         "default": "./dist/provider.js"
+      },
+      "./analytics": {
+        "types": "./dist/analytics.d.ts",
+        "import": "./dist/analytics.js",
+        "default": "./dist/analytics.js"
       }
     },
     "main": "./dist/index.js",
     "types": "./dist/index.d.ts"
   },
-  "private": true
+  "private": true,
+  "dependencies": {
+    "@voyant-travel/core": "workspace:^"
+  }
 }

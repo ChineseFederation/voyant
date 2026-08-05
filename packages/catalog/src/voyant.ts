@@ -10,6 +10,10 @@ import {
   providePort,
   requirePort,
 } from "@voyant-travel/core/project"
+// From `/runtime-port`, not `/analytics`: a package manifest must stay
+// import-cheap, so it may reach only for authoring helpers and port contracts.
+// `@voyant-travel/core/analytics` carries the emitter and the catalogue too.
+import { analyticsPort } from "@voyant-travel/core/runtime-port"
 import { financeOperatorSettingsRuntimePort } from "@voyant-travel/finance/runtime-port"
 import {
   catalogBookingRuntimePort,
@@ -452,6 +456,9 @@ export const catalogBookingEngineVoyantModule = defineModule({
     // Resolves the billing party for a verified guest, who has no account.
     // Optional: without it only authenticated customers can self-serve.
     requirePort(bookingsRelationshipsRuntimePort, { optional: true }),
+    // Product analytics. Optional, and unbound is the intended default for a
+    // self-hosted deployment: nothing here depends on an analytics vendor.
+    requirePort(analyticsPort, { optional: true }),
   ],
   api: [
     {

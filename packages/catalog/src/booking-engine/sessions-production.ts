@@ -17,6 +17,7 @@ import {
   BOOKING_SELECTION_PUBLIC_KEYS,
 } from "@voyant-travel/catalog-contracts/booking-engine/selection-contracts"
 import { bookingSessionAudienceForActorV1 } from "@voyant-travel/catalog-contracts/booking-engine/session-contracts"
+import type { AnalyticsPort } from "@voyant-travel/core/analytics"
 import type { AnyDrizzleDb } from "@voyant-travel/db"
 import {
   allocateBookingNumber,
@@ -78,6 +79,8 @@ export interface ProductionBookingSessionModuleDeps {
   relationships?: BookingsRelationshipsRuntime
   financeRuntime?: FinanceServiceRuntime
   payments?: Omit<ProductionBookingSessionPaymentDeps, "db" | "financeRuntime">
+  /** Host-bound product analytics. Absent means unbound — see `./analytics.ts`. */
+  analytics?: AnalyticsPort
 }
 
 export function createProductionBookingSessionModule(
@@ -92,6 +95,7 @@ export function createProductionBookingSessionModule(
     : undefined
   const leaf = createProductionCompositeLeafRuntime(deps)
   return createBookingSessionModule({
+    ...(deps.analytics ? { analytics: deps.analytics } : {}),
     ports: {
       repository: deps.repository,
       normalizeSelection: async ({ selection, target, access }) =>

@@ -13,6 +13,7 @@ import type {
 } from "@voyant-travel/catalog-contracts/booking-engine/session-contracts"
 import { useCallback, useMemo, useRef, useState } from "react"
 
+import { useBookingJourneyAnalytics } from "./analytics.js"
 import {
   abandonBookingSession,
   adoptBookingSession,
@@ -99,6 +100,8 @@ export interface UseBookingSession {
  */
 export function useBookingSession(options: UseBookingSessionOptions): UseBookingSession {
   const api = useBookingJourneyApi(options)
+  const analytics = useBookingJourneyAnalytics()
+  const surface = options.surface ?? "admin"
   const [sessionId, setSessionId] = useState<string | null>(options.sessionId ?? null)
   const [session, setSession] = useState<BookingSessionRecordV1 | BookingSessionViewV1 | null>(null)
   const [outcome, setOutcome] = useState<BookingSessionOutcomeV1 | null>(null)
@@ -152,6 +155,14 @@ export function useBookingSession(options: UseBookingSessionOptions): UseBooking
 
   const create = useCallback(() => {
     if (!target) throw new Error("useBookingSession: `target` is required to create a Session")
+    // Emitted before the request, not after it: a Create that never answers is
+    // still a journey somebody started, and dropping it would flatter the
+    // funnel by making the first step look like it never happened.
+    analytics.journeyStarted({
+      target,
+      ...(surface === "admin" ? { channel: "operator" } : {}),
+      ...(typeof document === "undefined" ? {} : { entryReferrer: document.referrer }),
+    })
     return run(() =>
       openBookingSession(api, {
         idempotencyKey: bookingSessionIdempotencyKey(root, "create"),
@@ -160,7 +171,7 @@ export function useBookingSession(options: UseBookingSessionOptions): UseBooking
         ...(capabilityScopes ? { capabilityScopes } : {}),
       }),
     )
-  }, [api, capabilityScopes, root, run, scope, target])
+  }, [analytics, api, capabilityScopes, root, run, scope, surface, target])
 
   const resume = useCallback(
     (id?: string) => {

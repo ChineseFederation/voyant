@@ -6,6 +6,14 @@ import type {
 import { definePort } from "./project.js"
 
 export type {
+  AnalyticsEmitter,
+  AnalyticsEventName,
+  AnalyticsPort,
+  AnalyticsProperties,
+  AnalyticsPropertyValue,
+} from "./analytics.js"
+export { analyticsPort, createSafeAnalytics, noopAnalytics } from "./analytics.js"
+export type {
   DocumentRenderer,
   PdfPageFormat,
   PdfRenderRequest,

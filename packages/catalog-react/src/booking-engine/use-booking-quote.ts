@@ -9,6 +9,7 @@ import type {
 } from "@voyant-travel/catalog-contracts/booking-engine/session-contracts"
 import { useCallback, useEffect, useMemo, useState } from "react"
 
+import { useBookingJourneyAnalytics } from "./analytics.js"
 import { bookingSessionIdempotencyKey, quoteBookingSession } from "./session-client.js"
 import { bookingSessionOutcomeOf, bookingSessionRejection } from "./session-outcomes.js"
 import { type BookingJourneyApiOptions, useBookingJourneyApi } from "./use-booking-journey-api.js"
@@ -72,6 +73,7 @@ export interface UseBookingQuote {
  */
 export function useBookingQuote(options: UseBookingQuoteOptions): UseBookingQuote {
   const api = useBookingJourneyApi(options)
+  const analytics = useBookingJourneyAnalytics()
   const debounceMs = options.debounceMs ?? 250
   const { sessionId, revision, idempotencyRoot } = options
   const surface = options.surface ?? "admin"
@@ -126,6 +128,14 @@ export function useBookingQuote(options: UseBookingQuoteOptions): UseBookingQuot
   const outcome = query.data ?? null
   const created = bookingSessionOutcomeOf(outcome, "quote_created")
   const rejection = bookingSessionRejection(outcome)
+
+  // Quote validates the selection against the same published requirements the
+  // Commit does, so a selection that is short of them is knowable here — one
+  // step earlier than the Commit, which is where the buyer actually stalls.
+  useEffect(() => {
+    if (!sessionId) return
+    analytics.reportRejection({ bookingSessionId: sessionId, step: "configure", outcome })
+  }, [analytics, outcome, sessionId])
 
   const requote = useCallback(
     async (requoteOptions?: { fresh?: boolean }) => {

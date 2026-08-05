@@ -9,6 +9,7 @@ import type {
 } from "@voyant-travel/catalog-contracts/booking-engine/session-contracts"
 import { useCallback, useMemo, useState } from "react"
 
+import { useBookingJourneyAnalytics } from "./analytics.js"
 import { bookingSessionIdempotencyKey, commitBookingSession } from "./session-client.js"
 import { bookingSessionOutcomeOf, bookingSessionRejection } from "./session-outcomes.js"
 import { type BookingJourneyApiOptions, useBookingJourneyApi } from "./use-booking-journey-api.js"
@@ -68,6 +69,7 @@ export function useCommitBookingSession(
 ): UseCommitBookingSession {
   const api = useBookingJourneyApi(options)
   const { sessionId, revision, idempotencyRoot } = options
+  const analytics = useBookingJourneyAnalytics()
   const [outcome, setOutcome] = useState<BookingSessionOutcomeV1 | null>(null)
 
   const idempotencyKeyFor = useCallback(
@@ -87,7 +89,15 @@ export function useCommitBookingSession(
         ...(input.payment ? { payment: input.payment } : {}),
       })
     },
-    onSuccess: setOutcome,
+    onSuccess: (next) => {
+      setOutcome(next)
+      // The stuck-point signal, without the host having to instrument a single
+      // field: a Commit rejected as `selection_incomplete` already names every
+      // requirement the selection misses.
+      if (sessionId) {
+        analytics.reportRejection({ bookingSessionId: sessionId, step: "commit", outcome: next })
+      }
+    },
   })
   const commit = mutation.mutateAsync
 

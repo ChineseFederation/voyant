@@ -3,6 +3,7 @@ import { Link, redirect, useRouter, useRouterState } from "@tanstack/react-route
 import { useVoyantReactContext } from "@voyant-travel/react"
 import { Loader2 } from "lucide-react"
 import { forwardRef, type ReactNode, useCallback, useMemo } from "react"
+import { useAdminNavigationAnalytics } from "../analytics.js"
 import type { AdminNavLinkComponent, AdminNavLinkProps } from "../components/admin-nav-link.js"
 import { AdminWidgetSlotRenderer } from "../components/admin-widget-slot.js"
 import { OperatorAdminBootstrapGate } from "../components/operator-admin-bootstrap-gate.js"
@@ -271,6 +272,9 @@ function AdminWorkspaceShellInner<TUser extends AdminWorkspaceShellUser>({
   const router = useRouter()
   const currentPath = useRouterState({ select: (s) => s.location.pathname })
   const messages = useOperatorAdminMessages()
+  // Mounted once, here, rather than per route: the shell is the only place
+  // that sees every navigation, including the ones packaged pages make.
+  useAdminNavigationAnalytics()
   const resolvedExtensions = useMemo(
     () => (typeof extensions === "function" ? extensions(messages) : extensions),
     [extensions, messages],

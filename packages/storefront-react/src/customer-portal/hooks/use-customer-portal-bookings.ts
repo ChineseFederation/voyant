@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query"
 
+import { useCustomerPortalSessionAnalytics } from "../analytics.js"
 import { useVoyantCustomerPortalContext } from "../provider.js"
 import { getCustomerPortalBookingsQueryOptions } from "../query-options.js"
 
@@ -13,8 +14,13 @@ export function useCustomerPortalBookings(options: UseCustomerPortalBookingsOpti
   const { baseUrl, fetcher } = useVoyantCustomerPortalContext()
   const { enabled = true } = options
 
-  return useQuery({
+  const query = useQuery({
     ...getCustomerPortalBookingsQueryOptions({ baseUrl, fetcher }),
     enabled,
   })
+
+  // The portal's first successful read is what a portal session is.
+  useCustomerPortalSessionAnalytics(query.data?.data.length)
+
+  return query
 }
