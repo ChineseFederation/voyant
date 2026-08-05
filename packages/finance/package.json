@@ -38,10 +38,10 @@
     "./self-service-booking-source": "./src/self-service-booking-source.ts"
   },
   "scripts": {
-    "typecheck": "tsc -p tsconfig.typecheck.json",
+    "typecheck": "NODE_OPTIONS=--max-old-space-size=8192 tsc -p tsconfig.typecheck.json",
     "lint": "biome check src/",
     "test": "vitest run",
-    "build": "tsc -p tsconfig.build.json",
+    "build": "NODE_OPTIONS=--max-old-space-size=8192 tsc -p tsconfig.build.json",
     "clean": "rm -rf dist tsconfig.tsbuildinfo",
     "prepack": "pnpm run build",
     "generate:openapi": "node --import tsx scripts/generate-travel-credit-openapi.ts && biome format --write openapi/storefront/finance.json",
