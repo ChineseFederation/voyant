@@ -523,7 +523,6 @@
       "@voyant-travel/catalog/events/taxonomy": ["../catalog/dist/events/taxonomy.d.ts"],
       "@voyant-travel/catalog/graph-runtime": ["../catalog/dist/graph-runtime.d.ts"],
       "@voyant-travel/catalog/index-subscribers": ["../catalog/dist/index-subscriber-runtime.d.ts"],
-      "@voyant-travel/catalog/indexer/contract": ["../catalog/dist/indexer/contract.d.ts"],
       "@voyant-travel/catalog/indexer/postgres": ["../catalog/dist/indexer/postgres.d.ts"],
       "@voyant-travel/catalog/indexer/postgres-provider": [
         "../catalog/dist/indexer/postgres-provider.d.ts"

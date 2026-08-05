@@ -263,8 +263,6 @@ export interface VoyantNodeRuntimeOptions {
   applicationId?: string
   env?: Record<string, unknown> | VoyantNodeRuntimeEnv
   auth?: VoyantAuthIntegration<VoyantNodeRuntimeEnv>
-  /** @deprecated Use `resources`; package behavior belongs behind `runtimePorts`. */
-  providers?: VoyantNodeRuntimeResources
   app?: Partial<
     Omit<CreateVoyantAppConfig<VoyantNodeRuntimeEnv, VoyantNodeRuntimeResources>, "providers">
   >
@@ -352,7 +350,7 @@ export async function loadVoyantNodeRuntime(
   })
   const activeModules = options.graphRuntime.modules.map((unit) => unit.localId ?? unit.id)
   const auth = options.app?.auth ?? options.auth
-  const resources = { ...(options.providers ?? {}), ...(options.resources ?? {}) }
+  const resources = { ...(options.resources ?? {}) }
   const runtimePorts = options.runtimePorts ? { ...options.runtimePorts } : undefined
   const graphComposition = await composeVoyantGraphRuntime({
     runtime: options.graphRuntime,
@@ -555,8 +553,6 @@ export function createVoyantNodeApp(options: {
   env?: VoyantNodeRuntimeEnv
   auth?: VoyantAuthIntegration<VoyantNodeRuntimeEnv>
   resources?: VoyantNodeRuntimeResources
-  /** @deprecated Use `resources`; package behavior belongs behind graph runtime ports. */
-  providers?: VoyantNodeRuntimeResources
   app?: Partial<
     Omit<CreateVoyantAppConfig<VoyantNodeRuntimeEnv, VoyantNodeRuntimeResources>, "providers">
   >
@@ -579,7 +575,7 @@ export function createVoyantNodeApp(options: {
     },
     basePath: options.app?.basePath ?? "/api",
     auth,
-    providers: { ...(options.providers ?? {}), ...(options.resources ?? {}) },
+    providers: { ...(options.resources ?? {}) },
   })
 }
 

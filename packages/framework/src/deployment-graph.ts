@@ -1071,9 +1071,6 @@ export function generateCustomSourceExtensionManifests(
   )
 }
 
-/** @deprecated Use generateCustomSourceExtensionManifests. */
-export const generateCustomSourcePluginManifests = generateCustomSourceExtensionManifests
-
 export function graphIdFromSpecifier(specifier: string): string {
   const { packageName, subpath } = splitPackageSpecifier(specifier)
   if (!subpath) return packageName

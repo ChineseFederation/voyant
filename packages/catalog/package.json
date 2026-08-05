@@ -14,7 +14,6 @@
     "./overlay/schema": "./src/overlay/schema.ts",
     "./overlay/resolver": "./src/overlay/resolver.ts",
     "./snapshot/schema": "./src/snapshot/schema.ts",
-    "./indexer/contract": "./src/indexer/contract.ts",
     "./indexer/provider": "./src/indexer/provider.ts",
     "./indexer/reconciliation-node": "./src/indexer/reconciliation-node.ts",
     "./indexer/typesense": "./src/indexer/typesense.ts",
@@ -162,11 +161,6 @@
         "types": "./dist/snapshot/schema.d.ts",
         "import": "./dist/snapshot/schema.js",
         "default": "./dist/snapshot/schema.js"
-      },
-      "./indexer/contract": {
-        "types": "./dist/indexer/contract.d.ts",
-        "import": "./dist/indexer/contract.js",
-        "default": "./dist/indexer/contract.js"
       },
       "./indexer/provider": {
         "types": "./dist/indexer/provider.d.ts",

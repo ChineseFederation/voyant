@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from "vitest"
 
 import {
-  getLegacyTransactionLinkFromBookingOrigin,
   toBookingOriginInsert,
   toCatalogReservationBookingOriginInput,
   toDirectB2CBookingOriginInput,
@@ -60,33 +59,6 @@ describe("booking origins", () => {
       createdAt: now,
       updatedAt: now,
     })
-  })
-
-  it("reads legacy transaction ids from origin records for compatibility sync", () => {
-    const link = getLegacyTransactionLinkFromBookingOrigin({
-      bookingId: "book_1797",
-      originSource: "legacy_transaction",
-      proposalVersionId: null,
-      tripSnapshotId: null,
-      reservationPlanId: null,
-      catalogPriceResponseId: null,
-      catalogSnapshotId: null,
-      providerSourceKind: null,
-      providerSourceProvider: null,
-      providerSourceConnectionId: null,
-      providerSourceRef: null,
-      providerOrderRef: null,
-      storefrontId: null,
-      channelId: null,
-      legacyTransactionOfferId: null,
-      legacyTransactionOrderId: null,
-      legacyTransactionIds: { offerId: "off_1797", orderId: "ord_1797" },
-      metadata: null,
-      createdAt: new Date("2026-06-13T12:00:00.000Z"),
-      updatedAt: new Date("2026-06-13T12:00:00.000Z"),
-    })
-
-    expect(link).toEqual({ offerId: "off_1797", orderId: "ord_1797" })
   })
 
   it("builds direct storefront provenance from booking session items", () => {

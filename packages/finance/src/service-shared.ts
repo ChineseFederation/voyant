@@ -1095,12 +1095,6 @@ export interface InvoiceVoidedEvent {
   currency: string
   reason: string | null
   voidedAt: string
-  /** @deprecated External app projections do not expose provider routing fields. */
-  externalProvider?: string | null
-  /** @deprecated External app projections do not expose provider numbering fields. */
-  externalNumber?: string | null
-  /** @deprecated External app projections do not expose provider series fields. */
-  externalSeriesName?: string | null
   /** Canonical emitters always set this; optional preserves the v1 source contract. */
   occurredAt?: string
 }

@@ -15,7 +15,6 @@ export {
   PRODUCT_CONTENT_CHANGED_EVENT,
   type ProductContentChangedEvent,
 } from "./events.js"
-export { productLinkable } from "./linkables.js"
 export {
   buildProductReadModelDoc,
   invalidateProductReadModel,

@@ -572,7 +572,7 @@ Voyant maintains two first-party adapters. The Postgres provider is declared for
 
 #### 5.4.2. Swap-in alternatives
 
-The engine-neutral `IndexerAdapter`, `IndexerProvider`, and optional `IndexerAdmin` contracts live in `@voyant-travel/catalog-contracts/indexer/contract`. This keeps external engine packages dependent on the pure contract package rather than the catalog runtime. `@voyant-travel/catalog/indexer/contract` remains a compatibility re-export, not the canonical adapter dependency.
+The engine-neutral `IndexerAdapter`, `IndexerProvider`, and optional `IndexerAdmin` contracts live in `@voyant-travel/catalog-contracts/indexer/contract`. This keeps external engine packages dependent on the pure contract package rather than the catalog runtime.
 
 A deployment selects one graph provider by setting `deployment.providers.search` to `postgres`, `typesense`, `algolia`, `custom`, or `none`. A selected adapter package declares a provider for runtime port `catalog.indexer` with a matching `{ role: "search", value }`. `custom` is the public selection for an operator-owned engine; it is not an implicit fallback and does not mean "choose any provider." Embedded hosts and tests may inject an `IndexerAdapter` or `IndexerProvider` directly at that port only when the deployment selects `search: "custom"`; the host value then takes precedence over a graph-declared custom provider. For every non-custom selection, the host value is ignored and the selected graph provider remains authoritative.
 
@@ -1223,7 +1223,7 @@ The work has natural sequencing because vertical adoption depends on contract ty
 3. `packages/catalog/src/overlay/schema.ts` — the overlay table schema (drizzle).
 4. `packages/catalog/src/overlay/resolver.ts` — the resolver-merge logic (apply overlays to a source projection, with locale + audience + market fallback chain).
 5. `packages/catalog/src/snapshot/schema.ts` — the `booking_catalog_snapshot` table schema.
-6. `packages/catalog-contracts/src/indexer/contract.ts` and `conformance.ts` — the engine-agnostic `IndexerAdapter` / `IndexerProvider` contracts and portable adapter conformance kit. `packages/catalog/src/indexer/contract.ts` is a compatibility re-export.
+6. `packages/catalog-contracts/src/indexer/contract.ts` and `conformance.ts` — the engine-agnostic `IndexerAdapter` / `IndexerProvider` contracts and portable adapter conformance kit.
 7. `packages/catalog/src/indexer/typesense.ts` and `typesense-provider.ts` — native Typesense implementation and first-party `catalog.indexer` graph provider (§5.4.1). Default search selection for managed-cloud deployments.
 8. `packages/catalog/src/search/rerank.ts` — Tier 2 two-stage-search orchestration helper for browse-time pricing (§5.4.3). Storefront BFFs import this; v1 ships the helper but storefronts opt in per query.
 9. `packages/catalog/src/drift/events.ts` — drift event types.

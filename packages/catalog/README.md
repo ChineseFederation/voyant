@@ -31,8 +31,6 @@ search services, or catalog runtime services.
 - **`./overlay/schema`** — drizzle table schema for editorial overrides keyed `(entity_module, entity_id, field_path, locale, audience, market)`.
 - **`./overlay/resolver`** — resolver-merge logic with full locale × audience × market fallback chain.
 - **`./snapshot/schema`** — `booking_catalog_snapshot` table for immutable booking-time Catalog Item projection views.
-- **`./indexer/contract`** — compatibility re-export of the engine-agnostic
-  contracts now owned by `@voyant-travel/catalog-contracts/indexer/contract`.
 - **`./indexer/provider`** — the `catalog.indexer` runtime port used by deployment
   composition.
 - **`./indexer/postgres`** — native Postgres `IndexerAdapter`, the first-party

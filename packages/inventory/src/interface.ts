@@ -10,7 +10,6 @@ export {
   inventoryLinkable,
   inventoryProductCompatibilityLinkable,
   inventoryProductLinkable,
-  productLinkable,
   productsCompatibilityLinkable,
 } from "./linkables.js"
 

@@ -20,11 +20,7 @@ import {
 } from "@voyant-travel/ui/components"
 import { Pencil, Plus, Trash2 } from "lucide-react"
 import { useEffect, useState } from "react"
-import {
-  type ProductExtraRecord,
-  useProductExtraMutation,
-  useProductExtras,
-} from "../../extras-compat.js"
+import { type ProductExtraRecord, useProductExtraMutation, useProductExtras } from "../../extras.js"
 import {
   type ExtraPriceRuleRecord,
   useExtraPriceRuleMutation,

@@ -550,6 +550,3 @@ export function AvailabilitySlotDetailPage({
     </div>
   )
 }
-
-export type { SlotFinancialRollup } from "./availability-slot-detail-financials.js"
-export { aggregateSlotFinancials } from "./availability-slot-detail-financials.js"

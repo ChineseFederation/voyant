@@ -342,12 +342,3 @@ export function rateLimit(policy: RateLimitPolicy): MiddlewareHandler {
     return next()
   }
 }
-
-/**
- * @deprecated Legacy constants from the pre-C2 limiter, retained for
- * import compatibility. Configure limits per policy instead.
- */
-export const LIVE_LIMITS = {
-  burst: 30,
-  rpm: 3000,
-} as const

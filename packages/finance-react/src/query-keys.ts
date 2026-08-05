@@ -168,8 +168,6 @@ export type FinancePaymentSessionStatusFilter =
 export interface FinancePaymentSessionListFilters {
   bookingId?: string | undefined
   legacyOrderId?: string | undefined
-  /** @deprecated Use legacyOrderId for compatibility references. */
-  orderId?: string | undefined
   invoiceId?: string | undefined
   bookingPaymentScheduleId?: string | undefined
   bookingGuaranteeId?: string | undefined

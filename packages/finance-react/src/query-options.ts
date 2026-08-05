@@ -285,8 +285,7 @@ export function getPaymentSessionsQueryOptions(
     queryFn: () => {
       const params = new URLSearchParams()
       if (filters.bookingId) params.set("bookingId", filters.bookingId)
-      const legacyOrderId = filters.legacyOrderId ?? filters.orderId
-      if (legacyOrderId) params.set("legacyOrderId", legacyOrderId)
+      if (filters.legacyOrderId) params.set("legacyOrderId", filters.legacyOrderId)
       if (filters.invoiceId) params.set("invoiceId", filters.invoiceId)
       if (filters.bookingPaymentScheduleId) {
         params.set("bookingPaymentScheduleId", filters.bookingPaymentScheduleId)

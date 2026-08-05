@@ -100,7 +100,7 @@ type PromotionalOfferScope =
   | { kind: "cabin_grades"; cabinGradeCodes: string[] }
 ```
 
-**No `channels` scope kind in v1.** The natural fit (`channelScope`) lives on `market_product_rules` (`packages/markets/src/schema.ts:224`), not on `markets`, so a channel-scoped offer would need a per-(product, market) rule lookup. Worse, `IndexerSlice` (`packages/catalog/src/indexer/contract.ts:21`) has no channel dimension — `{ vertical, locale, audience, market }` only. Modeling channels properly means either a per-product rule join on the projection hot path or extending `IndexerSlice` to carry channel — both are larger work than promotions should drag in. Operators who need channel-wide promos in v1 model them via `audiences` (e.g., `partner` ≈ b2b) and / or per-market scoping. Tracked as a deferred follow-up in §14.
+**No `channels` scope kind in v1.** The natural fit (`channelScope`) lives on `market_product_rules` (`packages/markets/src/schema.ts:224`), not on `markets`, so a channel-scoped offer would need a per-(product, market) rule lookup. Worse, `IndexerSlice` (`packages/catalog-contracts/src/indexer/contract.ts`) has no channel dimension — `{ vertical, locale, audience, market }` only. Modeling channels properly means either a per-product rule join on the projection hot path or extending `IndexerSlice` to carry channel — both are larger work than promotions should drag in. Operators who need channel-wide promos in v1 model them via `audiences` (e.g., `partner` ≈ b2b) and / or per-market scoping. Tracked as a deferred follow-up in §14.
 
 Two reasons for the JSONB shape over multiple link tables:
 
@@ -810,7 +810,7 @@ Tracked here so they don't get re-litigated during PR review:
 - **Multi-currency offers via FX.** Strict currency match in v1. FX-aware offers are a follow-up if needed.
 - **Per-tenant scoping.** Single-tenant assumption in v1.
 - **Localized offer names / descriptions.** v1 ships single-locale. A `promotional_offer_translations` table mirrors `destinations_translations` if/when a multi-locale storefront needs it.
-- **Channel-scoped offers.** Modeling requires either per-product `market_product_rules` joins on the projection hot path or extending `IndexerSlice` with a channel dimension (`packages/catalog/src/indexer/contract.ts:21`). Either is larger work than promotions should drag in. Operators approximate via `audiences` + `markets` in v1.
+- **Channel-scoped offers.** Modeling requires either per-product `market_product_rules` joins on the projection hot path or extending `IndexerSlice` with a channel dimension (`packages/catalog-contracts/src/indexer/contract.ts`). Either is larger work than promotions should drag in. Operators approximate via `audiences` + `markets` in v1.
 - **Filter / sort by effective (post-discount) price.** Today's filter uses `priceFromAmountCents` (list price) since promotions doesn't overwrite it. A customer searching `< $200` won't find a `$250 → $180` discounted product via the filter. Real fix: the §15.1 ordered-extensions thread.
 - **Atomic redemption recording.** Today's subscriber pattern accepts a small audit gap on permanent failure (mitigated by `pricing_applied_offers` on the snapshot enabling backfill). A reconciliation job that scans for snapshots with `pricing_applied_offers` but no matching redemption row would close the gap.
 

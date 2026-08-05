@@ -140,12 +140,6 @@ export interface SlotMutationRuntime {
   }
 }
 
-/**
- * Back-compat alias for the original update-only runtime type. New
- * callers should reach for `SlotMutationRuntime`.
- */
-export type UpdateSlotRuntime = SlotMutationRuntime
-
 export async function createSlot(
   db: PostgresJsDatabase,
   data: CreateAvailabilitySlotInput,

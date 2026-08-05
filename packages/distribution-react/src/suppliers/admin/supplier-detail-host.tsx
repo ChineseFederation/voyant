@@ -11,13 +11,6 @@ import { SupplierDetailPage } from "../components/supplier-detail-page.js"
 import type { Supplier, UpdateSupplierInput } from "../index.js"
 import { supplierDetailPaymentPolicySlot } from "./slots.js"
 
-// The slot id lives in `./slots.js` — a lean, component-free module — so
-// other domains' admin extension factories (evaluated with workspace chrome)
-// can import it without pulling this host into the entry chunk.
-// Re-exported here for backwards compatibility.
-// fallow-ignore-next-line unused-export
-export { supplierDetailPaymentPolicySlot }
-
 /**
  * Render context handed to widget contributions targeting
  * {@link supplierDetailPaymentPolicySlot}. Mirrors the canonical page's

@@ -31,6 +31,16 @@
       "retiredBy": ["catalog-runtime-authority", "node-runtime-product-authority"]
     },
     {
+      "path": "packages/catalog/src/indexer/contract.ts",
+      "retiredBy": ["catalog-runtime-authority"],
+      "$comment": [
+        "Compatibility re-export of",
+        "`@voyant-travel/catalog-contracts/indexer/contract`, plus the",
+        "`./indexer/contract` subpath that pointed at it. Nothing imported the",
+        "re-export; every consumer already names the contracts package."
+      ]
+    },
+    {
       "path": "packages/catalog/src/booking-engine/quote.ts",
       "retiredBy": ["beta-quote-path-authority"],
       "$comment": [
@@ -43,6 +53,25 @@
     {
       "path": "packages/catalog/src/booking-engine/quote-enricher.test.ts",
       "retiredBy": ["beta-quote-path-authority"]
+    },
+    {
+      "path": "packages/operations-react/src/availability/components/availability-slot-detail-financials.tsx",
+      "retiredBy": ["operations-departure-workspace-authority"],
+      "$comment": [
+        "`KpiStrip` and `aggregateSlotFinancials` — a browser-side settlement",
+        "roll-up over one loaded page of the allocation manifest, superseded by",
+        "the whole-departure `GET /slots/{id}/summary` figures the departure",
+        "workspace headline reads. Nothing mounted or called either."
+      ]
+    },
+    {
+      "path": "packages/inventory-react/src/extras-compat.ts",
+      "retiredBy": ["client-package-boundaries"],
+      "$comment": [
+        "A two-line forwarder to `./extras.js` that existed only to hold an",
+        "older import path stable. Both importers were inside the package and",
+        "now name `./extras.js` directly."
+      ]
     },
     {
       "path": "packages/inventory/src/catalog-runtime-extension.test.ts",

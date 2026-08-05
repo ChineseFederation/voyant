@@ -18,7 +18,7 @@ import {
   Textarea,
 } from "@voyant-travel/ui/components"
 import * as React from "react"
-import { type ProductExtraRecord, useProductExtraMutation } from "../../extras-compat.js"
+import { type ProductExtraRecord, useProductExtraMutation } from "../../extras.js"
 import { useProductDetailMessages } from "./host.js"
 
 const selectionTypes = ["optional", "required", "default_selected", "unavailable"] as const

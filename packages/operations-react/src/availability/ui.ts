@@ -80,7 +80,6 @@ export {
 export {
   AvailabilitySlotDetailPage,
   type AvailabilitySlotDetailPageProps,
-  aggregateSlotFinancials,
   getAvailabilitySlotAllocationQueryOptions,
   getAvailabilitySlotAssignmentsQueryOptions,
   getAvailabilitySlotCloseoutsQueryOptions,

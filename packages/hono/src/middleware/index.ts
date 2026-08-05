@@ -30,7 +30,6 @@ export {
   createMemoryRateLimitStore,
   createRedisRateLimitStore,
   enforceRateLimit,
-  LIVE_LIMITS,
   type RateLimitConfig,
   type RateLimitPolicy,
   type RateLimitRequestContext,

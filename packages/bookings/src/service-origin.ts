@@ -31,11 +31,6 @@ export interface UpsertBookingOriginInput {
   metadata?: Record<string, unknown> | null
 }
 
-export interface LegacyBookingTransactionLink {
-  offerId: string | null
-  orderId: string | null
-}
-
 export interface DirectB2CBookingOriginItemInput {
   sourceSnapshotId?: string | null
   metadata?: Record<string, unknown> | null
@@ -282,31 +277,4 @@ export async function getBookingOriginByBookingId(
     .limit(1)
 
   return origin ?? null
-}
-
-function readLegacyId(
-  ids: BookingOriginLegacyTransactionIds | null,
-  key: "offerId" | "orderId",
-): string | null {
-  const value = ids?.[key]
-  return typeof value === "string" && value.length > 0 ? value : null
-}
-
-export function getLegacyTransactionLinkFromBookingOrigin(
-  origin: BookingOrigin | null,
-): LegacyBookingTransactionLink | null {
-  if (!origin) {
-    return null
-  }
-
-  const offerId =
-    origin.legacyTransactionOfferId ?? readLegacyId(origin.legacyTransactionIds, "offerId")
-  const orderId =
-    origin.legacyTransactionOrderId ?? readLegacyId(origin.legacyTransactionIds, "orderId")
-
-  if (!offerId && !orderId) {
-    return null
-  }
-
-  return { offerId, orderId }
 }

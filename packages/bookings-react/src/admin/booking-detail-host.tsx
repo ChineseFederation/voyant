@@ -34,12 +34,6 @@ import {
 } from "./slots.js"
 import { useBookingActionLedgerEvents } from "./use-booking-action-ledger-events.js"
 
-// The slot ids live in `./slots.js` — a lean, component-free module — so
-// other domains' admin extension factories (evaluated with workspace chrome)
-// can import them without pulling this host into the entry chunk.
-// Re-exported here for backwards compatibility.
-export { bookingDetailFinanceEndSlot, bookingDetailFinanceStartSlot, bookingDetailInvoicesTabSlot }
-
 /**
  * Render context handed to the host's app-supplied slots AND to widget
  * contributions targeting {@link bookingDetailInvoicesTabSlot}. Carries the

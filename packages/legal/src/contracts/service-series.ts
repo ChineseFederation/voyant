@@ -103,12 +103,6 @@ export const contractSeriesService = {
     }
     return activeRows[0] ?? null
   },
-  /**
-   * @deprecated Prefer `findDefaultActiveByScope`.
-   */
-  async findSingleActiveByScope(db: PostgresJsDatabase, scope: ContractScope) {
-    return contractSeriesService.findDefaultActiveByScope(db, scope)
-  },
   async createSeries(db: PostgresJsDatabase, data: CreateContractNumberSeriesInput) {
     return db.transaction(async (tx) => {
       const scope = data.scope ?? "customer"

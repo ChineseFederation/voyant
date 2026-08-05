@@ -14,8 +14,6 @@ export const inventoryProductCompatibilityLinkable: LinkableDefinition = {
   idPrefix: "prod",
 }
 
-export const productLinkable = inventoryProductCompatibilityLinkable
-
 export const inventoryLinkable = {
   product: inventoryProductLinkable,
 }

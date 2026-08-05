@@ -56,7 +56,8 @@ export interface IndexerServiceOptions {
  * the `IndexerDocument` for a particular entity in a particular slice.
  *
  * Verticals supply this via their `DocumentEmitter` (see
- * `../indexer/contract.ts`); the service is engine-agnostic.
+ * `@voyant-travel/catalog-contracts/indexer/contract`); the service is
+ * engine-agnostic.
  */
 export type DocumentBuilder = (
   entityId: string,
