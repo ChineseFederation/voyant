@@ -24,16 +24,16 @@ import {
   ToolError,
   type ToolManifestEntry,
   type ToolRegistry,
-  toToolError,
 } from "@voyant-travel/tools"
 import type { AccessCatalog, ApiKeyPermissions } from "@voyant-travel/types/api-keys"
 import { isAuthorized } from "./authorization.js"
-import { dispatchToResult } from "./dispatch.js"
+import { dispatchToResult, toErrorResult } from "./dispatch.js"
 import { isRecord } from "./guards.js"
 import type { McpCaller, McpCallOutcome, McpObserver } from "./observability.js"
 import {
   advertiseQueryTool,
   dispatchQueryTool,
+  hasQueryResource,
   queryToolDescription,
   type ReadProjection,
   toolDomain,
@@ -299,11 +299,23 @@ function registerDescribeTool({
       description:
         "Return the full input schema, output contract, and metadata for one tool " +
         "by name. Use the names returned by search_tools. For a `<domain>_query` tool " +
-        "the input schema is a discriminated union on `resource`.",
-      inputSchema: z.object({ name: z.string().trim().min(1) }),
+        "the input schema is a discriminated union on `resource` — pass `resource` " +
+        "here to get just that branch, which is far cheaper than the whole union.",
+      inputSchema: z.object({
+        name: z.string().trim().min(1),
+        resource: z
+          .string()
+          .trim()
+          .min(1)
+          .optional()
+          .describe(
+            "For a `<domain>_query` tool: narrow the returned input schema to this " +
+              "one resource. The resource names are listed in the tool's description.",
+          ),
+      }),
       annotations: { readOnlyHint: true, openWorldHint: false },
     },
-    (args) => describeTool(registry, surface, projection, args.name),
+    (args) => describeTool(registry, surface, projection, args.name, args.resource),
   )
 }
 
@@ -312,24 +324,42 @@ function describeTool(
   surface: AuthorizedSurface,
   projection: ReadProjection,
   name: string,
+  resource?: string,
 ): CallToolResult {
   const queryTool = projection.queryToolFor(name)
   if (queryTool) {
+    // Fail closed on an unknown resource rather than advertising an empty union,
+    // and hand back the valid names so the retry is one step, not a re-discovery.
+    if (resource !== undefined && !hasQueryResource(queryTool, resource)) {
+      return errorResult(
+        new ToolError(
+          `${name} has no resource "${resource}".`,
+          "NOT_FOUND",
+          undefined,
+          undefined,
+          // `candidates` is the 5th `details` arg, not `meta` — only the former
+          // reaches the MCP error envelope (dispatch.ts lifts it out of the
+          // ToolError, not out of meta).
+          { candidates: queryTool.resources.map((member) => member.resource) },
+        ),
+      )
+    }
     try {
-      const descriptor = advertiseQueryTool(registry, queryTool)
+      const descriptor = advertiseQueryTool(registry, queryTool, resource)
       // A query tool's descriptor is the union of every resource's schema — the
       // largest describe payload on the surface. Carry it once, in
       // `structuredContent`, and keep the human-readable `content` channel a short
       // pointer rather than a second pretty-printed copy (voyant#3932); the doubled
       // copy was the single biggest line in the discovery bill.
       const resources = queryTool.resources.map((member) => member.resource).join(", ")
+      const text =
+        resource === undefined
+          ? `${queryTool.name}: set "resource" to one of ${resources}. Full schema in ` +
+            `structuredContent — re-describe with {"resource": "<one of these>"} for just ` +
+            "that resource's schema."
+          : `${queryTool.name} resource "${resource}": schema in structuredContent.`
       return {
-        content: [
-          {
-            type: "text",
-            text: `${queryTool.name}: set "resource" to one of ${resources}. Full schema in structuredContent.`,
-          },
-        ],
+        content: [{ type: "text", text }],
         structuredContent: descriptor,
       }
     } catch (err) {
@@ -449,20 +479,9 @@ function unknownToolResult(name: string): CallToolResult {
   )
 }
 
-function errorResult(err: unknown): CallToolResult {
-  // Recognises a ToolError from another loaded copy of @voyant-travel/tools so
-  // a duplicated install cannot flatten its code into PROVIDER_ERROR.
-  const toolError = toToolError(err)
-  return {
-    isError: true,
-    content: [{ type: "text", text: `[${toolError.code}] ${toolError.message}` }],
-    _meta: {
-      [DISPATCH_ERROR_META_KEY]: {
-        code: toolError.code,
-        message: toolError.message,
-        retryable: toolError.retryable,
-        nextSteps: toolError.nextSteps,
-      },
-    },
-  }
-}
+/**
+ * Meta-tool failures use the SAME envelope as dispatch. This used to be a
+ * near-copy that dropped `candidates`, `didYouMean`, `meta` and
+ * `contractVersion` — see {@link toErrorResult}.
+ */
+const errorResult = toErrorResult

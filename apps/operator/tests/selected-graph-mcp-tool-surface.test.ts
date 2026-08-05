@@ -203,6 +203,61 @@ describe("selected-graph MCP tool surface cost", () => {
     expect(unnamed).toEqual([])
   })
 
+  it("registers every staff-audience tool the selected graph declares", async () => {
+    // voyant#3682 acceptance (3): compose the published tool metadata with the
+    // graph manifest and prove MCP discovery registers every admitted tool.
+    //
+    // The defect that issue reported is already fixed — `create_booking_extra`
+    // now declares graph risk `high` against its `sensitive` tier. Two things
+    // were checked before writing this, by reintroducing each break and watching
+    // it fail, so nobody re-derives them:
+    //
+    //   - tier/risk mismatch → `assertCompatibleRisk` THROWS during registration,
+    //     the mount fails, and every test in this file goes red. Loud.
+    //   - a scope no access resource declares → the graph BUILD fails with
+    //     VOYANT_GRAPH_UNKNOWN_REFERENCE. Loud, and earlier still.
+    //
+    // So this is not a guard against a live bug; it pins the RESULT those two
+    // checks currently produce. The assertion above is a floor of 200 against
+    // ~270 actual, which would absorb a drop of dozens in silence. Any filtering
+    // introduced later between registration and the served index — a scope
+    // intersection, a narrowed audience, a projection that stops emitting a
+    // domain — shrinks the surface without tripping a floor. Assert by NAME.
+    const { app } = await mountSelectedGraphMcp()
+    const manifest = (await (await app.request("/manifest", {}, TEST_ENV, TEST_CTX)).json()) as {
+      tools: Array<{ name?: string }>
+    }
+    const registered = new Set(manifest.tools.map(({ name }) => name))
+
+    const runtime = createGeneratedGraphRuntime()
+    const declared: string[] = []
+    for (const tool of runtime.tools) {
+      const definition = await tool.load<{
+        name: string
+        audience?: { allowed?: readonly string[] }
+      }>()
+      const name = tool.name ?? definition.name
+      // The manifest is composed for a STAFF key. Customer-portal tools are
+      // declared for the customer audience and are correctly absent here — the
+      // audience filter is the point, not a gap. An undeclared audience defaults
+      // to every grant audience, so it stays in scope. Anything else missing is a
+      // registration failure.
+      const allowed = definition.audience?.allowed
+      if (allowed !== undefined && !allowed.includes("staff")) continue
+      declared.push(name)
+    }
+
+    const missing = declared.filter((name) => !registered.has(name)).sort()
+    expect(
+      missing,
+      `${missing.length} staff tool(s) the graph declares never reached the MCP manifest. ` +
+        "These registered without error and were then filtered out of the served index — " +
+        "check requiredScopes against the access catalog, action availability.status, and " +
+        "the audience policy on each name above.",
+    ).toEqual([])
+    expect(declared.length).toBeGreaterThan(200)
+  })
+
   it("bounds the AGGREGATE describe schema of the collapsed read surface", async () => {
     // Progressive disclosure made the long tail invisible to `tools/list`, which
     // is the point — but unbounded per-tool schema growth would then show up

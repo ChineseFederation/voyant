@@ -125,9 +125,16 @@ async function listedNames(app: Hono): Promise<string[]> {
 async function describeTool(
   app: Hono,
   name: string,
+  resource?: string,
 ): Promise<{ result?: Record<string, unknown>; structuredContent?: Record<string, unknown> }> {
   const res = await readRpc(
-    await app.request("/", rpc("tools/call", { name: "describe_tool", arguments: { name } })),
+    await app.request(
+      "/",
+      rpc("tools/call", {
+        name: "describe_tool",
+        arguments: resource === undefined ? { name } : { name, resource },
+      }),
+    ),
   )
   const result = res.result as { structuredContent?: Record<string, unknown> } | undefined
   return { result, structuredContent: result?.structuredContent }
@@ -1245,6 +1252,74 @@ describe("createMcpApiRoutes", () => {
     )
     expect(bothExposed).toContain("echoes")
     expect(bothExposed).toContain("sensitive_record")
+  })
+
+  it("narrows a query descriptor to one resource when describe_tool is given one", () => {
+    // Collapsing the reads (voyant#3932) moved the discovery bill rather than
+    // removing it: a query descriptor is the union of every member's input schema,
+    // so an agent that wants ONE resource still pays for all of them. Measured on
+    // the selected operator graph, `bookings_query` cost 20,573 bytes across 22
+    // branches; narrowed it costs 1,811 — a 91% cut, and 74% across all 24 query
+    // tools. This is the tier-0 argument of voyant#3927 applied one layer down.
+    return (async () => {
+      const app = appWithScopes(["products:read", "secrets:read"])
+      const full = (await describeTool(app, "test_query")).structuredContent as {
+        inputSchema?: { oneOf?: unknown[] }
+        _meta?: { "voyant.travel/tool"?: { resources?: Array<{ resource: string }> } }
+      }
+      // Both resources are present, and the union carries a branch per resource.
+      expect(full.inputSchema?.oneOf).toHaveLength(2)
+
+      const narrowed = (await describeTool(app, "test_query", "echoes")).structuredContent as {
+        inputSchema?: { oneOf?: unknown[]; properties?: Record<string, unknown> }
+        _meta?: { "voyant.travel/tool"?: { resources?: Array<{ resource: string }> } }
+      }
+      // A single branch collapses out of the union into a plain object schema.
+      expect(narrowed.inputSchema?.oneOf).toBeUndefined()
+      expect(narrowed.inputSchema?.properties).toHaveProperty("resource")
+      // The scope metadata narrows with it — leaving all N tuples in place would
+      // put most of the saving straight back.
+      const exposed = (narrowed._meta?.["voyant.travel/tool"]?.resources ?? []).map(
+        ({ resource }) => resource,
+      )
+      expect(exposed).toEqual(["echoes"])
+
+      expect(JSON.stringify(narrowed).length).toBeLessThan(JSON.stringify(full).length)
+    })()
+  })
+
+  it("rejects an unknown describe_tool resource with the valid names", async () => {
+    // Failing closed matters more here than usual: an unknown resource used to
+    // fall through to a branchless `{ resource: string }` schema, which reads as a
+    // valid answer and tells the agent nothing. Return the candidates so the retry
+    // is one step rather than a re-discovery.
+    const app = appWithScopes(["products:read", "secrets:read"])
+    const res = await readRpc(
+      await app.request(
+        "/",
+        rpc("tools/call", {
+          name: "describe_tool",
+          arguments: { name: "test_query", resource: "echos" },
+        }),
+      ),
+    )
+    expect((res.result as { isError?: boolean })?.isError).toBe(true)
+    const body = JSON.stringify(res.result)
+    expect(body).toContain("echoes")
+    expect(body).toContain("NOT_FOUND")
+  })
+
+  it("still describes an unnarrowed query tool for a client that sends no resource", async () => {
+    // `resource` is additive. A client written against the pre-narrowing contract
+    // must keep getting the full union rather than an error or an empty schema.
+    const app = appWithScopes(["products:read", "secrets:read"])
+    const described = (await describeTool(app, "test_query")).structuredContent as {
+      inputSchema?: { oneOf?: unknown[] }
+      description?: string
+    }
+    expect(described.inputSchema?.oneOf).toHaveLength(2)
+    // And the description tells the agent the cheaper path exists.
+    expect(described.description).toContain("resource")
   })
 
   it("discovers and invokes a sensitive Tool only with its explicit grant", async () => {

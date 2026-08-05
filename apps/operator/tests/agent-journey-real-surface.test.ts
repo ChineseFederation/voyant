@@ -121,6 +121,13 @@ interface DiscoveryJourney {
   id: string
   query: string
   tool: string
+  /**
+   * The resource this journey actually wants. `search_tools` already returns the
+   * query tool's description, which names every resource, so an agent can pass
+   * this to `describe_tool` and be advertised ONE branch instead of the union —
+   * no extra round trip. Measured here so the saving is pinned on the real graph.
+   */
+  resource: string
 }
 
 // After the layered read projection (voyant#3932) the flat `get_*`/`list_*` reads
@@ -130,12 +137,22 @@ interface DiscoveryJourney {
 // tool (products/product/product-content all live in `inventory_query`), which is
 // exactly the clustering that cuts the discovery bill.
 const JOURNEYS: DiscoveryJourney[] = [
-  { id: "discover-products", query: "products", tool: "inventory_query" },
-  { id: "discover-product", query: "product", tool: "inventory_query" },
-  { id: "discover-product-content", query: "product content", tool: "inventory_query" },
-  { id: "discover-bookings", query: "bookings", tool: "bookings_query" },
-  { id: "discover-booking", query: "booking", tool: "bookings_query" },
-  { id: "discover-departures", query: "departures", tool: "operations_query" },
+  { id: "discover-products", query: "products", tool: "inventory_query", resource: "products" },
+  { id: "discover-product", query: "product", tool: "inventory_query", resource: "product" },
+  {
+    id: "discover-product-content",
+    query: "product content",
+    tool: "inventory_query",
+    resource: "product_content",
+  },
+  { id: "discover-bookings", query: "bookings", tool: "bookings_query", resource: "bookings" },
+  { id: "discover-booking", query: "booking", tool: "bookings_query", resource: "booking" },
+  {
+    id: "discover-departures",
+    query: "departures",
+    tool: "operations_query",
+    resource: "departures",
+  },
 ]
 
 interface DiscoveryScore {
@@ -146,6 +163,8 @@ interface DiscoveryScore {
   described: boolean
   calls: number
   tokenEstimate: number
+  /** The same journey describing only `journey.resource` — same call count. */
+  narrowedTokenEstimate: number
 }
 
 async function runDiscovery(app: Hono, journey: DiscoveryJourney): Promise<DiscoveryScore> {
@@ -155,32 +174,52 @@ async function runDiscovery(app: Hono, journey: DiscoveryJourney): Promise<Disco
   const descriptor = (describe.result as { structuredContent?: { inputSchema?: unknown } })
     ?.structuredContent
   const described = describe.result?.isError !== true && descriptor?.inputSchema != null
+
+  // Same two calls, one argument different. Anything that makes this path error
+  // or return no schema must fail the journey, or the comparison is measuring a
+  // broken call against a working one.
+  const narrowed = await callTool(app, "describe_tool", {
+    name: journey.tool,
+    resource: journey.resource,
+  })
+  const narrowedDescriptor = (narrowed.result as { structuredContent?: { inputSchema?: unknown } })
+    ?.structuredContent
+  const narrowedDescribed =
+    narrowed.result?.isError !== true && narrowedDescriptor?.inputSchema != null
+
   return {
     id: journey.id,
     tool: journey.tool,
-    completed: found && described,
+    completed: found && described && narrowedDescribed,
     found,
-    described,
+    described: described && narrowedDescribed,
     calls: 2,
     tokenEstimate: Math.round((search.bytes + describe.bytes) / BYTES_PER_TOKEN),
+    narrowedTokenEstimate: Math.round((search.bytes + narrowed.bytes) / BYTES_PER_TOKEN),
   }
 }
 
 function formatReport(scores: readonly DiscoveryScore[]): string {
   const lines = [
     "agent journey eval — real-surface discovery (voyant#3936)",
-    "  columns: completed | tool | calls | ~tokens (search + describe, resp bytes/4)",
+    "  columns: completed | tool | calls | ~tokens broad → narrowed (resp bytes/4)",
   ]
   for (const s of scores) {
+    const cut =
+      s.tokenEstimate > 0 ? Math.round((1 - s.narrowedTokenEstimate / s.tokenEstimate) * 100) : 0
     lines.push(
       `  ${s.completed ? "✓" : "✗"} ${s.tool.padEnd(22)} ` +
-        `calls=${s.calls} ~tokens=${String(s.tokenEstimate).padStart(5)}` +
+        `calls=${s.calls} ~tokens=${String(s.tokenEstimate).padStart(5)} → ` +
+        `${String(s.narrowedTokenEstimate).padStart(5)} (-${cut}%)` +
         (s.completed ? "" : ` [found=${s.found} described=${s.described}]`),
     )
   }
   const total = scores.reduce((sum, s) => sum + s.tokenEstimate, 0)
+  const narrowedTotal = scores.reduce((sum, s) => sum + s.narrowedTokenEstimate, 0)
   lines.push(
-    `  TOTAL discovery ~tokens=${total} completed=${scores.filter((s) => s.completed).length}/${scores.length}`,
+    `  TOTAL discovery ~tokens=${total} → ${narrowedTotal} ` +
+      `(-${Math.round((1 - narrowedTotal / total) * 100)}%) ` +
+      `completed=${scores.filter((s) => s.completed).length}/${scores.length}`,
   )
   return lines.join("\n")
 }
@@ -242,5 +281,31 @@ describe("agent journey eval — real selected-graph surface", () => {
       `real-surface discovery cost ${total} tokens exceeded ceiling ${DISCOVERY_TOKEN_CEILING} — ` +
         "read the printed report; this is what the read projection (W8) should cut.",
     ).toBeLessThanOrEqual(DISCOVERY_TOKEN_CEILING)
+  })
+
+  it("makes a narrowed describe materially cheaper than the full union", () => {
+    // The saving is the whole reason `resource` exists on describe_tool, and it is
+    // the kind of property that rots quietly: adding a resource to a domain makes
+    // the union grow and the narrowed branch stay flat, so the gap should only
+    // widen. Assert the FLOOR, not the measurement, so ordinary schema edits pass.
+    //
+    // Measured on the selected graph: 38,587 → 18,659 tokens across the six
+    // journeys (-52%). Per-journey cuts run 36–71% rather than the 91% the
+    // `bookings_query` DESCRIPTOR alone sees (20,573 → 1,811 bytes), because each
+    // journey also pays an unchanged `search_tools` call — that half of the bill
+    // is untouched by this and is the next thing worth attacking.
+    //
+    // A 30% floor leaves room for a domain whose query tool has one resource
+    // (nothing to narrow) to enter the set without failing this.
+    const total = scores.reduce((sum, s) => sum + s.tokenEstimate, 0)
+    const narrowedTotal = scores.reduce((sum, s) => sum + s.narrowedTokenEstimate, 0)
+    const cut = 1 - narrowedTotal / total
+
+    expect(
+      cut,
+      `narrowed describe saved only ${Math.round(cut * 100)}% (${total} → ${narrowedTotal} tokens). ` +
+        "Either the union stopped carrying per-resource schemas, or narrowing stopped " +
+        "pruning them — read the printed report.",
+    ).toBeGreaterThan(0.3)
   })
 })

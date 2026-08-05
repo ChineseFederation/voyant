@@ -105,28 +105,42 @@ export async function dispatchToResult(
       ...(shaped.meta ? { _meta: shaped.meta } : {}),
     }
   } catch (err) {
-    // Normalize any thrown value into a ToolError so the envelope always carries
-    // the actionable fields. An unknown throw maps to PROVIDER_ERROR (terminal),
-    // the safe-for-writes default — a blind retry of an unknown failure could
-    // duplicate a write. `toToolError` recognises a ToolError raised by another
-    // loaded copy of @voyant-travel/tools, so a duplicated install does not
-    // strip its code and remediation here (voyant#4115).
-    const toolError = toToolError(err)
-    const error = {
-      contractVersion: TOOL_CONTRACT_VERSION,
-      code: toolError.code,
-      message: toolError.message,
-      retryable: toolError.retryable,
-      nextSteps: toolError.nextSteps,
-      ...(toolError.candidates ? { candidates: toolError.candidates } : {}),
-      ...(toolError.didYouMean ? { didYouMean: toolError.didYouMean } : {}),
-      ...(toolError.meta ? { meta: toolError.meta } : {}),
-    }
-    return {
-      isError: true,
-      content: [{ type: "text", text: `[${toolError.code}] ${toolError.message}` }],
-      _meta: { "voyant.travel/error": error },
-    }
+    return toErrorResult(err)
+  }
+}
+
+/**
+ * The single MCP error envelope. Every actionable field voyant#3947 added has to
+ * survive here or it is dead weight at the throw site.
+ *
+ * This lives in one place because it did not used to: the meta-tool layer had its
+ * own copy that carried only `code`, `message`, `retryable` and `nextSteps`, so
+ * `candidates`, `didYouMean`, `meta` and `contractVersion` were silently dropped
+ * from every `search_tools` / `describe_tool` / `call_tool` failure — the exact
+ * errors an agent hits while it is still trying to find its way around.
+ */
+export function toErrorResult(err: unknown): CallToolResult {
+  // Normalize any thrown value into a ToolError so the envelope always carries
+  // the actionable fields. An unknown throw maps to PROVIDER_ERROR (terminal),
+  // the safe-for-writes default — a blind retry of an unknown failure could
+  // duplicate a write. `toToolError` recognises a ToolError raised by another
+  // loaded copy of @voyant-travel/tools, so a duplicated install does not
+  // strip its code and remediation here (voyant#4115).
+  const toolError = toToolError(err)
+  const error = {
+    contractVersion: TOOL_CONTRACT_VERSION,
+    code: toolError.code,
+    message: toolError.message,
+    retryable: toolError.retryable,
+    nextSteps: toolError.nextSteps,
+    ...(toolError.candidates ? { candidates: toolError.candidates } : {}),
+    ...(toolError.didYouMean ? { didYouMean: toolError.didYouMean } : {}),
+    ...(toolError.meta ? { meta: toolError.meta } : {}),
+  }
+  return {
+    isError: true,
+    content: [{ type: "text", text: `[${toolError.code}] ${toolError.message}` }],
+    _meta: { "voyant.travel/error": error },
   }
 }
 

@@ -131,9 +131,14 @@ export function buildReadProjection(surface: AuthorizedSurface): ReadProjection 
  * projected input fields. The registry still validates the untouched domain
  * schema at dispatch, so this is a discovery projection, not the parse contract.
  */
-export function queryToolInputSchema(registry: ToolRegistry, queryTool: QueryTool): z.ZodType {
+export function queryToolInputSchema(
+  registry: ToolRegistry,
+  queryTool: QueryTool,
+  resource?: string,
+): z.ZodType {
   const branches: z.ZodObject[] = []
   for (const member of queryTool.resources) {
+    if (resource !== undefined && member.resource !== resource) continue
     const def = registry.get(member.entry.name)
     if (!def) continue
     const memberObject = toMcpInputSchema(
@@ -153,14 +158,33 @@ export function queryToolInputSchema(registry: ToolRegistry, queryTool: QueryToo
   return z.discriminatedUnion("resource", branches as [z.ZodObject, z.ZodObject, ...z.ZodObject[]])
 }
 
-/** A one-line, resource-listing description so keyword `search_tools` still matches. */
-export function queryToolDescription(queryTool: QueryTool): string {
+/**
+ * A one-line, resource-listing description so keyword `search_tools` still matches.
+ *
+ * Listing every resource here is what makes narrowed `describe_tool` free: this
+ * string reaches the agent through `search_tools`, so it already knows the
+ * resource names before it describes anything.
+ */
+export function queryToolDescription(queryTool: QueryTool, resource?: string): string {
   const resources = queryTool.resources.map((member) => member.resource).join(", ")
+  if (resource !== undefined) {
+    return (
+      `Query ${queryTool.domain} read data for resource "${resource}". The input ` +
+      `schema below is narrowed to this resource; pass "resource": "${resource}" ` +
+      `alongside its arguments. Other resources: ${resources}.`
+    )
+  }
   return (
     `Query ${queryTool.domain} read data. Set "resource" to the record you want and ` +
     `supply that resource's own arguments (this tool's input schema is a discriminated ` +
-    `union on "resource"). Resources: ${resources}.`
+    `union on "resource"). Resources: ${resources}. Pass "resource" to describe_tool ` +
+    `to get just that resource's schema instead of all ${queryTool.resources.length}.`
   )
+}
+
+/** True when `resource` names a member of this query tool. */
+export function hasQueryResource(queryTool: QueryTool, resource: string): boolean {
+  return queryTool.resources.some((member) => member.resource === resource)
 }
 
 /**
@@ -181,18 +205,33 @@ const QUERY_OUTPUT_SCHEMA = {
  * The descriptor `describe_tool` returns for a query tool — the discovery view an
  * agent needs to call it: the union input schema, a permissive output note,
  * read-only annotations, and per-resource scope metadata.
+ *
+ * `resource` NARROWS the advertised input schema to that one branch. Collapsing
+ * the reads moved the discovery bill rather than removing it: a query tool's
+ * descriptor is the union of every member's input schema, so `bookings_query`
+ * costs 15,766 bytes across 22 branches while an agent reads exactly one of them.
+ * That is the eager-serialization problem voyant#3927 solved for `tools/list`,
+ * recurring one layer down.
+ *
+ * Narrowing needs no extra round trip because {@link queryToolDescription} — which
+ * `search_tools` already returns — names every resource. So the agent that found
+ * the tool can already name the branch it wants. Measured on the selected operator
+ * graph: `bookings_query` 15,766 → 1,513 bytes, and 104,207 → ~24,000 across all
+ * 24 query tools. Omitting `resource` still returns the full union, so an existing
+ * client keeps working.
  */
 export function advertiseQueryTool(
   registry: ToolRegistry,
   queryTool: QueryTool,
+  resource?: string,
 ): Record<string, unknown> {
-  const inputSchema = z.toJSONSchema(queryToolInputSchema(registry, queryTool), {
+  const inputSchema = z.toJSONSchema(queryToolInputSchema(registry, queryTool, resource), {
     io: "input",
     unrepresentable: "any",
   })
   return {
     name: queryTool.name,
-    description: queryToolDescription(queryTool),
+    description: queryToolDescription(queryTool, resource),
     inputSchema,
     outputSchema: QUERY_OUTPUT_SCHEMA,
     annotations: { readOnlyHint: true, openWorldHint: false },
@@ -202,11 +241,16 @@ export function advertiseQueryTool(
         kind: "read-query",
         domain: queryTool.domain,
         tier: "read",
-        resources: queryTool.resources.map((member) => ({
-          resource: member.resource,
-          capabilityId: member.entry.capabilityId,
-          requiredScopes: member.entry.requiredScopes,
-        })),
+        // Narrowed describe carries only the selected resource's scope metadata.
+        // Advertising all 22 capabilityId/requiredScopes tuples alongside a
+        // one-branch schema would put most of the cost straight back.
+        resources: queryTool.resources
+          .filter((member) => resource === undefined || member.resource === resource)
+          .map((member) => ({
+            resource: member.resource,
+            capabilityId: member.entry.capabilityId,
+            requiredScopes: member.entry.requiredScopes,
+          })),
       },
     },
   }

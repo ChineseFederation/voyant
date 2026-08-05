@@ -289,6 +289,33 @@ const SCENARIOS: JourneyScenario[] = [
       productList(prior[2]).length > 0,
   },
   {
+    // The SAME journey as above, describing only the resource it actually wants.
+    // Kept as a separate scenario rather than replacing the broad one so the
+    // report shows both costs side by side on every run — that delta is the whole
+    // argument for the narrowed describe, and it disappears if only one survives.
+    //
+    // `search_tools` already returns the query tool's description, which names
+    // every resource, so naming one here costs no extra round trip. On the seeded
+    // fixture the saving is modest (few resources, small schemas); on the real
+    // selected graph `bookings_query` goes 20,573 → 1,811 bytes.
+    id: "discover-then-read-products-narrowed",
+    title: "search_tools → describe_tool(resource: products) → inventory_query",
+    drive(prior) {
+      if (prior.length === 0) return { tool: "search_tools", args: { query: "product" } }
+      if (prior.length === 1)
+        return {
+          tool: "describe_tool",
+          args: { name: "inventory_query", resource: "products" },
+        }
+      if (prior.length === 2) return { tool: "inventory_query", args: { resource: "products" } }
+      return null
+    },
+    completed: (prior) =>
+      searchHit(prior[0], "inventory_query") &&
+      describedName(prior[1]) === "inventory_query" &&
+      productList(prior[2]).length > 0,
+  },
+  {
     // Find a product, then read its composed content by the id just discovered.
     id: "find-product-read-content",
     title: "search_tools → inventory_query(products) → inventory_query(product_content)",
@@ -383,20 +410,41 @@ const SCENARIOS: JourneyScenario[] = [
  * When you intentionally change the surface, re-run, read the printed report,
  * and move the measured baseline in the comment plus the ceiling if needed.
  *
- * Measured estimates at authoring (response bytes ÷ 4). The describe_tool step
- * dominates the discovery journeys — it pays a tool's full input schema once,
- * which is exactly the per-tool cost the aggregate ratchet in the operator
- * starter bounds. The guide journey pays the `voyant_guide` prose instead.
- *   discover-then-read-products   calls=3  ~tokens≈1789
- *   find-product-read-content     calls=3  ~tokens≈425
- *   list-bookings-with-filter     calls=3  ~tokens≈1092
- *   guide-then-act                calls=3  ~tokens≈872
- *   recover-from-bad-input        calls=3  ~tokens≈422
+ * Measured estimates (response bytes ÷ 4). The describe_tool step dominates the
+ * discovery journeys — it pays a tool's full input schema once, which is exactly
+ * the per-tool cost the aggregate ratchet in the operator application bounds. The
+ * guide journey pays the `voyant_guide` prose instead.
+ *
+ * RE-RECORDED 2026-08-05. The authoring numbers were taken before the layered
+ * read projection (voyant#3932, PR #3984) and the live-client payload fixes
+ * (PR #3990) landed, and nobody moved them afterwards — so the ceilings had
+ * drifted to ~2.5x the real cost and would not have caught a doubling. Three
+ * journeys got materially cheaper; none got more expensive:
+ *
+ *   journey                          calls  was    now    ceiling
+ *   discover-then-read-products        3    1789   1186    1_800
+ *   discover-then-read-products-narrow 3      —     926    1_400
+ *   find-product-read-content          3     425    568      850
+ *   list-bookings-with-filter          3    1092    724    1_100
+ *   guide-then-act                     3     872    845    1_300
+ *   recover-from-bad-input             3     422    422      650
+ *
+ * `find-product-read-content` rose 425 → 568 because the projection returns a
+ * richer content envelope; that is the intended trade and not a regression. The
+ * un-narrowed journeys each rose ~90 tokens against the previous re-recording
+ * because a query tool's description now advertises the narrowed path — a fixed
+ * cost paid once per describe, which the narrowed journey more than repays.
+ *
+ * The two `discover-then-read-products*` rows are the same journey with and
+ * without a `resource` on `describe_tool`: 1186 → 926 here, and 20,573 → 1,811
+ * BYTES on the real `bookings_query` (22 resources vs the fixture's 2). Keep both
+ * so the delta stays visible. Ceilings are ~1.5x the measurement.
  */
 const BASELINES: Record<string, { calls: number; maxTokens: number }> = {
-  "discover-then-read-products": { calls: 3, maxTokens: 2_700 },
-  "find-product-read-content": { calls: 3, maxTokens: 650 },
-  "list-bookings-with-filter": { calls: 3, maxTokens: 1_650 },
+  "discover-then-read-products": { calls: 3, maxTokens: 1_800 },
+  "discover-then-read-products-narrowed": { calls: 3, maxTokens: 1_400 },
+  "find-product-read-content": { calls: 3, maxTokens: 850 },
+  "list-bookings-with-filter": { calls: 3, maxTokens: 1_100 },
   "guide-then-act": { calls: 3, maxTokens: 1_300 },
   "recover-from-bad-input": { calls: 3, maxTokens: 650 },
 }
