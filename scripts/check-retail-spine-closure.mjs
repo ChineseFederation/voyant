@@ -2,6 +2,8 @@
 import fs from "node:fs"
 import path from "node:path"
 
+import { trackedFilesIn } from "./lib/tracked-files.mjs"
+
 const repoRoot = process.cwd()
 
 const retailSpineRoots = [
@@ -160,6 +162,17 @@ const skipDirs = new Set([".git", ".turbo", ".vite", "coverage", "dist", "node_m
 
 function findPackageJsonFiles(dir) {
   const files = []
+
+  // Enumerate the repository from git: this walked the filesystem, so a git
+  // worktree parked in the root put ANOTHER checkout's packages into the
+  // closure and the gate reported success while this tree was broken
+  // (voyant#4281). See scripts/lib/tracked-files.mjs.
+  const tracked = path.resolve(dir) === path.resolve(repoRoot) ? trackedFilesIn(dir) : null
+  if (tracked !== null) {
+    return tracked
+      .filter((file) => file === "package.json" || file.endsWith("/package.json"))
+      .map((file) => path.join(repoRoot, file))
+  }
 
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     if (skipDirs.has(entry.name)) continue

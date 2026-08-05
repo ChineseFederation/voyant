@@ -1,6 +1,8 @@
 import { readdirSync, readFileSync, statSync } from "node:fs"
 import { relative, resolve, sep } from "node:path"
 
+import { trackedFilesIn } from "./lib/tracked-files.mjs"
+
 const rootFlag = process.argv.indexOf("--root")
 const root = resolve(rootFlag === -1 ? process.cwd() : process.argv[rootFlag + 1])
 
@@ -151,6 +153,19 @@ function shouldSkipPath(path) {
 }
 
 function collectFiles(dir, files = []) {
+  // The repository itself is enumerated from git, so a parked worktree or a
+  // stale build artifact on disk is invisible. A `--root <fixture>` tree is not
+  // a repository, so it still walks. See scripts/lib/tracked-files.mjs.
+  const tracked = dir === root ? trackedFilesIn(root) : null
+  if (tracked !== null) {
+    for (const file of tracked) {
+      const absolute = resolve(root, file)
+      if (shouldSkipPath(absolute)) continue
+      files.push(absolute)
+    }
+    return files
+  }
+
   for (const entry of readdirSync(dir)) {
     const path = resolve(dir, entry)
     if (shouldSkipPath(path)) continue

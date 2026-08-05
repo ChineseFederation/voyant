@@ -102,6 +102,36 @@ test imports a sibling package by relative path, because `rootDir: "src"` is
 inherited. Moving the emit geometry out of the shared project is what resolves
 it.
 
+### A checker reads the tracked tree, not the working directory
+
+A checker that walks the filesystem from the repository root sees whatever is on
+disk: a git worktree parked in the root, a leftover directory from a deleted
+package, a stale `.tsbuildinfo`. None of that is this tree's source and none of
+it exists in CI's checkout.
+
+It fails in both directions, and the second is the one that hurts:
+
+- **false red** — fails locally on content CI never sees, which teaches everyone
+  to dismiss the checker, including when it is right
+- **false green** — resolves *another* checkout's files and validates those,
+  reporting success while this tree is broken
+
+The false green is not hypothetical. `verify:retail-spine-closure` printed
+"Verified retail spine package closure" against `worktrees/<branch>/packages/*`
+while this tree carried a forbidden edge, and only CI caught it
+([#4281](https://github.com/voyant-travel/voyant/pull/4281)).
+
+Use `trackedFilesIn(root)` from `scripts/lib/tracked-files.mjs`. It returns the
+git listing when `root` is the repository toplevel and **null** otherwise, so a
+checker driven over a `--root <fixture>` tree keeps walking — a fixture is not a
+repository, and silently finding nothing there would turn its own vacuity tests
+green while checking nothing.
+
+`verify:tracked-tree-scan` holds the line: it plants an untracked worktree in the
+repo root and asserts each converted checker ignores it, paired with an assertion
+that one still goes red on a tracked violation. Only the pair means anything — a
+checker that ignored everything would pass the first half.
+
 ### Converting an authority script you are already editing
 
 The per-module `scripts/check-*authority*.mjs` scripts assert architecture by

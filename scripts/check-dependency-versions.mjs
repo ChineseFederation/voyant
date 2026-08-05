@@ -3,6 +3,8 @@
 import { readdirSync, readFileSync } from "node:fs"
 import path from "node:path"
 
+import { trackedFilesIn } from "./lib/tracked-files.mjs"
+
 const dependencySections = ["dependencies", "devDependencies", "optionalDependencies"]
 const firstPartyPeerDependencyRanges = new Map([["lucide-react", "^0.475.0 || ^1.0.0"]])
 
@@ -130,6 +132,16 @@ function readDefaultCatalogDependencies() {
 function listPackageJsonFiles(rootDir) {
   const packageJsonFiles = []
   const ignoredDirectories = new Set([".git", ".turbo", "build", "dist", "node_modules"])
+
+  // The hand-maintained ignore list below excluded `.claude/worktrees/` but not
+  // a worktree in the repo root, so the check failed locally on another
+  // branch's manifests. Enumerating the repository from git needs no list.
+  const tracked = trackedFilesIn(rootDir)
+  if (tracked !== null) {
+    return tracked
+      .filter((file) => file === "package.json" || file.endsWith("/package.json"))
+      .sort()
+  }
 
   walk(rootDir)
 
