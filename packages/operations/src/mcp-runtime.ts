@@ -8,11 +8,16 @@ import {
 } from "@voyant-travel/bookings/runtime-port"
 import type { EventBus } from "@voyant-travel/core"
 import type { AnyDrizzleDb } from "@voyant-travel/db"
-import type { ToolHandlerActionPolicyContext } from "@voyant-travel/tools"
-import { defineToolContextContribution, requireService, ToolError } from "@voyant-travel/tools"
+import type { ToolErrorCode, ToolHandlerActionPolicyContext } from "@voyant-travel/tools"
+import {
+  defineToolContextContribution,
+  deriveCommandIdempotencyKey,
+  requireService,
+  ToolError,
+  withServerResolvedIdempotencyKey,
+} from "@voyant-travel/tools"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import type { Context } from "hono"
-import { allocationToolErrorCode } from "./allocation-tool-errors.js"
 import { availabilityService } from "./availability/service.js"
 import {
   type AssignTravelerAllocationsBatchInput,
@@ -54,13 +59,30 @@ export const voyantToolContextContribution = defineToolContextContribution({
           admitted: ToolHandlerActionPolicyContext,
         ) {
           const { idempotencyKey: legacyIdempotencyKey, ...commandInput } = input
-          admittedCreatedCommandIdempotencyKey(admitted, legacyIdempotencyKey)
+          // voyant#3921: derive the key server-side when the caller did not supply
+          // one, as create_person and create_product now do. Observed against the
+          // real graph: the agent invented its own key, retried with different
+          // input, and got "Action ledger idempotency key was reused with a
+          // different fingerprint" — a token it should never have been carrying.
+          // Hashing the command input makes a genuine retry replay the original
+          // departure and two different departures get two different keys.
+          const resolvedAdmitted = admitted.invocation.idempotencyKey?.trim()
+            ? admitted
+            : withServerResolvedIdempotencyKey(
+                admitted,
+                legacyIdempotencyKey ??
+                  (await deriveCommandIdempotencyKey("create-departure", commandInput)),
+              )
+          const resolvedIdempotencyKey = admittedCreatedCommandIdempotencyKey(
+            resolvedAdmitted,
+            legacyIdempotencyKey,
+          )
           const result = await executeAdmittedCreatedTargetCommand(
             {
               db: db as unknown as AnyDrizzleDb,
               context: actionLedgerContext(c),
-              admitted,
-              idempotencyKey: legacyIdempotencyKey,
+              admitted: resolvedAdmitted,
+              idempotencyKey: resolvedIdempotencyKey,
               commandTargetType: "departure-create-command",
               canonicalTargetType: "departure",
               resultReferenceType: "departure",
@@ -259,6 +281,11 @@ async function withAllocationToolErrors<T>(run: () => Promise<T>): Promise<T> {
       { cause: error },
     )
   }
+}
+
+function allocationToolErrorCode(status: number): ToolErrorCode {
+  if (status === 404) return "NOT_FOUND"
+  return status >= 400 && status < 500 ? "INVALID_INPUT" : "PROVIDER_ERROR"
 }
 
 function jsonSafeValue(value: unknown): unknown {

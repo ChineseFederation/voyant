@@ -65,8 +65,15 @@ export const TOOL_ERROR_DEFAULTS: Record<ToolErrorCode, ToolErrorDefault> = {
   },
   APPROVAL_REQUIRED: {
     retryable: false,
+    // Three steps, not two. This used to say "request approval, then re-call",
+    // which omits the middle one — so an agent requested approval, immediately
+    // re-called, got APPROVAL_REQUIRED again, and looped. Observed driving a real
+    // booking: the approval was created and left pending forever because nothing
+    // told the caller it also had to be DECIDED.
     nextSteps: [
-      "Request approval via request_action_approval, then re-call this tool with _voyant.approvalId set to the returned approval id.",
+      "1. Call request_action_approval to create an approval for this exact command; it returns an approval id.",
+      "2. Call approve_action_approval with that id. A requested approval is pending until it is decided — re-calling before this step fails identically.",
+      "3. Re-call this tool with _voyant.approvalId set to that id, and the command otherwise unchanged.",
     ],
   },
   CONFIRMATION_REQUIRED: {

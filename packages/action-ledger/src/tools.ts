@@ -441,7 +441,23 @@ export const requestActionApprovalTool = defineTool({
     destructive: false,
     reversible: true,
     dryRunSupported: false,
-    confirmationRequired: true,
+    // voyant#3921: NOT confirmation-gated, deliberately.
+    //
+    // This is the entry point to the approval protocol: to perform an approved
+    // write you must first request approval here. Gating the entry point created
+    // a bootstrap trap — the agent called request_action_approval, was refused
+    // with CONFIRMATION_REQUIRED, and looped, because nothing suggested that the
+    // confirmation flag applied to the permission REQUEST as well as to the act
+    // it was requesting. Measured over three runs against the real graph,
+    // creating one priced unit this way succeeded 0/3.
+    //
+    // Confirmation exists so an agent cannot do something consequential by
+    // accident. Creating a PENDING approval request is not consequential: it
+    // writes a request nobody has acted on, it is reversible, it is declared
+    // non-destructive right above, and the decision still has to be made by
+    // approve_action_approval — which is destructive, stays confirmation-gated,
+    // and is the gate that actually protects anything.
+    confirmationRequired: false,
     sideEffects: ["data-write"],
   },
   actionPolicyEnforcement: "handler",

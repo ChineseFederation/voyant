@@ -411,6 +411,12 @@ export const createDepartureTool = defineTool<
   capabilityVersion: VERSION,
   capabilityId: `${OWNER}#tool.create-departure`,
   name: "create_departure",
+  // voyant#3921: this handler derives its own idempotency key, so the caller must
+  // not be asked for one. Without this flag the admission still lists
+  // `idempotencyKey` as caller-required, the agent invents a value, reuses it
+  // across a retry with different input, and the ledger rejects the fingerprint.
+  resolvesIdempotencyKeyServerSide: true,
+
   description:
     "Create one dated departure on a product so it can be sold. `compose_product` deliberately does not create departures, so a newly composed product has none until this runs. Repeat it per date for a recurring schedule (one call per Saturday, for instance). Requires the product's `timezone`; `startsAt` is an ISO datetime with offset.",
   inputSchema: createDepartureArgs,

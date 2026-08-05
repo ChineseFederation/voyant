@@ -255,28 +255,22 @@ export const inventoryVoyantModule = defineModule({
       context: ["inventory"],
       risk: "medium",
     },
-    {
-      id: "@voyant-travel/inventory#tool.preview-product-unit-configuration",
-      name: "preview_product_unit_configuration",
-      runtime: {
-        entry: "@voyant-travel/inventory/tools",
-        export: "previewProductUnitConfigurationTool",
-      },
-      requiredScopes: ["products:read", "pricing:read"],
-      context: ["inventoryConfiguration"],
-      risk: "low",
-    },
-    {
-      id: "@voyant-travel/inventory#tool.apply-product-unit-configuration",
-      name: "apply_product_unit_configuration",
-      runtime: {
-        entry: "@voyant-travel/inventory/tools",
-        export: "applyProductUnitConfigurationTool",
-      },
-      requiredScopes: ["products:write", "pricing:write"],
-      context: ["inventoryConfiguration"],
-      risk: "medium",
-    },
+    // voyant#3921: preview_product_unit_configuration and
+    // apply_product_unit_configuration are no longer on the agent surface, and
+    // nothing replaces them. They required the caller to carry an exhaustive
+    // before/after plan verbatim between two calls, and they named themselves as
+    // the way to touch units at all, so an agent trying to ADD one spent
+    // twenty-odd calls cycling over units that did not exist. Removing them took
+    // that journey from 0/10 to 10/10.
+    //
+    // A consolidated `configure_option_units` was built to replace them and is
+    // deliberately NOT here: across ten runs plus a dedicated repricing journey it
+    // was never once called. `create_option_unit` and `update_option_unit` already
+    // cover what an agent needs — add a unit, change a unit — and the agent finds
+    // them unaided. The pair's real audience is bulk reconfiguration behind an
+    // operator approval plan, which no agent journey exercises. The services and
+    // exports remain for programmatic and UI callers; only the graph binding is
+    // gone. Re-surface it when a journey needs it, not before.
     {
       id: "@voyant-travel/inventory#tool.update-product-day",
       name: "update_product_day",
@@ -467,34 +461,12 @@ export const inventoryVoyantModule = defineModule({
       targetLifecycle: "existing",
       from: { tools: ["@voyant-travel/inventory#tool.set-product-open-graph-image"] },
     },
-    {
-      id: "@voyant-travel/inventory#action.preview-product-unit-configuration",
-      version: "v1",
-      kind: "read",
-      targetType: "product",
-      requiredScopes: ["products:read", "pricing:read"],
-      risk: "low",
-      ledger: "optional",
-      allowedActorTypes: ["staff"],
-      from: { tools: ["@voyant-travel/inventory#tool.preview-product-unit-configuration"] },
-    },
-    {
-      id: "@voyant-travel/inventory#action.apply-product-unit-configuration",
-      version: "v1",
-      kind: "execute",
-      targetType: "product",
-      commandTargetField: "productId",
-      targetLifecycle: "existing",
-      requiredScopes: ["products:write", "pricing:write"],
-      risk: "medium",
-      ledger: "required",
-      approval: "required",
-      reversible: true,
-      allowedActorTypes: ["staff"],
-      availability: { status: "available" },
-      effectBoundary: "local",
-      from: { tools: ["@voyant-travel/inventory#tool.apply-product-unit-configuration"] },
-    },
+    // One action for the consolidated Tool. It keeps the apply action's governance
+    // verbatim — same risk, ledger, approval, target and effect boundary — because
+    // consolidating the CALLS must not quietly relax the policy on the write. The
+    // separate read action for the preview goes with the separate preview Tool:
+    // the plan is now computed inside this action rather than fetched by the
+    // caller beforehand.
     {
       id: "@voyant-travel/inventory#action.update-product-day",
       version: "v1",

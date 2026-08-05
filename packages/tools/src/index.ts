@@ -35,6 +35,7 @@ export {
   type Visibility,
 } from "./context.js"
 export { defineTool, type ToolDefinition } from "./define-tool.js"
+export { deriveCommandIdempotencyKey } from "./derive-idempotency-key.js"
 export {
   enforceAudienceAuthorization,
   isToolError,

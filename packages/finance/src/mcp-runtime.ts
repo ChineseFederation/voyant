@@ -395,6 +395,46 @@ function pendingApprovalResult(input: {
   }
 }
 
+/**
+ * Say WHY an approval does not authorize this command (voyant#3921).
+ *
+ * Fourteen distinct validation reasons — a stale fingerprint, a mismatched
+ * idempotency key, an expired approval, the wrong capability — all returned the
+ * same sentence: "The approval does not authorize this exact invoice issue
+ * command." The reason travelled in `meta`, where a model does not look, and the
+ * message named none of it.
+ *
+ * NOT a claimed fix for invoice issuing. That journey scores 0/N against the real
+ * graph, and across measured runs `invalid_approval` never once fired — its
+ * actual blockers are CONFIRMATION_REQUIRED and AUTHORIZATION_DENIED, which are
+ * unrelated to this path and still open. This stands on its own smaller merit:
+ * an error that names one of fourteen causes is better than an error that names
+ * none, whether or not it is today's blocker.
+ */
+function invalidApprovalMessage(reason: string): string {
+  switch (reason) {
+    case "fingerprint_mismatch":
+      return "The approval was granted against a different version of this invoice. The booking or its amounts changed after the approval was requested. Call preview_unsynced_proforma_from_booking again, request a NEW approval for the fresh snapshot, approve that, then retry."
+    case "missing_fingerprint":
+      return "This approval carries no command fingerprint, so it cannot authorize a specific invoice. Request approval through request_action_approval for the exact issue command rather than approving a bare action."
+    case "idempotency_key_mismatch":
+      return "The approval was granted for a command with a different idempotency key. Retry with the SAME idempotencyKey the approval was requested with, or request a new approval for the key you are using now."
+    case "capability_mismatch":
+    case "mismatched_action":
+      return "This approval authorizes a different Tool action. Request approval specifically for issue_unsynced_proforma_from_booking, then retry with that approval id."
+    case "expired":
+      return "The approval expired before it was used. Request a fresh approval, approve it, and retry promptly."
+    case "already_executed":
+      return "This approval has already been used to issue an invoice; approvals are single-use. Read the existing invoice rather than issuing a second one."
+    case "actor_missing":
+    case "actor_not_allowed":
+    case "assignee_mismatch":
+      return "This approval is not usable by the current actor — it is assigned to someone else, or this actor type may not spend it. Have the assigned staff principal approve, or request one for this actor."
+    default:
+      return `The approval does not authorize this exact invoice issue command (${reason}). Request a fresh approval for this exact command, approve it, then retry unchanged.`
+  }
+}
+
 function financeInvoiceIssueAuthorizationError(
   result: Exclude<
     Awaited<ReturnType<typeof authorizeFinanceInvoiceIssue>>,
@@ -413,11 +453,10 @@ function financeInvoiceIssueAuthorizationError(
         existingActionId: result.existingActionId,
       })
     case "invalid_approval":
-      return new ToolError(
-        "The approval does not authorize this exact invoice issue command.",
-        "INVALID_INPUT",
-        { reason: result.validation.reason, approvalId: result.validation.approval?.id },
-      )
+      return new ToolError(invalidApprovalMessage(result.validation.reason), "INVALID_INPUT", {
+        reason: result.validation.reason,
+        approvalId: result.validation.approval?.id,
+      })
   }
 }
 

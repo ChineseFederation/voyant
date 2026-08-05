@@ -289,7 +289,17 @@ export class BookingItemsUnresolvedError extends Error {
   constructor(productId: string, optionId: string | null, candidateUnitCount: number) {
     super(
       candidateUnitCount === 0
-        ? "This product has no bookable units on the selected option, so the booking would reserve nothing."
+        ? // voyant#3921: the zero case had no next step, unlike its sibling — it said
+          // what was wrong and stopped. Observed against the real graph: the setup
+          // chain created an option AND a priced unit, the booking still refused, and
+          // the message gave the caller nowhere to go.
+          //
+          // Deliberately NO identifiers here: this string surfaces to operators, and
+          // a sibling test pins that constraint. The optionId, productId and candidate
+          // count travel on the error object instead, which the Tool layer forwards as
+          // `meta` — so an agent gets the ids it needs without putting typeids in
+          // front of a human.
+          "The option selected for this booking has no bookable units, so the booking would reserve nothing. Check that the unit you created belongs to the option being booked — see optionId on this error — or book the option that carries it."
         : "Several units are available and none is required, so the booking would reserve nothing. Choose which units to book.",
     )
     this.name = "BookingItemsUnresolvedError"

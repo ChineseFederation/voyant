@@ -19,16 +19,62 @@ export interface McpOutputContract {
   envelopeResult: boolean
 }
 
+/**
+ * The `_voyant` control fields, described (voyant#3921).
+ *
+ * These used to be projected as bare `z.boolean().optional()` and friends — the
+ * shape with none of the meaning. An agent could see that `confirmed` existed and
+ * had no way to learn it was mandatory, what it authorised, or where an
+ * `approvalId` comes from. So it discovered the protocol the only way left: by
+ * calling, being refused, reading the error, and calling again. Measured over
+ * three runs against the real graph, creating one priced unit that way succeeded
+ * 0/3, burning 20+ calls and 200k+ tokens per attempt.
+ *
+ * A description is not documentation here; it is the only channel that reaches
+ * the model before the first call.
+ */
+/**
+ * The `_voyant` control fields, described — and kept SHORT (voyant#3921).
+ *
+ * They were previously bare `z.boolean().optional()` and friends: the shape with
+ * none of the meaning, so an agent could see `confirmed` existed and had no way
+ * to learn it was mandatory or where an approvalId comes from.
+ *
+ * A first pass wrote full protocol explanations here and was measured at no
+ * improvement (0/3 before, 0/3 after) while adding ~10KB to the aggregate
+ * describe cost, because these fields appear on EVERY action-policy tool. What
+ * actually moved that journey was ungating request_action_approval and putting
+ * the recipe in the guide. So these say the minimum a caller cannot infer, and
+ * the protocol lives in `voyant_guide` where it is read once rather than
+ * serialized into every descriptor.
+ */
 const actionInvocationFields = {
-  confirmed: z.boolean().optional(),
-  requestId: z.uuid().optional(),
-  approvalId: z.string().trim().min(1).optional(),
-  reasonCode: z.string().trim().min(1).optional(),
+  confirmed: z
+    .boolean()
+    .describe("Set true to authorise this write; required, or the call is refused."),
+  requestId: z.uuid().describe("Caller-generated UUID correlating this request in the ledger."),
+  approvalId: z
+    .string()
+    .trim()
+    .min(1)
+    .describe(
+      "Approval authorising this exact command. Get one with request_action_approval, then approve_action_approval — a pending approval is rejected.",
+    ),
+  reasonCode: z.string().trim().min(1).describe("Optional reason recorded with the action."),
   // Compatibility fields used by handler-owned policies and generic actions
   // that have not yet declared server-owned target resolution.
-  targetId: z.string().trim().min(1).optional(),
-  idempotencyKey: z.string().trim().min(1).max(255).optional(),
-  idempotencyFingerprint: z.string().trim().min(1).optional(),
+  targetId: z.string().trim().min(1).describe("Id of the existing record this action targets."),
+  idempotencyKey: z
+    .string()
+    .trim()
+    .min(1)
+    .max(255)
+    .describe("Stable retry key; reuse the same value to replay an identical command."),
+  idempotencyFingerprint: z
+    .string()
+    .trim()
+    .min(1)
+    .describe("Fingerprint of the approved command, returned with the approval."),
 } satisfies z.ZodRawShape
 
 type ZodCompositionDef = {
@@ -67,7 +113,10 @@ export function toMcpInputSchema(
     schema instanceof z.ZodObject
       ? schema.shape
       : Object.assign({}, ...collectInputObjectShapes(schema))
-  const projectedShape = withResponseFormat(projectShapeForMcpDiscovery(shape), listShaped)
+  const projectedShape = withServerResolvedFieldsHidden(
+    withResponseFormat(projectShapeForMcpDiscovery(shape), listShaped),
+    entry,
+  )
   if (!entry.actionPolicy) {
     return z.looseObject(projectedShape)
   }
@@ -80,6 +129,34 @@ export function toMcpInputSchema(
     ...projectedShape,
     [TOOL_ACTION_INVOCATION_FIELD]: actionInvocationSchemaFor(entry).optional(),
   })
+}
+
+/**
+ * Hide a top-level `idempotencyKey` from tools whose handler derives one.
+ *
+ * A Tool that declares `resolvesIdempotencyKeyServerSide` is excluded from the
+ * admission's required fields — but its DOMAIN schema often still advertises a
+ * legacy top-level `idempotencyKey`, and an advertised field is an invitation.
+ * Measured against the real graph: the agent supplied its own key to
+ * `create_option_unit`, which overrode the derived one, then reused that key on a
+ * retry with different arguments and got "Action ledger idempotency key was
+ * reused with a different fingerprint". The derivation was correct and the
+ * caller was able to defeat it simply by being offered the field.
+ *
+ * Deriving and advertising are the two halves that have to agree. This is the
+ * second half, scoped to exactly the tools that already derive: if the policy
+ * does not ask the caller for a key, the caller is not shown one.
+ */
+function withServerResolvedFieldsHidden(
+  shape: z.ZodRawShape,
+  entry: ToolManifestEntry,
+): z.ZodRawShape {
+  const policy = entry.actionPolicy
+  if (!policy || !("idempotencyKey" in shape)) return shape
+  const required: readonly string[] = policy.invocation.requiredFields
+  if (required.includes("idempotencyKey")) return shape
+  const { idempotencyKey: _hidden, ...rest } = shape
+  return rest
 }
 
 /**
@@ -168,18 +245,36 @@ function projectUnrepresentableSchema(schema: z.ZodType): z.ZodType {
   }
 }
 
+/**
+ * Project the `_voyant` control object for one tool, preserving which fields the
+ * action policy actually REQUIRES.
+ *
+ * Everything here used to be optional regardless of the policy, which threw away
+ * the one fact that makes the protocol followable. The policy already knows that
+ * `confirmed` is required for a confirmable write; advertising it as optional
+ * told the agent the opposite, so the first call was always refused and the
+ * protocol was learned by failure instead of read from the schema.
+ *
+ * Required stays required, optional stays optional, and the descriptions above
+ * explain how to satisfy each one.
+ */
 export function actionInvocationSchemaFor(entry: ToolManifestEntry): z.ZodObject {
-  const fields = new Set([
-    ...(entry.actionPolicy?.invocation.requiredFields ?? []),
-    ...(entry.actionPolicy?.invocation.optionalFields ?? []),
-  ])
-  return z.strictObject(
-    Object.fromEntries(
-      Object.entries(actionInvocationFields).filter(([field]) =>
-        fields.has(field as keyof typeof actionInvocationFields),
-      ),
-    ) as z.ZodRawShape,
-  )
+  const required = new Set<string>(entry.actionPolicy?.invocation.requiredFields ?? [])
+  const optional = new Set<string>(entry.actionPolicy?.invocation.optionalFields ?? [])
+  // Every field stays OPTIONAL in the projection, deliberately, even the ones the
+  // policy requires. Marking them required moves the gate into schema validation,
+  // and the MCP SDK then rejects the call with a raw
+  // "-32602 Invalid input: expected boolean at _voyant.confirmed" — losing
+  // CONFIRMATION_REQUIRED and the nextSteps that tell the caller what to do. The
+  // domain error is strictly more useful than the transport one, so requiredness
+  // is communicated in the DESCRIPTION instead, which reaches the model just as
+  // early without costing the better failure.
+  const shape = Object.fromEntries(
+    Object.entries(actionInvocationFields)
+      .filter(([field]) => required.has(field) || optional.has(field))
+      .map(([field, schema]) => [field, schema.optional()]),
+  ) as z.ZodRawShape
+  return z.strictObject(shape)
 }
 
 function collectInputObjectShapes(schema: unknown, seen = new Set<unknown>()): z.ZodRawShape[] {

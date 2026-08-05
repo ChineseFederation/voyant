@@ -13,14 +13,7 @@
  * because a cheap surface that cannot book a trip is worthless.
  *
  * Opt-in twice over: it needs TEST_DATABASE_URL and an OpenAI key, and skips
- * without either — so CI, which has neither, is unaffected.
- *
- * WHAT THE GATED JOURNEYS ENCODE. The assertions describe the TARGET state, not
- * today's. Landing on main ahead of the discovery and write-protocol changes it
- * was built to measure, several will fail when run deliberately: that is the
- * point of landing it first — it is the instrument that says whether those
- * changes work, and it found every defect they fix. Read a failure here as "the
- * surface does not do this yet", and see the report for which step stopped. It WRITES (that is the point), so point TEST_DATABASE_URL at a
+ * without either. It WRITES (that is the point), so point TEST_DATABASE_URL at a
  * disposable database.
  *
  * KNOWN REMAINING WORK — the idempotency sweep.
@@ -611,6 +604,28 @@ function report(): string {
     if (!done) lines.push(`      answer: ${run.answer.slice(0, 220)}`)
     for (const failed of run.calls.filter((c) => c.isError)) {
       lines.push(`      ✗ ${failed.name}: ${failed.snippet.slice(0, 200)}`)
+    }
+    // Across ALL attempts, not just the last. A 6/10 journey fails for a reason
+    // the final transcript may not contain at all, and reading one sample to
+    // explain an aggregate is how you end up fixing whichever failure happened to
+    // land last. Distinct codes, with how often each occurred.
+    const all = attempts.get(journey.id) ?? []
+    if (all.length > 1) {
+      const codes = new Map<string, number>()
+      for (const attempt of all) {
+        for (const call of attempt.calls.filter((c) => c.isError)) {
+          const code = /\[([A-Z_]+)\]/.exec(call.snippet)?.[1] ?? "UNKNOWN"
+          codes.set(code, (codes.get(code) ?? 0) + 1)
+        }
+        if (attempt.exhausted) codes.set("EXHAUSTED", (codes.get("EXHAUSTED") ?? 0) + 1)
+      }
+      if (codes.size > 0) {
+        const summary = [...codes.entries()]
+          .sort((a, b) => b[1] - a[1])
+          .map(([code, n]) => `${code}×${n}`)
+          .join(" ")
+        lines.push(`      across ${all.length} attempts: ${summary}`)
+      }
     }
   }
   return lines.join("\n")

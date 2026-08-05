@@ -123,7 +123,6 @@ describe("inventory tools", () => {
   it("registers product reads, authoring, and lifecycle tools with exact posture", () => {
     const manifest = makeRegistry().list()
     expect(manifest.map((t) => t.name).sort()).toEqual([
-      "apply_product_unit_configuration",
       "archive_product",
       "compose_product",
       "create_product",
@@ -131,7 +130,6 @@ describe("inventory tools", () => {
       "get_product_content",
       "list_product_days",
       "list_products",
-      "preview_product_unit_configuration",
       "publish_product",
       "set_product_open_graph_image",
       "unpublish_product",
@@ -139,27 +137,16 @@ describe("inventory tools", () => {
       "update_product_day",
     ])
     for (const tool of manifest.filter(({ tier }) => tier === "read")) {
-      expect(tool.requiredScopes).toEqual(
-        tool.name === "preview_product_unit_configuration"
-          ? ["products:read", "pricing:read"]
-          : ["products:read"],
-      )
+      expect(tool.requiredScopes).toEqual(["products:read"])
     }
     for (const tool of manifest.filter(({ tier }) => tier === "write")) {
-      expect(tool.requiredScopes).toEqual(
-        tool.name === "apply_product_unit_configuration"
-          ? ["products:write", "pricing:write"]
-          : ["products:write"],
-      )
+      expect(tool.requiredScopes).toEqual(["products:write"])
       expect(tool.audience.allowed).toEqual(["staff"])
     }
     expect(manifest.find(({ name }) => name === "publish_product")?.riskPolicy).toMatchObject({
       confirmationRequired: true,
       reversible: true,
     })
-    expect(
-      manifest.find(({ name }) => name === "apply_product_unit_configuration")?.riskPolicy,
-    ).toMatchObject({ confirmationRequired: true, reversible: true })
   })
 
   it("sets or clears the explicit product Open Graph image", async () => {
@@ -194,59 +181,11 @@ describe("inventory tools", () => {
     ])
   })
 
-  it("passes an exhaustive unit configuration plan unchanged from preview to confirmed apply", async () => {
-    const plan = {
-      status: "ready" as const,
-      productId: "prod_1",
-      optionId: "opt_1",
-      optionPriceRuleId: "oprule_1",
-      currencyCode: "EUR",
-      beforeRevision: "before",
-      afterRevision: "after",
-      units: [
-        {
-          unitId: "unit_double",
-          unitPriceRuleId: "uprice_double",
-          name: "Double",
-          changed: false,
-          before: { maxQuantity: 4, sellAmountCents: 52_000 },
-          after: { maxQuantity: 4, sellAmountCents: 52_000 },
-        },
-        {
-          unitId: "unit_twin",
-          unitPriceRuleId: "uprice_twin",
-          name: "Twin",
-          changed: true,
-          before: { maxQuantity: 3, sellAmountCents: 52_000 },
-          after: { maxQuantity: 2, sellAmountCents: 54_000 },
-        },
-      ],
-    }
-    const services = {
-      async previewProductUnitConfiguration() {
-        return plan
-      },
-      async applyProductUnitConfiguration(input: unknown) {
-        expect(input).toEqual(plan)
-        return { ...plan, status: "applied" }
-      },
-    }
-    const ctx = ctxWith(services, { actor: "staff", audience: "staff" })
-    await expect(
-      makeRegistry().dispatch(
-        "preview_product_unit_configuration",
-        {
-          productId: "prod_1",
-          optionPriceRuleId: "oprule_1",
-          changes: [{ unitId: "unit_twin", maxQuantity: 2, sellAmountCents: 54_000 }],
-        },
-        ctx,
-      ),
-    ).resolves.toEqual(plan)
-    await expect(
-      makeRegistry().dispatch("apply_product_unit_configuration", plan, ctx),
-    ).resolves.toMatchObject({ status: "applied", units: plan.units })
-  })
+  // voyant#3921: the preview/apply unit-configuration TOOLS were removed, so the
+  // Tool-dispatch test for them is gone with them. The SERVICES they wrapped are
+  // untouched and still covered by
+  // tests/integration/product-configuration.test.ts, which exercises the same
+  // plan-unchanged-from-preview-to-apply property directly against them.
 
   it("composes an atomic product graph through the authoring service", async () => {
     const result = await makeRegistry().dispatch(

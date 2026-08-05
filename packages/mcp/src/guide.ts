@@ -368,9 +368,17 @@ function vocabularySection(): string {
   return (
     "# Room / unit / traveler vocabulary — read this before booking rooms\n\n" +
     "These terms are routinely conflated, and conflating them mis-books trips:\n\n" +
-    "- TRAVELER — a person who actually travels on a Booking; carries a category " +
-    "(adult/child/infant/senior) and PII. Pax bands count Travelers. (Avoid " +
-    "'guest'/'pax'/'passenger'.)\n" +
+    // voyant#3921: the "not a CRM record" sentence is the load-bearing one.
+    // Measured against the real graph, booking failed on 2 of 3 attempts because
+    // the agent read "a person who travels", went looking for the companion in the
+    // CRM, did not find them, and refused to book — "Andrei needs to be added to
+    // the system" — when their name and age band were all the booking required.
+    "- TRAVELER — someone who actually travels on a Booking; carries a category " +
+    "(adult/child/infant/senior) and PII. Travelers are supplied INLINE on the " +
+    "booking as names and details; they do NOT have to exist as CRM People first, " +
+    "and you should not create a Person for a companion just to book them. Only " +
+    "the BILLING PARTY is an existing record (a personId or organizationId). Pax " +
+    "bands count Travelers. (Avoid 'guest'/'pax'/'passenger'.)\n" +
     "- OPTION UNIT — a pricing/age dimension within a Product Option (e.g. 'Adult', " +
     "'Child 3–11'). It is a price band, not a room and not a person.\n" +
     "- ROOM OPTION — a bookable accommodation option (occupancy, board/rate choices).\n" +

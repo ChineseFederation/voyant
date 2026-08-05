@@ -15,9 +15,11 @@ describe("BookingItemsUnresolvedError", () => {
   it("explains an option that has nothing bookable on it", () => {
     const error = new BookingItemsUnresolvedError("prod_1", null, 0)
 
-    expect(error.message).toBe(
-      "This product has no bookable units on the selected option, so the booking would reserve nothing.",
-    )
+    // The zero case now carries a next step, like its sibling. What it must NOT
+    // carry is identifiers — the test below pins that, because this string is
+    // shown to operators.
+    expect(error.message).toContain("no bookable units")
+    expect(error.message).toContain("belongs to the option being booked")
   })
 
   it("carries no identifiers in the message shown to operators", () => {

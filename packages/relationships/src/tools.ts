@@ -329,6 +329,12 @@ export const createPersonTool = defineTool<
   riskPolicy: CREATED_WRITE_RISK,
   capabilityId: `${OWNER}#tool.create-person`,
   name: "create_person",
+  // voyant#3921: this handler derives its own idempotency key, so the caller must
+  // not be asked for one. Without this flag the admission still lists
+  // `idempotencyKey` as caller-required, the agent invents a value, reuses it
+  // across a retry with different input, and the ledger rejects the fingerprint.
+  resolvesIdempotencyKeyServerSide: true,
+
   description:
     "Create a new CRM person with at least one real email or phone. Exact retries return the original immutable person reference; use read tools to resolve an existing person.",
   inputSchema: createPersonToolInputSchema,

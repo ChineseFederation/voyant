@@ -269,6 +269,9 @@ export const createProductOptionTool = defineTool({
   riskPolicy: { ...WRITE_RISK, reversible: false },
   capabilityId: `${CAPABILITY_PREFIX}.tool.create-product-option`,
   name: "create_product_option",
+  // voyant#3921: the handler derives its own idempotency key, so the caller must
+  // not be asked for one — see create_person/create_product/create_departure.
+  resolvesIdempotencyKeyServerSide: true,
   description:
     "Add an option to an existing product — the level a price and its bookable units hang off. A product needs at least one option before it can be sold.",
   inputSchema: createProductOptionInputSchema,
@@ -336,6 +339,8 @@ export const createOptionUnitTool = defineTool({
   riskPolicy: { ...WRITE_RISK, reversible: false },
   capabilityId: `${CAPABILITY_PREFIX}.tool.create-option-unit`,
   name: "create_option_unit",
+  // voyant#3921: the handler derives its own idempotency key; do not ask for one.
+  resolvesIdempotencyKeyServerSide: true,
   description:
     "Add a bookable unit to an existing product option — an adult or child fare, a room plan, a vehicle seat. Without at least one unit an option has nothing a traveller can book.",
   inputSchema: createOptionUnitInputSchema,

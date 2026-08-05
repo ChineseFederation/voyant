@@ -144,8 +144,12 @@ describe("inventory deployment manifests", () => {
       "create_product",
       "update_product",
       "set_product_open_graph_image",
-      "preview_product_unit_configuration",
-      "apply_product_unit_configuration",
+      // voyant#3921: preview/apply_product_unit_configuration left the agent
+      // surface and nothing replaced them. They made an agent carry an exhaustive
+      // before/after plan between two calls and read as the way to touch units at
+      // all, so adding one cost twenty-odd wasted calls; removing them took that
+      // journey 0/10 → 10/10. create_option_unit and update_option_unit already
+      // cover add-a-unit and change-a-unit, and the agent finds them unaided.
       "update_product_day",
       "publish_product",
       "unpublish_product",
@@ -176,13 +180,6 @@ describe("inventory deployment manifests", () => {
         expect.objectContaining({
           id: "@voyant-travel/inventory#action.publish-product",
           risk: "high",
-          ledger: "required",
-          approval: "required",
-          allowedActorTypes: ["staff"],
-        }),
-        expect.objectContaining({
-          id: "@voyant-travel/inventory#action.apply-product-unit-configuration",
-          commandTargetField: "productId",
           ledger: "required",
           approval: "required",
           allowedActorTypes: ["staff"],

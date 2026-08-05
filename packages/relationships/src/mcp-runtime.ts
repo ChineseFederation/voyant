@@ -2,8 +2,10 @@ import type { ActionLedgerRequestContextValues } from "@voyant-travel/action-led
 import type { EventBus } from "@voyant-travel/core"
 import {
   defineToolContextContribution,
+  deriveCommandIdempotencyKey,
   ToolError,
   type ToolHandlerActionPolicyContext,
+  withServerResolvedIdempotencyKey,
 } from "@voyant-travel/tools"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import type { Context } from "hono"
@@ -59,14 +61,23 @@ export const voyantToolContextContribution = defineToolContextContribution({
           admitted: ToolHandlerActionPolicyContext,
         ) {
           const { idempotencyKey, ...data } = input
+          // voyant#3921: resolve the idempotency key server-side when the caller
+          // did not supply one. Requiring the model to invent an opaque token made
+          // every create fail on first attempt with admitted_policy_mismatch — the
+          // requirement appears nowhere in the input schema, so the agent could
+          // only learn it by failing. Hashing the request content gives the
+          // protocol exactly what it wants: an identical retry replays the
+          // original person rather than writing a second one.
+          const resolvedIdempotencyKey =
+            idempotencyKey ?? (await deriveCommandIdempotencyKey("create-person", data))
           const result = await executePersonCreateCommand({
             db,
             context: requestContext,
             commandInput: {
               person: data as Parameters<typeof relationshipsService.createPerson>[1],
             },
-            admitted,
-            legacyIdempotencyKey: idempotencyKey,
+            admitted: withServerResolvedIdempotencyKey(admitted, resolvedIdempotencyKey),
+            legacyIdempotencyKey: resolvedIdempotencyKey,
           })
           return {
             status: "created" as const,

@@ -291,7 +291,7 @@ export const bookProductTool = defineTool({
   capabilityVersion: "v1",
   name: "book_product",
   description:
-    "Book a product for a client in one call: product and option, the billing party (a `personId` for a private client or an `organizationId` for a company), travelers, and rooms. The platform resolves the booking reference and the idempotency key server-side, so nothing has to be carried across calls. An incomplete request returns actionable issues and creates nothing.",
+    "Book a product for a client in one call: product and option, the billing party (a `personId` for a private client or an `organizationId` for a company), travelers, and rooms. Travelers are given INLINE here as names and details — they do not need to exist as CRM People first, so do not go looking for a companion in the CRM or create one before booking; only the billing party is an existing record. The platform resolves the booking reference and the idempotency key server-side, so nothing has to be carried across calls. An incomplete request returns actionable issues and creates nothing.",
   inputSchema: bookProductToolInputSchema,
   outputSchema: bookProductToolOutputSchema,
   requiredScopes: ["bookings:write", "finance:write"],

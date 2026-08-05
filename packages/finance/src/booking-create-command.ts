@@ -234,10 +234,30 @@ export function bookingCreateCommandError(
   outcome: Exclude<Awaited<ReturnType<typeof createBookingMutation>>, { status: "ok" }>,
 ) {
   switch (outcome.status) {
+    // voyant#3921: these were one message — "A booking-create dependency was not
+    // found" — for three unrelated causes. An agent cannot act on that: it does
+    // not say WHICH dependency, so the only move left is to guess or stop.
+    // Observed ending a real booking journey after the product, option, unit and
+    // departure had all been created successfully. The neighbouring cases below
+    // already name their problem and their fix; these now do too.
     case "product_not_found":
+      return new ToolError(
+        "The product being booked was not found, or is not bookable. Confirm the product id with inventory_query, and that the product is published with at least one option carrying a priced unit.",
+        "NOT_FOUND",
+        { outcome },
+      )
     case "travel_credit_not_found":
+      return new ToolError(
+        "A travel credit referenced by this booking was not found. Remove it from the request, or confirm its id before retrying.",
+        "NOT_FOUND",
+        { outcome },
+      )
     case "group_not_found":
-      return new ToolError("A booking-create dependency was not found.", "NOT_FOUND", { outcome })
+      return new ToolError(
+        "The group this booking was assigned to was not found. Confirm the group id, or omit it to book without one.",
+        "NOT_FOUND",
+        { outcome },
+      )
     case "booking_items_unresolved":
       // Surfaced verbatim to the operator, so it has to read as a next step
       // rather than an internal failure.
