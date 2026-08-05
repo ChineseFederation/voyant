@@ -19,8 +19,7 @@ import {
 const DB_AVAILABLE = !!process.env.TEST_DATABASE_URL
 
 describe.skipIf(!DB_AVAILABLE)("materialize template defaults (integration)", () => {
-  // biome-ignore lint/suspicious/noExplicitAny: owner: availability; createTestDb returns a driver-specific drizzle test client
-  let db: any
+  let db: ReturnType<typeof createTestDb>
   let productId: string
   let optionId: string
 
@@ -86,10 +85,9 @@ describe.skipIf(!DB_AVAILABLE)("materialize template defaults (integration)", ()
 
     const result = await materializeSlotResourcesFromTemplateDefaults(db, slotId)
     expect(result.created).toBe(25)
-    const rooms = await db.execute(sql`
+    const rows = await db.execute<{ label: string; capacity: number; kind: string }>(sql`
       SELECT label, capacity, kind FROM allocation_resources WHERE slot_id = ${slotId} ORDER BY sort_order
     `)
-    const rows = rooms as Array<{ label: string; capacity: number; kind: string }>
     expect(rows.filter((r) => r.kind === "room_sgl")).toHaveLength(5)
     expect(rows.filter((r) => r.kind === "room_dbl")).toHaveLength(20)
   })

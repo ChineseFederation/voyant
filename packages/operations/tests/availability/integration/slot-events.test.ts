@@ -59,6 +59,8 @@ describe.skipIf(!DB_AVAILABLE)("availability slot events", () => {
         timezone: "UTC",
         status: "open",
         unlimited: false,
+        pastCutoff: false,
+        tooEarly: false,
         remainingPax: 5,
       },
       { eventBus: bus },

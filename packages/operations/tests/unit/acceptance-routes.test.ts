@@ -8,6 +8,7 @@ import {
   configureDepartureProfitabilityReader,
   resetDepartureProfitabilityReader,
 } from "../../src/availability/departure-profitability-runtime.js"
+import type { Env } from "../../src/availability/routes-shared.js"
 import { operationsAdminRoutes } from "../../src/routes.js"
 
 /**
@@ -42,7 +43,7 @@ function scriptedDb(counts: { readiness: number; drift: number; unassigned: numb
 }
 
 function mount(db: PostgresJsDatabase) {
-  const app = new Hono()
+  const app = new Hono<Env>()
   app.use("*", async (c, next) => {
     c.set("db", db)
     return next()

@@ -5,19 +5,17 @@ import { RequestValidationError } from "@voyant-travel/hono"
 import { eq } from "drizzle-orm"
 import { beforeEach, describe, expect, it } from "vitest"
 import { productOptions, products } from "../../../../inventory/src/schema.js"
-import {
-  createRule,
-  createSlot,
-  updateRule,
-  updateSlot,
-} from "../../../src/availability/service-core.js"
+import { createSlot, updateSlot } from "../../../src/availability/service-core.js"
+import { createRule, updateRule } from "../../../src/availability/service-rules.js"
 
 const TEST_DATABASE_URL = process.env.TEST_DATABASE_URL
 const DB_AVAILABLE = !!TEST_DATABASE_URL
 
 const db = DB_AVAILABLE ? createTestDb() : (null as never)
 
-async function seedProduct(name: string, bookingMode = "date") {
+type ProductBookingMode = NonNullable<(typeof products.$inferInsert)["bookingMode"]>
+
+async function seedProduct(name: string, bookingMode: ProductBookingMode = "date") {
   const productId = newId("products")
   await db.insert(products).values({
     id: productId,
@@ -40,12 +38,22 @@ async function seedOption(productId: string, name: string) {
   return optionId
 }
 
-function slotInput(productId: string, overrides: Partial<Parameters<typeof createSlot>[1]> = {}) {
+type CreateSlotInput = Parameters<typeof createSlot>[1]
+
+// `createSlot` takes the *parsed* insert payload, so the schema defaults the
+// route layer fills in have to be supplied explicitly here. These four match
+// both the zod defaults and the column defaults, so a seeded slot is identical
+// to one created through the API.
+function slotInput(productId: string, overrides: Partial<CreateSlotInput> = {}): CreateSlotInput {
   return {
     productId,
     dateLocal: "2026-09-10",
     startsAt: "2026-09-10T09:00:00.000Z",
     timezone: "Europe/London",
+    status: "open",
+    unlimited: false,
+    pastCutoff: false,
+    tooEarly: false,
     ...overrides,
   }
 }
@@ -96,6 +104,8 @@ describe.skipIf(!DB_AVAILABLE)("availability slot option validation", () => {
       endsAt: "2026-10-14T15:00:00.000Z",
       timezone: "Europe/Bucharest",
       status: "open",
+      pastCutoff: false,
+      tooEarly: false,
       unlimited: false,
       initialPax: 20,
       remainingPax: 17,
@@ -265,6 +275,7 @@ describe.skipIf(!DB_AVAILABLE)("availability slot option validation", () => {
         active: false,
       })
       .returning()
+    if (!inactiveRule) throw new Error("failed to seed inactive availability rule")
 
     await expect(updateRule(db, inactiveRule.id, { active: true })).rejects.toBeInstanceOf(
       RequestValidationError,
@@ -280,6 +291,7 @@ describe.skipIf(!DB_AVAILABLE)("availability slot option validation", () => {
         timezone: "UTC",
         recurrenceRule: "NOT_A_RULE",
         maxCapacity: 10,
+        active: true,
       }),
     ).rejects.toBeInstanceOf(RequestValidationError)
 
@@ -289,6 +301,7 @@ describe.skipIf(!DB_AVAILABLE)("availability slot option validation", () => {
         timezone: "UTC",
         recurrenceRule: "FREQ=WEEKLY;INTERVAL=1",
         maxCapacity: 10,
+        active: true,
       }),
     ).rejects.toBeInstanceOf(RequestValidationError)
   })

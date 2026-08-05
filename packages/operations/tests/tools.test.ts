@@ -9,6 +9,7 @@ import {
   getOperatorDashboardSummaryTool,
   materializeDepartureRoomBlockTool,
   type OperationsToolServices,
+  type OperatorDashboardToolContext,
   operationsTools,
   rebuildBookingActionsTool,
   releaseDepartureRoomBlockTool,
@@ -726,107 +727,108 @@ describe("Operations dashboard Tool", () => {
     const calls: Array<{ service: string; query: unknown }> = []
     const registry = createToolRegistry()
     registry.register(getOperatorDashboardSummaryTool)
+    // The composed dashboard read pulls sibling-domain aggregate services off
+    // the context, so the fixture has to be the dashboard's own context type
+    // rather than the bare `ToolContext` every other tool here takes.
+    const dashboardContext: OperatorDashboardToolContext = {
+      ...contextWith({
+        async getAvailabilityAggregates(query) {
+          calls.push({ service: "operations", query })
+          return {
+            total: 4,
+            countsByStatus: [
+              { status: "open", count: 3 },
+              { status: "closed", count: 1 },
+              { status: "sold_out", count: 0 },
+              { status: "cancelled", count: 0 },
+            ],
+            upcomingSlots: 3,
+            upcomingPax: 42,
+            monthlyDepartures: [{ yearMonth: "2026-07", count: 4 }],
+          }
+        },
+      }),
+      bookings: {
+        async getBookingAggregates(query: unknown) {
+          calls.push({ service: "bookings", query })
+          return {
+            total: 7,
+            totalPax: 18,
+            countsByStatus: [
+              { status: "confirmed", count: 2 },
+              { status: "in_progress", count: 1 },
+              { status: "cancelled", count: 1 },
+            ],
+            monthlyCounts: [{ yearMonth: "2026-07", count: 7 }],
+            monthlyRevenue: [{ yearMonth: "2026-07", currency: "EUR", sellAmountCents: 250_000 }],
+            upcomingDepartures: { count: 1, items: [] },
+          }
+        },
+      },
+      inventory: {
+        async getProductAggregates(query: unknown) {
+          calls.push({ service: "inventory", query })
+          return {
+            total: 9,
+            countsByStatus: [
+              { status: "draft", count: 2 },
+              { status: "active", count: 7 },
+              { status: "archived", count: 0 },
+            ],
+            active: 7,
+            publicActive: 6,
+            monthlyCreatedCounts: [{ yearMonth: "2026-07", count: 2 }],
+          }
+        },
+      },
+      distribution: {
+        async getSupplierAggregates(query: unknown) {
+          calls.push({ service: "distribution", query })
+          return {
+            total: 5,
+            countsByStatus: [{ status: "active", count: 4 }],
+            countsByType: [{ type: "hotel", count: 3 }],
+            active: 4,
+          }
+        },
+      },
+      finance: {
+        async getFinanceAggregates(query: unknown) {
+          calls.push({ service: "finance", query })
+          return {
+            total: 3,
+            countsByStatus: [{ status: "issued", count: 2 }],
+            counts: {
+              invoices: { issued: 2, paid: 1, void: 0, overdue: 1 },
+              proformas: { issued: 0, converted: 0, void: 0 },
+              paymentSessions: { pending: 0, paid: 1, failed: 0 },
+            },
+            totals: [
+              {
+                currency: "EUR",
+                invoiced: 210_000,
+                collected: 150_000,
+                outstanding: 60_000,
+                refunded: 0,
+              },
+            ],
+            monthlyRevenue: [
+              { yearMonth: "2026-06", currency: "EUR", totalCents: 90_000 },
+              { yearMonth: "2026-07", currency: "EUR", totalCents: 120_000 },
+            ],
+            monthlyInvoiceCounts: [{ yearMonth: "2026-07", count: 2 }],
+            outstanding: [{ currency: "EUR", balanceDueCents: 60_000, count: 1 }],
+            overdue: [{ currency: "EUR", balanceDueCents: 20_000, count: 1 }],
+            outstandingTopN: [],
+          }
+        },
+      },
+    }
+
     const result = await registry.dispatch<{
       kpis: Record<string, unknown>
       alerts: unknown[]
-    }>(
-      "get_operator_dashboard_summary",
-      { range: "this-month" },
-      {
-        ...contextWith({
-          async getAvailabilityAggregates(query) {
-            calls.push({ service: "operations", query })
-            return {
-              total: 4,
-              countsByStatus: [
-                { status: "open", count: 3 },
-                { status: "closed", count: 1 },
-                { status: "sold_out", count: 0 },
-                { status: "cancelled", count: 0 },
-              ],
-              upcomingSlots: 3,
-              upcomingPax: 42,
-              monthlyDepartures: [{ yearMonth: "2026-07", count: 4 }],
-            }
-          },
-        }),
-        bookings: {
-          async getBookingAggregates(query: unknown) {
-            calls.push({ service: "bookings", query })
-            return {
-              total: 7,
-              totalPax: 18,
-              countsByStatus: [
-                { status: "confirmed", count: 2 },
-                { status: "in_progress", count: 1 },
-                { status: "cancelled", count: 1 },
-              ],
-              monthlyCounts: [{ yearMonth: "2026-07", count: 7 }],
-              monthlyRevenue: [{ yearMonth: "2026-07", currency: "EUR", sellAmountCents: 250_000 }],
-              upcomingDepartures: { count: 1, items: [] },
-            }
-          },
-        },
-        inventory: {
-          async getProductAggregates(query: unknown) {
-            calls.push({ service: "inventory", query })
-            return {
-              total: 9,
-              countsByStatus: [
-                { status: "draft", count: 2 },
-                { status: "active", count: 7 },
-                { status: "archived", count: 0 },
-              ],
-              active: 7,
-              publicActive: 6,
-              monthlyCreatedCounts: [{ yearMonth: "2026-07", count: 2 }],
-            }
-          },
-        },
-        distribution: {
-          async getSupplierAggregates(query: unknown) {
-            calls.push({ service: "distribution", query })
-            return {
-              total: 5,
-              countsByStatus: [{ status: "active", count: 4 }],
-              countsByType: [{ type: "hotel", count: 3 }],
-              active: 4,
-            }
-          },
-        },
-        finance: {
-          async getFinanceAggregates(query: unknown) {
-            calls.push({ service: "finance", query })
-            return {
-              total: 3,
-              countsByStatus: [{ status: "issued", count: 2 }],
-              counts: {
-                invoices: { issued: 2, paid: 1, void: 0, overdue: 1 },
-                proformas: { issued: 0, converted: 0, void: 0 },
-                paymentSessions: { pending: 0, paid: 1, failed: 0 },
-              },
-              totals: [
-                {
-                  currency: "EUR",
-                  invoiced: 210_000,
-                  collected: 150_000,
-                  outstanding: 60_000,
-                  refunded: 0,
-                },
-              ],
-              monthlyRevenue: [
-                { yearMonth: "2026-06", currency: "EUR", totalCents: 90_000 },
-                { yearMonth: "2026-07", currency: "EUR", totalCents: 120_000 },
-              ],
-              monthlyInvoiceCounts: [{ yearMonth: "2026-07", count: 2 }],
-              outstanding: [{ currency: "EUR", balanceDueCents: 60_000, count: 1 }],
-              overdue: [{ currency: "EUR", balanceDueCents: 20_000, count: 1 }],
-              outstandingTopN: [],
-            }
-          },
-        },
-      },
-    )
+    }>("get_operator_dashboard_summary", { range: "this-month" }, dashboardContext)
 
     expect(calls.map(({ service }) => service).sort()).toEqual([
       "bookings",

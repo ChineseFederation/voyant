@@ -1,3 +1,15 @@
 {
-  "extends": ["./tsconfig.json", "../typescript-config/dep-paths.json"]
+  "extends": [
+    "@voyant-travel/voyant-typescript-config/base.json",
+    "../typescript-config/dep-paths.json"
+  ],
+  "compilerOptions": {
+    "composite": false,
+    "outDir": "dist",
+    "rootDir": "src",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "types": ["node"]
+  },
+  "include": ["src/**/*"]
 }

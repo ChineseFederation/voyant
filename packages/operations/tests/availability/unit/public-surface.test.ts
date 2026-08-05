@@ -20,6 +20,11 @@ describe("availability public surface", () => {
       bookings: [],
       resources: [],
       sharingGroupLabels: {},
+      pagination: {
+        limit: null,
+        offset: 0,
+        total: 0,
+      },
       summary: {
         bookingCount: 0,
         travelerCount: 0,

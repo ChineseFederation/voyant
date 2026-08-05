@@ -110,6 +110,7 @@ const ruleRow: InferSelectModel<typeof availabilityRules> = {
 const slotRow: InferSelectModel<typeof availabilitySlots> & { endDateLocal: string | null } = {
   id: "availability_slots_00000000000000000000",
   productId: "products_00000000000000000000000000",
+  productVersionId: null,
   itineraryId: null,
   optionId: null,
   facilityId: null,

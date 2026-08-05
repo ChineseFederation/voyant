@@ -44,7 +44,14 @@ describe.skipIf(!DB_AVAILABLE)("Ground routes", () => {
     const { bookings } = await import("@voyant-travel/bookings/schema")
     const [row] = await db
       .insert(bookings)
-      .values({ bookingNumber: `BK-${nextSeq()}`, sellCurrency: "USD", ...overrides })
+      .values({
+        bookingNumber: `BK-${nextSeq()}`,
+        sellCurrency: "USD",
+        // `bookings.status` is NOT NULL and lost its database default in the
+        // v1 status cutover, so a seeded booking has to name its own status.
+        status: "confirmed" as const,
+        ...overrides,
+      })
       .returning()
     return row!
   }

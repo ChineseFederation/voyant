@@ -10,7 +10,30 @@ vi.mock("@voyant-travel/action-ledger/created-command", () => ({
 import { availabilityService } from "../../src/availability/service.js"
 import { AvailabilitySlotRevisionConflictError } from "../../src/availability/service-core.js"
 import { voyantToolContextContribution } from "../../src/mcp-runtime.js"
-import { CREATE_DEPARTURE_HANDLER_POLICY } from "../../src/tools.js"
+import { CREATE_DEPARTURE_HANDLER_POLICY, type OperationsToolServices } from "../../src/tools.js"
+
+/**
+ * `ToolContextContribution.contribute` is declared as `Record<string, unknown>`
+ * so the tools package needs no dependency on its contributors. That erases the
+ * shape every contributor actually returns, so the Operations runtime has to be
+ * named here before the tests can exercise it.
+ */
+async function contributeOperations(
+  vars: Record<string, unknown>,
+  resources: Record<string, unknown> = {},
+): Promise<OperationsToolServices> {
+  const contribution = (await voyantToolContextContribution.contribute({
+    request: {
+      var: vars,
+      get: (key: string) => vars[key],
+      req: { header: () => null },
+    } as never,
+    context: { db: {} } as never,
+    resources,
+  })) as { operations?: OperationsToolServices }
+  if (!contribution.operations) throw new Error("missing Operations runtime")
+  return contribution.operations
+}
 
 afterEach(() => {
   vi.restoreAllMocks()
@@ -44,24 +67,13 @@ describe("departure created-target runtime", () => {
       }
     })
     const emit = vi.fn().mockResolvedValue(undefined)
-    const contribution = await voyantToolContextContribution.contribute({
-      request: {
-        var: {
-          actor: "staff",
-          callerType: "agent",
-          agentId: "agent_1",
-          organizationId: "org_1",
-          eventBus: { emit },
-        },
-        get(key: string) {
-          return this.var[key as keyof typeof this.var]
-        },
-        req: { header: () => null },
-      } as never,
-      context: { db: {} } as never,
-      resources: {},
+    const operations = await contributeOperations({
+      actor: "staff",
+      callerType: "agent",
+      agentId: "agent_1",
+      organizationId: "org_1",
+      eventBus: { emit },
     })
-    if (!contribution.operations) throw new Error("missing Operations runtime")
     const input = {
       productId: "prod_1",
       dateLocal: "2026-10-12",
@@ -69,6 +81,8 @@ describe("departure created-target runtime", () => {
       timezone: "Europe/Bucharest",
       status: "open" as const,
       unlimited: false,
+      pastCutoff: false,
+      tooEarly: false,
       idempotencyKey: "bucharest-2026-10-12-v1",
     }
     const admitted = {
@@ -76,11 +90,11 @@ describe("departure created-target runtime", () => {
       invocation: { idempotencyKey: input.idempotencyKey },
     } as unknown as ToolHandlerActionPolicyContext
 
-    await expect(contribution.operations.createDeparture(input, admitted)).resolves.toMatchObject({
+    await expect(operations.createDeparture(input, admitted)).resolves.toMatchObject({
       replayed: false,
       departure: { id: "avsl_1" },
     })
-    await expect(contribution.operations.createDeparture(input, admitted)).resolves.toMatchObject({
+    await expect(operations.createDeparture(input, admitted)).resolves.toMatchObject({
       replayed: true,
       departure: { id: "avsl_1" },
     })
@@ -108,26 +122,15 @@ describe("departure created-target runtime", () => {
     vi.spyOn(availabilityService, "updateSlot").mockRejectedValue(
       new AvailabilitySlotRevisionConflictError("2026-07-28T12:00:00.000Z", current as never),
     )
-    const contribution = await voyantToolContextContribution.contribute({
-      request: {
-        var: {
-          actor: "staff",
-          callerType: "agent",
-          agentId: "agent_1",
-          organizationId: "org_1",
-        },
-        get(key: string) {
-          return this.var[key as keyof typeof this.var]
-        },
-        req: { header: () => null },
-      } as never,
-      context: { db: {} } as never,
-      resources: {},
+    const operations = await contributeOperations({
+      actor: "staff",
+      callerType: "agent",
+      agentId: "agent_1",
+      organizationId: "org_1",
     })
-    if (!contribution.operations) throw new Error("missing Operations runtime")
 
     await expect(
-      contribution.operations.updateDeparture("avsl_1", {
+      operations.updateDeparture("avsl_1", {
         updatedAt: "2026-07-28T12:00:00.000Z",
         notes: "Stale edit",
       }),
@@ -156,26 +159,18 @@ describe("departure created-target runtime", () => {
       unchanged: 3,
       invalidated: 0,
     })
-    const contribution = await voyantToolContextContribution.contribute({
-      request: {
-        var: { actor: "staff" },
-        get(key: string) {
-          return this.var[key as keyof typeof this.var]
-        },
-        req: { header: () => null },
-      } as never,
-      context: { db: {} } as never,
-      resources: {
+    const operations = await contributeOperations(
+      { actor: "staff" },
+      {
         "bookings.booking-action-projection.runtime": {
           create: vi.fn(),
           synchronize,
         },
         "bookings.booking-action-source.runtime": [sourceA, sourceB],
       },
-    })
-    if (!contribution.operations) throw new Error("missing Operations runtime")
+    )
 
-    await expect(contribution.operations.rebuildBookingActions()).resolves.toMatchObject({
+    await expect(operations.rebuildBookingActions()).resolves.toMatchObject({
       mode: "rebuild",
       providers: 2,
     })
