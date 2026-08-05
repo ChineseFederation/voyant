@@ -16,13 +16,6 @@ const read = (path) => {
   }
   return readFileSync(absolute, "utf8")
 }
-for (const path of [
-  "apps/operator/src/api/runtime/trips-catalog-runtime.ts",
-  "apps/operator/src/api/runtime/trips-checkout-runtime.ts",
-  "apps/operator/src/api/runtime/trips-flight-runtime.ts",
-]) {
-  if (existsSync(join(root, path))) violations.push(`${path} must stay deleted`)
-}
 
 const tripsAdapterPath = "apps/operator/src/api/runtime/trips-runtime.ts"
 const tripsAdapter = existsSync(join(root, tripsAdapterPath)) ? read(tripsAdapterPath) : ""

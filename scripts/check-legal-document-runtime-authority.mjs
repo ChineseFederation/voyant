@@ -13,15 +13,6 @@ const read = (relativePath) => {
   return readFileSync(absolutePath, "utf8")
 }
 
-for (const retiredPath of [
-  "apps/operator/src/api/runtime/contract-document-runtime.ts",
-  "apps/operator/src/api/runtime/contract-document-variables.ts",
-  "apps/operator/src/api/runtime/runtime-adapter.ts",
-  "packages/legal-node",
-]) {
-  if (existsSync(path.join(root, retiredPath))) violations.push(`${retiredPath} must stay deleted`)
-}
-
 const deploymentResources = read("packages/runtime/src/deployment-resources.ts")
 const legalManifest = JSON.parse(read("packages/legal/package.json") || "{}")
 const contributor = read("packages/legal/src/runtime-contributor.ts")

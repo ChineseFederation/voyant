@@ -148,18 +148,6 @@ if (relationshipsAdmin.includes('id: "custom-fields"'))
   failures.push("Relationships admin must not expose custom-fields Settings")
 if (relationshipsPackage.includes("./custom-fields-registry"))
   failures.push("Relationships must not export a definition registry")
-for (const path of [
-  "packages/relationships/src/routes/custom-fields.ts",
-  "packages/relationships/src/service/custom-fields.ts",
-  "packages/relationships/src/service/custom-fields-registry.ts",
-  "packages/relationships/src/service/custom-fields-value-mapping.ts",
-  "packages/relationships-contracts/src/validation/custom-fields.ts",
-  "packages/relationships/tests/integration/custom-fields.test.ts",
-  "packages/relationships/tests/integration/custom-fields-values.test.ts",
-  "packages/relationships/tests/unit/custom-fields-value-mapping.test.ts",
-]) {
-  if (existsSync(resolve(root, path))) failures.push(`${path} must stay deleted`)
-}
 if (
   !genericValueIntegration.includes("/v1/admin/custom-fields/values") ||
   !genericValueIntegration.includes("/v1/admin/relationships/custom-field-values")

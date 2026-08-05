@@ -16,15 +16,6 @@ for (const file of retiredAdapters) {
     violations.push(`${file}: generic host behavior must stay package-owned`)
 }
 
-for (const file of [
-  "apps/operator/src/workflow-runtime.test.ts",
-  "apps/operator/src/scheduled-crons.test.ts",
-  "apps/operator/src/api-dispatch.test.ts",
-]) {
-  if (existsSync(resolve(root, file)))
-    violations.push(`${file}: generic tests must be framework-owned`)
-}
-
 const runtime = read("packages/runtime/src/index.ts")
 for (const token of ["loadVoyantProject", "createVoyantProjectServerEntry"]) {
   requireText(runtime, token, "packages/runtime/src/index.ts")

@@ -20,43 +20,6 @@ if (applicationFiles.length > applicationFileRatchet) {
 }
 
 for (const relativePath of [
-  "apps/operator/src/components/voyant/booking-journey/resolve-contract-variables.test.ts",
-  "apps/operator/src/components/voyant/booking-journey/resolve-contract-variables.ts",
-  "apps/operator/src/components/voyant/booking-journey/storefront-booking-errors.ts",
-  "apps/operator/src/components/voyant/booking-journey/storefront-booking-journey.test.ts",
-  "apps/operator/src/components/voyant/booking-journey/storefront-booking-journey.tsx",
-  "apps/operator/src/routes/(storefront)/shop-product-detail-accommodations-ui.test.tsx",
-  "apps/operator/src/routes/(storefront)/shop-product-detail-accommodations.test.ts",
-  "apps/operator/src/routes/(storefront)/shop-product-detail-accommodations.tsx",
-  "apps/operator/src/routes/(storefront)/shop-product-detail-content.test.ts",
-  "apps/operator/src/routes/(storefront)/shop-product-detail-content.ts",
-  "apps/operator/src/routes/(storefront)/shop-product-detail-cruises.test.tsx",
-  "apps/operator/src/routes/(storefront)/shop-product-detail-cruises.tsx",
-  "apps/operator/src/routes/(storefront)/shop-product-detail-products.tsx",
-  "apps/operator/src/routes/(storefront)/shop-product-detail-shared.tsx",
-  "apps/operator/src/routes/(storefront)/shop-product-detail-slots.test.ts",
-  "apps/operator/src/routes/(storefront)/shop-product-detail-slots.ts",
-  "apps/operator/src/routes/(storefront)/shop.test.ts",
-  "apps/operator/src/components/voyant/checkout/payment-link-booking-summary.tsx",
-  "apps/operator/src/components/voyant/checkout/payment-link-trip-summary.tsx",
-  "apps/operator/src/components/voyant/trips/storefront-composer-block.tsx",
-  "apps/operator/src/lib/customer-account.test.ts",
-  "apps/operator/src/lib/customer-account.tsx",
-  "apps/operator/src/lib/storefront-i18n.tsx",
-  "apps/operator/src/lib/storefront-scope.tsx",
-  "apps/operator/src/routes/(storefront)/storefront-market-selector.tsx",
-  "apps/operator/src/routeTree.gen.ts",
-  "apps/operator/src/routes/__root.tsx",
-  "apps/operator/src/routes/_workspace/route.tsx",
-]) {
-  if (existsSync(join(root, relativePath))) {
-    failures.push(
-      `package-owned product UI must stay deleted from the application: ${relativePath}`,
-    )
-  }
-}
-
-for (const relativePath of [
   "packages/proposals-react/src/storefront/public-proposal-page.tsx",
   "packages/finance-react/src/storefront/payment-link-resolver-page.tsx",
   "packages/finance-react/src/storefront/public-payment-link-page.tsx",

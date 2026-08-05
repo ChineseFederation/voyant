@@ -117,10 +117,9 @@ test("rejects restored metadata globs and host injection", (t) => {
   assert.match(output, /must not restore host injection token/)
 })
 
-test("rejects restored Relationships compatibility APIs", (t) => {
-  const root = createFixture(t)
-  const path = join(root, "packages/relationships/src/routes/custom-fields.ts")
-  mkdirSync(dirname(path), { recursive: true })
-  writeFileSync(path, "export const customFieldRoutes = {}\n")
-  assert.match(fixtureFailure(root), /must stay deleted/)
-})
+// The eight retired Relationships compatibility paths this file used to prove
+// here moved to retired-paths.json, so the checker no longer pins them and this
+// fixture case has nothing to assert. Their guard is now
+// scripts/tests/retired-surfaces.test.mjs — "recreating a retired path fails
+// the check", plus "the declared list still covers what the authority scripts
+// pin", which is what stops the two drifting apart.

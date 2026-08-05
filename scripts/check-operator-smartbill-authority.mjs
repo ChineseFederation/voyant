@@ -64,19 +64,6 @@ if (!genericContributorInputs) {
 if (/eventBus\.subscribe|descriptor\.register/.test(applicationAuthority)) {
   violations.push("Operator code must not own or register SmartBill subscriber descriptors")
 }
-for (const relativePath of [
-  "src/api/app.ts",
-  "src/api/runtime/runtime-adapter.ts",
-  "src/api/runtime/runtime-adapter.smartbill.test.ts",
-  "src/api/runtime/smartbill-subscriber-runtime.ts",
-  "src/api/runtime/smartbill-subscriber-runtime.test.ts",
-  "src/api/subscribers/smartbill-bundle.ts",
-  "src/api/subscribers/smartbill.ts",
-]) {
-  if (existsSync(join(operatorRoot, relativePath))) {
-    violations.push(`${relativePath} must stay deleted`)
-  }
-}
 
 for (const [source, token] of [
   [financeManifest, "requirePort(financeInvoiceSettlementPollerRuntimePort, {"],

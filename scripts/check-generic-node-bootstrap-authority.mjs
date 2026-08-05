@@ -16,12 +16,6 @@ const frameworkFiles = [
   "packages/framework/src/node-provider-plan.ts",
 ]
 
-for (const retiredPath of ["apps/operator/src/operator-node-provider-plan.ts"]) {
-  if (existsSync(resolve(root, retiredPath))) {
-    violations.push(`${retiredPath}: generic Node provider planning must stay framework-owned`)
-  }
-}
-
 for (const retired of retiredAdapters) {
   if (existsSync(resolve(root, retired)))
     violations.push(`${retired}: generic host adapter must stay deleted`)

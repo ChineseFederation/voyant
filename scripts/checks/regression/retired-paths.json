@@ -16,6 +16,7 @@
         "catalog-subscriber-authority",
         "commerce-promotion-subscriber-authority",
         "generic-node-bootstrap-authority",
+        "operator-smartbill-authority",
         "storefront-subscriber-authority",
         "trips-subscriber-authority"
       ]
@@ -77,12 +78,16 @@
       "retiredBy": ["commerce-promotion-subscriber-authority", "operator-domain-runtime-authority"]
     },
     {
+      "path": "apps/operator/src/api/runtime/runtime-adapter.smartbill.test.ts",
+      "retiredBy": ["operator-smartbill-authority"]
+    },
+    {
       "path": "apps/operator/src/api/runtime/runtime-adapter.ts",
       "retiredBy": [
         "bookings-runtime-authority",
         "catalog-runtime-authority",
-        "commerce-promotion-subscriber-authority",
         "commerce-application-executable-authority",
+        "commerce-promotion-subscriber-authority",
         "flights-runtime-authority",
         "generated-runtime-contributor-authority",
         "generic-node-bootstrap-authority",
@@ -92,6 +97,7 @@
         "operator-booking-finance-runtime-authority",
         "operator-catalog-commerce-runtime-authority",
         "operator-final-runtime-authority",
+        "operator-smartbill-authority",
         "operator-storefront-legal-inventory-runtime-authority",
         "realtime-runtime-authority",
         "relationships-runtime-authority",
@@ -100,6 +106,14 @@
         "trips-runtime-authority",
         "trips-subscriber-authority"
       ]
+    },
+    {
+      "path": "apps/operator/src/api/runtime/smartbill-subscriber-runtime.test.ts",
+      "retiredBy": ["operator-smartbill-authority"]
+    },
+    {
+      "path": "apps/operator/src/api/runtime/smartbill-subscriber-runtime.ts",
+      "retiredBy": ["operator-smartbill-authority"]
     },
     {
       "path": "apps/operator/src/api/runtime/storefront-intake-runtime.ts",
@@ -120,6 +134,14 @@
     {
       "path": "apps/operator/src/api/runtime/trips-runtime.ts",
       "retiredBy": ["operator-domain-runtime-authority", "trips-subscriber-authority"]
+    },
+    {
+      "path": "apps/operator/src/api/subscribers/smartbill-bundle.ts",
+      "retiredBy": ["operator-smartbill-authority"]
+    },
+    {
+      "path": "apps/operator/src/api/subscribers/smartbill.ts",
+      "retiredBy": ["operator-smartbill-authority"]
     },
     {
       "path": "apps/operator/src/components/voyant/booking-journey/resolve-contract-variables.test.ts",
