@@ -456,7 +456,7 @@ jobs:
           # dependency manifests, migrations, and operator composition changes
           # retain the full Docker migration/boot/API acceptance below.
           changed_paths="$(git diff --name-only --no-renames "$BASE_SHA" "$HEAD_SHA")"
-          if grep -Eq '^(\.dockerignore|\.npmrc|\.github/workflows/(ci|operator-image)\.yml|apps/operator/.*|package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|turbo\.json|patches/.*|packages/.+/package\.json|packages/framework-migrations/.*|packages/.+/migrations/.*|scripts/(apply-publish-config|check-operator-image-publication|generate-operator-application-manifest|generate-operator-application-metadata|run-generated-migrations|verify-operator-image-identity)\.mjs|scripts/smoke-operator-image\.sh)$' <<< "$changed_paths"; then
+          if grep -Eq '^(\.dockerignore|\.npmrc|\.github/workflows/(ci|operator-image)\.yml|apps/operator/.*|package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|turbo\.json|patches/.*|packages/.+/package\.json|packages/framework-migrations/.*|packages/.+/migrations/.*|scripts/(apply-publish-config|assert-migration-report|check-operator-image-publication|generate-operator-application-manifest|generate-operator-application-metadata|resolve-upgrade-baseline|run-generated-migrations|verify-operator-image-identity)\.mjs|scripts/checks/image/release-health\.json|scripts/lib/operator-image-acceptance\.sh|scripts/(smoke|upgrade)-operator-image\.sh)$' <<< "$changed_paths"; then
             echo "required=true" >> "$GITHUB_OUTPUT"
             echo "Operator image acceptance required by an image-impacting change."
           else
@@ -495,3 +495,9 @@ jobs:
 
       - name: Migrate, boot, and smoke-test the production image
         run: scripts/smoke-operator-image.sh voyant-operator:ci
+
+      # The break this catches is a source change, so the branch is where it is
+      # cheapest to catch. The published-image lanes repeat it against the
+      # digest that actually ships.
+      - name: Accept the upgrade path from the previous release
+        run: scripts/upgrade-operator-image.sh voyant-operator:ci

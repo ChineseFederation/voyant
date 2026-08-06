@@ -1,0 +1,16 @@
+{
+  "$comment": "Published operator image releases that are known to be defective. A release tag is immutable and cannot be withdrawn, so this file is where a consumer — and the upgrade-path acceptance stage — can read that one should not be deployed. usableAsUpgradeBaseline says something narrower: whether the release can still migrate a fresh database into a faithful prior state, which is all the acceptance stage asks of it. State the verified scope of a defect, not the reported one; a reason that overstates its blast radius is how a release gets written off for the wrong reason.",
+  "image": "ghcr.io/voyant-travel/operator",
+  "knownBad": [
+    {
+      "version": "0.6.0",
+      "digest": "sha256:054424d99920ddf9c7b17b0803bf1891197a5bfd5691402827279997d53ab462",
+      "reason": "Absorbing availability into operations (#4281) moved the migration ledger identity of the absorbed migrations. Managed deployments upgrading onto this release failed with: relation \"allocation_audit_log\" already exists.",
+      "scope": "The failure is specific to the source-free loadModuleBundleSource(packageName) resolution a downstream derivative uses, which has no migration plan to carry the retired source's identity. It does NOT reproduce through the published image's own run-generated-migrations.mjs: migrating a real 0.5.0 database (the last pre-absorption release) with this image applies 2, skips 31, boots, and re-runs as a no-op.",
+      "issue": "https://github.com/voyant-travel/voyant/issues/4333",
+      "fixedBy": "https://github.com/voyant-travel/voyant/pull/4331",
+      "usableAsUpgradeBaseline": true,
+      "baselineNote": "Verified, not assumed: it migrates a fresh database correctly and a 0.5.0 database upgrades onto it cleanly, so the prior state it produces is faithful."
+    }
+  ]
+}

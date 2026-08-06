@@ -76,6 +76,79 @@ to that digest. Publication succeeds only if the canonical digest remains
 resolvable after the workflow logs out of GHCR, proving anonymous access to the
 public base.
 
+### Acceptance runs against an existing database, not only an empty one
+
+`scripts/smoke-operator-image.sh` migrates a database the Postgres service
+container created moments earlier. That is the install case. A fresh database
+has nothing to adopt, so ledger-identity, baseline-adoption, and re-entrancy
+defects are invisible to it **by construction**.
+
+`scripts/upgrade-operator-image.sh` is upgrade-path acceptance, and it is the
+deploy case: the image is documented above as an artifact that self-hosters and
+the downstream Platform derivative both run against **existing** databases. It
+resolves the previous
+released semver from the registry tag list (readable anonymously, so no
+`read:packages` credential is involved), migrates a database it owns with *that*
+image, then migrates the same database with the candidate, boots the candidate
+against it, and migrates a third time requiring a no-op. The baseline run must
+apply at least one migration and the final run must apply none; both are asserted
+against the emitted `voyant.migration-result.v1` report, because an exit code
+cannot distinguish "nothing was wrong" from "nothing happened".
+
+It runs in branch CI, where the break is a source change and cheapest to catch,
+then once in finalization against the canonical digest, and again before a
+release is promoted to `latest`. It is deliberately **not** in the per-arch build
+matrix: this defect class is architecture-independent, and duplicating it would
+double the most expensive stage for nothing.
+
+Baseline selection walks the release order, so the stage covers the previous
+release only. Migrating from the oldest supported release would catch more and
+cost proportionally; `VOYANT_UPGRADE_BASELINE_VERSION` pins an older baseline for
+a one-off investigation without changing what CI does every run. When no usable
+predecessor exists — a first release, or an empty registry — the stage prints a
+`SKIPPED:` line naming the reason and exits zero. It never fails closed on a
+missing predecessor and never passes silently.
+
+#### What it does not cover
+
+This stage exercises the image's own `run-generated-migrations.mjs`, which
+resolves migration sources through the generated plan. That is **not** the path
+that broke `0.6.0`, and the difference was measured rather than assumed:
+
+- `0.5.0` (revision `4a715184`) is the last release before `availability` was
+  absorbed into `operations`; a database it migrates carries
+  `availability | 0000_availability_baseline` in `drizzle._voyant_migrations`;
+- migrating that database with `0.6.0` (revision `bdbe032d`, the release the
+  failure was reported against) **succeeds** — 2 applied, 31 skipped — boots,
+  answers `/healthz`, and re-runs as a no-op. `0.6.0` records the absorbed
+  migrations under `operations` without executing their SQL, so
+  `relation "allocation_audit_log" already exists` does not arise.
+
+So the sequence would have **passed** `0.6.0`, not failed it. That failure
+belongs to the source-free `loadModuleBundleSource(packageName)` resolution a
+downstream derivative uses, which has no plan to carry the retired source's
+identity and which nothing in this image's acceptance exercises. Closing that is
+the job of the static guard added in
+[#4331](https://github.com/voyant-travel/voyant/pull/4331), not of this stage.
+
+What this stage does cover is everything a prior state makes visible along the
+path it does take: an adoption that misfires, a plan that is not re-entrant, and
+a candidate that cannot boot against an upgraded schema.
+
+### Known-bad releases
+
+A release tag is immutable and cannot be withdrawn, so a defective release stays
+pullable forever. `scripts/checks/image/release-health.json` is where that is
+recorded: the version, its digest, what is wrong with it, and the issue. Consumers
+pinning a digest should read it before choosing a release.
+
+Each entry also states `usableAsUpgradeBaseline`. That is a narrower question
+than "is this release good": a release can be undeployable and still migrate a
+fresh database into a faithful prior state, which is all the upgrade stage asks
+of a baseline. `0.6.0` is exactly that case. Only an entry that cannot produce a
+valid prior state is excluded from baseline selection, and the stage then walks
+to the next release down.
+
 `latest` is for discovery only. Self-hosted and other direct consumers **must
 pin `ghcr.io/voyant-travel/operator@sha256:<digest>`** and use that same digest
 for the pre-rollout `node run-generated-migrations.mjs` invocation and all

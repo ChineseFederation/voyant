@@ -15,10 +15,15 @@ on:
       - "pnpm-lock.yaml"
       - "pnpm-workspace.yaml"
       - "scripts/apply-publish-config.mjs"
+      - "scripts/assert-migration-report.mjs"
+      - "scripts/checks/image/release-health.json"
       - "scripts/generate-operator-application-manifest.mjs"
       - "scripts/generate-operator-application-metadata.mjs"
+      - "scripts/lib/operator-image-acceptance.sh"
+      - "scripts/resolve-upgrade-baseline.mjs"
       - "scripts/run-generated-migrations.mjs"
       - "scripts/smoke-operator-image.sh"
+      - "scripts/upgrade-operator-image.sh"
       - "scripts/verify-operator-image-identity.mjs"
       - "turbo.json"
   workflow_dispatch:
@@ -354,6 +359,14 @@ jobs:
       - name: Migrate, boot, and API-smoke the canonical digest
         run: scripts/smoke-operator-image.sh "${{ steps.image.outputs.ref }}"
 
+      # The defect class this catches — ledger identity, baseline adoption,
+      # re-entrancy — is architecture-independent, so it runs once here against
+      # the canonical digest rather than twice in the per-arch build matrix.
+      - name: Accept the upgrade path from the previous release
+        run: |
+          scripts/upgrade-operator-image.sh \
+            "${{ steps.image.outputs.ref }}" "${{ needs.plan.outputs.version }}"
+
       - name: Verify anonymous access to the public base digest
         run: |
           set -euo pipefail
@@ -423,6 +436,14 @@ jobs:
 
       - name: Migrate, boot, and API-smoke the release digest
         run: scripts/smoke-operator-image.sh "${{ steps.release.outputs.ref }}"
+
+      # A release that cannot migrate an existing deployment must not become the
+      # tag consumers reach for first. 0.6.0 passed this job's fresh-database
+      # acceptance and was promoted anyway.
+      - name: Accept the release's upgrade path from its predecessor
+        run: |
+          scripts/upgrade-operator-image.sh \
+            "${{ steps.release.outputs.ref }}" "${{ inputs.release_version }}"
 
       - name: Explicitly promote the verified release to latest
         run: |

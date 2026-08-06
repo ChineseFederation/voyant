@@ -2,7 +2,7 @@
 import { existsSync, readFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
-import { verifyOperatorImageIdentity } from "./verify-operator-image-identity.mjs"
+import { runOperatorImageFixtures } from "./lib/operator-image-fixtures.mjs"
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..")
 const WORKFLOW = ".github/workflows/operator-image.yml"
@@ -10,6 +10,10 @@ const CI_WORKFLOW = ".github/workflows/ci.yml"
 const DOCKERFILE = "apps/operator/Dockerfile"
 const OPERATOR_README = "apps/operator/README.md"
 const SMOKE = "scripts/smoke-operator-image.sh"
+const UPGRADE = "scripts/upgrade-operator-image.sh"
+const ACCEPTANCE_LIB = "scripts/lib/operator-image-acceptance.sh"
+const BASELINE = "scripts/resolve-upgrade-baseline.mjs"
+const RELEASE_HEALTH = "scripts/checks/image/release-health.json"
 const IDENTITY = "scripts/verify-operator-image-identity.mjs"
 const CONTRACT = "docs/architecture/operator-image-distribution.md"
 const EXPRESSION_START = "$" + "{{"
@@ -34,6 +38,9 @@ const ci = source(CI_WORKFLOW)
 const dockerfile = source(DOCKERFILE)
 const operatorReadme = source(OPERATOR_README)
 const smoke = source(SMOKE)
+const upgrade = source(UPGRADE)
+const acceptanceLib = source(ACCEPTANCE_LIB)
+const baseline = source(BASELINE)
 const identity = source(IDENTITY)
 const contract = source(CONTRACT)
 
@@ -59,6 +66,22 @@ requireFragments(WORKFLOW, workflow, [
   [
     '      - "scripts/verify-operator-image-identity.mjs"',
     "automatic main publication must verify changes to its identity verifier",
+  ],
+  [
+    '      - "scripts/upgrade-operator-image.sh"',
+    "automatic main publication must verify changes to its upgrade-path harness",
+  ],
+  [
+    '      - "scripts/lib/operator-image-acceptance.sh"',
+    "automatic main publication must verify changes to its shared acceptance primitives",
+  ],
+  [
+    '      - "scripts/resolve-upgrade-baseline.mjs"',
+    "automatic main publication must verify changes to upgrade baseline selection",
+  ],
+  [
+    '      - "scripts/checks/image/release-health.json"',
+    "automatic main publication must verify changes to recorded release health",
   ],
   ["runner: ubuntu-24.04", "amd64 images must build on a native GitHub runner"],
   ["runner: ubuntu-24.04-arm", "arm64 images must build on a native GitHub runner"],
@@ -125,6 +148,14 @@ requireFragments(WORKFLOW, workflow, [
   ["steps.platform.outputs.ref", "each native build must be accepted by its resolved digest"],
   ["steps.image.outputs.ref", "canonical acceptance must address the resolved manifest digest"],
   ["steps.release.outputs.ref", "latest promotion must accept the resolved release digest"],
+  [
+    `scripts/upgrade-operator-image.sh \\\n            "${EXPRESSION_START} steps.image.outputs.ref }}" "${EXPRESSION_START} needs.plan.outputs.version }}"`,
+    "the canonical digest must be accepted against the previous release's database, not only an empty one",
+  ],
+  [
+    `scripts/upgrade-operator-image.sh \\\n            "${EXPRESSION_START} steps.release.outputs.ref }}" "${EXPRESSION_START} inputs.release_version }}"`,
+    "latest promotion must accept the release's upgrade path before moving the tag",
+  ],
   ["packages: write", "registry mutation must be granted at job scope"],
   ["attestations: write", "publication must grant the attestation permission"],
   ["docker logout ghcr.io", "publication must remove registry credentials before its public check"],
@@ -173,6 +204,18 @@ requireFragments(CI_WORKFLOW, ci, [
     "scripts/smoke-operator-image.sh voyant-operator:ci",
     "branch CI must retain shared migration/boot/API image acceptance",
   ],
+  [
+    "scripts/upgrade-operator-image.sh voyant-operator:ci",
+    "branch CI must accept the upgrade path, where a ledger-identity break is cheapest to catch",
+  ],
+  [
+    "resolve-upgrade-baseline|run-generated-migrations",
+    "branch CI must accept changes to upgrade baseline selection",
+  ],
+  [
+    "scripts/(smoke|upgrade)-operator-image\\.sh",
+    "branch CI must accept changes to either image acceptance harness",
+  ],
 ])
 requireFragments(DOCKERFILE, dockerfile, [
   ["org.opencontainers.image.source", "runtime image must label its source"],
@@ -190,11 +233,73 @@ requireFragments(OPERATOR_README, operatorReadme, [
     "operator deployment guidance must separate release tags from main snapshots",
   ],
 ])
-requireFragments(SMOKE, smoke, [
+requireFragments(ACCEPTANCE_LIB, acceptanceLib, [
   ["node run-generated-migrations.mjs", "image acceptance must run embedded migrations"],
   ["/healthz", "image acceptance must check liveness"],
   ["/api/openapi.json", "image acceptance must dispatch the API"],
 ])
+for (const [path, text] of [
+  [SMOKE, smoke],
+  [UPGRADE, upgrade],
+]) {
+  requireFragments(path, text, [
+    [
+      "lib/operator-image-acceptance.sh",
+      "both acceptance stages must run the image through the same environment and boot assertions",
+    ],
+    ["operator_image_boot_and_assert", "every acceptance stage must boot the image it accepted"],
+  ])
+}
+requireFragments(UPGRADE, upgrade, [
+  [
+    "resolve-upgrade-baseline.mjs",
+    "upgrade acceptance must resolve its baseline from the published release order",
+  ],
+  [
+    "DROP DATABASE IF EXISTS",
+    "upgrade acceptance must own a database the fresh-database stage has not already migrated",
+  ],
+  ["--expect-applied", "upgrade acceptance must prove the baseline produced a real prior state"],
+  ["--expect-no-op", "upgrade acceptance must pin re-entrancy of the candidate's plan"],
+  ["SKIPPED:", "upgrade acceptance must skip loudly rather than pass silently"],
+])
+requireFragments(BASELINE, baseline, [
+  ["ghcr.io", "baseline selection must read the registry that publishes the image"],
+  [
+    "usableAsUpgradeBaseline === false",
+    "baseline selection must honour releases recorded as unusable baselines",
+  ],
+  [
+    "VOYANT_UPGRADE_BASELINE_VERSION",
+    "an operator must be able to pin a baseline older than the previous release",
+  ],
+])
+
+const releaseHealth = JSON.parse(source(RELEASE_HEALTH) || "{}")
+if (!Array.isArray(releaseHealth.knownBad)) {
+  violations.push({ path: RELEASE_HEALTH, message: "release health must record a knownBad array" })
+} else {
+  for (const release of releaseHealth.knownBad) {
+    if (!/^\d+\.\d+\.\d+$/.test(release?.version ?? "")) {
+      violations.push({
+        path: RELEASE_HEALTH,
+        message: `known-bad entry ${JSON.stringify(release?.version)} is not a bare release semver`,
+      })
+    }
+    if (!release?.reason || !release?.issue) {
+      violations.push({
+        path: RELEASE_HEALTH,
+        message: `known-bad release ${release?.version} must record a reason and an issue`,
+      })
+    }
+    if (typeof release?.usableAsUpgradeBaseline !== "boolean") {
+      violations.push({
+        path: RELEASE_HEALTH,
+        message: `known-bad release ${release?.version} must state whether it is a usable upgrade baseline`,
+      })
+    }
+  }
+}
 requireFragments(IDENTITY, identity, [
   ["SUPPORTED_ARCHITECTURES", "identity verification must cover every supported architecture"],
   ["amd64", "identity verification must require linux/amd64"],
@@ -221,76 +326,10 @@ requireFragments(IDENTITY, identity, [
   ],
 ])
 
-const AMD64_DIGEST = `sha256:${"a".repeat(64)}`
-const ARM64_DIGEST = `sha256:${"b".repeat(64)}`
-const EXPECTED_REVISION = "1".repeat(40)
-const EXPECTED_VERSION = "1.2.3"
-const identityFixture = {
-  manifests: [
-    { digest: AMD64_DIGEST, platform: { os: "linux", architecture: "amd64" } },
-    { digest: ARM64_DIGEST, platform: { os: "linux", architecture: "arm64" } },
-    {
-      digest: `sha256:${"c".repeat(64)}`,
-      platform: { os: "unknown", architecture: "unknown" },
-      annotations: { "vnd.docker.reference.type": "attestation-manifest" },
-    },
-  ],
-}
-const matchingConfig = {
-  config: {
-    Labels: {
-      "org.opencontainers.image.revision": EXPECTED_REVISION,
-      "org.opencontainers.image.version": EXPECTED_VERSION,
-    },
-  },
-}
+violations.push(
+  ...runOperatorImageFixtures({ identity: IDENTITY, baseline: BASELINE, report: SMOKE }),
+)
 
-function requireIdentityResult(name, manifest, loadConfig, expectedFailure) {
-  try {
-    verifyOperatorImageIdentity(manifest, EXPECTED_REVISION, EXPECTED_VERSION, loadConfig)
-    if (expectedFailure) {
-      violations.push({ path: IDENTITY, message: `${name} fixture unexpectedly passed` })
-    }
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error)
-    if (!expectedFailure || !message.includes(expectedFailure)) {
-      violations.push({ path: IDENTITY, message: `${name} fixture failed incorrectly: ${message}` })
-    }
-  }
-}
-
-requireIdentityResult("matching identity", identityFixture, () => matchingConfig)
-requireIdentityResult(
-  "wrong revision",
-  identityFixture,
-  () => ({
-    config: {
-      Labels: { ...matchingConfig.config.Labels, "org.opencontainers.image.revision": "wrong" },
-    },
-  }),
-  "revision is",
-)
-requireIdentityResult(
-  "wrong version",
-  identityFixture,
-  () => ({
-    config: {
-      Labels: { ...matchingConfig.config.Labels, "org.opencontainers.image.version": "9.9.9" },
-    },
-  }),
-  "version is",
-)
-requireIdentityResult(
-  "extra runnable platform",
-  {
-    manifests: [
-      ...identityFixture.manifests,
-      { digest: `sha256:${"d".repeat(64)}`, platform: { os: "linux", architecture: "s390x" } },
-    ],
-  },
-  () => matchingConfig,
-  "unexpected runnable or non-attestation platform descriptor",
-)
 requireFragments(CONTRACT, contract, [
   [
     "sole public OCI distribution point",
@@ -316,6 +355,14 @@ requireFragments(CONTRACT, contract, [
   ["VOYANT_DEPLOYMENT_BINDINGS_JSON", "contract must document the boot-time provider overlay"],
   ['"isolation": "shared"', "contract must document Redis isolation semantics"],
   ['"network": "untrusted"', "contract must document Redis network semantics"],
+  [
+    "upgrade-path acceptance",
+    "distribution contract must describe acceptance against an existing database",
+  ],
+  [
+    "scripts/checks/image/release-health.json",
+    "distribution contract must point consumers at where a known-bad release is recorded",
+  ],
 ])
 
 if (violations.length > 0) {
