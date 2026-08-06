@@ -122,6 +122,38 @@ test imports a sibling package by relative path, because `rootDir: "src"` is
 inherited. Moving the emit geometry out of the shared project is what resolves
 it.
 
+### Migration identity lives where the source-free consumer reads it
+
+There are two paths that resolve migration sources, and they do not read the same
+things:
+
+| | reads |
+|---|---|
+| dev + CI | the resolved graph → `buildMigrationPlan` → `node-migration-runner`, which adds `legacyNames` **after** loading the source |
+| **managed image** | `loadModuleBundleSource(packageName)` alone — package name in, `migrations/` folder out. No graph, no plan, nothing to add anything |
+
+So a fact the second path cannot see is a fact production does not have.
+[#4330](https://github.com/voyant-travel/voyant/issues/4330): absorbing
+`availability` into `operations` declared the retired ledger source on the **graph
+migration facet**, which is exactly the place the managed runtime never reads. Path
+A honoured it, every test passed, and two managed databases failed on upgrade
+because the moved migrations had no ledger identity there. It looked configured and
+did nothing.
+
+Declare it in `package.json#voyant.legacyMigrationSources`, which ships in the
+tarball and is what `loadModuleBundleSource` reads.
+`verify:migration-identity` holds all three halves: nothing may declare identity on
+a graph facet, everything declared must come back from a source-free load, and it
+must survive this repo's own plan build.
+
+**The verification lesson generalises.** The original check hand-constructed the
+migration source with `legacyNames` already set. That proves the collector honours
+the field and proves nothing about how it gets there — a green from a path
+production does not take. When a change crosses a package or artifact boundary,
+drive the real path end to end and inspect the artifact; never set the input by
+hand and never assert against a generator this repo does not own (the migration
+plan on disk comes from `@voyant-travel/cli`, pinned).
+
 ### A checker that is not in the chain is not a checker
 
 `verify:architecture` is a hand-maintained `&&` string, so adding a check means
