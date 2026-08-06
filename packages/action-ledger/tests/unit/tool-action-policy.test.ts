@@ -123,6 +123,39 @@ describe("generic MCP action-policy gate", () => {
     expect(dispatch).not.toHaveBeenCalled()
   })
 
+  /**
+   * The preflight CREATES the approval, so the caller must approve that exact one
+   * and retry — never request another. The shared APPROVAL_REQUIRED default opens
+   * with "call request_action_approval", which on this path mints a second,
+   * unrelated approval and leaves the server-issued one pending, so the retry
+   * fails identically forever.
+   *
+   * A real agent ran that loop against publish_product and could not escape it:
+   *   publish_product -> APPROVAL_REQUIRED -> request_action_approval
+   *   -> approve_action_approval -> publish_product -> APPROVAL_REQUIRED
+   * Since publish_product is how a product leaves `draft`, this is why nothing the
+   * capability harness created was ever bookable.
+   */
+  it("tells the caller to approve THIS approval, not to request another", async () => {
+    const selected = action({ approval: "required" })
+    vi.spyOn(actionLedgerService, "requestApproval").mockResolvedValue(
+      approvalRequest(false) as never,
+    )
+
+    const error = await gate(selected)
+      .execute(execution(selected, { confirmed: true, requestId }), vi.fn())
+      .catch((thrown) => thrown as { nextSteps?: string[] })
+
+    expect(error.nextSteps).toHaveLength(2)
+    // The concrete id, not a description of where to find it.
+    expect(error.nextSteps?.[0]).toContain("approve_action_approval")
+    expect(error.nextSteps?.[0]).toContain("approval_1")
+    expect(error.nextSteps?.[1]).toContain("_voyant.approvalId")
+    expect(error.nextSteps?.[1]).toContain("approval_1")
+    // The loop-causing instruction must not survive anywhere in the remediation.
+    expect(error.nextSteps?.join(" ")).toMatch(/do NOT call request_action_approval/)
+  })
+
   it("creates and replays an approval preflight without dispatch", async () => {
     const selected = action({ approval: "required" })
     const requestApproval = vi.spyOn(actionLedgerService, "requestApproval")

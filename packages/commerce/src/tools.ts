@@ -19,6 +19,7 @@ import {
   insertCancellationPolicySchema,
   insertPriceCatalogSchema,
   priceCatalogListQuerySchema,
+  priceCatalogTypeSchema,
   updateCancellationPolicySchema,
   updatePriceCatalogSchema,
 } from "./pricing/validation.js"
@@ -85,7 +86,15 @@ const priceCatalogSchema = z.object({
   code: z.string(),
   name: z.string(),
   currencyCode: z.string().nullable(),
-  catalogType: z.enum(["public", "private", "contracted", "internal", "wholesale"]),
+  // Was a hand-written `z.enum(["public", "private", "contracted", "internal",
+  // "wholesale"])` that shared only TWO values with the `price_catalog_type`
+  // Postgres enum it claims to describe (public, contract, net, gross, promo,
+  // internal, other). Three of its members do not exist in the database and five
+  // real ones were missing, so `list_price_catalogs` threw on any deployment
+  // holding a contract/net/gross/promo/other catalog — the output failed its own
+  // parse. Caught by a live agent run against a database with one `gross` row.
+  // The canonical schema is derived from the same pgEnum, so this cannot drift again.
+  catalogType: priceCatalogTypeSchema,
   isDefault: z.boolean(),
   active: z.boolean(),
   notes: z.string().nullable(),

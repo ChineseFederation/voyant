@@ -568,6 +568,32 @@ async function requestApprovalPreflight(input: {
       idempotencyFingerprint: input.fingerprint,
       replayed: result.replayed,
     },
+    undefined,
+    {
+      // The generic APPROVAL_REQUIRED remediation starts with "call
+      // request_action_approval", which is WRONG here and unrecoverably so: this
+      // path has ALREADY created the approval, and its id is in `meta` above.
+      // Following the generic steps mints a SECOND, unrelated approval, approves
+      // that one, and retries — while the server-issued approval is still
+      // pending, so the retry fails identically, forever.
+      //
+      // Measured, not theorised. A real agent ran exactly this loop against
+      // publish_product:
+      //   publish_product -> APPROVAL_REQUIRED -> request_action_approval
+      //   -> approve_action_approval -> publish_product -> APPROVAL_REQUIRED
+      // It did everything it was told and could not win. Because publish_product
+      // is how a product leaves `draft`, this one wrong first step is why every
+      // product the capability harness ever created is still draft, why bookings
+      // are refused as "not bookable", and why invoicing has nothing to invoice.
+      //
+      // Two steps, and the id is interpolated rather than described, for the same
+      // reason as the invoice payload: an id the caller has to go and find is an
+      // id the caller can get wrong.
+      nextSteps: [
+        `1. Call approve_action_approval with approvalId "${result.approval.id}". This approval already exists and is PENDING — do NOT call request_action_approval, which would create a different one and leave this one blocking.`,
+        `2. Re-call this tool with _voyant.approvalId set to "${result.approval.id}" and the command otherwise unchanged.`,
+      ],
+    },
   )
 }
 

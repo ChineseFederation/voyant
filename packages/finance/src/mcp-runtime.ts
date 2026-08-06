@@ -1,5 +1,9 @@
 import { buildActionLedgerApprovedExecutionFields } from "@voyant-travel/action-ledger"
-import { defineToolContextContribution, ToolError } from "@voyant-travel/tools"
+import {
+  defineToolContextContribution,
+  deriveCommandIdempotencyKey,
+  ToolError,
+} from "@voyant-travel/tools"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import type { Context } from "hono"
 
@@ -24,6 +28,7 @@ import {
   buildUnsyncedProformaApprovalSnapshot,
   issueInvoiceFromBookingCommand,
 } from "./service-issue.js"
+import type { InvoiceNumberAllocationErrorCode } from "./service-shared.js"
 import { toJsonValue } from "./tool-json.js"
 
 export * from "./tools.js"
@@ -47,10 +52,26 @@ export const voyantToolContextContribution = defineToolContextContribution({
         ...financeBookingToolServices(db as PostgresJsDatabase, c),
         async issueInvoiceFromBooking(input: {
           command: CreateInvoiceFromBookingInput
-          idempotencyKey: string
+          idempotencyKey?: string
           approvalId?: string
         }) {
-          return executeInvoiceIssueTool({ db, c, ...input })
+          // Derived from the command CONTENT, not invented by the caller, and for
+          // the same reason as every other create (voyant#3921 Finding 2): the key
+          // has to be identical on the call that REQUESTS approval and the call
+          // that executes it, so making the caller carry it across two round trips
+          // — through a human approval in the middle — is the least reliable way
+          // to satisfy a requirement the server can satisfy itself. A hash of the
+          // command gives exactly the property the ledger wants: the retry that
+          // follows an approval derives the same key and replays, while a
+          // genuinely different invoice derives a different one.
+          return executeInvoiceIssueTool({
+            db,
+            c,
+            ...input,
+            idempotencyKey:
+              input.idempotencyKey ??
+              (await deriveCommandIdempotencyKey("issue-invoice-from-booking", input.command)),
+          })
         },
         async recordPaymentDispute(
           input: Parameters<typeof financeService.paymentDisputes.recordPaymentDispute>[1],
@@ -175,6 +196,14 @@ export const voyantToolContextContribution = defineToolContextContribution({
                 createdAt: toIsoString(authorization.approval.createdAt),
               },
               replayed: authorization.replayed,
+              // Same shape and same reason as issue_invoice_from_booking below:
+              // the approval is created by THIS call, so the caller needs the
+              // approve-then-retry pair, not the generic three steps that begin
+              // by requesting another approval.
+              nextSteps: [
+                `1. Call approve_action_approval with approvalId "${authorization.approval.id}". The approval exists but is PENDING; re-calling issue_invoice_refund before this step returns this same response.`,
+                `2. Call issue_invoice_refund again with the identical input plus approvalId "${authorization.approval.id}". An altered command no longer matches what was approved.`,
+              ],
             }
           }
           if (authorization.status === "already_executed") {
@@ -280,28 +309,30 @@ async function executeInvoiceIssueTool(input: {
   }
 
   const approved = buildActionLedgerApprovedExecutionFields(authorization.approvedAction)
-  const outcome = await issueInvoiceFromBookingCommand(
-    input.db,
-    input.command,
-    {
-      ...getFinanceRouteRuntime(input.c),
-      actionLedgerContext: requestContext,
-      actionLedgerAuthorizationSource: authorization.access.authorizationSource,
-      actionLedgerActionName: FINANCE_INVOICE_ISSUE_ACTION_NAME,
-      actionLedgerRouteOrToolName: FINANCE_INVOICE_ISSUE_TOOL_NAME,
-      actionLedgerCapabilityId: FINANCE_INVOICE_ISSUE_CAPABILITY.id,
-      actionLedgerCapabilityVersion: FINANCE_INVOICE_ISSUE_CAPABILITY.version,
-      actionLedgerEvaluatedRisk: FINANCE_INVOICE_ISSUE_CAPABILITY.risk,
-      actionLedgerCausationActionId: approved.causationActionId,
-      actionLedgerApprovalId: approved.approvalId,
-      actionLedgerIdempotencyScope: approved.idempotencyScope,
-      actionLedgerIdempotencyKey: approved.idempotencyKey,
-      actionLedgerIdempotencyFingerprint: approved.idempotencyFingerprint,
-    },
-    {
-      expectedBookingUpdatedAt: input.expectedBookingUpdatedAt,
-      expectedSnapshotFingerprint: input.expectedSnapshotFingerprint,
-    },
+  const outcome = await withInvoiceNumberingRemediation(() =>
+    issueInvoiceFromBookingCommand(
+      input.db,
+      input.command,
+      {
+        ...getFinanceRouteRuntime(input.c),
+        actionLedgerContext: requestContext,
+        actionLedgerAuthorizationSource: authorization.access.authorizationSource,
+        actionLedgerActionName: FINANCE_INVOICE_ISSUE_ACTION_NAME,
+        actionLedgerRouteOrToolName: FINANCE_INVOICE_ISSUE_TOOL_NAME,
+        actionLedgerCapabilityId: FINANCE_INVOICE_ISSUE_CAPABILITY.id,
+        actionLedgerCapabilityVersion: FINANCE_INVOICE_ISSUE_CAPABILITY.version,
+        actionLedgerEvaluatedRisk: FINANCE_INVOICE_ISSUE_CAPABILITY.risk,
+        actionLedgerCausationActionId: approved.causationActionId,
+        actionLedgerApprovalId: approved.approvalId,
+        actionLedgerIdempotencyScope: approved.idempotencyScope,
+        actionLedgerIdempotencyKey: approved.idempotencyKey,
+        actionLedgerIdempotencyFingerprint: approved.idempotencyFingerprint,
+      },
+      {
+        expectedBookingUpdatedAt: input.expectedBookingUpdatedAt,
+        expectedSnapshotFingerprint: input.expectedSnapshotFingerprint,
+      },
+    ),
   )
   if (outcome.status === "booking_changed" || outcome.status === "approval_snapshot_changed") {
     throw new ToolError(
@@ -350,6 +381,68 @@ function financeRefundAuthorizationError(
   }
 }
 
+/**
+ * Remediation for the four ways invoice numbering can refuse.
+ *
+ * `InvoiceNumberAllocationError` calls `super(code)`, so its message IS the bare
+ * enum, and it is not a ToolError — the registry's unknown-throw wrapper turned
+ * the whole thing into
+ *
+ *   [PROVIDER_ERROR] Tool "issue_invoice_from_booking" failed: no_active_series_for_scope
+ *
+ * Terminal, blameless, and unactionable. Measured: this is what a real agent got
+ * on the first run that reached invoice issue at all.
+ *
+ * The sentences below are not invented here — they are the ones the operator UI
+ * already shows for these exact codes (`bookings-react/src/i18n/en-operations.ts`).
+ * The product had the remediation the whole time and only the human surface could
+ * see it. The paths differ because an agent has tools, not a settings screen.
+ */
+// Typed on the domain's own union rather than `string`, so a fifth refusal code
+// fails the BUILD until someone writes what to do about it. A test could only
+// check the codes that exist today.
+const INVOICE_NUMBERING_REMEDIATION: Record<InvoiceNumberAllocationErrorCode, string> = {
+  no_active_series_for_scope:
+    "No active number series exists for this document type. Create one with create_invoice_number_series for this scope, or activate an existing one, then retry.",
+  invoice_number_series_not_found:
+    "The requested number series id does not exist. List the series and pass a valid id, or omit seriesId to use the default for the scope.",
+  invoice_number_series_inactive:
+    "The selected number series exists but is inactive. Activate it, or choose an active series, then retry.",
+  invoice_number_series_scope_mismatch:
+    "The selected number series belongs to a different document type. Choose a series whose scope matches this document, then retry.",
+}
+
+function isInvoiceNumberAllocationError(
+  error: unknown,
+): error is { code: InvoiceNumberAllocationErrorCode; scope?: string; seriesId?: string } {
+  // Structural, not `instanceof`: a duplicate install would otherwise silently
+  // fall back to the opaque PROVIDER_ERROR this exists to remove.
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    typeof (error as { code?: unknown }).code === "string" &&
+    (error as { code: string }).code in INVOICE_NUMBERING_REMEDIATION
+  )
+}
+
+async function withInvoiceNumberingRemediation<T>(run: () => Promise<T>): Promise<T> {
+  try {
+    return await run()
+  } catch (error) {
+    if (!isInvoiceNumberAllocationError(error)) throw error
+    const fix = INVOICE_NUMBERING_REMEDIATION[error.code]
+    // INVALID_INPUT, not PROVIDER_ERROR: numbering configuration is something the
+    // caller can put right, and no invoice was issued.
+    throw new ToolError(
+      `The invoice number could not be allocated: ${fix}`,
+      "INVALID_INPUT",
+      { reason: error.code, scope: error.scope, seriesId: error.seriesId },
+      { cause: error },
+      { nextSteps: [fix] },
+    )
+  }
+}
+
 function pendingApprovalResult(input: {
   requestedAction: {
     id: string
@@ -391,6 +484,23 @@ function pendingApprovalResult(input: {
       expiresAt: toIsoString(input.approval.expiresAt),
       createdAt: toIsoString(input.approval.createdAt),
     },
+    // An approval id and a status are DATA; they do not tell a caller what to do
+    // with them. Measured against the real surface, this response is where
+    // invoice issue stalls: the agent receives `approval_required`, has already
+    // had its approval created for it by the call above, and then either calls
+    // request_action_approval a second time or re-calls this tool unchanged and
+    // gets the identical response forever. Both failures are the response's
+    // fault, not the model's.
+    //
+    // This is the same defect the APPROVAL_REQUIRED error carries next steps for
+    // (voyant#3950) — but that treatment only ever reached the ERROR path, and
+    // `approval_required` is a success payload, so it was never covered. Note the
+    // steps are TWO, not the error's three: the request step has already
+    // happened here, and telling the caller to repeat it is what caused the loop.
+    nextSteps: [
+      `1. Call approve_action_approval with approvalId "${input.approval.id}". The approval exists but is PENDING until it is decided; re-calling issue_invoice_from_booking before this step returns this same response.`,
+      `2. Call issue_invoice_from_booking again with the identical command plus approvalId "${input.approval.id}". Do not change the command — an altered command no longer matches what was approved.`,
+    ],
     replayed: input.replayed,
   }
 }

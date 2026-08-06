@@ -59,6 +59,7 @@ import type {
   applyProductUnitConfigurationInputSchema,
   previewProductUnitConfigurationInputSchema,
 } from "./product-unit-configuration.js"
+import type { ProductReadinessIssue } from "./readiness.js"
 import { insertProductSchema, productListQuerySchema, updateProductSchema } from "./validation.js"
 
 const OWNER = "@voyant-travel/inventory"
@@ -621,12 +622,69 @@ function productLifecycleToolDefinition(input: {
     riskPolicy: PRODUCT_LIFECYCLE_RISK,
     annotations: { idempotentHint: true },
     async handler({ id }: z.infer<typeof productIdArgs>, ctx: InventoryToolContext) {
-      return parseJsonResult(
-        productToolSchema.nullable(),
-        await inventory(ctx).updateProduct(id, input.patch),
-      )
+      try {
+        return parseJsonResult(
+          productToolSchema.nullable(),
+          await inventory(ctx).updateProduct(id, input.patch),
+        )
+      } catch (error) {
+        throw toPublishReadinessToolError(error)
+      }
     },
   } as const
+}
+
+/**
+ * Readiness refusal shape, matched structurally rather than with `instanceof`.
+ *
+ * The error may have been constructed by a different loaded copy of this package
+ * — the same duplicate-install problem `isToolError` exists for (voyant#4115) —
+ * and an `instanceof` miss here silently restores the very defect this converts.
+ */
+function isPublishReadinessError(
+  error: unknown,
+): error is { code: string; issues: ProductReadinessIssue[] } {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    (error as { code?: unknown }).code === "product_not_ready_to_publish" &&
+    Array.isArray((error as { issues?: unknown }).issues)
+  )
+}
+
+/**
+ * Turn a publish refusal into something a caller can act on.
+ *
+ * `ProductPublishReadinessError` is a plain Error carrying a fully-formed
+ * `issues[]` — each with a stable code, a description, and a `fix` written as an
+ * instruction ("Create a future availability slot with status 'open', then
+ * publish the product again."). None of it reached the caller: not being a
+ * ToolError, it fell to the registry's unknown-throw wrapper and arrived as
+ *
+ *   [PROVIDER_ERROR] Tool "publish_product" failed: Product is not ready to publish
+ *
+ * which is wrong twice over. PROVIDER_ERROR means terminal and not-your-fault, so
+ * a caller is being told to give up on something it could fix; and every issue
+ * and every `fix` string was dropped on the floor.
+ *
+ * Measured consequence: no product the capability harness ever created reached
+ * `active`, so bookings were refused as "not bookable" and invoicing had nothing
+ * to invoice. The system knew exactly why and exactly how to fix it the whole
+ * time.
+ *
+ * INVALID_INPUT, not PROVIDER_ERROR: the call is refused because of state the
+ * caller can change, and an identical retry does fail identically until it does.
+ */
+function toPublishReadinessToolError(error: unknown): unknown {
+  if (!isPublishReadinessError(error)) return error
+  const issues = error.issues
+  return new ToolError(
+    `Product is not ready to publish: ${issues.map((issue) => issue.message).join(" ")}`,
+    "INVALID_INPUT",
+    { issues },
+    { cause: error },
+    { nextSteps: issues.map((issue, index) => `${index + 1}. ${issue.fix}`) },
+  )
 }
 
 function parseJsonResult<T extends z.ZodType>(schema: T, value: unknown): z.output<T> {

@@ -9,6 +9,7 @@ import {
   type InventoryContentToolServices,
   type InventoryToolServices,
   inventoryTools,
+  publishProductTool,
 } from "../src/tools.js"
 
 function admitted(
@@ -509,5 +510,62 @@ describe("inventory tools", () => {
     )
     expect(forwarded).toMatchObject({ preferredLocales: ["ro-RO"], market: "RO" })
     expect(content).toBeNull()
+  })
+
+  /**
+   * The readiness evaluator already produces a `fix` per issue, written as an
+   * instruction. None of it used to reach the caller: `ProductPublishReadinessError`
+   * is a plain Error, so the registry's unknown-throw wrapper turned it into
+   * `[PROVIDER_ERROR] ... Product is not ready to publish` — terminal, blameless,
+   * and stripped of every issue. Measured consequence: nothing the capability
+   * harness created ever reached `active`.
+   */
+  it("surfaces publish readiness issues as actionable next steps", async () => {
+    const readinessError = Object.assign(new Error("Product is not ready to publish"), {
+      code: "product_not_ready_to_publish",
+      issues: [
+        {
+          code: "no_future_open_departure",
+          severity: "blocking",
+          field: "availabilitySlots",
+          message: "The product has no future departure that is open for sale.",
+          fix: "Create a future availability slot with status 'open', then publish the product again.",
+        },
+      ],
+    })
+
+    const error = await publishProductTool
+      .handler(
+        { id: "prod_1" },
+        ctxWith({
+          async updateProduct() {
+            throw readinessError
+          },
+        } as never),
+      )
+      .catch((thrown: unknown) => thrown as { code?: string; nextSteps?: string[] })
+
+    // INVALID_INPUT, not PROVIDER_ERROR: the caller can fix this, and telling it
+    // otherwise is telling it to give up.
+    expect(error.code).toBe("INVALID_INPUT")
+    expect(error.nextSteps).toEqual([
+      "1. Create a future availability slot with status 'open', then publish the product again.",
+    ])
+  })
+
+  it("leaves a non-readiness failure from the same handler untouched", async () => {
+    // The converter must not swallow unrelated throws — that would replace a real
+    // failure with a confident, wrong remediation.
+    const other = new Error("connection reset")
+    await expect(
+      publishProductTool.handler(
+        { id: "prod_1" },
+        ctxWith({
+          async updateProduct() {
+            throw other
+          },
+        } as never),
+      ),
+    ).rejects.toBe(other)
   })
 })

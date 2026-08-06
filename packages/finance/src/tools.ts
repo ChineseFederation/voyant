@@ -203,6 +203,8 @@ const pendingFinanceApprovalSchema = z.object({
     createdAt: z.string().datetime(),
   }),
   replayed: z.boolean(),
+  /** Ordered remediation, mirroring `ToolError.nextSteps` on the failure paths. */
+  nextSteps: z.array(z.string()).optional(),
 })
 
 export const issueInvoiceRefundOutputSchema = z.union([
@@ -321,13 +323,18 @@ export const issueInvoiceFromBookingToolInputSchema = z.object({
     .string()
     .trim()
     .min(1)
-    .describe("Stable key used when requesting approval and replaying the exact command."),
+    .optional()
+    .describe(
+      "Optional. Leave this out — the platform derives a stable key from the command itself. Only send one to override that.",
+    ),
   approvalId: z
     .string()
     .trim()
     .min(1)
     .optional()
-    .describe("Approval id returned after the exact prior command is approved."),
+    .describe(
+      "The approval id from a prior `approval_required` response, once that approval has been APPROVED. Omit on the first call.",
+    ),
 })
 
 export const issueInvoiceFromBookingToolOutputSchema = z.union([
@@ -344,12 +351,19 @@ export const issueInvoiceFromBookingTool = defineTool<
   capabilityId: "@voyant-travel/finance#tool.issue-invoice-from-booking",
   capabilityVersion: "v1",
   name: "issue_invoice_from_booking",
+  // Was: "Request approval to create and issue an invoice or proforma from a
+  // booking, or execute and idempotently replay the exact approved command."
+  // Accurate about the server and useless to a caller — it describes two branches
+  // the SERVER takes without saying that they are two calls the CALLER makes, in
+  // order, with a human decision in between. Issuing an invoice needs approval,
+  // so the first call never issues anything, and nothing here said so.
   description:
-    "Request approval to create and issue an invoice or proforma from a booking, or execute and idempotently replay the exact approved command.",
+    "Issue an invoice or proforma from a booking. This takes TWO calls because issuing is approval-gated. First call it with just the `command`: it creates an approval and returns `approval_required` — no invoice exists yet. Then have that approval approved (`approve_action_approval`) and call this again with the identical `command` plus the `approvalId`, which issues the document. The returned `nextSteps` spell out both steps with the concrete id. Do not invent an idempotency key; the platform derives one from the command so the approved retry replays rather than issuing twice.",
   inputSchema: issueInvoiceFromBookingToolInputSchema,
   outputSchema: issueInvoiceFromBookingToolOutputSchema,
   requiredScopes: ["finance:write", "bookings:read"],
   audience: { source: "grant", allowed: ["staff"] },
+  resolvesIdempotencyKeyServerSide: true,
   actionPolicyEnforcement: "handler",
   tier: "destructive",
   riskPolicy: {

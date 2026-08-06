@@ -139,9 +139,42 @@ export function toErrorResult(err: unknown): CallToolResult {
   }
   return {
     isError: true,
-    content: [{ type: "text", text: `[${toolError.code}] ${toolError.message}` }],
+    content: [{ type: "text", text: errorText(toolError) }],
     _meta: { "voyant.travel/error": error },
   }
+}
+
+/**
+ * The caller-visible rendering of a failure.
+ *
+ * `_meta` is where the structured envelope belongs, and it stays there — but it
+ * cannot be the ONLY place the remediation lives. A model consuming this surface
+ * is shown the tool result's `content`; `_meta` is transport-level and is not
+ * required to be surfaced, and in practice is not. Everything voyant#3950 added —
+ * `nextSteps`, `candidates`, `didYouMean` — was therefore invisible to the reader
+ * it was written for.
+ *
+ * Measured, and the two halves agree. `issue_invoice_from_booking` returns its
+ * remediation inside the RESULT PAYLOAD, and the agent's behaviour changed the
+ * moment it was added (3 calls and give up, to 14 and driving the protocol). The
+ * approval gate returns its remediation in `_meta`, and correcting that text —
+ * from a first step that provably caused an infinite loop to one that does not —
+ * changed the agent's trace not at all. It never saw either version.
+ *
+ * So this is not cosmetic and not defensive: it is the difference between writing
+ * remediation and delivering it.
+ */
+function errorText(toolError: ReturnType<typeof toToolError>): string {
+  const lines = [`[${toolError.code}] ${toolError.message}`]
+  if (toolError.didYouMean) lines.push(`Did you mean: ${toolError.didYouMean}`)
+  if (toolError.candidates?.length) {
+    lines.push(`Closest matches: ${toolError.candidates.join(", ")}`)
+  }
+  if (toolError.nextSteps?.length) {
+    // Already-numbered steps are common at the throw sites; do not number twice.
+    lines.push("Next steps:", ...toolError.nextSteps.map((step) => `  ${step}`))
+  }
+  return lines.join("\n")
 }
 
 async function dispatchGenericAction(input: {

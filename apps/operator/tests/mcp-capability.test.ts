@@ -371,7 +371,13 @@ function buildJourneys(RUN_MARK: string): CapabilityJourney[] {
       // decide to create a second option first. Asking for the outcome rather than
       // the mechanism is also what lets this journey detect the default-option
       // problem instead of causing it.
-      task: `Make the product 'Capability Eval Tour ${RUN_MARK}' sellable: it needs a priced bookable unit (1 adult seat at 500 EUR) on its option, and it must be published. Reuse the option it already has rather than creating another. Confirm what you changed.`,
+      // Publication used to be asked for HERE, and it is not achievable here: a
+      // scheduled product cannot be published until it has a future open
+      // departure, and the departure journey runs next. The task was impossible
+      // in the order given, so measuring it measured the ordering. Publication
+      // now has its own journey after the departure exists, which is both the
+      // real dependency and the order a person would work in.
+      task: `Make the product 'Capability Eval Tour ${RUN_MARK}' sellable: it needs a priced bookable unit (1 adult seat at 500 EUR) on its option, and a sell price on the product. Reuse the option it already has rather than creating another. Confirm what you changed.`,
       expect: "option",
       maxCalls: 26,
       // Verify the UNIT, not the option. Checking for a product_options row made
@@ -379,6 +385,14 @@ function buildJourneys(RUN_MARK: string): CapabilityJourney[] {
       // row exists before the journey runs and the check passed while the agent got
       // stuck in the approval loop and created no unit at all. The thing that makes
       // a product sellable is a priced unit, so that is what has to be asserted.
+      // Asserts BOTH halves of the task, because checking only the unit made this
+      // journey report 3/3 while the product stayed in `draft` — every one of the
+      // nine products this harness has ever created is still draft, so the
+      // publication half has never once succeeded. That false green was not
+      // harmless: it is exactly why booking-create fails with "not bookable", and
+      // it sent me looking downstream at invoices for a defect that lives here.
+      // Same trap the note above describes for product_options; a verify that
+      // covers part of the task is a verify that certifies the wrong thing.
       verify: `select 1 from option_units u
              join product_options o on o.id = u.option_id
              join products p on p.id = o.product_id
@@ -393,6 +407,13 @@ function buildJourneys(RUN_MARK: string): CapabilityJourney[] {
       // produced a real booking (BK-2608-845755) end to end. So the write chain is
       // capable and unreliable, and the unreliability lives here, in the
       // approval/confirmation round trip rather than in any single tool.
+      // One measured 27-call/280k-token exhaustion here was NOT the approval loop:
+      // the agent called list_price_catalogs, which threw on its own output
+      // because its hand-written catalogType enum shared two of seven values with
+      // the price_catalog_type pgEnum. A read tool broken for most of the rows it
+      // returns burns the budget of every journey that consults it, and it only
+      // showed up on a database that happened to hold a `gross` catalog. Fixed;
+      // pinned by a test in packages/commerce/src/tools.test.ts.
       intermittent:
         "priced-unit creation gets lost in the confirmation/approval loop — 20+ calls, " +
         "200k+ tokens, and it has reported success while writing nothing",
@@ -425,6 +446,25 @@ function buildJourneys(RUN_MARK: string): CapabilityJourney[] {
       maxCalls: 20,
       verify: `select 1 from availability_slots s join products p on p.id = s.product_id
              where p.name ilike '%capability eval tour ${RUN_MARK}%'`,
+    },
+    {
+      // Publication, in the only position where it can succeed: after the priced
+      // unit AND after the departure. `no_future_open_departure` is a blocking
+      // readiness rule for scheduled products (#4030), so asking for publication
+      // before the departure exists is asking for something the domain correctly
+      // refuses — which is what the chain used to do.
+      //
+      // This is also the journey that proves the readiness refusal is legible.
+      // It used to arrive as `[PROVIDER_ERROR] Product is not ready to publish`,
+      // terminal and detail-free; it now names each blocking issue and what to do
+      // about it, which is what let this ordering bug be diagnosed at all.
+      id: "product-publish",
+      domain: "products",
+      task: `Publish the product 'Capability Eval Tour ${RUN_MARK}' so it can be sold. If it is refused, read the reason, fix what it names, and try again. Confirm the final status.`,
+      expect: "publish",
+      maxCalls: 22,
+      verify: `select 1 from products
+             where name ilike '%capability eval tour ${RUN_MARK}%' and status = 'active'`,
     },
     {
       // The commercial commit point, and the first journey through the
@@ -485,7 +525,25 @@ function buildJourneys(RUN_MARK: string): CapabilityJourney[] {
       verify: `select 1 from invoices i join bookings b on b.id = i.booking_id
              join people pe on pe.id = b.person_id
              where pe.last_name ilike '%marinescu${RUN_MARK}%'`,
-      knownGap: "depends on booking-create, which is gated on the approval loop",
+      // Measured 0/3 with errors=0 — which is the finding, not a null result. The
+      // agent hit NOTHING it could recognise as a failure: the first call returns
+      // `approval_required`, a SUCCESS payload carrying an approval id and no
+      // instruction, so it reported that and stopped. The actionable-errors work
+      // (voyant#3950) only ever reached the ERROR path, so this was never covered.
+      // Fixed by deriving the idempotency key from the command and returning the
+      // two concrete next steps; see finance/src/mcp-runtime.ts.
+      //
+      // Still a knownGap because the fix is unit-tested but NOT yet confirmed
+      // end to end: the run after it broke upstream at product-option-create, so
+      // this journey never received a booking to invoice. Do not read a future
+      // 0/3 here as the approval payload regressing without first checking that
+      // booking-create passed on that attempt.
+      // The measured trace is the agent doing the RIGHT thing: it queries bookings
+      // for the client, finds none because booking-create was refused upstream,
+      // and stops rather than inventing one. So a 0/3 here has never yet been
+      // evidence about invoicing at all — it is product publication failing three
+      // links earlier. Fix that before reading anything into this number.
+      knownGap: "unit-tested; blocked upstream on product publication, not on invoicing",
     },
     {
       id: "contracts-read",

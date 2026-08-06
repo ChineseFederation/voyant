@@ -1145,6 +1145,17 @@ async function throwHandlerApprovalRequired(input: {
       replayed: result.replayed,
       ...input.errorMetadata,
     },
+    undefined,
+    {
+      // Same correction as the generic gate in tool-action-policy.ts: the
+      // approval is created HERE, so the default remediation's "call
+      // request_action_approval" first step sends the caller to mint a second
+      // one and loop on the first. See that site for the measured trace.
+      nextSteps: [
+        `1. Call approve_action_approval with approvalId "${result.approval.id}". This approval already exists and is PENDING — do NOT call request_action_approval, which would create a different one and leave this one blocking.`,
+        `2. Re-call this tool with _voyant.approvalId set to "${result.approval.id}" and the command otherwise unchanged.`,
+      ],
+    },
   )
 }
 
