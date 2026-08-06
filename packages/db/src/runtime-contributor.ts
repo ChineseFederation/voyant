@@ -14,6 +14,7 @@ export function createDbRuntimePortContribution(
     withDb: (operation) => operation(host.primitives.database.resolve(undefined)),
     deliver: (envelope) =>
       host.primitives.events.deliver(envelope, undefined) as Promise<DeliveryResult>,
+    log: (message) => console.info(message),
     warn: (message) => console.warn(message),
   }
   return {

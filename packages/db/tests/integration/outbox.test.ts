@@ -8,8 +8,10 @@ import {
   createOutboxEventStore,
   drainOutbox,
   failOutboxEvent,
+  getBoundedOutboxStats,
   getOutboxStats,
   insertOutboxEvents,
+  pruneDeliveredOutboxEvents,
 } from "../../src/outbox.js"
 import { eventOutboxTable } from "../../src/schema/infra/event_outbox.js"
 import { createTestDb } from "../../src/test-utils.js"
@@ -47,6 +49,16 @@ describe.skipIf(!DB_AVAILABLE)("event outbox", () => {
         "delivered_at" timestamptz
       );
       CREATE UNIQUE INDEX IF NOT EXISTS "event_outbox_event_id_uniq" ON "event_outbox" ("event_id");
+      CREATE INDEX IF NOT EXISTS "event_outbox_due_idx"
+        ON "event_outbox" ("next_attempt_at", "id") WHERE "status" = 'pending';
+      CREATE INDEX IF NOT EXISTS "event_outbox_pending_created_idx"
+        ON "event_outbox" ("created_at") WHERE "status" = 'pending';
+      CREATE INDEX IF NOT EXISTS "event_outbox_failed_created_idx"
+        ON "event_outbox" ("created_at") WHERE "status" = 'failed';
+      CREATE INDEX IF NOT EXISTS "event_outbox_delivered_idx"
+        ON "event_outbox" ("delivered_at", "id") WHERE "status" = 'delivered';
+      CREATE INDEX IF NOT EXISTS "event_outbox_pending_intent_idx"
+        ON "event_outbox" (("payload" ->> 'intentId')) WHERE "status" = 'pending';
     `)
   })
 
@@ -110,6 +122,26 @@ describe.skipIf(!DB_AVAILABLE)("event outbox", () => {
       const claimed = await claimDueOutboxEvents(db, { limit: 10 })
       expect(claimed).toHaveLength(0)
     })
+
+    it("does not return the same row to concurrent claimers", async () => {
+      await insertOutboxEvents(
+        db,
+        Array.from({ length: 12 }, (_, index) => ({
+          name: "x",
+          data: { index },
+          metadata: { eventId: `evt_claim_${index}` },
+        })),
+      )
+
+      const [left, right] = await Promise.all([
+        claimDueOutboxEvents(db, { limit: 6 }),
+        claimDueOutboxEvents(db, { limit: 6 }),
+      ])
+
+      expect(left).toHaveLength(6)
+      expect(right).toHaveLength(6)
+      expect(new Set([...left, ...right].map((row) => row.eventId)).size).toBe(12)
+    })
   })
 
   describe("failOutboxEvent", () => {
@@ -153,7 +185,14 @@ describe.skipIf(!DB_AVAILABLE)("event outbox", () => {
 
       const result = await drainOutbox(db, bus)
 
-      expect(result).toEqual({ claimed: 1, delivered: 1, retried: 0, deadLettered: 0 })
+      expect(result).toMatchObject({
+        claimed: 1,
+        delivered: 1,
+        retried: 0,
+        deadLettered: 0,
+        batches: 1,
+        budgetExhausted: false,
+      })
       expect(handler).toHaveBeenCalledOnce()
       expect(handler).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -176,7 +215,12 @@ describe.skipIf(!DB_AVAILABLE)("event outbox", () => {
 
       const result = await drainOutbox(db, bus)
 
-      expect(result).toEqual({ claimed: 1, delivered: 0, retried: 1, deadLettered: 0 })
+      expect(result).toMatchObject({
+        claimed: 1,
+        delivered: 0,
+        retried: 1,
+        deadLettered: 0,
+      })
       const stats = await getOutboxStats(db)
       expect(stats.pending).toBe(1)
       errorSpy.mockRestore()
@@ -184,7 +228,134 @@ describe.skipIf(!DB_AVAILABLE)("event outbox", () => {
 
     it("returns an empty result when nothing is due", async () => {
       const result = await drainOutbox(db, createEventBus())
-      expect(result).toEqual({ claimed: 0, delivered: 0, retried: 0, deadLettered: 0 })
+      expect(result).toMatchObject({
+        claimed: 0,
+        delivered: 0,
+        retried: 0,
+        deadLettered: 0,
+        batches: 0,
+        budgetExhausted: false,
+      })
+    })
+
+    it("drains multiple batches while bounding delivery concurrency", async () => {
+      await insertOutboxEvents(
+        db,
+        Array.from({ length: 7 }, (_, index) => ({
+          name: "bounded",
+          data: { index },
+          metadata: { eventId: `evt_bounded_${index}` },
+        })),
+      )
+      let active = 0
+      let maxActive = 0
+      const result = await drainOutbox(
+        db,
+        {
+          async deliver() {
+            active += 1
+            maxActive = Math.max(maxActive, active)
+            await new Promise((resolve) => setTimeout(resolve, 5))
+            active -= 1
+            return { attempted: 1, failed: 0, errors: [] }
+          },
+        },
+        { limit: 3, concurrency: 2, maxEvents: 20, maxBatches: 10 },
+      )
+
+      expect(result).toMatchObject({ claimed: 7, delivered: 7, batches: 3 })
+      expect(maxActive).toBe(2)
+    })
+
+    it("stops at the configured work budget and leaves backlog for another wake", async () => {
+      await insertOutboxEvents(
+        db,
+        Array.from({ length: 8 }, (_, index) => ({
+          name: "budgeted",
+          data: { index },
+          metadata: { eventId: `evt_budgeted_${index}` },
+        })),
+      )
+
+      const result = await drainOutbox(db, createEventBus(), {
+        limit: 2,
+        concurrency: 1,
+        maxEvents: 3,
+        maxBatches: 10,
+      })
+
+      expect(result).toMatchObject({
+        claimed: 3,
+        delivered: 3,
+        batches: 2,
+        budgetExhausted: true,
+      })
+      expect((await getOutboxStats(db)).pending).toBe(5)
+    })
+  })
+
+  describe("bounded maintenance and statistics", () => {
+    it("prunes only the configured number of oldest delivered rows", async () => {
+      const rows = await insertOutboxEvents(
+        db,
+        Array.from({ length: 5 }, (_, index) => ({
+          name: "receipt",
+          data: { index },
+          metadata: { eventId: `evt_receipt_${index}` },
+        })),
+      )
+      for (const row of rows) await completeOutboxEvent(db, row.id)
+      await db.execute(
+        sql`UPDATE ${eventOutboxTable} SET "delivered_at" = now() - interval '30 days'`,
+      )
+
+      expect(await pruneDeliveredOutboxEvents(db, { olderThanDays: 14, limit: 2 })).toBe(2)
+      expect((await getOutboxStats(db)).delivered).toBe(3)
+    })
+
+    it("caps backlog scans and still reports the true oldest pending row", async () => {
+      await insertOutboxEvents(
+        db,
+        Array.from({ length: 4 }, (_, index) => ({
+          name: "stats",
+          data: { index },
+          metadata: { eventId: `evt_stats_${index}` },
+        })),
+      )
+      await db.execute(
+        sql`UPDATE ${eventOutboxTable} SET "created_at" = now() - interval '2 hours' WHERE "event_id" = 'evt_stats_0'`,
+      )
+
+      const stats = await getBoundedOutboxStats(db, { scanLimit: 2 })
+
+      expect(stats).toMatchObject({
+        pending: 2,
+        pendingCapped: true,
+        dueNow: 2,
+        dueNowCapped: true,
+      })
+      expect(stats.oldestPendingAt?.getTime()).toBeLessThan(Date.now() - 60 * 60 * 1000)
+    })
+
+    it("keeps the partial indexes required by claim, retry stats, and pruning", async () => {
+      const result = (await db.execute(/* sql */ `
+        SELECT indexname FROM pg_indexes
+        WHERE schemaname = current_schema() AND tablename = 'event_outbox'
+      `)) as unknown
+      const rows = Array.isArray(result)
+        ? result
+        : ((result as { rows?: Array<{ indexname: string }> }).rows ?? [])
+      const names = new Set(rows.map((row) => row.indexname))
+
+      for (const name of [
+        "event_outbox_due_idx",
+        "event_outbox_pending_created_idx",
+        "event_outbox_failed_created_idx",
+        "event_outbox_delivered_idx",
+        "event_outbox_pending_intent_idx",
+      ]) {
+        expect(names).toContain(name)
+      }
     })
   })
 

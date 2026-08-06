@@ -96,21 +96,36 @@ export async function settleWriteIntent(
  */
 export async function expireStaleWriteIntents(
   db: DrizzleClient,
-  options: { olderThanMinutes?: number } = {},
+  options: { olderThanMinutes?: number; limit?: number } = {},
 ): Promise<number> {
   const minutes = options.olderThanMinutes ?? 30
+  const limit = options.limit ?? 250
+  if (!Number.isSafeInteger(minutes) || minutes <= 0) {
+    throw new RangeError("olderThanMinutes must be a positive integer")
+  }
+  if (!Number.isSafeInteger(limit) || limit <= 0) {
+    throw new RangeError("limit must be a positive integer")
+  }
   const result = (await (db as AnyDb).execute(sql`
+    WITH candidates AS (
+      SELECT ${writeIntentsTable.id}
+      FROM ${writeIntentsTable}
+      WHERE ${writeIntentsTable.status} = 'pending'
+        AND ${writeIntentsTable.createdAt} < now() - (${minutes} * interval '1 minute')
+        AND NOT EXISTS (
+          SELECT 1 FROM ${eventOutboxTable}
+          WHERE ${eventOutboxTable.status} = 'pending'
+            AND ${eventOutboxTable.payload} ->> 'intentId' = ${writeIntentsTable.id}
+        )
+      ORDER BY ${writeIntentsTable.createdAt} ASC, ${writeIntentsTable.id} ASC
+      LIMIT ${limit}
+      FOR UPDATE SKIP LOCKED
+    )
     UPDATE ${writeIntentsTable}
     SET "status" = 'failed',
         "error" = 'intent expired before a handler settled it',
         "completed_at" = now()
-    WHERE "status" = 'pending'
-      AND "created_at" < now() - (${minutes} * interval '1 minute')
-      AND NOT EXISTS (
-        SELECT 1 FROM ${eventOutboxTable}
-        WHERE ${eventOutboxTable.status} = 'pending'
-          AND ${eventOutboxTable.payload} ->> 'intentId' = ${writeIntentsTable.id}
-      )
+    WHERE ${writeIntentsTable.id} IN (SELECT "id" FROM candidates)
     RETURNING "id"
   `)) as unknown
   const rows = Array.isArray(result) ? result : ((result as { rows?: unknown[] }).rows ?? [])

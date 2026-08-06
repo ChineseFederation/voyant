@@ -1,5 +1,6 @@
-import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest"
-
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest"
+import { insertOutboxEvents } from "../../src/outbox.js"
+import { runEventOutboxDrainJob } from "../../src/outbox-job.js"
 import { createTestDb } from "../../src/test-utils.js"
 import {
   enqueueWriteIntent,
@@ -40,6 +41,8 @@ describe.skipIf(!DB_AVAILABLE)("write intents", () => {
         "created_at" timestamptz NOT NULL DEFAULT now(),
         "delivered_at" timestamptz
       );
+      CREATE UNIQUE INDEX IF NOT EXISTS "event_outbox_event_id_uniq"
+        ON "event_outbox" ("event_id");
       CREATE TABLE IF NOT EXISTS "write_intents" (
         "id" text PRIMARY KEY,
         "kind" text NOT NULL,
@@ -53,6 +56,8 @@ describe.skipIf(!DB_AVAILABLE)("write intents", () => {
       );
       CREATE UNIQUE INDEX IF NOT EXISTS "write_intents_idempotency_key_uniq"
         ON "write_intents" ("idempotency_key");
+      CREATE INDEX IF NOT EXISTS "write_intents_pending_idx"
+        ON "write_intents" ("created_at", "id") WHERE "status" = 'pending';
     `)
   })
 
@@ -176,5 +181,71 @@ describe.skipIf(!DB_AVAILABLE)("write intents", () => {
 
     expect(expired).toBe(1)
     expect((await getWriteIntent(db, intent.id))?.status).toBe("failed")
+  })
+
+  it("expires stale intents in bounded oldest-first batches", async () => {
+    const intents = await Promise.all(
+      Array.from({ length: 4 }, (_, index) =>
+        enqueueWriteIntent(db, {
+          kind: "k",
+          payload: {},
+          idempotencyKey: `bounded-${index}`,
+        }),
+      ),
+    )
+    await db.execute(/* sql */ `
+      UPDATE "write_intents" SET "created_at" = now() - interval '2 hours'
+    `)
+
+    expect(await expireStaleWriteIntents(db, { olderThanMinutes: 30, limit: 2 })).toBe(2)
+    const states = await Promise.all(intents.map(({ intent }) => getWriteIntent(db, intent.id)))
+    expect(states.filter((intent) => intent?.status === "failed")).toHaveLength(2)
+    expect(states.filter((intent) => intent?.status === "pending")).toHaveLength(2)
+  })
+
+  it("logs the bounded drain outcome and remaining backlog on every job wake", async () => {
+    await insertOutboxEvents(db, [
+      { name: "job.event", data: {}, metadata: { eventId: "evt_job_metrics" } },
+    ])
+    const log = vi.fn()
+    const warn = vi.fn()
+
+    await runEventOutboxDrainJob({
+      getPort: async () => ({
+        withDb: async (operation: (database: typeof db) => Promise<unknown>) => operation(db),
+        deliver: async () => ({ attempted: 1, failed: 0, errors: [] }),
+        log,
+        warn,
+      }),
+    } as never)
+
+    expect(log).toHaveBeenCalledOnce()
+    const message = String(log.mock.calls[0]?.[0])
+    expect(message).toMatch(/^\[outbox-drain\] /)
+    expect(JSON.parse(message.replace(/^\[outbox-drain\] /, ""))).toMatchObject({
+      claimed: 1,
+      delivered: 1,
+      retried: 0,
+      deadLettered: 0,
+      remainingBacklog: 0,
+      oldestPendingAgeMs: null,
+      pruned: 0,
+      expiredIntents: 0,
+    })
+  })
+
+  it("keeps the partial index required by bounded oldest-first expiration", async () => {
+    const result = (await db.execute(/* sql */ `
+      SELECT indexdef FROM pg_indexes
+      WHERE schemaname = current_schema()
+        AND tablename = 'write_intents'
+        AND indexname = 'write_intents_pending_idx'
+    `)) as unknown
+    const rows = Array.isArray(result)
+      ? result
+      : ((result as { rows?: Array<{ indexdef: string }> }).rows ?? [])
+
+    expect(rows[0]?.indexdef).toContain("(created_at, id)")
+    expect(rows[0]?.indexdef).toContain("status = 'pending'")
   })
 })

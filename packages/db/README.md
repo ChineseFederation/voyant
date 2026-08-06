@@ -50,10 +50,40 @@ import { webhookSubscriptionsTable } from "@voyant-travel/db/schema/infra"
 | `./primitives` | Shared primitive tables (catalog, offers, etc.) |
 | `./crud` | `createCrudService` — list/retrieve/create/update/delete factory |
 | `./links` | `createLinkService`, `syncLinks` runtime link management |
+| `./outbox` | Transactional event capture, bounded drain, retry, pruning, and backlog statistics |
 | `./transaction-capability` | Transaction/disposal metadata helpers for runtime database clients |
 | `./schema/iam` | IAM schemas — Better Auth, users, API keys, KMS, roles |
 | `./schema/infra` | Infra schemas — webhooks, domains, email domain records |
 | `./test-utils` | `createTestDb`, `cleanupTestDb` for integration tests |
+
+## Transactional outbox operations
+
+`drainOutbox` repeatedly claims due rows with `FOR UPDATE SKIP LOCKED` until the
+queue is empty or its configurable batch, event, batch-count, or time budget is
+reached. `limit` bounds each claim and `concurrency` bounds simultaneous
+subscriber delivery; a visibility lease makes a crashed worker's rows eligible
+for at-least-once redelivery without changing their stable event IDs.
+
+The always-on `infrastructure.event-outbox-drain` job is both wakeable and
+scheduled. Every run emits a structured log with claimed, delivered, retried,
+dead-lettered, remaining backlog (with a cap flag), oldest pending age, and
+duration. The schedule remains the recovery path when an immediate wake is
+missed.
+
+Maintenance and telemetry queries are intentionally bounded:
+
+- delivered receipts are pruned oldest-first with a row limit;
+- stale write intents expire oldest-first with a row limit;
+- backlog/dead-letter counts inspect at most `scanLimit + 1` rows and report
+  whether the displayed count is a lower bound.
+
+The query plans rely on partial indexes whose predicates match the SQL exactly:
+`event_outbox_due_idx` for ordered claims and due counts,
+`event_outbox_pending_created_idx` for backlog age/counts,
+`event_outbox_failed_created_idx` for dead-letter counts,
+`event_outbox_delivered_idx` for retention pruning, and
+`event_outbox_pending_intent_idx` for the pending-intent safeguard. The write
+intent candidate scan uses `write_intents_pending_idx`.
 
 ## License
 
