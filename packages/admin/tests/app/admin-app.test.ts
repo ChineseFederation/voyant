@@ -1,3 +1,4 @@
+import { QueryClient } from "@tanstack/react-query"
 import { describe, expect, it, vi } from "vitest"
 import { adminRootHead } from "../../src/app/root.js"
 import {
@@ -100,6 +101,36 @@ describe("createAdminWorkspaceBeforeLoad", () => {
     const beforeLoad = createAdminWorkspaceBeforeLoad({ auth: authStub({ user }) })
 
     await expect(beforeLoad({ location: { href: "/bookings" } })).resolves.toEqual({ user })
+  })
+
+  it("uses one bootstrap request and hydrates shell-critical query state", async () => {
+    const user = { id: "usr_bootstrap" }
+    const getCurrentUser = vi.fn(async () => user)
+    const bootstrap = {
+      version: 1,
+      compatibility: { minimumShellVersion: 1, capabilities: ["admin.shell-bootstrap.v1"] },
+      user,
+      activeModules: ["bookings"],
+      entitlements: { bookings: true },
+      navigationPreferences: null,
+      extensions: [],
+    }
+    const hydrateShellBootstrap = vi.fn()
+    const queryClient = new QueryClient()
+    const beforeLoad = createAdminWorkspaceBeforeLoad({
+      auth: {
+        ...authStub(),
+        getCurrentUser,
+        getShellBootstrap: vi.fn(async () => bootstrap),
+      },
+      hydrateShellBootstrap,
+    })
+
+    await expect(
+      beforeLoad({ location: { href: "/bookings" }, context: { queryClient } }),
+    ).resolves.toEqual({ user })
+    expect(getCurrentUser).not.toHaveBeenCalled()
+    expect(hydrateShellBootstrap).toHaveBeenCalledWith(bootstrap, queryClient)
   })
 
   it("redirects unauthenticated visitors to sign-in with a next param (local mode)", async () => {

@@ -15,6 +15,7 @@ import {
   type AdminChildProvider,
   OperatorAdminShellProvider,
 } from "@voyant-travel/admin/providers/operator-admin-shell"
+import { UI_EXTENSIONS_QUERY_KEY } from "@voyant-travel/admin/ui-extensions"
 import { adminFetcher, getAdminApiUrl } from "@voyant-travel/admin-app/runtime"
 import {
   type AdminHostPresentation,
@@ -24,6 +25,7 @@ import {
   type AdminHostWorkspace,
   createAdminHostWorkspace,
 } from "@voyant-travel/admin-host/workspace"
+import type { OperatorShellBootstrap } from "@voyant-travel/auth/node-runtime"
 import { createAuthBasePathFetcher } from "@voyant-travel/auth-react/client"
 import type {
   LocalAuthPresentationRuntime,
@@ -39,6 +41,7 @@ import type {
   FinancePublicRouteRuntime,
 } from "@voyant-travel/finance-react/public-routes"
 import { ProductDetailPageProducts } from "@voyant-travel/inventory-react/storefront"
+import { navigationPreferencesQueryKey } from "@voyant-travel/navigation-preferences-react"
 import type {
   createProposalsPublicRouteContribution,
   ProposalsPublicRouteRuntime,
@@ -83,6 +86,10 @@ export interface StandardOperatorCurrentUser {
   profilePictureUrl?: string | null
 }
 
+type StandardOperatorShellBootstrap = Omit<OperatorShellBootstrap, "user"> & {
+  user: StandardOperatorCurrentUser
+}
+
 export interface CreateStandardOperatorFrontendOptions {
   accessCatalog: AccessCatalog
   selected: Parameters<typeof createAdminHostPresentation>[0]["selected"]
@@ -123,6 +130,7 @@ const ADMIN_SHARED_AUTH_PATHS = [
   "/me",
   "/status",
   "/bootstrap-status",
+  "/shell-bootstrap",
   "/api-tokens",
   "/organization/list-members",
 ] as const
@@ -197,8 +205,33 @@ const getCurrentUser = createServerFn({ method: "GET" })
     return (await response.json()) as StandardOperatorCurrentUser
   })
 
+const getShellBootstrap = createServerFn({ method: "GET" })
+  .middleware([withRequest])
+  .handler(async ({ context }) => {
+    if (shouldUseBrowserEvidenceFallback(context.request)) return null
+    const headers = new Headers()
+    const cookie = context.request.headers.get("cookie")
+    const authorization = context.request.headers.get("authorization")
+    if (cookie) headers.set("cookie", cookie)
+    if (authorization) headers.set("authorization", authorization)
+    const response = await fetch(new URL("/api/auth/shell-bootstrap", context.request.url), {
+      headers,
+      cache: "no-store",
+    })
+    if (response.status === 401) return null
+    if (!response.ok) throw new Error("Failed to fetch admin shell bootstrap")
+    const bootstrap = (await response.json()) as StandardOperatorShellBootstrap
+    if (bootstrap.version !== 1 || bootstrap.compatibility.minimumShellVersion > 1) {
+      throw new Error(
+        `Incompatible admin shell bootstrap contract (received ${bootstrap.version}, shell supports 1)`,
+      )
+    }
+    return bootstrap
+  })
+
 const adminAuthRuntime: AdminAuthRuntime<StandardOperatorCurrentUser> = {
   getCurrentUser,
+  getShellBootstrap,
   getBootstrapStatus,
   cloudAuthStartHref,
   signOut: async () => {
@@ -342,6 +375,27 @@ function createPresentationRuntime(
       Provider: AdminWorkspaceRealtimeProvider,
       channel: RealtimeChannel,
       useSession: authClient.useSession,
+    },
+    hydrateShellBootstrap: (bootstrap, queryClient) => {
+      const capabilities = new Set(bootstrap.compatibility.capabilities)
+      if (capabilities.has("admin.shell-bootstrap.navigation-preferences")) {
+        queryClient.setQueryData(
+          navigationPreferencesQueryKey(bootstrap.user.id),
+          bootstrap.navigationPreferences,
+        )
+      }
+      if (capabilities.has("admin.shell-bootstrap.extensions")) {
+        queryClient.setQueryData(UI_EXTENSIONS_QUERY_KEY, bootstrap.extensions)
+      }
+      queryClient.setQueryDefaults(["voyant", "admin", "entitlements"], {
+        staleTime: Number.POSITIVE_INFINITY,
+        refetchOnWindowFocus: true,
+        refetchInterval: false,
+      })
+      if (capabilities.has("admin.shell-bootstrap.entitlements")) {
+        queryClient.setQueryData(["voyant", "admin", "entitlements"], bootstrap.entitlements)
+      }
+      queryClient.setQueryData(["voyant", "admin", "active-modules"], bootstrap.activeModules)
     },
   })
   const mcpConsent = mcpConsentFactory?.()

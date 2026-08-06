@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query"
+import { type QueryClient, useQuery } from "@tanstack/react-query"
 import { Link, redirect, useRouter, useRouterState } from "@tanstack/react-router"
 import { useVoyantReactContext } from "@voyant-travel/react"
 import { Loader2 } from "lucide-react"
@@ -70,10 +70,16 @@ export interface CreateAdminWorkspaceBeforeLoadOptions<TUser> {
    */
   auth: Pick<
     AdminAuthRuntime<TUser>,
-    "getCurrentUser" | "getBootstrapStatus" | "cloudAuthStartHref"
+    "getCurrentUser" | "getShellBootstrap" | "getBootstrapStatus" | "cloudAuthStartHref"
   >
   /** Where unauthenticated visitors are sent in `local` auth mode. Default `/sign-in`. */
   signInPath?: string
+  hydrateShellBootstrap?: (
+    bootstrap: NonNullable<
+      Awaited<ReturnType<NonNullable<AdminAuthRuntime<TUser>["getShellBootstrap"]>>>
+    >,
+    queryClient: QueryClient,
+  ) => void
 }
 
 /**
@@ -93,19 +99,33 @@ export interface CreateAdminWorkspaceBeforeLoadOptions<TUser> {
 export function createAdminWorkspaceBeforeLoad<TUser>({
   auth,
   signInPath = "/sign-in",
+  hydrateShellBootstrap,
 }: CreateAdminWorkspaceBeforeLoadOptions<TUser>) {
-  return async ({ location }: { location: { href: string } }): Promise<{ user: TUser }> => {
-    const user = await auth.getCurrentUser()
+  return async ({
+    location,
+    context,
+  }: {
+    location: { href: string }
+    context?: { queryClient?: QueryClient }
+  }): Promise<{ user: TUser }> => {
+    const usesShellBootstrap = auth.getShellBootstrap !== undefined
+    const shellBootstrap = await auth.getShellBootstrap?.()
+    const user = usesShellBootstrap ? shellBootstrap?.user : await auth.getCurrentUser()
 
-    if (user) return { user }
+    if (user) {
+      if (shellBootstrap && context?.queryClient) {
+        hydrateShellBootstrap?.(shellBootstrap, context.queryClient)
+      }
+      return { user }
+    }
 
     // Unauthenticated: send to the Cloud broker in voyant-cloud mode, else the
     // local sign-in. A failed bootstrap probe falls back to the local path.
-    const bootstrap = await auth
+    const bootstrapStatus = await auth
       .getBootstrapStatus()
       .catch((): AdminBootstrapStatus => ({ hasUsers: true }))
 
-    if (bootstrap.authMode === "voyant-cloud") {
+    if (bootstrapStatus.authMode === "voyant-cloud") {
       // `cloudAuthStartHref` is a relative API path (`/api/auth/admin/cloud/start…`).
       // TanStack only infers a full-document redirect for absolute hrefs, so on
       // a client-side navigation a relative href would be handled as in-app

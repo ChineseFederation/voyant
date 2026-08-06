@@ -48,7 +48,7 @@ Rule:
 Voyant should own the shared admin runtime and extension seams, while templates
 own the final shell and composition.
 
-### 3. Bootstrap first-party admin shells from the current user only
+### 3. Bootstrap first-party admin shells from one authenticated contract
 
 Voyant-owned templates and apps are single-tenant per deployment. The base
 authenticated admin shell must render once the current user/session is ready.
@@ -56,11 +56,33 @@ Better Auth organization state, workspace switching, active organization
 selection, and team-management bootstrap are optional app-owned feature paths,
 not shell prerequisites.
 
+The standard shell reads `GET /auth/shell-bootstrap`. Version 1 contains the
+current user, active module ids, feature entitlements, effective navigation
+preferences, lightweight extension descriptors, and an explicit compatibility
+descriptor. The response is authenticated and carries `Cache-Control: private,
+no-store` plus `Vary: Cookie, Authorization`; neither a CDN nor a shared browser
+cache may reuse one member's snapshot for another request.
+
+The auth runtime owns authentication and the stable envelope. A managed host
+supplies live, request-scoped additions through `resolveShellBootstrap`, which
+receives the already authenticated user. This is the tenant-isolation boundary:
+the resolver must use its deployment context and that user id, never a tenant or
+member id supplied by the browser. A self-hosted host may omit the resolver and
+still serves the same contract with empty entitlement, preference, and dynamic
+extension snapshots.
+
+The route guard writes shell-critical snapshots into React Query before child
+loaders render. This prevents the sidebar and extension seams from immediately
+re-fetching the same data and lets TanStack's existing router dehydrate/hydrate
+path carry it across SSR. Full organization, billing, and extension manifests
+remain deferred until after the shell is interactive. Entitlement query state
+is focus/event invalidated and has no polling interval.
+
 Rule:
 
-`/auth/me` or an equivalent current-user primitive is sufficient for the base
-admin shell. Do not make `/auth/workspace/*` or `/auth/organization/*` part of
-first-party shell bootstrap.
+`/auth/shell-bootstrap` is the first-party shell bootstrap boundary. Do not make
+`/auth/workspace/*` or `/auth/organization/*` shell prerequisites, and do not
+put secrets or full extension manifests in the bootstrap response.
 
 For Voyant Cloud-provisioned deployments, `/auth/me` is still backed by a local
 Better Auth session. The browser reaches that local session through the
@@ -246,7 +268,7 @@ When adding or reviewing an admin capability in Voyant:
 
 1. Decide whether it belongs in the shared admin runtime or the starter-owned
    shell.
-2. Use current-user readiness as the base shell bootstrap dependency.
+2. Use the versioned authenticated shell bootstrap as the base shell dependency.
 3. Keep workspace/organization/team-management bootstrap behind explicit
    app-owned routes.
 4. Prefer explicit admin UI routes, nav contributions, or widget slots over

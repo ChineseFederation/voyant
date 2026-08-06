@@ -33,6 +33,17 @@ export interface AdminBootstrapStatus {
   modules?: readonly string[]
 }
 
+/** Framework-neutral shape consumed by the authenticated shell guard. */
+export interface AdminShellBootstrap<TUser> {
+  version: number
+  compatibility: { minimumShellVersion: number; capabilities: readonly string[] }
+  user: TUser
+  activeModules: readonly string[]
+  entitlements: Readonly<Record<string, boolean>>
+  navigationPreferences: unknown
+  extensions: readonly Readonly<Record<string, unknown>>[]
+}
+
 /**
  * The auth capability a deployment supplies to the packaged admin. `TUser` is
  * the deployment's loaded-user shape (a structural superset of
@@ -41,6 +52,8 @@ export interface AdminBootstrapStatus {
 export interface AdminAuthRuntime<TUser> {
   /** Resolve the current user (server fn / cookie-forwarding fetch); `null` when signed out. */
   getCurrentUser: () => Promise<TUser | null | undefined>
+  /** Preferred one-request shell bootstrap; older/custom hosts may omit it. */
+  getShellBootstrap?: () => Promise<AdminShellBootstrap<TUser> | null | undefined>
   /** Whether any user exists yet + the identity-broker mode driving redirects. */
   getBootstrapStatus: () => Promise<AdminBootstrapStatus>
   /** Href that starts the Voyant Cloud identity-broker flow (used in `voyant-cloud` mode). */
