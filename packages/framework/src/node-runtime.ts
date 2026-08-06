@@ -375,6 +375,9 @@ export async function loadVoyantNodeRuntime(
     bindings: env,
     ...(runtimePorts ? { ports: runtimePorts } : {}),
     ...(env.ORIGIN_TRUST_SECRET ? { originTrustSecret: env.ORIGIN_TRUST_SECRET } : {}),
+    ...(env.VOYANT_CLOUD_DEPLOYMENT_ID
+      ? { managedDeploymentId: env.VOYANT_CLOUD_DEPLOYMENT_ID }
+      : {}),
     ...(managedJobHealthReporter ? { reportExecution: managedJobHealthReporter } : {}),
   })
   const actionLedgerCapabilities = lowerVoyantGraphActionsToActionLedgerRegistry(

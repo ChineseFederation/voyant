@@ -5,6 +5,7 @@ import { invokeVoyantGraphJob, type VoyantGraphRuntimePorts } from "./runtime-co
 import type { VoyantGraphRuntime } from "./runtime-lowering.js"
 
 export const VOYANT_PRODUCT_JOB_ROUTE = "/__voyant/jobs"
+export const VOYANT_MANAGED_JOB_WAKE_ROUTE = "/__voyant/jobs/wake"
 export const VOYANT_PRODUCT_JOB_RELEASE_HEADER = "x-voyant-product-job-release"
 export const VOYANT_PRODUCT_JOB_EXECUTION_HEADER = "x-voyant-product-job-execution"
 
@@ -72,6 +73,10 @@ export interface CreateVoyantNodeJobHostOptions {
   maximumWakeHorizonMs?: number
   /** Required for the fixed internal HTTP invocation surface. */
   originTrustSecret?: string
+  /** Deployment identity bound into this runtime by the managed control plane. */
+  managedDeploymentId?: string
+  /** Bounds process-local queue-redelivery observations; jobs remain durably idempotent. */
+  managedWakeIdempotency?: { ttlMs?: number; maxEntries?: number }
   /** Best-effort terminal execution reporting; failures never repeat domain work. */
   reportExecution?: (report: VoyantNodeJobExecutionReport) => Promise<void> | void
   /**
@@ -118,6 +123,11 @@ interface JobExecutionState {
   pendingCorrelation?: VoyantProductJobExecutionCorrelation
 }
 
+interface ManagedWakeReceipt {
+  fingerprint: string
+  acceptedAt: number
+}
+
 /**
  * Host fixed product jobs selected by the resolved graph.
  *
@@ -150,6 +160,15 @@ export function createVoyantNodeJobHost(
     options.maximumWakeHorizonMs ?? 6 * 60 * 60 * 1_000,
     "maximumWakeHorizonMs",
   )
+  const managedWakeTtlMs = positiveInteger(
+    options.managedWakeIdempotency?.ttlMs ?? 24 * 60 * 60 * 1_000,
+    "managedWakeIdempotency.ttlMs",
+  )
+  const managedWakeMaxEntries = positiveInteger(
+    options.managedWakeIdempotency?.maxEntries ?? 10_000,
+    "managedWakeIdempotency.maxEntries",
+  )
+  const managedWakeReceipts = new Map<string, ManagedWakeReceipt>()
   const states = new Map<string, JobExecutionState>(
     inventory.map((job) => [job.id, { pending: false } satisfies JobExecutionState]),
   )
@@ -336,14 +355,30 @@ export function createVoyantNodeJobHost(
       !url.pathname.startsWith(`${VOYANT_PRODUCT_JOB_ROUTE}/`)
     )
       return undefined
+    const isManagedWake = url.pathname === VOYANT_MANAGED_JOB_WAKE_ROUTE
     const trustSecret = (requestOriginTrustSecret ?? options.originTrustSecret)?.trim()
     if (!trustSecret) {
+      if (isManagedWake) return managedWakeFailure(503, "runtime_not_authenticated", true)
       return new Response("Product job HTTP invocation requires ORIGIN_TRUST_SECRET", {
         status: 503,
       })
     }
     if (!verifyOriginTrust(request, trustSecret)) {
+      if (isManagedWake) return managedWakeFailure(403, "authentication_failed", false)
       return new Response("Forbidden: invalid origin trust", { status: 403 })
+    }
+    if (isManagedWake) {
+      return handleManagedWakeRequest({
+        request,
+        url,
+        jobsById,
+        managedDeploymentId: options.managedDeploymentId,
+        receipts: managedWakeReceipts,
+        receiptTtlMs: managedWakeTtlMs,
+        maxReceipts: managedWakeMaxEntries,
+        now,
+        invoke,
+      })
     }
     if (url.pathname === VOYANT_PRODUCT_JOB_ROUTE) {
       if (request.method !== "GET") return new Response("Method Not Allowed", { status: 405 })
@@ -435,6 +470,164 @@ export function createVoyantNodeJobHost(
       for (const { timer: wakeTimer } of armedWakes.values()) clearTimeout(wakeTimer)
       armedWakes.clear()
     },
+  }
+}
+
+interface ManagedWakeRequest {
+  deploymentId: string
+  jobId: string
+  eventId: string
+  idempotencyKey: string
+}
+
+async function handleManagedWakeRequest(input: {
+  request: Request
+  url: URL
+  jobsById: ReadonlyMap<string, VoyantGraphProvisionedJob>
+  managedDeploymentId?: string
+  receipts: Map<string, ManagedWakeReceipt>
+  receiptTtlMs: number
+  maxReceipts: number
+  now: () => Date
+  invoke: VoyantNodeJobHost["invoke"]
+}): Promise<Response> {
+  if (input.request.method !== "POST") return managedWakeFailure(405, "method_not_allowed", false)
+  if (input.url.search) return managedWakeFailure(400, "invalid_request", false)
+
+  const deploymentId = input.managedDeploymentId?.trim()
+  if (!deploymentId) return managedWakeFailure(503, "runtime_not_bound", true)
+
+  const body = await readManagedWakeRequest(input.request)
+  if (body instanceof Response) return body
+  if (body.deploymentId !== deploymentId) {
+    return managedWakeFailure(409, "deployment_mismatch", false)
+  }
+  const job = input.jobsById.get(body.jobId)
+  if (!job?.wakeup) return managedWakeFailure(404, "unknown_job", false)
+
+  const current = input.now().getTime()
+  pruneManagedWakeReceipts(input.receipts, current - input.receiptTtlMs, input.maxReceipts)
+  const fingerprint = `${body.deploymentId}\0${body.jobId}\0${body.eventId}`
+  const previous = input.receipts.get(body.idempotencyKey)
+  if (previous) {
+    if (previous.fingerprint !== fingerprint) {
+      return managedWakeFailure(409, "idempotency_conflict", false)
+    }
+    return Response.json({
+      ok: true,
+      disposition: "duplicate",
+      retry: false,
+      deploymentId,
+      jobId: body.jobId,
+      eventId: body.eventId,
+    })
+  }
+
+  // Reserve before awaiting lease acquisition so concurrent redelivery cannot
+  // enqueue a second invocation. Remove the reservation if admission fails.
+  input.receipts.set(body.idempotencyKey, { fingerprint, acceptedAt: current })
+  try {
+    const result = await input.invoke(body.jobId, "wakeup")
+    return Response.json(
+      {
+        ok: true,
+        disposition: "accepted",
+        retry: false,
+        deploymentId,
+        jobId: body.jobId,
+        eventId: body.eventId,
+        result,
+      },
+      { status: 202 },
+    )
+  } catch {
+    input.receipts.delete(body.idempotencyKey)
+    return managedWakeFailure(503, "temporarily_unavailable", true)
+  }
+}
+
+async function readManagedWakeRequest(request: Request): Promise<ManagedWakeRequest | Response> {
+  const contentLength = Number(request.headers.get("content-length") ?? "0")
+  if (Number.isFinite(contentLength) && contentLength > 8_192) {
+    return managedWakeFailure(413, "request_too_large", false)
+  }
+  let value: unknown
+  try {
+    const bytes = await readBoundedRequestBytes(request, 8_192)
+    if (!bytes) return managedWakeFailure(413, "request_too_large", false)
+    value = JSON.parse(new TextDecoder().decode(bytes))
+  } catch {
+    return managedWakeFailure(400, "invalid_request", false)
+  }
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return managedWakeFailure(400, "invalid_request", false)
+  }
+  const record = value as Record<string, unknown>
+  const allowed = new Set(["deploymentId", "jobId", "eventId", "idempotencyKey"])
+  if (Object.keys(record).some((key) => !allowed.has(key))) {
+    return managedWakeFailure(400, "invalid_request", false)
+  }
+  for (const key of allowed) {
+    const field = record[key]
+    if (
+      typeof field !== "string" ||
+      field.trim() !== field ||
+      field.length < 1 ||
+      field.length > 255
+    ) {
+      return managedWakeFailure(400, "invalid_request", false)
+    }
+  }
+  return record as unknown as ManagedWakeRequest
+}
+
+async function readBoundedRequestBytes(
+  request: Request,
+  limit: number,
+): Promise<Uint8Array | null> {
+  if (!request.body) return new Uint8Array()
+  const reader = request.body.getReader()
+  const chunks: Uint8Array[] = []
+  let length = 0
+  try {
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      length += value.byteLength
+      if (length > limit) {
+        void reader.cancel().catch(() => {})
+        return null
+      }
+      chunks.push(value)
+    }
+  } catch {
+    void reader.cancel().catch(() => {})
+    throw new Error("Unreadable managed wake request")
+  }
+  const bytes = new Uint8Array(length)
+  let offset = 0
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset)
+    offset += chunk.byteLength
+  }
+  return bytes
+}
+
+function managedWakeFailure(status: number, code: string, retry: boolean): Response {
+  return Response.json(
+    { ok: false, disposition: retry ? "retryable_failure" : "permanent_failure", retry, code },
+    { status, headers: retry ? { "retry-after": "5" } : undefined },
+  )
+}
+
+function pruneManagedWakeReceipts(
+  receipts: Map<string, ManagedWakeReceipt>,
+  expiresBefore: number,
+  maxEntries: number,
+): void {
+  for (const [key, receipt] of receipts) {
+    if (receipt.acceptedAt >= expiresBefore && receipts.size < maxEntries) break
+    receipts.delete(key)
   }
 }
 

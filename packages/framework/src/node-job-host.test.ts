@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from "vitest"
 
-import { createVoyantNodeJobHost, VOYANT_PRODUCT_JOB_ROUTE } from "./node-job-host.js"
+import {
+  createVoyantNodeJobHost,
+  VOYANT_MANAGED_JOB_WAKE_ROUTE,
+  VOYANT_PRODUCT_JOB_ROUTE,
+} from "./node-job-host.js"
 import {
   createVoyantGraphRuntime,
   type VoyantGraphRuntime,
@@ -79,6 +83,32 @@ function inventory(
   ]
 }
 
+function managedWakeRequest(
+  overrides: Partial<{
+    deploymentId: string
+    jobId: string
+    eventId: string
+    idempotencyKey: string
+  }> = {},
+  headers: Record<string, string> = {},
+): Request {
+  return new Request(`https://operator.test${VOYANT_MANAGED_JOB_WAKE_ROUTE}`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-voyant-origin-trust": "secret",
+      ...headers,
+    },
+    body: JSON.stringify({
+      deploymentId: "deployment_current",
+      jobId,
+      eventId: "event_1",
+      idempotencyKey: "queue-delivery-1",
+      ...overrides,
+    }),
+  })
+}
+
 describe("Voyant Node product job host", () => {
   it("requires exact parity between provisioning.jobs and runtime.jobs", () => {
     expect(() =>
@@ -139,6 +169,150 @@ describe("Voyant Node product job host", () => {
         executionToken: "00000000-0000-4000-8000-000000000001",
       }),
     )
+  })
+
+  it("accepts an authenticated managed wake bound to this deployment", async () => {
+    const handler = vi.fn(async () => {})
+    const host = createVoyantNodeJobHost({
+      runtime: jobRuntime(handler),
+      jobs: inventory(),
+      originTrustSecret: "secret",
+      managedDeploymentId: "deployment_current",
+    })
+
+    const response = await host.handleRequest(managedWakeRequest())
+
+    expect(response?.status).toBe(202)
+    await expect(response?.json()).resolves.toMatchObject({
+      ok: true,
+      disposition: "accepted",
+      retry: false,
+      deploymentId: "deployment_current",
+      jobId,
+      eventId: "event_1",
+    })
+    await host.settled(jobId)
+    expect(handler).toHaveBeenCalledOnce()
+  })
+
+  it("acknowledges an exact managed wake redelivery without repeating work", async () => {
+    const handler = vi.fn(async () => {})
+    const host = createVoyantNodeJobHost({
+      runtime: jobRuntime(handler),
+      jobs: inventory(),
+      originTrustSecret: "secret",
+      managedDeploymentId: "deployment_current",
+    })
+
+    expect((await host.handleRequest(managedWakeRequest()))?.status).toBe(202)
+    await host.settled(jobId)
+    const duplicate = await host.handleRequest(managedWakeRequest())
+
+    expect(duplicate?.status).toBe(200)
+    await expect(duplicate?.json()).resolves.toMatchObject({
+      ok: true,
+      disposition: "duplicate",
+      retry: false,
+    })
+    expect(handler).toHaveBeenCalledOnce()
+  })
+
+  it("permanently rejects a wake for a stale deployment", async () => {
+    const handler = vi.fn(async () => {})
+    const host = createVoyantNodeJobHost({
+      runtime: jobRuntime(handler),
+      jobs: inventory(),
+      originTrustSecret: "secret",
+      managedDeploymentId: "deployment_current",
+    })
+
+    const response = await host.handleRequest(
+      managedWakeRequest({ deploymentId: "deployment_stale" }),
+    )
+
+    expect(response?.status).toBe(409)
+    await expect(response?.json()).resolves.toEqual({
+      ok: false,
+      disposition: "permanent_failure",
+      retry: false,
+      code: "deployment_mismatch",
+    })
+    expect(handler).not.toHaveBeenCalled()
+  })
+
+  it("permanently rejects an unknown or non-wakeable job", async () => {
+    const host = createVoyantNodeJobHost({
+      runtime: jobRuntime(() => {}),
+      jobs: inventory(),
+      originTrustSecret: "secret",
+      managedDeploymentId: "deployment_current",
+    })
+
+    const response = await host.handleRequest(managedWakeRequest({ jobId: "unknown.job" }))
+
+    expect(response?.status).toBe(404)
+    await expect(response?.json()).resolves.toMatchObject({
+      disposition: "permanent_failure",
+      retry: false,
+      code: "unknown_job",
+    })
+  })
+
+  it("returns a retryable response when managed wake admission fails", async () => {
+    const handler = vi.fn(async () => {})
+    const host = createVoyantNodeJobHost({
+      runtime: jobRuntime(handler),
+      jobs: inventory(),
+      originTrustSecret: "secret",
+      managedDeploymentId: "deployment_current",
+      acquireDistributedLease: async () => {
+        throw new Error("lease store unavailable")
+      },
+    })
+
+    const response = await host.handleRequest(managedWakeRequest())
+
+    expect(response?.status).toBe(503)
+    expect(response?.headers.get("retry-after")).toBe("5")
+    await expect(response?.json()).resolves.toEqual({
+      ok: false,
+      disposition: "retryable_failure",
+      retry: true,
+      code: "temporarily_unavailable",
+    })
+    expect(handler).not.toHaveBeenCalled()
+    // Failed admission did not consume the key.
+    expect((await host.handleRequest(managedWakeRequest()))?.status).toBe(503)
+  })
+
+  it("authenticates managed wakes and rejects idempotency-key reuse for another event", async () => {
+    const handler = vi.fn(async () => {})
+    const host = createVoyantNodeJobHost({
+      runtime: jobRuntime(handler),
+      jobs: inventory(),
+      originTrustSecret: "secret",
+      managedDeploymentId: "deployment_current",
+    })
+
+    const unauthenticated = await host.handleRequest(
+      managedWakeRequest({}, { "x-voyant-origin-trust": "wrong-secret" }),
+    )
+    expect(unauthenticated?.status).toBe(403)
+    await expect(unauthenticated?.json()).resolves.toEqual({
+      ok: false,
+      disposition: "permanent_failure",
+      retry: false,
+      code: "authentication_failed",
+    })
+    expect((await host.handleRequest(managedWakeRequest()))?.status).toBe(202)
+    const conflict = await host.handleRequest(managedWakeRequest({ eventId: "event_2" }))
+    expect(conflict?.status).toBe(409)
+    await expect(conflict?.json()).resolves.toMatchObject({
+      code: "idempotency_conflict",
+      retry: false,
+    })
+    await host.settled(jobId)
+    expect(handler).toHaveBeenCalledOnce()
   })
 
   it("accepts an empty streamed invocation body while rejecting actual request input", async () => {

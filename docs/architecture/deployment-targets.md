@@ -129,6 +129,27 @@ workload class well. On Node none of it is necessary.
   `/__voyant/scheduled?schedule=<stable-id>` with the
   origin-trust header. During rollout the emitted URL also carries `cron` as a
   compatibility fallback for older runtimes.
+- **Managed job wakes:** the queue dispatcher posts a JSON envelope to
+  `POST /__voyant/jobs/wake` with the origin-trust header. The closed envelope
+  contains `deploymentId`, graph-registered `jobId`, durable `eventId`, and
+  caller-stable `idempotencyKey`; no job payload or arbitrary handler name is
+  accepted. The runtime compares `deploymentId` with its bound
+  `VOYANT_CLOUD_DEPLOYMENT_ID` before admission and only admits jobs declared
+  `wakeup: true`.
+
+  An accepted wake returns `202` with `disposition: "accepted"`; an observed
+  redelivery returns `200` with `disposition: "duplicate"`. Both say
+  `retry: false`. Authentication, malformed input, stale deployments, unknown
+  jobs, and idempotency conflicts are permanent failures (`retry: false`). A
+  runtime that is not bound or cannot admit the wake returns `503`,
+  `disposition: "retryable_failure"`, `retry: true`, and `Retry-After`.
+
+  The host keeps only a bounded, expiring process-local receipt cache to make
+  ordinary queue redelivery observable and coalesced. It is not a durable work
+  ledger: fixed jobs must claim domain-owned durable work idempotently, and a
+  declared schedule remains the recovery authority after process loss or a
+  lost wake. The endpoint starts no database pool and permits at most the
+  host's existing one running plus one coalesced invocation per job.
 - **CI:** the `node-smoke` job builds the operator, boots it under Node, and
   asserts `/healthz`, API dispatch, and a TanStack SSR page. `/healthz` is only
   a liveness signal; packaged-starter acceptance gates the complete server
