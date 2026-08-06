@@ -1,5 +1,18 @@
 # @voyant-travel/distribution
 
+## 0.227.22
+
+### Patch Changes
+
+- 3cbf7fb: Bound resident Node database pools to four connections by default, allow an
+  explicit `DATABASE_MAX_CONNECTIONS` override, and only attach dashboard cache
+  headers after an aggregate response succeeds so transient server errors are not
+  cached by browsers.
+- Updated dependencies [3cbf7fb]
+  - @voyant-travel/bookings@0.240.2
+  - @voyant-travel/db@0.120.7
+  - @voyant-travel/finance@0.244.2
+
 ## 0.227.21
 
 ### Patch Changes
