@@ -1,4 +1,6 @@
 import type { LinkService } from "@voyant-travel/core"
+import type { DrizzleClient } from "@voyant-travel/db"
+import { createLinkServiceFactory } from "@voyant-travel/db/links"
 import { sql } from "drizzle-orm"
 
 import { storefrontChannelLink } from "./standard-links.js"
@@ -22,11 +24,23 @@ type ChannelRow = {
 
 const ACTIVE_CHANNEL_STATUS = "active"
 
-function requireLinkService(context: BindingContext): LinkService {
-  if (!context.link) {
-    throw new Error("Storefront channel binding requires the deployment LinkService.")
-  }
-  return context.link
+/**
+ * A deployment-wide `LinkService` reaches the request context only when the
+ * composition wired the generated project link registry. `loadVoyantProject`
+ * does; the managed operator runtime composes the graph straight from a profile
+ * snapshot and never reads those artifacts, so `context.link` is absent on every
+ * managed request and this provider used to throw on all of them (voyant#4336).
+ *
+ * The one link it needs is its own, and its pivot table ships as a
+ * `@voyant-travel/db` migration, so serve it from the request database when the
+ * deployment supplied nothing. That keeps `link` genuinely optional — the type
+ * already said so — instead of naming a service half the compositions cannot
+ * produce.
+ */
+const createOwnedLinkService = createLinkServiceFactory([storefrontChannelLink])
+
+function resolveLinkService(context: BindingContext): LinkService {
+  return context.link ?? createOwnedLinkService(() => context.db as DrizzleClient)
 }
 
 function iso(value: Date | string | null | undefined): string | null {
@@ -106,7 +120,7 @@ export function createLinkServiceStorefrontChannelBindingProvider(): StorefrontC
 
   return {
     async listStorefrontChannelBindings(context, storefrontIds) {
-      const link = requireLinkService(context)
+      const link = resolveLinkService(context)
       const ids = [...new Set(storefrontIds)].filter(Boolean)
       const result = Object.fromEntries(ids.map((id) => [id, null])) as Record<
         string,
@@ -160,17 +174,14 @@ export function createLinkServiceStorefrontChannelBindingProvider(): StorefrontC
         throw new StorefrontInputError("Storefront can only bind to an active channel.")
       }
 
-      const existing = await requireLinkService(context).list(linkKey, { leftId: storefrontId })
+      const link = resolveLinkService(context)
+      const existing = await link.list(linkKey, { leftId: storefrontId })
       for (const row of existing) {
         if (row.rightId !== input.channelId) {
-          await requireLinkService(context).dismiss(linkKey, storefrontId, row.rightId)
+          await link.dismiss(linkKey, storefrontId, row.rightId)
         }
       }
-      const linkRow = await requireLinkService(context).create(
-        linkKey,
-        storefrontId,
-        input.channelId,
-      )
+      const linkRow = await link.create(linkKey, storefrontId, input.channelId)
       const binding = toBinding(storefrontId, channel, linkRow)
       if (!binding) {
         throw new StorefrontInputError("Storefront can only bind to an active channel.")
@@ -179,10 +190,9 @@ export function createLinkServiceStorefrontChannelBindingProvider(): StorefrontC
     },
 
     async clearStorefrontChannelBinding(context, storefrontId) {
-      const rows = await requireLinkService(context).list(linkKey, { leftId: storefrontId })
-      await Promise.all(
-        rows.map((row) => requireLinkService(context).dismiss(linkKey, storefrontId, row.rightId)),
-      )
+      const link = resolveLinkService(context)
+      const rows = await link.list(linkKey, { leftId: storefrontId })
+      await Promise.all(rows.map((row) => link.dismiss(linkKey, storefrontId, row.rightId)))
     },
   }
 }
