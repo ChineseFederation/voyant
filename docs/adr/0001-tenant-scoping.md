@@ -10,10 +10,12 @@ operator, supplier, distribution). Every domain module — bookings,
 products, finance, transactions, etc. — runs against a single Postgres
 database and is mounted into a single Hono app at deploy time.
 
-Customers buy Voyant per organization. Voyant Cloud's commercial offering
-provisions **one Postgres database + one Node application runtime per customer
-organization**. Customers self-hosting Voyant own their own infra and run the
-same one-DB-per-org topology.
+Customers buy Voyant per organization. Voyant Cloud originally provisioned
+**one Postgres database + one Node process per customer organization**. Managed
+regional application cells may now place a bounded set of tenant runtimes in one
+process, while retaining one database, credential role, immutable runtime
+context, and fully composed application runtime per tenant. Customers
+self-hosting Voyant retain the simpler one-process, one-DB-per-org topology.
 
 There is no shared-tier today. There has never been one in the framework's
 history. There are no schema columns named `organizationId` whose purpose
@@ -44,7 +46,9 @@ Concretely, this means:
   not per-request organization scoping.
 
 When asked "how is one customer's data isolated from another customer's?"
-the answer is: **separate Postgres database, separate compute runtime.**
+the answer is: **a separate Postgres database and a separate composed runtime
+selected at the trusted process boundary.** A cell shares process compute, not
+authoritative state or a domain runtime.
 Voyant Cloud's provisioning is the enforcement; customers self-hosting
 inherit the same model.
 
@@ -73,6 +77,35 @@ choose Redis for shared state explicitly; when they also provide
 self-hoster's infrastructure contract rather than a framework-provided
 shared-tenant isolation mechanism.
 
+## Managed application-cell invariants
+
+The framework-owned Node cell host resolves a trusted hostname and, for queue
+wakes, the deployment identity in the authenticated contract into one frozen
+tenant context before domain code runs. Unknown, stale, or conflicting mappings
+fail closed and emit security telemetry. The context owns server-only database
+credentials; it is never serialized into responses or deployment manifests.
+
+Each resident tenant gets its own composed module and extension registries,
+in-memory caches, authorization integration, event bus, job host, timers, and
+database pool. Queue wakes must match both the request hostname and the
+deployment identity consumed by that tenant's job host. Background invocation
+by the cell API accepts a deployment identity, never an arbitrary database or
+tenant override.
+
+The capacity boundary is explicit: per-tenant connection concurrency remains
+bounded by `DATABASE_MAX_CONNECTIONS`; `DATABASE_MAX_TENANT_POOLS` bounds pools
+per process; the cell bounds resident runtimes; and idle tenants are evicted
+only while they have no admitted request. A resident runtime holds its pool so
+detached job work cannot lose sockets mid-execution. Pool disposal closes Node
+driver sockets.
+
+This is not shared-schema tenancy. A tenant context still points at one database
+and domain packages still issue unscoped queries. Provisioning must reject two
+tenant identities that resolve to the same database/role. High-volume or
+regulated tenants retain the dedicated-process escape hatch, using the existing
+single-tenant runtime without the cell host. Self-hosted deployments do the same
+by default.
+
 ## Consequences
 
 ### Positive
@@ -98,7 +131,7 @@ shared-tenant isolation mechanism.
   deployment must understand that tenancy is not enforced by the
   framework. A customer who tries to consolidate two organizations into
   one DB to save costs has zero protection.
-- **Future shared-tier work would require a re-architecture.** If
+- **Future shared-database work would require a re-architecture.** If
   Voyant ever adds a "shared starter tier" (multiple orgs in one DB),
   every domain module would need to be audited for organization-scoping
   and a middleware/proxy layer would need to be added. This is a real
@@ -128,8 +161,8 @@ topology. Adding it later (if a shared-tier ever ships) is feasible;
 ripping it out if it bloats every read path is harder. The current
 single-tenant deployment model is the actual product reality.
 
-If the threat model ever shifts (shared-tier, multi-org dashboards on a
-shared DB, etc.), this ADR is the place to mark superseded and the work
+If the threat model ever shifts to shared-schema databases or multi-org
+dashboards on a shared DB, this ADR is the place to mark superseded and the work
 to add Alternative A becomes the new baseline.
 
 ### Alternative B: Hybrid (chosen)
