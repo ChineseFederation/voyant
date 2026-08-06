@@ -22,22 +22,26 @@ import { z } from "zod"
 import { fetchWithValidation, type VoyantFetcher } from "./client.js"
 import { authQueryKeys } from "./query-keys.js"
 
-const capabilitiesResponseSchema = z.object({ data: storefrontAdminCapabilitiesSchema }).strict()
-const storefrontsResponseSchema = z.object({ data: z.array(storefrontSchema) }).strict()
-const storefrontResponseSchema = z.object({ data: storefrontSchema }).strict()
-const storefrontChannelBindingSchema = z
-  .object({
-    storefrontId: z.string(),
-    channelId: z.string(),
-    channelName: z.string().nullable(),
-    channelStatus: z.string(),
-    createdAt: z.string().nullable(),
-    updatedAt: z.string().nullable(),
-  })
-  .strict()
-const storefrontChannelBindingResponseSchema = z
-  .object({ data: storefrontChannelBindingSchema.nullable() })
-  .strict()
+/**
+ * Response envelopes are open for the same reason the DTOs they wrap are: the
+ * storefront runtime is a port, and the control plane behind it ships on its
+ * own cadence. A `.strict()` envelope makes one added field fail the whole
+ * request, and the page reports a healthy 200 as an outage (voyant#4342).
+ */
+const capabilitiesResponseSchema = z.object({ data: storefrontAdminCapabilitiesSchema })
+const storefrontsResponseSchema = z.object({ data: z.array(storefrontSchema) })
+const storefrontResponseSchema = z.object({ data: storefrontSchema })
+const storefrontChannelBindingSchema = z.object({
+  storefrontId: z.string(),
+  channelId: z.string(),
+  channelName: z.string().nullable(),
+  channelStatus: z.string(),
+  createdAt: z.string().nullable(),
+  updatedAt: z.string().nullable(),
+})
+const storefrontChannelBindingResponseSchema = z.object({
+  data: storefrontChannelBindingSchema.nullable(),
+})
 const distributionChannelOptionSchema = z
   .object({
     id: z.string(),
@@ -45,19 +49,17 @@ const distributionChannelOptionSchema = z
     status: z.enum(["active", "inactive", "pending", "archived"]),
   })
   .passthrough()
-const distributionChannelsResponseSchema = z
-  .object({
-    data: z.array(distributionChannelOptionSchema),
-    total: z.number().optional(),
-    limit: z.number().optional(),
-    offset: z.number().optional(),
-  })
-  .strict()
-const apiKeysResponseSchema = z.object({ data: z.array(storefrontApiKeySchema) }).strict()
-const issuedKeyResponseSchema = z.object({ data: issuedStorefrontApiKeySchema }).strict()
-const providerCredentialsResponseSchema = z
-  .object({ data: z.array(storefrontProviderCredentialStatusSchema) })
-  .strict()
+const distributionChannelsResponseSchema = z.object({
+  data: z.array(distributionChannelOptionSchema),
+  total: z.number().optional(),
+  limit: z.number().optional(),
+  offset: z.number().optional(),
+})
+const apiKeysResponseSchema = z.object({ data: z.array(storefrontApiKeySchema) })
+const issuedKeyResponseSchema = z.object({ data: issuedStorefrontApiKeySchema })
+const providerCredentialsResponseSchema = z.object({
+  data: z.array(storefrontProviderCredentialStatusSchema),
+})
 
 const BASE = "/v1/admin/storefronts"
 const storefrontPath = (id: string) => `${BASE}/storefronts/${encodeURIComponent(id)}`
@@ -213,7 +215,7 @@ export function createStorefrontsAdminApi(
       return (
         await fetchWithValidation(
           `${storefrontPath(storefrontId)}/channel-binding`,
-          z.object({ data: storefrontChannelBindingSchema }).strict(),
+          z.object({ data: storefrontChannelBindingSchema }),
           options,
           json("PUT", input),
         )

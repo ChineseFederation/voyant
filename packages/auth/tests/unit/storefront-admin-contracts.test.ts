@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest"
 import {
   createStorefrontInputSchema,
   storefrontSchema,
+  updateStorefrontAccountPolicyInputSchema,
+  updateStorefrontMethodsInputSchema,
 } from "../../src/storefront-admin-contracts.js"
 
 const STOREFRONT = {
@@ -35,6 +37,42 @@ describe("storefrontSchema", () => {
   it("still requires a hosting kind to be present", () => {
     expect(storefrontSchema.safeParse({ ...STOREFRONT, hostingKind: "" }).success).toBe(false)
     expect(storefrontSchema.safeParse({ ...STOREFRONT, hostingKind: null }).success).toBe(false)
+  })
+
+  it("decodes fields the runtime provider adds, and keeps them out of the DTO", () => {
+    // Voyant Cloud serves managed storefronts with an `organizationId` this
+    // package does not model. Refusing it rejected the whole list response and
+    // rendered "Storefronts unavailable" on a healthy 200 (voyant#4342).
+    const parsed = storefrontSchema.parse({ ...STOREFRONT, organizationId: "org_1" })
+
+    expect(parsed).toEqual(STOREFRONT)
+    expect(parsed).not.toHaveProperty("organizationId")
+  })
+
+  it("decodes nested objects the runtime provider extends", () => {
+    const parsed = storefrontSchema.parse({
+      ...STOREFRONT,
+      methods: { ...STOREFRONT.methods, passkey: true },
+      accountPolicy: { ...STOREFRONT.accountPolicy, partnerOnboarding: "disabled" },
+    })
+
+    expect(parsed.methods).toEqual(STOREFRONT.methods)
+    expect(parsed.accountPolicy).toEqual(STOREFRONT.accountPolicy)
+  })
+})
+
+describe("write contracts", () => {
+  it("still refuses a request body naming a method this deployment does not have", () => {
+    expect(
+      updateStorefrontMethodsInputSchema.safeParse({ ...STOREFRONT.methods, passkey: true })
+        .success,
+    ).toBe(false)
+    expect(
+      updateStorefrontAccountPolicyInputSchema.safeParse({
+        ...STOREFRONT.accountPolicy,
+        partnerOnboarding: "disabled",
+      }).success,
+    ).toBe(false)
   })
 })
 

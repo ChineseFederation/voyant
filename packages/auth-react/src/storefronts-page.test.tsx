@@ -113,6 +113,50 @@ describe("storefront admin surface", () => {
     await expect(api.listStorefronts()).resolves.toEqual([STOREFRONT, managed])
   })
 
+  it("lists storefronts carrying fields the runtime provider owns", async () => {
+    // Verbatim from a managed deployment's 200 on
+    // GET /v1/admin/storefronts/storefronts: Voyant Cloud serves an
+    // `organizationId` this package does not model. A strict response schema
+    // rejected the whole array, so the page showed "Storefronts unavailable"
+    // on a successful response and no retry could clear it (voyant#4342).
+    const api = createStorefrontsAdminApi("/api", async () =>
+      Response.json({
+        data: [
+          {
+            id: "sf_km1j5lwnx9bv",
+            organizationId: "org_01KSTAWP6CEKZ67731P2Q646CC",
+            name: "Customer portal",
+            slug: "customer-portal",
+            hostingKind: "managed_portal",
+            siteId: null,
+            allowedOrigins: ["https://sandbox-account.onvoyant.net"],
+            methods: {
+              apple: false,
+              google: false,
+              facebook: false,
+              emailCode: true,
+              emailPassword: false,
+            },
+            accountPolicy: {
+              allowedKinds: ["personal"],
+              personalSignup: "open",
+              businessOnboarding: "disabled",
+            },
+            hostOnlyCookies: true,
+            createdAt: "2026-08-02T05:52:32.166Z",
+            updatedAt: "2026-08-02T05:52:34.106Z",
+            channelBinding: null,
+          },
+        ],
+      }),
+    )
+
+    const [storefront] = await api.listStorefronts()
+
+    expect(storefront).toMatchObject({ id: "sf_km1j5lwnx9bv", hostingKind: "managed_portal" })
+    expect(storefront).not.toHaveProperty("organizationId")
+  })
+
   it("disables business controls when the runtime capability is unavailable", async () => {
     const queryClient = seededQueryClient({
       businessAccounts: false,
@@ -281,6 +325,41 @@ describe("storefront admin surface", () => {
 
     expect(container.textContent).toContain("Channel binding is not configured")
     expect(container.querySelector("#storefront-channel-storefront_1")).toBeNull()
+
+    await act(async () => root.unmount())
+  })
+
+  it("recovers from any query the load banner speaks for, not just the list", async () => {
+    // The banner reports capabilities and storefronts together, so a refresh
+    // that retried only the list left a failed capabilities query showing an
+    // error no click could clear (voyant#4342).
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const api = pageApi()
+    let capabilitiesFail = true
+    api.getCapabilities = vi.fn(async () => {
+      if (capabilitiesFail) throw new Error("cold start")
+      return { businessAccounts: true, manageProviders: true, channelBinding: true }
+    })
+    const container = document.createElement("div")
+    const root = createRoot(container)
+
+    await act(async () => {
+      root.render(
+        <QueryClientProvider client={queryClient}>
+          <StorefrontsPage api={api} />
+        </QueryClientProvider>,
+      )
+    })
+    await vi.waitFor(() =>
+      expect(container.textContent).toContain("Storefronts could not be loaded."),
+    )
+
+    capabilitiesFail = false
+    await clickButton(container, "Refresh")
+
+    await vi.waitFor(() =>
+      expect(container.textContent).not.toContain("Storefronts could not be loaded."),
+    )
 
     await act(async () => root.unmount())
   })

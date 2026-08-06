@@ -59,6 +59,13 @@ function StorefrontsView({ api }: { api: StorefrontsAdminApi }) {
   const selected = listQuery.data?.find((storefront) => storefront.id === selectedId) ?? null
   const isLoading = capabilitiesQuery.isPending || listQuery.isPending
   const loadFailed = capabilitiesQuery.isError || listQuery.isError
+  // Refresh has to retry everything the banner speaks for. Refetching only the
+  // list left a failed capabilities query reporting an error no click could
+  // clear, which reads as an outage the page can never recover from (#4342).
+  const refresh = () => {
+    void capabilitiesQuery.refetch()
+    void listQuery.refetch()
+  }
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
@@ -67,7 +74,7 @@ function StorefrontsView({ api }: { api: StorefrontsAdminApi }) {
           <h1 className="text-2xl font-semibold">{copy.title}</h1>
           <p className="text-sm text-muted-foreground">{copy.description}</p>
         </div>
-        <Button type="button" variant="outline" size="sm" onClick={() => void listQuery.refetch()}>
+        <Button type="button" variant="outline" size="sm" onClick={refresh}>
           <RefreshCw className="mr-2 h-4 w-4" />
           {copy.refresh}
         </Button>
