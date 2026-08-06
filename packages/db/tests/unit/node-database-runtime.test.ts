@@ -39,6 +39,29 @@ describe("Node database runtime", () => {
     ).not.toBe(database)
   })
 
+  it("refreshes the process client when the connection budget changes", () => {
+    const database = resolveNodeDatabase({
+      DATABASE_URL: `${PRIMARY}_pool_budget`,
+      DATABASE_MAX_CONNECTIONS: "4",
+    })
+
+    expect(
+      resolveNodeDatabase({
+        DATABASE_URL: `${PRIMARY}_pool_budget`,
+        DATABASE_MAX_CONNECTIONS: "5",
+      }),
+    ).not.toBe(database)
+  })
+
+  it("rejects invalid connection budgets", () => {
+    expect(() =>
+      resolveNodeDatabase({
+        DATABASE_URL: `${PRIMARY}_invalid_pool_budget`,
+        DATABASE_MAX_CONNECTIONS: "0",
+      }),
+    ).toThrow("DATABASE_MAX_CONNECTIONS must be a positive integer.")
+  })
+
   it("provides lifecycle adapters without disposing the process-owned pool", async () => {
     const env = { DATABASE_URL: `${PRIMARY}_lifecycle` }
     const resource = openNodeDatabase(env)

@@ -75,6 +75,7 @@ import {
 export interface VoyantNodeRuntimeEnv extends VoyantBindings {
   DATABASE_URL_DIRECT?: string
   DATABASE_URL_REPLICAS?: string
+  DATABASE_MAX_CONNECTIONS?: string
   S3_ENDPOINT?: string
   S3_REGION?: string
   S3_ACCESS_KEY_ID?: string

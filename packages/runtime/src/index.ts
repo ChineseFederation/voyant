@@ -649,6 +649,9 @@ function resolveOptionalNodeDatabase(
     DATABASE_URL: databaseUrl,
     ...(env.DATABASE_URL_DIRECT ? { DATABASE_URL_DIRECT: env.DATABASE_URL_DIRECT } : {}),
     ...(env.DATABASE_URL_REPLICAS ? { DATABASE_URL_REPLICAS: env.DATABASE_URL_REPLICAS } : {}),
+    ...(env.DATABASE_MAX_CONNECTIONS
+      ? { DATABASE_MAX_CONNECTIONS: env.DATABASE_MAX_CONNECTIONS }
+      : {}),
   })
 }
 

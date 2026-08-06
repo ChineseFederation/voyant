@@ -35,14 +35,14 @@ export const financeRoutes = new OpenAPIHono<Env>()
   // is ~11 queries, so a warm dashboard load becomes one indexed read (#1629).
   .get("/aggregates", async (c) => {
     const query = parseQuery(c, financeAggregatesQuerySchema)
-    c.header("Cache-Control", DASHBOARD_AGGREGATES_CACHE_CONTROL)
-    c.header("Vary", "Authorization", { append: true })
-    c.header("Vary", "Cookie", { append: true })
     const snapshot = await readThroughAggregateSnapshot(c.get("db"), {
       key: aggregateSnapshotKey("finance", "aggregates", query),
       ttlSeconds: DASHBOARD_AGGREGATES_TTL_SECONDS,
       compute: () => financeService.getFinanceAggregates(c.get("db"), query),
     })
+    c.header("Cache-Control", DASHBOARD_AGGREGATES_CACHE_CONTROL)
+    c.header("Vary", "Authorization", { append: true })
+    c.header("Vary", "Cookie", { append: true })
     return c.json({ data: snapshot.data })
   })
   .route("/", financePaymentProcessingRoutes)

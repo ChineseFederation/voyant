@@ -328,12 +328,12 @@ export const productCoreRoutes = new OpenAPIHono<Env>({ defaultHook: openApiVali
   // doesn't swallow it). Served from a read-through TTL snapshot (#1629).
   .openapi(getAggregatesRoute, async (c) => {
     const query = c.req.valid("query")
-    cacheDashboardAggregates(c)
     const snapshot = await readThroughAggregateSnapshot(c.get("db"), {
       key: aggregateSnapshotKey("products", "aggregates", query),
       ttlSeconds: DASHBOARD_AGGREGATES_TTL_SECONDS,
       compute: () => productsService.getProductAggregates(c.get("db"), query),
     })
+    cacheDashboardAggregates(c)
     return c.json({ data: snapshot.data }, 200)
   })
   // GET / — List products

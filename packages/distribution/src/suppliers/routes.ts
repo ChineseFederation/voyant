@@ -422,12 +422,12 @@ const supplierRoutes = new OpenAPIHono<Env>({ defaultHook: openApiValidationHook
   // GET /aggregates before /{id} so the matcher doesn't swallow it.
   .openapi(getAggregatesRoute, async (c) => {
     const query = c.req.valid("query")
-    cacheDashboardAggregates(c)
     const snapshot = await readThroughAggregateSnapshot(c.get("db"), {
       key: aggregateSnapshotKey("suppliers", "aggregates", query),
       ttlSeconds: DASHBOARD_AGGREGATES_TTL_SECONDS,
       compute: () => suppliersService.getSupplierAggregates(c.get("db"), query),
     })
+    cacheDashboardAggregates(c)
     return c.json({ data: snapshot.data }, 200)
   })
   .openapi(listSuppliersRoute, async (c) =>

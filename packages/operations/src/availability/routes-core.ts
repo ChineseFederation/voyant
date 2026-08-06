@@ -445,12 +445,12 @@ const getOverviewRoute = createRoute({
 const dashboardRoutes = new OpenAPIHono<Env>({ defaultHook: openApiValidationHook })
   .openapi(getAggregatesRoute, async (c) => {
     const query = c.req.valid("query")
-    cacheDashboardAggregates(c)
     const snapshot = await readThroughAggregateSnapshot(c.get("db"), {
       key: aggregateSnapshotKey("availability", "aggregates", query),
       ttlSeconds: DASHBOARD_AGGREGATES_TTL_SECONDS,
       compute: () => availabilityService.getAvailabilityAggregates(c.get("db"), query),
     })
+    cacheDashboardAggregates(c)
     return c.json({ data: snapshot.data }, 200)
   })
   .openapi(getOverviewRoute, async (c) =>

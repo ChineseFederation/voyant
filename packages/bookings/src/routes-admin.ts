@@ -1941,12 +1941,12 @@ const readsRoutes = new OpenAPIHono<Env>({ defaultHook: openApiValidationHook })
   })
   .openapi(aggregatesRoute, async (c) => {
     const query = c.req.valid("query")
-    cacheDashboardAggregates(c)
     const snapshot = await readThroughAggregateSnapshot(c.get("db"), {
       key: aggregateSnapshotKey("bookings", "aggregates", query),
       ttlSeconds: DASHBOARD_AGGREGATES_TTL_SECONDS,
       compute: () => bookingsService.getBookingAggregates(c.get("db"), query),
     })
+    cacheDashboardAggregates(c)
     return c.json({ data: snapshot.data }, 200)
   })
   .openapi(overviewRoute, async (c) => {
