@@ -228,6 +228,53 @@ describe("production Booking Session checkout handoff preference", () => {
   })
 })
 
+describe("production Booking Session settlement", () => {
+  beforeEach(() => {
+    startPaymentAdapterCardPayment.mockClear()
+    getPaymentSessionById.mockClear()
+  })
+
+  it("uses the exact paid Session named by the completion event", async () => {
+    getPaymentSessionById.mockResolvedValue({
+      id: "pmts_paid",
+      targetType: "booking_session",
+      targetId: "bses_01k",
+      status: "paid",
+      amountCents: 10_000,
+      currency: "EUR",
+    })
+
+    await expect(
+      prepare({
+        locale: "en-GB",
+        departureDate: null,
+        settlementPaymentSessionId: "pmts_paid",
+      }),
+    ).resolves.toEqual({ kind: "established", paymentSessionId: "pmts_paid" })
+    expect(getPaymentSessionById).toHaveBeenCalledWith({}, "pmts_paid")
+    expect(startPaymentAdapterCardPayment).not.toHaveBeenCalled()
+  })
+
+  it("rejects a completion event whose payment does not belong to the Session", async () => {
+    getPaymentSessionById.mockResolvedValue({
+      id: "pmts_paid",
+      targetType: "booking_session",
+      targetId: "bses_other",
+      status: "paid",
+      amountCents: 10_000,
+      currency: "EUR",
+    })
+
+    await expect(
+      prepare({
+        locale: "en-GB",
+        departureDate: null,
+        settlementPaymentSessionId: "pmts_paid",
+      }),
+    ).rejects.toThrow("booking_session_settlement_payment_not_established")
+  })
+})
+
 async function prepare(input: {
   locale: string
   departureDate: string | null
@@ -238,6 +285,7 @@ async function prepare(input: {
   acceptedCheckoutHandoffs?: readonly ("redirect" | "embedded")[]
   refreshedCheckout?: Record<string, unknown>
   refreshedRedirectUrl?: string | null
+  settlementPaymentSessionId?: string
 }) {
   if (input.refreshedCheckout !== undefined) {
     // What the adapter persisted, read back by the port exactly as production
@@ -299,7 +347,18 @@ async function prepare(input: {
         ? { payment: { acceptedCheckoutHandoffs: input.acceptedCheckoutHandoffs } }
         : {}),
     },
-    access: { actorKind: input.actorKind ?? "anonymous" },
+    access: {
+      actorKind: input.actorKind ?? "anonymous",
+      ...(input.settlementPaymentSessionId
+        ? {
+            settlementAuthority: {
+              admitted: true,
+              reason: "paid booking session settlement",
+              paymentSessionId: input.settlementPaymentSessionId,
+            },
+          }
+        : {}),
+    },
     now: new Date("2026-08-05T00:00:00Z"),
   } as never)
 }

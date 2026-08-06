@@ -21,6 +21,7 @@ import {
   catalogSearchRuntimePort,
 } from "./api-runtime-ports.js"
 import { catalogBookingSessionMaintenanceJobRuntimePort } from "./booking-session-maintenance-job-runtime-port.js"
+import { catalogBookingSessionSettlementRuntimePort } from "./booking-session-settlement-runtime-port.js"
 import { catalogBookingSnapshotSubscriberDeclaration } from "./booking-snapshot-subscriber-declaration.js"
 import { catalogContentRuntimePort } from "./content-runtime-port.js"
 import { catalogIndexSubscriberDeclarations } from "./index-subscriber-declarations.js"
@@ -97,6 +98,7 @@ export const catalogVoyantModule = defineModule({
       providePort(catalogProjectionRuntimePort),
       providePort(catalogBookingSnapshotRuntimePort),
       providePort(catalogBookingSessionMaintenanceJobRuntimePort),
+      providePort(catalogBookingSessionSettlementRuntimePort),
       providePort(catalogRuntimeServicesPort),
       providePort(catalogReindexJobRuntimePort),
       providePort(catalogSourcesSyncJobRuntimePort),
@@ -110,6 +112,7 @@ export const catalogVoyantModule = defineModule({
     requirePort(catalogProjectionRuntimePort),
     requirePort(catalogBookingSnapshotRuntimePort),
     requirePort(catalogBookingSessionMaintenanceJobRuntimePort),
+    requirePort(catalogBookingSessionSettlementRuntimePort),
     requirePort(catalogReindexJobRuntimePort),
     requirePort(catalogSourcesSyncJobRuntimePort),
   ],

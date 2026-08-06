@@ -189,6 +189,7 @@ export interface BookingSessionRepository {
     sessionId: string,
     idempotencyKey: string,
   ): Promise<BookingCommitInternalRecord | null>
+  getCommitForSession(sessionId: string): Promise<BookingCommitInternalRecord | null>
   saveCommit(record: BookingCommitInternalRecord): Promise<void>
   claimOperation(input: {
     id: string
@@ -463,6 +464,8 @@ export interface BookingSessionAccessContext {
   staffAuthority?: { admitted: true; reason: string }
   /** Additional Finance + Bookings authority for operator booking details. */
   staffBookingAuthority?: { admitted: true; reason: string }
+  /** Trusted settlement subscriber authority; never populated by request transports. */
+  settlementAuthority?: { admitted: true; reason: string; paymentSessionId: string }
 }
 
 export interface BookingSessionModulePorts {
@@ -609,6 +612,10 @@ export interface BookingSessionModule {
     input: CommitBookingSessionV1,
     access: BookingSessionAccessContext,
   ): Promise<BookingSessionOutcomeV1>
+  commitPaidSession(input: {
+    bookingSessionId: string
+    paymentSessionId: string
+  }): Promise<{ bookingId: string }>
   expireDueSessions(
     input: { limit: number },
     access: BookingSessionAccessContext,
@@ -1678,6 +1685,49 @@ export function createBookingSessionModule(
       return { kind: "commit_result", outcome }
     },
 
+    async commitPaidSession({ bookingSessionId, paymentSessionId }) {
+      const existingCommit = await repository.getCommitForSession(bookingSessionId)
+      if (existingCommit) return { bookingId: bookingIdFromCommit(existingCommit) }
+
+      const session = await repository.getSession(bookingSessionId)
+      if (!session) throw new Error("booking_session_settlement_session_not_found")
+      const quotes = await repository.listActiveQuotes(bookingSessionId)
+      if (quotes.length !== 1) {
+        throw new Error(`booking_session_settlement_expected_one_quote:${quotes.length}`)
+      }
+      const quote = quotes[0]!
+      const holds = await repository.listActiveHolds(bookingSessionId)
+      if (holds.length > 1) {
+        throw new Error(`booking_session_settlement_expected_at_most_one_hold:${holds.length}`)
+      }
+
+      const outcome = await bookingSessionModule.commitSession(
+        bookingSessionId,
+        {
+          expectedRevision: session.revision,
+          quoteId: quote.id,
+          requirementsFingerprint: quote.requirementsFingerprint,
+          ...(holds[0] ? { holdId: holds[0].id } : {}),
+          idempotencyKey: `payment-settlement:${paymentSessionId}`,
+        },
+        {
+          actorKind: session.actorKind,
+          settlementAuthority: {
+            admitted: true,
+            reason: "paid booking session settlement",
+            paymentSessionId,
+          },
+        },
+      )
+      const committed = settlementBookingId(outcome)
+      if (committed) return { bookingId: committed }
+
+      // A shopper may win the commit race under another idempotency key.
+      const concurrentCommit = await repository.getCommitForSession(bookingSessionId)
+      if (concurrentCommit) return { bookingId: bookingIdFromCommit(concurrentCommit) }
+      throw new Error(`booking_session_settlement_commit_rejected:${settlementFailure(outcome)}`)
+    },
+
     async expireDueSessions(input, access) {
       if (access.actorKind !== "staff" || !access.staffAuthority?.admitted) {
         throw new Error("booking_session_expiry_sweep_not_authorized")
@@ -2228,6 +2278,27 @@ function replayCommit(commit: BookingCommitInternalRecord): BookingSessionOutcom
   }
 }
 
+function settlementBookingId(outcome: BookingSessionOutcomeV1): string | null {
+  if (outcome.kind !== "commit_result") return null
+  const result =
+    outcome.outcome.kind === "idempotent_replay" ? outcome.outcome.originalOutcome : outcome.outcome
+  if (result.kind === "committed") return result.booking.id
+  if (result.kind === "component_bookings_committed") {
+    return result.bookings[0]?.bookingId ?? null
+  }
+  return null
+}
+
+function bookingIdFromCommit(commit: BookingCommitInternalRecord): string {
+  if (!commit.bookingId) throw new Error("booking_session_settlement_commit_missing_booking")
+  return commit.bookingId
+}
+
+function settlementFailure(outcome: BookingSessionOutcomeV1): string {
+  if (outcome.kind === "rejected") return outcome.error.kind
+  return outcome.kind === "commit_result" ? outcome.outcome.kind : outcome.kind
+}
+
 async function replayConcurrentCommit(
   repository: BookingSessionRepository,
   sessionId: string,
@@ -2442,6 +2513,7 @@ async function authorizeSessionAccess(
   access: BookingSessionAccessContext,
   action: BookingSessionCapabilityActionV1,
 ): Promise<BookingSessionOutcomeV1 | null> {
+  if (access.settlementAuthority?.admitted && action === "commit") return null
   if (access.actorKind === "staff") {
     return access.principalId && access.staffAuthority?.admitted
       ? null
@@ -2507,10 +2579,10 @@ async function appendSessionAudit(
     id: newId("booking_session_audit_events"),
     sessionId: session.id,
     action,
-    actorKind: access.actorKind,
+    actorKind: access.settlementAuthority?.admitted ? "system" : access.actorKind,
     principalId: access.principalId,
     organizationId: access.organizationId,
-    authorityReason: access.staffAuthority?.reason,
+    authorityReason: access.settlementAuthority?.reason ?? access.staffAuthority?.reason,
     metadata,
     createdAt: at,
   })

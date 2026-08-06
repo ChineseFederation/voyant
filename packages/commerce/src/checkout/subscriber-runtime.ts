@@ -3,6 +3,10 @@ import {
   resolveMonthlyBookingLimit,
   selectMonthlyBookingLimit,
 } from "@voyant-travel/bookings"
+import {
+  type CatalogBookingSessionSettlementRuntime,
+  catalogBookingSessionSettlementRuntimePort,
+} from "@voyant-travel/catalog/ports"
 import type { BootstrapContext, EventBus, SubscriberRuntimeDescriptor } from "@voyant-travel/core"
 import { defineGraphRuntimeFactory } from "@voyant-travel/core/project"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
@@ -49,6 +53,7 @@ export interface AcceptanceSignatureSubscriberRuntimeOptions<TBindings = unknown
 export interface CheckoutFinalizeSubscriberRuntimeOptions<TBindings = unknown>
   extends CatalogCheckoutRuntimeDatabase<TBindings> {
   finalize?: typeof finalizeCheckout
+  settleBookingSession?: CatalogBookingSessionSettlementRuntime["commitPaidSession"]
   logger?: Pick<Console, "error">
   /**
    * Per-event monthly booking allowance, for hosts whose plan entitlement
@@ -66,6 +71,8 @@ interface ContractDocumentGeneratedPayload {
 interface PaymentCompletedPayload {
   bookingId: string | null
   paymentSessionId: string
+  targetType?: string
+  targetId?: string | null
   paymentIntent?: "card" | "bank_transfer" | "hold" | "ticket_on_credit"
 }
 
@@ -123,23 +130,35 @@ export function createCheckoutFinalizeSubscriberRuntime<TBindings = unknown>(
       eventBus.subscribe<PaymentCompletedPayload>(
         "payment.completed",
         async ({ data }, context) => {
-          if (!data.bookingId) return
-          const bookingId = data.bookingId
-          // Resolved per event, not at registration: the subscriber outlives
-          // any single tenant plan state.
-          const monthlyBookingLimit = selectMonthlyBookingLimit(
-            options.resolveMonthlyBookingLimit,
-            configuredMonthlyBookingLimit,
-          )
-          const nestedEventBus = (context?.eventBus ?? eventBus) as EventBus
-
+          let bookingId = data.bookingId
           try {
+            if (!bookingId && data.targetType === "booking_session" && data.targetId) {
+              if (!options.settleBookingSession) {
+                throw new Error("Booking Session settlement runtime is not configured")
+              }
+              bookingId = (
+                await options.settleBookingSession({
+                  bookingSessionId: data.targetId,
+                  paymentSessionId: data.paymentSessionId,
+                })
+              ).bookingId
+            }
+            if (!bookingId) return
+            const finalizedBookingId = bookingId
+            // Resolved per event, not at registration: the subscriber outlives
+            // any single tenant plan state.
+            const monthlyBookingLimit = selectMonthlyBookingLimit(
+              options.resolveMonthlyBookingLimit,
+              configuredMonthlyBookingLimit,
+            )
+            const nestedEventBus = (context?.eventBus ?? eventBus) as EventBus
+
             await options.withDb(runtimeBindings, (db) =>
               finalize({
                 db,
                 eventBus: nestedEventBus,
                 input: {
-                  bookingId,
+                  bookingId: finalizedBookingId,
                   paymentSessionId: data.paymentSessionId,
                   paymentIntent: data.paymentIntent,
                 },
@@ -148,7 +167,7 @@ export function createCheckoutFinalizeSubscriberRuntime<TBindings = unknown>(
             )
           } catch (error) {
             logger.error(
-              `[catalog-checkout] checkout finalization failed for booking ${bookingId}`,
+              `[catalog-checkout] checkout finalization failed for booking ${bookingId ?? data.targetId ?? "unknown"}`,
               error,
             )
             throw error
@@ -173,12 +192,14 @@ export const createAcceptanceSignatureSubscriberGraphRuntime = defineGraphRuntim
 export const createCheckoutFinalizeSubscriberGraphRuntime = defineGraphRuntimeFactory(
   async ({ getPort, hostOptions }) => {
     const database = await getPort(catalogCheckoutDatabaseRuntimePort)
+    const settlement = await getPort(catalogBookingSessionSettlementRuntimePort)
     return {
       id: COMMERCE_CHECKOUT_FINALIZE_SUBSCRIBER_ID,
       eventType: "payment.completed",
       register: async (context: BootstrapContext) => {
         const descriptor = createCheckoutFinalizeSubscriberRuntime({
           ...database,
+          settleBookingSession: (input) => settlement.commitPaidSession(input),
           // Finalizing a checkout accepts a booking, so this path draws on the
           // same monthly quota as the booking and finance routes. Before host
           // options existed this factory took none, which left the seam

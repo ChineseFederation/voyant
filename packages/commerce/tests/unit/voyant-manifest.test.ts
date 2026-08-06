@@ -1,4 +1,5 @@
 import {
+  catalogBookingSessionSettlementRuntimePort,
   catalogCommerceRuntimeExtensionPort,
   catalogPublicationRuntimePort,
   catalogRuntimeServicesPort,
@@ -252,6 +253,7 @@ describe("commerce deployment manifest", () => {
         { id: catalogCheckoutApiRuntimePort.id },
         { id: catalogCheckoutDatabaseRuntimePort.id },
         { id: catalogCheckoutLegalRuntimePort.id },
+        { id: catalogBookingSessionSettlementRuntimePort.id },
       ],
       api: [
         {

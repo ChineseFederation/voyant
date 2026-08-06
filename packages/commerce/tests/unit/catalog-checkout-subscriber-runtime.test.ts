@@ -126,6 +126,46 @@ describe("catalog-checkout subscriber runtimes", () => {
     )
   })
 
+  it("commits paid Booking Sessions before finalizing their booking", async () => {
+    const db = {} as PostgresJsDatabase
+    const calls: string[] = []
+    const settleBookingSession = vi.fn(async () => {
+      calls.push("settle")
+      return { bookingId: "booking_settled" }
+    })
+    const finalize = vi.fn(async () => {
+      calls.push("finalize")
+    })
+    const withDb = vi.fn(async (_bindings, operation) => operation(db))
+    const { eventBus, subscriptions } = recordingEventBus()
+    const descriptor = createCheckoutFinalizeSubscriberRuntime({
+      withDb,
+      finalize,
+      settleBookingSession,
+    })
+    await descriptor.register({ bindings: {}, container: createContainer(), eventBus })
+
+    await subscriptions[0]?.handler(
+      event("payment.completed", {
+        bookingId: null,
+        paymentSessionId: "payment_session_1",
+        targetType: "booking_session",
+        targetId: "booking_session_1",
+      }),
+    )
+
+    expect(settleBookingSession).toHaveBeenCalledWith({
+      bookingSessionId: "booking_session_1",
+      paymentSessionId: "payment_session_1",
+    })
+    expect(finalize).toHaveBeenCalledWith(
+      expect.objectContaining({
+        input: expect.objectContaining({ bookingId: "booking_settled" }),
+      }),
+    )
+    expect(calls).toEqual(["settle", "finalize"])
+  })
+
   it("resolves the monthly booking limit per event, not once at registration", async () => {
     let live: number | null | undefined = 10
     const finalize = vi.fn(async () => undefined)

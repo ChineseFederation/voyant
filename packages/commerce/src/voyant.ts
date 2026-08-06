@@ -1,4 +1,5 @@
 import {
+  catalogBookingSessionSettlementRuntimePort,
   catalogCommerceRuntimeExtensionPort,
   catalogPublicationRuntimePort,
   catalogRuntimeServicesPort,
@@ -530,6 +531,7 @@ export const commerceCatalogCheckoutVoyantPlugin = defineExtension({
     requirePort(catalogCheckoutApiRuntimePort),
     requirePort(catalogCheckoutDatabaseRuntimePort),
     requirePort(catalogCheckoutLegalRuntimePort),
+    requirePort(catalogBookingSessionSettlementRuntimePort),
   ],
   api: [
     {

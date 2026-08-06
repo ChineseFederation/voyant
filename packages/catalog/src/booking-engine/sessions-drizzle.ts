@@ -316,6 +316,14 @@ export function createDrizzleBookingSessionRepository(
         .limit(1)
       return row ? mapCommit(row) : null
     },
+    async getCommitForSession(sessionId) {
+      const [row] = await resolveDb()
+        .select()
+        .from(bookingSessionCommitsTable)
+        .where(eq(bookingSessionCommitsTable.sessionId, sessionId))
+        .limit(1)
+      return row ? mapCommit(row) : null
+    },
     async saveCommit(record) {
       await resolveDb().insert(bookingSessionCommitsTable).values({
         id: record.id,

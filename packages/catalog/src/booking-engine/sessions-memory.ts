@@ -116,6 +116,12 @@ export function createInMemoryBookingSessionRepository(): InMemoryBookingSession
       )
       return commit ? cloneCommit(commit) : null
     },
+    async getCommitForSession(sessionId) {
+      const commit = [...repository.commits.values()].find(
+        (record) => record.sessionId === sessionId,
+      )
+      return commit ? cloneCommit(commit) : null
+    },
     async saveCommit(record) {
       repository.commits.set(record.id, cloneCommit(record))
     },

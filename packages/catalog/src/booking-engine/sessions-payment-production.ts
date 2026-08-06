@@ -78,6 +78,24 @@ export function createProductionBookingSessionPaymentPorts(
       )[0]
       if (!dueNow || dueNow.amountCents <= 0) return { kind: "not_required" }
 
+      const settlementPaymentSessionId = access.settlementAuthority?.paymentSessionId
+      if (settlementPaymentSessionId) {
+        const settled = await financeService.getPaymentSessionById(
+          deps.db,
+          settlementPaymentSessionId,
+        )
+        if (
+          settled?.targetType !== "booking_session" ||
+          settled.targetId !== session.id ||
+          settled.amountCents !== dueNow.amountCents ||
+          settled.currency !== dueNow.currency ||
+          (settled.status !== "authorized" && settled.status !== "paid")
+        ) {
+          throw new Error("booking_session_settlement_payment_not_established")
+        }
+        return { kind: "established", paymentSessionId: settled.id }
+      }
+
       const established = await findEstablishedBookingSessionPayment(deps.db, session.id, {
         amountCents: dueNow.amountCents,
         currency: dueNow.currency,

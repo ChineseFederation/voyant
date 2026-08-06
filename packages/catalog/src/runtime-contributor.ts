@@ -55,6 +55,10 @@ import {
   catalogBookingSessionMaintenanceJobRuntimePort,
 } from "./booking-session-maintenance-job-runtime-port.js"
 import {
+  type CatalogBookingSessionSettlementRuntime,
+  catalogBookingSessionSettlementRuntimePort,
+} from "./booking-session-settlement-runtime-port.js"
+import {
   type CatalogReindexCheckpoint,
   type CatalogReindexClaim,
   catalogReindexJobRuntimePort,
@@ -199,6 +203,32 @@ export function createCatalogRuntimePortContribution(
       return services.ensureSourceRegistry(host.primitives.env(bindings))
     },
   }
+  const resolveBookingSessionModule = async () => {
+    const db = host.primitives.database.resolve(undefined) as PostgresJsDatabase
+    const runtime = await contribution
+    const services = await runtime.services
+    const [, , , distribution, , inventory, , settings] = await dependencies
+    return createProductionBookingSessionModule({
+      db,
+      ...(analytics ? { analytics } : {}),
+      repository: createDrizzleBookingSessionRepository(db),
+      resolveOwnedHandlers: () => services.getOwnedHandlers(host.primitives.env(undefined)),
+      resolveSourceRegistry: () => services.ensureSourceRegistry(host.primitives.env(undefined)),
+      resolveCompositeHandler: () => services.getCompositeBookingSessionHandler?.(),
+      payments: {
+        inventory,
+        distribution,
+        settings,
+        async resolvePaymentAdapter() {
+          if (host.hasRuntimePort?.(paymentAdapterRuntimePortReference) !== true) return null
+          return host.getRuntimePort<PaymentAdapter>(paymentAdapterRuntimePortReference)
+        },
+        paymentAdapterContext: {
+          env: host.primitives.env(undefined) as Readonly<Record<string, unknown>>,
+        },
+      },
+    })
+  }
   return {
     [bookingActionSourceRuntimePort.id]:
       catalogBookingActionSource satisfies BookingActionSourceRuntime,
@@ -208,6 +238,11 @@ export function createCatalogRuntimePortContribution(
     [catalogContentRuntimePort.id]: contribution.then((runtime) => runtime.content),
     [catalogProjectionRuntimePort.id]: contribution.then((runtime) => runtime.projection),
     [catalogBookingSnapshotRuntimePort.id]: contribution.then((runtime) => runtime.bookingSnapshot),
+    [catalogBookingSessionSettlementRuntimePort.id]: {
+      async commitPaidSession(input) {
+        return (await resolveBookingSessionModule()).commitPaidSession(input)
+      },
+    } satisfies CatalogBookingSessionSettlementRuntime,
     [catalogRuntimeServicesPort.id]: contribution.then((runtime) => runtime.services),
     [bookingsSupplierAmendmentRuntimePort.id]: createCatalogBookingAmendmentRuntime({
       async resolveRegistry() {
@@ -217,32 +252,8 @@ export function createCatalogRuntimePortContribution(
       },
     }) satisfies BookingsSupplierAmendmentRuntime,
     [catalogBookingSessionMaintenanceJobRuntimePort.id]: {
-      async resolveModule() {
-        const db = host.primitives.database.resolve(undefined) as PostgresJsDatabase
-        const runtime = await contribution
-        const services = await runtime.services
-        const [, , , distribution, , inventory, , settings] = await dependencies
-        return createProductionBookingSessionModule({
-          db,
-          ...(analytics ? { analytics } : {}),
-          repository: createDrizzleBookingSessionRepository(db),
-          resolveOwnedHandlers: () => services.getOwnedHandlers(host.primitives.env(undefined)),
-          resolveSourceRegistry: () =>
-            services.ensureSourceRegistry(host.primitives.env(undefined)),
-          resolveCompositeHandler: () => services.getCompositeBookingSessionHandler?.(),
-          payments: {
-            inventory,
-            distribution,
-            settings,
-            async resolvePaymentAdapter() {
-              if (host.hasRuntimePort?.(paymentAdapterRuntimePortReference) !== true) return null
-              return host.getRuntimePort<PaymentAdapter>(paymentAdapterRuntimePortReference)
-            },
-            paymentAdapterContext: {
-              env: host.primitives.env(undefined) as Readonly<Record<string, unknown>>,
-            },
-          },
-        })
+      resolveModule() {
+        return resolveBookingSessionModule()
       },
       resolveRetentionMs: () => resolveBookingSessionRetentionMs(host.primitives.env(undefined)),
       reportFailure(error, details) {

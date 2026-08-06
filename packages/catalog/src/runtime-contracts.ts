@@ -7,6 +7,12 @@ import type {
   IndexerSlice,
 } from "@voyant-travel/catalog-contracts/indexer/contract"
 import { definePort } from "@voyant-travel/core/project"
+
+export {
+  type CatalogBookingSessionSettlementRuntime,
+  catalogBookingSessionSettlementRuntimePort,
+} from "./booking-session-settlement-runtime-port.js"
+
 import type { AnyDrizzleDb } from "@voyant-travel/db"
 import type { PaymentPolicy } from "@voyant-travel/finance"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"

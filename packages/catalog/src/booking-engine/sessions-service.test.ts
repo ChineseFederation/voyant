@@ -198,6 +198,67 @@ describe("Booking Session v1 owned tracer", () => {
     ])
   })
 
+  it("commits a paid Session without the shopper capability and converges retries", async () => {
+    const payment = createPaymentHarness()
+    payment.established = true
+    const harness = createHarness({}, payment.ports)
+    const { session } = await createQuoteAndHold(harness)
+
+    const first = await harness.module.commitPaidSession({
+      bookingSessionId: session.id,
+      paymentSessionId: "payment_session_1",
+    })
+    const retry = await harness.module.commitPaidSession({
+      bookingSessionId: session.id,
+      paymentSessionId: "payment_session_1",
+    })
+
+    expect(retry).toEqual(first)
+    expect(harness.inventory.bookingIds).toEqual([first.bookingId])
+    expect(payment.transfers).toEqual([
+      expect.objectContaining({
+        paymentSessionId: "payment_session_1",
+        bookingSessionId: session.id,
+        bookingId: first.bookingId,
+      }),
+    ])
+    expect(
+      [...harness.repository.auditEvents.values()].find((event) => event.action === "commit"),
+    ).toMatchObject({
+      actorKind: "system",
+      authorityReason: "paid booking session settlement",
+    })
+  })
+
+  it("converges a settlement commit racing the returning shopper", async () => {
+    const payment = createPaymentHarness()
+    payment.established = true
+    const harness = createHarness({}, payment.ports)
+    const { session, quote, hold } = await createQuoteAndHold(harness)
+
+    const [settled] = await Promise.all([
+      harness.module.commitPaidSession({
+        bookingSessionId: session.id,
+        paymentSessionId: "payment_session_1",
+      }),
+      harness.module.commitSession(
+        session.id,
+        {
+          expectedRevision: session.revision,
+          quoteId: quote.id,
+          requirementsFingerprint: quote.requirementsFingerprint,
+          holdId: hold.id,
+          idempotencyKey: "returning_shopper_commit",
+        },
+        ANONYMOUS_ACCESS,
+      ),
+    ])
+
+    expect(harness.inventory.bookingIds).toEqual([settled.bookingId])
+    expect(harness.repository.commits.size).toBe(1)
+    expect(payment.transfers).toHaveLength(1)
+  })
+
   it("returns a typed conflict when a reused Commit key maps to a changed payment requirement", async () => {
     const payment = createPaymentHarness()
     payment.ports.prepare = async () => {

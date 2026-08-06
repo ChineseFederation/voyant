@@ -25,6 +25,7 @@ describe("catalog deployment manifest", () => {
           { id: "catalog.projection-runtime" },
           { id: "catalog.booking-snapshot-runtime" },
           { id: "catalog.booking-session-maintenance-job" },
+          { id: "catalog.booking-session-settlement-runtime" },
           { id: "catalog.runtime-services" },
           { id: "catalog.reindex-products-job" },
           { id: "catalog.sources-sync-job" },
@@ -112,6 +113,7 @@ describe("catalog deployment manifest", () => {
       { id: "catalog.projection-runtime" },
       { id: "catalog.booking-snapshot-runtime" },
       { id: "catalog.booking-session-maintenance-job" },
+      { id: "catalog.booking-session-settlement-runtime" },
       { id: "catalog.reindex-products-job" },
       { id: "catalog.sources-sync-job" },
     ])
