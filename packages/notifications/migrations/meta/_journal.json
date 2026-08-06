@@ -29,6 +29,13 @@
       "when": 1784901600000,
       "tag": "0003_strict_durable_notification_admission",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1785953250301,
+      "tag": "0004_staff_alert_preferences",
+      "breakpoints": true
     }
   ]
 }

@@ -50,6 +50,8 @@ export interface CreateNotificationsAdminExtensionOptions {
     reminderRuns?: string
     preview?: string
     settings?: string
+    staffAlerts?: string
+    myNotifications?: string
   }
 }
 
@@ -89,6 +91,8 @@ export function createNotificationsAdminExtension(
     reminderRuns = "Reminder Runs",
     preview = "Preview",
     settings = "Settings",
+    staffAlerts = "Staff alerts",
+    myNotifications = "My notifications",
   } = labels
 
   return defineAdminExtension({
@@ -177,6 +181,24 @@ export function createNotificationsAdminExtension(
             adminRoutePageModule(module.NotificationSettingsHost),
           ),
       },
+      {
+        id: "notifications-staff-alerts",
+        path: `${basePath}/staff-alerts`,
+        title: staffAlerts,
+        page: () =>
+          import("./staff-alerts-host.js").then((module) =>
+            adminRoutePageModule(module.StaffAlertsHost),
+          ),
+      },
+      {
+        id: "notifications-my-notifications",
+        path: `${basePath}/my-notifications`,
+        title: myNotifications,
+        page: () =>
+          import("./my-notifications-host.js").then((module) =>
+            adminRoutePageModule(module.MyNotificationsHost),
+          ),
+      },
     ],
   })
 }
@@ -192,6 +214,8 @@ export function createSelectedNotificationsAdminExtension({
     reminderRuns: navMessages.notificationReminderRuns ?? "Reminder runs",
     preview: navMessages.notificationPreview ?? "Preview",
     settings: navMessages.notificationSettings ?? "Settings",
+    staffAlerts: navMessages.notificationStaffAlerts ?? "Staff alerts",
+    myNotifications: navMessages.notificationMyNotifications ?? "My notifications",
   }
   const extension = withAdminRouteMessagesProvider(
     createNotificationsAdminExtension({
@@ -244,6 +268,16 @@ export function createSelectedNotificationsAdminExtension({
                 id: "notification-settings",
                 title: labels.settings,
                 url: "/notifications/settings",
+              },
+              {
+                id: "notification-staff-alerts",
+                title: labels.staffAlerts,
+                url: "/notifications/staff-alerts",
+              },
+              {
+                id: "notification-my-notifications",
+                title: labels.myNotifications,
+                url: "/notifications/my-notifications",
               },
             ],
           },

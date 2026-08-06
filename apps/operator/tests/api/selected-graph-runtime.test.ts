@@ -254,17 +254,29 @@ describe("selected Operator graph runtime composition", () => {
 
     expect(subscriberExtension?.extension.bootstrap).toBeTypeOf("function")
     expect(container.has(NOTIFICATIONS_SUBSCRIBER_RUNTIME_KEY)).toBe(true)
+    // The extension activates both subscriber families: the reminder
+    // subscribers that mail the customer, then the staff alerts that mail the
+    // operator's team. They share event types but never a recipient.
     expect(subscribe.mock.calls.map(([eventType]) => eventType)).toEqual([
       "booking.cancelled",
       "booking.confirmed",
       "payment.completed",
+      "booking.cancelled",
+      "booking.confirmed",
+      "contract.signed",
+      "customer.signal.created",
+      "invoice.settled",
+      "payment.completed",
     ])
+    // Confirmation priority is unchanged by the staff alerts: the reminder
+    // subscriber for `booking.confirmed` still registers before any staff one,
+    // so the customer's confirmation is queued first.
     expect(
       subscribe.mock.calls
         .map(([eventType], index) => ({ eventType, index }))
         .filter(({ eventType }) => eventType === "booking.confirmed")
         .map(({ index }) => index),
-    ).toEqual([1])
+    ).toEqual([1, 4])
   })
 
   it("activates the Trips payment subscriber and its runtime service", async () => {

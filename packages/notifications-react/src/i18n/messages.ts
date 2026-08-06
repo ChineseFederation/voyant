@@ -382,4 +382,68 @@ export type NotificationsUiMessages = {
       description: string
     }
   }
+  staffAlerts: {
+    heading: string
+    description: string
+    myHeading: string
+    myDescription: string
+    groups: {
+      bookings: string
+      finance: string
+      sales: string
+      legal: string
+    }
+    alerts: Record<string, { title: string; description: string }>
+    columns: {
+      alert: string
+      routing: string
+      status: string
+    }
+    routing: {
+      assignee: string
+      assigneeDesc: string
+      assigneeUnavailable: string
+      roles: string
+      rolesDesc: string
+      extraAddresses: string
+      extraAddressesDesc: string
+      addAddress: string
+      removeAddress: string
+      dialogDescription: string
+      addressPlaceholder: string
+      noRecipients: string
+    }
+    roles: {
+      owner: string
+      admin: string
+      member: string
+    }
+    actions: {
+      sendTest: string
+      configure: string
+      done: string
+      sending: string
+      save: string
+      saving: string
+    }
+    test: {
+      sent: string
+      failed: string
+      notWired: string
+      noEmail: string
+    }
+    state: {
+      on: string
+      off: string
+      inherited: string
+      inheritedOn: string
+      inheritedOff: string
+      overridden: string
+      resetToDefault: string
+      disabledByAdmin: string
+      disabledByAdminDesc: string
+    }
+    empty: string
+    loading: string
+  }
 }

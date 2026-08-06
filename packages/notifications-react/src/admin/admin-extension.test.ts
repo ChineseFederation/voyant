@@ -31,6 +31,8 @@ describe("createNotificationsAdminExtension", () => {
         notificationReminderRuns: "Rulari",
         notificationPreview: "Previzualizare",
         notificationSettings: "Setari",
+        notificationStaffAlerts: "Alerte echipa",
+        notificationMyNotifications: "Notificarile mele",
       },
     })
     expect(selected.navigation?.[0]).toMatchObject({
@@ -55,6 +57,16 @@ describe("createNotificationsAdminExtension", () => {
             },
             { id: "notification-preview", title: "Previzualizare", url: "/notifications/preview" },
             { id: "notification-settings", title: "Setari", url: "/notifications/settings" },
+            {
+              id: "notification-staff-alerts",
+              title: "Alerte echipa",
+              url: "/notifications/staff-alerts",
+            },
+            {
+              id: "notification-my-notifications",
+              title: "Notificarile mele",
+              url: "/notifications/my-notifications",
+            },
           ],
         },
       ],
@@ -73,6 +85,8 @@ describe("createNotificationsAdminExtension", () => {
         { title: "Reminder runs" },
         { title: "Preview" },
         { title: "Settings" },
+        { title: "Staff alerts" },
+        { title: "My notifications" },
       ],
     })
   })
@@ -80,7 +94,7 @@ describe("createNotificationsAdminExtension", () => {
   it("describes the notifications routes with unique ids and paths", () => {
     const extension = createNotificationsAdminExtension()
     const routes = extension.routes ?? []
-    expect(routes).toHaveLength(9)
+    expect(routes).toHaveLength(11)
     expect(new Set(routes.map((route) => route.id)).size).toBe(routes.length)
     expect(routes.map((route) => route.path)).toEqual([
       "/notifications",
@@ -92,6 +106,8 @@ describe("createNotificationsAdminExtension", () => {
       "/notifications/reminder-runs",
       "/notifications/preview",
       "/notifications/settings",
+      "/notifications/staff-alerts",
+      "/notifications/my-notifications",
     ])
   })
 
@@ -127,7 +143,7 @@ describe("createNotificationsAdminExtension", () => {
     // carry a lazy `page` module loader and nothing else.
     const extension = createNotificationsAdminExtension()
     const routes = (extension.routes ?? []).filter((route) => !route.redirectTo)
-    expect(routes).toHaveLength(8)
+    expect(routes).toHaveLength(10)
     for (const route of routes) {
       expect(route.component).toBeUndefined()
       expect(typeof route.page).toBe("function")

@@ -16,9 +16,11 @@
     "./runtime-port": "./src/runtime-port.ts",
     "./durable-provider-port": "./src/durable-provider-port.ts",
     "./subscriber-runtime": "./src/subscriber-runtime.ts",
+    "./staff-alert-subscriber": "./src/staff-alert-subscriber.ts",
     "./tools": "./src/mcp-runtime.ts",
     "./runtime-contributor": "./src/runtime-contributor.ts",
     "./voyant": "./src/voyant.ts",
+    "./emails": "./src/emails/index.ts",
     "./openapi/admin": "./openapi/admin/notifications.json"
   },
   "scripts": {
@@ -32,23 +34,29 @@
   },
   "dependencies": {
     "@hono/zod-openapi": "catalog:",
+    "@react-email/components": "^0.5.7",
+    "@react-email/render": "^1.4.0",
     "@voyant-travel/action-ledger": "workspace:^",
     "@voyant-travel/bookings": "workspace:^",
     "@voyant-travel/core": "workspace:^",
     "@voyant-travel/db": "workspace:^",
-    "@voyant-travel/types": "workspace:^",
     "@voyant-travel/finance": "workspace:^",
     "@voyant-travel/hono": "workspace:^",
-    "@voyant-travel/storefront": "workspace:^",
     "@voyant-travel/legal": "workspace:^",
+    "@voyant-travel/operator-settings": "workspace:^",
     "@voyant-travel/proposals": "workspace:^",
+    "@voyant-travel/relationships": "workspace:^",
+    "@voyant-travel/storefront": "workspace:^",
+    "@voyant-travel/tools": "workspace:^",
+    "@voyant-travel/types": "workspace:^",
     "drizzle-orm": "catalog:",
     "hono": "catalog:",
     "liquidjs": "^10.27.1",
-    "zod": "catalog:",
-    "@voyant-travel/tools": "workspace:^"
+    "react": "^19.2.7",
+    "zod": "catalog:"
   },
   "devDependencies": {
+    "@types/react": "^19.2.17",
     "@voyant-travel/voyant-typescript-config": "workspace:^",
     "drizzle-kit": "^0.31.10",
     "typescript": "catalog:",
@@ -123,6 +131,11 @@
         "import": "./dist/subscriber-runtime.js",
         "default": "./dist/subscriber-runtime.js"
       },
+      "./staff-alert-subscriber": {
+        "types": "./dist/staff-alert-subscriber.d.ts",
+        "import": "./dist/staff-alert-subscriber.js",
+        "default": "./dist/staff-alert-subscriber.js"
+      },
       "./tools": {
         "types": "./dist/mcp-runtime.d.ts",
         "import": "./dist/mcp-runtime.js",
@@ -137,6 +150,11 @@
         "types": "./dist/voyant.d.ts",
         "import": "./dist/voyant.js",
         "default": "./dist/voyant.js"
+      },
+      "./emails": {
+        "types": "./dist/emails/index.d.ts",
+        "import": "./dist/emails/index.js",
+        "default": "./dist/emails/index.js"
       },
       "./openapi/admin": "./openapi/admin/notifications.json"
     },

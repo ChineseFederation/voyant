@@ -12,6 +12,7 @@
     "./checkout-routes": "./src/checkout-routes.ts",
     "./checkout-validation": "./src/checkout-validation.ts",
     "./invoice-fx": "./src/invoice-fx.ts",
+    "./service-invoice-core": "./src/service-invoice-core.ts",
     "./reporting": "./src/reporting.ts",
     "./order-payment-sessions": "./src/order-payment-sessions.ts",
     "./payment-policy": "./src/payment-policy.ts",
@@ -126,6 +127,11 @@
         "types": "./dist/invoice-fx.d.ts",
         "import": "./dist/invoice-fx.js",
         "default": "./dist/invoice-fx.js"
+      },
+      "./service-invoice-core": {
+        "types": "./dist/service-invoice-core.d.ts",
+        "import": "./dist/service-invoice-core.js",
+        "default": "./dist/service-invoice-core.js"
       },
       "./reporting": {
         "types": "./dist/reporting.d.ts",

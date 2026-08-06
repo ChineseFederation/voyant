@@ -1015,6 +1015,7 @@
       "@voyant-travel/finance/self-service-booking-source": [
         "../finance/dist/self-service-booking-source.d.ts"
       ],
+      "@voyant-travel/finance/service-invoice-core": ["../finance/dist/service-invoice-core.d.ts"],
       "@voyant-travel/finance/setup/travel-credits": [
         "../finance/dist/service-travel-credits-migration.d.ts"
       ],
@@ -1421,6 +1422,7 @@
       "@voyant-travel/notifications/durable-provider-port": [
         "../notifications/dist/durable-provider-port.d.ts"
       ],
+      "@voyant-travel/notifications/emails": ["../notifications/dist/emails/index.d.ts"],
       "@voyant-travel/notifications/job-runtime": ["../notifications/dist/job-runtime.d.ts"],
       "@voyant-travel/notifications/reminder-job": ["../notifications/dist/reminder-job.d.ts"],
       "@voyant-travel/notifications/routes": ["../notifications/dist/routes.d.ts"],
@@ -1429,6 +1431,9 @@
       ],
       "@voyant-travel/notifications/runtime-port": ["../notifications/dist/runtime-port.d.ts"],
       "@voyant-travel/notifications/schema": ["../notifications/dist/schema.d.ts"],
+      "@voyant-travel/notifications/staff-alert-subscriber": [
+        "../notifications/dist/staff-alert-subscriber.d.ts"
+      ],
       "@voyant-travel/notifications/subscriber-runtime": [
         "../notifications/dist/subscriber-runtime.d.ts"
       ],

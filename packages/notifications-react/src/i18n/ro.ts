@@ -398,4 +398,96 @@ export const notificationsUiRo: NotificationsUiMessages = {
         "Folosește variabile precum {{ booking.reference }} pentru a personaliza mesajele tale.",
     },
   },
+  staffAlerts: {
+    heading: "Alerte pentru echipă",
+    description:
+      "Trimite un email echipei când se întâmplă ceva ce necesită acțiune. Fiecare persoană le poate dezactiva pentru sine.",
+    myHeading: "Notificările mele",
+    myDescription: "Alege ce alerte primești. Alegerile tale se aplică doar ție.",
+    groups: {
+      bookings: "Rezervări",
+      finance: "Financiar",
+      sales: "Vânzări",
+      legal: "Contracte",
+    },
+    alerts: {
+      "staff.booking.confirmed": {
+        title: "Rezervare confirmată",
+        description: "O rezervare a trecut în starea confirmată și poate fi operată.",
+      },
+      "staff.booking.cancelled": {
+        title: "Rezervare anulată",
+        description:
+          "O rezervare a fost anulată — poate fi nevoie să eliberezi rezervările la furnizori.",
+      },
+      "staff.payment.completed": {
+        title: "Plată încasată",
+        description: "O plată a clientului a fost procesată cu succes.",
+      },
+      "staff.invoice.settled": {
+        title: "Factură achitată",
+        description: "O factură a fost achitată integral și nu mai necesită urmărire.",
+      },
+      "staff.contract.signed": {
+        title: "Contract semnat",
+        description: "Un client a finalizat semnarea contractului.",
+      },
+      "staff.customer-signal.created": {
+        title: "Cerere nouă",
+        description: "Cineva a întrebat despre o călătorie și așteaptă un prim răspuns.",
+      },
+    },
+    columns: {
+      alert: "Alertă",
+      routing: "Cine o primește",
+      status: "Stare",
+    },
+    routing: {
+      assignee: "Responsabil alocat",
+      assigneeDesc: "Persoana căreia îi este alocată această înregistrare.",
+      assigneeUnavailable:
+        "Rutarea către responsabil nu este încă disponibilă pentru această alertă.",
+      roles: "Roluri",
+      rolesDesc: "Toți cei care au unul dintre aceste roluri.",
+      extraAddresses: "Alte adrese",
+      extraAddressesDesc: "Căsuțe partajate precum ops@ sau contabilitate@.",
+      addAddress: "Adaugă adresă",
+      removeAddress: "Elimină",
+      dialogDescription: "Alege cine primește această alertă.",
+      addressPlaceholder: "ops@example.com",
+      noRecipients: "Nimeni nu va primi această alertă. Alege cel puțin un destinatar.",
+    },
+    roles: {
+      owner: "Proprietar",
+      admin: "Administrator",
+      member: "Membru",
+    },
+    actions: {
+      sendTest: "Trimite test",
+      configure: "Configurează",
+      done: "Gata",
+      sending: "Se trimite…",
+      save: "Salvează",
+      saving: "Se salvează…",
+    },
+    test: {
+      sent: "Test trimis către {recipient}.",
+      failed: "Testul nu a putut fi trimis: {reason}",
+      notWired: "Alertele pentru echipă nu sunt încă configurate pe această instalare.",
+      noEmail: "Contul tău nu are o adresă de email.",
+    },
+    state: {
+      on: "Activ",
+      off: "Inactiv",
+      inherited: "Urmează setarea implicită",
+      inheritedOn: "Activ implicit",
+      inheritedOff: "Inactiv implicit",
+      overridden: "Alegerea ta",
+      resetToDefault: "Urmează setarea implicită",
+      disabledByAdmin: "Dezactivat pentru toți",
+      disabledByAdminDesc: "Un administrator a dezactivat această alertă pentru toată echipa.",
+    },
+    empty: "Nu există alerte pentru echipă.",
+    loading: "Se încarcă alertele…",
+  },
 }

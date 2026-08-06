@@ -50,6 +50,8 @@ export const PREFIXES = {
   notification_reminder_rule_stages: "ntrs",
   notification_reminder_stage_channels: "ntsc",
   notification_settings: "nset",
+  staff_alert_settings: "sals",
+  staff_alert_preferences: "salp",
   person_notes: "pnot",
   organization_notes: "onot",
   segments: "seg",

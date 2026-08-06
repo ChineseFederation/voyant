@@ -434,6 +434,64 @@ export const notificationsReminderSubscribersVoyantPlugin = defineExtension({
         export: "notificationsBookingCancelledReminderSubscriber",
       },
     },
+    // Staff alerts. Distinct from the reminder subscribers above: those mail
+    // the CUSTOMER from operator-authored Liquid templates, these mail STAFF
+    // from code-owned React Email templates. They share an event but never a
+    // recipient, so both subscribe independently.
+    {
+      id: "@voyant-travel/notifications#subscriber.staff.booking.confirmed",
+      eventType: "booking.confirmed",
+      source: "@voyant-travel/notifications/staff-alert-subscriber",
+      runtime: {
+        entry: "@voyant-travel/notifications/staff-alert-subscriber",
+        export: "notificationsStaffBookingConfirmedAlertSubscriber",
+      },
+    },
+    {
+      id: "@voyant-travel/notifications#subscriber.staff.booking.cancelled",
+      eventType: "booking.cancelled",
+      source: "@voyant-travel/notifications/staff-alert-subscriber",
+      runtime: {
+        entry: "@voyant-travel/notifications/staff-alert-subscriber",
+        export: "notificationsStaffBookingCancelledAlertSubscriber",
+      },
+    },
+    {
+      id: "@voyant-travel/notifications#subscriber.staff.payment.completed",
+      eventType: "payment.completed",
+      source: "@voyant-travel/notifications/staff-alert-subscriber",
+      runtime: {
+        entry: "@voyant-travel/notifications/staff-alert-subscriber",
+        export: "notificationsStaffPaymentCompletedAlertSubscriber",
+      },
+    },
+    {
+      id: "@voyant-travel/notifications#subscriber.staff.invoice.settled",
+      eventType: "invoice.settled",
+      source: "@voyant-travel/notifications/staff-alert-subscriber",
+      runtime: {
+        entry: "@voyant-travel/notifications/staff-alert-subscriber",
+        export: "notificationsStaffInvoiceSettledAlertSubscriber",
+      },
+    },
+    {
+      id: "@voyant-travel/notifications#subscriber.staff.contract.signed",
+      eventType: "contract.signed",
+      source: "@voyant-travel/notifications/staff-alert-subscriber",
+      runtime: {
+        entry: "@voyant-travel/notifications/staff-alert-subscriber",
+        export: "notificationsStaffContractSignedAlertSubscriber",
+      },
+    },
+    {
+      id: "@voyant-travel/notifications#subscriber.staff.customer-signal.created",
+      eventType: "customer.signal.created",
+      source: "@voyant-travel/notifications/staff-alert-subscriber",
+      runtime: {
+        entry: "@voyant-travel/notifications/staff-alert-subscriber",
+        export: "notificationsStaffCustomerSignalCreatedAlertSubscriber",
+      },
+    },
   ],
   meta: {
     ownership: "package",

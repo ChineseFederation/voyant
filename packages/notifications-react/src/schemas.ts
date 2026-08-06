@@ -220,3 +220,43 @@ export const reminderStageChannelsListResponse = singleEnvelope(
 export const reminderStageChannelSingleResponse = singleEnvelope(reminderStageChannelRecordSchema)
 export const notificationSettingsResponse = singleEnvelope(notificationSettingsRecordSchema)
 export const remindersPreviewResponse = singleEnvelope(z.array(remindersPreviewRowSchema))
+
+// --- staff alerts ------------------------------------------------------------
+
+export const staffAlertSettingRecordSchema = z.object({
+  eventKey: z.string(),
+  eventType: z.string(),
+  group: z.string(),
+  enabled: z.boolean(),
+  routeToAssignee: z.boolean(),
+  supportsAssigneeRouting: z.boolean(),
+  routeToRoles: z.array(z.string()),
+  extraAddresses: z.array(z.string()),
+  configured: z.boolean(),
+})
+
+export const staffAlertPreferenceRecordSchema = z.object({
+  eventKey: z.string(),
+  eventType: z.string(),
+  group: z.string(),
+  enabled: z.boolean(),
+  deploymentEnabled: z.boolean(),
+  override: z.boolean().nullable(),
+})
+
+export const staffAlertTestResultRecordSchema = z.object({
+  sent: z.boolean(),
+  recipient: z.string().nullable(),
+  reason: z.string().nullable(),
+})
+
+export const staffAlertSettingsResponse = singleEnvelope(z.array(staffAlertSettingRecordSchema))
+export const staffAlertSettingResponse = singleEnvelope(staffAlertSettingRecordSchema)
+export const staffAlertPreferencesResponse = singleEnvelope(
+  z.array(staffAlertPreferenceRecordSchema),
+)
+export const staffAlertTestResponse = singleEnvelope(staffAlertTestResultRecordSchema)
+
+export type StaffAlertSettingRecord = z.infer<typeof staffAlertSettingRecordSchema>
+export type StaffAlertPreferenceRecord = z.infer<typeof staffAlertPreferenceRecordSchema>
+export type StaffAlertTestResultRecord = z.infer<typeof staffAlertTestResultRecordSchema>

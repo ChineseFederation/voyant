@@ -428,6 +428,76 @@ export type NotificationSettings = typeof notificationSettings.$inferSelect
 export type NewNotificationSettings = typeof notificationSettings.$inferInsert
 
 /**
+ * Which staff roles a staff alert fans out to. Role slugs are resolved against
+ * the deployment's access catalog at send time rather than constrained here —
+ * the catalog is deployment data, so a `pgEnum` would freeze it.
+ */
+export type StaffAlertRoleRouting = string[]
+
+/**
+ * Deployment-wide default for one staff alert, keyed by the domain event it
+ * fires on. Admin-owned: it decides whether an alert exists on this deployment
+ * at all and who it reaches.
+ *
+ * `eventKey` is `text` rather than a `pgEnum` on purpose — a new alert type is
+ * then a registry entry plus a template, with no migration. The registry in
+ * `staff-alert-registry.ts` is the authority on which keys mean anything.
+ */
+export const staffAlertSettings = pgTable(
+  "staff_alert_settings",
+  {
+    id: typeId("staff_alert_settings"),
+    eventKey: text("event_key").notNull(),
+    enabled: boolean("enabled").notNull().default(false),
+    /** Route to the record's assigned staff member, where the owning module has one. */
+    routeToAssignee: boolean("route_to_assignee").notNull().default(true),
+    /** Staff role slugs that receive this alert. */
+    routeToRoles: jsonb("route_to_roles").$type<StaffAlertRoleRouting>().notNull().default([]),
+    /** Additional literal addresses (shared mailboxes such as `ops@`). */
+    extraAddresses: jsonb("extra_addresses").$type<string[]>().notNull().default([]),
+    metadata: jsonb("metadata").$type<Record<string, unknown>>(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex("uidx_staff_alert_settings_event_key").on(table.eventKey)],
+)
+
+export type StaffAlertSettings = typeof staffAlertSettings.$inferSelect
+export type NewStaffAlertSettings = typeof staffAlertSettings.$inferInsert
+
+/**
+ * One staff user's override of a deployment default.
+ *
+ * ABSENCE MEANS INHERIT, never "off". A staff user who has never opened the
+ * preferences page has no rows here and receives everything the deployment
+ * enables — which is what makes a new hire reachable on their first day.
+ * Storing a materialized copy of the default instead would silently freeze
+ * each user at the defaults in force when their account was created.
+ *
+ * `userId` is a Better Auth user id (`user.id` in `@voyant-travel/db/schema/iam`),
+ * deliberately not an FK: the auth tables are foundation-owned and a deployment
+ * may run either the local or the Voyant Cloud realm.
+ */
+export const staffAlertPreferences = pgTable(
+  "staff_alert_preferences",
+  {
+    id: typeId("staff_alert_preferences"),
+    userId: text("user_id").notNull(),
+    eventKey: text("event_key").notNull(),
+    enabled: boolean("enabled").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("uidx_staff_alert_preferences_user_event").on(table.userId, table.eventKey),
+    index("idx_staff_alert_preferences_event").on(table.eventKey),
+  ],
+)
+
+export type StaffAlertPreference = typeof staffAlertPreferences.$inferSelect
+export type NewStaffAlertPreference = typeof staffAlertPreferences.$inferInsert
+
+/**
  * Dedup ledger for composite reminder-rule authoring. A compose request creates
  * several rows, so retried calls need a stable way to return the original rule
  * instead of building a second graph.
@@ -559,6 +629,20 @@ export const notificationSettingsLinkable: LinkableDefinition = {
   idPrefix: "nset",
 }
 
+export const staffAlertSettingsLinkable: LinkableDefinition = {
+  module: "notifications",
+  entity: "staffAlertSettings",
+  table: "staff_alert_settings",
+  idPrefix: "sals",
+}
+
+export const staffAlertPreferenceLinkable: LinkableDefinition = {
+  module: "notifications",
+  entity: "staffAlertPreference",
+  table: "staff_alert_preferences",
+  idPrefix: "salp",
+}
+
 export const notificationsLinkable = {
   notificationTemplate: notificationTemplateLinkable,
   notificationDelivery: notificationDeliveryLinkable,
@@ -567,6 +651,8 @@ export const notificationsLinkable = {
   notificationReminderRuleStage: notificationReminderRuleStageLinkable,
   notificationReminderStageChannel: notificationReminderStageChannelLinkable,
   notificationSettings: notificationSettingsLinkable,
+  staffAlertSettings: staffAlertSettingsLinkable,
+  staffAlertPreference: staffAlertPreferenceLinkable,
 }
 
 export const notificationsModule: Module = {

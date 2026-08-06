@@ -61,6 +61,16 @@ export interface NotificationEnqueueRequest {
   idempotencyKey: string
   templateId?: string | null
   templateSlug?: string | null
+  /**
+   * Ledger label for a send whose template lives in CODE, not in
+   * `notification_templates` — staff alerts, which are React Email components.
+   *
+   * Distinct from `templateSlug` on purpose: that field names a row that must
+   * exist, and passing an unknown slug is an error worth failing on. A code
+   * template has no row to find, so recording its name must not trigger the
+   * lookup. Body and subject are pre-rendered by the caller either way.
+   */
+  templateLabel?: string | null
   channel?: (typeof notificationChannelEnum.enumValues)[number]
   provider?: string | null
   to: string
@@ -436,7 +446,7 @@ export async function enqueueNotification({
       .insert(notificationDeliveries)
       .values({
         templateId: template?.id ?? null,
-        templateSlug: template?.slug ?? input.templateSlug ?? null,
+        templateSlug: template?.slug ?? input.templateSlug ?? input.templateLabel ?? null,
         targetType: input.targetType,
         targetId: input.targetId ?? null,
         personId: input.personId ?? null,

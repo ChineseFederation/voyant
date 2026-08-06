@@ -23,6 +23,22 @@ import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import { notificationDeliverySchema } from "./response-schemas.js"
 import { createNotificationService, notificationsService } from "./service.js"
 import type { BookingDocumentAttachmentResolver } from "./service-booking-documents.js"
+import {
+  STAFF_ALERT_RUNTIME_KEY,
+  type StaffAlertRuntime,
+  sendStaffAlertTest,
+} from "./service-staff-alert-dispatch.js"
+import {
+  clearStaffAlertPreference,
+  listStaffAlertPreferences,
+  listStaffAlertSettings,
+  type ResolvedStaffAlertSetting,
+  StaffAlertError,
+  type StaffAlertPreferenceView,
+  upsertStaffAlertPreference,
+  upsertStaffAlertSetting,
+} from "./service-staff-alerts.js"
+import type { StaffAlertEventKey } from "./staff-alert-registry.js"
 import type { NotificationProvider } from "./types.js"
 import {
   bookingDocumentBundleSchema,
@@ -55,11 +71,17 @@ import {
   sendBookingDocumentsNotificationSchema,
   sendInvoiceNotificationSchema,
   sendPaymentSessionNotificationSchema,
+  staffAlertEventKeyParamSchema,
+  staffAlertPreferenceSchema,
+  staffAlertSettingSchema,
+  staffAlertTestResultSchema,
   updateNotificationReminderRuleSchema,
   updateNotificationReminderRuleStageSchema,
   updateNotificationReminderStageChannelSchema,
   updateNotificationSettingsSchema,
   updateNotificationTemplateSchema,
+  updateStaffAlertPreferenceSchema,
+  updateStaffAlertSettingSchema,
 } from "./validation.js"
 
 type Env = {
@@ -1293,6 +1315,192 @@ export function createNotificationsRoutes(options?: NotificationsRoutesOptions) 
       }
     })
 
+  // --- staff alerts ---------------------------------------------------------
+
+  const listStaffAlertsRoute = createRoute({
+    method: "get",
+    path: "/staff-alerts",
+    responses: {
+      200: {
+        description: "Every staff alert with its deployment default applied",
+        content: {
+          "application/json": { schema: dataEnvelope(z.array(staffAlertSettingSchema)) },
+        },
+      },
+    },
+  })
+
+  const updateStaffAlertRoute = createRoute({
+    method: "patch",
+    path: "/staff-alerts/{eventKey}",
+    request: {
+      params: staffAlertEventKeyParamSchema,
+      body: {
+        required: true,
+        content: { "application/json": { schema: updateStaffAlertSettingSchema } },
+      },
+    },
+    responses: {
+      200: {
+        description: "The updated staff alert",
+        content: { "application/json": { schema: dataEnvelope(staffAlertSettingSchema) } },
+      },
+      400: invalidRequestResponse,
+      404: { description: "Unknown staff alert" },
+    },
+  })
+
+  const testStaffAlertRoute = createRoute({
+    method: "post",
+    path: "/staff-alerts/{eventKey}/test",
+    request: { params: staffAlertEventKeyParamSchema },
+    responses: {
+      200: {
+        description: "Outcome of sending a sample of this alert to the current user",
+        content: { "application/json": { schema: dataEnvelope(staffAlertTestResultSchema) } },
+      },
+      404: { description: "Unknown staff alert" },
+    },
+  })
+
+  const listStaffAlertPreferencesRoute = createRoute({
+    method: "get",
+    path: "/staff-alert-preferences",
+    responses: {
+      200: {
+        description: "Effective staff alert state for the current user",
+        content: {
+          "application/json": { schema: dataEnvelope(z.array(staffAlertPreferenceSchema)) },
+        },
+      },
+      401: { description: "No authenticated staff user" },
+    },
+  })
+
+  const setStaffAlertPreferenceRoute = createRoute({
+    method: "put",
+    path: "/staff-alert-preferences/{eventKey}",
+    request: {
+      params: staffAlertEventKeyParamSchema,
+      body: {
+        required: true,
+        content: { "application/json": { schema: updateStaffAlertPreferenceSchema } },
+      },
+    },
+    responses: {
+      200: {
+        description: "The current user's updated preferences",
+        content: {
+          "application/json": { schema: dataEnvelope(z.array(staffAlertPreferenceSchema)) },
+        },
+      },
+      400: invalidRequestResponse,
+      401: { description: "No authenticated staff user" },
+    },
+  })
+
+  const clearStaffAlertPreferenceRoute = createRoute({
+    method: "delete",
+    path: "/staff-alert-preferences/{eventKey}",
+    request: { params: staffAlertEventKeyParamSchema },
+    responses: {
+      200: {
+        description: "Preferences after dropping the override, back to inheriting",
+        content: {
+          "application/json": { schema: dataEnvelope(z.array(staffAlertPreferenceSchema)) },
+        },
+      },
+      401: { description: "No authenticated staff user" },
+    },
+  })
+
+  const toStaffAlertSettingResponse = (row: ResolvedStaffAlertSetting) => ({
+    eventKey: row.definition.key,
+    eventType: row.definition.eventType,
+    group: row.definition.group,
+    enabled: row.enabled,
+    routeToAssignee: row.routeToAssignee,
+    supportsAssigneeRouting: row.definition.supportsAssigneeRouting,
+    routeToRoles: row.routeToRoles,
+    extraAddresses: row.extraAddresses,
+    configured: row.configured,
+  })
+
+  const toStaffAlertPreferenceResponse = (row: StaffAlertPreferenceView) => ({
+    eventKey: row.definition.key,
+    eventType: row.definition.eventType,
+    group: row.definition.group,
+    enabled: row.enabled,
+    deploymentEnabled: row.deploymentEnabled,
+    override: row.override,
+  })
+
+  const staffAlertRoutes = new OpenAPIHono<Env>({ defaultHook: openApiValidationHook })
+    .openapi(listStaffAlertsRoute, async (c) => {
+      const rows = await listStaffAlertSettings(c.get("db"))
+      return c.json({ data: rows.map(toStaffAlertSettingResponse) }, 200)
+    })
+    .openapi(updateStaffAlertRoute, async (c) => {
+      try {
+        const row = await upsertStaffAlertSetting(c.get("db"), {
+          eventKey: c.req.valid("param").eventKey,
+          ...c.req.valid("json"),
+        })
+        return c.json({ data: toStaffAlertSettingResponse(row) }, 200)
+      } catch (error) {
+        if (error instanceof StaffAlertError) return c.json({ error: error.message }, 404)
+        throw error
+      }
+    })
+    .openapi(testStaffAlertRoute, async (c) => {
+      const container = c.var.container
+      if (!container.has(STAFF_ALERT_RUNTIME_KEY)) {
+        return c.json(
+          { data: { sent: false, recipient: null, reason: "staff_alerts_not_wired" } },
+          200,
+        )
+      }
+      const result = await sendStaffAlertTest({
+        db: c.get("db"),
+        runtime: container.resolve<StaffAlertRuntime>(STAFF_ALERT_RUNTIME_KEY),
+        eventKey: c.req.valid("param").eventKey as StaffAlertEventKey,
+        userId: c.get("userId") ?? null,
+      })
+      return c.json({ data: result }, 200)
+    })
+    .openapi(listStaffAlertPreferencesRoute, async (c) => {
+      const userId = c.get("userId")
+      if (!userId) return c.json({ error: "No authenticated staff user" }, 401)
+      const rows = await listStaffAlertPreferences(c.get("db"), userId)
+      return c.json({ data: rows.map(toStaffAlertPreferenceResponse) }, 200)
+    })
+    .openapi(setStaffAlertPreferenceRoute, async (c) => {
+      const userId = c.get("userId")
+      if (!userId) return c.json({ error: "No authenticated staff user" }, 401)
+      try {
+        await upsertStaffAlertPreference(c.get("db"), {
+          userId,
+          eventKey: c.req.valid("param").eventKey,
+          enabled: c.req.valid("json").enabled,
+        })
+      } catch (error) {
+        if (error instanceof StaffAlertError) return c.json({ error: error.message }, 400)
+        throw error
+      }
+      const rows = await listStaffAlertPreferences(c.get("db"), userId)
+      return c.json({ data: rows.map(toStaffAlertPreferenceResponse) }, 200)
+    })
+    .openapi(clearStaffAlertPreferenceRoute, async (c) => {
+      const userId = c.get("userId")
+      if (!userId) return c.json({ error: "No authenticated staff user" }, 401)
+      await clearStaffAlertPreference(c.get("db"), {
+        userId,
+        eventKey: c.req.valid("param").eventKey,
+      })
+      const rows = await listStaffAlertPreferences(c.get("db"), userId)
+      return c.json({ data: rows.map(toStaffAlertPreferenceResponse) }, 200)
+    })
+
   // Compose the per-resource sub-chains onto a single returned `OpenAPIHono` so
   // the `.openapi()` operations propagate up through the composed admin app
   // (`OpenAPIHono.route` copies each sub-app's registered routes).
@@ -1303,5 +1511,6 @@ export function createNotificationsRoutes(options?: NotificationsRoutesOptions) 
     .route("/", stageRoutes)
     .route("/", stageChannelRoutes)
     .route("/", settingsAndRunsRoutes)
+    .route("/", staffAlertRoutes)
     .route("/", dispatchRoutes)
 }

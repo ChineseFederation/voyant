@@ -39,6 +39,8 @@ export type OperatorAdminNavMessages = {
   notificationDeliveries: string
   notificationReminderRuns: string
   notificationSettings: string
+  notificationStaffAlerts: string
+  notificationMyNotifications: string
   notificationPreview: string
   suppliers: string
   people: string
@@ -110,6 +112,8 @@ export const operatorAdminNavMessages = {
       notificationDeliveries: "Deliveries",
       notificationReminderRuns: "Reminder Runs",
       notificationSettings: "Settings",
+      notificationStaffAlerts: "Staff alerts",
+      notificationMyNotifications: "My notifications",
       notificationPreview: "Preview",
       suppliers: "Suppliers",
       people: "People",
@@ -180,6 +184,8 @@ export const operatorAdminNavMessages = {
       notificationDeliveries: "Livrari",
       notificationReminderRuns: "Executii reminder",
       notificationSettings: "Setari",
+      notificationStaffAlerts: "Alerte echipa",
+      notificationMyNotifications: "Notificarile mele",
       notificationPreview: "Previzualizare",
       suppliers: "Furnizori",
       people: "Persoane",

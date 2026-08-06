@@ -101,4 +101,6 @@ export const notificationsQueryKeys = {
   remindersPreview: (filters: RemindersPreviewFilters) =>
     [...notificationsQueryKeys.all, "preview", filters] as const,
   notificationSettings: () => [...notificationsQueryKeys.all, "settings"] as const,
+  staffAlerts: () => [...notificationsQueryKeys.all, "staff-alerts"] as const,
+  staffAlertPreferences: () => [...notificationsQueryKeys.all, "staff-alert-preferences"] as const,
 }

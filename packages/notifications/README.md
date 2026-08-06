@@ -92,11 +92,68 @@ worker protocol. The admin API retains domain routes such as:
 These routes enqueue durable work; there is no generic direct-send route and no
 exported notification dispatcher or transport service.
 
+## Staff alerts
+
+Everything above mails the **customer**. Staff alerts mail the **operator's own
+team** when something happens they need to act on. The two share domain events
+but never a recipient, and they subscribe independently.
+
+The split that matters is template ownership. Customer templates are content:
+Liquid in `notification_templates`, editable in the admin. Staff templates are
+product surface: React Email components under `./emails`, not editable, because
+an operator editing one would break the layout without gaining anything they
+wanted.
+
+Two preference layers decide who hears about what. `staff_alert_settings` is
+admin-owned — one row per alert, carrying whether it fires and how it routes.
+`staff_alert_preferences` is per staff user. **Absence of a preference row means
+inherit, never off**; building the recipient list from opt-INS instead would
+send to nobody, because a user who has never opened the preferences page has no
+row.
+
+### Why the data comes from outside this package
+
+Every declared domain event is id-shaped. `booking.confirmed` carries
+`{bookingId, bookingNumber, actorId}`; `customer.signal.created` carries
+`{id, personId, kind, source, status}`. Neither renders an email worth reading.
+
+This package cannot fetch the rest. `verify:table-privacy` records
+`notifications->bookings` and `notifications->finance` as pairs that may shrink
+but never grow, and there is no `notifications->relationships` pair at all.
+ADR-0016 decision 7 rules out a port for business modules. So the deployment
+registers a `StaffAlertContextResolver` per event, calling the owning module's
+service, plus a brand resolver — `operator_profile` belongs to
+`operator-settings`, so reading it here would open another pair.
+
+### Assignee routing works for one alert
+
+`customer_signals.assigned_to_user_id` is the only real staff-assignment column
+in the product. `booking_staff_assignments` looks like a match and is not one:
+it holds tour guides and service assignees (first/last name, CRM `person_id`),
+not staff logins. A booking's only staff identity is the event's `actorId`,
+which is *who just did it* — mailing them says nothing they do not know.
+
+So booking and finance alerts route by role and explicit address only, and
+`supportsAssigneeRouting` is false for them so the settings UI can hide a
+control that would do nothing. Finer routing needs a booking owner column to
+exist first.
+
+### Role routing is coarse on local deployments
+
+Local staff carry a scope set on `user_profiles.permissions` and nothing else —
+the Better Auth `member` table is empty because the operator realm has no
+organization. Local users therefore resolve to two levels: unrestricted scopes
+read as `admin`, anything else as `member`. Voyant Cloud deployments match
+`cloud_auth_user_links.role_slug` exactly. Both realms are queried and unioned,
+so no auth-mode flag has to be threaded down.
+
 ## Exports
 
 | Entry | Description |
 | --- | --- |
 | `.` | Module factories, schema, validation, and durable provider contracts |
+| `./emails` | React Email staff alert templates and brand helpers |
+| `./staff-alert-subscriber` | Staff alert subscriber descriptors |
 | `./durable-provider-port` | Selected provider runtime and conformance port |
 | `./runtime-port` | Deployment-owned Notifications host services |
 | `./schema` | Drizzle tables and module declaration |

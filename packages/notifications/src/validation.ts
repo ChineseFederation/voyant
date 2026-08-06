@@ -473,3 +473,56 @@ export const confirmAndDispatchBookingResultSchema = z.object({
     .enum(["preview_only", "no_documents", "no_recipient", "no_attachments", "send_failed"])
     .nullable(),
 })
+
+// --- staff alerts ------------------------------------------------------------
+
+/**
+ * `eventKey` is validated as a non-empty string rather than a `z.enum` of the
+ * registry keys. The registry is the authority and rejects an unknown key with
+ * a 404-shaped error; duplicating the list here would mean two places to edit
+ * every time an alert is added.
+ */
+export const staffAlertEventKeyParamSchema = z.object({
+  eventKey: z.string().min(1),
+})
+
+export const updateStaffAlertSettingSchema = z.object({
+  enabled: z.boolean().optional(),
+  routeToAssignee: z.boolean().optional(),
+  routeToRoles: z.array(z.string().min(1)).optional(),
+  extraAddresses: z.array(z.string().email()).optional(),
+})
+
+export const updateStaffAlertPreferenceSchema = z.object({
+  enabled: z.boolean(),
+})
+
+export const staffAlertSettingSchema = z.object({
+  eventKey: z.string(),
+  eventType: z.string(),
+  group: z.string(),
+  enabled: z.boolean(),
+  routeToAssignee: z.boolean(),
+  supportsAssigneeRouting: z.boolean(),
+  routeToRoles: z.array(z.string()),
+  extraAddresses: z.array(z.string()),
+  configured: z.boolean(),
+})
+
+export const staffAlertPreferenceSchema = z.object({
+  eventKey: z.string(),
+  eventType: z.string(),
+  group: z.string(),
+  /** What actually happens for this user right now. */
+  enabled: z.boolean(),
+  /** The deployment default, so "off" can be attributed correctly in the UI. */
+  deploymentEnabled: z.boolean(),
+  /** The user's explicit choice, or null when inheriting. */
+  override: z.boolean().nullable(),
+})
+
+export const staffAlertTestResultSchema = z.object({
+  sent: z.boolean(),
+  recipient: z.string().nullable(),
+  reason: z.string().nullable(),
+})

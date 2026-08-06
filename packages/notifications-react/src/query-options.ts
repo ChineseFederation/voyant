@@ -24,6 +24,8 @@ import {
   reminderRuleStagesListResponse,
   reminderStageChannelsListResponse,
   remindersPreviewResponse,
+  staffAlertPreferencesResponse,
+  staffAlertSettingsResponse,
 } from "./schemas.js"
 
 function toQueryString(filters: Record<string, string | number | boolean | null | undefined>) {
@@ -233,6 +235,34 @@ export function getRemindersPreviewQueryOptions(
       const { data } = await fetchWithValidation(
         `/v1/admin/notifications/reminders/preview${toQueryString(queryParams)}`,
         remindersPreviewResponse,
+        client,
+      )
+      return data
+    },
+  })
+}
+
+export function getStaffAlertSettingsQueryOptions(client: FetchWithValidationOptions) {
+  return queryOptions({
+    queryKey: notificationsQueryKeys.staffAlerts(),
+    queryFn: async () => {
+      const { data } = await fetchWithValidation(
+        `/v1/admin/notifications/staff-alerts`,
+        staffAlertSettingsResponse,
+        client,
+      )
+      return data
+    },
+  })
+}
+
+export function getStaffAlertPreferencesQueryOptions(client: FetchWithValidationOptions) {
+  return queryOptions({
+    queryKey: notificationsQueryKeys.staffAlertPreferences(),
+    queryFn: async () => {
+      const { data } = await fetchWithValidation(
+        `/v1/admin/notifications/staff-alert-preferences`,
+        staffAlertPreferencesResponse,
         client,
       )
       return data

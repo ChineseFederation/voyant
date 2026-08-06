@@ -1,0 +1,159 @@
+import { bookingsService } from "@voyant-travel/bookings"
+import { relationshipsService } from "@voyant-travel/relationships"
+import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
+import { afterEach, describe, expect, it, vi } from "vitest"
+
+import { staffAlertContextResolvers } from "../../src/staff-alert-resolvers.js"
+
+/**
+ * These tests exist because reading the wrong column name does not throw — it
+ * yields `undefined`, and the alert renders "Unknown customer" with no total.
+ * The fixtures below use the REAL column names from `bookings` and `invoices`,
+ * so renaming a column or mistyping one here fails loudly instead of quietly
+ * shipping an empty email.
+ */
+const bookingRow = {
+  id: "bk_1",
+  bookingNumber: "VOY-1042",
+  contactFirstName: "Ana",
+  contactLastName: "Popescu",
+  contactEmail: "ana@example.com",
+  sellAmountCents: 249900,
+  sellCurrency: "EUR",
+  startDate: "2027-03-12",
+  endDate: "2027-03-19",
+  pax: 2,
+}
+
+const db = {} as PostgresJsDatabase
+
+afterEach(() => {
+  vi.restoreAllMocks()
+})
+
+describe("staff alert resolvers", () => {
+  it("fills a booking alert from the columns bookings actually has", async () => {
+    vi.spyOn(bookingsService, "getBookingById").mockResolvedValue(
+      bookingRow as unknown as Awaited<ReturnType<typeof bookingsService.getBookingById>>,
+    )
+
+    const context = await staffAlertContextResolvers["staff.booking.confirmed"]?.resolve({
+      db,
+      payload: { bookingId: "bk_1", bookingNumber: "VOY-1042", actorId: "user_1" },
+    })
+
+    expect(context).toMatchObject({
+      bookingId: "bk_1",
+      bookingNumber: "VOY-1042",
+      customer: { name: "Ana Popescu", email: "ana@example.com" },
+      total: { amountCents: 249900, currency: "EUR" },
+      travelStartDate: "2027-03-12",
+      travelEndDate: "2027-03-19",
+      travelerCount: 2,
+      adminPath: "/bookings/bk_1",
+    })
+    // The actor is excluded from recipients downstream, so it has to survive.
+    expect(context?.actorUserId).toBe("user_1")
+  })
+
+  it("skips a booking alert when the booking is gone", async () => {
+    vi.spyOn(bookingsService, "getBookingById").mockResolvedValue(null)
+    const context = await staffAlertContextResolvers["staff.booking.confirmed"]?.resolve({
+      db,
+      payload: { bookingId: "bk_gone" },
+    })
+    expect(context).toBeNull()
+  })
+
+  it("carries the enquiry's assignee, the one alert with real assignment data", async () => {
+    vi.spyOn(relationshipsService, "getCustomerSignal").mockResolvedValue({
+      id: "csig_1",
+      personId: "per_1",
+      kind: "inquiry",
+      source: "form",
+      priority: "high",
+      notes: "March departure",
+      assignedToUserId: "user_9",
+    } as unknown as Awaited<ReturnType<typeof relationshipsService.getCustomerSignal>>)
+    vi.spyOn(relationshipsService, "getPersonById").mockResolvedValue({
+      firstName: "Ana",
+      lastName: "Popescu",
+      email: "ana@example.com",
+    } as unknown as Awaited<ReturnType<typeof relationshipsService.getPersonById>>)
+
+    const context = await staffAlertContextResolvers["staff.customer-signal.created"]?.resolve({
+      db,
+      payload: { id: "csig_1" },
+    })
+
+    expect(context).toMatchObject({
+      signalId: "csig_1",
+      assigneeUserId: "user_9",
+      person: { name: "Ana Popescu" },
+      kind: "inquiry",
+      priority: "high",
+    })
+  })
+
+  it("names the contract signer from CRM, since the event carries only an id", async () => {
+    vi.spyOn(bookingsService, "getBookingById").mockResolvedValue(
+      bookingRow as unknown as Awaited<ReturnType<typeof bookingsService.getBookingById>>,
+    )
+    vi.spyOn(relationshipsService, "getPersonById").mockResolvedValue({
+      firstName: "Ana",
+      lastName: "Popescu",
+    } as unknown as Awaited<ReturnType<typeof relationshipsService.getPersonById>>)
+
+    const context = await staffAlertContextResolvers["staff.contract.signed"]?.resolve({
+      db,
+      payload: {
+        contractId: "lct_1",
+        contractNumber: "C-2027-1",
+        bookingId: "bk_1",
+        personId: "per_1",
+        occurredAt: "2027-01-14T09:24:00.000Z",
+      },
+    })
+
+    expect(context).toMatchObject({
+      contractId: "lct_1",
+      signerName: "Ana Popescu",
+      signedAt: "2027-01-14T09:24:00.000Z",
+      bookingNumber: "VOY-1042",
+    })
+  })
+
+  it("reads a payment alert straight from the event, which already carries the money", async () => {
+    vi.spyOn(bookingsService, "getBookingById").mockResolvedValue(
+      bookingRow as unknown as Awaited<ReturnType<typeof bookingsService.getBookingById>>,
+    )
+
+    const context = await staffAlertContextResolvers["staff.payment.completed"]?.resolve({
+      db,
+      payload: {
+        paymentSessionId: "ps_1",
+        bookingId: "bk_1",
+        amountCents: 74970,
+        currency: "EUR",
+        provider: "netopia",
+      },
+    })
+
+    expect(context).toMatchObject({
+      paymentSessionId: "ps_1",
+      amount: { amountCents: 74970, currency: "EUR" },
+      provider: "netopia",
+      customer: { name: "Ana Popescu" },
+      // Unknown from this event, and rendered as silence rather than a guess.
+      paidInFull: null,
+    })
+  })
+
+  it("skips a payment alert with no amount rather than mailing a blank figure", async () => {
+    const context = await staffAlertContextResolvers["staff.payment.completed"]?.resolve({
+      db,
+      payload: { paymentSessionId: "ps_1", provider: "netopia" },
+    })
+    expect(context).toBeNull()
+  })
+})

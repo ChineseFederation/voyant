@@ -5,7 +5,9 @@
     "outDir": "dist",
     "rootDir": "src",
     "module": "ESNext",
-    "moduleResolution": "Bundler"
+    "moduleResolution": "Bundler",
+    // The `./emails` entry point renders React Email templates server-side.
+    "jsx": "react-jsx"
   },
   "include": ["src/**/*"]
 }

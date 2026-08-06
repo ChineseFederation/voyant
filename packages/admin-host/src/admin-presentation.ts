@@ -188,6 +188,8 @@ export const defaultAdminHostNavMessages = {
   notificationReminderRules: "Reminder Rules",
   notificationReminderRuns: "Reminder Runs",
   notificationSettings: "Settings",
+  notificationStaffAlerts: "Staff alerts",
+  notificationMyNotifications: "My notifications",
   notificationTemplates: "Templates",
   organizations: "Organizations",
   payments: "Payments",

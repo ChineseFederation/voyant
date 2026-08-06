@@ -15,6 +15,12 @@ import {
 import { notificationsRuntimePort } from "./runtime-port.js"
 import { notificationsModule } from "./schema.js"
 import { createNotificationService } from "./service.js"
+import { STAFF_ALERT_RUNTIME_KEY } from "./service-staff-alert-dispatch.js"
+import {
+  createStaffAlertBrandResolver,
+  staffAlertContextResolvers,
+} from "./staff-alert-resolvers.js"
+import type { StaffAlertSubscriberRuntime } from "./staff-alert-subscriber.js"
 import {
   NOTIFICATIONS_SUBSCRIBER_RUNTIME_KEY,
   type NotificationsSubscriberRuntime,
@@ -50,12 +56,17 @@ export type {
   NewNotificationReminderRun,
   NewNotificationSendOperation,
   NewNotificationTemplate,
+  NewStaffAlertPreference,
+  NewStaffAlertSettings,
   NotificationDelivery,
   NotificationReminderRule,
   NotificationReminderRun,
   NotificationSendOperation,
   NotificationsApiModule,
   NotificationTemplate,
+  StaffAlertPreference,
+  StaffAlertRoleRouting,
+  StaffAlertSettings,
 } from "./schema.js"
 export {
   notificationChannelEnum,
@@ -72,6 +83,8 @@ export {
   notificationTargetTypeEnum,
   notificationTemplateStatusEnum,
   notificationTemplates,
+  staffAlertPreferences,
+  staffAlertSettings,
 } from "./schema.js"
 export {
   createDefaultBookingDocumentAttachment,
@@ -85,6 +98,76 @@ export type {
   BookingDocumentsSentEvent,
   SendBookingDocumentsRuntimeOptions,
 } from "./service-booking-documents.js"
+export type {
+  DispatchStaffAlertInput,
+  DispatchStaffAlertResult,
+  StaffAlertRuntime,
+} from "./service-staff-alert-dispatch.js"
+export {
+  dispatchStaffAlert,
+  STAFF_ALERT_RUNTIME_KEY,
+} from "./service-staff-alert-dispatch.js"
+export type {
+  ResolveStaffAlertRecipientsInput,
+  StaffAlertRecipient,
+} from "./service-staff-alert-recipients.js"
+export {
+  findStaffUserEmail,
+  resolveStaffAlertRecipients,
+} from "./service-staff-alert-recipients.js"
+export type {
+  ResolvedStaffAlertSetting,
+  StaffAlertPreferenceView,
+  UpdateStaffAlertSettingInput,
+} from "./service-staff-alerts.js"
+export {
+  clearStaffAlertPreference,
+  getStaffAlertSetting,
+  listStaffAlertOptOutsForKeys,
+  listStaffAlertOptOutUserIds,
+  listStaffAlertPreferences,
+  listStaffAlertSettings,
+  StaffAlertError,
+  upsertStaffAlertPreference,
+  upsertStaffAlertSetting,
+} from "./service-staff-alerts.js"
+export type {
+  StaffAlertContext,
+  StaffAlertContextMap,
+  StaffAlertContextResolver,
+  StaffAlertContextResolverRegistry,
+  StaffAlertDefinition,
+  StaffAlertEventKey,
+  StaffAlertGroup,
+  StaffAlertMoney,
+  StaffAlertParty,
+  StaffBookingCancelledContext,
+  StaffBookingConfirmedContext,
+  StaffContractSignedContext,
+  StaffCustomerSignalCreatedContext,
+  StaffInvoiceSettledContext,
+  StaffPaymentCompletedContext,
+} from "./staff-alert-registry.js"
+export {
+  getStaffAlertDefinition,
+  isStaffAlertEventKey,
+  STAFF_ALERT_CONTEXT_RESOLVERS_KEY,
+  STAFF_ALERT_DEFINITIONS,
+  STAFF_ALERT_EVENT_KEYS,
+} from "./staff-alert-registry.js"
+export {
+  createStaffAlertBrandResolver,
+  staffAlertContextResolvers,
+} from "./staff-alert-resolvers.js"
+export type {
+  StaffAlertSubscriberDependencies,
+  StaffAlertSubscriberRuntime,
+} from "./staff-alert-subscriber.js"
+export {
+  createStaffAlertSubscriberRuntime,
+  staffAlertSubscriberId,
+  staffAlertSubscriberRuntimeDescriptors,
+} from "./staff-alert-subscriber.js"
 /**
  * Auto-dispatch policy for the `booking.confirmed` subscriber. Set `enabled:
  * false` (or leave the option off entirely) to opt out.
@@ -249,9 +332,14 @@ export const createNotificationsSubscribersVoyantRuntime = defineGraphRuntimeFac
         name: "notifications-reminder-subscribers",
         module: "notifications",
         bootstrap: ({ bindings, container }: BootstrapContext) => {
+          const runtimeBindings = bindings as Record<string, unknown>
           container.register(
             NOTIFICATIONS_SUBSCRIBER_RUNTIME_KEY,
-            createNotificationsSubscriberRuntime(bindings as Record<string, unknown>, provider),
+            createNotificationsSubscriberRuntime(runtimeBindings, provider),
+          )
+          container.register(
+            STAFF_ALERT_RUNTIME_KEY,
+            createStaffAlertSubscriberRuntimeFor(runtimeBindings, provider),
           )
         },
       },
@@ -270,4 +358,40 @@ function createNotificationsSubscriberRuntime(
     dispatcher: createNotificationService(runtime.providers),
     documentAttachmentResolver: runtime.documentAttachmentResolver,
   }
+}
+
+/**
+ * Staff alert wiring, registered alongside the reminder subscriber runtime.
+ *
+ * Both are activated by the same extension because both are "this deployment
+ * delivers notifications from events" — splitting them would let a deployment
+ * end up with staff subscribers registered and no runtime to serve them.
+ *
+ * `adminBaseUrl` comes from host config. Without it the deep link in every
+ * alert would be relative and dead from an inbox, so a deployment that has not
+ * set it gets a resolver that still renders — just with links to the
+ * deployment's own origin, if the host supplied one.
+ */
+function createStaffAlertSubscriberRuntimeFor(
+  bindings: Record<string, unknown>,
+  provider: import("./runtime-port.js").NotificationsRuntimeProvider,
+): StaffAlertSubscriberRuntime {
+  const runtime = buildNotificationsRouteRuntime(bindings, provider)
+  const adminBaseUrl = resolveAdminBaseUrl(bindings)
+  return {
+    resolveDb: (runtimeBindings) =>
+      provider.resolveDb(runtimeBindings as Record<string, unknown>) as PostgresJsDatabase,
+    dispatcher: createNotificationService(runtime.providers),
+    resolvers: staffAlertContextResolvers,
+    resolveBrand: createStaffAlertBrandResolver({ adminBaseUrl }),
+  }
+}
+
+function resolveAdminBaseUrl(bindings: Record<string, unknown>): string {
+  const candidate =
+    bindings.ADMIN_BASE_URL ??
+    bindings.APP_BASE_URL ??
+    bindings.PUBLIC_BASE_URL ??
+    bindings.BASE_URL
+  return typeof candidate === "string" && candidate.trim() ? candidate.trim() : ""
 }

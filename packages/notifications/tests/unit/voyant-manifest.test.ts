@@ -3,6 +3,7 @@ import { proposalsNotificationsRuntimePort } from "@voyant-travel/proposals/runt
 import { storefrontVerificationRuntimePort } from "@voyant-travel/storefront/runtime-port"
 import { describe, expect, it } from "vitest"
 import { durableNotificationProviderPort } from "../../src/durable-provider-port.js"
+import { staffAlertSubscriberRuntimeDescriptors } from "../../src/staff-alert-subscriber.js"
 import { notificationsReminderSubscriberRuntimeDescriptors } from "../../src/subscriber-runtime.js"
 import {
   notificationsReminderSubscribersVoyantPlugin,
@@ -201,16 +202,27 @@ describe("notifications deployment manifest", () => {
       },
       runtimePorts: [{ id: "notifications.runtime" }],
     })
+    // The extension activates BOTH subscriber families: the reminder
+    // subscribers that mail the customer, and the staff alerts that mail the
+    // operator's team. They ship together on purpose — a deployment with staff
+    // subscribers registered but no runtime to serve them would silently drop
+    // every alert.
     expect(declarations.map(({ id, eventType }) => ({ id, eventType }))).toEqual(
-      notificationsReminderSubscriberRuntimeDescriptors.map(({ id, eventType }) => ({
-        id,
-        eventType,
-      })),
+      [
+        ...notificationsReminderSubscriberRuntimeDescriptors,
+        ...staffAlertSubscriberRuntimeDescriptors,
+      ].map(({ id, eventType }) => ({ id, eventType })),
     )
     expect(declarations.map((subscriber) => subscriber.runtime?.export)).toEqual([
       "notificationsBookingConfirmedReminderSubscriber",
       "notificationsPaymentCompletedReminderSubscriber",
       "notificationsBookingCancelledReminderSubscriber",
+      "notificationsStaffBookingConfirmedAlertSubscriber",
+      "notificationsStaffBookingCancelledAlertSubscriber",
+      "notificationsStaffPaymentCompletedAlertSubscriber",
+      "notificationsStaffInvoiceSettledAlertSubscriber",
+      "notificationsStaffContractSignedAlertSubscriber",
+      "notificationsStaffCustomerSignalCreatedAlertSubscriber",
     ])
   })
 })
