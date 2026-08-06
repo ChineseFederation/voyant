@@ -22,6 +22,10 @@ WORKDIR /repo
 # ── build: install the workspace, build the operator + its deps, and extract a
 #    pruned production node_modules for the runtime stage. ─────────────────────
 FROM base AS build
+ARG IMAGE_REVISION="unknown"
+ARG IMAGE_VERSION="development"
+ENV VOYANT_IMAGE_REVISION=$IMAGE_REVISION \
+    VOYANT_IMAGE_VERSION=$IMAGE_VERSION
 # tsc needs more than the default ~2GB V8 old-space for the larger packages;
 # CI sets the same flag on every job. Without it `@voyant-travel/identity-react`
 # dies with "Ineffective mark-compacts near heap limit".
@@ -46,6 +50,11 @@ RUN pnpm --filter=operator deploy --prod --legacy /deploy
 # exist. This performs the same substitution npm consumers already get.
 RUN node scripts/apply-publish-config.mjs /deploy
 
+# Portable shell-only output. Export it without rebuilding or copying a second
+# frontend: `docker build --target admin-shell-artifact --output type=local,dest=...`.
+FROM scratch AS admin-shell-artifact
+COPY --from=build /repo/apps/operator/dist/admin-shell /
+
 # ── runtime: minimal image — the built app + its production node_modules. ─────
 FROM node:22-slim AS runtime
 ARG IMAGE_SOURCE="https://github.com/voyant-travel/voyant"
@@ -59,8 +68,11 @@ LABEL org.opencontainers.image.title="Voyant Operator" \
 ENV NODE_ENV=production
 WORKDIR /app
 COPY --from=build /repo/apps/operator/dist ./dist
+COPY --from=build /repo/apps/operator/dist/admin-shell ./admin-shell
 COPY --from=build /deploy/node_modules ./node_modules
 COPY --from=build /repo/apps/operator/package.json ./package.json
+COPY --from=build /repo/apps/operator/scripts/start-api-only.mjs ./start-api-only.mjs
+COPY --from=build /repo/scripts/verify-operator-admin-shell.mjs ./verify-operator-admin-shell.mjs
 COPY --from=build /repo/scripts/run-generated-migrations.mjs ./run-generated-migrations.mjs
 
 # The platform supplies env (DATABASE_URL / DATABASE_URL_DIRECT, realm auth secrets,

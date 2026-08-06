@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "voyant develop",
-    "build": "voyant build",
+    "build": "voyant build && node ../../scripts/package-operator-admin-shell.mjs",
     "measure": "node ../../scripts/measure-operator-application.mjs --require-build",
     "start": "voyant start",
     "typecheck": "pnpm run prepare:verify && NODE_OPTIONS=--max-old-space-size=6144 tsc -p .voyant/tsconfig.server.json && NODE_OPTIONS=--max-old-space-size=6144 tsc -p .voyant/tsconfig.tests-smoke.json && NODE_OPTIONS=--max-old-space-size=12288 tsc -p .voyant/tsconfig.client.json",

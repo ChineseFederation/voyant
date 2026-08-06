@@ -193,6 +193,39 @@ retag, or mirror the public OSS artifact. Self-hosters deploy the public digest
 directly, while a private Platform derivative preserves that digest as its
 auditable source foundation.
 
+## One product, two host profiles, one shell build
+
+The public image's default command remains the complete Cloudflare-independent
+self-hosted application: admin document and assets, API and both auth realms,
+health and scheduled-job endpoints, resident background workers, plus the
+image's explicit migration command. `node start-api-only.mjs` selects the second
+profile in that same image. It constructs the identical API/auth/job runtime but
+does not import the admin host or SSR handler and does not serve an admin
+document. The profile is a host boundary around one admitted graph, not a new
+Voyant product.
+
+The frontend build is assembled once into `dist/client`. The build then copies
+those exact bytes into the versioned `admin-shell` artifact and the runtime image
+embeds that directory at `/app/admin-shell`; the Docker
+`admin-shell-artifact` target exports the same directory rather than rebuilding
+it. `manifest.json` is the machine-readable receipt. It records source revision,
+image version, resolved graph hash, a content-derived UI build ID, the relative
+`/api` base, the shell-bootstrap compatibility interval, portable document
+fallback/API passthrough routing, and each file's size and SHA-256 digest.
+
+The shell contains build-time admitted presentation code only. Authenticated
+bootstrap data can select active capabilities, entitlements, navigation,
+branding, and compatible lazy routes, but cannot introduce executable code or
+grant API authorization. A generic same-origin reverse proxy may therefore
+serve the shell artifact and forward `/api`, root OAuth discovery, health, and
+job hooks to an API-only process; no Cloudflare-specific behavior is part of
+the artifact contract.
+
+Project-local admin extensions compile into the full custom/self-hosted image
+that admitted them. They do not automatically appear in a shared managed shell:
+that shell must be rebuilt from a graph that admits those presentation
+contributions.
+
 ## OCI identity
 
 Each platform-specific runtime image configuration carries these OCI labels:

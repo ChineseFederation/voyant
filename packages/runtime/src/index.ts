@@ -3,7 +3,6 @@ import { readFile } from "node:fs/promises"
 import { createRequire } from "node:module"
 import path from "node:path"
 
-import { serveAdminHost } from "@voyant-travel/admin-host/serve"
 import {
   type AppsWebhookDeliveryRuntime,
   appsWebhookDeliveryRuntimePort,
@@ -110,6 +109,8 @@ export interface LoadVoyantProjectOptions {
   env?: Record<string, string | undefined>
   adminAssetsDir?: string
   preferBuiltAdminAssets?: boolean
+  /** Select the complete self-hosted host or the API/jobs-only managed-cell host. */
+  hostProfile?: "full" | "api-only"
   /**
    * Generated server entries inject the statically imported runtime so graph
    * lowering and activation share the bundled framework's private identity.
@@ -531,32 +532,36 @@ export async function loadVoyantProject(
             },
           )
       : undefined
-  const clientAssetsDir = await resolveAdminAssetsDir(
-    projectRoot,
-    artifactRoot,
-    options.adminAssetsDir,
-    options.preferBuiltAdminAssets ??
-      (options.env?.NODE_ENV ?? process.env.NODE_ENV) === "production",
-  )
-  const web = serveAdminHost<VoyantNodeRuntimeEnv>({
-    clientAssetsDir,
-    app: async (request, bindings, ctx) => {
-      if (new URL(request.url).pathname.startsWith("/api")) {
-        return runtime.app.fetch(rewriteLegacyMediaRequest(request), bindings, ctx)
-      }
-      // OAuth discovery must answer at the ORIGIN root, not behind `/api`:
-      // an MCP client derives these URLs from the origin alone, before it has
-      // any credential or knowledge of our API layout. Handled here, ahead of
-      // the SSR handler, which would otherwise return the admin app's HTML.
-      const discovery = await authRuntime.resolveOAuthDiscoveryRequest(
-        request,
-        requireVoyantAuthEnv(bindings),
-      )
-      if (discovery) return discovery
-      const { createAdminSsrHandler } = await import("@voyant-travel/admin-host/ssr")
-      return createAdminSsrHandler<VoyantNodeRuntimeEnv>()(request, bindings, ctx)
-    },
-  })
+  const hostProfile = options.hostProfile ?? "full"
+  const apiFetch = async (
+    request: Request,
+    bindings: VoyantNodeRuntimeEnv,
+    ctx: import("hono").ExecutionContext,
+  ) => {
+    const pathname = new URL(request.url).pathname
+    if (pathname.startsWith("/api")) {
+      return runtime.app.fetch(rewriteLegacyMediaRequest(request), bindings, ctx)
+    }
+    // OAuth discovery must answer at the origin root, before a client knows
+    // the API prefix. Both host profiles therefore retain it.
+    const discovery = await authRuntime.resolveOAuthDiscoveryRequest(
+      request,
+      requireVoyantAuthEnv(bindings),
+    )
+    if (discovery) return discovery
+    return runtime.app.fetch(request, bindings, ctx)
+  }
+  const web =
+    hostProfile === "api-only"
+      ? { fetch: apiFetch }
+      : await createFullAdminHost({
+          projectRoot,
+          artifactRoot,
+          options,
+          apiFetch,
+          resolveDiscovery: (request, bindings) =>
+            authRuntime.resolveOAuthDiscoveryRequest(request, requireVoyantAuthEnv(bindings)),
+        })
 
   const fetch = (request: Request) =>
     web.fetch(request, runtime.env, toExecutionContext(createNoopContext()))
@@ -589,6 +594,43 @@ export async function loadVoyantProject(
       })
     },
   }
+}
+
+async function createFullAdminHost(input: {
+  projectRoot: string
+  artifactRoot: string
+  options: LoadVoyantProjectOptions
+  apiFetch: (
+    request: Request,
+    bindings: VoyantNodeRuntimeEnv,
+    ctx: import("hono").ExecutionContext,
+  ) => Promise<Response>
+  resolveDiscovery: (
+    request: Request,
+    bindings: VoyantNodeRuntimeEnv,
+  ) => Promise<Response | null | undefined>
+}) {
+  const clientAssetsDir = await resolveAdminAssetsDir(
+    input.projectRoot,
+    input.artifactRoot,
+    input.options.adminAssetsDir,
+    input.options.preferBuiltAdminAssets ??
+      (input.options.env?.NODE_ENV ?? process.env.NODE_ENV) === "production",
+  )
+  const { serveAdminHost } = await import("@voyant-travel/admin-host/serve")
+  return serveAdminHost<VoyantNodeRuntimeEnv>({
+    clientAssetsDir,
+    app: async (request, bindings, ctx) => {
+      const pathname = new URL(request.url).pathname
+      if (pathname.startsWith("/api") || pathname === "/healthz") {
+        return input.apiFetch(request, bindings, ctx)
+      }
+      const discovery = await input.resolveDiscovery(request, bindings)
+      if (discovery) return discovery
+      const { createAdminSsrHandler } = await import("@voyant-travel/admin-host/ssr")
+      return createAdminSsrHandler<VoyantNodeRuntimeEnv>()(request, bindings, ctx)
+    },
+  })
 }
 
 function selectedOperatorAuthMode(provider: unknown): "local" | "voyant-cloud" {
