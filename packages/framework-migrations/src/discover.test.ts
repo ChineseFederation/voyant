@@ -15,14 +15,21 @@ const absRoot = (rel: string) => join(BASE, rel)
 
 /** In-memory fs: package.json by absolute root, + roots whose journal exists. */
 function fakeFs(opts: {
-  pkgs: Record<string, { name: string; requires?: string[] }> // keyed by ABSOLUTE root
+  // keyed by ABSOLUTE root
+  pkgs: Record<string, { name: string; requires?: string[]; absorbed?: string[] }>
   withJournal: string[] // absolute roots (or DEPLOY_MIGRATIONS) whose migrations/meta exists
 }): Fs {
   const files = new Map<string, string>()
   for (const [root, pj] of Object.entries(opts.pkgs)) {
     files.set(
       join(root, "package.json"),
-      JSON.stringify({ name: pj.name, voyant: { requiresSchemas: pj.requires ?? [] } }),
+      JSON.stringify({
+        name: pj.name,
+        voyant: {
+          requiresSchemas: pj.requires ?? [],
+          ...(pj.absorbed ? { legacyMigrationSources: pj.absorbed } : {}),
+        },
+      }),
     )
   }
   const journals = new Set(
@@ -116,6 +123,31 @@ describe("discoverMigrationSources", () => {
     expect(got.map((s) => s.name)).toEqual(["db", "identity", "bookings", DEPLOYMENT_SOURCE])
     expect(got.at(-1)?.migrationsDir).toBe(DEPLOY_MIGRATIONS)
     expect(got.every((s) => s.hasMigrations)).toBe(true)
+    expect(got.every((s) => s.legacyNames === undefined)).toBe(true)
+  })
+
+  it("carries the retired ledger sources a package absorbed (voyant#4330)", () => {
+    // A source deployment reads the same declaration the managed image does, so
+    // a database holding the retired source's tags does not replay them.
+    const dbR = absRoot("../../packages/db")
+    const opsR = absRoot("../../packages/operations")
+    const fs = fakeFs({
+      pkgs: {
+        [dbR]: { name: "@voyant-travel/db" },
+        [opsR]: {
+          name: "@voyant-travel/operations",
+          requires: ["@voyant-travel/db"],
+          absorbed: ["availability"],
+        },
+      },
+      withJournal: [dbR, opsR],
+    })
+    const got = discoverMigrationSources(
+      ["../../packages/operations/src/schema.ts", "../../packages/db/src/schema/index.ts"],
+      { baseDir: BASE, deploymentMigrationsDir: DEPLOY_MIGRATIONS, fs },
+    )
+    expect(got.find((s) => s.name === "operations")?.legacyNames).toEqual(["availability"])
+    expect(got.find((s) => s.name === "db")?.legacyNames).toBeUndefined()
   })
 
   it("resolves the SAME package set from npm (pnpm) layout paths", () => {

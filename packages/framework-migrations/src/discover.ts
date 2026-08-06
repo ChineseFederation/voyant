@@ -36,6 +36,14 @@ export interface DiscoveredSource {
   migrationsDir: string
   /** Whether that folder actually ships migrations (`meta/_journal.json`). */
   hasMigrations: boolean
+  /**
+   * Retired ledger source names this package absorbed
+   * (`voyant.legacyMigrationSources`), for `MigrationSource.legacyNames`. Absent
+   * when it absorbed none. A deployment that already applied the retired
+   * source's tags finds them under that name, and would otherwise re-run them
+   * against objects that exist (voyant#4330).
+   */
+  legacyNames?: readonly string[]
 }
 
 /** Injectable filesystem surface (defaults to `node:fs`) for testability. */
@@ -80,6 +88,7 @@ interface PkgMeta {
   /** `@voyant-travel/…` package name (for resolving requiresSchemas edges). */
   pkgName: string
   requires: string[]
+  legacyNames: string[]
   migrationsDir: string
   hasMigrations: boolean
 }
@@ -87,20 +96,23 @@ interface PkgMeta {
 function readPkgMeta(name: string, packageRoot: string, fs: Fs): PkgMeta {
   let pkgName = `@voyant-travel/${name}`
   let requires: string[] = []
+  let legacyNames: string[] = []
   const pjPath = join(packageRoot, "package.json")
   if (fs.existsSync(pjPath)) {
     const pj = JSON.parse(fs.readFileSync(pjPath, "utf8")) as {
       name?: string
-      voyant?: { requiresSchemas?: string[] }
+      voyant?: { requiresSchemas?: string[]; legacyMigrationSources?: string[] }
     }
     pkgName = pj.name ?? pkgName
     requires = pj.voyant?.requiresSchemas ?? []
+    legacyNames = pj.voyant?.legacyMigrationSources ?? []
   }
   const migrationsDir = join(packageRoot, "migrations")
   return {
     name,
     pkgName,
     requires,
+    legacyNames,
     migrationsDir,
     hasMigrations: fs.existsSync(join(migrationsDir, "meta", "_journal.json")),
   }
@@ -164,7 +176,12 @@ export function discoverMigrationSources(
 
   const sources: DiscoveredSource[] = sorted.map((name) => {
     const m = metas.get(name) as PkgMeta
-    return { name, migrationsDir: m.migrationsDir, hasMigrations: m.hasMigrations }
+    return {
+      name,
+      migrationsDir: m.migrationsDir,
+      hasMigrations: m.hasMigrations,
+      ...(m.legacyNames.length > 0 ? { legacyNames: m.legacyNames } : {}),
+    }
   })
 
   if (hasDeploymentSchema) {

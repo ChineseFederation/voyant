@@ -1006,25 +1006,37 @@ export function buildMigrationPlan(
   graph: ResolvedVoyantDeploymentGraph,
 ): VoyantProjectMigrationPlan {
   const units = allResolvedGraphUnits(graph)
+  // The absorbed ledger identities are package metadata, not facet data — the
+  // source-free managed image reads them from `package.json` without resolving
+  // the graph, and one declaration has to serve both (voyant#4330).
+  const legacyMigrationSources = new Map(
+    graph.packageRecords.map((record) => [
+      record.packageName,
+      record.metadata?.legacyMigrationSources ?? [],
+    ]),
+  )
   const packageSchemaMigrations = units.flatMap((unit) =>
     unit.migrations
       .filter((migration): migration is typeof migration & { source: string } =>
         Boolean(migration.source),
       )
-      .map((migration) => ({
-        id: migration.id,
-        migrationKind: "schema" as const,
-        order: 0,
-        idempotencyKey: `schema:${migration.id}`,
-        owner: unit.id,
-        packageName: unit.packageName,
-        ...(migration.legacySources?.length ? { legacySources: migration.legacySources } : {}),
-        source: {
-          kind: "package" as const,
+      .map((migration) => {
+        const legacySources = legacyMigrationSources.get(unit.packageName) ?? []
+        return {
+          id: migration.id,
+          migrationKind: "schema" as const,
+          order: 0,
+          idempotencyKey: `schema:${migration.id}`,
+          owner: unit.id,
           packageName: unit.packageName,
-          path: migration.source,
-        },
-      })),
+          ...(legacySources.length ? { legacySources } : {}),
+          source: {
+            kind: "package" as const,
+            packageName: unit.packageName,
+            path: migration.source,
+          },
+        }
+      }),
   )
   const schemaDependencies = new Map(
     graph.packageRecords.map((record) => [
@@ -1312,6 +1324,25 @@ function parsePackageMetadata(
       `resolveProject: ${packageName} required schema ${invalidRequiredSchema} must be a canonical package name.`,
     )
   }
+  // Retired LEDGER source names, so unscoped — `availability`, not
+  // `@voyant-travel/availability`. See VoyantGraphPackageMetadata.
+  if (value.legacyMigrationSources !== undefined && !isStringArray(value.legacyMigrationSources)) {
+    throw new Error(
+      `resolveProject: ${packageName} legacy migration sources must be a string array.`,
+    )
+  }
+  const legacyMigrationSources = (value.legacyMigrationSources ?? []) as string[]
+  // `find` would report nothing for the empty string, which is exactly the value
+  // most worth rejecting — it would alias every source's tags onto `""`.
+  const invalidLegacySource = legacyMigrationSources.findIndex(
+    (source) => !/^[a-z0-9-]+$/.test(source),
+  )
+  if (invalidLegacySource !== -1) {
+    throw new Error(
+      `resolveProject: ${packageName} legacy migration source ` +
+        `${JSON.stringify(legacyMigrationSources[invalidLegacySource])} must be an unscoped package name.`,
+    )
+  }
   return {
     schemaVersion: "voyant.package.v1",
     kind: value.kind,
@@ -1321,6 +1352,7 @@ function parsePackageMetadata(
     ...(requires ? { requires } : {}),
     ...(typeof value.schema === "string" ? { schema: value.schema } : {}),
     ...(requiresSchemas.length > 0 ? { requiresSchemas: [...requiresSchemas].sort() } : {}),
+    ...(legacyMigrationSources.length > 0 ? { legacyMigrationSources } : {}),
   }
 }
 

@@ -284,6 +284,7 @@ function normalizeVoyantPackageMetadata(value) {
   const runtime = normalizePackageRuntime(value.runtime)
   const schema = normalizeString(value.schema)
   const requiresSchemas = normalizeStringList(value.requiresSchemas)
+  const legacyMigrationSources = normalizeStringList(value.legacyMigrationSources)
   return {
     schemaVersion: voyantPackageMetadataSchemaVersion,
     kind: value.kind,
@@ -293,6 +294,7 @@ function normalizeVoyantPackageMetadata(value) {
     ...(requires ? { requires } : {}),
     ...(schema ? { schema } : {}),
     ...(requiresSchemas ? { requiresSchemas } : {}),
+    ...(legacyMigrationSources ? { legacyMigrationSources } : {}),
   }
 }
 

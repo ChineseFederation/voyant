@@ -17,7 +17,15 @@ const frameworkBundleDir = join(dirname(fileURLToPath(import.meta.url)), "..", "
 function writeFakePackage(
   root: string,
   packageName: string,
-  { withMigrations, esmOnly = false }: { withMigrations: boolean; esmOnly?: boolean },
+  {
+    withMigrations,
+    esmOnly = false,
+    legacyMigrationSources,
+  }: {
+    withMigrations: boolean
+    esmOnly?: boolean
+    legacyMigrationSources?: readonly string[]
+  },
 ): void {
   const pkgDir = join(root, "node_modules", ...packageName.split("/"))
   mkdirSync(pkgDir, { recursive: true })
@@ -32,7 +40,14 @@ function writeFakePackage(
         exports: { ".": { import: "./index.js" } },
       }
     : { name: packageName, version: "1.0.0", main: "index.js" }
-  writeFileSync(join(pkgDir, "package.json"), JSON.stringify(packageJson))
+  writeFileSync(
+    join(pkgDir, "package.json"),
+    JSON.stringify(
+      legacyMigrationSources
+        ? { ...packageJson, voyant: { schemaVersion: "voyant.package.v1", legacyMigrationSources } }
+        : packageJson,
+    ),
+  )
   writeFileSync(join(pkgDir, "index.js"), "export {}\n")
   if (!withMigrations) return
   const migrationsDir = join(pkgDir, "migrations")
@@ -57,6 +72,10 @@ beforeAll(() => {
   writeFakePackage(root, "@acme/loyalty", { withMigrations: true })
   writeFakePackage(root, "@acme/analytics", { withMigrations: false })
   writeFakePackage(root, "@acme/esm-only", { withMigrations: true, esmOnly: true })
+  writeFakePackage(root, "@acme/consolidated", {
+    withMigrations: true,
+    legacyMigrationSources: ["retired-module"],
+  })
 })
 
 afterAll(() => {
@@ -97,6 +116,31 @@ describe("loadModuleBundleSource (voyant#3069)", () => {
     expect(source).not.toBeNull()
     expect(source?.name).toBe("esm-only")
     expect(source?.migrations.length).toBeGreaterThan(0)
+  })
+
+  it("adopts the retired ledger sources the package's manifest declares", async () => {
+    // voyant#4330: the managed image resolves a module by NAME and never resolves
+    // the graph, so the absorbed identities have to come off package.json. Without
+    // this the moved tags are invisible under the new source name and re-run.
+    const source = await loadModuleBundleSource("@acme/consolidated", { priority: 1, resolveFrom })
+    expect(source?.name).toBe("consolidated")
+    expect(source?.legacyNames).toEqual(["retired-module"])
+  })
+
+  it("leaves legacyNames unset for a package that absorbed nothing", async () => {
+    const source = await loadModuleBundleSource("@acme/loyalty", { priority: 1, resolveFrom })
+    expect(source?.legacyNames).toBeUndefined()
+  })
+
+  it("carries the declared legacy sources through the managed collection path", async () => {
+    const sources = await collectDeploymentMigrationSources({
+      frameworkBundleDir,
+      modulePackages: ["@acme/consolidated"],
+      resolveFrom,
+    })
+    expect(sources.find((source) => source.name === "consolidated")?.legacyNames).toEqual([
+      "retired-module",
+    ])
   })
 
   it("honors an explicit migrationsDir, bypassing package resolution", async () => {

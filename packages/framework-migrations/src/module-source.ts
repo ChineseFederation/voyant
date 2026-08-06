@@ -14,6 +14,13 @@
  * a committed drizzle `migrations/` folder (`meta/_journal.json` + `*.sql`).
  * Modules that own no schema (e.g. payment plugins) ship none, and resolve to
  * `null` here — they need no migrations and are simply skipped.
+ *
+ * A package that ABSORBED another's migration history declares the retired ledger
+ * source names in its `package.json` as `voyant.legacyMigrationSources`, and they
+ * are loaded here as {@link MigrationSource.legacyNames}. That declaration has to
+ * live in `package.json`: this path never resolves the graph, so a graph-manifest
+ * facet is invisible to it, and a managed deployment that already recorded the
+ * retired identities would re-run the moved migrations (voyant#4330).
  */
 
 import { existsSync, readFileSync, statSync } from "node:fs"
@@ -45,6 +52,12 @@ export interface LoadModuleBundleSourceOptions {
   name?: string
   /** Resolved migrations folder, bypassing package resolution (mainly for tests). */
   migrationsDir?: string
+  /**
+   * Retired ledger source names this package absorbed, when the caller already
+   * knows them. Defaults to the package's own `voyant.legacyMigrationSources`,
+   * which is what a source-free managed image has to read.
+   */
+  legacyNames?: readonly string[]
 }
 
 /** The unscoped package name (`@acme/loyalty` → `loyalty`) used as the ledger source name. */
@@ -115,7 +128,7 @@ function findInstalledPackageRoot(packageName: string, resolveFrom: string | URL
   }
 }
 
-function resolveModuleMigrationsDir(packageName: string, resolveFrom: string | URL): string | null {
+function resolveModulePackageRoot(packageName: string, resolveFrom: string | URL): string | null {
   let entryPath: string | null = null
   try {
     entryPath = createRequire(resolveFrom).resolve(packageName)
@@ -124,10 +137,37 @@ function resolveModuleMigrationsDir(packageName: string, resolveFrom: string | U
     // condition — fall back to a package-root walk that ignores export conditions.
     entryPath = null
   }
-  const root = entryPath
+  return entryPath
     ? resolvePackageRoot(packageName, entryPath)
     : findInstalledPackageRoot(packageName, resolveFrom)
-  return root ? join(root, "migrations") : null
+}
+
+/**
+ * The retired ledger source names a package absorbed, from its own manifest.
+ *
+ * The ledger is keyed `(source, tag)` on the unscoped package name, so when a
+ * module consolidation moves another package's tags into this one they would
+ * otherwise not be found under the new name and would re-run against objects
+ * that already exist (voyant#4330). This is read from `package.json` rather than
+ * from the package's graph manifest because the managed image is SOURCE-FREE: it
+ * resolves a module by package name and reads its committed `migrations/` folder,
+ * and never resolves the graph. `package.json` is the one declaration both it and
+ * the graph-driven plan can see — the same reason `voyant.requiresSchemas` lives
+ * there.
+ */
+function declaredLegacySources(packageRoot: string): readonly string[] {
+  try {
+    const manifest = JSON.parse(readFileSync(join(packageRoot, "package.json"), "utf8")) as {
+      voyant?: { legacyMigrationSources?: readonly string[] }
+    }
+    const declared = manifest.voyant?.legacyMigrationSources
+    return Array.isArray(declared)
+      ? declared.filter((name) => typeof name === "string" && name.length > 0)
+      : []
+  } catch {
+    // Unreadable/partial package.json — the migrations folder is what matters.
+    return []
+  }
 }
 
 /**
@@ -140,14 +180,19 @@ export async function loadModuleBundleSource(
   packageName: string,
   options: LoadModuleBundleSourceOptions,
 ): Promise<MigrationSource | null> {
+  const packageRoot = options.migrationsDir
+    ? null
+    : resolveModulePackageRoot(packageName, options.resolveFrom ?? import.meta.url)
   const migrationsDir =
-    options.migrationsDir ??
-    resolveModuleMigrationsDir(packageName, options.resolveFrom ?? import.meta.url)
+    options.migrationsDir ?? (packageRoot ? join(packageRoot, "migrations") : null)
   if (!migrationsDir) return null
   if (!existsSync(join(migrationsDir, "meta", "_journal.json"))) return null
 
+  const legacyNames = options.legacyNames ?? (packageRoot ? declaredLegacySources(packageRoot) : [])
+
   return {
     name: options.name ?? moduleSourceName(packageName),
+    ...(legacyNames.length > 0 ? { legacyNames: [...legacyNames] } : {}),
     priority: options.priority,
     migrations: await loadMigrationFolder(migrationsDir),
   }

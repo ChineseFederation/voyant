@@ -351,6 +351,24 @@ export interface VoyantGraphPackageMetadata {
   /** Package schema export and its package-level migration dependencies. */
   schema?: string
   requiresSchemas?: readonly string[]
+  /**
+   * Retired ledger source names this package's `migrations/` folder absorbed.
+   *
+   * The ledger is keyed `(source, tag)` on the unscoped package name. When a
+   * module consolidation moves another package's tags into this one, they would
+   * otherwise not be found under the new name and would re-run against objects
+   * that already exist. This belongs to the PACKAGE rather than to its graph
+   * migration facet because a source-free managed image loads a module's
+   * migrations by package name without resolving the graph — the same reason
+   * `requiresSchemas` lives here. See voyant#4330.
+   *
+   * For a pure ownership move only: the tags and their SQL carry over
+   * byte-identical, so the content hashes still match. A migration whose SQL
+   * changes, or which supersedes several retired tags with one new baseline, is
+   * a different problem — see `SUPERSEDED_LEDGER_IDENTITIES` in
+   * `@voyant-travel/framework-migrations`.
+   */
+  legacyMigrationSources?: readonly string[]
 }
 
 export interface VoyantGraphPackageRecord {

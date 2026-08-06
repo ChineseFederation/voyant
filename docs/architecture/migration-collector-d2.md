@@ -207,8 +207,8 @@ failures, and both guards were doing their job:
   parity-gated (its tables do not exist under the new names) or executed (which
   collides with the live legacy tables).
 
-`legacySources` does not solve this. It maps a **source name** onto the same
-tag, and a rename changes the tags too.
+`legacyNames` does not solve this. It maps a **source name** onto the same tag
+(see the absorption section below), and a rename changes the tags too.
 
 The supported shape has three parts, and none of them may be used alone:
 
@@ -288,6 +288,46 @@ enum-, index- and constraint-for-constraint, names included. It runs on
 PostgreSQL 18 as well as 16 — 18 is the only version on which the NOT NULL
 constraint names exist to be compared — and reports which of the two it saw so a
 green run is not read as coverage it does not have.
+
+## Absorbing a module's migration history (voyant#4271, voyant#4330)
+
+A consolidation that moves one package's `migrations/` into another is the
+mirror image of the section above. There, content changed under a stable key;
+here the **key changes under stable content**: the tags and their SQL carry over
+byte-identical, but the ledger is keyed `(source, tag)` on the unscoped package
+name, so a database that already applied them looks for
+`availability/0000_availability_baseline` and the plan offers
+`operations/0000_availability_baseline`. Nothing matches, the migration is
+treated as never applied, and its `CREATE TABLE` collides with the tables the
+retired package built.
+
+`MigrationSource.legacyNames` is the mapping — the ledger lookup accepts a row
+under any of the source's legacy names. The whole of the problem is **where the
+absorbing package declares them**, and #4281 got that wrong: it declared them on
+the package's graph migration facet, which the graph-driven plan reads and the
+managed image cannot. That image is **source-free**. It resolves a module by
+package NAME, reads its committed `migrations/` folder, and never resolves a
+graph, so the declaration was invisible on exactly the deployments that had the
+retired history — and 0.6.0 could not migrate either of them.
+
+So: **the absorbed ledger sources are package metadata**, declared in
+`package.json` as `voyant.legacyMigrationSources`, next to `requiresSchemas` and
+for the same reason. `loadModuleBundleSource` reads them, so both the managed
+image and the graph-driven plan resolve one declaration.
+
+Fresh databases never see any of this — they have no retired history, so the
+moved baseline runs once and correctly. That is why CI is not the place this
+gets caught, and why the rule is checked statically instead:
+`verify:migration-cutline` fails when a source the cutline manifest records as
+`absorbedBy` another is not claimed in the absorbing package's manifest, and when
+a claimed source still ships its own migrations folder.
+
+Guarding the moved DDL with `IF NOT EXISTS` is not the fix. It clears the error
+and records the migration applied without establishing that the objects already
+there are the ones the baseline intended to create.
+
+**A migration that changes owning package needs its identity mapping in the same
+change**, exactly as an in-place content edit needs its equivalence entry.
 
 ## Editing an already-applied migration (voyant#4247)
 

@@ -147,6 +147,57 @@ describe("Node migration runner", () => {
     expect(source.migrations.length).toBeGreaterThan(0)
   })
 
+  it("adopts the absorbed ledger sources the package declares, plan or no plan", async () => {
+    // voyant#4330: `voyant.legacyMigrationSources` is the single declaration, and
+    // the plan resolves it from the same place. A plan generated before the field
+    // existed carries no `legacySources`, and the source must still adopt them.
+    const root = mkdtempSync(path.join(tmpdir(), "voyant-absorbed-module-"))
+    try {
+      const pkgDir = path.join(root, "node_modules", "@acme", "consolidated")
+      mkdirSync(path.join(pkgDir, "migrations", "meta"), { recursive: true })
+      writeFileSync(
+        path.join(pkgDir, "package.json"),
+        JSON.stringify({
+          name: "@acme/consolidated",
+          version: "1.0.0",
+          main: "index.js",
+          voyant: { schemaVersion: "voyant.package.v1", legacyMigrationSources: ["retired"] },
+        }),
+      )
+      writeFileSync(path.join(pkgDir, "index.js"), "export {}\n")
+      writeFileSync(
+        path.join(pkgDir, "migrations", "meta", "_journal.json"),
+        JSON.stringify({ entries: [{ tag: "0000_retired_baseline", when: 1 }] }),
+      )
+      writeFileSync(
+        path.join(pkgDir, "migrations", "0000_retired_baseline.sql"),
+        "create table slots ();\n",
+      )
+
+      const source = await loadNodeSchemaMigrationSource(
+        {
+          id: "@acme/consolidated#migrations",
+          migrationKind: "schema",
+          order: 2,
+          idempotencyKey: "schema:@acme/consolidated#migrations",
+          owner: "@acme/consolidated",
+          packageName: "@acme/consolidated",
+          source: {
+            kind: "package",
+            packageName: "@acme/consolidated",
+            path: "./migrations",
+          },
+        },
+        path.join(root, "consumer.js"),
+      )
+
+      expect(source.name).toBe("consolidated")
+      expect(source.legacyNames).toEqual(["schema:@acme/consolidated#migrations", "retired"])
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
   it("loads Catalog's generated product reindex migration from its journal", async () => {
     const source = await loadNodeSchemaMigrationSource(
       {

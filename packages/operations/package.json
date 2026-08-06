@@ -160,6 +160,9 @@
       "@voyant-travel/db",
       "@voyant-travel/identity"
     ],
+    "legacyMigrationSources": [
+      "availability"
+    ],
     "runtime": {
       "entry": "./runtime-contributor",
       "export": "createOperationsRuntimePortContribution"
