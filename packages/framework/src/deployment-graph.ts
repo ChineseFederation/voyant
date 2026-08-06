@@ -1395,6 +1395,7 @@ function resolveUnit(
       ? {
           admin: {
             ...(unit.admin.runtime ? { runtime: unit.admin.runtime } : {}),
+            ...(unit.admin.loading ? { loading: unit.admin.loading } : {}),
             ...(unit.admin.compositionOrder !== undefined
               ? { compositionOrder: unit.admin.compositionOrder }
               : {}),
@@ -2584,6 +2585,14 @@ function validateAdminFacet(
   }
   if (value.runtime !== undefined) {
     validateRuntimeReference(value.runtime, "admin.runtime", source, diagnostics)
+  }
+  if (value.loading !== undefined && value.loading !== "lazy-routes") {
+    invalidFacet(
+      "admin.loading",
+      source,
+      diagnostics,
+      'Admin loading must be exactly "lazy-routes" when provided.',
+    )
   }
   if (
     value.compositionOrder !== undefined &&

@@ -49,6 +49,7 @@ export const authCustomerBusinessAccountsVoyantModule = defineModule({
   },
   admin: {
     compositionOrder: 6,
+    loading: "lazy-routes",
     runtime: {
       entry: "@voyant-travel/auth-react/admin",
       export: "createSelectedCustomerBusinessAccountsAdminExtension",

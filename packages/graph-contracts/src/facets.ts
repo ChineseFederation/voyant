@@ -136,6 +136,12 @@ export interface VoyantGraphAdminSetupStep extends VoyantGraphFacetEntity {
 export interface VoyantGraphAdminDeclaration {
   /** Import-cheap factory for this unit's complete nav/route/page extension. */
   runtime?: VoyantGraphRuntimeReference
+  /**
+   * Keep a route-only implementation behind a dynamic import. Use only when
+   * every shell-critical contribution is represented by lightweight graph
+   * metadata; setup flows, widgets, slots, and runtime nav remain eager.
+   */
+  loading?: "lazy-routes"
   /** Stable ordering for selected factories that contribute at the same host anchor. */
   compositionOrder?: number
   copy?: readonly VoyantGraphAdminCopy[]

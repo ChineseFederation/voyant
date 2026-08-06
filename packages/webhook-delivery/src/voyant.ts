@@ -65,6 +65,7 @@ export const operatorWebhooksVoyantModule = defineModule({
   },
   admin: {
     compositionOrder: 20,
+    loading: "lazy-routes",
     runtime: adminRuntime,
     routes: [
       {

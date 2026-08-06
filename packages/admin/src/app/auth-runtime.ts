@@ -19,6 +19,8 @@
 /** Identity-broker mode: local Better Auth, or the Voyant Cloud broker. */
 export type AdminAuthMode = "local" | "voyant-cloud"
 
+export const ADMIN_ACTIVE_MODULES_QUERY_KEY = ["voyant", "admin", "active-modules"] as const
+
 /** Whether any user exists yet, plus the identity-broker mode. */
 export interface AdminBootstrapStatus {
   hasUsers: boolean

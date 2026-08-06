@@ -82,6 +82,7 @@ export const customFieldsVoyantModule = defineModule({
   },
   admin: {
     compositionOrder: 15,
+    loading: "lazy-routes",
     runtime: {
       entry: "@voyant-travel/custom-fields-react/admin",
       export: "createSelectedCustomFieldsAdminExtension",
