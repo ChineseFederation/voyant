@@ -1,5 +1,14 @@
 # @voyant-travel/storefront-react
 
+## 0.269.0
+
+### Patch Changes
+
+- Updated dependencies [56e2050]
+  - @voyant-travel/catalog-contracts@0.127.0
+  - @voyant-travel/catalog-react@0.265.0
+  - @voyant-travel/storefront-sdk@0.261.0
+
 ## 0.268.0
 
 ### Patch Changes
