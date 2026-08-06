@@ -13711,6 +13711,14 @@
                       "cancelUrl": {
                         "type": "string",
                         "format": "uri"
+                      },
+                      "acceptedCheckoutHandoffs": {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "enum": ["redirect", "embedded"]
+                        },
+                        "minItems": 1
                       }
                     }
                   }

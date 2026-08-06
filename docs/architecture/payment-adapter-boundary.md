@@ -104,11 +104,22 @@ between decides on its behalf:
 landing page ──acceptedCheckoutHandoffs──▶ POST /start-card ──▶ startCardPayment
      ▲                                                              │
      └────────────── checkout ◀── payment_sessions.checkout ◀── adapter.initiate
+
+storefront ──commit.payment.acceptedCheckoutHandoffs──▶ POST …/commit ──▶ startCardPayment
+     ▲                                                                        │
+     └── checkout ◀── GET /v1/public/finance/payment-sessions/{id} ◀── adapter.initiate
 ```
 
 - **the page** sets `acceptedCheckoutHandoffs` only when a
   `embeddedCheckoutClient` is wired into `<PaymentLinkLandingPage>`. Nothing
   else about a deployment turns in-page checkout on;
+- **the Booking Session commit** carries the same declaration on
+  `commitBookingSessionV1.payment.acceptedCheckoutHandoffs` and forwards it
+  verbatim. The Session is the only path between a storefront and the adapter,
+  so without it a control plane could implement the embedded arm in full and
+  still only ever be asked for a redirect (voyant#4346). The `payment_required`
+  outcome projects `redirectUrl` and not the union, so a storefront that asked
+  for `embedded` reads the handoff back from the payment session by id;
 - **`payment_sessions.checkout`** (jsonb) stores the whole union.
   `redirect_url` remains the redirect arm's flattened projection and the column
   every existing reader uses. A paid session clears both, so a spent client
@@ -127,10 +138,10 @@ is a `ComponentType` the deployment supplies — the same prop-injection seam
 enters the storefront bundle. The client secret reaches it through a
 `fetchClientSecret` callback rather than a prop.
 
-Two callers deliberately stay redirect-only: the commerce booking-engine
-checkout, and `POST /payment-sessions/{id}/requires-redirect`, which stamps a URL
-by name and by contract. Both are safe because of the redirect default, not
-because anything guards them.
+One caller deliberately stays redirect-only:
+`POST /payment-sessions/{id}/requires-redirect`, which stamps a URL by name and
+by contract. It is safe because of the redirect default, not because anything
+guards it.
 
 ## Disputes
 

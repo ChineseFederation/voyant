@@ -81,6 +81,81 @@ describe("Booking Session v1 contracts", () => {
     expect("price" in parsed).toBe(false)
   })
 
+  it("lets a Commit state the checkout handoffs the storefront can render", () => {
+    const parsed = commitBookingSessionV1.parse({
+      expectedRevision: 1,
+      quoteId: "bsqu_1",
+      requirementsFingerprint: "requirements_fingerprint_1",
+      idempotencyKey: "stable_commit_key",
+      payment: { acceptedCheckoutHandoffs: ["embedded", "redirect"] },
+    })
+
+    expect(parsed.payment?.acceptedCheckoutHandoffs).toEqual(["embedded", "redirect"])
+  })
+
+  it("leaves the preference absent when the storefront states nothing", () => {
+    const parsed = commitBookingSessionV1.parse({
+      expectedRevision: 1,
+      quoteId: "bsqu_1",
+      requirementsFingerprint: "requirements_fingerprint_1",
+      idempotencyKey: "stable_commit_key",
+      payment: { returnUrl: "https://shop.example.test/return" },
+    })
+
+    // Not defaulted here: `["redirect"]` is what an absent field *means*, and
+    // the one place that decides it is `acceptedPaymentCheckoutHandoffs`. A
+    // default stamped at the edge would be a second answer to the same
+    // question.
+    expect(parsed.payment?.acceptedCheckoutHandoffs).toBeUndefined()
+  })
+
+  it("accepts a Commit that omits returnUrl, which an embedded handoff never uses", () => {
+    expect(
+      commitBookingSessionV1.safeParse({
+        expectedRevision: 1,
+        quoteId: "bsqu_1",
+        requirementsFingerprint: "requirements_fingerprint_1",
+        idempotencyKey: "stable_commit_key",
+        payment: { acceptedCheckoutHandoffs: ["embedded"] },
+      }).success,
+    ).toBe(true)
+    // ...and still takes one when supplied, because an issuer authentication
+    // step wants somewhere to return to.
+    expect(
+      commitBookingSessionV1.safeParse({
+        expectedRevision: 1,
+        quoteId: "bsqu_1",
+        requirementsFingerprint: "requirements_fingerprint_1",
+        idempotencyKey: "stable_commit_key",
+        payment: {
+          acceptedCheckoutHandoffs: ["embedded"],
+          returnUrl: "https://shop.example.test/return",
+        },
+      }).success,
+    ).toBe(true)
+  })
+
+  it("rejects a handoff the payment port cannot produce, and an empty preference", () => {
+    expect(
+      commitBookingSessionV1.safeParse({
+        expectedRevision: 1,
+        quoteId: "bsqu_1",
+        requirementsFingerprint: "requirements_fingerprint_1",
+        idempotencyKey: "stable_commit_key",
+        payment: { acceptedCheckoutHandoffs: ["iframe"] },
+      }).success,
+    ).toBe(false)
+    expect(
+      commitBookingSessionV1.safeParse({
+        expectedRevision: 1,
+        quoteId: "bsqu_1",
+        requirementsFingerprint: "requirements_fingerprint_1",
+        idempotencyKey: "stable_commit_key",
+        payment: { acceptedCheckoutHandoffs: [] },
+      }).success,
+    ).toBe(false)
+  })
+
   it("returns typed lifecycle outcomes instead of prose-only errors", () => {
     const result = bookingSessionOutcomeV1.safeParse({
       kind: "rejected",

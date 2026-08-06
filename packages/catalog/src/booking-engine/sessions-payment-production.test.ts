@@ -139,6 +139,49 @@ describe("production Booking Session hosted-checkout initiation", () => {
   })
 })
 
+/**
+ * The storefront is the only party that knows whether it can mount a payment
+ * form, and the Booking Session is the only path between it and the adapter.
+ * The commit therefore carries the preference and interprets none of it —
+ * negotiation is the adapter's, via `negotiatePaymentCheckoutHandoff`
+ * (voyant#4346).
+ */
+describe("production Booking Session checkout handoff preference", () => {
+  beforeEach(() => {
+    startPaymentAdapterCardPayment.mockClear()
+  })
+
+  it("forwards the storefront's stated preference to the adapter unmodified", async () => {
+    const acceptedCheckoutHandoffs = ["embedded", "redirect"] as const
+
+    await prepare({ locale: "en-GB", departureDate: null, acceptedCheckoutHandoffs })
+
+    // Same value, same order: a re-sorted or de-duplicated copy here would be
+    // a second opinion about what the page can render.
+    expect(startArgs().acceptedCheckoutHandoffs).toBe(acceptedCheckoutHandoffs)
+  })
+
+  it("says nothing to the adapter when the storefront said nothing", async () => {
+    await prepare({ locale: "en-GB", departureDate: null })
+
+    // Absent, not `["redirect"]`. The default lives in
+    // `acceptedPaymentCheckoutHandoffs`, and stamping it here would put a
+    // second copy of it on the path.
+    expect(startArgs().acceptedCheckoutHandoffs).toBeUndefined()
+    expect("acceptedCheckoutHandoffs" in startArgs()).toBe(true)
+  })
+
+  it("forwards a redirect-only preference as stated", async () => {
+    await prepare({
+      locale: "en-GB",
+      departureDate: null,
+      acceptedCheckoutHandoffs: ["redirect"],
+    })
+
+    expect(startArgs().acceptedCheckoutHandoffs).toEqual(["redirect"])
+  })
+})
+
 async function prepare(input: {
   locale: string
   departureDate: string | null
@@ -146,6 +189,7 @@ async function prepare(input: {
   personId?: string
   actorKind?: string
   ownerPrincipalId?: string
+  acceptedCheckoutHandoffs?: readonly ("redirect" | "embedded")[]
 }) {
   const payments = createProductionBookingSessionPaymentPorts({
     db: {} as never,
@@ -187,7 +231,12 @@ async function prepare(input: {
       pricing: { total: 10_000, currency: "EUR" },
       expiresAt: new Date("2026-08-06T00:00:00Z"),
     },
-    commit: { idempotencyKey: "commit-1" },
+    commit: {
+      idempotencyKey: "commit-1",
+      ...(input.acceptedCheckoutHandoffs
+        ? { payment: { acceptedCheckoutHandoffs: input.acceptedCheckoutHandoffs } }
+        : {}),
+    },
     access: { actorKind: input.actorKind ?? "anonymous" },
     now: new Date("2026-08-05T00:00:00Z"),
   } as never)
@@ -200,5 +249,6 @@ function startArgs() {
     description?: string
     locale?: string
     customerReference?: string
+    acceptedCheckoutHandoffs?: readonly ("redirect" | "embedded")[]
   }
 }

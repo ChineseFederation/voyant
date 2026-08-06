@@ -63,6 +63,15 @@ export type BookingSessionJourneyResult =
   | { kind: "committed"; bookingId: string }
   | ({
       kind: "payment_required"
+      /**
+       * The payment session the guarantee is owed on. Carried because
+       * `redirectUrl` is the redirect arm's projection and is `null` for an
+       * embedded handoff: a storefront that stated
+       * `payment.acceptedCheckoutHandoffs: ["embedded", …]` reads the handoff
+       * itself back by this id, and without it the preference it stated would
+       * have nowhere to land (voyant#4346).
+       */
+      paymentSessionId: string
       redirectUrl: string | null
     } & BookingSessionJourneyContinuation)
 
@@ -143,6 +152,7 @@ async function commitContinuation(
     return {
       kind: "payment_required",
       ...continuation,
+      paymentSessionId: outcome.paymentSession.id,
       redirectUrl: outcome.paymentSession.redirectUrl,
     }
   }

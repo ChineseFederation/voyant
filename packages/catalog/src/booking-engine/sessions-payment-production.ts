@@ -144,6 +144,16 @@ export function createProductionBookingSessionPaymentPorts(
             ...(reference ? { customerReference: reference } : {}),
             returnUrl: commit.payment?.returnUrl,
             cancelUrl: commit.payment?.cancelUrl,
+            // Forwarded verbatim: the storefront is the only party that knows
+            // what it can render, and nothing between it and the adapter is
+            // entitled to decide on its behalf. Absent stays absent, which
+            // `acceptedPaymentCheckoutHandoffs` reads as `["redirect"]`, and
+            // an adapter without `embeddedCheckout` still answers with a
+            // redirect through `negotiatePaymentCheckoutHandoff`
+            // (voyant#4346). The parameter type is
+            // `readonly PaymentCheckoutHandoff[]`, which is what pins the
+            // contract's mirrored enum to the port.
+            acceptedCheckoutHandoffs: commit.payment?.acceptedCheckoutHandoffs,
             metadata: {
               bookingSessionId: session.id,
               quoteId: quote.id,

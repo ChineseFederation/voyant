@@ -118,7 +118,60 @@ describe("Booking Session v1 journey", () => {
       requirementsFingerprint: "requirements-fingerprint-1",
       holdId: "bshd_1",
       commitIdempotencyKey: "manual-booking:payment:commit",
+      paymentSessionId: "pays_1",
       redirectUrl: "https://payments.test/pays_1",
+    })
+  })
+
+  it("carries the stated handoff preference to Commit and hands back the payment session id", async () => {
+    const calls: Array<{ url: string; body: Record<string, unknown> }> = []
+    const fetcher = vi.fn(async (url: string, init?: RequestInit) => {
+      calls.push({ url, body: JSON.parse(String(init?.body ?? "{}")) })
+      if (url.endsWith("/booking-sessions")) {
+        return json({ kind: "session_created", session: session() })
+      }
+      if (url.endsWith("/quote")) return json(quote())
+      if (url.endsWith("/hold")) return json(hold())
+      return json({
+        kind: "commit_result",
+        outcome: {
+          kind: "payment_required",
+          nextAction: "establish_payment_guarantee",
+          paymentTarget: "booking_session",
+          allowedGuarantees: ["deposit"],
+          paymentSession: {
+            id: "pays_1",
+            status: "requires_redirect",
+            amountCents: 5000,
+            currency: "EUR",
+            // An embedded handoff carries no URL. Without the id, a storefront
+            // that asked for one would be told to pay and given nowhere to do
+            // it.
+            redirectUrl: null,
+            expiresAt: "2026-08-01T12:15:00.000Z",
+          },
+        },
+      })
+    })
+
+    const result = await commitBookingSessionJourneyV1(
+      createBookingJourneyApi({ baseUrl: "", fetcher }),
+      {
+        target: { kind: "product", productId: "prod_1" },
+        selection: {},
+        quantity: 1,
+        idempotencyKey: "manual-booking:embedded",
+        payment: { acceptedCheckoutHandoffs: ["embedded", "redirect"] },
+      },
+    )
+
+    expect(calls.at(-1)?.body.payment).toEqual({
+      acceptedCheckoutHandoffs: ["embedded", "redirect"],
+    })
+    expect(result).toMatchObject({
+      kind: "payment_required",
+      paymentSessionId: "pays_1",
+      redirectUrl: null,
     })
   })
 

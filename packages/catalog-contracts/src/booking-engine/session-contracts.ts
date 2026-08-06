@@ -285,8 +285,35 @@ export const commitBookingSessionV1 = z.object({
   idempotencyKey: z.string().min(8).max(128),
   payment: z
     .object({
+      /**
+       * Where the shopper is sent back to once a redirect handoff completes.
+       * Required in practice for the redirect arm and irrelevant to `embedded`
+       * — nobody is sent anywhere — but still accepted there, because an
+       * issuer authentication step wants a URL to return to.
+       */
       returnUrl: z.string().url().optional(),
       cancelUrl: z.string().url().optional(),
+      /**
+       * The checkout handoffs this storefront can render, most-preferred first.
+       *
+       * Absent means `["redirect"]`, so a page built before in-page checkout
+       * existed keeps getting a hosted page rather than a client secret it
+       * cannot mount. The storefront is the only party that knows what it can
+       * render, and the Booking Session is the only path between it and the
+       * adapter: the commit forwards this to
+       * `PaymentInitiationInput.acceptedCheckoutHandoffs` verbatim and
+       * interprets none of it, because the adapter's own capabilities decide
+       * the outcome through `negotiatePaymentCheckoutHandoff` (voyant#4346).
+       *
+       * Mirrors `PaymentCheckoutHandoff` from `@voyant-travel/payments`, which
+       * a contracts package describes rather than imports. The mirror is pinned
+       * by the commit forwarding it into a `readonly PaymentCheckoutHandoff[]`
+       * argument, so an arm added here and nowhere else fails the build.
+       */
+      acceptedCheckoutHandoffs: z
+        .array(z.enum(["redirect", "embedded"]))
+        .min(1)
+        .optional(),
     })
     .optional(),
 })
