@@ -1,5 +1,17 @@
 # @voyant-travel/operator-standard
 
+## 0.20.39
+
+### Patch Changes
+
+- Updated dependencies [4f9a097]
+  - @voyant-travel/framework-migrations@0.10.14
+  - @voyant-travel/operations@0.22.5
+  - @voyant-travel/core@0.140.1
+  - @voyant-travel/payments@0.12.1
+  - @voyant-travel/voyant-connect-adapter@0.22.1
+  - @voyant-travel/mcp@0.20.4
+
 ## 0.20.38
 
 ### Patch Changes
