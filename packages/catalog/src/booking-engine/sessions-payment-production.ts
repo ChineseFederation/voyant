@@ -1,3 +1,4 @@
+import type { BookingPaymentCheckoutV1 } from "@voyant-travel/catalog-contracts/booking-engine/lifecycle-conformance"
 import type { PaymentAdapter, PaymentAdapterRuntimeContext } from "@voyant-travel/finance"
 import {
   computePaymentSchedule,
@@ -248,6 +249,15 @@ function hasStaffPaymentSchedule(payload: Record<string, unknown>): boolean {
   return Array.isArray(staffBooking?.paymentSchedules) && staffBooking.paymentSchedules.length > 0
 }
 
+/**
+ * What the Commit outcome says about the payment the shopper still owes.
+ *
+ * `checkout` is carried whole. `redirectUrl` is only the redirect arm's
+ * flattened projection and is `null` for an embedded handoff, so a projection
+ * that stopped at it would drop the client secret between the adapter and the
+ * one outcome the storefront reads — the storefront having just been allowed to
+ * ask for that arm at Commit (voyant#4346).
+ */
 function projectPaymentSession(session: {
   id: string
   status:
@@ -262,6 +272,7 @@ function projectPaymentSession(session: {
   amountCents: number
   currency: string
   redirectUrl: string | null
+  checkout?: BookingPaymentCheckoutV1 | null
   expiresAt: Date | null
 }) {
   return {
@@ -270,6 +281,7 @@ function projectPaymentSession(session: {
     amountCents: session.amountCents,
     currency: session.currency,
     redirectUrl: session.redirectUrl,
+    checkout: session.checkout ?? null,
     expiresAt: session.expiresAt?.toISOString() ?? null,
   }
 }

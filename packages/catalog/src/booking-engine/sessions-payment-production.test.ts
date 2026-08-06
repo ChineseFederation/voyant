@@ -4,6 +4,15 @@ import { createProductionBookingSessionPaymentPorts } from "./sessions-payment-p
 
 const startPaymentAdapterCardPayment = vi.hoisted(() => vi.fn(async (..._args: unknown[]) => null))
 
+/**
+ * What the port re-reads after the adapter has been asked. `null` is the
+ * pre-existing default — the port then keeps the session it created, which is
+ * the "no handoff yet" path.
+ */
+const getPaymentSessionById = vi.hoisted(() =>
+  vi.fn(async (..._args: unknown[]) => null as unknown),
+)
+
 vi.mock("@voyant-travel/finance", () => ({
   computePaymentSchedule: () => [
     { amountCents: 10_000, currency: "EUR", scheduleType: "deposit", dueDate: "2026-08-05" },
@@ -17,7 +26,7 @@ vi.mock("@voyant-travel/finance", () => ({
     expiresAt: null,
   }),
   expirePendingBookingSessionPayments: vi.fn(),
-  financeService: { getPaymentSessionById: async () => null },
+  financeService: { getPaymentSessionById },
   findEstablishedBookingSessionPayment: async () => null,
   noDepositPolicy: { kind: "no_deposit" },
   resolveEffectivePaymentPolicy: () => ({ policy: { kind: "deposit" }, source: "operator" }),
@@ -149,6 +158,8 @@ describe("production Booking Session hosted-checkout initiation", () => {
 describe("production Booking Session checkout handoff preference", () => {
   beforeEach(() => {
     startPaymentAdapterCardPayment.mockClear()
+    getPaymentSessionById.mockClear()
+    getPaymentSessionById.mockResolvedValue(null)
   })
 
   it("forwards the storefront's stated preference to the adapter unmodified", async () => {
@@ -180,6 +191,41 @@ describe("production Booking Session checkout handoff preference", () => {
 
     expect(startArgs().acceptedCheckoutHandoffs).toEqual(["redirect"])
   })
+
+  it("carries the negotiated handoff back out, not just its redirect projection", async () => {
+    const outcome = await prepare({
+      locale: "en-GB",
+      departureDate: null,
+      acceptedCheckoutHandoffs: ["embedded", "redirect"],
+      refreshedCheckout: {
+        kind: "embedded",
+        clientSecret: "cs_test_secret",
+        publishableKey: "pk_test_key",
+      },
+      refreshedRedirectUrl: null,
+    })
+
+    // Asking for the arm is worth nothing if the answer dies here: the client
+    // secret has no other way out to the storefront, because `redirectUrl` is
+    // null for exactly this arm.
+    expect(outcome).toMatchObject({
+      kind: "required",
+      paymentSession: {
+        redirectUrl: null,
+        checkout: {
+          kind: "embedded",
+          clientSecret: "cs_test_secret",
+          publishableKey: "pk_test_key",
+        },
+      },
+    })
+  })
+
+  it("reports no handoff as null rather than dropping the field", async () => {
+    const outcome = await prepare({ locale: "en-GB", departureDate: null })
+
+    expect(outcome).toMatchObject({ kind: "required", paymentSession: { checkout: null } })
+  })
 })
 
 async function prepare(input: {
@@ -190,7 +236,23 @@ async function prepare(input: {
   actorKind?: string
   ownerPrincipalId?: string
   acceptedCheckoutHandoffs?: readonly ("redirect" | "embedded")[]
+  refreshedCheckout?: Record<string, unknown>
+  refreshedRedirectUrl?: string | null
 }) {
+  if (input.refreshedCheckout !== undefined) {
+    // What the adapter persisted, read back by the port exactly as production
+    // reads it — through `financeService.getPaymentSessionById`, not by
+    // handing the port a pre-built projection.
+    getPaymentSessionById.mockResolvedValue({
+      id: "pmts_1",
+      status: "pending",
+      amountCents: 10_000,
+      currency: "EUR",
+      redirectUrl: input.refreshedRedirectUrl ?? null,
+      checkout: input.refreshedCheckout,
+      expiresAt: null,
+    })
+  }
   const payments = createProductionBookingSessionPaymentPorts({
     db: {} as never,
     inventory: {

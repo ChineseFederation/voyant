@@ -107,7 +107,7 @@ landing page ──acceptedCheckoutHandoffs──▶ POST /start-card ──▶ 
 
 storefront ──commit.payment.acceptedCheckoutHandoffs──▶ POST …/commit ──▶ startCardPayment
      ▲                                                                        │
-     └── checkout ◀── GET /v1/public/finance/payment-sessions/{id} ◀── adapter.initiate
+     └──── checkout ◀── payment_required.paymentSession ◀── payment_sessions.checkout
 ```
 
 - **the page** sets `acceptedCheckoutHandoffs` only when a
@@ -115,17 +115,25 @@ storefront ──commit.payment.acceptedCheckoutHandoffs──▶ POST …/commi
   else about a deployment turns in-page checkout on;
 - **the Booking Session commit** carries the same declaration on
   `commitBookingSessionV1.payment.acceptedCheckoutHandoffs` and forwards it
-  verbatim. The Session is the only path between a storefront and the adapter,
-  so without it a control plane could implement the embedded arm in full and
-  still only ever be asked for a redirect (voyant#4346). The `payment_required`
-  outcome projects `redirectUrl` and not the union, so a storefront that asked
-  for `embedded` reads the handoff back from the payment session by id;
+  verbatim, and its `payment_required` outcome carries `checkout` back. The
+  Session is the only path between a storefront and the adapter in both
+  directions, so **the two halves are one change**: forwarding alone would let a
+  control plane be asked for an embedded arm and have the client secret dropped
+  at the projection, and projecting alone would carry a handoff nobody could ask
+  for (voyant#4346);
 - **`payment_sessions.checkout`** (jsonb) stores the whole union.
   `redirect_url` remains the redirect arm's flattened projection and the column
   every existing reader uses. A paid session clears both, so a spent client
   secret does not linger;
 - **the public session projection** carries `checkout` so the payer's browser
-  gets the token its provider SDK needs.
+  gets the token its provider SDK needs;
+- **the session state** is the framework's, not the adapter's.
+  `requires_redirect` asserts there is somewhere to send the shopper, and the
+  embedded arm has nowhere, so an initiation that produces one is recorded as
+  `pending` no matter what state the adapter reported. The conformance kit does
+  not pin a state to the arm, and the readers keyed on `requires_redirect` — the
+  status pollers, the pending aggregates, the reuse arms — would otherwise wait
+  on a return trip nobody was sent on.
 
 Every hop treats an absent `acceptedCheckoutHandoffs` as `["redirect"]`, which
 is what makes the downgrade real rather than merely typed: a client built before

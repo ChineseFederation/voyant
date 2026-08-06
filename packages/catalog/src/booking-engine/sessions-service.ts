@@ -1,3 +1,4 @@
+import type { BookingPaymentCheckoutV1 } from "@voyant-travel/catalog-contracts/booking-engine/lifecycle-conformance"
 import type {
   OfferPreviewOutcomeV1,
   OfferPreviewRequestV1,
@@ -430,6 +431,13 @@ export interface BookingSessionPaymentPorts {
           amountCents: number
           currency: string
           redirectUrl: string | null
+          /**
+           * The handoff the adapter produced, whole. `redirectUrl` above is its
+           * redirect-arm projection and is `null` for an embedded one, so this
+           * is the only field that can carry a client secret out to the
+           * storefront that asked for it (voyant#4346).
+           */
+          checkout: BookingPaymentCheckoutV1 | null
           expiresAt: string | null
         }
         allowedGuarantees: Array<"deposit" | "pre_auth" | "card_on_file" | "agency_letter">

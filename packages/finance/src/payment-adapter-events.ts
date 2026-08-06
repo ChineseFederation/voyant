@@ -6,7 +6,7 @@ import type {
   PaymentSessionState,
   PaymentStatusResult,
 } from "@voyant-travel/payments"
-import { paymentCheckoutRedirectUrl } from "@voyant-travel/payments"
+import { isEmbeddedPaymentCheckout, paymentCheckoutRedirectUrl } from "@voyant-travel/payments"
 import { eq } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import {
@@ -183,6 +183,29 @@ async function applyPaymentAdapterStateUpdate(
   return applyLockedNonCompletionStateUpdate(db, update, providerData)
 }
 
+/**
+ * The state an initiation leaves the session in.
+ *
+ * `requires_redirect` names a fact — there is a URL the shopper must be sent to
+ * — and the embedded arm has none: `redirectUrl` is null for it, so the two
+ * columns would contradict each other and every reader keyed on that state (the
+ * status pollers, the pending aggregates, the reuse arms) would sit waiting for
+ * a return that nobody was ever sent on.
+ *
+ * The framework settles this rather than the adapter. `PaymentSessionState` is
+ * the framework's own vocabulary, the conformance kit does not pin a state to
+ * the embedded arm, and a processor that has just learned to return a client
+ * secret cannot be relied on to also pick the right word for it. `pending` is
+ * the honest answer and is already an expected initiation outcome — see the
+ * uncontested-claim finalisation below — so no new state member is needed
+ * (voyant#4346).
+ */
+export function initiationNextState(result: PaymentInitiationResult): PaymentSessionState {
+  if (result.nextState !== "requires_redirect") return result.nextState
+  if (!result.checkout || !isEmbeddedPaymentCheckout(result.checkout)) return result.nextState
+  return "pending"
+}
+
 export async function applyPaymentAdapterInitiationResult(
   db: PostgresJsDatabase,
   paymentSessionId: string,
@@ -204,7 +227,7 @@ export async function applyPaymentAdapterInitiationResult(
     {
       source: "initiation",
       paymentSessionId,
-      nextState: result.nextState,
+      nextState: initiationNextState(result),
       occurredAt: new Date().toISOString(),
       processorIdentity: result.processorIdentity,
       processorSessionId: result.processorSessionId,

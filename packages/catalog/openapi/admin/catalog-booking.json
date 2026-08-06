@@ -8897,6 +8897,51 @@
                             "type": ["string", "null"],
                             "format": "uri"
                           },
+                          "checkout": {
+                            "oneOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "kind": {
+                                    "type": "string",
+                                    "enum": ["hosted_checkout", "redirect"]
+                                  },
+                                  "url": {
+                                    "type": "string"
+                                  },
+                                  "expiresAt": {
+                                    "type": ["string", "null"]
+                                  }
+                                },
+                                "required": ["kind", "url"]
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "kind": {
+                                    "type": "string",
+                                    "enum": ["embedded"]
+                                  },
+                                  "clientSecret": {
+                                    "type": "string"
+                                  },
+                                  "publishableKey": {
+                                    "type": "string"
+                                  },
+                                  "providerAccountId": {
+                                    "type": ["string", "null"]
+                                  },
+                                  "expiresAt": {
+                                    "type": ["string", "null"]
+                                  }
+                                },
+                                "required": ["kind", "clientSecret", "publishableKey"]
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
                           "expiresAt": {
                             "type": ["string", "null"],
                             "format": "date-time"
@@ -8908,6 +8953,7 @@
                           "amountCents",
                           "currency",
                           "redirectUrl",
+                          "checkout",
                           "expiresAt"
                         ]
                       }
@@ -9333,6 +9379,51 @@
                                     "type": ["string", "null"],
                                     "format": "uri"
                                   },
+                                  "checkout": {
+                                    "oneOf": [
+                                      {
+                                        "type": "object",
+                                        "properties": {
+                                          "kind": {
+                                            "type": "string",
+                                            "enum": ["hosted_checkout", "redirect"]
+                                          },
+                                          "url": {
+                                            "type": "string"
+                                          },
+                                          "expiresAt": {
+                                            "type": ["string", "null"]
+                                          }
+                                        },
+                                        "required": ["kind", "url"]
+                                      },
+                                      {
+                                        "type": "object",
+                                        "properties": {
+                                          "kind": {
+                                            "type": "string",
+                                            "enum": ["embedded"]
+                                          },
+                                          "clientSecret": {
+                                            "type": "string"
+                                          },
+                                          "publishableKey": {
+                                            "type": "string"
+                                          },
+                                          "providerAccountId": {
+                                            "type": ["string", "null"]
+                                          },
+                                          "expiresAt": {
+                                            "type": ["string", "null"]
+                                          }
+                                        },
+                                        "required": ["kind", "clientSecret", "publishableKey"]
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
                                   "expiresAt": {
                                     "type": ["string", "null"],
                                     "format": "date-time"
@@ -9344,6 +9435,7 @@
                                   "amountCents",
                                   "currency",
                                   "redirectUrl",
+                                  "checkout",
                                   "expiresAt"
                                 ]
                               }

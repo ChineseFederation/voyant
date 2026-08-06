@@ -14,6 +14,48 @@ export {
 
 import { bookingLifecycleConformanceScenariosV1 } from "./lifecycle-conformance-scenarios.js"
 
+/**
+ * The processor checkout handoff as it appears on a Booking lifecycle outcome,
+ * mirroring `PaymentHostedCheckout` from `@voyant-travel/payments`.
+ *
+ * Mirrored rather than imported, for two reasons. A contracts package describes
+ * the wire and depends only on zod — it does not pull in a runtime package. And
+ * `@voyant-travel/finance-contracts`, which carries the same mirror for
+ * finance's own routes, is **not on the public npm surface**: importing it here
+ * would drag it and its closure back onto npm through this published package,
+ * which `verify:public-surface` rejects (voyant#4059).
+ *
+ * The copy is not free-floating. `projectPaymentSession` in
+ * `@voyant-travel/catalog` assigns the `payment_sessions.checkout` column —
+ * typed `PaymentHostedCheckout` by the port itself — into this type, so a
+ * drifted arm fails that build rather than silently serving a shape the port no
+ * longer produces.
+ */
+export const bookingPaymentRedirectCheckoutV1 = z.object({
+  kind: z.enum(["hosted_checkout", "redirect"]),
+  url: z.string(),
+  expiresAt: z.string().nullable().optional(),
+})
+
+/**
+ * The in-page arm. `clientSecret` and `publishableKey` are opaque here on
+ * purpose: the runtime forwards them and never parses them, so no provider's
+ * token format is baked into the contract.
+ */
+export const bookingPaymentEmbeddedCheckoutV1 = z.object({
+  kind: z.literal("embedded"),
+  clientSecret: z.string(),
+  publishableKey: z.string(),
+  providerAccountId: z.string().nullable().optional(),
+  expiresAt: z.string().nullable().optional(),
+})
+
+export const bookingPaymentCheckoutV1 = z.discriminatedUnion("kind", [
+  bookingPaymentRedirectCheckoutV1,
+  bookingPaymentEmbeddedCheckoutV1,
+])
+export type BookingPaymentCheckoutV1 = z.infer<typeof bookingPaymentCheckoutV1>
+
 export const bookingCommitmentPolicyKindV1 = z.enum([
   "owned_atomic_commit",
   "sourced_supplier_first",
@@ -321,7 +363,26 @@ const bookingLifecycleOriginalCommitOutcomeV1 = z.discriminatedUnion("kind", [
       ]),
       amountCents: z.number().int().positive(),
       currency: z.string().length(3),
+      /**
+       * The redirect arm's flattened projection, kept so every client that
+       * reads a URL keeps reading one. `null` for an embedded handoff — there
+       * is nowhere to send the shopper — which is why it cannot be the only
+       * handoff field here.
+       */
       redirectUrl: z.string().url().nullable(),
+      /**
+       * The handoff the adapter actually produced, whole.
+       *
+       * Without it a storefront could ask for `embedded` at Commit, have the
+       * preference honoured all the way to the adapter, and then be handed a
+       * `payment_required` with a null URL and no client secret — the token
+       * dying between the adapter and the only outcome the storefront reads.
+       * The request half and this half are one change (voyant#4346).
+       *
+       * `null` when no handoff was produced (an already-established payment, or
+       * an adapter that has not been asked yet).
+       */
+      checkout: bookingPaymentCheckoutV1.nullable(),
       expiresAt: z.string().datetime().nullable(),
     }),
   }),

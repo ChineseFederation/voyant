@@ -532,6 +532,7 @@ function outcomeForScenario(
           amountCents: 10_000,
           currency: "EUR",
           redirectUrl: "https://pay.example.test/session",
+          checkout: { kind: "redirect", url: "https://pay.example.test/session" },
           expiresAt: "2026-08-01T13:00:00.000Z",
         },
       }

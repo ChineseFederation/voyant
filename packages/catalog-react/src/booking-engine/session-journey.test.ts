@@ -97,6 +97,7 @@ describe("Booking Session v1 journey", () => {
             amountCents: 5000,
             currency: "EUR",
             redirectUrl: "https://payments.test/pays_1",
+            checkout: { kind: "redirect", url: "https://payments.test/pays_1" },
             expiresAt: "2026-08-01T12:15:00.000Z",
           },
         },
@@ -119,6 +120,7 @@ describe("Booking Session v1 journey", () => {
       holdId: "bshd_1",
       commitIdempotencyKey: "manual-booking:payment:commit",
       paymentSessionId: "pays_1",
+      checkout: { kind: "redirect", url: "https://payments.test/pays_1" },
       redirectUrl: "https://payments.test/pays_1",
     })
   })
@@ -144,10 +146,14 @@ describe("Booking Session v1 journey", () => {
             status: "requires_redirect",
             amountCents: 5000,
             currency: "EUR",
-            // An embedded handoff carries no URL. Without the id, a storefront
-            // that asked for one would be told to pay and given nowhere to do
-            // it.
+            // An embedded handoff carries no URL, so `redirectUrl` alone would
+            // tell the storefront to pay and give it nowhere to do it.
             redirectUrl: null,
+            checkout: {
+              kind: "embedded",
+              clientSecret: "cs_test_secret",
+              publishableKey: "pk_test_key",
+            },
             expiresAt: "2026-08-01T12:15:00.000Z",
           },
         },
@@ -168,10 +174,18 @@ describe("Booking Session v1 journey", () => {
     expect(calls.at(-1)?.body.payment).toEqual({
       acceptedCheckoutHandoffs: ["embedded", "redirect"],
     })
+    // The whole point of stating the preference: the client secret survives the
+    // round trip. A projection that stopped at `redirectUrl` would hand back a
+    // null URL and nothing to mount.
     expect(result).toMatchObject({
       kind: "payment_required",
       paymentSessionId: "pays_1",
       redirectUrl: null,
+      checkout: {
+        kind: "embedded",
+        clientSecret: "cs_test_secret",
+        publishableKey: "pk_test_key",
+      },
     })
   })
 

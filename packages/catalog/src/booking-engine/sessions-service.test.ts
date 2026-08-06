@@ -1818,6 +1818,7 @@ function createPaymentHarness() {
           amountCents: 10_000,
           currency: "EUR",
           redirectUrl: "https://payments.example.test/session/1",
+          checkout: { kind: "redirect", url: "https://payments.example.test/session/1" },
           expiresAt: "2026-08-01T12:01:00.000Z",
         },
       }
