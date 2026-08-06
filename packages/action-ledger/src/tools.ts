@@ -476,12 +476,13 @@ const approvalDecisionRisk = {
 const approvalDecisionOutputSchema = z.object({
   approval: actionApprovalDtoSchema,
   decisionAction: actionLedgerEntryDtoSchema,
+  nextSteps: z.array(z.string()),
 })
 
 export const approveActionApprovalTool = defineTool({
   name: "approve_action_approval",
   description:
-    "Approve one pending request only when its capability and approval policy remain selected in the graph, it is unexpired, and the caller is the assigned staff principal when assigned.",
+    "Approve one pending request only when its capability and approval policy remain selected in the graph, it is unexpired, and the caller is the assigned staff principal when assigned. Approval does NOT execute the original action: after this succeeds, retry the original Tool with the exact same command and the approved id in its nested `_voyant` control.",
   inputSchema: decideApprovalInputSchema,
   outputSchema: approvalDecisionOutputSchema,
   requiredScopes: ["action-ledger:approve"],
@@ -489,7 +490,18 @@ export const approveActionApprovalTool = defineTool({
   riskPolicy: approvalDecisionRisk,
   actionPolicyEnforcement: "handler",
   async handler({ approvalId }, ctx: ActionLedgerToolContext) {
-    return service(ctx).decideApproval({ approvalId, status: "approved" })
+    const result = await service(ctx).decideApproval({ approvalId, status: "approved" })
+    return {
+      ...result,
+      // The approval decision is itself a successful Tool call, so error
+      // remediation is no longer visible when the model receives this result.
+      // A live GPT client approved correctly and then stopped, leaving the
+      // original invoice action awaiting execution. Keep the continuation on
+      // the success payload, where the client can act on it.
+      nextSteps: [
+        `Approval "${approvalId}" is now approved, but the original action has NOT executed. Re-call the original Tool with the exact same command and the nested control object "_voyant": {"confirmed": true, "approvalId": "${approvalId}"}.`,
+      ],
+    }
   },
 })
 
@@ -504,7 +516,13 @@ export const denyActionApprovalTool = defineTool({
   riskPolicy: approvalDecisionRisk,
   actionPolicyEnforcement: "handler",
   async handler({ approvalId }, ctx: ActionLedgerToolContext) {
-    return service(ctx).decideApproval({ approvalId, status: "denied" })
+    const result = await service(ctx).decideApproval({ approvalId, status: "denied" })
+    return {
+      ...result,
+      nextSteps: [
+        `Approval "${approvalId}" was denied. Do not retry the original action with this approval id.`,
+      ],
+    }
   },
 })
 

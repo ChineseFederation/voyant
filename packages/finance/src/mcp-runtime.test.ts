@@ -142,7 +142,7 @@ describe("finance issue_invoice_from_booking MCP runtime", () => {
     }
 
     expect(error.code).toBe("INVALID_INPUT")
-    expect(error.nextSteps?.[0]).toContain("create_invoice_number_series")
+    expect(error.nextSteps?.[0]).toContain("Finance admin surface")
     expect(error.meta).toMatchObject({ reason: "no_active_series_for_scope", scope: "proforma" })
   })
 

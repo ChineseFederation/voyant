@@ -212,7 +212,14 @@ const productOpenGraphMediaToolSchema = z
   })
   .passthrough()
   .nullable()
-const productIdArgs = z.object({ id: z.string().min(1).describe("The product id.") })
+const productIdArgs = z.object({
+  id: z
+    .string()
+    .min(1)
+    .describe(
+      "The full product id returned by inventory_query (normally starts with `prod_`). A product name, numeric suffix, or run marker is not an id.",
+    ),
+})
 
 export type ProductContentToolInput = z.output<typeof getProductContentArgs>
 
@@ -615,7 +622,7 @@ function productLifecycleToolDefinition(input: {
     name: input.name,
     description: input.description,
     inputSchema: productIdArgs,
-    outputSchema: productToolSchema.nullable(),
+    outputSchema: productToolSchema,
     requiredScopes: ["products:write"],
     audience: STAFF_AUDIENCE,
     tier: "write",
@@ -623,10 +630,20 @@ function productLifecycleToolDefinition(input: {
     annotations: { idempotentHint: true },
     async handler({ id }: z.infer<typeof productIdArgs>, ctx: InventoryToolContext) {
       try {
-        return parseJsonResult(
-          productToolSchema.nullable(),
-          await inventory(ctx).updateProduct(id, input.patch),
-        )
+        const product = await inventory(ctx).updateProduct(id, input.patch)
+        if (!product) {
+          // A lifecycle mutation returning `null` is not success. The live GPT
+          // client supplied a run-marker suffix as the id, received
+          // `{ result: null }`, and confidently reported publication even though
+          // the database stayed in draft. Turn absence into an actionable error
+          // and require the same concrete output shape as a successful mutation.
+          throw new ToolError(
+            `No product exists with id "${id}". Resolve the full product id with inventory_query, then retry this lifecycle action.`,
+            "NOT_FOUND",
+            { id },
+          )
+        }
+        return parseJsonResult(productToolSchema, product)
       } catch (error) {
         throw toPublishReadinessToolError(error)
       }

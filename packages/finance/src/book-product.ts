@@ -114,7 +114,7 @@ export const bookProductToolInputSchema = z.object({
     .min(1)
     .optional()
     .describe(
-      "Billing party for a private client. Provide exactly one of `personId` or `organizationId`.",
+      "TOP-LEVEL billing party id for a private client. Provide exactly one of `personId` or `organizationId`; do not wrap it in a `billingParty` object.",
     ),
   organizationId: z
     .string()
@@ -126,7 +126,7 @@ export const bookProductToolInputSchema = z.object({
   billingContact: bookProductBillingContactSchema
     .optional()
     .describe(
-      "Billing-contact snapshot captured on the booking. For a private client a real name and an email or phone are required.",
+      "TOP-LEVEL billing-contact snapshot captured on the booking. For a private client, send firstName, lastName, and a real email or phone here.",
     ),
   pax: z
     .number()
@@ -273,10 +273,21 @@ export function collectBookProductIssues(
   if (parsed.success) return null
   return parsed.error.issues
     .filter((issue) => !(issue.path.length === 1 && issue.path[0] === "bookingNumber"))
-    .map((issue) => ({
-      path: issue.path.map((segment) => String(segment)).join("."),
-      message: issue.message,
-    }))
+    .map((issue) => {
+      const rawPath = issue.path.map((segment) => String(segment)).join(".")
+      const path = rawPath.startsWith("contact")
+        ? `billingContact.${rawPath.slice("contact".length, "contact".length + 1).toLowerCase()}${rawPath.slice("contact".length + 1)}`
+        : rawPath
+      const message =
+        rawPath === "personId"
+          ? "Set the TOP-LEVEL personId for a private client (or top-level organizationId for a company). Do not send a billingParty object."
+          : rawPath === "contactFirstName" || rawPath === "contactLastName"
+            ? "Set billingContact.firstName and billingContact.lastName for the private billing party."
+            : rawPath === "contactEmail"
+              ? "Set billingContact.email to a real address, or set billingContact.phone."
+              : issue.message
+      return { path, message }
+    })
 }
 
 /**

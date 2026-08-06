@@ -43,7 +43,7 @@ describe("generic MCP action-policy gate", () => {
     expect(dispatch).not.toHaveBeenCalled()
   })
 
-  it("writes a server-owned required-ledger preflight before dispatch and records success", async () => {
+  it("derives a stable key for a server-owned required-ledger action", async () => {
     const selected = action()
     const events: string[] = []
     let sequence = 0
@@ -54,7 +54,10 @@ describe("generic MCP action-policy gate", () => {
     })
 
     const result = await gate(selected).execute(
-      execution(selected, { confirmed: true, requestId }),
+      // Even an old client-supplied requestId cannot override the server's
+      // command-derived key; otherwise omitting it on an approved retry changes
+      // the key and invalidates the approval.
+      execution(selected, { confirmed: true, requestId: "caller-placeholder" }),
       async () => {
         events.push("dispatch")
         return { ok: true }
@@ -67,7 +70,7 @@ describe("generic MCP action-policy gate", () => {
       expect.anything(),
       expect.objectContaining({
         targetId: "target_1",
-        idempotencyKey: requestId,
+        idempotencyKey: expect.stringMatching(/^mcp-request:sha256:[0-9a-f]{64}$/),
       }),
     )
   })
@@ -150,14 +153,20 @@ describe("generic MCP action-policy gate", () => {
     // The concrete id, not a description of where to find it.
     expect(error.nextSteps?.[0]).toContain("approve_action_approval")
     expect(error.nextSteps?.[0]).toContain("approval_1")
-    expect(error.nextSteps?.[1]).toContain("_voyant.approvalId")
+    expect(error.nextSteps?.[1]).toContain('"approvalId": "approval_1"')
     expect(error.nextSteps?.[1]).toContain("approval_1")
+    // Confirmation is asserted on the approved retry too, so the retry step has
+    // to say to keep it. Without this an agent alternates between
+    // APPROVAL_REQUIRED and CONFIRMATION_REQUIRED, holding one field at a time.
+    expect(error.nextSteps?.[1]).toContain('"confirmed": true')
+    expect(error.nextSteps?.[1]).toContain("Do not send flat keys")
     // The loop-causing instruction must not survive anywhere in the remediation.
     expect(error.nextSteps?.join(" ")).toMatch(/do NOT call request_action_approval/)
   })
 
   it("creates and replays an approval preflight without dispatch", async () => {
     const selected = action({ approval: "required" })
+    const derivedRequestId = `mcp-request:${await exactFingerprint(selected, { value: 1 })}`
     const requestApproval = vi.spyOn(actionLedgerService, "requestApproval")
     requestApproval
       .mockResolvedValueOnce(approvalRequest(false) as never)
@@ -172,7 +181,7 @@ describe("generic MCP action-policy gate", () => {
         approvalId: "approval_1",
         requestedActionId: "requested_1",
         status: "pending",
-        requestId,
+        requestId: derivedRequestId,
         idempotencyFingerprint: expect.stringMatching(/^sha256:/),
         replayed: false,
       },
@@ -181,7 +190,7 @@ describe("generic MCP action-policy gate", () => {
       code: "APPROVAL_REQUIRED",
       meta: {
         approvalId: "approval_1",
-        requestId,
+        requestId: derivedRequestId,
         idempotencyFingerprint: expect.stringMatching(/^sha256:/),
         replayed: true,
       },
@@ -192,7 +201,7 @@ describe("generic MCP action-policy gate", () => {
       expect.objectContaining({
         requestedAction: expect.objectContaining({
           targetId: "target_1",
-          idempotencyKey: requestId,
+          idempotencyKey: derivedRequestId,
           idempotencyFingerprint: expect.stringMatching(/^sha256:/),
         }),
       }),
@@ -251,10 +260,11 @@ describe("generic MCP action-policy gate", () => {
     const selected = action({ approval: "required" })
     const commandInput = { value: 1 }
     const fingerprint = await exactFingerprint(selected, commandInput)
+    const derivedRequestId = `mcp-request:${fingerprint}`
     vi.spyOn(actionLedgerService, "validateApprovedAction").mockResolvedValue({
       ok: true,
       approval: { id: "approval_1" },
-      requestedAction: { id: "requested_1", idempotencyKey: requestId },
+      requestedAction: { id: "requested_1", idempotencyKey: derivedRequestId },
       idempotencyFingerprint: fingerprint,
     } as never)
     const appended: unknown[] = []

@@ -92,6 +92,22 @@ describe("action-ledger Tool definitions", () => {
       code: "NOT_FOUND",
     })
   })
+
+  it("tells an approver to resume the original Tool after a successful decision", async () => {
+    const services = noopServices()
+    services.decideApproval = vi.fn().mockResolvedValue({
+      approval: makeApproval({ id: "approval_1", status: "approved" }),
+      decisionAction: makeEntry({ actionKind: "approve", status: "approved" }),
+    })
+
+    const result = await approveActionApprovalTool.handler(
+      { approvalId: "approval_1" },
+      toolContext(services),
+    )
+
+    expect(result.nextSteps[0]).toContain("original action has NOT executed")
+    expect(result.nextSteps[0]).toContain('"approvalId": "approval_1"')
+  })
 })
 
 describe("action-ledger Tool services", () => {

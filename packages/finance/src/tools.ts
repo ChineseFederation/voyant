@@ -87,7 +87,7 @@ export interface FinanceToolServices {
     admitted: ReturnType<typeof admitHandlerActionPolicy>,
   ): Promise<BookProductOutput>
   issueInvoiceFromBooking(
-    input: z.infer<typeof issueInvoiceFromBookingToolInputSchema>,
+    input: z.infer<typeof issueInvoiceFromBookingToolInputSchema> & { approvalId?: string },
   ): Promise<unknown>
   recordPaymentDispute(input: z.infer<typeof recordPaymentDisputeToolInputSchema>): Promise<unknown>
   recordRefundSettlement(
@@ -103,6 +103,10 @@ export type FinanceToolContext = ToolContext & { finance?: FinanceToolServices }
 
 function finance(ctx: FinanceToolContext): FinanceToolServices {
   return requireService(ctx.finance, "finance")
+}
+
+function handlerApprovalId(ctx: FinanceToolContext): string | undefined {
+  return ctx.handlerActionPolicy?.invocation.approvalId?.trim() || undefined
 }
 
 export const listInvoicesTool = defineTool<
@@ -179,12 +183,6 @@ export const issueInvoiceRefundInputSchema = insertCreditNoteSchema.omit({ statu
     .trim()
     .min(1)
     .describe("Stable key used when requesting approval and replaying the command."),
-  approvalId: z
-    .string()
-    .trim()
-    .min(1)
-    .optional()
-    .describe("Approval id returned after the prior request is approved."),
 })
 
 const pendingFinanceApprovalSchema = z.object({
@@ -243,7 +241,9 @@ export const issueInvoiceRefundTool = defineTool<
   annotations: { idempotentHint: true },
   actionPolicyEnforcement: "handler",
   async handler(input, ctx) {
-    return issueInvoiceRefundOutputSchema.parse(await finance(ctx).issueInvoiceRefund(input))
+    return issueInvoiceRefundOutputSchema.parse(
+      await finance(ctx).issueInvoiceRefund({ ...input, approvalId: handlerApprovalId(ctx) }),
+    )
   },
 })
 
@@ -298,7 +298,7 @@ export const bookProductTool = defineTool({
   capabilityVersion: "v1",
   name: "book_product",
   description:
-    "Book a product for a client in one call: product and option, the billing party (a `personId` for a private client or an `organizationId` for a company), travelers, and rooms. Travelers are given INLINE here as names and details — they do not need to exist as CRM People first, so do not go looking for a companion in the CRM or create one before booking; only the billing party is an existing record. The platform resolves the booking reference and the idempotency key server-side, so nothing has to be carried across calls. An incomplete request returns actionable issues and creates nothing.",
+    "Book a product for a client in one call. Put the billing party id at the TOP LEVEL as `personId` for a private client or `organizationId` for a company; do not send a `billingParty` object. For a private client also send the TOP-LEVEL `billingContact` object with firstName, lastName, and email or phone. Travelers are given INLINE here as names and details — they do not need to exist as CRM People first, so do not go looking for a companion in the CRM or create one before booking; only the billing party is an existing record. The platform resolves the booking reference and the idempotency key server-side, so nothing has to be carried across calls. An incomplete request returns actionable issues and creates nothing.",
   inputSchema: bookProductToolInputSchema,
   outputSchema: bookProductToolOutputSchema,
   requiredScopes: ["bookings:write", "finance:write"],
@@ -332,14 +332,6 @@ export const issueInvoiceFromBookingToolInputSchema = z.object({
     .describe(
       "Optional. Leave this out — the platform derives a stable key from the command itself. Only send one to override that.",
     ),
-  approvalId: z
-    .string()
-    .trim()
-    .min(1)
-    .optional()
-    .describe(
-      "The approval id from a prior `approval_required` response, once that approval has been APPROVED. Omit on the first call.",
-    ),
 })
 
 export const issueInvoiceFromBookingToolOutputSchema = z.union([
@@ -363,7 +355,7 @@ export const issueInvoiceFromBookingTool = defineTool<
   // order, with a human decision in between. Issuing an invoice needs approval,
   // so the first call never issues anything, and nothing here said so.
   description:
-    "Issue an invoice or proforma from a booking. This takes TWO calls because issuing is approval-gated. First call it with just the `command`: it creates an approval and returns `approval_required` — no invoice exists yet. Then have that approval approved (`approve_action_approval`) and call this again with the identical `command` plus the `approvalId`, which issues the document. The returned `nextSteps` spell out both steps with the concrete id. Do not invent an idempotency key; the platform derives one from the command so the approved retry replays rather than issuing twice.",
+    "Issue an invoice or proforma from a booking. This takes TWO calls because issuing is approval-gated. First call it with the `command` and `_voyant.confirmed: true`: it creates an approval and returns `approval_required` — no invoice exists yet. Then approve that request with `approve_action_approval` and call this again with the identical `command`, `_voyant.confirmed: true`, and `_voyant.approvalId` set to the approved id. The returned `nextSteps` spell out both steps with the concrete id. Do not put approvalId at the top level and do not invent an idempotency key; both are protocol controls owned by the platform.",
   inputSchema: issueInvoiceFromBookingToolInputSchema,
   outputSchema: issueInvoiceFromBookingToolOutputSchema,
   requiredScopes: ["finance:write", "bookings:read"],
@@ -381,7 +373,7 @@ export const issueInvoiceFromBookingTool = defineTool<
   annotations: { idempotentHint: true },
   async handler(input, ctx) {
     return issueInvoiceFromBookingToolOutputSchema.parse(
-      await finance(ctx).issueInvoiceFromBooking(input),
+      await finance(ctx).issueInvoiceFromBooking({ ...input, approvalId: handlerApprovalId(ctx) }),
     )
   },
 })

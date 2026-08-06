@@ -12,6 +12,10 @@ import {
   type FinanceToolServices,
   financeBookingsCreateTools,
   financeTools,
+  issueInvoiceFromBookingTool,
+  issueInvoiceFromBookingToolInputSchema,
+  issueInvoiceRefundInputSchema,
+  issueInvoiceRefundTool,
   issueUnsyncedProformaFromBookingToolInputSchema,
 } from "../src/tools.js"
 import { financeBookingsCreateVoyantPlugin } from "../src/voyant.js"
@@ -83,6 +87,70 @@ function bookingDetail(id = "booking_1") {
 }
 
 describe("finance tools", () => {
+  it("carries approvals through the _voyant admission instead of a duplicate domain field", async () => {
+    expect(issueInvoiceFromBookingToolInputSchema.shape).not.toHaveProperty("approvalId")
+    expect(issueInvoiceRefundInputSchema.shape).not.toHaveProperty("approvalId")
+
+    const received: Array<{ tool: string; approvalId?: string }> = []
+    const approvalRequired = (targetType: "booking" | "invoice") => ({
+      status: "approval_required" as const,
+      requestedAction: {
+        id: `action_${targetType}`,
+        status: "awaiting_approval" as const,
+        actionName: `finance.${targetType}.issue`,
+        targetType,
+        targetId: `${targetType}_1`,
+      },
+      approval: {
+        id: "approval_1",
+        status: "pending" as const,
+        requestedActionId: `action_${targetType}`,
+        policyName: "finance-approval-v1",
+        policyVersion: "v1",
+        riskSnapshot: "high",
+        reasonCode: "finance_approval_requested",
+        expiresAt: null,
+        createdAt: "2026-08-06T10:00:00.000Z",
+      },
+      replayed: false,
+      nextSteps: [],
+    })
+    const services: Partial<FinanceToolServices> = {
+      async issueInvoiceFromBooking(input) {
+        received.push({ tool: "invoice", approvalId: input.approvalId })
+        return approvalRequired("booking")
+      },
+      async issueInvoiceRefund(input) {
+        received.push({ tool: "refund", approvalId: input.approvalId })
+        return approvalRequired("invoice")
+      },
+    }
+    const handlerPolicy = {
+      invocation: { approvalId: "approval_1", confirmed: true },
+    } as ToolHandlerActionPolicyContext
+
+    await issueInvoiceFromBookingTool.handler(
+      { command: { bookingId: "booking_1", issueDate: "2026-08-06", dueDate: "2026-08-13" } },
+      ctx(services, handlerPolicy),
+    )
+    await issueInvoiceRefundTool.handler(
+      {
+        invoiceId: "invoice_1",
+        creditNoteNumber: "CN-1",
+        amountCents: 1_000,
+        currency: "EUR",
+        reason: "correction",
+        idempotencyKey: "refund-1",
+      },
+      ctx(services, handlerPolicy),
+    )
+
+    expect(received).toEqual([
+      { tool: "invoice", approvalId: "approval_1" },
+      { tool: "refund", approvalId: "approval_1" },
+    ])
+  })
+
   it("refuses draft-only and raw external-sync controls before mutation", () => {
     const base = {
       bookingId: "booking_1",

@@ -5051,6 +5051,36 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
     })
 
     expect(outcome.status).toBe("product_not_found")
+    expect(outcome).toMatchObject({
+      detail: expect.stringContaining("No product exists with id prod_nope"),
+    })
+    expect(await db.select().from(bookings)).toHaveLength(0)
+  })
+
+  it("names a departure/option mismatch instead of blaming publication", async () => {
+    const { productId, optionId, unitId } = await seedProduct()
+    const otherOptionId = `${optionId}_other`
+    await db.execute(sql`
+      INSERT INTO product_options (id, product_id, name, status, is_default, sort_order)
+      VALUES (${otherOptionId}, ${productId}, 'Other', 'active', false, 1)
+    `)
+    const slot = await seedSlot({ productId, optionId: otherOptionId })
+
+    const outcome = await createBooking(db, {
+      productId,
+      optionId,
+      slotId: slot.id,
+      bookingNumber: nextBookingNumber(),
+      ...bookingParty(),
+      itemLines: [{ optionUnitId: unitId, quantity: 1 }],
+    })
+
+    expect(outcome).toMatchObject({
+      status: "product_not_found",
+      detail: expect.stringContaining(
+        `Departure ${slot.id} is attached to option ${otherOptionId}, but the booking selected option ${optionId}`,
+      ),
+    })
     expect(await db.select().from(bookings)).toHaveLength(0)
   })
 

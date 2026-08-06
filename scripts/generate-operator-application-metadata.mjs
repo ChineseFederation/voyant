@@ -286,10 +286,26 @@ export default defineConfig({
     tsconfigPaths: true,
   },
   test: {
-    environment: "jsdom",
+    // "node", not "jsdom". Every one of this app's test files is a server test —
+    // they mount the graph, hit the database, and call routes. The only
+    // DOM-shaped matches across all 13 were the phrase "document number" in a
+    // task string and a \`contract.document.generated\` event name. A file that
+    // genuinely needs a DOM can opt in with a
+    // \`// @vitest-environment jsdom\` docblock.
+    //
+    // Justified by what the files contain, not by a memory number — see the note
+    // below about a measurement that did not hold up.
+    environment: "node",
     include: ["tests/**/*.test.ts", "tests/**/*.test.tsx"],
     passWithNoTests: true,
     testTimeout: 30_000,
+    // NOTE: capping worker count was tried here and REMOVED. Summed-RSS sampling
+    // put this suite at ~5.7 GB across 13 concurrent processes, which looked like
+    // unbounded parallelism; \`maxForks: 2\` then changed the peak not at all
+    // (5,751 MB vs 5,769 MB, and 14 processes rather than fewer). Summing RSS
+    // across processes double-counts shared pages, so that figure was mostly an
+    // artefact of how it was measured. Do not re-add a cap on the strength of a
+    // summed-RSS number; measure with smaps_rollup/PSS first.
     server: {
       deps: {
         inline: [

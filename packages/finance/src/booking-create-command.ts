@@ -240,9 +240,15 @@ export function bookingCreateCommandError(
     // Observed ending a real booking journey after the product, option, unit and
     // departure had all been created successfully. The neighbouring cases below
     // already name their problem and their fix; these now do too.
+    // The generic sentence remains only as a fallback. When the diagnostic ran it
+    // names the actual cause, because "not found, or is not bookable, confirm it
+    // is published" was a guess covering five unrelated failures. In the measured
+    // run the publication was already correct, but the trace could not distinguish
+    // the remaining causes; the diagnostic makes the next failure say which fired.
     case "product_not_found":
       return new ToolError(
-        "The product being booked was not found, or is not bookable. Confirm the product id with inventory_query, and that the product is published with at least one option carrying a priced unit.",
+        outcome.detail ??
+          "The product being booked was not found, or is not bookable. Confirm the product id with inventory_query, and that the product is published with at least one option carrying a priced unit.",
         "NOT_FOUND",
         { outcome },
       )

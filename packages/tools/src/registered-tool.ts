@@ -145,9 +145,9 @@ function deriveActionPolicy(
   }
   if (enforcement === "generic") {
     if (serverOwnedGenericTarget) {
-      if (action.kind === "execute" && action.ledger === "required") {
-        requiredFields.push("requestId")
-      }
+      // `requestId` is deliberately not advertised. The generic gate derives it
+      // from the command fingerprint it already computes, so there is no token
+      // for the caller to invent or carry across an approval.
     } else {
       if (action.ledger === "required") requiredFields.push("targetId")
       if (action.kind === "execute" && action.ledger === "required") {

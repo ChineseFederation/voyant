@@ -1668,7 +1668,7 @@ describe("createMcpApiRoutes", () => {
             enforcement: "generic",
             invocation: {
               controlField: "_voyant",
-              requiredFields: ["confirmed", "requestId"],
+              requiredFields: ["confirmed"],
               optionalFields: ["reasonCode", "approvalId"],
               targetResolution: "package-resolver",
             },
@@ -1686,7 +1686,6 @@ describe("createMcpApiRoutes", () => {
             message: "hello",
             _voyant: {
               confirmed: true,
-              requestId: "6c0f3fb4-2c96-4c3a-a520-28166167fb18",
               approvalId: "approval_1",
             },
           },
@@ -1703,7 +1702,6 @@ describe("createMcpApiRoutes", () => {
         resolvedTargetId: "notification:hello",
         invocation: {
           confirmed: true,
-          requestId: "6c0f3fb4-2c96-4c3a-a520-28166167fb18",
           approvalId: "approval_1",
         },
       }),
@@ -1795,7 +1793,6 @@ describe("createMcpApiRoutes", () => {
             recordId: " ",
             _voyant: {
               confirmed: true,
-              requestId: "6c0f3fb4-2c96-4c3a-a520-28166167fb18",
             },
           },
         }),

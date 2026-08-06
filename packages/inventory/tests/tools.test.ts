@@ -553,6 +553,23 @@ describe("inventory tools", () => {
     ])
   })
 
+  it("refuses a missing lifecycle target instead of reporting null success", async () => {
+    const error = await publishProductTool
+      .handler(
+        { id: "8014752" },
+        ctxWith({
+          async updateProduct() {
+            return null
+          },
+        } as never),
+      )
+      .catch((thrown: unknown) => thrown as { code?: string; message?: string })
+
+    expect(error.code).toBe("NOT_FOUND")
+    expect(error.message).toContain("inventory_query")
+    expect(error.message).toContain("8014752")
+  })
+
   it("leaves a non-readiness failure from the same handler untouched", async () => {
     // The converter must not swallow unrelated throws — that would replace a real
     // failure with a confident, wrong remediation.

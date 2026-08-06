@@ -32,7 +32,7 @@ describe("book_product validate-before-write", () => {
     expect(issues).toContainEqual(
       expect.objectContaining({
         path: "personId",
-        message: expect.stringMatching(/billing party/i),
+        message: expect.stringContaining("TOP-LEVEL personId"),
       }),
     )
   })
@@ -42,7 +42,12 @@ describe("book_product validate-before-write", () => {
       completeInput({ billingContact: { firstName: "Ada", lastName: "Lovelace" } }),
     )
     expect(issues).not.toBeNull()
-    expect(issues?.some((issue) => /email or phone/i.test(issue.message))).toBe(true)
+    expect(issues).toContainEqual(
+      expect.objectContaining({
+        path: "billingContact.email",
+        message: expect.stringContaining("billingContact.email"),
+      }),
+    )
   })
 
   it("flags an unknown travelerKey referenced by a room", () => {

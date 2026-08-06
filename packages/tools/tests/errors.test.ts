@@ -22,11 +22,9 @@ describe("ToolError actionable fields", () => {
   })
 
   it("states the exact remediation for approval and confirmation gates", () => {
-    expect(new ToolError("x", "APPROVAL_REQUIRED").nextSteps.join(" ")).toContain(
-      "_voyant.approvalId",
-    )
+    expect(new ToolError("x", "APPROVAL_REQUIRED").nextSteps.join(" ")).toContain('"approvalId"')
     expect(new ToolError("x", "CONFIRMATION_REQUIRED").nextSteps.join(" ")).toContain(
-      "_voyant.confirmed=true",
+      '"confirmed": true',
     )
   })
 

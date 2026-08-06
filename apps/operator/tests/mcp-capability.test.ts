@@ -50,6 +50,7 @@ import { readFileSync } from "node:fs"
 import { homedir } from "node:os"
 import { join } from "node:path"
 import { createDbClient } from "@voyant-travel/db"
+import { financeService } from "@voyant-travel/finance"
 import { composeVoyantGraphRuntime } from "@voyant-travel/framework"
 import { sql as sqlRaw } from "drizzle-orm"
 import { Hono } from "hono"
@@ -525,25 +526,11 @@ function buildJourneys(RUN_MARK: string): CapabilityJourney[] {
       verify: `select 1 from invoices i join bookings b on b.id = i.booking_id
              join people pe on pe.id = b.person_id
              where pe.last_name ilike '%marinescu${RUN_MARK}%'`,
-      // Measured 0/3 with errors=0 — which is the finding, not a null result. The
-      // agent hit NOTHING it could recognise as a failure: the first call returns
-      // `approval_required`, a SUCCESS payload carrying an approval id and no
-      // instruction, so it reported that and stopped. The actionable-errors work
-      // (voyant#3950) only ever reached the ERROR path, so this was never covered.
-      // Fixed by deriving the idempotency key from the command and returning the
-      // two concrete next steps; see finance/src/mcp-runtime.ts.
-      //
-      // Still a knownGap because the fix is unit-tested but NOT yet confirmed
-      // end to end: the run after it broke upstream at product-option-create, so
-      // this journey never received a booking to invoice. Do not read a future
-      // 0/3 here as the approval payload regressing without first checking that
-      // booking-create passed on that attempt.
-      // The measured trace is the agent doing the RIGHT thing: it queries bookings
-      // for the client, finds none because booking-create was refused upstream,
-      // and stops rather than inventing one. So a 0/3 here has never yet been
-      // evidence about invoicing at all — it is product publication failing three
-      // links earlier. Fix that before reading anything into this number.
-      knownGap: "unit-tested; blocked upstream on product publication, not on invoicing",
+      // First completed end to end once the harness supplied ordinary deployment
+      // configuration (a default proforma number series) and Finance consumed the
+      // approval id from the shared `_voyant` control. This is asserted now: a
+      // future failure is a regression, though its rate remains capped by the
+      // chained publication and booking journeys above it.
     },
     {
       id: "contracts-read",
@@ -662,6 +649,22 @@ function report(): string {
     if (!done) lines.push(`      answer: ${run.answer.slice(0, 220)}`)
     for (const failed of run.calls.filter((c) => c.isError)) {
       lines.push(`      ✗ ${failed.name}: ${failed.snippet.slice(0, 200)}`)
+      // The error tells us which guard refused; the arguments tell us why. This
+      // is especially important for `_voyant` protocol failures, where omitted,
+      // misplaced and false control fields all produce the same error code.
+      lines.push(`        args: ${JSON.stringify(failed.args).slice(0, 800)}`)
+    }
+    // Approval protocols often return a successful `approval_required` payload.
+    // If the journey later fails, error-only logging hides the decisive call and
+    // makes a stalled protocol look like "errors=0". Preserve a bounded trace of
+    // every successful dispatch for failed journeys so the real-model run is
+    // diagnosable without changing what the model itself saw.
+    if (!done) {
+      for (const call of run.calls.filter((c) => !c.isError)) {
+        lines.push(
+          `      · ${call.name} args=${JSON.stringify(call.args).slice(0, 500)} result=${call.snippet.slice(0, 300)}`,
+        )
+      }
     }
     // Across ALL attempts, not just the last. A 6/10 journey fails for a reason
     // the final transcript may not contain at all, and reading one sample to
@@ -694,6 +697,26 @@ describe.skipIf(!enabled)("MCP capability — a travel agent's job", () => {
     async () => {
       if (!enabled) return
       const app = await mountRealMcp()
+      // Invoice numbering is deployment configuration, not part of the travel
+      // agent's request to issue a proforma. A real agency configures this before
+      // taking bookings; an empty disposable database does not. Seed the same
+      // prerequisite through Finance's real service so this journey measures the
+      // issue capability rather than whether a brand-new deployment was set up.
+      await financeService.createInvoiceNumberSeries(verifyDb as NonNullable<typeof verifyDb>, {
+        code: "CAPABILITY-PROFORMA",
+        name: "Capability evaluation proformas",
+        prefix: "PF",
+        separator: "-",
+        padLength: 6,
+        currentSequence: 0,
+        resetStrategy: "annual",
+        resetAt: null,
+        scope: "proforma",
+        isDefault: true,
+        externalProvider: null,
+        externalConfigKey: null,
+        active: true,
+      })
       // Handshake first, like a real client: `instructions` is returned here and
       // nowhere else.
       const initialized = await readRpc(

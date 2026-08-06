@@ -680,7 +680,10 @@ export type BookingCreateOutcome =
       periodEnd: string
       message: string
     }
-  | { status: "product_not_found" }
+  // `detail` names WHICH of the five refusal causes actually fired. The inner
+  // bookings create returns a bare `null` for all of them, so this status has
+  // always been a guess dressed as a diagnosis. See diagnoseProductRefusal.
+  | { status: "product_not_found"; detail?: string }
   | { status: "travel_credit_not_found" }
   | { status: "travel_credit_inactive" }
   | { status: "travel_credit_not_started" }
@@ -852,6 +855,83 @@ async function findDuplicateBookingForCreate(
  * depend on it directly — adding a runtime dependency for a log-only
  * sanity check would be overkill.
  */
+/**
+ * Work out which of the five refusals actually fired.
+ *
+ * `bookingsService.createBooking` returns a bare `null` when the product is
+ * missing, when a line's optionId does not belong to the product, when the
+ * selected optionId does not belong to the product, when the slotId does not
+ * exist for the product, or when the slot belongs to a DIFFERENT option than the
+ * one selected. One return value, five causes, and the caller-facing message had
+ * to pick one and hope.
+ *
+ * It picked "confirm the product is published" even when the measured product
+ * was already active. The trace did not expose which of the remaining causes
+ * fired, so this diagnostic makes that distinction observable instead of
+ * presenting an inference as the answer.
+ *
+ * Ordered from the most fundamental to the most specific so the first true
+ * statement is also the most useful one.
+ */
+async function diagnoseProductRefusal(
+  tx: PostgresJsDatabase,
+  input: {
+    productId: string
+    optionId: string | null
+    slotId: string | null
+    lineOptionIds: readonly string[]
+  },
+): Promise<string> {
+  const [product] = (await tx.execute(sql`
+    SELECT id, status FROM products WHERE id = ${input.productId} LIMIT 1
+  `)) as unknown as Array<{ id: string; status: string }>
+  if (!product) {
+    return `No product exists with id ${input.productId}. Find the id with inventory_query before retrying.`
+  }
+
+  const optionIds = [
+    ...new Set([...(input.optionId ? [input.optionId] : []), ...input.lineOptionIds]),
+  ]
+  if (optionIds.length > 0) {
+    const owned = (await tx.execute(sql`
+      SELECT id FROM product_options
+      WHERE product_id = ${input.productId}
+        AND id IN (${sql.join(
+          optionIds.map((optionId) => sql`${optionId}`),
+          sql`, `,
+        )})
+    `)) as unknown as Array<{ id: string }>
+    const ownedIds = new Set(owned.map((row) => row.id))
+    const foreign = optionIds.filter((id) => !ownedIds.has(id))
+    if (foreign.length > 0) {
+      return `Option ${foreign.join(", ")} does not belong to product ${input.productId}. List that product's options with inventory_query and use one of those.`
+    }
+  }
+
+  if (input.slotId) {
+    const [slot] = (await tx.execute(sql`
+      SELECT id, product_id AS "productId", option_id AS "optionId"
+      FROM availability_slots WHERE id = ${input.slotId} LIMIT 1
+    `)) as unknown as Array<{ id: string; productId: string; optionId: string | null }>
+    if (!slot) {
+      return `No departure exists with id ${input.slotId}.`
+    }
+    if (slot.productId !== input.productId) {
+      return `Departure ${input.slotId} belongs to product ${slot.productId}, not ${input.productId}.`
+    }
+    if (input.optionId && slot.optionId && slot.optionId !== input.optionId) {
+      return `Departure ${input.slotId} is attached to option ${slot.optionId}, but the booking selected option ${input.optionId}. Book the option the departure belongs to, or create a departure for the option you want to sell.`
+    }
+  }
+
+  // Publication is checked LAST because it is the cause the old message always
+  // named and the least often responsible.
+  if (product.status !== "active") {
+    return `Product ${input.productId} is ${product.status}, not active. Publish it with publish_product before selling it.`
+  }
+  return "The product, its options and its departure all resolve individually, so the refusal is not one of the diagnosed identity or ownership mismatches. Re-read the product with inventory_query and confirm the option carries a priced, bookable unit."
+}
+
 async function loadProductOptionUnits(
   tx: PostgresJsDatabase,
   productId: string,
@@ -2482,7 +2562,34 @@ export async function createBookingMutation(
       if (!booking) {
         // Caller gave us a product that doesn't resolve. Throw so drizzle
         // rolls back any writes the convert helper may have made.
-        throw new BookingCreateAbort({ status: "product_not_found" })
+        //
+        // `null` here means one of five unrelated things (see diagnoseProductRefusal),
+        // and the message this becomes used to guess at the most likely one —
+        // telling the caller to check that the product is published even when the
+        // product was published and the real problem was a departure attached to a
+        // different option. Diagnosing costs a few reads on a path that is already
+        // failing and about to roll back, which is the cheapest possible place to
+        // spend them.
+        throw new BookingCreateAbort({
+          status: "product_not_found",
+          detail: await diagnoseProductRefusal(tx, {
+            productId: input.productId,
+            optionId: input.optionId ?? null,
+            slotId: input.slotId ?? null,
+            // Item lines carry an optionUnitId, not an optionId, so the options
+            // a booking actually touches have to come back through the units.
+            lineOptionIds: [
+              ...new Set(
+                (normalizedItemLines ?? []).flatMap((line) => {
+                  const unit = productOptionUnits.find(
+                    (candidate) => candidate.optionUnitId === line.optionUnitId,
+                  )
+                  return unit?.optionId ? [unit.optionId] : []
+                }),
+              ),
+            ],
+          }),
+        })
       }
       const bookingId = booking.id
       if (input.storefrontOrigin) {

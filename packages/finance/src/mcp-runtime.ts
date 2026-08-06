@@ -329,7 +329,7 @@ export const voyantToolContextContribution = defineToolContextContribution({
               // by requesting another approval.
               nextSteps: [
                 `1. Call approve_action_approval with approvalId "${authorization.approval.id}". The approval exists but is PENDING; re-calling issue_invoice_refund before this step returns this same response.`,
-                `2. Call issue_invoice_refund again with the identical input plus approvalId "${authorization.approval.id}". An altered command no longer matches what was approved.`,
+                `2. Call issue_invoice_refund again with the identical input and the nested control object "_voyant": {"confirmed": true, "approvalId": "${authorization.approval.id}"}. Do not use flat dotted keys or put approvalId at the top level. An altered command no longer matches what was approved.`,
               ],
             }
           }
@@ -566,7 +566,7 @@ function financeRefundAuthorizationError(
 // check the codes that exist today.
 const INVOICE_NUMBERING_REMEDIATION: Record<InvoiceNumberAllocationErrorCode, string> = {
   no_active_series_for_scope:
-    "No active number series exists for this document type. Create one with create_invoice_number_series for this scope, or activate an existing one, then retry.",
+    "No active number series exists for this document type. Ask an operator to create or activate a default series for this scope, then retry. Number-series setup is currently available through the Finance admin surface, not an MCP Tool.",
   invoice_number_series_not_found:
     "The requested number series id does not exist. List the series and pass a valid id, or omit seriesId to use the default for the scope.",
   invoice_number_series_inactive:
@@ -662,7 +662,7 @@ function pendingApprovalResult(input: {
     // happened here, and telling the caller to repeat it is what caused the loop.
     nextSteps: [
       `1. Call approve_action_approval with approvalId "${input.approval.id}". The approval exists but is PENDING until it is decided; re-calling issue_invoice_from_booking before this step returns this same response.`,
-      `2. Call issue_invoice_from_booking again with the identical command plus approvalId "${input.approval.id}". Do not change the command — an altered command no longer matches what was approved.`,
+      `2. Call issue_invoice_from_booking again with the identical command and the nested control object "_voyant": {"confirmed": true, "approvalId": "${input.approval.id}"}. Do not use flat dotted keys or put approvalId at the top level. Do not change the command — an altered command no longer matches what was approved.`,
     ],
     replayed: input.replayed,
   }
