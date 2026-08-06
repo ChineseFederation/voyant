@@ -26,6 +26,7 @@ import {
   CardHeader,
   CardTitle,
   Dialog,
+  DialogBody,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -934,27 +935,29 @@ export function PaymentsSettingsPage({ embeddedOnboardingClient }: PaymentsSetti
                   <DialogDescription>{t.onboardingDescription}</DialogDescription>
                 </DialogHeader>
 
-                {onboardingSession ? (
-                  <PaymentEmbeddedOnboardingBoundary
-                    key={onboardingSession.expiresAt}
-                    session={onboardingSession}
-                    client={embeddedOnboardingClient}
-                    refreshClientSecret={refreshOnboardingClientSecret}
-                    onExit={closeDialog}
-                    fallbackTitle={t.onboardingUnavailableTitle}
-                    fallbackDescription={t.onboardingUnavailableDescription}
-                  />
-                ) : (
-                  <FieldGroup>
-                    <ModeField
-                      modes={dialogProvider.modes}
-                      mode={mode}
-                      onChange={setMode}
-                      label={t.modeLabel}
-                      labels={modeLabels}
+                <DialogBody>
+                  {onboardingSession ? (
+                    <PaymentEmbeddedOnboardingBoundary
+                      key={onboardingSession.expiresAt}
+                      session={onboardingSession}
+                      client={embeddedOnboardingClient}
+                      refreshClientSecret={refreshOnboardingClientSecret}
+                      onExit={closeDialog}
+                      fallbackTitle={t.onboardingUnavailableTitle}
+                      fallbackDescription={t.onboardingUnavailableDescription}
                     />
-                  </FieldGroup>
-                )}
+                  ) : (
+                    <FieldGroup>
+                      <ModeField
+                        modes={dialogProvider.modes}
+                        mode={mode}
+                        onChange={setMode}
+                        label={t.modeLabel}
+                        labels={modeLabels}
+                      />
+                    </FieldGroup>
+                  )}
+                </DialogBody>
 
                 <DialogFooter>
                   <Button type="button" variant="outline" onClick={closeDialog}>
@@ -984,86 +987,89 @@ export function PaymentsSettingsPage({ embeddedOnboardingClient }: PaymentsSetti
                 </DialogHeader>
 
                 <form
+                  className="flex min-h-0 flex-1 flex-col"
                   onSubmit={(event) => {
                     event.preventDefault()
                     connect.mutate(dialogProvider)
                   }}
                 >
-                  <FieldGroup>
-                    <ModeField
-                      modes={dialogProvider.modes}
-                      mode={mode}
-                      onChange={setMode}
-                      label={t.modeLabel}
-                      labels={modeLabels}
-                    />
+                  <DialogBody>
+                    <FieldGroup>
+                      <ModeField
+                        modes={dialogProvider.modes}
+                        mode={mode}
+                        onChange={setMode}
+                        label={t.modeLabel}
+                        labels={modeLabels}
+                      />
 
-                    {dialogProvider.credentialFieldSchema.map((field) => (
-                      <Field key={field.key}>
-                        <FieldLabel htmlFor={`payment-${field.key}`}>{field.label}</FieldLabel>
-                        {field.kind === "boolean" ? (
-                          <Switch
-                            id={`payment-${field.key}`}
-                            checked={Boolean(credentials[field.key])}
-                            aria-required={field.required}
-                            onCheckedChange={(checked) =>
-                              setCredentials((current) => ({
-                                ...current,
-                                [field.key]: checked,
-                              }))
-                            }
-                          />
-                        ) : field.kind === "select" ? (
-                          <NativeSelect
-                            id={`payment-${field.key}`}
-                            required={field.required}
-                            value={String(credentials[field.key] ?? "")}
-                            onChange={(event) =>
-                              setCredentials((current) => ({
-                                ...current,
-                                [field.key]: event.target.value,
-                              }))
-                            }
-                          >
-                            <NativeSelectOption value="" />
-                            {(field.options ?? []).map((option) => (
-                              <NativeSelectOption key={option.value} value={option.value}>
-                                {option.label}
-                              </NativeSelectOption>
-                            ))}
-                          </NativeSelect>
-                        ) : (
-                          <Input
-                            id={`payment-${field.key}`}
-                            type={field.kind === "secret" ? "password" : "text"}
-                            autoComplete="off"
-                            required={field.required}
-                            placeholder={field.placeholder}
-                            value={String(credentials[field.key] ?? "")}
-                            onChange={(event) =>
-                              setCredentials((current) => ({
-                                ...current,
-                                [field.key]: event.target.value,
-                              }))
-                            }
-                          />
-                        )}
-                        {field.helpText ? (
-                          <FieldDescription>{field.helpText}</FieldDescription>
-                        ) : null}
-                      </Field>
-                    ))}
+                      {dialogProvider.credentialFieldSchema.map((field) => (
+                        <Field key={field.key}>
+                          <FieldLabel htmlFor={`payment-${field.key}`}>{field.label}</FieldLabel>
+                          {field.kind === "boolean" ? (
+                            <Switch
+                              id={`payment-${field.key}`}
+                              checked={Boolean(credentials[field.key])}
+                              aria-required={field.required}
+                              onCheckedChange={(checked) =>
+                                setCredentials((current) => ({
+                                  ...current,
+                                  [field.key]: checked,
+                                }))
+                              }
+                            />
+                          ) : field.kind === "select" ? (
+                            <NativeSelect
+                              id={`payment-${field.key}`}
+                              required={field.required}
+                              value={String(credentials[field.key] ?? "")}
+                              onChange={(event) =>
+                                setCredentials((current) => ({
+                                  ...current,
+                                  [field.key]: event.target.value,
+                                }))
+                              }
+                            >
+                              <NativeSelectOption value="" />
+                              {(field.options ?? []).map((option) => (
+                                <NativeSelectOption key={option.value} value={option.value}>
+                                  {option.label}
+                                </NativeSelectOption>
+                              ))}
+                            </NativeSelect>
+                          ) : (
+                            <Input
+                              id={`payment-${field.key}`}
+                              type={field.kind === "secret" ? "password" : "text"}
+                              autoComplete="off"
+                              required={field.required}
+                              placeholder={field.placeholder}
+                              value={String(credentials[field.key] ?? "")}
+                              onChange={(event) =>
+                                setCredentials((current) => ({
+                                  ...current,
+                                  [field.key]: event.target.value,
+                                }))
+                              }
+                            />
+                          )}
+                          {field.helpText ? (
+                            <FieldDescription>{field.helpText}</FieldDescription>
+                          ) : null}
+                        </Field>
+                      ))}
+                    </FieldGroup>
+                  </DialogBody>
 
-                    <DialogFooter>
-                      <Button type="button" variant="outline" onClick={closeDialog}>
-                        {t.cancel}
-                      </Button>
-                      <Button type="submit" disabled={connect.isPending}>
-                        {connect.isPending ? <Spinner data-icon="inline-start" /> : null}
-                        {t.connect}
-                      </Button>
-                    </DialogFooter>
-                  </FieldGroup>
+                  <DialogFooter>
+                    <Button type="button" variant="outline" onClick={closeDialog}>
+                      {t.cancel}
+                    </Button>
+                    <Button type="submit" disabled={connect.isPending}>
+                      {connect.isPending ? <Spinner data-icon="inline-start" /> : null}
+                      {t.connect}
+                    </Button>
+                  </DialogFooter>
                 </form>
               </>
             )

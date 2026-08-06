@@ -85,6 +85,10 @@ describe("Booking Session v1 SDK", () => {
                   amountCents: 10000,
                   currency: "EUR",
                   redirectUrl: "https://payments.example.test/checkout/pays_demo",
+                  checkout: {
+                    kind: "redirect",
+                    url: "https://payments.example.test/checkout/pays_demo",
+                  },
                   expiresAt: "2026-08-01T12:15:00.000Z",
                 },
               },
