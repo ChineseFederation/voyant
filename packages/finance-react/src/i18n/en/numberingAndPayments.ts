@@ -159,6 +159,7 @@ export const paymentDetailPage = {
     status: "Status",
     method: "Payment method",
     date: "Payment date",
+    refundable: "Still refundable",
     reference: "Reference",
     notes: "Notes",
     kind: "Type",
@@ -175,6 +176,8 @@ export const paymentDetailPage = {
     loadFailed: "Failed to load payment.",
     notFound: "Payment not found.",
     noValue: "-",
+    refundPending:
+      "A refund already on its way is counted here, so nobody sends the same money twice.",
   },
 }
 

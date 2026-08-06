@@ -10,6 +10,7 @@ import {
   type ResolveInvoiceExchangeRate,
 } from "./invoice-fx.js"
 import { refreshPaymentAdapterStatus } from "./payment-adapter-status.js"
+import { executeAdapterRefundSettlement } from "./refund-settlement-execution.js"
 import type {
   FinanceAccommodationsPaymentPolicyRuntime,
   FinanceBookingScheduleRuntime,
@@ -73,6 +74,16 @@ export function createFinanceRuntime(
             context: {
               env: primitives.env(bindings as Record<string, unknown>),
             },
+            runtime: { eventBus },
+          })
+      : undefined,
+    // The money leg of a refund goes back through the same adapter that took it
+    // (voyant#4303). Absent when no adapter is selected — every other refund
+    // method is money the operator moves itself and needs nothing here.
+    executeRefundSettlement: selectedPaymentAdapter
+      ? ({ bindings, db, refundSettlementId, eventBus }) =>
+          executeAdapterRefundSettlement(selectedPaymentAdapter, db, refundSettlementId, {
+            context: { env: primitives.env(bindings as Record<string, unknown>) },
             runtime: { eventBus },
           })
       : undefined,

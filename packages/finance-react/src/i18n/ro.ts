@@ -11,6 +11,7 @@ import {
   taxesPage,
 } from "./ro/numberingAndPayments.js"
 import { costCategories, profitability } from "./ro/profitability.js"
+import { bookingRefundPanel, recordRefundSettlementDialog } from "./ro/refunds.js"
 import {
   supplierInvoiceDetail,
   supplierInvoicesPage,
@@ -35,4 +36,6 @@ export const financeUiRo = {
   recordBookingPaymentDialog,
   profitability,
   costCategories,
+  bookingRefundPanel,
+  recordRefundSettlementDialog,
 } satisfies FinanceUiMessages

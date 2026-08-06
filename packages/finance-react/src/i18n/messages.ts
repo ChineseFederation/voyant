@@ -2,6 +2,7 @@ export * from "./messages/core.js"
 export type * from "./messages/invoices.js"
 export type * from "./messages/numberingAndPayments.js"
 export type * from "./messages/profitability.js"
+export type * from "./messages/refunds.js"
 export type * from "./messages/suppliers.js"
 
 import type { InvoicingPageMessageKey, TaxesPageMessageKey } from "./messages/core.js"
@@ -20,6 +21,10 @@ import type {
   RecordBookingPaymentDialogMessages,
 } from "./messages/numberingAndPayments.js"
 import type { CostCategoriesMessages, ProfitabilityMessages } from "./messages/profitability.js"
+import type {
+  BookingRefundPanelMessages,
+  RecordRefundSettlementDialogMessages,
+} from "./messages/refunds.js"
 import type {
   SupplierInvoiceDetailMessages,
   SupplierInvoicesPageMessages,
@@ -44,4 +49,6 @@ export type FinanceUiMessages = {
   recordBookingPaymentDialog: RecordBookingPaymentDialogMessages
   profitability: ProfitabilityMessages
   costCategories: CostCategoriesMessages
+  bookingRefundPanel: BookingRefundPanelMessages
+  recordRefundSettlementDialog: RecordRefundSettlementDialogMessages
 }

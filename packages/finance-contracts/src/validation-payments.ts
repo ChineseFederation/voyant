@@ -20,6 +20,8 @@ import {
   paymentSessionStatusSchema,
   paymentSessionTargetTypeSchema,
   paymentStatusSchema,
+  refundSettlementMethodSchema,
+  refundSettlementStatusSchema,
 } from "./validation-shared.js"
 
 const paymentInstrumentCoreSchema = z.object({
@@ -618,3 +620,176 @@ export type BookingPaymentDisputes = z.infer<typeof bookingPaymentDisputesSchema
 export type RecordPaymentDisputeInput = z.infer<typeof recordPaymentDisputeSchema>
 export type UpdatePaymentDisputeInput = z.infer<typeof updatePaymentDisputeSchema>
 export type PaymentDisputeListQuery = z.infer<typeof paymentDisputeListQuerySchema>
+
+/**
+ * Recording that money went back to the customer (voyant#4303).
+ *
+ * A credit note says a refund is owed; this says it was paid, by what method,
+ * and whether it has arrived. `status` defaults to `pending` because that is
+ * the honest default for every method that is not instantaneous — a bank
+ * transfer is owed for a day or two, and the booking must not claim otherwise
+ * in the meantime.
+ *
+ * At least one of `creditNoteId` / `paymentId` is required: a settlement that
+ * reverses nothing is not a refund. `paymentId` is also what bounds the amount,
+ * so a settlement without one is only checked against its credit note.
+ */
+export const recordRefundSettlementSchema = z
+  .object({
+    creditNoteId: z.string().min(1).optional().nullable(),
+    paymentId: z.string().min(1).optional().nullable(),
+    invoiceId: z.string().min(1).optional().nullable(),
+    /** Required for `processor_reversal` — it is what `adapter.refund()` addresses. */
+    paymentSessionId: z.string().min(1).optional().nullable(),
+    method: refundSettlementMethodSchema,
+    status: refundSettlementStatusSchema.default("pending"),
+    amountCents: z.number().int().min(1),
+    /** Defaults to the currency of the payment or credit note being reversed. */
+    currency: z.string().min(3).max(3).optional().nullable(),
+    /**
+     * What the instrument is worth, when that is not what was refunded. Sending
+     * 110 here against an `amountCents` of 100 is the standard uplift offer;
+     * omit it when the instrument is worth exactly the amount refunded.
+     */
+    instrumentAmountCents: z.number().int().min(1).optional().nullable(),
+    instrumentCurrency: z.string().min(3).max(3).optional().nullable(),
+    travelCreditId: z.string().min(1).optional().nullable(),
+    counterpartyOrganizationId: z.string().min(1).optional().nullable(),
+    counterpartyPersonId: z.string().min(1).optional().nullable(),
+    externalReference: z.string().max(255).optional().nullable(),
+    provider: z.string().max(255).optional().nullable(),
+    providerConnectionId: z.string().max(255).optional().nullable(),
+    processorReference: z.string().max(255).optional().nullable(),
+    authorizedByUserId: z.string().max(255).optional().nullable(),
+    /** The `finance:refund` approval that authorized this. Not a second path. */
+    approvalId: z.string().max(255).optional().nullable(),
+    requestedActionId: z.string().max(255).optional().nullable(),
+    /** Scoped to the payment. A retry carrying the same key settles once. */
+    idempotencyKey: z.string().max(255).optional().nullable(),
+    initiatedAt: z.string().optional().nullable(),
+    settledAt: z.string().optional().nullable(),
+    failedAt: z.string().optional().nullable(),
+    failureReason: z.string().max(2000).optional().nullable(),
+    notes: z.string().optional().nullable(),
+    providerPayload: z.record(z.string(), z.unknown()).optional().nullable(),
+    metadata: z.record(z.string(), z.unknown()).optional().nullable(),
+  })
+  .refine((input) => Boolean(input.creditNoteId ?? input.paymentId), {
+    message: "A refund settlement must reverse a credit note, a payment, or both",
+    path: ["paymentId"],
+  })
+  .refine((input) => input.method !== "processor_reversal" || Boolean(input.paymentSessionId), {
+    message: "A processor reversal must name the payment session it reverses",
+    path: ["paymentSessionId"],
+  })
+  .refine((input) => (input.instrumentAmountCents == null) === (input.instrumentCurrency == null), {
+    message: "An instrument amount requires its currency",
+    path: ["instrumentCurrency"],
+  })
+
+/**
+ * Advancing a settlement already on record — the bank transfer landed, or the
+ * processor came back and declined.
+ *
+ * The amount, the method and what it reverses are fixed at record time: a
+ * different amount is a different refund. A failed settlement is not retried by
+ * reviving it, so `settled` and `failed` are terminal.
+ */
+export const updateRefundSettlementSchema = z.object({
+  status: refundSettlementStatusSchema.optional(),
+  externalReference: z.string().max(255).optional().nullable(),
+  processorReference: z.string().max(255).optional().nullable(),
+  settledAt: z.string().optional().nullable(),
+  failedAt: z.string().optional().nullable(),
+  failureReason: z.string().max(2000).optional().nullable(),
+  notes: z.string().optional().nullable(),
+  providerPayload: z.record(z.string(), z.unknown()).optional().nullable(),
+  metadata: z.record(z.string(), z.unknown()).optional().nullable(),
+})
+
+export const refundSettlementListQuerySchema = paginationSchema.extend({
+  bookingId: z.string().optional(),
+  creditNoteId: z.string().optional(),
+  paymentId: z.string().optional(),
+  invoiceId: z.string().optional(),
+  paymentSessionId: z.string().optional(),
+  method: refundSettlementMethodSchema.optional(),
+  status: refundSettlementStatusSchema.optional(),
+  /** `true` narrows to refunds still owed, `false` to those no longer pending. */
+  owed: booleanQueryParam.optional(),
+})
+
+/**
+ * The settlement row as it serializes over the wire. §17: timestamp columns
+ * become strings; `*Cents` columns stay numbers.
+ */
+export const refundSettlementRecordSchema = z.object({
+  id: z.string(),
+  creditNoteId: z.string().nullable(),
+  paymentId: z.string().nullable(),
+  invoiceId: z.string().nullable(),
+  paymentSessionId: z.string().nullable(),
+  bookingId: z.string().nullable(),
+  method: refundSettlementMethodSchema,
+  status: refundSettlementStatusSchema,
+  amountCents: z.number().int(),
+  currency: z.string(),
+  instrumentAmountCents: z.number().int().nullable(),
+  instrumentCurrency: z.string().nullable(),
+  travelCreditId: z.string().nullable(),
+  counterpartyOrganizationId: z.string().nullable(),
+  counterpartyPersonId: z.string().nullable(),
+  externalReference: z.string().nullable(),
+  provider: z.string().nullable(),
+  providerConnectionId: z.string().nullable(),
+  processorReference: z.string().nullable(),
+  authorizedByUserId: z.string().nullable(),
+  approvalId: z.string().nullable(),
+  requestedActionId: z.string().nullable(),
+  idempotencyKey: z.string().nullable(),
+  initiatedAt: z.string(),
+  settledAt: z.string().nullable(),
+  failedAt: z.string().nullable(),
+  failureReason: z.string().nullable(),
+  notes: z.string().nullable(),
+  providerPayload: z.record(z.string(), z.unknown()).nullable(),
+  metadata: z.record(z.string(), z.unknown()).nullable(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+})
+
+/**
+ * How much of a payment may still be refunded.
+ *
+ * `pendingCents` is subtracted like `settledCents` is. A refund the processor
+ * accepted but has not confirmed still holds its amount, because the alternative
+ * is refunding it twice — the one error here that cannot be undone by retrying.
+ */
+export const paymentRefundableRemainderSchema = z.object({
+  paymentId: z.string(),
+  currency: z.string(),
+  paidAmountCents: z.number().int(),
+  settledCents: z.number().int(),
+  pendingCents: z.number().int(),
+  failedCents: z.number().int(),
+  refundableRemainderCents: z.number().int(),
+})
+
+/**
+ * What a booking's payments cannot say on their own: whether a refund it owes
+ * has actually been paid. An issued credit note reads the same either way.
+ */
+export const bookingRefundSettlementsSchema = z.object({
+  bookingId: z.string(),
+  settlements: z.array(refundSettlementRecordSchema),
+  hasOwedRefund: z.boolean(),
+  owedAmountsByCurrency: z.record(z.string(), z.number().int()),
+  settledAmountsByCurrency: z.record(z.string(), z.number().int()),
+})
+
+export type RefundSettlementRecord = z.infer<typeof refundSettlementRecordSchema>
+export type RecordRefundSettlementInput = z.infer<typeof recordRefundSettlementSchema>
+export type UpdateRefundSettlementInput = z.infer<typeof updateRefundSettlementSchema>
+export type RefundSettlementListQuery = z.infer<typeof refundSettlementListQuerySchema>
+export type PaymentRefundableRemainder = z.infer<typeof paymentRefundableRemainderSchema>
+export type BookingRefundSettlements = z.infer<typeof bookingRefundSettlementsSchema>

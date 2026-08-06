@@ -55,6 +55,7 @@ export const financeVoyantAdmin = {
       ["booking-payment-controller", "booking.details.payment-controller"],
       ["booking-invoices", "booking.details.invoices-tab"],
       ["booking-pending-payment-sessions", "booking.details.finance-start"],
+      ["booking-refunds", "booking.details.finance-start"],
       ["booking-payment-policy", "booking.details.finance-end"],
       ["supplier-payment-policy", "supplier.details.payment-policy"],
     ] as const

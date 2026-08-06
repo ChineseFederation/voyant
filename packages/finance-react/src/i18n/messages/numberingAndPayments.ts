@@ -153,6 +153,7 @@ export type PaymentDetailPageMessages = {
     status: string
     method: string
     date: string
+    refundable: string
     reference: string
     notes: string
     kind: string
@@ -169,6 +170,7 @@ export type PaymentDetailPageMessages = {
     loadFailed: string
     notFound: string
     noValue: string
+    refundPending: string
   }
 }
 

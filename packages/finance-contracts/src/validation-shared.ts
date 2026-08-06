@@ -96,6 +96,35 @@ export const paymentDisputeStatusSchema = z.enum([
   "lost",
   "withdrawn",
 ])
+/**
+ * How a refund was actually paid back (voyant#4303). Most of these are not a
+ * card: a self-hosted deployment refunding a bank transfer by bank transfer
+ * involves no processor at all.
+ *
+ * `travel_credit` is bound to the person refunded; `voucher` is transferable,
+ * carries its own expiry, and is often worth more than the cash it replaces.
+ * `counterparty_offset` nets the amount against what a trade account owes,
+ * which is the B2B norm — the balance belongs to the counterparty, not to one
+ * booking.
+ */
+export const refundSettlementMethodSchema = z.enum([
+  "processor_reversal",
+  "bank_transfer",
+  "cash",
+  "cheque",
+  "travel_credit",
+  "voucher",
+  "counterparty_offset",
+  "other",
+])
+
+/**
+ * Whether the money has moved. Distinct from the credit note's status: the
+ * accounting document is issued once, but the money leg can be owed for days,
+ * resolve asynchronously, or fail after the processor accepted it.
+ */
+export const refundSettlementStatusSchema = z.enum(["pending", "settled", "failed"])
+
 export const paymentSessionTargetTypeSchema = z.enum([
   "booking_session",
   "booking",

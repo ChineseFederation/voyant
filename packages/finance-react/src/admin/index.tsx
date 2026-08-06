@@ -42,6 +42,7 @@ import { financeFiscalSetupMessageDefinitions } from "../i18n/setup.js"
 import type { BookingInvoicesWidgetProps } from "./booking-invoices-widget.js"
 import type { BookingPaymentPolicyWidgetProps } from "./booking-payment-policy-widget.js"
 import type { BookingPendingPaymentSessionsWidgetProps } from "./booking-pending-payment-sessions-widget.js"
+import type { BookingRefundsWidgetProps } from "./booking-refunds-widget.js"
 import { InvoiceDetailSkeleton } from "./invoice-detail-skeleton.js"
 import { PaymentDetailSkeleton } from "./payment-detail-skeleton.js"
 import type { SupplierPaymentPolicyWidgetProps } from "./supplier-payment-policy-widget.js"
@@ -85,6 +86,13 @@ const LazyBookingPendingPaymentSessionsWidget =
       }),
     ),
   )
+const LazyBookingRefundsWidget = lazyWidget<BookingRefundsWidgetProps>(() =>
+  import("./booking-refunds-widget.js").then(
+    (module): { default: ComponentType<BookingRefundsWidgetProps> } => ({
+      default: module.BookingRefundsWidget,
+    }),
+  ),
+)
 const LazyBookingPaymentPolicyWidget = lazyWidget<BookingPaymentPolicyWidgetProps>(() =>
   import("./booking-payment-policy-widget.js").then(
     (module): { default: ComponentType<BookingPaymentPolicyWidgetProps> } => ({
@@ -148,6 +156,7 @@ declare module "@voyant-travel/admin" {
 export type { BookingInvoicesWidgetProps } from "./booking-invoices-widget.js"
 export type { BookingPaymentPolicyWidgetProps } from "./booking-payment-policy-widget.js"
 export type { BookingPendingPaymentSessionsWidgetProps } from "./booking-pending-payment-sessions-widget.js"
+export type { BookingRefundsWidgetProps } from "./booking-refunds-widget.js"
 export type { CreditNoteDialogProps } from "./credit-note-dialog.js"
 export type { InvoiceDetailHostProps } from "./invoice-detail-host.js"
 export { InvoiceDetailSkeleton } from "./invoice-detail-skeleton.js"
@@ -413,6 +422,14 @@ export function createFinanceAdminExtension(
         // verbatim to this slot's widgets.
         component: LazyBookingPendingPaymentSessionsWidget,
       } satisfies AdminWidgetContribution<BookingPendingPaymentSessionsWidgetProps>,
+      {
+        id: "finance-booking-refunds",
+        // Directly under the payments summary. Money out is the mirror of money
+        // in, and "did we actually refund them?" is not a question an operator
+        // should have to go looking somewhere else to answer (voyant#4303).
+        slot: bookingDetailFinanceStartSlot,
+        component: LazyBookingRefundsWidget,
+      } satisfies AdminWidgetContribution<BookingRefundsWidgetProps>,
       {
         id: "finance-booking-payment-policy",
         slot: bookingDetailFinanceEndSlot,

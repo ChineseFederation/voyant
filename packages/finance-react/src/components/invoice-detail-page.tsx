@@ -15,6 +15,7 @@ import {
   useInvoiceNoteMutation,
   useInvoiceNotes,
   useInvoicePayments,
+  useRefundSettlements,
   useVoyantFinanceContext,
 } from "../index.js"
 import {
@@ -34,6 +35,7 @@ import {
 } from "./invoice-detail-page/notes-dialogs.js"
 import { InvoiceDetailLoading, InvoiceDetailState } from "./invoice-detail-page/primitives.js"
 import { InvoiceDialog } from "./invoice-dialog.js"
+import { CreditNoteRefundStatus } from "./refund-settlements/credit-note-refund-status.js"
 
 export interface InvoiceDetailPageSlots {
   afterHeader?: ReactNode
@@ -128,6 +130,12 @@ export function InvoiceDetailPage({
   const lineItemsQuery = useInvoiceLineItems(id, { enabled: Boolean(invoice) })
   const paymentsQuery = useInvoicePayments(id, { enabled: Boolean(invoice) })
   const creditNotesQuery = useInvoiceCreditNotes(id, { enabled: Boolean(invoice) })
+  // One read for every credit note on this invoice, rather than one per row.
+  const refundsQuery = useRefundSettlements({
+    invoiceId: id,
+    limit: 100,
+    enabled: Boolean(invoice),
+  })
   const attachmentsQuery = useInvoiceAttachments(id, { enabled: Boolean(invoice) })
   const notesQuery = useInvoiceNotes(id, { enabled: Boolean(invoice) })
   const { convertToInvoice, remove: removeInvoice, voidInvoice } = useInvoiceMutation()
@@ -289,6 +297,19 @@ export function InvoiceDetailPage({
           creditNotes={creditNotes}
           pending={creditNotesQuery.isPending}
           onCreate={onCreditNoteCreate}
+          // One read for the whole invoice, filtered per row — a credit note
+          // reads `issued` whether or not anybody paid it, so this is the only
+          // thing on the card that closes the loop (voyant#4303).
+          refundSlot={(creditNote) => (
+            <CreditNoteRefundStatus
+              creditNoteId={creditNote.id}
+              bookingId={invoice.bookingId}
+              amountCents={creditNote.amountCents}
+              currency={creditNote.currency}
+              settlements={refundsQuery.data?.data ?? []}
+              onRecorded={() => void refundsQuery.refetch()}
+            />
+          )}
         />
       )}
       {slots?.afterCreditNotes}

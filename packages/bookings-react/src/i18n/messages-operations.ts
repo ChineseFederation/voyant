@@ -164,6 +164,28 @@ export type BookingsUiOperationsMessages = {
     resolvedTitle: string
     resolvedDescription: string
   }
+  bookingRefundBanner: {
+    title: string
+    description: string
+    owed: string
+    settledTitle: string
+    settledDescription: string
+    methods: {
+      processor_reversal: string
+      bank_transfer: string
+      cash: string
+      cheque: string
+      travel_credit: string
+      voucher: string
+      counterparty_offset: string
+      other: string
+    }
+    statuses: {
+      pending: string
+      settled: string
+      failed: string
+    }
+  }
   bookingPaymentReconciliationBanner: {
     title: string
     loading: string

@@ -193,7 +193,7 @@ describe("createFinanceAdminExtension", () => {
     // arrives as a widget contribution the bookings host renders.
     const extension = createFinanceAdminExtension()
     const widgets = extension.widgets ?? []
-    expect(widgets).toHaveLength(5)
+    expect(widgets).toHaveLength(6)
     expect(widgets[1]?.slot).toBe("booking.details.invoices-tab")
     // The contribution mounts a Suspense-wrapped lazy loader (the card and
     // its payment stack stay out of the workspace-chrome chunk), so assert

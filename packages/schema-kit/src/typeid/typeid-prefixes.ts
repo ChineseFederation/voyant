@@ -156,6 +156,7 @@ export const PREFIXES = {
   travel_credit_redemptions: "vchr",
   payment_sessions: "pmss",
   payment_disputes: "pmds",
+  refund_settlements: "rfst",
   payment_authorizations: "pmaz",
   payment_captures: "pmcp",
   booking_payment_schedules: "bkpy",

@@ -27,6 +27,7 @@ vi.mock("./index.js", () => {
     useInvoiceLineItems: emptyListQuery,
     useInvoicePayments: emptyListQuery,
     useInvoiceCreditNotes: emptyListQuery,
+    useRefundSettlements: emptyListQuery,
     useInvoiceAttachments: () => ({
       data: { data: financeReactState.attachments },
       isPending: false,

@@ -83,6 +83,9 @@ vi.mock("../../src/components/booking-dialog.js", () => ({ BookingDialog: () => 
 vi.mock("../../src/components/booking-dispute-banner.js", () => ({
   BookingDisputeBanner: () => <div />,
 }))
+vi.mock("../../src/components/booking-refund-banner.js", () => ({
+  BookingRefundBanner: () => <div />,
+}))
 vi.mock("../../src/components/booking-group-section.js", () => ({
   BookingGroupSection: () => <div />,
 }))

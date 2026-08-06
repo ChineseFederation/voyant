@@ -13,15 +13,19 @@ import type { UseTravelCreditsOptions } from "../hooks/use-travel-credits.js"
 import {
   getAdminBookingPayments,
   getBookingPaymentDisputes,
+  getBookingRefundSettlements,
+  getPaymentRefundableRemainder,
   getPublicBookingDocuments,
   getPublicBookingPaymentOptions,
   getPublicBookingPayments,
   getPublicFinanceDocumentByReference,
   getPublicPaymentSession,
+  getRefundSettlements,
 } from "../operations.js"
 import {
   type FinanceDepartureProfitabilityFilters,
   type FinanceProductProfitabilityFilters,
+  type FinanceRefundSettlementListFilters,
   type FinanceTravelerProfitabilityFilters,
   financeQueryKeys,
 } from "../query-keys.js"
@@ -124,6 +128,46 @@ export function getAdminBookingPaymentsQueryOptions(
         throw new Error("getAdminBookingPaymentsQueryOptions requires a bookingId")
       }
       return getAdminBookingPayments(client, bookingId)
+    },
+  })
+}
+
+export function getBookingRefundSettlementsQueryOptions(
+  client: FetchWithValidationOptions,
+  bookingId: string | null | undefined,
+) {
+  return queryOptions({
+    queryKey: financeQueryKeys.bookingRefundSettlements(bookingId ?? ""),
+    queryFn: async () => {
+      if (!bookingId) {
+        throw new Error("getBookingRefundSettlementsQueryOptions requires a bookingId")
+      }
+      return getBookingRefundSettlements(client, bookingId)
+    },
+  })
+}
+
+export function getRefundSettlementsQueryOptions(
+  client: FetchWithValidationOptions,
+  filters: FinanceRefundSettlementListFilters = {},
+) {
+  return queryOptions({
+    queryKey: financeQueryKeys.refundSettlements(filters),
+    queryFn: () => getRefundSettlements(client, filters),
+  })
+}
+
+export function getPaymentRefundableRemainderQueryOptions(
+  client: FetchWithValidationOptions,
+  paymentId: string | null | undefined,
+) {
+  return queryOptions({
+    queryKey: financeQueryKeys.paymentRefundableRemainder(paymentId ?? ""),
+    queryFn: async () => {
+      if (!paymentId) {
+        throw new Error("getPaymentRefundableRemainderQueryOptions requires a paymentId")
+      }
+      return getPaymentRefundableRemainder(client, paymentId)
     },
   })
 }

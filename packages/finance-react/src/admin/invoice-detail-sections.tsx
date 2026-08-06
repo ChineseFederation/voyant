@@ -15,7 +15,9 @@ import {
   CardTitle,
 } from "@voyant-travel/ui/components"
 import { Download, Pencil, Plus, Trash2 } from "lucide-react"
+import { CreditNoteRefundStatus } from "../components/refund-settlements/credit-note-refund-status.js"
 import { useInvoiceAttachments, useVoyantFinanceContext } from "../index.js"
+import type { RefundSettlementRecord } from "../schemas.js"
 
 import {
   type CreditNoteRow,
@@ -398,9 +400,17 @@ export function InvoicePaymentsCard({
 export function InvoiceCreditNotesCard({
   creditNotes,
   onCreate,
+  bookingId,
+  refundSettlements = [],
+  onRefundRecorded,
 }: {
   creditNotes: CreditNoteRow[]
   onCreate: () => void
+  /** Needed to record the money leg; absent means the column is read-only. */
+  bookingId?: string | null
+  /** Fetched once for the invoice; each row filters (voyant#4303). */
+  refundSettlements?: readonly RefundSettlementRecord[]
+  onRefundRecorded?: () => void
 }) {
   const messages = useOperatorAdminMessages()
 
@@ -429,6 +439,14 @@ export function InvoiceCreditNotesCard({
                   {messages.finance.detailSections.reasonColumn}
                 </th>
                 <th className="p-2 text-left font-medium">{messages.finance.statusColumn}</th>
+                {/*
+                  An issued credit note reads identically whether or not the
+                  customer got their money, so the document's own status cannot
+                  answer "did we pay it?" — this column does (voyant#4303).
+                */}
+                <th className="p-2 text-left font-medium">
+                  {messages.finance.detailSections.refundColumn}
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -446,6 +464,16 @@ export function InvoiceCreditNotesCard({
                     >
                       {getCreditNoteStatusLabel(messages, creditNote.status)}
                     </Badge>
+                  </td>
+                  <td className="p-2">
+                    <CreditNoteRefundStatus
+                      creditNoteId={creditNote.id}
+                      bookingId={bookingId}
+                      amountCents={creditNote.amountCents}
+                      currency={creditNote.currency}
+                      settlements={refundSettlements}
+                      onRecorded={onRefundRecorded}
+                    />
                   </td>
                 </tr>
               ))}

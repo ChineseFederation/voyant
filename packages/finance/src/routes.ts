@@ -15,6 +15,7 @@ import { financePaymentProcessingRoutes } from "./routes-payment-processing.js"
 import { financePaymentRoutes } from "./routes-payments.js"
 import type { publicFinanceRoutes } from "./routes-public.js"
 import { financeReferenceDataRoutes } from "./routes-reference-data.js"
+import { financeRefundSettlementRoutes } from "./routes-refund-settlements.js"
 import { financeReportRoutes } from "./routes-reports.js"
 
 export { getActionLedgerRequestContext, getFinanceRouteRuntime } from "./routes-runtime.js"
@@ -55,6 +56,7 @@ export const financeRoutes = new OpenAPIHono<Env>()
   .route("/", financeTravelCreditRoutes)
   .route("/", financeBookingReadRoutes)
   .route("/", financePaymentDisputeRoutes)
+  .route("/", financeRefundSettlementRoutes)
 
 export type FinanceRoutes = typeof financeRoutes
 export type PublicFinanceRoutes = typeof publicFinanceRoutes

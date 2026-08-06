@@ -14,11 +14,14 @@ import {
 } from "@voyant-travel/finance/public-validation"
 import {
   bookingPaymentDisputesSchema,
+  bookingRefundSettlementsSchema,
   paymentDisputeRecordSchema,
+  paymentRefundableRemainderSchema,
+  refundSettlementRecordSchema,
 } from "@voyant-travel/finance/validation"
 import type { z } from "zod"
 
-import { singleEnvelope } from "./common.js"
+import { paginatedEnvelope, singleEnvelope } from "./common.js"
 
 export {
   publicBookingFinanceDocumentsSchema,
@@ -46,6 +49,15 @@ export const publicBookingFinancePaymentsResponse = singleEnvelope(
 export const publicPaymentSessionResponse = singleEnvelope(publicPaymentSessionSchema)
 export { bookingPaymentDisputesSchema, paymentDisputeRecordSchema }
 export const bookingPaymentDisputesResponse = singleEnvelope(bookingPaymentDisputesSchema)
+export {
+  bookingRefundSettlementsSchema,
+  paymentRefundableRemainderSchema,
+  refundSettlementRecordSchema,
+}
+export const bookingRefundSettlementsResponse = singleEnvelope(bookingRefundSettlementsSchema)
+export const paymentRefundableRemainderResponse = singleEnvelope(paymentRefundableRemainderSchema)
+export const refundSettlementResponse = singleEnvelope(refundSettlementRecordSchema)
+export const refundSettlementListResponse = paginatedEnvelope(refundSettlementRecordSchema)
 export const publicTravelCreditValidationResponse = singleEnvelope(
   publicTravelCreditValidationSchema,
 )
@@ -64,6 +76,9 @@ export type PublicFinanceBookingPaymentRecord = z.infer<typeof publicFinanceBook
 export type PublicPaymentSessionRecord = z.infer<typeof publicPaymentSessionSchema>
 export type PaymentDisputeRecord = z.infer<typeof paymentDisputeRecordSchema>
 export type BookingPaymentDisputesRecord = z.infer<typeof bookingPaymentDisputesSchema>
+export type RefundSettlementRecord = z.infer<typeof refundSettlementRecordSchema>
+export type BookingRefundSettlementsRecord = z.infer<typeof bookingRefundSettlementsSchema>
+export type PaymentRefundableRemainderRecord = z.infer<typeof paymentRefundableRemainderSchema>
 export type PublicStartPaymentSessionInput = z.input<typeof publicStartPaymentSessionSchema>
 export type PublicValidateTravelCreditInput = z.input<typeof publicValidateTravelCreditSchema>
 export type PublicTravelCreditValidationRecord = z.infer<typeof publicTravelCreditValidationSchema>

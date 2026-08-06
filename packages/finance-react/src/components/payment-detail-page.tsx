@@ -13,7 +13,7 @@ import { cn } from "@voyant-travel/ui/lib/utils"
 import { ArrowLeft, ExternalLink, Loader2, Pencil } from "lucide-react"
 import type * as React from "react"
 import { useFinanceUiI18nOrDefault, useFinanceUiMessagesOrDefault } from "../i18n/index.js"
-import { type UnifiedPaymentRecord, usePayment } from "../index.js"
+import { type UnifiedPaymentRecord, usePayment, usePaymentRefundableRemainder } from "../index.js"
 
 export interface PaymentDetailPageSlots {
   afterHeader?: React.ReactNode
@@ -182,6 +182,13 @@ export function PaymentSummaryCard({ payment, className }: PaymentDetailCardProp
   const { formatCurrency, formatNumber } = useFinanceUiI18nOrDefault()
   const detail = messages.paymentDetailPage
   const fxRateLabel = formatFxRate(payment, formatNumber)
+  // Customer payments only. A supplier payment is accounts payable — money the
+  // operator owes out — and has no customer refund to bound.
+  const refundableQuery = usePaymentRefundableRemainder(
+    payment.kind === "customer" ? payment.id : null,
+    { enabled: payment.kind === "customer" },
+  )
+  const refundable = refundableQuery.data?.data ?? null
 
   return (
     <Card data-slot="payment-summary-card" className={className}>
@@ -215,6 +222,25 @@ export function PaymentSummaryCard({ payment, className }: PaymentDetailCardProp
           <DetailRow label={detail.fields.method}>
             {formatPaymentMethod(payment.paymentMethod, messages)}
           </DetailRow>
+          {/*
+            The number that stops a double refund (voyant#4303). Deliberately
+            NOT "paid minus refunded": a refund still in flight has already
+            spoken for its share, so this shrinks the moment one is started.
+          */}
+          {refundable ? (
+            <DetailRow label={detail.fields.refundable}>
+              <div className="text-right">
+                <span className="font-mono">
+                  {formatCurrency(refundable.refundableRemainderCents / 100, refundable.currency)}
+                </span>
+                {refundable.pendingCents > 0 ? (
+                  <p className="mt-0.5 text-muted-foreground text-xs">
+                    {detail.states.refundPending}
+                  </p>
+                ) : null}
+              </div>
+            </DetailRow>
+          ) : null}
           <DetailRow label={detail.fields.date}>{payment.paymentDate}</DetailRow>
           <DetailRow label={detail.fields.reference}>
             {payment.referenceNumber ?? detail.states.noValue}

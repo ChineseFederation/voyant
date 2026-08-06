@@ -4,8 +4,10 @@ import {
   selectMonthlyBookingLimit,
 } from "@voyant-travel/bookings"
 import type { EventBus } from "@voyant-travel/core"
+import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 
 import type { InvoiceFxOptions } from "./invoice-fx.js"
+import type { RefundSettlementExecutionResult } from "./refund-settlement-execution.js"
 import type { FinanceDocumentRouteOptions } from "./routes-documents.js"
 import type { FinanceSettlementRouteOptions, InvoiceSettlementPoller } from "./routes-settlement.js"
 import type {
@@ -31,7 +33,21 @@ export type FinanceRouteRuntime = {
   descriptionResolver?: InvoiceLineDescriptionResolver
   invoiceDueDateResolver?: InvoiceDueDateResolver
   paymentScheduleLineDescriptionFormat?: PaymentScheduleLineDescriptionFormat
+  /**
+   * Drive a recorded `processor_reversal` refund through the deployment's
+   * payment adapter (voyant#4303). Absent when no adapter is selected — which
+   * is the ordinary case for a deployment that refunds by bank transfer, and
+   * why the settlement record does not depend on it.
+   */
+  executeRefundSettlement?: ExecuteRefundSettlement
 } & InvoiceFxOptions
+
+export type ExecuteRefundSettlement = (input: {
+  bindings: unknown
+  db: PostgresJsDatabase
+  refundSettlementId: string
+  eventBus?: EventBus
+}) => Promise<RefundSettlementExecutionResult>
 
 export const FINANCE_ROUTE_RUNTIME_CONTAINER_KEY = "providers.finance.runtime"
 
@@ -50,6 +66,8 @@ export interface FinanceRuntimeOptions
    * from the booking routes and another from the finance routes.
    */
   resolveMonthlyBookingLimit?: MonthlyBookingLimitResolver
+  /** Populated by `createFinanceRuntime` when a payment adapter is selected. */
+  executeRefundSettlement?: ExecuteRefundSettlement
 }
 
 export function buildFinanceRouteRuntime(
@@ -88,5 +106,6 @@ export function buildFinanceRouteRuntime(
       options.resolveInvoiceExchangeRateResolver?.(bindings) ?? options.resolveInvoiceExchangeRate,
     resolveInvoiceExchangeRateResolver: options.resolveInvoiceExchangeRateResolver,
     onInvoiceFxResolutionError: options.onInvoiceFxResolutionError,
+    executeRefundSettlement: options.executeRefundSettlement,
   }
 }

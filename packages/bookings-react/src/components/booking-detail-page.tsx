@@ -61,6 +61,7 @@ import {
   BookingPaymentsSummary,
   type BookingPaymentsSummaryRow,
 } from "./booking-payments-summary.js"
+import { BookingRefundBanner } from "./booking-refund-banner.js"
 import { StatusBadge } from "./status-badge.js"
 import { StatusChangeDialog } from "./status-change-dialog.js"
 import { SupplierStatusList } from "./supplier-status-list.js"
@@ -473,6 +474,14 @@ export function BookingDetailPage({
         back (voyant#4289). Renders nothing when the booking was never disputed.
       */}
       <BookingDisputeBanner bookingId={id} />
+
+      {/*
+        Money owed the other way. An issued credit note reads identically
+        whether or not it was paid, so nothing else on this page can say the
+        customer is still waiting for their money (voyant#4303). Renders
+        nothing when the booking has never had a refund.
+      */}
+      <BookingRefundBanner bookingId={id} />
 
       {slots?.afterSummary?.(booking)}
 

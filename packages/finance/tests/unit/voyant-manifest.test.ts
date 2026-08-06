@@ -165,6 +165,22 @@ describe("finance deployment manifest", () => {
         },
       }),
     )
+    expect(financeVoyantModule.actions).toContainEqual(
+      expect.objectContaining({
+        id: "@voyant-travel/finance#action.record-refund-settlement",
+        // Its own capability id — the graph keys one capability per action — but
+        // the same grant, risk and `required` approval as issuing the refund,
+        // because the definition it runs is spread from `finance:refund`.
+        capabilityId: "finance:refund-settlement",
+        commandTargetField: "creditNoteId",
+        requiredScopes: ["finance:refund"],
+        risk: "critical",
+        ledger: "required",
+        approval: "required",
+        reversible: false,
+        from: { tools: ["@voyant-travel/finance#tool.record-refund-settlement"] },
+      }),
+    )
     const capabilityKeys = financeVoyantModule.actions.map(
       (action) => `${action.capabilityId}@${action.version}`,
     )
@@ -701,6 +717,13 @@ describe("finance deployment manifest", () => {
         ],
         [
           "@voyant-travel/finance#admin.contribution.booking-pending-payment-sessions",
+          "booking.details.finance-start",
+        ],
+        // Directly under the payments summary: money out is the mirror of money
+        // in, and "did we actually refund them?" should not need a second
+        // screen to answer (voyant#4303).
+        [
+          "@voyant-travel/finance#admin.contribution.booking-refunds",
           "booking.details.finance-start",
         ],
         [

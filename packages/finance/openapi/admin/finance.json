@@ -38059,6 +38059,2373 @@
         "x-voyant-module": "finance",
         "x-voyant-surface": "admin"
       }
+    },
+    "/v1/admin/finance/refund-settlements": {
+      "get": {
+        "operationId": "getAdminFinanceRefundSettlements",
+        "summary": "GET /v1/admin/finance/refund-settlements",
+        "tags": [
+          "finance"
+        ],
+        "x-voyant-module": "finance",
+        "x-voyant-surface": "admin",
+        "description": "How refunds were actually paid back, newest first. `owed=true` narrows to refunds that are owed and not yet settled — the normal state of a bank transfer for a day or two.",
+        "x-voyant-api-id": "@voyant-travel/finance#api.admin",
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 50
+            },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0,
+              "default": 0
+            },
+            "required": false,
+            "name": "offset",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "name": "bookingId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "name": "creditNoteId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "name": "paymentId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "name": "invoiceId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "name": "paymentSessionId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "processor_reversal",
+                "bank_transfer",
+                "cash",
+                "cheque",
+                "travel_credit",
+                "voucher",
+                "counterparty_offset",
+                "other"
+              ]
+            },
+            "required": false,
+            "name": "method",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "pending",
+                "settled",
+                "failed"
+              ]
+            },
+            "required": false,
+            "name": "status",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "0",
+                "1",
+                "true",
+                "false"
+              ]
+            },
+            "required": false,
+            "name": "owed",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Refund settlements",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "creditNoteId": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "paymentId": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "invoiceId": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "paymentSessionId": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "bookingId": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "method": {
+                            "type": "string",
+                            "enum": [
+                              "processor_reversal",
+                              "bank_transfer",
+                              "cash",
+                              "cheque",
+                              "travel_credit",
+                              "voucher",
+                              "counterparty_offset",
+                              "other"
+                            ]
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "pending",
+                              "settled",
+                              "failed"
+                            ]
+                          },
+                          "amountCents": {
+                            "type": "integer"
+                          },
+                          "currency": {
+                            "type": "string"
+                          },
+                          "instrumentAmountCents": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          },
+                          "instrumentCurrency": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "travelCreditId": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "counterpartyOrganizationId": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "counterpartyPersonId": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "externalReference": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "provider": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "providerConnectionId": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "processorReference": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "authorizedByUserId": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "approvalId": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "requestedActionId": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "idempotencyKey": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "initiatedAt": {
+                            "type": "string"
+                          },
+                          "settledAt": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "failedAt": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "failureReason": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "notes": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "providerPayload": {
+                            "type": [
+                              "object",
+                              "null"
+                            ],
+                            "additionalProperties": {}
+                          },
+                          "metadata": {
+                            "type": [
+                              "object",
+                              "null"
+                            ],
+                            "additionalProperties": {}
+                          },
+                          "createdAt": {
+                            "type": "string"
+                          },
+                          "updatedAt": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "creditNoteId",
+                          "paymentId",
+                          "invoiceId",
+                          "paymentSessionId",
+                          "bookingId",
+                          "method",
+                          "status",
+                          "amountCents",
+                          "currency",
+                          "instrumentAmountCents",
+                          "instrumentCurrency",
+                          "travelCreditId",
+                          "counterpartyOrganizationId",
+                          "counterpartyPersonId",
+                          "externalReference",
+                          "provider",
+                          "providerConnectionId",
+                          "processorReference",
+                          "authorizedByUserId",
+                          "approvalId",
+                          "requestedActionId",
+                          "idempotencyKey",
+                          "initiatedAt",
+                          "settledAt",
+                          "failedAt",
+                          "failureReason",
+                          "notes",
+                          "providerPayload",
+                          "metadata",
+                          "createdAt",
+                          "updatedAt"
+                        ]
+                      }
+                    },
+                    "total": {
+                      "type": "integer"
+                    },
+                    "limit": {
+                      "type": "integer"
+                    },
+                    "offset": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "total",
+                    "limit",
+                    "offset"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "postAdminFinanceRefundSettlements",
+        "summary": "POST /v1/admin/finance/refund-settlements",
+        "tags": [
+          "finance"
+        ],
+        "x-voyant-module": "finance",
+        "x-voyant-surface": "admin",
+        "description": "Record that a refund was paid, or that paying it has started. The method need not be a card: bank transfer, cash, cheque, travel credit, voucher and an offset against a counterparty balance are all first-class. Authorized by `finance:refund` — the same capability that governs issuing the credit note. Returns 202 with the pending approval when policy requires one.",
+        "x-voyant-api-id": "@voyant-travel/finance#api.admin",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "creditNoteId": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "minLength": 1
+                  },
+                  "paymentId": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "minLength": 1
+                  },
+                  "invoiceId": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "minLength": 1
+                  },
+                  "paymentSessionId": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "minLength": 1
+                  },
+                  "method": {
+                    "type": "string",
+                    "enum": [
+                      "processor_reversal",
+                      "bank_transfer",
+                      "cash",
+                      "cheque",
+                      "travel_credit",
+                      "voucher",
+                      "counterparty_offset",
+                      "other"
+                    ]
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "pending",
+                      "settled",
+                      "failed"
+                    ],
+                    "default": "pending"
+                  },
+                  "amountCents": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "currency": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "minLength": 3,
+                    "maxLength": 3
+                  },
+                  "instrumentAmountCents": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
+                    "minimum": 1
+                  },
+                  "instrumentCurrency": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "minLength": 3,
+                    "maxLength": 3
+                  },
+                  "travelCreditId": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "minLength": 1
+                  },
+                  "counterpartyOrganizationId": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "minLength": 1
+                  },
+                  "counterpartyPersonId": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "minLength": 1
+                  },
+                  "externalReference": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "maxLength": 255
+                  },
+                  "provider": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "maxLength": 255
+                  },
+                  "providerConnectionId": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "maxLength": 255
+                  },
+                  "processorReference": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "maxLength": 255
+                  },
+                  "authorizedByUserId": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "maxLength": 255
+                  },
+                  "approvalId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "requestedActionId": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "maxLength": 255
+                  },
+                  "idempotencyKey": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 255
+                  },
+                  "initiatedAt": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "settledAt": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "failedAt": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "failureReason": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "maxLength": 2000
+                  },
+                  "notes": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "providerPayload": {
+                    "type": [
+                      "object",
+                      "null"
+                    ],
+                    "additionalProperties": {}
+                  },
+                  "metadata": {
+                    "type": [
+                      "object",
+                      "null"
+                    ],
+                    "additionalProperties": {}
+                  }
+                },
+                "required": [
+                  "method",
+                  "amountCents",
+                  "idempotencyKey"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The recorded settlement",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "creditNoteId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "paymentId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "invoiceId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "paymentSessionId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "bookingId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "method": {
+                          "type": "string",
+                          "enum": [
+                            "processor_reversal",
+                            "bank_transfer",
+                            "cash",
+                            "cheque",
+                            "travel_credit",
+                            "voucher",
+                            "counterparty_offset",
+                            "other"
+                          ]
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "pending",
+                            "settled",
+                            "failed"
+                          ]
+                        },
+                        "amountCents": {
+                          "type": "integer"
+                        },
+                        "currency": {
+                          "type": "string"
+                        },
+                        "instrumentAmountCents": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ]
+                        },
+                        "instrumentCurrency": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "travelCreditId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "counterpartyOrganizationId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "counterpartyPersonId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "externalReference": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "provider": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "providerConnectionId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "processorReference": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "authorizedByUserId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "approvalId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "requestedActionId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "idempotencyKey": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "initiatedAt": {
+                          "type": "string"
+                        },
+                        "settledAt": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "failedAt": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "failureReason": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "notes": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "providerPayload": {
+                          "type": [
+                            "object",
+                            "null"
+                          ],
+                          "additionalProperties": {}
+                        },
+                        "metadata": {
+                          "type": [
+                            "object",
+                            "null"
+                          ],
+                          "additionalProperties": {}
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        },
+                        "updatedAt": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "creditNoteId",
+                        "paymentId",
+                        "invoiceId",
+                        "paymentSessionId",
+                        "bookingId",
+                        "method",
+                        "status",
+                        "amountCents",
+                        "currency",
+                        "instrumentAmountCents",
+                        "instrumentCurrency",
+                        "travelCreditId",
+                        "counterpartyOrganizationId",
+                        "counterpartyPersonId",
+                        "externalReference",
+                        "provider",
+                        "providerConnectionId",
+                        "processorReference",
+                        "authorizedByUserId",
+                        "approvalId",
+                        "requestedActionId",
+                        "idempotencyKey",
+                        "initiatedAt",
+                        "settledAt",
+                        "failedAt",
+                        "failureReason",
+                        "notes",
+                        "providerPayload",
+                        "metadata",
+                        "createdAt",
+                        "updatedAt"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "The refund needs approval before the money moves",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "approval_required"
+                      ]
+                    },
+                    "requestedAction": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "string"
+                        },
+                        "actionName": {
+                          "type": "string"
+                        },
+                        "targetType": {
+                          "type": "string"
+                        },
+                        "targetId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "status",
+                        "actionName",
+                        "targetType",
+                        "targetId"
+                      ]
+                    },
+                    "approval": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "string"
+                        },
+                        "requestedActionId": {
+                          "type": "string"
+                        },
+                        "policyName": {
+                          "type": "string"
+                        },
+                        "policyVersion": {
+                          "type": "string"
+                        },
+                        "riskSnapshot": {
+                          "type": "string"
+                        },
+                        "reasonCode": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "expiresAt": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "status",
+                        "requestedActionId",
+                        "policyName",
+                        "policyVersion",
+                        "riskSnapshot",
+                        "reasonCode",
+                        "expiresAt",
+                        "createdAt"
+                      ]
+                    },
+                    "replayed": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "requestedAction",
+                    "approval",
+                    "replayed"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller may not refund",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "What the settlement claims to reverse does not exist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The amount exceeds what is still refundable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "code"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/finance/refund-settlements/{id}": {
+      "get": {
+        "operationId": "getAdminFinanceRefundSettlementsById",
+        "summary": "GET /v1/admin/finance/refund-settlements/{id}",
+        "tags": [
+          "finance"
+        ],
+        "x-voyant-module": "finance",
+        "x-voyant-surface": "admin",
+        "x-voyant-api-id": "@voyant-travel/finance#api.admin",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The settlement",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "creditNoteId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "paymentId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "invoiceId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "paymentSessionId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "bookingId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "method": {
+                          "type": "string",
+                          "enum": [
+                            "processor_reversal",
+                            "bank_transfer",
+                            "cash",
+                            "cheque",
+                            "travel_credit",
+                            "voucher",
+                            "counterparty_offset",
+                            "other"
+                          ]
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "pending",
+                            "settled",
+                            "failed"
+                          ]
+                        },
+                        "amountCents": {
+                          "type": "integer"
+                        },
+                        "currency": {
+                          "type": "string"
+                        },
+                        "instrumentAmountCents": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ]
+                        },
+                        "instrumentCurrency": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "travelCreditId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "counterpartyOrganizationId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "counterpartyPersonId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "externalReference": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "provider": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "providerConnectionId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "processorReference": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "authorizedByUserId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "approvalId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "requestedActionId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "idempotencyKey": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "initiatedAt": {
+                          "type": "string"
+                        },
+                        "settledAt": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "failedAt": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "failureReason": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "notes": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "providerPayload": {
+                          "type": [
+                            "object",
+                            "null"
+                          ],
+                          "additionalProperties": {}
+                        },
+                        "metadata": {
+                          "type": [
+                            "object",
+                            "null"
+                          ],
+                          "additionalProperties": {}
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        },
+                        "updatedAt": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "creditNoteId",
+                        "paymentId",
+                        "invoiceId",
+                        "paymentSessionId",
+                        "bookingId",
+                        "method",
+                        "status",
+                        "amountCents",
+                        "currency",
+                        "instrumentAmountCents",
+                        "instrumentCurrency",
+                        "travelCreditId",
+                        "counterpartyOrganizationId",
+                        "counterpartyPersonId",
+                        "externalReference",
+                        "provider",
+                        "providerConnectionId",
+                        "processorReference",
+                        "authorizedByUserId",
+                        "approvalId",
+                        "requestedActionId",
+                        "idempotencyKey",
+                        "initiatedAt",
+                        "settledAt",
+                        "failedAt",
+                        "failureReason",
+                        "notes",
+                        "providerPayload",
+                        "metadata",
+                        "createdAt",
+                        "updatedAt"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Settlement not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "patchAdminFinanceRefundSettlementsById",
+        "summary": "PATCH /v1/admin/finance/refund-settlements/{id}",
+        "tags": [
+          "finance"
+        ],
+        "x-voyant-module": "finance",
+        "x-voyant-surface": "admin",
+        "description": "Advance a settlement — the transfer landed, or the processor declined. `settled` and `failed` are terminal: a refund that failed is retried by recording a new settlement, never by reviving the one that failed.",
+        "x-voyant-api-id": "@voyant-travel/finance#api.admin",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "pending",
+                      "settled",
+                      "failed"
+                    ]
+                  },
+                  "externalReference": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "maxLength": 255
+                  },
+                  "processorReference": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "maxLength": 255
+                  },
+                  "settledAt": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "failedAt": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "failureReason": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "maxLength": 2000
+                  },
+                  "notes": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "providerPayload": {
+                    "type": [
+                      "object",
+                      "null"
+                    ],
+                    "additionalProperties": {}
+                  },
+                  "metadata": {
+                    "type": [
+                      "object",
+                      "null"
+                    ],
+                    "additionalProperties": {}
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The updated settlement",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "creditNoteId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "paymentId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "invoiceId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "paymentSessionId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "bookingId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "method": {
+                          "type": "string",
+                          "enum": [
+                            "processor_reversal",
+                            "bank_transfer",
+                            "cash",
+                            "cheque",
+                            "travel_credit",
+                            "voucher",
+                            "counterparty_offset",
+                            "other"
+                          ]
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "pending",
+                            "settled",
+                            "failed"
+                          ]
+                        },
+                        "amountCents": {
+                          "type": "integer"
+                        },
+                        "currency": {
+                          "type": "string"
+                        },
+                        "instrumentAmountCents": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ]
+                        },
+                        "instrumentCurrency": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "travelCreditId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "counterpartyOrganizationId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "counterpartyPersonId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "externalReference": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "provider": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "providerConnectionId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "processorReference": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "authorizedByUserId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "approvalId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "requestedActionId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "idempotencyKey": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "initiatedAt": {
+                          "type": "string"
+                        },
+                        "settledAt": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "failedAt": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "failureReason": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "notes": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "providerPayload": {
+                          "type": [
+                            "object",
+                            "null"
+                          ],
+                          "additionalProperties": {}
+                        },
+                        "metadata": {
+                          "type": [
+                            "object",
+                            "null"
+                          ],
+                          "additionalProperties": {}
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        },
+                        "updatedAt": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "creditNoteId",
+                        "paymentId",
+                        "invoiceId",
+                        "paymentSessionId",
+                        "bookingId",
+                        "method",
+                        "status",
+                        "amountCents",
+                        "currency",
+                        "instrumentAmountCents",
+                        "instrumentCurrency",
+                        "travelCreditId",
+                        "counterpartyOrganizationId",
+                        "counterpartyPersonId",
+                        "externalReference",
+                        "provider",
+                        "providerConnectionId",
+                        "processorReference",
+                        "authorizedByUserId",
+                        "approvalId",
+                        "requestedActionId",
+                        "idempotencyKey",
+                        "initiatedAt",
+                        "settledAt",
+                        "failedAt",
+                        "failureReason",
+                        "notes",
+                        "providerPayload",
+                        "metadata",
+                        "createdAt",
+                        "updatedAt"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Settlement not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The settlement cannot move to that status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "code"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/finance/refund-settlements/{id}/execute": {
+      "post": {
+        "operationId": "postAdminFinanceRefundSettlementsByIdExecute",
+        "summary": "POST /v1/admin/finance/refund-settlements/{id}/execute",
+        "tags": [
+          "finance"
+        ],
+        "x-voyant-module": "finance",
+        "x-voyant-surface": "admin",
+        "description": "Drive a `processor_reversal` settlement through the payment adapter. The outcome is recorded on the settlement, including a failure after the processor accepted it. An indeterminate outcome deliberately leaves the settlement pending and its amount held, so a retry cannot refund twice.",
+        "x-voyant-api-id": "@voyant-travel/finance#api.admin",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The settlement after the adapter answered",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "creditNoteId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "paymentId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "invoiceId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "paymentSessionId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "bookingId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "method": {
+                          "type": "string",
+                          "enum": [
+                            "processor_reversal",
+                            "bank_transfer",
+                            "cash",
+                            "cheque",
+                            "travel_credit",
+                            "voucher",
+                            "counterparty_offset",
+                            "other"
+                          ]
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "pending",
+                            "settled",
+                            "failed"
+                          ]
+                        },
+                        "amountCents": {
+                          "type": "integer"
+                        },
+                        "currency": {
+                          "type": "string"
+                        },
+                        "instrumentAmountCents": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ]
+                        },
+                        "instrumentCurrency": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "travelCreditId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "counterpartyOrganizationId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "counterpartyPersonId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "externalReference": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "provider": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "providerConnectionId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "processorReference": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "authorizedByUserId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "approvalId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "requestedActionId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "idempotencyKey": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "initiatedAt": {
+                          "type": "string"
+                        },
+                        "settledAt": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "failedAt": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "failureReason": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "notes": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "providerPayload": {
+                          "type": [
+                            "object",
+                            "null"
+                          ],
+                          "additionalProperties": {}
+                        },
+                        "metadata": {
+                          "type": [
+                            "object",
+                            "null"
+                          ],
+                          "additionalProperties": {}
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        },
+                        "updatedAt": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "creditNoteId",
+                        "paymentId",
+                        "invoiceId",
+                        "paymentSessionId",
+                        "bookingId",
+                        "method",
+                        "status",
+                        "amountCents",
+                        "currency",
+                        "instrumentAmountCents",
+                        "instrumentCurrency",
+                        "travelCreditId",
+                        "counterpartyOrganizationId",
+                        "counterpartyPersonId",
+                        "externalReference",
+                        "provider",
+                        "providerConnectionId",
+                        "processorReference",
+                        "authorizedByUserId",
+                        "approvalId",
+                        "requestedActionId",
+                        "idempotencyKey",
+                        "initiatedAt",
+                        "settledAt",
+                        "failedAt",
+                        "failureReason",
+                        "notes",
+                        "providerPayload",
+                        "metadata",
+                        "createdAt",
+                        "updatedAt"
+                      ]
+                    },
+                    "outcome": {
+                      "type": "string",
+                      "enum": [
+                        "settled",
+                        "pending",
+                        "failed",
+                        "indeterminate",
+                        "not_applicable"
+                      ]
+                    },
+                    "reason": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "outcome"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Settlement not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "This deployment has no payment adapter that can refund",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/finance/payments/{paymentId}/refundable": {
+      "get": {
+        "operationId": "getAdminFinancePaymentsByPaymentIdRefundable",
+        "summary": "GET /v1/admin/finance/payments/{paymentId}/refundable",
+        "tags": [
+          "finance"
+        ],
+        "x-voyant-module": "finance",
+        "x-voyant-surface": "admin",
+        "description": "How much of a payment may still be refunded. Refunds that are pending are subtracted alongside those that settled — an in-flight refund holds its amount until it is positively known to have failed.",
+        "x-voyant-api-id": "@voyant-travel/finance#api.admin",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "paymentId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The refundable remainder",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "paymentId": {
+                          "type": "string"
+                        },
+                        "currency": {
+                          "type": "string"
+                        },
+                        "paidAmountCents": {
+                          "type": "integer"
+                        },
+                        "settledCents": {
+                          "type": "integer"
+                        },
+                        "pendingCents": {
+                          "type": "integer"
+                        },
+                        "failedCents": {
+                          "type": "integer"
+                        },
+                        "refundableRemainderCents": {
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "paymentId",
+                        "currency",
+                        "paidAmountCents",
+                        "settledCents",
+                        "pendingCents",
+                        "failedCents",
+                        "refundableRemainderCents"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Payment not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/finance/bookings/{bookingId}/refund-settlements": {
+      "get": {
+        "operationId": "getAdminFinanceBookingsByBookingIdRefundSettlements",
+        "summary": "GET /v1/admin/finance/bookings/{bookingId}/refund-settlements",
+        "tags": [
+          "finance"
+        ],
+        "x-voyant-module": "finance",
+        "x-voyant-surface": "admin",
+        "description": "What a booking's credit notes cannot say on their own. An issued credit note reads the same whether or not anyone paid it, so `hasOwedRefund` is how a caller tells a refunded booking from one that is still owed money.",
+        "x-voyant-api-id": "@voyant-travel/finance#api.admin",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "bookingId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The booking's refund settlements and what is still owed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "bookingId": {
+                          "type": "string"
+                        },
+                        "settlements": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "creditNoteId": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "paymentId": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "invoiceId": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "paymentSessionId": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "bookingId": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "method": {
+                                "type": "string",
+                                "enum": [
+                                  "processor_reversal",
+                                  "bank_transfer",
+                                  "cash",
+                                  "cheque",
+                                  "travel_credit",
+                                  "voucher",
+                                  "counterparty_offset",
+                                  "other"
+                                ]
+                              },
+                              "status": {
+                                "type": "string",
+                                "enum": [
+                                  "pending",
+                                  "settled",
+                                  "failed"
+                                ]
+                              },
+                              "amountCents": {
+                                "type": "integer"
+                              },
+                              "currency": {
+                                "type": "string"
+                              },
+                              "instrumentAmountCents": {
+                                "type": [
+                                  "integer",
+                                  "null"
+                                ]
+                              },
+                              "instrumentCurrency": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "travelCreditId": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "counterpartyOrganizationId": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "counterpartyPersonId": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "externalReference": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "provider": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "providerConnectionId": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "processorReference": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "authorizedByUserId": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "approvalId": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "requestedActionId": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "idempotencyKey": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "initiatedAt": {
+                                "type": "string"
+                              },
+                              "settledAt": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "failedAt": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "failureReason": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "notes": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "providerPayload": {
+                                "type": [
+                                  "object",
+                                  "null"
+                                ],
+                                "additionalProperties": {}
+                              },
+                              "metadata": {
+                                "type": [
+                                  "object",
+                                  "null"
+                                ],
+                                "additionalProperties": {}
+                              },
+                              "createdAt": {
+                                "type": "string"
+                              },
+                              "updatedAt": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "creditNoteId",
+                              "paymentId",
+                              "invoiceId",
+                              "paymentSessionId",
+                              "bookingId",
+                              "method",
+                              "status",
+                              "amountCents",
+                              "currency",
+                              "instrumentAmountCents",
+                              "instrumentCurrency",
+                              "travelCreditId",
+                              "counterpartyOrganizationId",
+                              "counterpartyPersonId",
+                              "externalReference",
+                              "provider",
+                              "providerConnectionId",
+                              "processorReference",
+                              "authorizedByUserId",
+                              "approvalId",
+                              "requestedActionId",
+                              "idempotencyKey",
+                              "initiatedAt",
+                              "settledAt",
+                              "failedAt",
+                              "failureReason",
+                              "notes",
+                              "providerPayload",
+                              "metadata",
+                              "createdAt",
+                              "updatedAt"
+                            ]
+                          }
+                        },
+                        "hasOwedRefund": {
+                          "type": "boolean"
+                        },
+                        "owedAmountsByCurrency": {
+                          "type": "object",
+                          "additionalProperties": {
+                            "type": "integer"
+                          }
+                        },
+                        "settledAmountsByCurrency": {
+                          "type": "object",
+                          "additionalProperties": {
+                            "type": "integer"
+                          }
+                        }
+                      },
+                      "required": [
+                        "bookingId",
+                        "settlements",
+                        "hasOwedRefund",
+                        "owedAmountsByCurrency",
+                        "settledAmountsByCurrency"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "webhooks": {}

@@ -407,6 +407,31 @@ export const financeVoyantModule = defineModule({
       risk: "critical",
     },
     {
+      id: "@voyant-travel/finance#tool.record-refund-settlement",
+      name: "record_refund_settlement",
+      runtime: {
+        entry: "@voyant-travel/finance/tools",
+        export: "recordRefundSettlementTool",
+      },
+      requiredScopes: ["finance:refund"],
+      context: ["finance"],
+      // `critical`, like issuing the refund itself: this is the leg where money
+      // actually leaves. It is also the leg that cannot be undone by writing
+      // another record.
+      risk: "critical",
+      // Declared rather than inferred. The trailing noun of these paths is
+      // `refund-settlement`, but `/finance/payments/{paymentId}/refundable` and
+      // `/finance/bookings/{bookingId}/refund-settlements` are reads that share
+      // no noun with anything else finance exposes, so naming the write paths
+      // explicitly is what keeps this Tool from claiming coverage it does not
+      // have.
+      adminWrites: [
+        "/v1/admin/finance/refund-settlements",
+        "/v1/admin/finance/refund-settlements/{id}",
+        "/v1/admin/finance/refund-settlements/{id}/execute",
+      ],
+    },
+    {
       id: "@voyant-travel/finance#tool.issue-invoice-from-booking",
       name: "issue_invoice_from_booking",
       runtime: {
@@ -503,6 +528,33 @@ export const financeVoyantModule = defineModule({
       targetLifecycle: "existing",
       existingTarget: { durability: "handler-command-result-v1" },
       from: { tools: ["@voyant-travel/finance#tool.issue-invoice-refund"] },
+    },
+    {
+      id: "@voyant-travel/finance#action.record-refund-settlement",
+      // Its own capability id because the graph keys one capability per action,
+      // but not its own policy: `FINANCE_REFUND_SETTLEMENT_CAPABILITY` is spread
+      // from `finance:refund`, so the grant it demands and the `required`
+      // approval are the same values. The issue asked for the money leg to tie
+      // into the existing approval "rather than inventing a second path", and
+      // deriving it is what makes the two unable to drift.
+      capabilityId: "finance:refund-settlement",
+      version: "v1",
+      kind: "execute",
+      targetType: "credit_note",
+      commandTargetField: "creditNoteId",
+      resource: "finance",
+      action: "refund",
+      requiredScopes: ["finance:refund"],
+      risk: "critical",
+      ledger: "required",
+      approval: "required",
+      reversible: false,
+      allowedActorTypes: ["staff", "system"],
+      availability: { status: "available" },
+      effectBoundary: "local",
+      targetLifecycle: "existing",
+      existingTarget: { durability: "handler-command-result-v1" },
+      from: { tools: ["@voyant-travel/finance#tool.record-refund-settlement"] },
     },
     {
       id: "@voyant-travel/finance#action.record-payment-dispute",

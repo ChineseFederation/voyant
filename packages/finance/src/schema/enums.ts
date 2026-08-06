@@ -59,6 +59,56 @@ export const paymentDisputeStatusEnum = pgEnum("payment_dispute_status", [
   "withdrawn",
 ])
 
+/**
+ * How the customer actually got their money back (voyant#4303).
+ *
+ * A credit note records that a refund is *owed*. This names the leg that pays
+ * it, and most of the values are not a card — refunding a bank transfer by bank
+ * transfer, handing cash across a counter, or netting the amount off what a
+ * trade account owes has nothing to do with any processor.
+ *
+ * `travel_credit` and `voucher` are deliberately separate values rather than one
+ * value with a flag. A travel credit is bound to the person who was refunded; a
+ * voucher is transferable, carries its own expiry, and is frequently worth more
+ * than the cash it replaces (110% in credit to avoid paying out 100%). They are
+ * different instruments in operator usage, and a single value would have made
+ * "can I give this to my sister?" a support question rather than a field.
+ *
+ * `counterparty_offset` is the B2B case: refunding a reseller is usually not a
+ * payment at all but a credit against what they owe on other bookings. The
+ * balance it offsets belongs to a counterparty, not to one booking.
+ */
+export const refundSettlementMethodEnum = pgEnum("refund_settlement_method", [
+  "processor_reversal",
+  "bank_transfer",
+  "cash",
+  "cheque",
+  "travel_credit",
+  "voucher",
+  "counterparty_offset",
+  "other",
+])
+
+/**
+ * Whether the money has actually moved.
+ *
+ * Distinct from the credit note's status on purpose: the accounting document is
+ * issued once, but the money leg can be owed for days (a bank transfer), can
+ * resolve asynchronously (a processor reversal), and can fail after the
+ * processor accepted it.
+ *
+ * `pending` still holds its amount against the payment — see
+ * `holdsRefundedFunds` in `refund-settlement-lifecycle.ts`. Only `failed`
+ * returns the amount to the refundable remainder, because a retry after an
+ * indeterminate outcome is the one error here that cannot be undone by trying
+ * again.
+ */
+export const refundSettlementStatusEnum = pgEnum("refund_settlement_status", [
+  "pending",
+  "settled",
+  "failed",
+])
+
 export const paymentSessionTargetTypeEnum = pgEnum("payment_session_target_type", [
   "booking_session",
   "booking",

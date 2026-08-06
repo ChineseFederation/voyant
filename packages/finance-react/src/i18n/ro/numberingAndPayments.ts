@@ -159,6 +159,7 @@ export const paymentDetailPage = {
     status: "Status",
     method: "Metoda de plata",
     date: "Data platii",
+    refundable: "Inca restituibil",
     reference: "Referinta",
     notes: "Note",
     kind: "Tip",
@@ -175,6 +176,8 @@ export const paymentDetailPage = {
     loadFailed: "Plata nu a putut fi incarcata.",
     notFound: "Plata nu a fost gasita.",
     noValue: "-",
+    refundPending:
+      "O restituire deja pornita se scade de aici, ca nimeni sa nu trimita aceiasi bani de doua ori.",
   },
 }
 

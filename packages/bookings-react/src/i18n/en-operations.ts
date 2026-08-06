@@ -170,6 +170,29 @@ export const bookingsUiEnOperations = {
     resolvedTitle: "Past payment disputes",
     resolvedDescription: "Every dispute on this booking has resolved. Nothing is contested now.",
   },
+  bookingRefundBanner: {
+    title: "Refund owed",
+    description:
+      "A refund on this booking has not reached the customer yet. The credit note is issued, but the money has not left.",
+    owed: "Owed",
+    settledTitle: "Refunds paid",
+    settledDescription: "Every refund on this booking has been paid back to the customer.",
+    methods: {
+      processor_reversal: "Card reversal",
+      bank_transfer: "Bank transfer",
+      cash: "Cash",
+      cheque: "Cheque",
+      travel_credit: "Travel credit",
+      voucher: "Voucher",
+      counterparty_offset: "Credit against their account",
+      other: "Other",
+    },
+    statuses: {
+      pending: "Not paid yet",
+      settled: "Paid",
+      failed: "Failed",
+    },
+  },
   bookingPaymentReconciliationBanner: {
     title: "Payment reconciliation",
     loading: "Checking payment sources...",

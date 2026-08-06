@@ -170,6 +170,30 @@ export const bookingsUiRoOperations = {
     resolvedDescription:
       "Toate contestatiile de pe aceasta rezervare s-au solutionat. Nimic nu este contestat acum.",
   },
+  bookingRefundBanner: {
+    title: "Restituire datorata",
+    description:
+      "O restituire de pe aceasta rezervare nu a ajuns inca la client. Nota de credit este emisa, dar banii nu au plecat.",
+    owed: "Datorat",
+    settledTitle: "Restituiri platite",
+    settledDescription:
+      "Toate restituirile de pe aceasta rezervare au fost platite inapoi clientului.",
+    methods: {
+      processor_reversal: "Stornare pe card",
+      bank_transfer: "Transfer bancar",
+      cash: "Numerar",
+      cheque: "Cec",
+      travel_credit: "Credit de calatorie",
+      voucher: "Voucher",
+      counterparty_offset: "Credit in contul lor",
+      other: "Altfel",
+    },
+    statuses: {
+      pending: "Inca neplatita",
+      settled: "Platita",
+      failed: "Esuata",
+    },
+  },
   bookingPaymentReconciliationBanner: {
     title: "Reconciliere plati",
     loading: "Se verifica sursele de plata...",

@@ -119,8 +119,17 @@ describe("finance tools", () => {
       "list_invoices",
       "preview_unsynced_proforma_from_booking",
       "record_payment_dispute",
+      "record_refund_settlement",
       "void_invoice",
     ])
+    // The money leg carries the same scope and the same destructive posture as
+    // issuing the refund itself (voyant#4303) — this is where money leaves.
+    const refundSettlementTool = list.find((t) => t.name === "record_refund_settlement")
+    expect(refundSettlementTool).toMatchObject({
+      tier: "destructive",
+      requiredScopes: ["finance:refund"],
+      riskPolicy: { destructive: true, reversible: false, confirmationRequired: true },
+    })
     const disputeTool = list.find((t) => t.name === "record_payment_dispute")
     expect(disputeTool).toMatchObject({
       tier: "write",

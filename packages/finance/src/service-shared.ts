@@ -54,6 +54,7 @@ export {
   paymentInstruments,
   paymentSessions,
   payments,
+  refundSettlements,
   supplierInvoices,
   supplierPayments,
   taxClasses,

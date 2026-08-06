@@ -12,6 +12,7 @@ import {
   getTravelerProfitability,
 } from "./service-profitability.js"
 import { financeReferenceDataService } from "./service-reference-data.js"
+import { financeRefundSettlementService } from "./service-refund-settlements.js"
 import { financeReportService } from "./service-reports.js"
 import { financeSupplierPaymentService } from "./service-supplier-payments.js"
 import { travelCreditsService } from "./service-travel-credits.js"
@@ -26,6 +27,7 @@ export const financeService = {
   getTravelerProfitability,
   costCategories: costCategoriesService,
   paymentDisputes: financePaymentDisputeService,
+  refundSettlements: financeRefundSettlementService,
   ...financePaymentProcessingService,
   ...financeBookingBillingService,
   ...financeReportService,

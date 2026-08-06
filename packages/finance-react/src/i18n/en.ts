@@ -10,6 +10,7 @@ import {
   taxesPage,
 } from "./en/numberingAndPayments.js"
 import { costCategories, profitability } from "./en/profitability.js"
+import { bookingRefundPanel, recordRefundSettlementDialog } from "./en/refunds.js"
 import {
   supplierInvoiceDetail,
   supplierInvoicesPage,
@@ -35,4 +36,6 @@ export const financeUiEn = {
   recordBookingPaymentDialog,
   profitability,
   costCategories,
+  bookingRefundPanel,
+  recordRefundSettlementDialog,
 } satisfies FinanceUiMessages

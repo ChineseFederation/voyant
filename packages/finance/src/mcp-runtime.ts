@@ -17,9 +17,11 @@ import { financeBookingToolServices } from "./mcp-booking-runtime.js"
 import { financeToolActionLedgerContext } from "./mcp-runtime-shared.js"
 import {
   authorizeFinanceRefund,
+  authorizeFinanceRefundSettlement,
   FINANCE_REFUND_ACTION_NAME,
   FINANCE_REFUND_CAPABILITY,
   FINANCE_REFUND_ROUTE_OR_TOOL_NAME,
+  type FinanceRefundSettlementAuthorizationResult,
 } from "./refund-authorization.js"
 import { getFinanceRouteRuntime } from "./routes-runtime.js"
 import type { Env } from "./routes-shared.js"
@@ -91,6 +93,131 @@ export const voyantToolContextContribution = defineToolContextContribution({
             })
           }
           return toJsonValue(dispute)
+        },
+        /**
+         * The money leg (voyant#4303). Same capability as `issueInvoiceRefund`,
+         * same approve-then-retry shape, and the method need not be a card.
+         */
+        async recordRefundSettlement(input: {
+          creditNoteId?: string | null
+          paymentId?: string | null
+          idempotencyKey: string
+          approvalId?: string
+        }) {
+          const { idempotencyKey, approvalId, ...settlement } = input
+          const targetId = settlement.creditNoteId ?? settlement.paymentId
+          if (!targetId) {
+            throw new ToolError(
+              "A refund settlement must reverse a credit note, a payment, or both.",
+              "INVALID_INPUT",
+            )
+          }
+          const requestContext = financeToolActionLedgerContext(c)
+          const authorization = await authorizeFinanceRefundSettlement({
+            db: db as PostgresJsDatabase,
+            targetType: settlement.creditNoteId ? "credit_note" : "payment",
+            targetId,
+            commandInput: settlement,
+            actor: c.get("actor"),
+            callerType: c.get("callerType"),
+            scopes: c.get("scopes"),
+            isInternalRequest: c.get("isInternalRequest"),
+            requestContext,
+            approvalId: approvalId ?? null,
+            idempotencyKey,
+          })
+
+          if (authorization.status === "approval_required") {
+            return {
+              status: "approval_required" as const,
+              requestedAction: {
+                id: authorization.requestedAction.id,
+                status: authorization.requestedAction.status,
+                actionName: authorization.requestedAction.actionName,
+                targetType: authorization.requestedAction.targetType,
+                targetId: authorization.requestedAction.targetId,
+              },
+              approval: {
+                id: authorization.approval.id,
+                status: authorization.approval.status,
+                requestedActionId: authorization.approval.requestedActionId,
+                policyName: authorization.approval.policyName,
+                policyVersion: authorization.approval.policyVersion,
+                riskSnapshot: authorization.approval.riskSnapshot,
+                reasonCode: authorization.approval.reasonCode,
+                expiresAt: toIsoString(authorization.approval.expiresAt),
+                createdAt: toIsoString(authorization.approval.createdAt),
+              },
+              replayed: authorization.replayed,
+              nextSteps: [
+                `1. Call approve_action_approval with approvalId "${authorization.approval.id}". The approval exists but is PENDING; re-calling record_refund_settlement before this step returns this same response.`,
+                `2. Call record_refund_settlement again with the identical input plus approvalId "${authorization.approval.id}". An altered command no longer matches what was approved.`,
+              ],
+            }
+          }
+          if (authorization.status === "already_executed") {
+            const existing = await financeService.refundSettlements.getRefundSettlementById(
+              db as PostgresJsDatabase,
+              authorization.refundSettlementId,
+            )
+            if (!existing) {
+              throw new ToolError(
+                "The previously recorded refund settlement was not found.",
+                "NOT_FOUND",
+                { refundSettlementId: authorization.refundSettlementId },
+              )
+            }
+            return {
+              status: "recorded" as const,
+              refundSettlement: toJsonValue(existing),
+              replayed: true,
+            }
+          }
+          if (authorization.status !== "authorized") {
+            throw financeRefundSettlementAuthorizationError(authorization)
+          }
+
+          // An agent always carries an approval here — `needsApproval` returns
+          // true for `callerType === "agent"` — but the field is optional on
+          // the shared result, so read it defensively rather than asserting.
+          const approved = authorization.approvedAction
+            ? buildActionLedgerApprovedExecutionFields(authorization.approvedAction)
+            : null
+          const row = await financeService.refundSettlements.recordRefundSettlement(
+            db as PostgresJsDatabase,
+            {
+              ...(settlement as Parameters<
+                typeof financeService.refundSettlements.recordRefundSettlement
+              >[1]),
+              idempotencyKey,
+              approvalId: approved?.approvalId ?? null,
+              requestedActionId: authorization.approvedAction?.requestedActionId ?? null,
+            },
+            {
+              ...getFinanceRouteRuntime(c),
+              actionLedgerContext: requestContext,
+              actionLedgerAuthorizationSource: authorization.access.authorizationSource,
+              actionLedgerCapabilityId: authorization.access.capabilityId,
+              actionLedgerCapabilityVersion: authorization.access.capabilityVersion,
+              actionLedgerCausationActionId: approved?.causationActionId ?? null,
+              actionLedgerApprovalId: approved?.approvalId ?? null,
+              actionLedgerIdempotencyScope: authorization.execution.idempotencyScope,
+              actionLedgerIdempotencyKey: authorization.execution.idempotencyKey,
+              actionLedgerIdempotencyFingerprint: authorization.execution.idempotencyFingerprint,
+            },
+          )
+          if (!row) {
+            throw new ToolError(
+              "The credit note, payment or payment session being refunded was not found.",
+              "NOT_FOUND",
+              { creditNoteId: settlement.creditNoteId, paymentId: settlement.paymentId },
+            )
+          }
+          return {
+            status: "recorded" as const,
+            refundSettlement: toJsonValue(row),
+            replayed: false,
+          }
         },
         async previewUnsyncedProformaFromBooking(input: { bookingId: string }) {
           const snapshot = await buildUnsyncedProformaApprovalSnapshot(
@@ -233,6 +360,16 @@ export const voyantToolContextContribution = defineToolContextContribution({
             throw financeRefundAuthorizationError(authorization)
           }
 
+          // Unreachable: `finance:refund` is `approvalPolicy: "required"`, so
+          // the accounting leg never authorizes without an approval. Narrowing
+          // it here rather than asserting keeps that fact checked instead of
+          // assumed, should the policy ever be relaxed.
+          if (!authorization.approvedAction) {
+            throw new ToolError(
+              "Invoice refund was authorized without an approval.",
+              "INVALID_INPUT",
+            )
+          }
           const approved = buildActionLedgerApprovedExecutionFields(authorization.approvedAction)
           const creditNote = await financeService.createCreditNote(db, input.invoiceId, command, {
             eventBus: c.get("eventBus"),
@@ -349,6 +486,32 @@ async function executeInvoiceIssueTool(input: {
     status: "issued" as const,
     invoice: toJsonValue(outcome.invoice),
     replayed: false,
+  }
+}
+
+function financeRefundSettlementAuthorizationError(
+  result: Exclude<
+    FinanceRefundSettlementAuthorizationResult,
+    { status: "authorized" | "approval_required" | "already_executed" }
+  >,
+) {
+  switch (result.status) {
+    case "denied":
+      return new ToolError("Refund settlement is not authorized.", "AUTHORIZATION_DENIED", {
+        reason: result.access.reason,
+      })
+    case "missing_idempotency_key":
+      return new ToolError("Refund settlement requires an idempotency key.", "INVALID_INPUT")
+    case "idempotency_conflict":
+      return new ToolError(result.message, "INVALID_INPUT", {
+        existingActionId: result.existingActionId,
+      })
+    default:
+      return new ToolError(
+        "The approval does not authorize this exact refund settlement.",
+        "INVALID_INPUT",
+        { reason: result.validation.reason },
+      )
   }
 }
 

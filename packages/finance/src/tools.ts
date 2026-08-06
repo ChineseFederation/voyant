@@ -37,6 +37,8 @@ import {
   invoiceListQuerySchema,
   paymentDisputeRecordSchema,
   recordPaymentDisputeSchema,
+  recordRefundSettlementSchema,
+  refundSettlementRecordSchema,
 } from "./validation.js"
 
 const voidInvoiceResultSchema = z.discriminatedUnion("status", [
@@ -88,6 +90,9 @@ export interface FinanceToolServices {
     input: z.infer<typeof issueInvoiceFromBookingToolInputSchema>,
   ): Promise<unknown>
   recordPaymentDispute(input: z.infer<typeof recordPaymentDisputeToolInputSchema>): Promise<unknown>
+  recordRefundSettlement(
+    input: z.infer<typeof recordRefundSettlementToolInputSchema>,
+  ): Promise<unknown>
   previewUnsyncedProformaFromBooking(input: { bookingId: string }): Promise<unknown>
   issueUnsyncedProformaFromBooking(
     input: z.infer<typeof issueUnsyncedProformaFromBookingToolInputSchema>,
@@ -543,6 +548,85 @@ export const recordPaymentDisputeTool = defineTool<
   },
 })
 
+/**
+ * The agent-facing input requires `creditNoteId`.
+ *
+ * The admin route accepts a settlement bound to a payment alone — an operator
+ * paying somebody back before the paperwork catches up is ordinary. An agent
+ * gets the narrower door on purpose: the credit note is the document a reviewer
+ * approves against, and it is what makes `commandTargetField` in the graph
+ * manifest name one field rather than two that take turns.
+ */
+export const recordRefundSettlementToolInputSchema = recordRefundSettlementSchema.safeExtend({
+  creditNoteId: z.string().min(1),
+  idempotencyKey: z.string().min(1).max(255),
+  approvalId: z.string().min(1).optional(),
+})
+
+export const recordRefundSettlementOutputSchema = z.union([
+  pendingFinanceApprovalSchema,
+  z.object({
+    status: z.literal("recorded"),
+    refundSettlement: refundSettlementRecordSchema,
+    replayed: z.boolean(),
+  }),
+])
+
+/**
+ * The money leg of a refund, for an agent that has been asked to pay somebody
+ * back (voyant#4303).
+ *
+ * The method is the point: `bank_transfer`, `cash`, `voucher` and
+ * `counterparty_offset` are as ordinary here as a card reversal, and a
+ * deployment with no processor at all can still record one.
+ *
+ * Runs the same `finance:refund` capability as `issue_invoice_refund`, so a
+ * deployment configures who may refund once. Returns `approval_required` with
+ * the approval to grant when policy demands one, and the settlement when it
+ * does not — the same call either way.
+ */
+export const recordRefundSettlementTool = defineTool<
+  z.infer<typeof recordRefundSettlementToolInputSchema>,
+  z.infer<typeof recordRefundSettlementOutputSchema>,
+  FinanceToolContext
+>({
+  owner: "@voyant-travel/finance",
+  capabilityId: "@voyant-travel/finance#tool.record-refund-settlement",
+  capabilityVersion: "v1",
+  name: "record_refund_settlement",
+  description:
+    "Record how a customer was actually paid back — processor reversal, bank transfer, cash, " +
+    "cheque, travel credit, voucher, or an offset against a counterparty balance — against the " +
+    "credit note it settles. A refund may be owed now (`pending`) and settled later; repeated " +
+    "partial refunds against one payment are ordinary. Requires approval under the same " +
+    "`finance:refund` policy that governs issuing the credit note. " +
+    "Three input rules the JSON schema cannot express: `creditNoteId` is required, and " +
+    "`paymentId` should also be given when the refund reverses a specific payment, because that " +
+    'is what bounds the refundable amount; `method: "processor_reversal"` requires ' +
+    "`paymentSessionId`, since that is what the payment adapter is addressed to; and " +
+    "`instrumentAmountCents` requires `instrumentCurrency` — send both only when the voucher or " +
+    "credit is worth something other than `amountCents`, which is the 110%-in-credit case.",
+  inputSchema: recordRefundSettlementToolInputSchema,
+  outputSchema: recordRefundSettlementOutputSchema,
+  requiredScopes: ["finance:refund"],
+  audience: { source: "grant", allowed: ["staff"] },
+  tier: "destructive",
+  riskPolicy: {
+    destructive: true,
+    reversible: false,
+    dryRunSupported: false,
+    confirmationRequired: true,
+    sideEffects: ["refund", "data-write"],
+  },
+  annotations: { idempotentHint: true },
+  actionPolicyEnforcement: "handler",
+  async handler(input, ctx) {
+    return recordRefundSettlementOutputSchema.parse(
+      await finance(ctx).recordRefundSettlement(input),
+    )
+  },
+})
+
 export const financeTools = [
   listInvoicesTool,
   getInvoiceTool,
@@ -550,6 +634,7 @@ export const financeTools = [
   issueInvoiceRefundTool,
   issueInvoiceFromBookingTool,
   recordPaymentDisputeTool,
+  recordRefundSettlementTool,
   previewUnsyncedProformaFromBookingTool,
   issueUnsyncedProformaFromBookingTool,
 ] as const

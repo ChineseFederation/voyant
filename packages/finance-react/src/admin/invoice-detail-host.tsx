@@ -47,6 +47,7 @@ import {
   useInvoiceNoteMutation,
   useInvoiceNotes,
   useInvoicePayments,
+  useRefundSettlements,
 } from "../index.js"
 import { CreditNoteDialog } from "./credit-note-dialog.js"
 import { invoiceStatusVariant, type LineItem } from "./finance-shared.js"
@@ -125,6 +126,8 @@ export function InvoiceDetailHost({ id }: InvoiceDetailHostProps) {
   const { data: lineItemsData } = useInvoiceLineItems(id)
   const { data: paymentsData } = useInvoicePayments(id)
   const { data: creditNotesData } = useInvoiceCreditNotes(id)
+  // One read for every credit note on this invoice, rather than one per row.
+  const refundSettlementsQuery = useRefundSettlements({ invoiceId: id, limit: 100 })
   const { data: notesData } = useInvoiceNotes(id)
   const { convertToInvoice, remove: deleteInvoice, voidInvoice } = useInvoiceMutation()
   const { remove: deleteLineItem } = useInvoiceLineItemMutation(id)
@@ -462,6 +465,9 @@ export function InvoiceDetailHost({ id }: InvoiceDetailHostProps) {
           <InvoiceCreditNotesCard
             creditNotes={creditNotes}
             onCreate={() => setCreditNoteDialogOpen(true)}
+            bookingId={invoice.bookingId}
+            refundSettlements={refundSettlementsQuery.data?.data ?? []}
+            onRefundRecorded={() => void refundSettlementsQuery.refetch()}
           />
         </TabsContent>
 

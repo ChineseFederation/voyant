@@ -10,6 +10,7 @@ import {
   ConfirmActionButton,
 } from "@voyant-travel/ui/components"
 import { ExternalLink, FileText, Pencil, Plus } from "lucide-react"
+import type { ReactNode } from "react"
 import { useFinanceUiI18nOrDefault, useFinanceUiMessagesOrDefault } from "../../i18n/index.js"
 import type {
   CreditNoteRecord,
@@ -317,6 +318,11 @@ export interface InvoiceCreditNotesCardProps extends InvoiceDetailCardProps {
   creditNotes: CreditNoteRecord[]
   pending?: boolean
   onCreate?: (invoice: InvoiceRecord) => void
+  /**
+   * Whether each credit note has actually been paid (voyant#4303). The card
+   * stays presentational — the page owns the read and renders this per row.
+   */
+  refundSlot?: (creditNote: CreditNoteRecord) => ReactNode
 }
 
 export function InvoiceCreditNotesCard({
@@ -324,6 +330,7 @@ export function InvoiceCreditNotesCard({
   creditNotes,
   pending,
   onCreate,
+  refundSlot,
   className,
 }: InvoiceCreditNotesCardProps) {
   const messages = useFinanceUiMessagesOrDefault()
@@ -350,10 +357,11 @@ export function InvoiceCreditNotesCard({
       ) : (
         <ul className="divide-y">
           {creditNotes.map((creditNote) => (
-            <li key={creditNote.id} className="flex items-center justify-between gap-3 py-3">
+            <li key={creditNote.id} className="flex items-start justify-between gap-3 py-3">
               <div className="min-w-0">
                 <p className="truncate text-sm font-medium">{creditNote.creditNoteNumber}</p>
                 <p className="line-clamp-2 text-xs text-muted-foreground">{creditNote.reason}</p>
+                {refundSlot?.(creditNote)}
               </div>
               <div className="flex items-center gap-3">
                 <Money cents={creditNote.amountCents} currency={creditNote.currency} />

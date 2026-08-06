@@ -1,20 +1,26 @@
 "use client"
 
 import { type FetchWithValidationOptions, fetchWithValidation, withQueryParams } from "./client.js"
-import type { FinanceActionLedgerListCursor } from "./query-keys.js"
+import type {
+  FinanceActionLedgerListCursor,
+  FinanceRefundSettlementListFilters,
+} from "./query-keys.js"
 import {
   bookingPaymentDisputesResponse,
+  bookingRefundSettlementsResponse,
   financeActionLedgerListResponse,
   invoiceFxRateResponse,
   type PublicFinanceDocumentLookupQuery,
   type PublicStartPaymentSessionInput,
   type PublicValidateTravelCreditInput,
+  paymentRefundableRemainderResponse,
   publicBookingFinanceDocumentsResponse,
   publicBookingFinancePaymentsResponse,
   publicBookingPaymentOptionsResponse,
   publicFinanceDocumentLookupResponse,
   publicPaymentSessionResponse,
   publicTravelCreditValidationResponse,
+  refundSettlementListResponse,
 } from "./schemas.js"
 
 export interface FinanceActionLedgerListInput {
@@ -116,6 +122,49 @@ export function getBookingPaymentDisputes(client: FetchWithValidationOptions, bo
   return fetchWithValidation(
     `/v1/admin/finance/bookings/${bookingId}/disputes`,
     bookingPaymentDisputesResponse,
+    client,
+  )
+}
+
+/**
+ * How the booking's refunds were actually paid — and which are still owed
+ * (voyant#4303). An issued credit note reads the same either way, so this is
+ * the only read that can tell a refunded booking from one that still owes
+ * somebody money.
+ */
+export function getBookingRefundSettlements(client: FetchWithValidationOptions, bookingId: string) {
+  return fetchWithValidation(
+    `/v1/admin/finance/bookings/${bookingId}/refund-settlements`,
+    bookingRefundSettlementsResponse,
+    client,
+  )
+}
+
+/** The refund-settlement list, filtered (voyant#4303). */
+export function getRefundSettlements(
+  client: FetchWithValidationOptions,
+  filters: FinanceRefundSettlementListFilters = {},
+) {
+  return fetchWithValidation(
+    withQueryParams("/v1/admin/finance/refund-settlements", filters),
+    refundSettlementListResponse,
+    client,
+  )
+}
+
+/**
+ * How much of a payment may still be refunded. Refunds that are pending are
+ * subtracted alongside those that settled, so this is smaller than "paid minus
+ * refunded" whenever a refund is in flight — deliberately, because the
+ * alternative is refunding the same money twice.
+ */
+export function getPaymentRefundableRemainder(
+  client: FetchWithValidationOptions,
+  paymentId: string,
+) {
+  return fetchWithValidation(
+    `/v1/admin/finance/payments/${paymentId}/refundable`,
+    paymentRefundableRemainderResponse,
     client,
   )
 }

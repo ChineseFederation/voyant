@@ -271,6 +271,12 @@ export const financeQueryKeys = {
     [...financeQueryKeys.all, "admin-booking-payments", bookingId] as const,
   bookingPaymentDisputes: (bookingId: string) =>
     [...financeQueryKeys.all, "booking-payment-disputes", bookingId] as const,
+  bookingRefundSettlements: (bookingId: string) =>
+    [...financeQueryKeys.all, "booking-refund-settlements", bookingId] as const,
+  refundSettlements: (filters: FinanceRefundSettlementListFilters) =>
+    [...financeQueryKeys.all, "refund-settlements", filters] as const,
+  paymentRefundableRemainder: (paymentId: string) =>
+    [...financeQueryKeys.all, "payment-refundable-remainder", paymentId] as const,
   publicBookingPaymentOptions: (bookingId: string, filters: PublicBookingPaymentOptionsFilters) =>
     [...financeQueryKeys.publicCheckout(), "booking-payment-options", bookingId, filters] as const,
   publicPaymentSession: (sessionId: string) =>
@@ -283,3 +289,16 @@ export const financeQueryKeys = {
     [...financeQueryKeys.travelCredits(), "list", filters] as const,
   travelCredit: (id: string) => [...financeQueryKeys.travelCredits(), "detail", id] as const,
 } as const
+
+/** Filters accepted by `GET /v1/admin/finance/refund-settlements` (voyant#4303). */
+export interface FinanceRefundSettlementListFilters {
+  bookingId?: string
+  creditNoteId?: string
+  paymentId?: string
+  invoiceId?: string
+  method?: string
+  status?: string
+  owed?: boolean
+  limit?: number
+  offset?: number
+}
