@@ -1,5 +1,13 @@
 # @voyant-travel/distribution
 
+## 0.227.19
+
+### Patch Changes
+
+- Updated dependencies [484b207]
+  - @voyant-travel/finance@0.244.0
+  - @voyant-travel/catalog@0.249.1
+
 ## 0.227.18
 
 ### Patch Changes
