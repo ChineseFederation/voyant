@@ -7,6 +7,8 @@ import type { DrizzleClient } from "./types.js"
 export interface EventOutboxJobRuntime {
   withDb<T>(operation: (db: DrizzleClient) => Promise<T>): Promise<T>
   deliver(envelope: EventEnvelope): Promise<DeliveryResult>
+  /** Healthy-run operational telemetry; older hosts fall back to warn(). */
+  log?(message: string): void
   warn(message: string): void
 }
 

@@ -61,7 +61,21 @@ export const eventOutboxTable = pgTable(
     // The drain's working set: due pending rows only. Partial keeps the
     // index tiny once delivered/failed rows accumulate.
     // agent-quality: raw-sql reviewed -- owner: db; dynamic SQL interpolation uses Drizzle parameter binding or vetted SQL identifiers.
-    index("event_outbox_due_idx").on(table.nextAttemptAt).where(sql`${table.status} = 'pending'`),
+    index("event_outbox_due_idx")
+      .on(table.nextAttemptAt, table.id)
+      .where(sql`${table.status} = 'pending'`),
+    index("event_outbox_pending_created_idx")
+      .on(table.createdAt)
+      .where(sql`${table.status} = 'pending'`),
+    index("event_outbox_failed_created_idx")
+      .on(table.createdAt)
+      .where(sql`${table.status} = 'failed'`),
+    index("event_outbox_delivered_idx")
+      .on(table.deliveredAt, table.id)
+      .where(sql`${table.status} = 'delivered'`),
+    index("event_outbox_pending_intent_idx")
+      .on(sql`(${table.payload} ->> 'intentId')`)
+      .where(sql`${table.status} = 'pending'`),
     index("event_outbox_created_idx").on(table.createdAt),
   ],
 ).enableRLS()

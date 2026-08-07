@@ -14,8 +14,18 @@ const BACKOFF_BASE_MS = 5_000
 const BACKOFF_CAP_MS = 15 * 60 * 1000
 
 export interface DrainOutboxOptions {
-  /** Max rows claimed per drain pass. Default 25. */
+  /** Max rows claimed per batch. Default 25. */
   limit?: number
+  /** Max deliveries in flight at once. Default 5. */
+  concurrency?: number
+  /** Hard cap on claimed rows per invocation. Default 250. */
+  maxEvents?: number
+  /** Hard cap on claimed batches per invocation. Default 10. */
+  maxBatches?: number
+  /** Wall-clock budget for one invocation. Default 30s. */
+  timeBudgetMs?: number
+  /** Stop claiming this long before the wall-clock budget. Default 2s. */
+  budgetReserveMs?: number
   /**
    * How long a claimed row stays invisible to other drains. Must exceed
    * the worst-case delivery time of one event (all subscribers, each
@@ -30,6 +40,9 @@ export interface DrainOutboxResult {
   delivered: number
   retried: number
   deadLettered: number
+  batches: number
+  durationMs: number
+  budgetExhausted: boolean
 }
 
 /** Minimal delivery surface needed by the durable outbox drain. */
@@ -148,8 +161,8 @@ export async function claimDueOutboxEvents(
   db: DrizzleClient,
   options: DrainOutboxOptions = {},
 ): Promise<EventOutboxRow[]> {
-  const limit = options.limit ?? 25
-  const visibilityMs = options.visibilityTimeoutMs ?? 120_000
+  const limit = positiveInteger(options.limit, 25, "limit")
+  const visibilityMs = positiveInteger(options.visibilityTimeoutMs, 120_000, "visibilityTimeoutMs")
   const result = (await (db as AnyDb).execute(sql`
     UPDATE ${eventOutboxTable}
     SET
@@ -158,7 +171,7 @@ export async function claimDueOutboxEvents(
     WHERE "id" IN (
       SELECT "id" FROM ${eventOutboxTable}
       WHERE "status" = 'pending' AND "next_attempt_at" <= now()
-      ORDER BY "next_attempt_at" ASC
+      ORDER BY "next_attempt_at" ASC, "id" ASC
       LIMIT ${limit}
       FOR UPDATE SKIP LOCKED
     )
@@ -208,8 +221,9 @@ export function outboxRowToEnvelope(row: EventOutboxRow): EventEnvelope {
 }
 
 /**
- * One drain pass: claim due rows, redeliver each through the bus, mark
- * delivered / reschedule / dead-letter. Call from a scheduled handler
+ * Repeatedly claim bounded batches and redeliver them through the bus with
+ * bounded concurrency, stopping when no row is due or a work/time budget is
+ * reached. Call from a scheduled handler
  * (cron), a `waitUntil` kick after emit, or a long-running Node loop.
  * Safe to run concurrently from multiple isolates (SKIP LOCKED claim).
  */
@@ -218,17 +232,39 @@ export async function drainOutbox(
   bus: OutboxEventDelivery,
   options: DrainOutboxOptions = {},
 ): Promise<DrainOutboxResult> {
-  const claimed = await claimDueOutboxEvents(db, options)
+  const startedAt = Date.now()
+  const batchSize = positiveInteger(options.limit, 25, "limit")
+  const concurrency = Math.min(batchSize, positiveInteger(options.concurrency, 5, "concurrency"))
+  const maxEvents = positiveInteger(options.maxEvents, 250, "maxEvents")
+  const maxBatches = positiveInteger(options.maxBatches, 10, "maxBatches")
+  const timeBudgetMs = positiveInteger(options.timeBudgetMs, 30_000, "timeBudgetMs")
+  const budgetReserveMs = nonNegativeInteger(options.budgetReserveMs, 2_000, "budgetReserveMs")
+  const claimDeadline = startedAt + Math.max(0, timeBudgetMs - budgetReserveMs)
   const result: DrainOutboxResult = {
-    claimed: claimed.length,
+    claimed: 0,
     delivered: 0,
     retried: 0,
     deadLettered: 0,
+    batches: 0,
+    durationMs: 0,
+    budgetExhausted: false,
   }
-  if (claimed.length === 0) return result
 
-  await Promise.all(
-    claimed.map(async (row) => {
+  while (result.batches < maxBatches && result.claimed < maxEvents) {
+    if (Date.now() >= claimDeadline) {
+      result.budgetExhausted = true
+      break
+    }
+
+    const claimed = await claimDueOutboxEvents(db, {
+      limit: Math.min(batchSize, maxEvents - result.claimed),
+      visibilityTimeoutMs: options.visibilityTimeoutMs,
+    })
+    if (claimed.length === 0) break
+    result.batches += 1
+    result.claimed += claimed.length
+
+    await forEachConcurrent(claimed, concurrency, async (row) => {
       const envelope = outboxRowToEnvelope(row)
       let failedCount = 0
       let errors: string[] = []
@@ -257,10 +293,29 @@ export async function drainOutbox(
       const status = await failOutboxEvent(db, row.id, errors.join("; "))
       if (status === "failed") result.deadLettered += 1
       else result.retried += 1
-    }),
-  )
+    })
+  }
 
+  result.budgetExhausted ||=
+    result.claimed >= maxEvents || result.batches >= maxBatches || Date.now() >= claimDeadline
+  result.durationMs = Date.now() - startedAt
   return result
+}
+
+async function forEachConcurrent<T>(
+  values: readonly T[],
+  concurrency: number,
+  operation: (value: T) => Promise<void>,
+): Promise<void> {
+  let cursor = 0
+  const worker = async () => {
+    while (cursor < values.length) {
+      const value = values[cursor]
+      cursor += 1
+      if (value !== undefined) await operation(value)
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(concurrency, values.length) }, worker))
 }
 
 /**
@@ -271,37 +326,125 @@ export async function drainOutbox(
  */
 export async function pruneDeliveredOutboxEvents(
   db: DrizzleClient,
-  options: { olderThanDays?: number } = {},
+  options: { olderThanDays?: number; limit?: number } = {},
 ): Promise<number> {
-  const days = options.olderThanDays ?? 14
+  const days = positiveInteger(options.olderThanDays, 14, "olderThanDays")
+  const limit = positiveInteger(options.limit, 500, "limit")
   const result = (await (db as AnyDb).execute(sql`
+    WITH candidates AS (
+      SELECT "id" FROM ${eventOutboxTable}
+      WHERE "status" = 'delivered'
+        AND "delivered_at" < now() - (${days} * interval '1 day')
+      ORDER BY "delivered_at" ASC, "id" ASC
+      LIMIT ${limit}
+      FOR UPDATE SKIP LOCKED
+    )
     DELETE FROM ${eventOutboxTable}
-    WHERE "status" = 'delivered'
-      AND "delivered_at" < now() - (${days} * interval '1 day')
+    WHERE "id" IN (SELECT "id" FROM candidates)
     RETURNING "id"
   `)) as unknown
   const rows = Array.isArray(result) ? result : ((result as { rows?: unknown[] }).rows ?? [])
   return rows.length
 }
 
-/** Row counts by status — observability for dashboards/health checks. */
-export async function getOutboxStats(
+export interface BoundedOutboxStats {
+  pending: number
+  pendingCapped: boolean
+  delivered: number
+  deliveredCapped: boolean
+  dueNow: number
+  dueNowCapped: boolean
+  failed: number
+  failedCapped: boolean
+  oldestPendingAt: Date | null
+}
+
+/**
+ * Bounded operational snapshot for wake/schedule logs. Counts stop at
+ * `scanLimit`; the matching `*Capped` flag means the reported value is a lower
+ * bound. Dedicated partial indexes keep every subquery proportional to that
+ * limit even when delivered history or pending backlog is large.
+ */
+export async function getBoundedOutboxStats(
   db: DrizzleClient,
-): Promise<{ pending: number; delivered: number; failed: number; dueNow: number }> {
+  options: { scanLimit?: number } = {},
+): Promise<BoundedOutboxStats> {
+  const scanLimit = positiveInteger(options.scanLimit, 10_000, "scanLimit")
+  const sampleLimit = scanLimit + 1
   const result = (await (db as AnyDb).execute(sql`
     SELECT
-      count(*) FILTER (WHERE "status" = 'pending')::int AS pending,
-      count(*) FILTER (WHERE "status" = 'delivered')::int AS delivered,
-      count(*) FILTER (WHERE "status" = 'failed')::int AS failed,
-      count(*) FILTER (WHERE "status" = 'pending' AND "next_attempt_at" <= now())::int AS due_now
-    FROM ${eventOutboxTable}
+      (SELECT count(*)::int FROM (
+        SELECT 1 FROM ${eventOutboxTable}
+        WHERE "status" = 'pending'
+        ORDER BY "created_at" ASC
+        LIMIT ${sampleLimit}
+      ) pending_sample) AS pending,
+      (SELECT count(*)::int FROM (
+        SELECT 1 FROM ${eventOutboxTable}
+        WHERE "status" = 'pending' AND "next_attempt_at" <= now()
+        ORDER BY "next_attempt_at" ASC, "id" ASC
+        LIMIT ${sampleLimit}
+      ) due_sample) AS due_now,
+      (SELECT count(*)::int FROM (
+        SELECT 1 FROM ${eventOutboxTable}
+        WHERE "status" = 'failed'
+        ORDER BY "created_at" ASC
+        LIMIT ${sampleLimit}
+      ) failed_sample) AS failed,
+      (SELECT count(*)::int FROM (
+        SELECT 1 FROM ${eventOutboxTable}
+        WHERE "status" = 'delivered'
+        ORDER BY "delivered_at" ASC, "id" ASC
+        LIMIT ${sampleLimit}
+      ) delivered_sample) AS delivered,
+      (SELECT "created_at" FROM ${eventOutboxTable}
+        WHERE "status" = 'pending'
+        ORDER BY "created_at" ASC
+        LIMIT 1) AS oldest_pending_at
   `)) as unknown
   const rows = Array.isArray(result) ? result : ((result as { rows?: unknown[] }).rows ?? [])
-  const row = (rows[0] ?? {}) as Record<string, number>
+  const row = (rows[0] ?? {}) as Record<string, unknown>
+  const pendingSample = Number(row.pending ?? 0)
+  const dueSample = Number(row.due_now ?? 0)
+  const failedSample = Number(row.failed ?? 0)
+  const deliveredSample = Number(row.delivered ?? 0)
   return {
-    pending: row.pending ?? 0,
-    delivered: row.delivered ?? 0,
-    failed: row.failed ?? 0,
-    dueNow: row.due_now ?? 0,
+    pending: Math.min(pendingSample, scanLimit),
+    pendingCapped: pendingSample > scanLimit,
+    delivered: Math.min(deliveredSample, scanLimit),
+    deliveredCapped: deliveredSample > scanLimit,
+    dueNow: Math.min(dueSample, scanLimit),
+    dueNowCapped: dueSample > scanLimit,
+    failed: Math.min(failedSample, scanLimit),
+    failedCapped: failedSample > scanLimit,
+    oldestPendingAt: row.oldest_pending_at == null ? null : coerceDate(row.oldest_pending_at),
   }
+}
+
+/**
+ * Backward-compatible name for the bounded operational snapshot. Consumers
+ * needing an exact historical delivered count should use an offline reporting
+ * query rather than adding full-table work to a wake path.
+ */
+export async function getOutboxStats(
+  db: DrizzleClient,
+  options: { scanLimit?: number } = {},
+): Promise<BoundedOutboxStats> {
+  return getBoundedOutboxStats(db, options)
+}
+
+function positiveInteger(value: number | undefined, fallback: number, name: string): number {
+  const resolved = value ?? fallback
+  if (!Number.isSafeInteger(resolved) || resolved <= 0) {
+    throw new RangeError(`${name} must be a positive integer`)
+  }
+  return resolved
+}
+
+function nonNegativeInteger(value: number | undefined, fallback: number, name: string): number {
+  const resolved = value ?? fallback
+  if (!Number.isSafeInteger(resolved) || resolved < 0) {
+    throw new RangeError(`${name} must be a non-negative integer`)
+  }
+  return resolved
 }
