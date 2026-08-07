@@ -1,5 +1,13 @@
 # @voyant-travel/operations-react
 
+## 0.154.0
+
+### Patch Changes
+
+- Updated dependencies [8fc2d25]
+  - @voyant-travel/bookings-react@0.273.0
+  - @voyant-travel/inventory-react@0.155.0
+
 ## 0.153.0
 
 ### Patch Changes

@@ -1,5 +1,18 @@
 # @voyant-travel/commerce
 
+## 0.49.0
+
+### Minor Changes
+
+- 8fc2d25: Declare whether occupancy prices supplement traveler fares or already include them, and quarantine legacy configurations whose composition is ambiguous.
+
+### Patch Changes
+
+- Updated dependencies [8fc2d25]
+  - @voyant-travel/products-contracts@0.111.0
+  - @voyant-travel/finance@0.245.2
+  - @voyant-travel/bookings@0.240.5
+
 ## 0.48.13
 
 ### Patch Changes

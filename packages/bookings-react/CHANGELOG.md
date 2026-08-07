@@ -1,5 +1,23 @@
 # @voyant-travel/bookings-react
 
+## 0.273.0
+
+### Patch Changes
+
+- 8fc2d25: Declare whether occupancy prices supplement traveler fares or already include them, and quarantine legacy configurations whose composition is ambiguous.
+- Updated dependencies [8fc2d25]
+  - @voyant-travel/products-contracts@0.111.0
+  - @voyant-travel/commerce-react@0.155.0
+  - @voyant-travel/catalog-react@0.271.0
+  - @voyant-travel/legal-react@0.273.0
+  - @voyant-travel/distribution-react@0.263.0
+  - @voyant-travel/finance-react@0.273.0
+  - @voyant-travel/identity-react@0.273.0
+  - @voyant-travel/operations-react@0.154.0
+  - @voyant-travel/inventory-react@0.155.0
+  - @voyant-travel/storefront-react@0.275.0
+  - @voyant-travel/relationships-react@0.273.0
+
 ## 0.272.0
 
 ### Patch Changes
