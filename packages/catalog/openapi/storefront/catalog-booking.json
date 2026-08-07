@@ -8683,6 +8683,81 @@
                         "type": "string",
                         "enum": ["none"]
                       },
+                      "checkoutIntent": {
+                        "type": "string",
+                        "enum": ["hold", "card", "bank_transfer", "ticket_on_credit", "inquiry"]
+                      },
+                      "bankTransfer": {
+                        "type": "object",
+                        "properties": {
+                          "paymentSessionId": {
+                            "type": ["string", "null"],
+                            "minLength": 1
+                          },
+                          "document": {
+                            "type": ["object", "null"],
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "number": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "type": {
+                                "type": "string",
+                                "enum": ["proforma", "invoice"]
+                              }
+                            },
+                            "required": ["id", "number", "type"]
+                          },
+                          "instructions": {
+                            "type": "object",
+                            "properties": {
+                              "beneficiary": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "iban": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "bankName": {
+                                "type": ["string", "null"],
+                                "minLength": 1
+                              },
+                              "reference": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "amountCents": {
+                                "type": "integer",
+                                "exclusiveMinimum": 0
+                              },
+                              "currency": {
+                                "type": "string",
+                                "minLength": 3,
+                                "maxLength": 3
+                              },
+                              "dueAt": {
+                                "type": "string",
+                                "format": "date-time"
+                              }
+                            },
+                            "required": [
+                              "beneficiary",
+                              "iban",
+                              "bankName",
+                              "reference",
+                              "amountCents",
+                              "currency",
+                              "dueAt"
+                            ]
+                          }
+                        },
+                        "required": ["paymentSessionId", "document", "instructions"]
+                      },
                       "booking": {
                         "type": "object",
                         "properties": {
@@ -8743,6 +8818,81 @@
                       "nextAction": {
                         "type": "string",
                         "enum": ["none"]
+                      },
+                      "checkoutIntent": {
+                        "type": "string",
+                        "enum": ["hold", "card", "bank_transfer", "ticket_on_credit", "inquiry"]
+                      },
+                      "bankTransfer": {
+                        "type": "object",
+                        "properties": {
+                          "paymentSessionId": {
+                            "type": ["string", "null"],
+                            "minLength": 1
+                          },
+                          "document": {
+                            "type": ["object", "null"],
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "number": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "type": {
+                                "type": "string",
+                                "enum": ["proforma", "invoice"]
+                              }
+                            },
+                            "required": ["id", "number", "type"]
+                          },
+                          "instructions": {
+                            "type": "object",
+                            "properties": {
+                              "beneficiary": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "iban": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "bankName": {
+                                "type": ["string", "null"],
+                                "minLength": 1
+                              },
+                              "reference": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "amountCents": {
+                                "type": "integer",
+                                "exclusiveMinimum": 0
+                              },
+                              "currency": {
+                                "type": "string",
+                                "minLength": 3,
+                                "maxLength": 3
+                              },
+                              "dueAt": {
+                                "type": "string",
+                                "format": "date-time"
+                              }
+                            },
+                            "required": [
+                              "beneficiary",
+                              "iban",
+                              "bankName",
+                              "reference",
+                              "amountCents",
+                              "currency",
+                              "dueAt"
+                            ]
+                          }
+                        },
+                        "required": ["paymentSessionId", "document", "instructions"]
                       },
                       "bookings": {
                         "type": "array",
@@ -8852,6 +9002,10 @@
                       "nextAction": {
                         "type": "string",
                         "enum": ["establish_payment_guarantee"]
+                      },
+                      "checkoutIntent": {
+                        "type": "string",
+                        "enum": ["hold", "card", "bank_transfer", "ticket_on_credit", "inquiry"]
                       },
                       "paymentTarget": {
                         "type": "string",
@@ -9160,6 +9314,87 @@
                                 "type": "string",
                                 "enum": ["none"]
                               },
+                              "checkoutIntent": {
+                                "type": "string",
+                                "enum": [
+                                  "hold",
+                                  "card",
+                                  "bank_transfer",
+                                  "ticket_on_credit",
+                                  "inquiry"
+                                ]
+                              },
+                              "bankTransfer": {
+                                "type": "object",
+                                "properties": {
+                                  "paymentSessionId": {
+                                    "type": ["string", "null"],
+                                    "minLength": 1
+                                  },
+                                  "document": {
+                                    "type": ["object", "null"],
+                                    "properties": {
+                                      "id": {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      "number": {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      "type": {
+                                        "type": "string",
+                                        "enum": ["proforma", "invoice"]
+                                      }
+                                    },
+                                    "required": ["id", "number", "type"]
+                                  },
+                                  "instructions": {
+                                    "type": "object",
+                                    "properties": {
+                                      "beneficiary": {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      "iban": {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      "bankName": {
+                                        "type": ["string", "null"],
+                                        "minLength": 1
+                                      },
+                                      "reference": {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      "amountCents": {
+                                        "type": "integer",
+                                        "exclusiveMinimum": 0
+                                      },
+                                      "currency": {
+                                        "type": "string",
+                                        "minLength": 3,
+                                        "maxLength": 3
+                                      },
+                                      "dueAt": {
+                                        "type": "string",
+                                        "format": "date-time"
+                                      }
+                                    },
+                                    "required": [
+                                      "beneficiary",
+                                      "iban",
+                                      "bankName",
+                                      "reference",
+                                      "amountCents",
+                                      "currency",
+                                      "dueAt"
+                                    ]
+                                  }
+                                },
+                                "required": ["paymentSessionId", "document", "instructions"]
+                              },
                               "booking": {
                                 "type": "object",
                                 "properties": {
@@ -9220,6 +9455,87 @@
                               "nextAction": {
                                 "type": "string",
                                 "enum": ["none"]
+                              },
+                              "checkoutIntent": {
+                                "type": "string",
+                                "enum": [
+                                  "hold",
+                                  "card",
+                                  "bank_transfer",
+                                  "ticket_on_credit",
+                                  "inquiry"
+                                ]
+                              },
+                              "bankTransfer": {
+                                "type": "object",
+                                "properties": {
+                                  "paymentSessionId": {
+                                    "type": ["string", "null"],
+                                    "minLength": 1
+                                  },
+                                  "document": {
+                                    "type": ["object", "null"],
+                                    "properties": {
+                                      "id": {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      "number": {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      "type": {
+                                        "type": "string",
+                                        "enum": ["proforma", "invoice"]
+                                      }
+                                    },
+                                    "required": ["id", "number", "type"]
+                                  },
+                                  "instructions": {
+                                    "type": "object",
+                                    "properties": {
+                                      "beneficiary": {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      "iban": {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      "bankName": {
+                                        "type": ["string", "null"],
+                                        "minLength": 1
+                                      },
+                                      "reference": {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      "amountCents": {
+                                        "type": "integer",
+                                        "exclusiveMinimum": 0
+                                      },
+                                      "currency": {
+                                        "type": "string",
+                                        "minLength": 3,
+                                        "maxLength": 3
+                                      },
+                                      "dueAt": {
+                                        "type": "string",
+                                        "format": "date-time"
+                                      }
+                                    },
+                                    "required": [
+                                      "beneficiary",
+                                      "iban",
+                                      "bankName",
+                                      "reference",
+                                      "amountCents",
+                                      "currency",
+                                      "dueAt"
+                                    ]
+                                  }
+                                },
+                                "required": ["paymentSessionId", "document", "instructions"]
                               },
                               "bookings": {
                                 "type": "array",
@@ -9334,6 +9650,16 @@
                               "nextAction": {
                                 "type": "string",
                                 "enum": ["establish_payment_guarantee"]
+                              },
+                              "checkoutIntent": {
+                                "type": "string",
+                                "enum": [
+                                  "hold",
+                                  "card",
+                                  "bank_transfer",
+                                  "ticket_on_credit",
+                                  "inquiry"
+                                ]
                               },
                               "paymentTarget": {
                                 "type": "string",
@@ -10653,6 +10979,31 @@
                       }
                     },
                     "required": ["kind", "requirementsFingerprint", "nextAction"]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": ["checkout_intent_not_offered"]
+                      },
+                      "checkoutIntent": {
+                        "type": "string",
+                        "enum": ["hold", "card", "bank_transfer", "ticket_on_credit", "inquiry"]
+                      },
+                      "offeredCheckoutIntents": {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "enum": ["hold", "card", "bank_transfer", "ticket_on_credit", "inquiry"]
+                        }
+                      },
+                      "nextAction": {
+                        "type": "string",
+                        "enum": ["select_supported_checkout_intent"]
+                      }
+                    },
+                    "required": ["kind", "checkoutIntent", "offeredCheckoutIntents", "nextAction"]
                   },
                   {
                     "type": "object",
@@ -12740,6 +13091,31 @@
                     "properties": {
                       "kind": {
                         "type": "string",
+                        "enum": ["checkout_intent_not_offered"]
+                      },
+                      "checkoutIntent": {
+                        "type": "string",
+                        "enum": ["hold", "card", "bank_transfer", "ticket_on_credit", "inquiry"]
+                      },
+                      "offeredCheckoutIntents": {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "enum": ["hold", "card", "bank_transfer", "ticket_on_credit", "inquiry"]
+                        }
+                      },
+                      "nextAction": {
+                        "type": "string",
+                        "enum": ["select_supported_checkout_intent"]
+                      }
+                    },
+                    "required": ["kind", "checkoutIntent", "offeredCheckoutIntents", "nextAction"]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
                         "enum": ["invalid_selection"]
                       },
                       "reason": {
@@ -13792,6 +14168,10 @@
                     "type": "string",
                     "minLength": 8,
                     "maxLength": 128
+                  },
+                  "checkoutIntent": {
+                    "type": "string",
+                    "enum": ["hold", "card", "bank_transfer", "ticket_on_credit", "inquiry"]
                   },
                   "payment": {
                     "type": "object",

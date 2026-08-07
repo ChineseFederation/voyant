@@ -31,8 +31,10 @@ import { createSafeAnalytics } from "@voyant-travel/core/analytics"
 import { newId } from "@voyant-travel/db/lib/typeid"
 import { withBookingSessionAnalytics } from "./analytics.js"
 import type {
+  BookingCheckoutIntentV1,
   BookingLifecycleCommitOutcomeV1,
   BookingRequirementsV1,
+  BookingSessionBankTransferV1,
   PricingBreakdownV1,
   UnsatisfiedRequirementV1,
 } from "./contracts.js"
@@ -444,6 +446,19 @@ export interface BookingSessionPaymentPorts {
         allowedGuarantees: Array<"deposit" | "pre_auth" | "card_on_file" | "agency_letter">
       }
   >
+  /**
+   * Establish the durable offline-payment record after the Booking id exists
+   * but before the surrounding Commit transaction is consumed.
+   */
+  establishBankTransfer?(input: {
+    tx: unknown
+    session: BookingSessionInternalRecord
+    quote: BookingQuoteInternalRecord
+    commit: CommitBookingSessionV1
+    access: BookingSessionAccessContext
+    bookingId: string
+    now: Date
+  }): Promise<BookingSessionBankTransferV1 | null>
   transferToBooking(input: {
     tx: unknown
     paymentSessionId: string
@@ -1329,6 +1344,22 @@ export function createBookingSessionModule(
           }
         }
 
+        const checkoutIntent: BookingCheckoutIntentV1 = input.checkoutIntent ?? "card"
+        if (!quote.requirements.paymentIntents.includes(checkoutIntent)) {
+          return {
+            status: "outcome" as const,
+            outcome: {
+              kind: "rejected",
+              error: {
+                kind: "checkout_intent_not_offered",
+                checkoutIntent,
+                offeredCheckoutIntents: quote.requirements.paymentIntents,
+                nextAction: "select_supported_checkout_intent",
+              },
+            } as const,
+          }
+        }
+
         const hold = input.holdId
           ? durableContinuation
             ? await loadPersistedSourcedHold(repository, input.holdId, session, quote)
@@ -1353,7 +1384,7 @@ export function createBookingSessionModule(
         }
 
         if (durableContinuation) {
-          return { status: "ready" as const, session, quote, hold, at }
+          return { status: "ready" as const, session, quote, hold, at, checkoutIntent }
         }
 
         const freshQuote = await options.ports.composeQuote({ session, now: at, tx })
@@ -1413,11 +1444,12 @@ export function createBookingSessionModule(
           await releaseLiveHolds(repository, options.ports, session, access, at, tx)
           return { status: "outcome" as const, outcome: selectionIncomplete(unsatisfied) }
         }
-        return { status: "ready" as const, session, quote, hold, at }
+        return { status: "ready" as const, session, quote, hold, at, checkoutIntent }
       })
       if (preflight.status === "outcome") return preflight.outcome
 
-      const { session, quote, hold, at } = preflight
+      const { session, quote, hold, at, checkoutIntent } = preflight
+      const commitInput: CommitBookingSessionV1 = { ...input, checkoutIntent }
 
       let preparedPayment: Awaited<ReturnType<BookingSessionPaymentPorts["prepare"]>>
       try {
@@ -1426,7 +1458,7 @@ export function createBookingSessionModule(
               session,
               quote,
               ...(hold ? { hold } : {}),
-              commit: input,
+              commit: commitInput,
               access,
               now: at,
             })
@@ -1440,6 +1472,7 @@ export function createBookingSessionModule(
           kind: "commit_result",
           outcome: {
             kind: "payment_required",
+            checkoutIntent,
             nextAction: "establish_payment_guarantee",
             paymentTarget: "booking_session",
             allowedGuarantees: preparedPayment.allowedGuarantees,
@@ -1450,7 +1483,7 @@ export function createBookingSessionModule(
       const paymentSessionId =
         preparedPayment.kind === "established" ? preparedPayment.paymentSessionId : undefined
 
-      const requestFingerprint = await commitRequestFingerprint(input)
+      const requestFingerprint = await commitRequestFingerprint(commitInput)
       let committed: {
         bookingId: string
         allocationIds: string[]
@@ -1475,7 +1508,7 @@ export function createBookingSessionModule(
                 hold,
                 access,
                 paymentSessionId,
-                input,
+                input: commitInput,
                 requestFingerprint,
                 bookings,
                 tx,
@@ -1500,11 +1533,19 @@ export function createBookingSessionModule(
           if (compositeResult.bookings.length === 0) {
             throw new BookingSessionCommitRejectedError("entity_not_bookable")
           }
+          const persistedCommit = await repository.getCommitByIdempotency(
+            session.id,
+            commitInput.idempotencyKey,
+          )
+          if (persistedCommit) {
+            return { kind: "commit_result", outcome: persistedCommit.outcome }
+          }
           return {
             kind: "commit_result",
             outcome: {
               kind: "component_bookings_committed",
               nextAction: "none",
+              checkoutIntent,
               bookings: compositeResult.bookings.map((booking) => ({
                 componentId: booking.componentId,
                 bookingId: booking.bookingId,
@@ -1538,7 +1579,7 @@ export function createBookingSessionModule(
                 hold,
                 access,
                 paymentSessionId,
-                input,
+                input: commitInput,
                 requestFingerprint,
                 bookingId,
                 allocationIds,
@@ -1575,7 +1616,7 @@ export function createBookingSessionModule(
                 hold,
                 access,
                 paymentSessionId,
-                input,
+                input: commitInput,
                 requestFingerprint,
                 bookingId,
                 allocationIds,
@@ -1673,6 +1714,7 @@ export function createBookingSessionModule(
       const outcome: BookingLifecycleCommitOutcomeV1 = {
         kind: "committed",
         nextAction: "none",
+        checkoutIntent,
         booking: { id: committed.bookingId, status: "confirmed" },
         allocationIds: committed.allocationIds,
         consumedSessionId: session.id,
@@ -1682,7 +1724,11 @@ export function createBookingSessionModule(
           ? { supplierOperationId: committed.supplierOperationId }
           : {}),
       }
-      return { kind: "commit_result", outcome }
+      const persistedCommit = await repository.getCommitByIdempotency(
+        session.id,
+        commitInput.idempotencyKey,
+      )
+      return { kind: "commit_result", outcome: persistedCommit?.outcome ?? outcome }
     },
 
     async commitPaidSession({ bookingSessionId, paymentSessionId }) {
@@ -1821,16 +1867,6 @@ async function consumeCommittedSources(input: {
   tx: unknown
   now: () => Date
 }): Promise<void> {
-  const outcome: BookingLifecycleCommitOutcomeV1 = {
-    kind: "committed",
-    nextAction: "none",
-    booking: { id: input.bookingId, status: "confirmed" },
-    allocationIds: input.allocationIds,
-    consumedSessionId: input.session.id,
-    consumedQuoteId: input.quote.id,
-    ...(input.hold ? { convertedHoldId: input.hold.id } : {}),
-    ...(input.supplierOperationId ? { supplierOperationId: input.supplierOperationId } : {}),
-  }
   await input.repository.withTransactionContext(input.tx, async () => {
     const currentAt = input.now()
     const currentSession = await input.repository.getSession(input.session.id)
@@ -1918,6 +1954,30 @@ async function consumeCommittedSources(input: {
         })
       }
     }
+    const bankTransfer =
+      input.input.checkoutIntent === "bank_transfer"
+        ? await input.ports.payments?.establishBankTransfer?.({
+            tx: input.tx,
+            session: currentSession,
+            quote: currentQuote,
+            commit: input.input,
+            access: input.access,
+            bookingId: input.bookingId,
+            now: currentAt,
+          })
+        : undefined
+    const outcome: BookingLifecycleCommitOutcomeV1 = {
+      kind: "committed",
+      nextAction: "none",
+      checkoutIntent: input.input.checkoutIntent,
+      ...(bankTransfer ? { bankTransfer } : {}),
+      booking: { id: input.bookingId, status: "confirmed" },
+      allocationIds: input.allocationIds,
+      consumedSessionId: input.session.id,
+      consumedQuoteId: input.quote.id,
+      ...(input.hold ? { convertedHoldId: input.hold.id } : {}),
+      ...(input.supplierOperationId ? { supplierOperationId: input.supplierOperationId } : {}),
+    }
     await input.repository.consumeCommit({
       sessionId: currentSession.id,
       quoteId: currentQuote.id,
@@ -1984,20 +2044,6 @@ async function consumeCompositeCommittedSources(input: {
 }): Promise<void> {
   const primary = input.bookings[0]
   if (!primary) throw new BookingSessionCommitRejectedError("entity_not_bookable")
-  const outcome: BookingLifecycleCommitOutcomeV1 = {
-    kind: "component_bookings_committed",
-    nextAction: "none",
-    bookings: input.bookings.map((booking) => ({
-      componentId: booking.componentId,
-      bookingId: booking.bookingId,
-      status: "confirmed",
-      allocationIds: booking.allocationIds,
-      ...(booking.supplierOperationId ? { supplierOperationId: booking.supplierOperationId } : {}),
-    })),
-    consumedSessionId: input.session.id,
-    consumedQuoteId: input.quote.id,
-    ...(input.hold ? { convertedHoldId: input.hold.id } : {}),
-  }
   await input.repository.withTransactionContext(input.tx, async () => {
     const currentAt = input.now()
     const currentSession = await input.repository.getSession(input.session.id)
@@ -2048,6 +2094,36 @@ async function consumeCompositeCommittedSources(input: {
         nextAction: "request_new_hold",
         reason: currentHold === "expired" ? "expired" : "missing",
       })
+    }
+    const bankTransfer =
+      input.input.checkoutIntent === "bank_transfer"
+        ? await input.ports.payments?.establishBankTransfer?.({
+            tx: input.tx,
+            session: currentSession,
+            quote: currentQuote,
+            commit: input.input,
+            access: input.access,
+            bookingId: primary.bookingId,
+            now: currentAt,
+          })
+        : undefined
+    const outcome: BookingLifecycleCommitOutcomeV1 = {
+      kind: "component_bookings_committed",
+      nextAction: "none",
+      checkoutIntent: input.input.checkoutIntent,
+      ...(bankTransfer ? { bankTransfer } : {}),
+      bookings: input.bookings.map((booking) => ({
+        componentId: booking.componentId,
+        bookingId: booking.bookingId,
+        status: "confirmed",
+        allocationIds: booking.allocationIds,
+        ...(booking.supplierOperationId
+          ? { supplierOperationId: booking.supplierOperationId }
+          : {}),
+      })),
+      consumedSessionId: input.session.id,
+      consumedQuoteId: input.quote.id,
+      ...(input.hold ? { convertedHoldId: input.hold.id } : {}),
     }
     await input.repository.consumeCommit({
       sessionId: currentSession.id,
@@ -2259,6 +2335,10 @@ async function commitRequestFingerprint(input: CommitBookingSessionV1): Promise<
     // Part of what the request asked for: replaying an idempotency key against
     // a different descriptor is a different Commit, not a replay of the first.
     requirementsFingerprint: input.requirementsFingerprint,
+    // Omission is the v1 compatibility spelling of card. Fingerprint the
+    // resolved meaning so omitted and explicit card replay, while a different
+    // shopper choice conflicts before any payment or booking side effect.
+    checkoutIntent: input.checkoutIntent ?? "card",
   })
 }
 

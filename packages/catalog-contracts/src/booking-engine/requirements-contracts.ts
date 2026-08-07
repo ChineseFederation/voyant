@@ -37,6 +37,20 @@
 
 import { z } from "zod"
 
+/**
+ * Versioned checkout choices shared by quote capability discovery, Commit,
+ * and Commit outcomes. A host selects one of the intents advertised by the
+ * active Quote; it never invents an integration-specific payment method.
+ */
+export const bookingCheckoutIntentV1 = z.enum([
+  "hold",
+  "card",
+  "bank_transfer",
+  "ticket_on_credit",
+  "inquiry",
+])
+export type BookingCheckoutIntentV1 = z.infer<typeof bookingCheckoutIntentV1>
+
 // ─────────────────────────────────────────────────────────────────
 // Sub-step descriptors
 // ─────────────────────────────────────────────────────────────────
@@ -353,6 +367,6 @@ export const bookingRequirementsV1 = z.object({
     .optional(),
 
   // ── Payment ───────────────────────────────────────────────────
-  paymentIntents: z.array(z.enum(["hold", "card", "bank_transfer", "ticket_on_credit", "inquiry"])),
+  paymentIntents: z.array(bookingCheckoutIntentV1),
 })
 export type BookingRequirementsV1 = z.infer<typeof bookingRequirementsV1>

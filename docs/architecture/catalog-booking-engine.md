@@ -154,6 +154,19 @@ Quotes. Commit rejects stale revisions, expired/superseded Quotes, expired or
 mismatched Holds, and different server-recomputed prices. Stable idempotency
 keys replay the original Commit result; a different key after consumption is
 rejected rather than creating another Booking.
+
+The Quote's `requirements.paymentIntents` is also the authoritative checkout
+capability list. Commit may echo one value as `checkoutIntent`; the engine
+revalidates it against that exact active Quote before invoking payment or
+booking ports, and fingerprints the resolved intent with the idempotency key.
+Omission is the v1 compatibility spelling of `card` and is accepted only when
+the Quote advertises card. Card collection returns `payment_required` with the
+selected intent. Bank transfer is a distinct pay-later Commit path: after the
+Booking id exists, a configured payment port can atomically establish durable
+instructions and an invoice/proforma reference, which are persisted in and
+replayed from the Commit outcome. The contracts package owns the one versioned
+checkout-intent vocabulary used by Quote discovery, Commit, and outcome.
+
 Anonymous Sessions return a capability once at creation. Public update, Quote,
 Hold, Commit, and Commit replay calls must present that capability; staff
 adapters use the same module without a public capability token.

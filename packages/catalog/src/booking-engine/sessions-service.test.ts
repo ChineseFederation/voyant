@@ -149,6 +149,7 @@ describe("Booking Session v1 owned tracer", () => {
       requirementsFingerprint: quote.requirementsFingerprint,
       holdId: hold.id,
       idempotencyKey: "commit_payment_required",
+      checkoutIntent: "card" as const,
     }
 
     const first = await harness.module.commitSession(session.id, input, ANONYMOUS_ACCESS)
@@ -158,6 +159,7 @@ describe("Booking Session v1 owned tracer", () => {
       kind: "commit_result",
       outcome: {
         kind: "payment_required",
+        checkoutIntent: "card",
         paymentTarget: "booking_session",
         paymentSession: { id: "payment_session_1", status: "requires_redirect" },
       },
@@ -169,6 +171,97 @@ describe("Booking Session v1 owned tracer", () => {
     expect(harness.repository.sessions.get(session.id)?.state).toBe("active")
     expect(harness.repository.quotes.get(quote.id)?.state).toBe("active")
     expect(harness.repository.holds.get(hold.id)?.state).toBe("active")
+  })
+
+  it("rejects an intent the active Quote did not offer before payment or booking side effects", async () => {
+    const payment = createPaymentHarness()
+    const requirements = { ...inMemoryBookingRequirements(), paymentIntents: ["card" as const] }
+    const harness = createHarness({}, payment.ports, undefined, requirements)
+    const { session, quote, hold } = await createQuoteAndHold(harness)
+
+    const outcome = await harness.module.commitSession(
+      session.id,
+      {
+        expectedRevision: session.revision,
+        quoteId: quote.id,
+        requirementsFingerprint: quote.requirementsFingerprint,
+        holdId: hold.id,
+        idempotencyKey: "commit_unsupported_intent",
+        checkoutIntent: "bank_transfer",
+      },
+      ANONYMOUS_ACCESS,
+    )
+
+    expect(outcome).toEqual({
+      kind: "rejected",
+      error: {
+        kind: "checkout_intent_not_offered",
+        checkoutIntent: "bank_transfer",
+        offeredCheckoutIntents: ["card"],
+        nextAction: "select_supported_checkout_intent",
+      },
+    })
+    expect(payment.prepareCalls).toBe(0)
+    expect(harness.inventory.bookingIds).toEqual([])
+    expect(harness.repository.commits.size).toBe(0)
+    expect(harness.repository.sessions.get(session.id)?.state).toBe("active")
+    expect(harness.repository.holds.get(hold.id)?.state).toBe("active")
+  })
+
+  it("commits bank transfer with durable instructions and conflicts on a changed intent", async () => {
+    const payment = createBankTransferHarness()
+    const harness = createHarness({}, payment.ports)
+    const { session, quote, hold } = await createQuoteAndHold(harness)
+    const input = {
+      expectedRevision: session.revision,
+      quoteId: quote.id,
+      requirementsFingerprint: quote.requirementsFingerprint,
+      holdId: hold.id,
+      idempotencyKey: "commit_bank_transfer",
+      checkoutIntent: "bank_transfer" as const,
+    }
+
+    const first = await harness.module.commitSession(session.id, input, ANONYMOUS_ACCESS)
+    const retry = await harness.module.commitSession(session.id, input, ANONYMOUS_ACCESS)
+    const conflict = await harness.module.commitSession(
+      session.id,
+      { ...input, checkoutIntent: "card" },
+      ANONYMOUS_ACCESS,
+    )
+
+    expect(first).toMatchObject({
+      kind: "commit_result",
+      outcome: {
+        kind: "committed",
+        checkoutIntent: "bank_transfer",
+        bankTransfer: {
+          paymentSessionId: "pays_bank_transfer",
+          document: { id: "invc_proforma", number: "PRO-42", type: "proforma" },
+          instructions: {
+            beneficiary: "Voyant Travel",
+            iban: "RO49AAAA1B31007593840000",
+            reference: "BOOK-42",
+            amountCents: 10_000,
+            currency: "EUR",
+          },
+        },
+      },
+    })
+    expect(retry).toMatchObject({
+      kind: "commit_result",
+      outcome: {
+        kind: "idempotent_replay",
+        originalOutcome: {
+          kind: "committed",
+          checkoutIntent: "bank_transfer",
+          bankTransfer: { document: { id: "invc_proforma" } },
+        },
+      },
+    })
+    expect(conflict).toEqual({ kind: "rejected", error: { kind: "idempotency_conflict" } })
+    expect(payment.prepareCalls).toBe(1)
+    expect(payment.establishCalls).toBe(1)
+    expect(harness.inventory.bookingIds).toHaveLength(1)
   })
 
   it("transfers an established Session payment in the atomic Commit transaction", async () => {
@@ -1890,6 +1983,40 @@ function createPaymentHarness() {
     async expirePending(input) {
       expirations.push(input)
     },
+  }
+  return harness
+}
+
+function createBankTransferHarness() {
+  const harness = {
+    prepareCalls: 0,
+    establishCalls: 0,
+    ports: undefined as unknown as BookingSessionPaymentPorts,
+  }
+  harness.ports = {
+    async prepare({ commit }) {
+      harness.prepareCalls += 1
+      expect(commit.checkoutIntent).toBe("bank_transfer")
+      return { kind: "not_required" }
+    },
+    async establishBankTransfer() {
+      harness.establishCalls += 1
+      return {
+        paymentSessionId: "pays_bank_transfer",
+        document: { id: "invc_proforma", number: "PRO-42", type: "proforma" as const },
+        instructions: {
+          beneficiary: "Voyant Travel",
+          iban: "RO49AAAA1B31007593840000",
+          bankName: "Voyant Bank",
+          reference: "BOOK-42",
+          amountCents: 10_000,
+          currency: "EUR",
+          dueAt: "2026-08-08T12:00:00.000Z",
+        },
+      }
+    },
+    async transferToBooking() {},
+    async expirePending() {},
   }
   return harness
 }

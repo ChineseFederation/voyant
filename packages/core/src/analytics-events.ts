@@ -117,6 +117,7 @@ export const ANALYTICS_FAILURE_REASONS = [
   "supplier_operation_active",
   "selection_incomplete",
   "requirements_changed",
+  "checkout_intent_not_offered",
   "quote_required",
   "quote_expired",
   "quote_superseded",

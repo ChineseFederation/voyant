@@ -78,6 +78,46 @@ describe("production Booking Session staff payment policy", () => {
   })
 })
 
+describe("production Booking Session bank-transfer intent", () => {
+  it("does not start card collection and delegates durable offline establishment", async () => {
+    const loadProductPaymentPolicyContext = vi.fn()
+    const establishBankTransfer = vi.fn(async () => ({
+      paymentSessionId: "pays_bank",
+      document: { id: "invc_proforma", number: "PRO-42", type: "proforma" as const },
+      instructions: {
+        beneficiary: "Voyant Travel",
+        iban: "RO49AAAA1B31007593840000",
+        bankName: "Voyant Bank",
+        reference: "BOOK-42",
+        amountCents: 10_000,
+        currency: "EUR",
+        dueAt: "2026-08-08T12:00:00.000Z",
+      },
+    }))
+    const payments = createProductionBookingSessionPaymentPorts({
+      db: {} as never,
+      inventory: { loadProductPaymentPolicyContext },
+      distribution: { loadSupplierPaymentPolicy: vi.fn() },
+      settings: { resolveOperatorDefaultPaymentPolicy: vi.fn() },
+      establishBankTransfer,
+    })
+
+    await expect(
+      payments.prepare({
+        session: { target: { kind: "product", productId: "prod_1" }, statePayload: {} },
+        commit: { checkoutIntent: "bank_transfer" },
+        access: { actorKind: "anonymous" },
+      } as never),
+    ).resolves.toEqual({ kind: "not_required" })
+    await expect(
+      payments.establishBankTransfer?.({ bookingId: "book_42" } as never),
+    ).resolves.toMatchObject({ document: { id: "invc_proforma" } })
+    expect(loadProductPaymentPolicyContext).not.toHaveBeenCalled()
+    expect(startPaymentAdapterCardPayment).not.toHaveBeenCalled()
+    expect(establishBankTransfer).toHaveBeenCalledWith({ bookingId: "book_42" })
+  })
+})
+
 /**
  * A hosted-checkout provider renders the initiation payload to the shopper, so
  * what is in it has to mean something to them. Nothing downstream can repair a

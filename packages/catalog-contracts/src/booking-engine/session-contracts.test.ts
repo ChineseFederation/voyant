@@ -93,6 +93,18 @@ describe("Booking Session v1 contracts", () => {
     expect(parsed.payment?.acceptedCheckoutHandoffs).toEqual(["embedded", "redirect"])
   })
 
+  it("carries the shopper's selected checkout intent through Commit", () => {
+    const parsed = commitBookingSessionV1.parse({
+      expectedRevision: 1,
+      quoteId: "bsqu_1",
+      requirementsFingerprint: "requirements_fingerprint_1",
+      idempotencyKey: "stable_commit_key",
+      checkoutIntent: "bank_transfer",
+    })
+
+    expect(parsed.checkoutIntent).toBe("bank_transfer")
+  })
+
   it("leaves the preference absent when the storefront states nothing", () => {
     const parsed = commitBookingSessionV1.parse({
       expectedRevision: 1,
@@ -162,6 +174,36 @@ describe("Booking Session v1 contracts", () => {
       error: {
         kind: "quote_superseded",
         nextAction: "request_fresh_quote",
+      },
+    })
+
+    expect(result.success).toBe(true)
+  })
+
+  it("represents durable bank-transfer instructions on a committed outcome", () => {
+    const result = bookingSessionOutcomeV1.safeParse({
+      kind: "commit_result",
+      outcome: {
+        kind: "committed",
+        nextAction: "none",
+        checkoutIntent: "bank_transfer",
+        bankTransfer: {
+          paymentSessionId: "pays_bank",
+          document: { id: "invc_proforma", number: "PRO-42", type: "proforma" },
+          instructions: {
+            beneficiary: "Voyant Travel",
+            iban: "RO49AAAA1B31007593840000",
+            bankName: "Voyant Bank",
+            reference: "BOOK-42",
+            amountCents: 10_000,
+            currency: "EUR",
+            dueAt: "2026-08-08T12:00:00.000Z",
+          },
+        },
+        booking: { id: "book_42", status: "confirmed" },
+        allocationIds: ["bkac_42"],
+        consumedSessionId: "bses_42",
+        consumedQuoteId: "bsqu_42",
       },
     })
 

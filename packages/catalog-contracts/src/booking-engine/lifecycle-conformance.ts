@@ -1,6 +1,6 @@
 import { z } from "zod"
 import type { BookingRequirementsV1, PaxBandDependencyV1 } from "./requirements-contracts.js"
-import { bookingRequirementsV1 } from "./requirements-contracts.js"
+import { bookingCheckoutIntentV1, bookingRequirementsV1 } from "./requirements-contracts.js"
 import {
   requiredRequirementKeysV1,
   unsatisfiableRequiredRequirementsV1,
@@ -55,6 +55,28 @@ export const bookingPaymentCheckoutV1 = z.discriminatedUnion("kind", [
   bookingPaymentEmbeddedCheckoutV1,
 ])
 export type BookingPaymentCheckoutV1 = z.infer<typeof bookingPaymentCheckoutV1>
+
+/** Durable offline-payment material persisted with a successful Commit. */
+export const bookingSessionBankTransferV1 = z.object({
+  paymentSessionId: z.string().min(1).nullable(),
+  document: z
+    .object({
+      id: z.string().min(1),
+      number: z.string().min(1),
+      type: z.enum(["proforma", "invoice"]),
+    })
+    .nullable(),
+  instructions: z.object({
+    beneficiary: z.string().min(1),
+    iban: z.string().min(1),
+    bankName: z.string().min(1).nullable(),
+    reference: z.string().min(1),
+    amountCents: z.number().int().positive(),
+    currency: z.string().length(3),
+    dueAt: z.string().datetime(),
+  }),
+})
+export type BookingSessionBankTransferV1 = z.infer<typeof bookingSessionBankTransferV1>
 
 export const bookingCommitmentPolicyKindV1 = z.enum([
   "owned_atomic_commit",
@@ -301,6 +323,8 @@ const bookingLifecycleOriginalCommitOutcomeV1 = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("committed"),
     nextAction: z.literal("none"),
+    checkoutIntent: bookingCheckoutIntentV1.optional(),
+    bankTransfer: bookingSessionBankTransferV1.optional(),
     booking: z.object({ id: z.string().min(1), status: bookingStatusAfterCommitV1 }),
     allocationIds: z.array(z.string().min(1)),
     consumedSessionId: z.string().min(1),
@@ -312,6 +336,8 @@ const bookingLifecycleOriginalCommitOutcomeV1 = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("component_bookings_committed"),
     nextAction: z.literal("none"),
+    checkoutIntent: bookingCheckoutIntentV1.optional(),
+    bankTransfer: bookingSessionBankTransferV1.optional(),
     bookings: z
       .array(
         z.object({
@@ -347,6 +373,7 @@ const bookingLifecycleOriginalCommitOutcomeV1 = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("payment_required"),
     nextAction: z.literal("establish_payment_guarantee"),
+    checkoutIntent: bookingCheckoutIntentV1.optional(),
     paymentTarget: z.enum(["booking_session", "quote", "supplier_operation"]),
     allowedGuarantees: z.array(z.enum(["deposit", "pre_auth", "card_on_file", "agency_letter"])),
     paymentSession: z.object({

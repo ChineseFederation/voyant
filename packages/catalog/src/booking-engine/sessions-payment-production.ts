@@ -29,6 +29,8 @@ export interface ProductionBookingSessionPaymentDeps {
   resolvePaymentAdapter?: () => PaymentAdapter | null | Promise<PaymentAdapter | null>
   paymentAdapterContext?: PaymentAdapterRuntimeContext
   financeRuntime?: Parameters<typeof createOrReuseBookingSessionPayment>[2]
+  /** Host-owned bank-transfer document/instruction orchestration. */
+  establishBankTransfer?: BookingSessionPaymentPorts["establishBankTransfer"]
 }
 
 export function createProductionBookingSessionPaymentPorts(
@@ -48,6 +50,10 @@ export function createProductionBookingSessionPaymentPorts(
       ) {
         return { kind: "not_required" }
       }
+      // Bank transfer is a pay-later Commit path. Its durable document and
+      // instructions are established once the Booking id exists, inside the
+      // same Commit transaction, by `establishBankTransfer` below.
+      if (commit.checkoutIntent === "bank_transfer") return { kind: "not_required" }
 
       const context = await deps.inventory.loadProductPaymentPolicyContext(
         deps.db,
@@ -200,6 +206,9 @@ export function createProductionBookingSessionPaymentPorts(
     },
     async expirePending({ tx, bookingSessionId, at }) {
       await expirePendingBookingSessionPayments(tx as PostgresJsDatabase, bookingSessionId, at)
+    },
+    async establishBankTransfer(input) {
+      return (await deps.establishBankTransfer?.(input)) ?? null
     },
   }
 }

@@ -1,7 +1,7 @@
 import { z } from "zod"
 import { bookingLifecycleCommitOutcomeV1 } from "./lifecycle-conformance.js"
 import { pricingBreakdownV1 } from "./pricing-contracts.js"
-import { bookingRequirementsV1 } from "./requirements-contracts.js"
+import { bookingCheckoutIntentV1, bookingRequirementsV1 } from "./requirements-contracts.js"
 import { unsatisfiedRequirementV1 } from "./requirements-validation.js"
 
 export const bookingSessionActorKindV1 = z.enum(["anonymous", "customer", "staff", "partner"])
@@ -283,6 +283,12 @@ export const commitBookingSessionV1 = z.object({
   /** Required for owned inventory; sourced targets may commit without a Hold. */
   holdId: z.string().min(1).optional(),
   idempotencyKey: z.string().min(8).max(128),
+  /**
+   * Shopper-selected intent from the active Quote's `paymentIntents`.
+   * Optional for v1 compatibility; omission retains the historical card
+   * checkout behavior when the Quote advertises card.
+   */
+  checkoutIntent: bookingCheckoutIntentV1.optional(),
   payment: z
     .object({
       /**
@@ -415,6 +421,12 @@ export const bookingSessionLifecycleErrorV1 = z.discriminatedUnion("kind", [
     kind: z.literal("requirements_changed"),
     requirementsFingerprint: z.string().min(1),
     nextAction: z.literal("request_fresh_quote"),
+  }),
+  z.object({
+    kind: z.literal("checkout_intent_not_offered"),
+    checkoutIntent: bookingCheckoutIntentV1,
+    offeredCheckoutIntents: z.array(bookingCheckoutIntentV1),
+    nextAction: z.literal("select_supported_checkout_intent"),
   }),
   z.object({
     kind: z.literal("invalid_selection"),
