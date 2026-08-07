@@ -1,5 +1,11 @@
 # @voyant-travel/proposals
 
+## 0.138.0
+
+### Minor Changes
+
+- 2a527ec: Add an intent-level proposal acceptance tool that validates the frozen Trip snapshot and atomically prepares the Booking Session.
+
 ## 0.137.33
 
 ### Patch Changes

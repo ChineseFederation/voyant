@@ -1,5 +1,12 @@
 # @voyant-travel/framework
 
+## 0.80.3
+
+### Patch Changes
+
+- e81dcea: Publish a fresh framework identity for the managed operator bundle carrying embedded payment reconciliation and portable admin-shell bootstrap fixes.
+  - @voyant-travel/operator-standard@0.21.6
+
 ## 0.80.2
 
 ### Patch Changes

@@ -1,5 +1,11 @@
 # @voyant-travel/schema-kit
 
+## 0.118.8
+
+### Patch Changes
+
+- d7b824d: Persist idempotent booking inquiries and route them through the existing durable staff-alert delivery lifecycle.
+
 ## 0.118.7
 
 ### Patch Changes

@@ -1,5 +1,15 @@
 # @voyant-travel/notifications
 
+## 0.148.4
+
+### Patch Changes
+
+- d7b824d: Persist idempotent booking inquiries and route them through the existing durable staff-alert delivery lifecycle.
+- Updated dependencies [2a527ec]
+- Updated dependencies [d7b824d]
+  - @voyant-travel/proposals@0.138.0
+  - @voyant-travel/bookings@0.240.4
+
 ## 0.148.3
 
 ### Patch Changes
