@@ -471,6 +471,17 @@ export const proposalsPresentationVoyantExtension = defineExtension({
   ],
   tools: [
     {
+      id: "@voyant-travel/proposals#presentation-extension.tool.accept-proposal-for-booking",
+      name: "accept_proposal_for_booking",
+      runtime: {
+        entry: "@voyant-travel/proposals/tools",
+        export: "acceptProposalForBookingTool",
+      },
+      requiredScopes: ["proposals:write"],
+      context: ["proposalAcceptance"],
+      risk: "high",
+    },
+    {
       id: "@voyant-travel/proposals#presentation-extension.tool.snapshot-and-send-proposal",
       name: "snapshot_and_send_proposal",
       runtime: {
@@ -483,6 +494,27 @@ export const proposalsPresentationVoyantExtension = defineExtension({
     },
   ],
   actions: [
+    {
+      id: "@voyant-travel/proposals#presentation-extension.action.accept-proposal-for-booking",
+      version: "v1",
+      kind: "execute",
+      targetType: "proposal-version",
+      commandTargetField: "proposalVersionId",
+      targetLifecycle: "existing",
+      effectBoundary: "local",
+      resource: "proposals",
+      action: "write",
+      requiredScopes: ["proposals:write"],
+      risk: "high",
+      ledger: "required",
+      approval: "required",
+      reversible: false,
+      allowedActorTypes: ["staff"],
+      availability: { status: "available" },
+      from: {
+        tools: ["@voyant-travel/proposals#presentation-extension.tool.accept-proposal-for-booking"],
+      },
+    },
     {
       id: "@voyant-travel/proposals#presentation-extension.action.snapshot-and-send-proposal",
       version: "v2",

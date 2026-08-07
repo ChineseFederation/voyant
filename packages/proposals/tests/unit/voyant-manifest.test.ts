@@ -246,6 +246,13 @@ describe("proposals deployment manifests", () => {
       ],
       tools: [
         {
+          id: "@voyant-travel/proposals#presentation-extension.tool.accept-proposal-for-booking",
+          name: "accept_proposal_for_booking",
+          requiredScopes: ["proposals:write"],
+          context: ["proposalAcceptance"],
+          risk: "high",
+        },
+        {
           id: "@voyant-travel/proposals#presentation-extension.tool.snapshot-and-send-proposal",
           name: "snapshot_and_send_proposal",
           requiredScopes: ["proposals:write", "notifications:send"],
@@ -254,6 +261,17 @@ describe("proposals deployment manifests", () => {
         },
       ],
       actions: [
+        {
+          id: "@voyant-travel/proposals#presentation-extension.action.accept-proposal-for-booking",
+          version: "v1",
+          commandTargetField: "proposalVersionId",
+          targetLifecycle: "existing",
+          effectBoundary: "local",
+          ledger: "required",
+          approval: "required",
+          reversible: false,
+          allowedActorTypes: ["staff"],
+        },
         {
           id: "@voyant-travel/proposals#presentation-extension.action.snapshot-and-send-proposal",
           version: "v2",

@@ -2,6 +2,7 @@ import type { ActionLedgerRequestContextValues } from "@voyant-travel/action-led
 import {
   defineToolContextContribution,
   requireService,
+  ToolError,
   type ToolHandlerActionPolicyContext,
 } from "@voyant-travel/tools"
 import type { Context } from "hono"
@@ -14,12 +15,16 @@ import {
   proposalsPresentationRuntimePort,
 } from "./runtime-port.js"
 import { proposalsService } from "./service/index.js"
+import {
+  acceptProposalAndPrepareBooking,
+  ProposalAcceptanceError,
+} from "./service/proposal-acceptance.js"
 import { executeSnapshotAndSendProposalCommand } from "./service/proposal-delivery.js"
 
 export * from "./tools.js"
 
 export const voyantToolContextContribution = defineToolContextContribution({
-  context: ["proposals", "proposalDelivery"],
+  context: ["proposals", "proposalDelivery", "proposalAcceptance"],
   contribute: ({ context, request, resources }) => {
     const db = context.db as Parameters<typeof proposalsService.listProposals>[0]
     const c = request as Context
@@ -106,6 +111,40 @@ export const voyantToolContextContribution = defineToolContextContribution({
             publicProposalBaseUrl: proposal.resolvePublicProposalBaseUrl(c),
           })
           return result.value
+        },
+      },
+      proposalAcceptance: {
+        async acceptProposalForBooking(proposalVersionId: string) {
+          const proposal = await Promise.resolve(
+            requireService(
+              resources[proposalsPresentationRuntimePort.id] as
+                | ProposalsPresentationRuntime
+                | Promise<ProposalsPresentationRuntime>
+                | undefined,
+              proposalsPresentationRuntimePort.id,
+            ),
+          )
+          try {
+            return await acceptProposalAndPrepareBooking(
+              db,
+              proposalVersionId,
+              (transactionalDb, input) =>
+                proposal.seedAcceptedProposalBookingSession(transactionalDb, input, c),
+            )
+          } catch (error) {
+            if (error instanceof ProposalAcceptanceError) {
+              const code = error.code === "not_found" ? "NOT_FOUND" : "INVALID_INPUT"
+              throw new ToolError(error.message, code, {
+                nextSteps:
+                  error.code === "booking_session_rejected"
+                    ? [
+                        `Resolve the Booking Session rejection (${error.detail ?? "unknown"}) and call again with the same Proposal Version. Acceptance and session creation are atomic.`,
+                      ]
+                    : undefined,
+              })
+            }
+            throw error
+          }
         },
       },
     }

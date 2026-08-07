@@ -279,6 +279,13 @@ fingerprint is stable across request and execution, successful execution carries
 approval/causation fields into the ledger, and a replay resolves the previously issued
 invoice instead of creating another.
 
+Proposals owns the proposal-to-reservation handoff. `accept_proposal_for_booking`
+reuses the same advisory-locked workflow as public proposal acceptance: it
+revalidates the frozen Trip snapshot, accepts exactly that Proposal Version, and
+creates the idempotent Booking Session in one transaction. The agent does not
+carry snapshot or reservation-plan identifiers between tools, and a Booking
+Session refusal rolls proposal acceptance back.
+
 ## Coverage posture
 
 Every first-party `voyant.module.v1` module and `voyant.plugin.v1` plugin unit must make

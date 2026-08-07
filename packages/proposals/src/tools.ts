@@ -71,9 +71,21 @@ export interface ProposalDeliveryToolServices {
   ): Promise<unknown>
 }
 
+export interface ProposalAcceptanceToolServices {
+  acceptProposalForBooking(proposalVersionId: string): Promise<unknown>
+}
+
 export type ProposalsToolContext = ToolContext & {
   proposals?: ProposalsToolServices
   proposalDelivery?: ProposalDeliveryToolServices
+  proposalAcceptance?: ProposalAcceptanceToolServices
+}
+
+function proposalAcceptance(ctx: ProposalsToolContext): ProposalAcceptanceToolServices {
+  if (ctx.actor !== "staff" || ctx.audience !== "staff") {
+    throw new ToolError("Proposal acceptance Tools require a staff grant.", "AUTHORIZATION_DENIED")
+  }
+  return requireService(ctx.proposalAcceptance, "proposalAcceptance")
 }
 
 function proposals(ctx: ProposalsToolContext): ProposalsToolServices {
@@ -360,6 +372,39 @@ export const acceptProposalVersionTool = defineTool({
   },
 })
 
+export const acceptProposalForBookingOutputSchema = z.object({
+  status: z.literal("accepted"),
+  currency: z.string().min(1),
+  totalAmountCents: z.number().int(),
+  bookingSession: z.object({
+    id: z.string().min(1),
+    state: z.string().min(1),
+    revision: z.number().int(),
+    expiresAt: z.string().min(1),
+  }),
+})
+
+export const acceptProposalForBookingTool = defineTool({
+  owner: `${OWNER}#presentation-extension`,
+  capabilityId: `${OWNER}#presentation-extension.tool.accept-proposal-for-booking`,
+  capabilityVersion: VERSION,
+  name: "accept_proposal_for_booking",
+  description:
+    "Accept a sent, snapshot-backed proposal and atomically prepare its Booking Session. " +
+    "The server validates the frozen Trip snapshot and resolves the reservation handoff.",
+  inputSchema: z.object({ proposalVersionId: proposalVersionIdSchema }),
+  outputSchema: acceptProposalForBookingOutputSchema,
+  requiredScopes: WRITE_SCOPES,
+  audience: STAFF_AUDIENCE,
+  tier: "destructive",
+  riskPolicy: proposalWriteRisk,
+  async handler({ proposalVersionId }, ctx: ProposalsToolContext) {
+    return acceptProposalForBookingOutputSchema.parse(
+      await proposalAcceptance(ctx).acceptProposalForBooking(proposalVersionId),
+    )
+  },
+})
+
 export const declineProposalVersionTool = defineTool({
   owner: OWNER,
   capabilityId: `${OWNER}#tool.decline-proposal-version`,
@@ -392,6 +437,7 @@ export const proposalsTools = [
   sendProposalVersionTool,
   snapshotAndSendProposalTool,
   acceptProposalVersionTool,
+  acceptProposalForBookingTool,
   declineProposalVersionTool,
 ] as const
 

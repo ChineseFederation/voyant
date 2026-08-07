@@ -166,6 +166,7 @@ describe("proposals Tools", () => {
   it("registers structural reads and the complete guarded proposal lifecycle", () => {
     const list = registry().list()
     expect(list.map((tool) => tool.name).sort()).toEqual([
+      "accept_proposal_for_booking",
       "accept_proposal_version",
       "add_proposal_product",
       "create_proposal",
@@ -178,12 +179,16 @@ describe("proposals Tools", () => {
       "snapshot_and_send_proposal",
       "snapshot_proposal_version",
     ])
-    for (const tool of list.filter(({ name }) => name !== "snapshot_and_send_proposal")) {
+    for (const tool of list.filter(
+      ({ name }) => name !== "snapshot_and_send_proposal" && name !== "accept_proposal_for_booking",
+    )) {
       expect(tool.owner).toBe("@voyant-travel/proposals")
     }
-    expect(list.find(({ name }) => name === "snapshot_and_send_proposal")?.owner).toBe(
-      "@voyant-travel/proposals#presentation-extension",
-    )
+    for (const name of ["accept_proposal_for_booking", "snapshot_and_send_proposal"]) {
+      expect(list.find((tool) => tool.name === name)?.owner).toBe(
+        "@voyant-travel/proposals#presentation-extension",
+      )
+    }
     for (const tool of list) {
       expect(tool.capabilityVersion).toBe(tool.name === "snapshot_and_send_proposal" ? "v2" : "v1")
       expect(tool.audience).toEqual({ source: "grant", allowed: ["staff"] })

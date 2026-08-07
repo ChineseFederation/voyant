@@ -30,19 +30,21 @@ import { OpenAPIHono } from "@hono/zod-openapi"
 import { defineGraphRuntimeFactory } from "@voyant-travel/core/project"
 import { parseJsonBody, parseOptionalJsonBody } from "@voyant-travel/hono"
 import type { ApiExtension } from "@voyant-travel/hono/module"
-import {
-  type TripSnapshot,
-  type TripSnapshotProposalLine,
-  TripsInvariantError,
-  tripsService,
-} from "@voyant-travel/trips"
-import { sql } from "drizzle-orm"
+import { type TripSnapshot, TripsInvariantError, tripsService } from "@voyant-travel/trips"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import { type Context, Hono } from "hono"
 import { z } from "zod"
 import { proposalsPresentationRuntimePort, proposalsSnapshotRuntimePort } from "./runtime-port.js"
 import type { ProposalVersion, ProposalVersionLine } from "./schema.js"
 import { ProposalVersionConflictError, proposalsService } from "./service/index.js"
+import {
+  type AcceptedProposalBookingSession,
+  type AcceptedProposalBookingSessionSeed,
+  type AcceptedProposalBookingSessionSeedResult,
+  acceptProposalAndPrepareBooking,
+  ProposalAcceptanceError,
+  tripSnapshotToProposalVersionApply,
+} from "./service/proposal-acceptance.js"
 import { sendProposalVersionSchema } from "./validation.js"
 
 /**
@@ -178,34 +180,17 @@ export interface AcceptPublicProposalResult {
   bookingSession: AcceptedProposalBookingSession
 }
 
-export interface AcceptedProposalBookingSessionSeed {
-  proposalId: string
-  proposalVersionId: string
-  tripSnapshotId: string
-  tripEnvelopeId: string
-  selection?: Record<string, unknown>
-}
-
-export interface AcceptedProposalBookingSession {
-  id: string
-  state: string
-  revision: number
-  expiresAt: string
-}
-
-export type AcceptedProposalBookingSessionSeedResult =
-  | { kind: "created"; session: AcceptedProposalBookingSession }
-  | { kind: "rejected"; code: string }
+export type {
+  AcceptedProposalBookingSession,
+  AcceptedProposalBookingSessionSeed,
+  AcceptedProposalBookingSessionSeedResult,
+} from "./service/proposal-acceptance.js"
 
 export type ApplyTripSnapshotToProposalVersionResult = {
   snapshot: TripSnapshot
   proposalVersion: ProposalVersion
   lines: ProposalVersionLine[]
 }
-
-type ApplyTripSnapshotPayload = Parameters<
-  typeof proposalsService.applyTripSnapshotToProposalVersion
->[2]
 
 type ProposalVersionProposalReadModel = NonNullable<
   Awaited<ReturnType<typeof proposalsService.getProposalVersionProposal>>
@@ -527,161 +512,33 @@ async function handleAcceptPublicProposal(
   if (!proposalVersionId) return c.json({ error: "Proposal Version id is required" }, 400)
 
   const db = options.resolveDb(c)
-  const proposalForLock = await proposalsService.getProposalVersionProposal(db, proposalVersionId)
-
-  if (!proposalForLock) return c.json({ error: "Proposal not found" }, 404)
-  const proposalId = proposalForLock.proposal.id
-
   try {
-    const accepted = await db.transaction(async (tx) => {
-      const transactionalDb = tx as PostgresJsDatabase
-      await lockProposalAccept(transactionalDb, proposalId)
-      await proposalsService.expireProposalVersionIfPastValidUntil(
-        transactionalDb,
-        proposalVersionId,
-      )
-      const proposal = await proposalsService.getProposalVersionProposal(
-        transactionalDb,
-        proposalVersionId,
-      )
-
-      if (!proposal || proposal.proposalVersion.status === "draft") {
-        return { kind: "response" as const, response: c.json({ error: "Proposal not found" }, 404) }
-      }
-      if (proposal.proposalVersion.status === "superseded") {
-        return {
-          kind: "response" as const,
-          response: c.json({ error: "Proposal has been superseded" }, 410),
-        }
-      }
-      const isAcceptedReplay =
-        proposal.proposalVersion.status === "accepted" &&
-        proposal.proposal.acceptedVersionId === proposal.proposalVersion.id
-      if (proposal.proposalVersion.status !== "sent" && !isAcceptedReplay) {
-        return {
-          kind: "response" as const,
-          response: c.json({ error: "Proposal can no longer be accepted" }, 409),
-        }
-      }
-
-      if (!proposal.proposalVersion.tripSnapshotId) {
-        return {
-          kind: "response" as const,
-          response: c.json(
-            { error: "A frozen Trip snapshot is required before Proposal acceptance" },
-            409,
-          ),
-        }
-      }
-      const snapshot = await tripsService.getTripSnapshotById(
-        transactionalDb,
-        proposal.proposalVersion.tripSnapshotId,
-      )
-      if (!snapshot) {
-        return {
-          kind: "response" as const,
-          response: c.json({ error: "Proposal Trip snapshot not found" }, 409),
-        }
-      }
-      assertProposalMatchesTripSnapshot(proposal, snapshot)
-
-      const result = await proposalsService.acceptProposalVersion(
-        transactionalDb,
-        proposalVersionId,
-        {},
-      )
-      if (!result) {
-        return { kind: "response" as const, response: c.json({ error: "Proposal not found" }, 404) }
-      }
-      const session = await options.seedAcceptedProposalBookingSession(
-        transactionalDb,
-        {
-          proposalId: result.proposal.id,
-          proposalVersionId: result.proposalVersion.id,
-          tripSnapshotId: snapshot.id,
-          tripEnvelopeId: snapshot.envelopeId,
-        },
-        c,
-      )
-      if (session.kind === "rejected") {
-        throw new ProposalBookingSessionSeedError(session.code)
-      }
-      return { kind: "accepted" as const, result, session: session.session }
-    })
-    if (accepted.kind === "response") return accepted.response
-
-    return c.json({
-      data: {
-        status: "accepted",
-        currency: accepted.result.proposalVersion.currency,
-        totalAmountCents: accepted.result.proposalVersion.totalAmountCents,
-        bookingSession: accepted.session,
-      } satisfies AcceptPublicProposalResult,
-    })
+    const accepted = await acceptProposalAndPrepareBooking(
+      db,
+      proposalVersionId,
+      (transactionalDb, input) =>
+        options.seedAcceptedProposalBookingSession(transactionalDb, input, c),
+    )
+    return c.json({ data: accepted satisfies AcceptPublicProposalResult })
   } catch (error) {
+    if (error instanceof ProposalAcceptanceError) {
+      if (error.code === "not_found") return c.json({ error: error.message }, 404)
+      if (error.code === "superseded") return c.json({ error: error.message }, 410)
+      if (error.code === "booking_session_rejected") {
+        return c.json(
+          { error: error.message, code: error.detail },
+          error.detail === "capability_required" ? 400 : 409,
+        )
+      }
+      return c.json({ error: error.message }, 409)
+    }
     if (error instanceof ProposalVersionConflictError) {
       return c.json({ error: error.message }, 409)
     }
     if (error instanceof TripsInvariantError) {
       return c.json({ error: error.message }, error.message.includes("was not found") ? 404 : 409)
     }
-    if (error instanceof ProposalBookingSessionSeedError) {
-      return c.json(
-        { error: "Proposal acceptance could not seed a Booking Session", code: error.code },
-        error.code === "capability_required" ? 400 : 409,
-      )
-    }
     throw error
-  }
-}
-
-class ProposalBookingSessionSeedError extends Error {
-  constructor(readonly code: string) {
-    super(`proposal_booking_session_seed_${code}`)
-  }
-}
-
-function lockProposalAccept(db: PostgresJsDatabase, proposalId: string) {
-  return db.execute(
-    // agent-quality: raw-sql reviewed -- owner: proposals; dynamic SQL interpolation uses Drizzle parameter binding or vetted SQL identifiers.
-    sql`SELECT pg_advisory_xact_lock(hashtextextended(${proposalAcceptLockKey(proposalId)}, 0))`,
-  )
-}
-
-function proposalAcceptLockKey(proposalId: string) {
-  return `proposal-accept:${proposalId}`
-}
-
-function assertProposalMatchesTripSnapshot(
-  proposal: ProposalVersionProposalReadModel,
-  snapshot: TripSnapshot,
-) {
-  const expected = tripSnapshotToProposalVersionApply(snapshot)
-  const actual = proposal.proposalVersion
-
-  if (
-    actual.tripSnapshotId !== snapshot.id ||
-    actual.currency !== expected.currency ||
-    actual.subtotalAmountCents !== expected.subtotalAmountCents ||
-    actual.taxAmountCents !== expected.taxAmountCents ||
-    actual.totalAmountCents !== expected.totalAmountCents ||
-    proposal.lines.length !== expected.lines.length
-  ) {
-    throw new ProposalVersionConflictError("Proposal does not match its frozen Trip snapshot")
-  }
-
-  for (const [index, expectedLine] of expected.lines.entries()) {
-    const actualLine = proposal.lines[index]
-    if (
-      !actualLine ||
-      actualLine.description !== expectedLine.description ||
-      actualLine.quantity !== expectedLine.quantity ||
-      actualLine.unitPriceAmountCents !== expectedLine.unitPriceAmountCents ||
-      actualLine.totalAmountCents !== expectedLine.totalAmountCents ||
-      actualLine.currency !== expectedLine.currency
-    ) {
-      throw new ProposalVersionConflictError("Proposal does not match its frozen Trip snapshot")
-    }
   }
 }
 
@@ -738,30 +595,4 @@ async function handleFreezeProposalVersionSnapshot(
   }
 }
 
-/** Map a frozen Trip snapshot's proposal into a proposal-version apply payload. */
-export function tripSnapshotToProposalVersionApply(
-  snapshot: TripSnapshot,
-): ApplyTripSnapshotPayload {
-  const proposal = snapshot.proposal
-  return {
-    tripSnapshotId: snapshot.id,
-    currency: proposal.currency,
-    subtotalAmountCents: proposal.subtotalAmountCents,
-    taxAmountCents: proposal.taxAmountCents,
-    totalAmountCents: proposal.totalAmountCents,
-    lines: proposal.lines.map(tripSnapshotLineToProposalVersionLine),
-  }
-}
-
-function tripSnapshotLineToProposalVersionLine(line: TripSnapshotProposalLine) {
-  return {
-    componentId: line.componentId,
-    productId: line.entityModule === "products" ? line.entityId : null,
-    supplierServiceId: line.entityModule === "supplier_services" ? line.entityId : null,
-    description: line.description,
-    quantity: 1,
-    unitPriceAmountCents: line.subtotalAmountCents,
-    totalAmountCents: line.totalAmountCents,
-    currency: line.currency,
-  }
-}
+export { tripSnapshotToProposalVersionApply } from "./service/proposal-acceptance.js"
