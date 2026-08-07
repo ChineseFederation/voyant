@@ -42,6 +42,9 @@ export interface CreateAdminHostWorkspaceOptions<
   }
   icons?: OperatorAdminNavigationIcons
   signInPath?: string
+  hydrateShellBootstrap?: Parameters<
+    typeof createAdminWorkspaceBeforeLoad<TUser>
+  >[0]["hydrateShellBootstrap"]
 }
 
 export interface AdminHostWorkspace<TUser> {
@@ -66,6 +69,7 @@ export function createAdminHostWorkspace<
   realtime,
   icons = defaultOperatorNavIcons,
   signInPath = "/sign-in",
+  hydrateShellBootstrap,
 }: CreateAdminHostWorkspaceOptions<
   TUser,
   TFetcher,
@@ -74,7 +78,7 @@ export function createAdminHostWorkspace<
 >): AdminHostWorkspace<TUser> {
   const { UserProvider, useUser } = createAdminUserBindings<TUser>(auth.getCurrentUser)
   const destinations = createAdminHostDestinations(presentation.extensions)
-  const beforeLoad = createAdminWorkspaceBeforeLoad({ auth, signInPath })
+  const beforeLoad = createAdminWorkspaceBeforeLoad({ auth, signInPath, hydrateShellBootstrap })
 
   function Workspace({ initialUser, children }: { initialUser: TUser; children: ReactNode }) {
     return (

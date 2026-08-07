@@ -115,7 +115,7 @@ const workspace = operatorFrontend.workspace
 
 export const Route = createFileRoute("/_workspace")({
   ssr: "data-only",
-  beforeLoad: ({ location }) => workspace.beforeLoad({ location }),
+  beforeLoad: ({ location, context }) => workspace.beforeLoad({ location, context }),
   loader: ({ context }) => ({ user: context.user }),
   pendingComponent: workspace.PendingComponent,
   component: WorkspaceLayout,

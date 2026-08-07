@@ -174,6 +174,27 @@ export interface OperatorCurrentUser {
   profilePictureUrl: string | null
 }
 
+export const OPERATOR_SHELL_BOOTSTRAP_VERSION = 1 as const
+
+export interface OperatorShellBootstrapAdditions {
+  /** Host-owned feature entitlements. Keys are stable capability ids. */
+  entitlements?: Readonly<Record<string, boolean>>
+  /** Effective navigation snapshot, or null when the selected graph has no preference authority. */
+  navigationPreferences?: unknown
+  /** Lightweight, non-secret descriptors only. Full extension manifests remain deferred. */
+  extensions?: readonly Readonly<Record<string, unknown>>[]
+}
+
+export interface OperatorShellBootstrap extends Required<OperatorShellBootstrapAdditions> {
+  version: typeof OPERATOR_SHELL_BOOTSTRAP_VERSION
+  compatibility: {
+    minimumShellVersion: typeof OPERATOR_SHELL_BOOTSTRAP_VERSION
+    capabilities: readonly string[]
+  }
+  user: OperatorCurrentUser
+  activeModules: readonly string[]
+}
+
 export type OperatorAuthBootstrapStatus = {
   hasUsers: boolean
   authMode?: OperatorAuthMode
@@ -227,6 +248,16 @@ export interface CreateOperatorAuthNodeRuntimeOptions<Env extends OperatorAuthNo
     | Pick<BetterAuthAdvancedOptions, "crossSubDomainCookies" | "defaultCookieAttributes">
     | undefined
   resolveEmailSender?: (env: Env) => OperatorAuthEmailSender | null
+  /**
+   * Request-scoped managed-host data for the authenticated shell bootstrap.
+   * The resolver receives the already authenticated user so hosts cannot
+   * accidentally resolve another member's or deployment's snapshot.
+   */
+  resolveShellBootstrap?: (input: {
+    env: Env
+    request: Request
+    user: OperatorCurrentUser
+  }) => OperatorShellBootstrapAdditions | Promise<OperatorShellBootstrapAdditions>
   customerBusinessAccountOnboarding?: CustomerBusinessAccountOnboardingRuntimeProvider
   /**
    * Storefront/BFF seam for a canonical public auth origin and resolved
@@ -1448,6 +1479,58 @@ export function createOperatorAuthNodeRuntime<Env extends OperatorAuthNodeEnv>(
         return c.json({ error: "Unauthorized" }, 401)
       }
       return c.json(currentUser)
+    } catch (error) {
+      if (error instanceof CurrentUserNotFoundError) {
+        return c.json({ error: "User not found" }, 404)
+      }
+      throw error
+    }
+  })
+
+  /**
+   * GET /auth/shell-bootstrap
+   *
+   * The single authenticated, versioned response needed to render the admin
+   * shell. It is deliberately private and uncacheable: it contains member- and
+   * deployment-scoped authorization state. Managed hosts may add their live
+   * entitlement/preference/extension snapshot through the request-scoped port;
+   * self-hosted deployments get the same stable contract with empty additions.
+   */
+  auth.get("/auth/shell-bootstrap", async (c) => {
+    c.header("Cache-Control", "private, no-store")
+    c.header("Vary", "Cookie, Authorization")
+    try {
+      const user = await getCurrentUserForRequest(c.req.raw, c.env)
+      if (!user) return c.json({ error: "Unauthorized" }, 401)
+
+      const additions =
+        (await runtimeOptions.resolveShellBootstrap?.({
+          env: c.env,
+          request: c.req.raw,
+          user,
+        })) ?? {}
+      const capabilities = [
+        "admin.shell-bootstrap.v1",
+        "admin.shell-bootstrap.focus-invalidation",
+        ...(additions.entitlements ? ["admin.shell-bootstrap.entitlements"] : []),
+        ...(additions.navigationPreferences
+          ? ["admin.shell-bootstrap.navigation-preferences"]
+          : []),
+        ...(additions.extensions ? ["admin.shell-bootstrap.extensions"] : []),
+      ]
+      const bootstrap: OperatorShellBootstrap = {
+        version: OPERATOR_SHELL_BOOTSTRAP_VERSION,
+        compatibility: {
+          minimumShellVersion: OPERATOR_SHELL_BOOTSTRAP_VERSION,
+          capabilities,
+        },
+        user,
+        activeModules: [...(runtimeOptions.activeModules ?? [])],
+        entitlements: { ...(additions.entitlements ?? {}) },
+        navigationPreferences: additions.navigationPreferences ?? null,
+        extensions: [...(additions.extensions ?? [])],
+      }
+      return c.json(bootstrap)
     } catch (error) {
       if (error instanceof CurrentUserNotFoundError) {
         return c.json({ error: "User not found" }, 404)

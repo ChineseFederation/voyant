@@ -167,6 +167,33 @@ describe("createOperatorAuthNodeRuntime", () => {
     expect(openDatabase).not.toHaveBeenCalled()
   })
 
+  it("keeps the shell bootstrap private and rejects unauthenticated requests", async () => {
+    const resolver = vi.fn()
+    const runtime = createOperatorAuthNodeRuntime({
+      accessCatalog: { resources: [], presets: [] },
+      activeModules: ["catalog"],
+      appName: "auth-test",
+      authMode: "local",
+      reporter: { captureException: vi.fn() },
+      resolveShellBootstrap: resolver,
+    })
+
+    const response = await runtime.handler.fetch(
+      new Request("https://localhost/auth/shell-bootstrap"),
+      {
+        DATABASE_URL: "postgres://unused",
+        SESSION_CLAIMS_ADMIN_SECRET: "admin-session-claims-secret",
+        VOYANT_OPERATOR_BROWSER_EVIDENCE: "1",
+      },
+      { waitUntil: vi.fn() } as never,
+    )
+
+    expect(response.status).toBe(401)
+    expect(response.headers.get("cache-control")).toBe("private, no-store")
+    expect(response.headers.get("vary")).toBe("Cookie, Authorization")
+    expect(resolver).not.toHaveBeenCalled()
+  })
+
   it("exposes only the canonical admin cloud start route", async () => {
     const openDatabase = vi.fn(() => {
       throw new Error("cloud start route must not open the database")

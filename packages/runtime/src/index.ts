@@ -19,6 +19,8 @@ import {
   createOperatorAuthNodeRuntime,
   type OperatorAuthEmailSender,
   type OperatorAuthNodeEnv,
+  type OperatorCurrentUser,
+  type OperatorShellBootstrapAdditions,
 } from "@voyant-travel/auth/node-runtime"
 import { createLinkServiceStorefrontChannelBindingProvider } from "@voyant-travel/auth/storefront-channel-binding-provider"
 import {
@@ -139,6 +141,12 @@ export interface LoadVoyantProjectOptions {
     ) => Promise<string | null>
     /** Project-owned transport for verification codes and password resets. */
     resolveAuthEmailSender?: (env: OperatorAuthNodeEnv) => OperatorAuthEmailSender | null
+    /** Managed-host additions for the authenticated, tenant-scoped admin shell bootstrap. */
+    resolveShellBootstrap?: (input: {
+      env: OperatorAuthNodeEnv
+      request: Request
+      user: OperatorCurrentUser
+    }) => OperatorShellBootstrapAdditions | Promise<OperatorShellBootstrapAdditions>
   }
 }
 
@@ -428,6 +436,9 @@ export async function loadVoyantProject(
     reporter,
     ...(customerBusinessAccountOnboarding ? { customerBusinessAccountOnboarding } : {}),
     resolveEmailSender: options.host?.resolveAuthEmailSender ?? resolveVoyantCloudAuthEmailSender,
+    ...(options.host?.resolveShellBootstrap
+      ? { resolveShellBootstrap: options.host.resolveShellBootstrap }
+      : {}),
     ...(customerAuthContextResolver
       ? { resolveCustomerAuthContext: customerAuthContextResolver }
       : {}),
