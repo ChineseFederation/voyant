@@ -107,19 +107,29 @@ export function createDbClient<TSchema extends Record<string, unknown> = Record<
     const primary = tagTransactionCapability(
       schema ? drizzlePostgres(client, { schema }) : drizzlePostgres(client),
       true,
+      async () => client.end({ timeout: 5 }),
     )
 
     if (replicas.length === 0) {
       return primary
     }
 
-    const replicaInstances = replicas.map((replicaUrl) => {
-      const replicaClient = postgres(replicaUrl, nodeOptions)
+    const replicaClients = replicas.map((replicaUrl) => postgres(replicaUrl, nodeOptions))
+    const replicaInstances = replicaClients.map((replicaClient) => {
       return schema ? drizzlePostgres(replicaClient, { schema }) : drizzlePostgres(replicaClient)
     })
     const [firstReplica, ...otherReplicas] = replicaInstances
     if (firstReplica) {
-      return tagTransactionCapability(withReplicas(primary, [firstReplica, ...otherReplicas]), true)
+      return tagTransactionCapability(
+        withReplicas(primary, [firstReplica, ...otherReplicas]),
+        true,
+        async () => {
+          await Promise.all([
+            client.end({ timeout: 5 }),
+            ...replicaClients.map((replicaClient) => replicaClient.end({ timeout: 5 })),
+          ])
+        },
+      )
     }
     return primary
   }

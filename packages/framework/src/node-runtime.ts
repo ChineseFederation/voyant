@@ -76,6 +76,8 @@ export interface VoyantNodeRuntimeEnv extends VoyantBindings {
   DATABASE_URL_DIRECT?: string
   DATABASE_URL_REPLICAS?: string
   DATABASE_MAX_CONNECTIONS?: string
+  DATABASE_MAX_TENANT_POOLS?: string
+  DATABASE_TENANT_POOL_IDLE_MS?: string
   S3_ENDPOINT?: string
   S3_REGION?: string
   S3_ACCESS_KEY_ID?: string
@@ -288,6 +290,7 @@ export interface VoyantNodeRuntime {
     inventory: readonly VoyantGraphProvisionedJob[]
     health: () => readonly VoyantNodeJobHealth[]
     invoke: VoyantNodeJobHost["invoke"]
+    dispatchSchedule: VoyantNodeJobHost["dispatchSchedule"]
     wakeAt: VoyantNodeJobHost["wakeAt"]
   }
   fetch: (
@@ -485,6 +488,7 @@ export async function loadVoyantNodeRuntime(
       inventory: jobHost.inventory,
       health: jobHost.health,
       invoke: jobHost.invoke,
+      dispatchSchedule: jobHost.dispatchSchedule,
       wakeAt: jobHost.wakeAt,
     },
     fetch,

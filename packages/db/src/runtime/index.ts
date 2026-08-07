@@ -16,6 +16,7 @@ export {
 export { createGraphDbProvider } from "./graph-provider.js"
 export { createPostgresAdvisoryLockManager } from "./locks.js"
 export {
+  acquireNodeDatabase,
   type NodeDatabaseEnv,
   openNodeDatabase,
   resolveNodeDatabase,

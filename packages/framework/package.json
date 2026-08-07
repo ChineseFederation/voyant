@@ -21,6 +21,7 @@
     "./runtime-attestation": "./src/runtime-attestation.ts",
     "./node-host": "./src/node-host.ts",
     "./node-runtime": "./src/node-runtime.ts",
+    "./node-cell-runtime": "./src/node-cell-runtime.ts",
     "./worker-job-host": "./src/worker-job-host.ts",
     "./scheduled-jobs": "./src/scheduled-jobs.ts"
   },
@@ -156,6 +157,10 @@
       "./node-runtime": {
         "types": "./dist/node-runtime.d.ts",
         "import": "./dist/node-runtime.js"
+      },
+      "./node-cell-runtime": {
+        "types": "./dist/node-cell-runtime.d.ts",
+        "import": "./dist/node-cell-runtime.js"
       },
       "./worker-job-host": {
         "types": "./dist/worker-job-host.d.ts",
