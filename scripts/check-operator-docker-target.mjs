@@ -16,6 +16,7 @@ const DOCKERFILE = "apps/operator/Dockerfile"
 const OPERATOR_PACKAGE_JSON = "apps/operator/package.json"
 const PRODUCT_PACKAGE_JSON = "packages/operator-standard/package.json"
 const MIGRATION_RUNNER = "scripts/run-generated-migrations.mjs"
+const OPERATOR_BUILD_COMMAND = "voyant build && node ../../scripts/package-operator-admin-shell.mjs"
 
 const violations = []
 
@@ -30,11 +31,11 @@ if (!existsSync(join(ROOT, OPERATOR_PACKAGE_JSON))) {
   const scripts =
     packageJson.scripts && typeof packageJson.scripts === "object" ? packageJson.scripts : {}
   const buildScript = typeof scripts.build === "string" ? scripts.build : ""
-  if (buildScript !== "voyant build") {
+  if (buildScript !== OPERATOR_BUILD_COMMAND) {
     violations.push({
       file: OPERATOR_PACKAGE_JSON,
       check: "operator-build-bypasses-cli",
-      message: 'The operator build script must be exactly "voyant build".',
+      message: `The operator build script must be exactly ${JSON.stringify(OPERATOR_BUILD_COMMAND)}.`,
     })
   }
   if (scripts["copy:deployment-artifacts"] !== undefined || scripts["graph:emit"] !== undefined) {

@@ -1187,6 +1187,7 @@
       ],
       "@voyant-travel/framework/deployment-graph": ["../framework/dist/deployment-graph.d.ts"],
       "@voyant-travel/framework/graph-lifecycle": ["../framework/dist/graph-lifecycle.d.ts"],
+      "@voyant-travel/framework/node-cell-runtime": ["../framework/dist/node-cell-runtime.d.ts"],
       "@voyant-travel/framework/node-host": ["../framework/dist/node-host.d.ts"],
       "@voyant-travel/framework/node-runtime": ["../framework/dist/node-runtime.d.ts"],
       "@voyant-travel/framework/operator-distribution": [

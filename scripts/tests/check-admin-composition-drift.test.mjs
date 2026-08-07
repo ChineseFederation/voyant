@@ -133,6 +133,50 @@ test("requires migrated UI-only admin factories only in the selected-graph bundl
   }
 })
 
+test("recognizes lazy admin runtime entries only through their declared dynamic import", () => {
+  const dir = mkdtempSync(join(tmpdir(), "voyant-lazy-admin-bundle-"))
+  const graph = join(dir, "deployment-graph.generated.json")
+  const extensions = join(dir, "admin.extensions.generated.ts")
+  const bundle = join(dir, "selected-graph-admin.generated.ts")
+  const presentation = join(dir, "admin-presentation.tsx")
+  const compatibility = join(dir, "admin-extensions.tsx")
+
+  try {
+    writeFileSync(
+      graph,
+      JSON.stringify({
+        modules: [
+          {
+            admin: {
+              loading: "lazy-routes",
+              runtime: { entry: "@voyant-travel/custom-fields-react/admin" },
+            },
+            packageName: "@voyant-travel/custom-fields",
+          },
+        ],
+        plugins: [],
+      }),
+    )
+    writeFileSync(bundle, 'const load = () => import("@voyant-travel/custom-fields-react/admin")\n')
+    writePresentation(presentation)
+
+    assert.doesNotThrow(() =>
+      runChecker({ graph, extensions, bundle, presentation, compatibility }),
+    )
+
+    writeFileSync(
+      bundle,
+      'const load = () => import("@voyant-travel/custom-fields-react/wrong-entry")\n',
+    )
+    assert.throws(
+      () => runChecker({ graph, extensions, bundle, presentation, compatibility }),
+      /missing from selected-graph-admin\.generated\.js/,
+    )
+  } finally {
+    rmSync(dir, { force: true, recursive: true })
+  }
+})
+
 test("accepts Realtime only when its selected graph admin factory is bundled", () => {
   const dir = mkdtempSync(join(tmpdir(), "voyant-realtime-admin-"))
   const graph = join(dir, "deployment-graph.generated.json")

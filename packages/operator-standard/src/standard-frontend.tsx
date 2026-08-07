@@ -87,8 +87,13 @@ export interface StandardOperatorCurrentUser {
   profilePictureUrl?: string | null
 }
 
-type StandardOperatorShellBootstrap = Omit<OperatorShellBootstrap, "user"> & {
+type StandardOperatorShellBootstrap = Omit<
+  OperatorShellBootstrap,
+  "user" | "navigationPreferences" | "extensions"
+> & {
   user: StandardOperatorCurrentUser
+  navigationPreferences: VoyantGraphJsonValue
+  extensions: readonly Readonly<Record<string, VoyantGraphJsonValue>>[]
 }
 
 export interface CreateStandardOperatorFrontendOptions {

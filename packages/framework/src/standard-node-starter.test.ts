@@ -55,6 +55,7 @@ describe("standard Node starter contract", () => {
           "voyant.config.ts",
         ],
         "runtimeDependencies": [
+          "@voyant-travel/admin",
           "@voyant-travel/framework",
           "@voyant-travel/runtime",
           "@voyant-travel/operator-standard",
@@ -67,6 +68,7 @@ describe("standard Node starter contract", () => {
         "runtimeDependencyCoordinates": {
           "@tanstack/react-query": "5.101.2",
           "@tanstack/react-router": "1.170.17",
+          "@voyant-travel/admin": "0.135.1",
           "@voyant-travel/framework": "0.63.2",
           "@voyant-travel/operator-standard": "0.12.3",
           "@voyant-travel/runtime": "0.17.9",

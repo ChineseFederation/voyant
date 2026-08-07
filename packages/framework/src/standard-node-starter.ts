@@ -25,6 +25,7 @@ type StandardNodeStarterContract = {
     readonly "db:migrate": "voyant migrate"
   }
   readonly runtimeDependencies: readonly [
+    "@voyant-travel/admin",
     "@voyant-travel/framework",
     "@voyant-travel/runtime",
     "@voyant-travel/operator-standard",
@@ -35,6 +36,7 @@ type StandardNodeStarterContract = {
     "pg",
   ]
   readonly runtimeDependencyCoordinates: {
+    readonly "@voyant-travel/admin": "0.135.1"
     readonly "@voyant-travel/framework": "0.63.2"
     readonly "@voyant-travel/runtime": "0.17.9"
     readonly "@voyant-travel/operator-standard": "0.12.3"

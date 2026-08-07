@@ -10,6 +10,7 @@ import type {
   SelectedAdminExtensionFactoryContext,
 } from "../extensions.js"
 import { adminRoutePageModule } from "../extensions.js"
+import { useOperatorAdminMessages } from "../providers/operator-admin-messages.js"
 import { ADMIN_ACTIVE_MODULES_QUERY_KEY } from "./auth-runtime.js"
 
 export interface LazySelectedAdminRouteDescriptor {
@@ -162,6 +163,7 @@ function findRouteByPath(
 }
 
 function LazyAdminExtensionPending() {
+  const messages = useOperatorAdminMessages()
   return (
     <div
       className="flex min-h-48 items-center justify-center gap-3"
@@ -169,18 +171,19 @@ function LazyAdminExtensionPending() {
       aria-live="polite"
     >
       <Loader2 className="size-5 animate-spin" aria-hidden="true" />
-      <span>Loading module…</span>
+      <span>{messages.loading}</span>
     </div>
   )
 }
 
 function LazyAdminExtensionError({ error, reset }: { error: unknown; reset: () => void }) {
+  const messages = useOperatorAdminMessages()
   return (
     <div className="flex min-h-48 flex-col items-center justify-center gap-3 p-6" role="alert">
       <AlertTriangle className="size-6" aria-hidden="true" />
-      <p>{error instanceof Error ? error.message : "This module could not be loaded."}</p>
+      <p>{error instanceof Error ? error.message : messages.somethingWentWrongDetail}</p>
       <button type="button" onClick={reset} className="underline">
-        Try again
+        {messages.retry}
       </button>
     </div>
   )

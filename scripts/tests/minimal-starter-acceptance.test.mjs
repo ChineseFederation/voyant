@@ -404,7 +404,7 @@ function removeReleasePeerFixtures(app, dependencies) {
   const packageJsonPath = join(app, "package.json")
   const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf8"))
   for (const dependency of dependencies) delete packageJson.dependencies[dependency]
-  for (const dependency of ["@voyant-travel/admin", "@voyant-travel/admin-app"]) {
+  for (const dependency of ["@voyant-travel/admin-app"]) {
     rmSync(join(app, "node_modules", ...dependency.split("/")), { force: true })
   }
   writeFileSync(packageJsonPath, `${JSON.stringify(packageJson, null, 2)}\n`)
@@ -414,6 +414,10 @@ function assertStrictConsumerLayout(app) {
   const packageJson = JSON.parse(readFileSync(join(app, "package.json"), "utf8"))
 
   assert.ok(packageJson.dependencies["@voyant-travel/operator-standard"])
+  assert.ok(
+    packageJson.dependencies["@voyant-travel/admin"],
+    "Generated admin runtime imports require the starter to directly own @voyant-travel/admin",
+  )
   for (const dependency of frontendSingletonRoots) {
     assert.equal(
       typeof packageJson.dependencies[dependency],
@@ -425,10 +429,9 @@ function assertStrictConsumerLayout(app) {
       `Packaged starter did not install ${dependency} at the application root`,
     )
   }
-  assert.equal(packageJson.dependencies["@voyant-travel/admin"], undefined)
   assert.ok(
-    !existsSync(join(app, "node_modules/@voyant-travel/admin")),
-    "Packaged consumer fixture unexpectedly hoisted transitive @voyant-travel/admin",
+    existsSync(join(app, "node_modules/@voyant-travel/admin")),
+    "Packaged consumer did not install its direct @voyant-travel/admin runtime dependency",
   )
 }
 

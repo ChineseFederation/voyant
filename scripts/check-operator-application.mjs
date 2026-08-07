@@ -192,7 +192,7 @@ function inspectPackageJson(packageJsonPath) {
     .sort()
   if (firstPartyDependencies.join("\n") !== expectedDependencies.join("\n")) {
     violations.push(
-      `generated starter dependencies must expose only CLI, framework, standard product distribution, and generic Node runtime; found ${firstPartyDependencies.join(", ")}`,
+      `generated starter dependencies must expose only admin, CLI, framework, standard product distribution, and generic Node runtime; found ${firstPartyDependencies.join(", ")}`,
     )
   }
   if (packageJson.dependencies?.["@voyant-travel/plugin-smartbill"]) {
@@ -393,7 +393,7 @@ function inspectOperatorApplicationDependencies(repoRoot) {
   const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf8"))
   const expectedLifecycleScripts = {
     dev: "voyant develop",
-    build: "voyant build",
+    build: "voyant build && node ../../scripts/package-operator-admin-shell.mjs",
     start: "voyant start",
     "db:migrate": "voyant migrate",
   }

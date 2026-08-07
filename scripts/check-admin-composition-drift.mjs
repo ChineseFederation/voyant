@@ -147,7 +147,10 @@ function importSpecifiersIn(file) {
   if (!existsSync(file)) return []
   const source = readFileSync(file, "utf-8")
   const specifiers = []
-  const importPattern = /(?:from\s+|import\s*)["']([^"']+)["']/g
+  // Eager admin units arrive through static imports; `lazy-routes` units are
+  // represented by dynamic imports in the same generated bundle. Both are
+  // selected-graph wiring and must be checked against admin.runtime.
+  const importPattern = /(?:from\s+|import\s*(?:\(\s*)?)["']([^"']+)["']/g
   let match = importPattern.exec(source)
   while (match) {
     specifiers.push(match[1])

@@ -27,6 +27,7 @@ test("accepts the strict generated standard Node starter shape", () => {
 
 test("packages the direct dependencies imported by generated frontend sources", () => {
   for (const dependency of [
+    "@voyant-travel/admin",
     "@tanstack/react-query",
     "@tanstack/react-router",
     "react",
@@ -332,7 +333,9 @@ test("rejects operator application lifecycle scripts that bypass the CLI", () =>
       const stderr = String(error.stderr)
       return (
         stderr.includes('script dev must be exactly "voyant develop"') &&
-        stderr.includes('script build must be exactly "voyant build"') &&
+        stderr.includes(
+          'script build must be exactly "voyant build && node ../../scripts/package-operator-admin-shell.mjs"',
+        ) &&
         stderr.includes('script start must be exactly "voyant start"') &&
         stderr.includes('script db:migrate must be exactly "voyant migrate"')
       )
@@ -379,6 +382,7 @@ function fixture(overrides = {}) {
   const packageJson = overrides.packageJson ?? {
     scripts: standardNodeStarter.packageScripts,
     dependencies: {
+      "@voyant-travel/admin": "1.0.0",
       "@voyant-travel/framework": "1.0.0",
       "@voyant-travel/runtime": "1.0.0",
       "@voyant-travel/operator-standard": "1.0.0",
