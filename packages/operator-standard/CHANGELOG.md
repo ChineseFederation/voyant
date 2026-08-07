@@ -1,5 +1,13 @@
 # @voyant-travel/operator-standard
 
+## 0.21.4
+
+### Patch Changes
+
+- 9daffb1: Boot the portable operator shell without SSR state through the same-origin API contract and expose its pending state accessibly.
+- Updated dependencies [9daffb1]
+  - @voyant-travel/admin@0.136.1
+
 ## 0.21.3
 
 ### Patch Changes
