@@ -1,5 +1,20 @@
 # @voyant-travel/admin-host
 
+## 0.120.0
+
+### Minor Changes
+
+- bd8f49a: Add the versioned authenticated admin shell bootstrap contract, managed-host
+  resolver seam, and TanStack Query hydration path for shell-critical state.
+
+### Patch Changes
+
+- Updated dependencies [bd8f49a]
+- Updated dependencies [1e0506f]
+  - @voyant-travel/admin@0.136.0
+  - @voyant-travel/admin-app@0.162.0
+  - @voyant-travel/hono@0.142.2
+
 ## 0.119.0
 
 ### Patch Changes

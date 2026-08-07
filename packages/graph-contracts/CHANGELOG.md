@@ -1,5 +1,13 @@
 # @voyant-travel/graph-contracts
 
+## 0.5.0
+
+### Minor Changes
+
+- 1e0506f: Add a declarative lazy loading boundary for route-only admin extensions and move
+  business-account, custom-field, and webhook settings implementations out of the
+  initial operator entry graph.
+
 ## 0.4.0
 
 ### Minor Changes

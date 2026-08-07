@@ -1,5 +1,16 @@
 # @voyant-travel/db
 
+## 0.121.0
+
+### Minor Changes
+
+- afb6866: Add a bounded tenant-scoped Node application-cell host and disposable per-tenant database pools.
+
+### Patch Changes
+
+- 5d1b298: Bound transactional outbox delivery, maintenance, and operational statistics while allowing wakeups to drain multiple batches within a work and time budget.
+  - @voyant-travel/core@0.140.2
+
 ## 0.120.7
 
 ### Patch Changes

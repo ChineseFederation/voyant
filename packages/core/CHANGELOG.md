@@ -1,5 +1,12 @@
 # @voyant-travel/core
 
+## 0.140.2
+
+### Patch Changes
+
+- Updated dependencies [1e0506f]
+  - @voyant-travel/graph-contracts@0.5.0
+
 ## 0.140.1
 
 ### Patch Changes

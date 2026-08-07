@@ -1,6 +1,6 @@
 {
   "name": "@voyant-travel/public-document-delivery",
-  "version": "0.4.23",
+  "version": "0.4.24",
   "description": "Opaque public document grants and storage-backed delivery routes for Voyant deployments.",
   "license": "Apache-2.0",
   "type": "module",

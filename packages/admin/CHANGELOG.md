@@ -1,5 +1,19 @@
 # @voyant-travel/admin
 
+## 0.136.0
+
+### Minor Changes
+
+- bd8f49a: Add the versioned authenticated admin shell bootstrap contract, managed-host
+  resolver seam, and TanStack Query hydration path for shell-critical state.
+- 1e0506f: Add a declarative lazy loading boundary for route-only admin extensions and move
+  business-account, custom-field, and webhook settings implementations out of the
+  initial operator entry graph.
+
+### Patch Changes
+
+- @voyant-travel/types@0.109.13
+
 ## 0.135.1
 
 ### Patch Changes

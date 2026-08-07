@@ -1,5 +1,30 @@
 # @voyant-travel/framework
 
+## 0.80.0
+
+### Minor Changes
+
+- afb6866: Add a bounded tenant-scoped Node application-cell host and disposable per-tenant database pools.
+- 1e0506f: Add a declarative lazy loading boundary for route-only admin extensions and move
+  business-account, custom-field, and webhook settings implementations out of the
+  initial operator entry graph.
+- c181e4e: Add an authenticated, deployment-bound, idempotent managed job wake contract for graph-registered wakeable jobs.
+
+### Patch Changes
+
+- Updated dependencies [bd8f49a]
+- Updated dependencies [afb6866]
+- Updated dependencies [1e0506f]
+- Updated dependencies [5d1b298]
+  - @voyant-travel/operator-standard@0.21.0
+  - @voyant-travel/db@0.121.0
+  - @voyant-travel/action-ledger@0.115.16
+  - @voyant-travel/cruises@0.238.15
+  - @voyant-travel/hono@0.142.2
+  - @voyant-travel/types@0.109.13
+  - @voyant-travel/core@0.140.2
+  - @voyant-travel/voyant-connect-adapter@0.24.1
+
 ## 0.79.7
 
 ### Patch Changes

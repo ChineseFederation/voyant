@@ -1,5 +1,16 @@
 # @voyant-travel/reporting
 
+## 0.3.20
+
+### Patch Changes
+
+- Updated dependencies [afb6866]
+- Updated dependencies [5d1b298]
+  - @voyant-travel/db@0.121.0
+  - @voyant-travel/hono@0.142.2
+  - @voyant-travel/types@0.109.13
+  - @voyant-travel/core@0.140.2
+
 ## 0.3.19
 
 ### Patch Changes

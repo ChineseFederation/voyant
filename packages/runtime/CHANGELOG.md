@@ -1,5 +1,29 @@
 # @voyant-travel/runtime
 
+## 0.22.0
+
+### Minor Changes
+
+- bd8f49a: Add the versioned authenticated admin shell bootstrap contract, managed-host
+  resolver seam, and TanStack Query hydration path for shell-critical state.
+- af9e8cd: Add explicit full and API-only Node host profiles for portable admin-shell deployments.
+
+### Patch Changes
+
+- Updated dependencies [bd8f49a]
+- Updated dependencies [afb6866]
+- Updated dependencies [1e0506f]
+- Updated dependencies [c181e4e]
+- Updated dependencies [5d1b298]
+  - @voyant-travel/admin-host@0.120.0
+  - @voyant-travel/auth@0.151.0
+  - @voyant-travel/db@0.121.0
+  - @voyant-travel/framework@0.80.0
+  - @voyant-travel/webhook-delivery@0.6.0
+  - @voyant-travel/apps@0.14.14
+  - @voyant-travel/hono@0.142.2
+  - @voyant-travel/core@0.140.2
+
 ## 0.21.44
 
 ### Patch Changes

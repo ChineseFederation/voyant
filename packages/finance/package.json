@@ -1,6 +1,6 @@
 {
   "name": "@voyant-travel/finance",
-  "version": "0.244.2",
+  "version": "0.244.3",
   "license": "Apache-2.0",
   "type": "module",
   "exports": {
