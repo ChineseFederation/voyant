@@ -173,6 +173,32 @@ Rule:
 
 Admin widget slots should be intentional and few, not everywhere by default.
 
+### Route-only extensions may opt into a lazy implementation boundary
+
+The resolved graph is the shell's lightweight descriptor authority. An admin
+facet may declare `loading: "lazy-routes"` only when it contributes routes or
+settings pages and no shell-critical navigation, setup steps, slots, or widget
+contributions. The generated admin bundle then emits route metadata plus a
+dynamic factory loader instead of a static implementation import.
+
+The route remains known to TanStack Router, so direct navigation and intent
+preloading work. Its loader checks the active-module snapshot from the
+authenticated shell bootstrap before importing the implementation. Disabled
+modules fail before code download, while import and implementation failures use
+the route's bounded loading/error boundary. The dynamic import is cached after
+the first successful resolution.
+
+This is an explicit graph policy, not a heuristic. A package that owns setup,
+widgets, runtime navigation, or slots stays eager until those contributions have
+their own complete lightweight descriptors. Moving such a package behind the
+route-only boundary would silently remove shell behavior and is rejected by the
+artifact generator.
+
+Rule:
+
+Use `admin.loading: "lazy-routes"` only for descriptor-complete route/settings
+extensions. Never infer laziness from a filename or package category.
+
 ## UI Layering
 
 ### 8. Keep runtime hooks and source-installed UI blocks separate

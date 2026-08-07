@@ -4,6 +4,7 @@ import type { AnyRoute } from "@tanstack/react-router"
 import { createMiddleware, createServerFn } from "@tanstack/react-start"
 import type { AdminAuthRuntime } from "@voyant-travel/admin/app"
 import {
+  ADMIN_ACTIVE_MODULES_QUERY_KEY,
   type AdminRouterContext,
   attachAdminExtensionRoutes,
   buildAdminExtensionRoutes,
@@ -395,7 +396,7 @@ function createPresentationRuntime(
       if (capabilities.has("admin.shell-bootstrap.entitlements")) {
         queryClient.setQueryData(["voyant", "admin", "entitlements"], bootstrap.entitlements)
       }
-      queryClient.setQueryData(["voyant", "admin", "active-modules"], bootstrap.activeModules)
+      queryClient.setQueryData(ADMIN_ACTIVE_MODULES_QUERY_KEY, bootstrap.activeModules)
     },
   })
   const mcpConsent = mcpConsentFactory?.()

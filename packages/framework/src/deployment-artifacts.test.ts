@@ -362,12 +362,68 @@ describe("deployment graph artifacts", () => {
     expect(source).not.toContain("SelectedAdminExtensionFactory")
     expect(source).not.toContain(" as const")
     expect(source).toContain("export function createSelectedGraphAdminExtensions(")
-    expect(source).toContain("Object.values(selectedGraphAdminExtensionFactories)")
+    expect(source).toContain("selectedGraphAdminExtensionLoadPlan.map")
 
     const declaration = buildGraphAdminBundleDeclarationModule({ graph })
     expect(declaration).toContain("SelectedAdminExtensionFactoryContext")
     expect(declaration).toContain("ReadonlyArray<AdminExtension>")
     expect(declaration).not.toContain("selectedAdminFactory0")
+  })
+
+  it("keeps opted-in route-only admin implementations behind dynamic imports", async () => {
+    const graph = await graphWithSelectedUnits([
+      defineModule({
+        id: "@acme/lazy-settings",
+        localId: "lazy-settings",
+        admin: {
+          loading: "lazy-routes",
+          runtime: { entry: "./admin", export: "createLazySettingsExtension" },
+          routes: [
+            {
+              id: "@acme/lazy-settings#admin.route.settings",
+              path: "/settings/lazy-settings",
+              runtime: { entry: "./admin", export: "createLazySettingsExtension" },
+            },
+          ],
+        },
+      }),
+    ])
+
+    const source = buildGraphAdminBundleModule({ graph })
+
+    expect(source).not.toContain("import { createLazySettingsExtension")
+    expect(source).toContain('load: () => import("@acme/lazy-settings/admin")')
+    expect(source).toContain('moduleId: "lazy-settings"')
+    expect(source).toContain('"path": "/settings/lazy-settings"')
+    expect(source).toContain("createLazySelectedAdminExtension")
+  })
+
+  it("rejects lazy route declarations that still own shell-critical nav", async () => {
+    const graph = await graphWithSelectedUnits([
+      defineModule({
+        id: "@acme/unsafe-lazy",
+        admin: {
+          loading: "lazy-routes",
+          runtime: { entry: "./admin", export: "createUnsafeExtension" },
+          routes: [
+            {
+              id: "@acme/unsafe-lazy#admin.route.index",
+              path: "/unsafe",
+              runtime: { entry: "./admin", export: "createUnsafeExtension" },
+            },
+          ],
+          nav: [
+            {
+              id: "@acme/unsafe-lazy#admin.nav.index",
+              routeId: "@acme/unsafe-lazy#admin.route.index",
+              label: { namespace: "unsafe", key: "title" },
+            },
+          ],
+        },
+      }),
+    ])
+
+    expect(() => buildGraphAdminBundleModule({ graph })).toThrow("lazy-routes cannot carry nav")
   })
 
   it("lowers only selected presentation factories in deterministic id order", async () => {
