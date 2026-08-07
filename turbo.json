@@ -34,6 +34,8 @@
         "CORS_ALLOWLIST",
         "CLOUDFLARE_ACCOUNT_ID",
         "CLOUDFLARE_API_TOKEN",
+        "VOYANT_IMAGE_REVISION",
+        "VOYANT_IMAGE_VERSION",
         "NODE_ENV"
       ]
     },

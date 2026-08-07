@@ -128,6 +128,34 @@ docker run --rm --network host --env-file apps/operator/.env \
 docker run --rm -p 8080:8080 --env-file apps/operator/.env voyant-operator
 ```
 
+The default command remains the complete self-hosted product. Managed cells can
+run the same image without the admin document/SSR host:
+
+```bash
+docker run --rm -p 8080:8080 --env-file apps/operator/.env \
+  voyant-operator node start-api-only.mjs
+```
+
+The API-only profile retains API/auth and discovery, health, scheduled/job
+hooks, background workers, and the separately invoked migration runner. It
+returns no admin document at `/`. Both profiles use the same graph and API
+runtime; this is a packaging profile, not a second product.
+
+Every build also places the portable shell at `/app/admin-shell`. Its
+`manifest.json` records the source revision, image version, graph hash, UI build
+ID, bootstrap compatibility range, and hashes for every fingerprinted client
+file. Export the exact same bytes without constructing another frontend:
+
+```bash
+docker build -f apps/operator/Dockerfile --target admin-shell-artifact \
+  --output type=local,dest=./operator-admin-shell .
+```
+
+The shell calls the API through the same-origin relative `/api` contract, so a
+plain reverse proxy can place this artifact in front of the API-only process.
+Project-local admin extensions remain part of the custom image that compiled
+them; they do not automatically enter a separately shared managed shell.
+
 Run the migration command once per rollout before starting new replicas. It
 executes the graph-native migration plan embedded in that exact image and exits
 non-zero if a migration fails; application startup does not run migrations.

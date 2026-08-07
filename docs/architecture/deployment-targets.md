@@ -86,6 +86,10 @@ workload class well. On Node none of it is necessary.
   `node run-generated-migrations.mjs` as an explicit pre-rollout command and
   boots `dist/server/server.js`, which validates graph artifacts and required
   graph resource env before serving traffic. Startup does not own migrations.
+  That default command remains the full admin/API host. The same image's
+  `node start-api-only.mjs` profile constructs the API/auth/job runtime without
+  importing the admin document host, and the `admin-shell-artifact` Docker
+  target exports the exact shell bytes embedded at `/app/admin-shell`.
   The public OSS artifact is published only as
   `ghcr.io/voyant-travel/operator`; production control planes pin its immutable
   digest. Self-hosters deploy that digest directly. A private downstream product

@@ -33,6 +33,23 @@ vi.mock("@voyant-travel/auth/storefront-channel-binding-provider", () => ({
 const mocks = getRuntimeCompositionMocks()
 
 describe("Voyant project runtime composition", () => {
+  it("keeps the API-only profile out of the admin document host", async () => {
+    const projectRoot = await createGeneratedProject()
+    const project = await loadVoyantProject({
+      projectRoot,
+      hostProfile: "api-only",
+      env: { DATABASE_URL: "postgres://example.invalid/voyant" },
+    })
+
+    expect(mocks.adminHostOptions).toHaveLength(0)
+    await project.fetch(new Request("https://operator.test/api/openapi.json"))
+    expect(mocks.runtimeFetch).toHaveBeenCalledWith(
+      expect.objectContaining({ url: "https://operator.test/api/openapi.json" }),
+      expect.anything(),
+      expect.anything(),
+    )
+  })
+
   it("uses a statically injected generated runtime without importing a second framework graph", async () => {
     const projectRoot = await createGeneratedProject()
     const generatedProjectRuntime = {

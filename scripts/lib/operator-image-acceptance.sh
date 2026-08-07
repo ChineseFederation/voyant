@@ -106,3 +106,37 @@ operator_image_boot_and_assert() {
   echo "api dispatch -> $api"
   test "$api" -lt 500
 }
+
+operator_image_verify_shell_artifact() {
+  local image_ref="$1"
+  docker run --rm "$image_ref" node verify-operator-admin-shell.mjs /app/admin-shell
+}
+
+operator_image_boot_api_only_and_assert() {
+  local image_ref="$1"
+  local container="$2"
+  local port="$3"
+
+  docker run --detach --name "$container" --network host \
+    "${OPERATOR_IMAGE_ENV_ARGS[@]}" "$image_ref" node start-api-only.mjs >/dev/null
+
+  local _
+  for _ in $(seq 1 60); do
+    if curl -sf -o /dev/null "http://localhost:$port/healthz"; then
+      break
+    fi
+    sleep 1
+  done
+
+  local health api admin content_type
+  health=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:$port/healthz")
+  api=$(curl -s -o /dev/null -w "%{http_code}" --max-time 20 \
+    "http://localhost:$port/api/openapi.json")
+  admin=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:$port/")
+  content_type=$(curl -s -o /dev/null -w "%{content_type}" "http://localhost:$port/")
+  echo "api-only healthz -> $health; api -> $api; admin -> $admin ($content_type)"
+  test "$health" = "200"
+  test "$api" -lt 500
+  test "$admin" != "200"
+  [[ "$content_type" != text/html* ]]
+}

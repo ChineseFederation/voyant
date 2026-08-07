@@ -15,6 +15,8 @@ const ACCEPTANCE_LIB = "scripts/lib/operator-image-acceptance.sh"
 const BASELINE = "scripts/resolve-upgrade-baseline.mjs"
 const RELEASE_HEALTH = "scripts/checks/image/release-health.json"
 const IDENTITY = "scripts/verify-operator-image-identity.mjs"
+const SHELL_PACKAGER = "scripts/package-operator-admin-shell.mjs"
+const SHELL_IDENTITY = "scripts/verify-operator-admin-shell.mjs"
 const CONTRACT = "docs/architecture/operator-image-distribution.md"
 const EXPRESSION_START = "$" + "{{"
 const violations = []
@@ -42,6 +44,8 @@ const upgrade = source(UPGRADE)
 const acceptanceLib = source(ACCEPTANCE_LIB)
 const baseline = source(BASELINE)
 const identity = source(IDENTITY)
+const shellPackager = source(SHELL_PACKAGER)
+const shellIdentity = source(SHELL_IDENTITY)
 const contract = source(CONTRACT)
 
 if (/^\s*pull_request\s*:/m.test(workflow)) {
@@ -140,6 +144,14 @@ requireFragments(WORKFLOW, workflow, [
   ],
   ["provenance: mode=max", "workflow must emit maximum BuildKit provenance"],
   ["sbom: true", "workflow must emit an SBOM"],
+  [
+    `operator-admin-shell-${EXPRESSION_START} needs.plan.outputs.version }}`,
+    "workflow must publish the shell companion under the image version",
+  ],
+  [
+    'docker cp "$container:/app/admin-shell/."',
+    "shell publication must copy the exact bytes embedded in the accepted image",
+  ],
   ["actions/attest-build-provenance@", "workflow must attach registry build provenance"],
   ['version="sha-$GITHUB_SHA"', "main publication must use a full immutable SHA tag"],
   ["Immutable release tag", "release publication must reject an existing tag"],
@@ -221,6 +233,9 @@ requireFragments(DOCKERFILE, dockerfile, [
   ["org.opencontainers.image.source", "runtime image must label its source"],
   ["org.opencontainers.image.revision", "runtime image must label its revision"],
   ["org.opencontainers.image.version", "runtime image must label its version"],
+  ["AS admin-shell-artifact", "image build must expose the portable shell target"],
+  ["start-api-only.mjs", "runtime image must carry the API-only entrypoint"],
+  ["./admin-shell", "runtime image must embed the shell artifact built from the same bytes"],
 ])
 requireFragments(OPERATOR_README, operatorReadme, [
   [
@@ -237,6 +252,18 @@ requireFragments(ACCEPTANCE_LIB, acceptanceLib, [
   ["node run-generated-migrations.mjs", "image acceptance must run embedded migrations"],
   ["/healthz", "image acceptance must check liveness"],
   ["/api/openapi.json", "image acceptance must dispatch the API"],
+  ["operator_image_boot_api_only_and_assert", "image acceptance must boot the API-only profile"],
+  ["operator_image_verify_shell_artifact", "image acceptance must verify shell file identity"],
+])
+requireFragments(SHELL_PACKAGER, shellPackager, [
+  ["voyant.admin-shell-artifact.v1", "shell packaging must emit a versioned manifest"],
+  ['apiBasePath: "/api"', "shell packaging must retain a same-origin API base"],
+  ["graphHash", "shell packaging must record graph identity"],
+  ["uiBuildId", "shell packaging must record UI build identity"],
+])
+requireFragments(SHELL_IDENTITY, shellIdentity, [
+  ["file identity mismatch", "shell verification must hash every manifested file"],
+  ["shellBootstrap", "shell verification must enforce compatibility metadata"],
 ])
 for (const [path, text] of [
   [SMOKE, smoke],

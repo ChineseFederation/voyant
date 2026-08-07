@@ -20,11 +20,13 @@ on:
       - "scripts/generate-operator-application-manifest.mjs"
       - "scripts/generate-operator-application-metadata.mjs"
       - "scripts/lib/operator-image-acceptance.sh"
+      - "scripts/package-operator-admin-shell.mjs"
       - "scripts/resolve-upgrade-baseline.mjs"
       - "scripts/run-generated-migrations.mjs"
       - "scripts/smoke-operator-image.sh"
       - "scripts/upgrade-operator-image.sh"
       - "scripts/verify-operator-image-identity.mjs"
+      - "scripts/verify-operator-admin-shell.mjs"
       - "turbo.json"
   workflow_dispatch:
     inputs:
@@ -221,6 +223,27 @@ jobs:
 
       - name: Migrate, boot, and API-smoke the native platform digest
         run: scripts/smoke-operator-image.sh "${{ steps.platform.outputs.ref }}"
+
+      - name: Extract the byte-identical admin shell companion
+        if: matrix.arch == 'amd64'
+        shell: bash
+        run: |
+          set -euo pipefail
+          container=$(docker create "${{ steps.platform.outputs.ref }}")
+          trap 'docker rm -f "$container" >/dev/null 2>&1 || true' EXIT
+          mkdir -p /tmp/operator-admin-shell
+          docker cp "$container:/app/admin-shell/." /tmp/operator-admin-shell/
+          node scripts/verify-operator-admin-shell.mjs /tmp/operator-admin-shell
+
+      - name: Publish the admin shell companion artifact
+        if: matrix.arch == 'amd64'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: operator-admin-shell-${{ needs.plan.outputs.version }}
+          path: /tmp/operator-admin-shell
+          if-no-files-found: error
+          overwrite: true
+          retention-days: 30
 
       - name: Upload the platform digest receipt
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
