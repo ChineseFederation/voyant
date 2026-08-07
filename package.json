@@ -111,6 +111,7 @@
     "report:agent-write-coverage": "tsx scripts/check-agent-write-coverage.ts --report",
     "verify:agent-write-coverage": "node --test scripts/tests/check-agent-write-coverage.test.mjs && tsx scripts/check-agent-write-coverage.ts",
     "report:agent-tool-coverage": "tsx scripts/check-agent-tool-coverage.ts --report",
+    "eval:mcp-capability": "node scripts/run-mcp-capability-eval.mjs",
     "verify:agent-tool-coverage": "node --test scripts/tests/check-agent-tool-coverage.test.mjs && tsx scripts/check-agent-tool-coverage.ts",
     "verify:tool-refinement-visibility": "tsx scripts/check-tool-refinement-visibility.ts",
     "verify:first-party-tool-output-schemas": "node --test scripts/tests/check-first-party-tool-output-schemas.test.mjs && node scripts/check-first-party-tool-output-schemas.mjs",

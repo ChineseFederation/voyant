@@ -46,15 +46,16 @@
  * the product before the departure — because that dependency is exactly what an
  * endpoint-shaped surface makes hard and what #3921 is trying to fix.
  */
-import { readFileSync } from "node:fs"
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { homedir } from "node:os"
-import { join } from "node:path"
+import { dirname, join, resolve } from "node:path"
 import { createDbClient } from "@voyant-travel/db"
+import { dbClientDispose } from "@voyant-travel/db/transaction-capability"
 import { financeService } from "@voyant-travel/finance"
 import { composeVoyantGraphRuntime } from "@voyant-travel/framework"
 import { sql as sqlRaw } from "drizzle-orm"
 import { Hono } from "hono"
-import { beforeAll, describe, expect, it } from "vitest"
+import { afterAll, beforeAll, describe, expect, it } from "vitest"
 
 import { accessCatalog } from "../.voyant/access/selected-access-catalog.generated"
 import {
@@ -75,7 +76,9 @@ function resolveKey(): string | undefined {
   }
 }
 const apiKey = resolveKey()
-const MODEL = process.env.VOYANT_EVAL_MODEL ?? "gpt-4o"
+const MODEL = process.env.VOYANT_EVAL_MODEL ?? "gpt-5.6-terra"
+const REASONING_EFFORT = "medium"
+const REPORT_FILE = process.env.VOYANT_EVAL_REPORT_FILE?.trim()
 const enabled = Boolean(TEST_DATABASE_URL && apiKey)
 
 /** A live model turn plus a real dispatch is slow; the default would time out on latency. */
@@ -169,70 +172,80 @@ async function runJourney(input: {
   /** The server's own `instructions`, exactly as a real MCP client surfaces them. */
   serverInstructions: string
 }): Promise<JourneyRun> {
-  const messages: Array<Record<string, unknown>> = [
-    {
-      role: "system",
-      content:
-        "You are the back-office agent for a travel operator, connected to its MCP server. " +
-        "Use the tools to actually perform the work end to end. Never invent data. If a write " +
-        "reports that confirmation or approval is required, follow the instructions in the " +
-        "error and complete it. Finish by stating what you created, including any ids." +
-        // A real MCP client reads `instructions` from `initialize` and puts it in
-        // front of the model. This harness did not, which made it a WORSE client
-        // than the ones we ship to — and the guide layer (voyant#3931) exists
-        // precisely to orient the agent before its first call. Measuring a surface
-        // while withholding its own operating instructions measures the harness.
-        (input.serverInstructions
-          ? `\n\n--- server instructions ---\n${input.serverInstructions}`
-          : ""),
-    },
-    { role: "user", content: input.task },
-  ]
+  const instructions =
+    "You are the back-office agent for a travel operator, connected to its MCP server. " +
+    "Use the tools to actually perform the work end to end. Never invent data. If a write " +
+    "reports that confirmation or approval is required, follow the instructions in the " +
+    "error and complete it. Finish by stating what you created, including any ids." +
+    // A real MCP client reads `instructions` from `initialize` and puts it in
+    // front of the model. This harness did not, which made it a WORSE client
+    // than the ones we ship to — and the guide layer (voyant#3931) exists
+    // precisely to orient the agent before its first call. Measuring a surface
+    // while withholding its own operating instructions measures the harness.
+    (input.serverInstructions ? `\n\n--- server instructions ---\n${input.serverInstructions}` : "")
   const calls: ToolCallRecord[] = []
   let tokens = 0
+  let previousResponseId: string | undefined
+  let nextInput: unknown = input.task
 
   for (let turn = 0; turn <= input.maxCalls; turn += 1) {
-    const res = await fetch("https://api.openai.com/v1/chat/completions", {
+    const res = await fetch("https://api.openai.com/v1/responses", {
       method: "POST",
       headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
       body: JSON.stringify({
         model: MODEL,
-        messages,
+        instructions,
+        input: nextInput,
         tools: input.tools,
         tool_choice: "auto",
-        temperature: 0,
+        reasoning: { effort: REASONING_EFFORT },
+        previous_response_id: previousResponseId,
+        store: true,
       }),
     })
     if (!res.ok) throw new Error(`OpenAI ${res.status}: ${(await res.text()).slice(0, 300)}`)
     const body = (await res.json()) as {
-      choices?: Array<{ message: Record<string, unknown> }>
-      usage?: { prompt_tokens?: number; completion_tokens?: number }
+      id?: string
+      output_text?: string
+      output?: Array<
+        | { type: "function_call"; call_id: string; name: string; arguments: string }
+        | { type: string; content?: Array<{ type?: string; text?: string }> }
+      >
+      usage?: { input_tokens?: number; output_tokens?: number }
     }
-    tokens += (body.usage?.prompt_tokens ?? 0) + (body.usage?.completion_tokens ?? 0)
-    const message = body.choices?.[0]?.message
-    if (!message) throw new Error("OpenAI returned no message")
-    messages.push(message)
-
-    const toolCalls =
-      (message.tool_calls as Array<{
-        id: string
-        function: { name: string; arguments: string }
-      }>) ?? []
+    if (!body.id) throw new Error("OpenAI returned no response id")
+    previousResponseId = body.id
+    tokens += (body.usage?.input_tokens ?? 0) + (body.usage?.output_tokens ?? 0)
+    const toolCalls = (body.output ?? []).filter(
+      (item): item is Extract<NonNullable<typeof body.output>[number], { type: "function_call" }> =>
+        item.type === "function_call",
+    )
     if (toolCalls.length === 0) {
-      return { calls, answer: String(message.content ?? ""), tokens, exhausted: false }
+      const text =
+        body.output_text ??
+        (body.output ?? [])
+          .flatMap((item) => ("content" in item ? (item.content ?? []) : []))
+          .map((content) => content.text ?? "")
+          .join("")
+      return { calls, answer: text, tokens, exhausted: false }
     }
 
+    const functionOutputs: Array<{
+      type: "function_call_output"
+      call_id: string
+      output: string
+    }> = []
     for (const call of toolCalls) {
       let args: Record<string, unknown> = {}
       try {
-        args = JSON.parse(call.function.arguments || "{}") as Record<string, unknown>
+        args = JSON.parse(call.arguments || "{}") as Record<string, unknown>
       } catch {
         args = {}
       }
       const rpcBody = await readRpc(
         await input.app.request(
           "/",
-          rpc("tools/call", { name: call.function.name, arguments: args }),
+          rpc("tools/call", { name: call.name, arguments: args }),
           TEST_ENV,
           TEST_CTX,
         ),
@@ -246,13 +259,14 @@ async function runJourney(input: {
           : (result?.content?.[0]?.text ?? JSON.stringify(rpcBody))
       ).slice(0, 12_000)
       calls.push({
-        name: call.function.name,
+        name: call.name,
         args,
         isError: result?.isError === true,
         snippet: text.slice(0, 300),
       })
-      messages.push({ role: "tool", tool_call_id: call.id, content: text })
+      functionOutputs.push({ type: "function_call_output", call_id: call.call_id, output: text })
     }
+    nextInput = functionOutputs
   }
   return { calls, answer: "", tokens, exhausted: true }
 }
@@ -692,6 +706,77 @@ function report(): string {
   return lines.join("\n")
 }
 
+function writeMachineReport(): void {
+  if (!REPORT_FILE) return
+
+  const destination = resolve(REPORT_FILE)
+  const journeys = JOURNEYS.map((journey) => {
+    const journeyAttempts = attempts.get(journey.id) ?? []
+    const outcomes = passes.get(journey.id) ?? []
+    return {
+      id: journey.id,
+      domain: journey.domain,
+      classification: journey.knownGap
+        ? "known-gap"
+        : journey.intermittent
+          ? "intermittent"
+          : "gated",
+      passCount: outcomes.filter(Boolean).length,
+      attemptCount: outcomes.length,
+      callBudget: journey.maxCalls,
+      attempts: journeyAttempts.map((attempt, index) => ({
+        index: index + 1,
+        passed: outcomes[index] ?? false,
+        calls: attempt.calls.length,
+        errors: attempt.calls.filter((call) => call.isError).length,
+        tokens: attempt.tokens,
+        exhausted: attempt.exhausted,
+        trace: attempt.calls.map((call) => ({
+          name: call.name,
+          isError: call.isError,
+          args: JSON.stringify(call.args).slice(0, 1_000),
+          result: call.snippet.slice(0, 1_000),
+        })),
+        answer: attempt.answer.slice(0, 2_000),
+      })),
+    }
+  })
+
+  mkdirSync(dirname(destination), { recursive: true })
+  writeFileSync(
+    destination,
+    `${JSON.stringify(
+      {
+        schemaVersion: 1,
+        generatedAt: new Date().toISOString(),
+        model: MODEL,
+        reasoningEffort: MODEL.startsWith("gpt-5") ? REASONING_EFFORT : null,
+        runMark: RUN_MARK,
+        configuredRuns: RUNS,
+        journeys,
+        totals: {
+          journeys: journeys.length,
+          attempts: journeys.reduce((total, journey) => total + journey.attemptCount, 0),
+          passes: journeys.reduce((total, journey) => total + journey.passCount, 0),
+          calls: journeys.reduce(
+            (total, journey) =>
+              total + journey.attempts.reduce((sum, attempt) => sum + attempt.calls, 0),
+            0,
+          ),
+          tokens: journeys.reduce(
+            (total, journey) =>
+              total + journey.attempts.reduce((sum, attempt) => sum + attempt.tokens, 0),
+            0,
+          ),
+        },
+      },
+      null,
+      2,
+    )}\n`,
+  )
+  process.stdout.write(`machine report: ${destination}\n`)
+}
+
 describe.skipIf(!enabled)("MCP capability — a travel agent's job", () => {
   beforeAll(
     async () => {
@@ -743,11 +828,9 @@ describe.skipIf(!enabled)("MCP capability — a travel agent's job", () => {
         (listed.result as { tools?: Array<Record<string, unknown>> } | undefined)?.tools ?? []
       ).map((tool) => ({
         type: "function" as const,
-        function: {
-          name: String(tool.name),
-          description: String(tool.description ?? "").slice(0, 1024),
-          parameters: tool.inputSchema ?? { type: "object", properties: {} },
-        },
+        name: String(tool.name),
+        description: String(tool.description ?? "").slice(0, 1024),
+        parameters: tool.inputSchema ?? { type: "object", properties: {} },
       }))
 
       for (let attempt = 0; attempt < RUNS; attempt += 1) {
@@ -803,9 +886,15 @@ describe.skipIf(!enabled)("MCP capability — a travel agent's job", () => {
         }
       }
       process.stdout.write(`\n${report()}\n\n`)
+      writeMachineReport()
     },
     JOURNEY_TIMEOUT_MS * JOURNEYS.length * RUNS,
   )
+
+  afterAll(async () => {
+    const dispose = dbClientDispose(verifyDb)
+    if (dispose) await dispose()
+  })
 
   it.each(
     JOURNEYS.filter((journey) => journey.intermittent),
