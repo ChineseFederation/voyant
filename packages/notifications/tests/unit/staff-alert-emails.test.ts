@@ -71,6 +71,29 @@ describe("staff alert formatters", () => {
 })
 
 describe("renderStaffAlertEmail", () => {
+  it("renders a booking inquiry with the shopper question and selection", async () => {
+    const email = await renderStaffAlertEmail({
+      eventKey: "staff.booking.inquiry-created",
+      context: {
+        ...base,
+        adminPath: "/bookings/inquiries/bkin_1",
+        inquiryId: "bkin_1",
+        contact: { name: "Ana Popescu", email: "ana@example.com" },
+        contactPhone: "+40700000000",
+        productId: "prod_1",
+        departureId: "departure_1",
+        locale: "ro",
+        message: "Mai sunt locuri?",
+      },
+      brand,
+    })
+
+    expect(email.subject).toContain("Ana Popescu")
+    expect(email.html).toContain("Mai sunt locuri?")
+    expect(email.html).toContain("departure_1")
+    expect(email.html).toContain("/bookings/inquiries/bkin_1")
+  })
+
   it("renders a booking confirmation carrying the facts staff triage on", async () => {
     const email = await renderStaffAlertEmail({
       eventKey: "staff.booking.confirmed",

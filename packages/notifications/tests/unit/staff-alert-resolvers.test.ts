@@ -1,4 +1,4 @@
-import { bookingsService } from "@voyant-travel/bookings"
+import { bookingInquiriesService, bookingsService } from "@voyant-travel/bookings"
 import { relationshipsService } from "@voyant-travel/relationships"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import { afterEach, describe, expect, it, vi } from "vitest"
@@ -63,6 +63,33 @@ describe("staff alert resolvers", () => {
       payload: { bookingId: "bk_gone" },
     })
     expect(context).toBeNull()
+  })
+
+  it("resolves a durable booking inquiry for staff triage", async () => {
+    vi.spyOn(bookingInquiriesService, "getById").mockResolvedValue({
+      id: "bkin_1",
+      contactFirstName: "Ana",
+      contactLastName: "Popescu",
+      contactEmail: "ana@example.com",
+      contactPhone: "+40700000000",
+      productId: "prod_1",
+      departureId: "departure_1",
+      locale: "ro",
+      message: "Mai sunt locuri?",
+    } as unknown as Awaited<ReturnType<typeof bookingInquiriesService.getById>>)
+
+    const context = await staffAlertContextResolvers["staff.booking.inquiry-created"]?.resolve({
+      db,
+      payload: { inquiryId: "bkin_1" },
+    })
+
+    expect(context).toMatchObject({
+      inquiryId: "bkin_1",
+      contact: { name: "Ana Popescu", email: "ana@example.com" },
+      productId: "prod_1",
+      departureId: "departure_1",
+      adminPath: "/bookings/inquiries/bkin_1",
+    })
   })
 
   it("carries the enquiry's assignee, the one alert with real assignment data", async () => {

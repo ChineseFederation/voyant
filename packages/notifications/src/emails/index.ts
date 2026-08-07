@@ -32,6 +32,7 @@ export type { RenderedStaffAlertEmail, RenderStaffAlertEmailInput } from "./rend
 export { renderStaffAlertEmail } from "./render.js"
 export { StaffBookingCancelledEmail } from "./staff/booking-cancelled.js"
 export { StaffBookingConfirmedEmail } from "./staff/booking-confirmed.js"
+export { StaffBookingInquiryCreatedEmail } from "./staff/booking-inquiry-created.js"
 export { StaffContractSignedEmail } from "./staff/contract-signed.js"
 export { StaffCustomerSignalCreatedEmail } from "./staff/customer-signal-created.js"
 export { StaffInvoiceSettledEmail } from "./staff/invoice-settled.js"

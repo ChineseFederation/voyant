@@ -68,7 +68,7 @@ function getRouteRuntime(c: Context): BookingRouteRuntime {
   }
 }
 
-function activeStorefrontOrigin(c: Context<Env>) {
+export function activeStorefrontOrigin(c: Context<Env>) {
   const storefrontChannel = c.get("storefrontChannel")
   if (
     !storefrontChannel?.storefrontId ||

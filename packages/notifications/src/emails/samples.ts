@@ -33,6 +33,18 @@ const SAMPLES: { [K in StaffAlertEventKey]: StaffAlertContextMap[K] } = {
     previousStatus: "confirmed",
     reason: "Customer changed travel dates",
   },
+  "staff.booking.inquiry-created": {
+    adminPath: "/bookings/inquiries/bkin_sample",
+    assigneeUserId: null,
+    actorUserId: null,
+    inquiryId: "bkin_sample",
+    contact: { name: "Ana Popescu", email: "ana.popescu@example.com" },
+    contactPhone: "+40 700 000 000",
+    productId: "prod_kilimanjaro",
+    departureId: "departure_march",
+    locale: "ro",
+    message: "Mai sunt două locuri pentru plecarea din martie?",
+  },
   "staff.payment.completed": {
     adminPath: "/bookings/bk_sample",
     assigneeUserId: null,

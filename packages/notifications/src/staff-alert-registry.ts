@@ -27,6 +27,7 @@
 export const STAFF_ALERT_EVENT_KEYS = [
   "staff.booking.confirmed",
   "staff.booking.cancelled",
+  "staff.booking.inquiry-created",
   "staff.payment.completed",
   "staff.invoice.settled",
   "staff.contract.signed",
@@ -91,6 +92,16 @@ export interface StaffBookingCancelledContext extends StaffAlertContextBase {
   reason: string | null
 }
 
+export interface StaffBookingInquiryCreatedContext extends StaffAlertContextBase {
+  inquiryId: string
+  contact: StaffAlertParty | null
+  contactPhone: string | null
+  productId: string
+  departureId: string | null
+  locale: string
+  message: string
+}
+
 export interface StaffPaymentCompletedContext extends StaffAlertContextBase {
   paymentSessionId: string
   bookingId: string | null
@@ -133,6 +144,7 @@ export interface StaffCustomerSignalCreatedContext extends StaffAlertContextBase
 export interface StaffAlertContextMap {
   "staff.booking.confirmed": StaffBookingConfirmedContext
   "staff.booking.cancelled": StaffBookingCancelledContext
+  "staff.booking.inquiry-created": StaffBookingInquiryCreatedContext
   "staff.payment.completed": StaffPaymentCompletedContext
   "staff.invoice.settled": StaffInvoiceSettledContext
   "staff.contract.signed": StaffContractSignedContext
@@ -192,6 +204,15 @@ export const STAFF_ALERT_DEFINITIONS = [
     supportsAssigneeRouting: false,
     defaultRoles: ["owner", "admin"],
     templateSlug: "staff.booking.cancelled",
+  },
+  {
+    key: "staff.booking.inquiry-created",
+    eventType: "booking.inquiry.created",
+    group: "sales",
+    defaultEnabled: false,
+    supportsAssigneeRouting: false,
+    defaultRoles: ["owner", "admin", "member"],
+    templateSlug: "staff.booking.inquiry-created",
   },
   {
     key: "staff.payment.completed",

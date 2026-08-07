@@ -30,6 +30,18 @@ export const staffAlertEmailMessagesEn: StaffAlertEmailMessages = {
     reason: "Reason",
     previousStatus: "Previous status",
   },
+  bookingInquiryCreated: {
+    eyebrow: "New booking inquiry",
+    subject: (customerName) => `New booking inquiry from ${customerName}`,
+    preview: (customerName) => `${customerName} asked about a booking.`,
+    headline: (customerName) => `${customerName} asked first`,
+    lead: "A shopper submitted a question before booking and is waiting for a response.",
+    phone: "Phone",
+    product: "Product",
+    departure: "Departure",
+    locale: "Language",
+    message: "Message",
+  },
   paymentCompleted: {
     eyebrow: "Payment received",
     subject: (amount) => `Payment received — ${amount}`,

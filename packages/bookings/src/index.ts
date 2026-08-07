@@ -12,6 +12,7 @@ import {
 } from "./route-runtime.js"
 import { bookingRoutes } from "./routes.js"
 import { bookingAmendmentPublicRoutes } from "./routes-amendments.js"
+import { bookingInquiryPublicRoutes } from "./routes-inquiries.js"
 import { publicBookingRoutes } from "./routes-public.js"
 import { createPublicBookingActionRoutes } from "./routes-public-booking-actions.js"
 import { createBookingsRuntime } from "./runtime.js"
@@ -179,6 +180,7 @@ export function createBookingsApiModule(options: BookingsApiModuleOptions = {}):
     module,
     adminRoutes: bookingRoutes,
     publicRoutes: new OpenAPIHono()
+      .route("/", bookingInquiryPublicRoutes)
       .route("/", publicBookingRoutes)
       .route("/", bookingAmendmentPublicRoutes)
       .route("/", createPublicBookingActionRoutes(options.bookingActions)),
@@ -272,6 +274,12 @@ export {
   buildBookingRouteRuntime,
 } from "./route-runtime.js"
 export type { BookingActionLedgerListResponse, BookingRoutes } from "./routes.js"
+export {
+  bookingInquiryAdminRoutes,
+  bookingInquiryPublicRoutes,
+  createBookingInquiryAdminRoutes,
+  createBookingInquiryPublicRoutes,
+} from "./routes-inquiries.js"
 export type { PublicBookingRoutes } from "./routes-public.js"
 export { publicBookingRoutes } from "./routes-public.js"
 export type { BookingsRuntimeProvider } from "./runtime-port.js"
@@ -311,6 +319,7 @@ export type {
   BookingFulfillment,
   BookingGroup,
   BookingGroupMember,
+  BookingInquiry,
   BookingItem,
   BookingItemTraveler,
   BookingNote,
@@ -330,6 +339,7 @@ export type {
   NewBookingFulfillment,
   NewBookingGroup,
   NewBookingGroupMember,
+  NewBookingInquiry,
   NewBookingItem,
   NewBookingItemTraveler,
   NewBookingNote,
@@ -349,6 +359,7 @@ export {
   bookingGroupMemberRoleEnum,
   bookingGroupMembers,
   bookingGroups,
+  bookingInquiries,
   bookingItems,
   bookingItemTravelers,
   bookingNotes,
@@ -361,6 +372,15 @@ export {
   bookings,
   bookingTravelers,
 } from "./schema.js"
+export {
+  BOOKING_INQUIRY_CREATED_EVENT,
+  type BookingInquiryContact,
+  type BookingInquiryCreatedEvent,
+  type BookingInquiryServiceRuntime,
+  bookingInquiriesService,
+  type SubmitBookingInquiryInput,
+  type SubmitBookingInquiryResult,
+} from "./service-inquiries.js"
 export {
   publicBookingsService,
   resolveSessionPricingSnapshot,
@@ -409,3 +429,10 @@ export {
   updateTravelerWithTravelDetailsSchema,
   upsertTravelerTravelDetailsSchema,
 } from "./validation.js"
+export {
+  type BookingInquiryReceipt,
+  bookingInquiryContactSchema,
+  bookingInquiryReceiptSchema,
+  type SubmitBookingInquiryRequest,
+  submitBookingInquirySchema,
+} from "./validation-inquiries.js"

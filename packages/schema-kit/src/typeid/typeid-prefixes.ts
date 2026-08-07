@@ -82,6 +82,7 @@ export const PREFIXES = {
   product_versions: "pver",
   product_notes: "prnt",
   bookings: "book",
+  booking_inquiries: "bkin",
   booking_travelers: "bkpt",
   booking_participants: "bkpt",
   booking_items: "bkit",

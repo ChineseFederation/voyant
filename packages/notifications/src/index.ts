@@ -143,6 +143,7 @@ export type {
   StaffAlertParty,
   StaffBookingCancelledContext,
   StaffBookingConfirmedContext,
+  StaffBookingInquiryCreatedContext,
   StaffContractSignedContext,
   StaffCustomerSignalCreatedContext,
   StaffInvoiceSettledContext,

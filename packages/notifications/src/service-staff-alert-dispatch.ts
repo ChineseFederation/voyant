@@ -96,6 +96,10 @@ function targetFor(
         bookingId: typed.bookingId,
       }
     }
+    case "staff.booking.inquiry-created": {
+      const typed = context as StaffAlertContextMap["staff.booking.inquiry-created"]
+      return { ...empty, targetType: "other", targetId: typed.inquiryId }
+    }
     case "staff.payment.completed": {
       const typed = context as StaffAlertContextMap["staff.payment.completed"]
       return {

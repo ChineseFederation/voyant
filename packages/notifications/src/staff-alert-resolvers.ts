@@ -13,7 +13,7 @@
  * not apply to. That is a normal outcome; only genuine failures throw.
  */
 
-import { bookingsService } from "@voyant-travel/bookings"
+import { bookingInquiriesService, bookingsService } from "@voyant-travel/bookings"
 // Narrow entry on purpose: the `@voyant-travel/finance` barrel is forbidden
 // here (see `module.test.ts`) because it drags the whole 87k-line module
 // into the import closure. `service-invoice-core` carries two imports.
@@ -116,6 +116,33 @@ const bookingCancelledResolver: StaffAlertContextResolver<"staff.booking.cancell
       total: moneyFromBooking(booking),
       previousStatus: asString(payload.previousStatus) ?? "confirmed",
       reason: asString(payload.reason),
+    }
+  },
+}
+
+const bookingInquiryCreatedResolver: StaffAlertContextResolver<"staff.booking.inquiry-created"> = {
+  eventKey: "staff.booking.inquiry-created",
+  async resolve({ db, payload }) {
+    const inquiryId = asString(payload.inquiryId)
+    if (!inquiryId) return null
+    const inquiry = await bookingInquiriesService.getById(db as PostgresJsDatabase, inquiryId)
+    if (!inquiry) return null
+    const name = [inquiry.contactFirstName, inquiry.contactLastName]
+      .filter(Boolean)
+      .join(" ")
+      .trim()
+
+    return {
+      adminPath: `/bookings/inquiries/${inquiry.id}`,
+      assigneeUserId: null,
+      actorUserId: null,
+      inquiryId: inquiry.id,
+      contact: name ? { name, email: inquiry.contactEmail } : null,
+      contactPhone: inquiry.contactPhone,
+      productId: inquiry.productId,
+      departureId: inquiry.departureId,
+      locale: inquiry.locale,
+      message: inquiry.message,
     }
   },
 }
@@ -261,6 +288,7 @@ const customerSignalCreatedResolver: StaffAlertContextResolver<"staff.customer-s
 export const staffAlertContextResolvers: StaffAlertContextResolverRegistry = {
   "staff.booking.confirmed": bookingConfirmedResolver,
   "staff.booking.cancelled": bookingCancelledResolver,
+  "staff.booking.inquiry-created": bookingInquiryCreatedResolver,
   "staff.payment.completed": paymentCompletedResolver,
   "staff.invoice.settled": invoiceSettledResolver,
   "staff.contract.signed": contractSignedResolver,

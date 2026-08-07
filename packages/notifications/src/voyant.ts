@@ -457,6 +457,15 @@ export const notificationsReminderSubscribersVoyantPlugin = defineExtension({
       },
     },
     {
+      id: "@voyant-travel/notifications#subscriber.staff.booking.inquiry-created",
+      eventType: "booking.inquiry.created",
+      source: "@voyant-travel/notifications/staff-alert-subscriber",
+      runtime: {
+        entry: "@voyant-travel/notifications/staff-alert-subscriber",
+        export: "notificationsStaffBookingInquiryCreatedAlertSubscriber",
+      },
+    },
+    {
       id: "@voyant-travel/notifications#subscriber.staff.payment.completed",
       eventType: "payment.completed",
       source: "@voyant-travel/notifications/staff-alert-subscriber",

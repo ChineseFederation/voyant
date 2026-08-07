@@ -7,6 +7,7 @@ import { formatMoney } from "./format.js"
 import { staffAlertEmailMessagesFor } from "./messages/index.js"
 import { StaffBookingCancelledEmail } from "./staff/booking-cancelled.js"
 import { StaffBookingConfirmedEmail } from "./staff/booking-confirmed.js"
+import { StaffBookingInquiryCreatedEmail } from "./staff/booking-inquiry-created.js"
 import { StaffContractSignedEmail } from "./staff/contract-signed.js"
 import { StaffCustomerSignalCreatedEmail } from "./staff/customer-signal-created.js"
 import { StaffInvoiceSettledEmail } from "./staff/invoice-settled.js"
@@ -64,6 +65,17 @@ function selectTemplate<K extends StaffAlertEventKey>(
       return {
         element: <StaffBookingCancelledEmail context={context} brand={brand} messages={messages} />,
         subject: messages.bookingCancelled.subject(context.bookingNumber),
+      }
+    }
+    case "staff.booking.inquiry-created": {
+      const context = input.context as StaffAlertContextMap["staff.booking.inquiry-created"]
+      return {
+        element: (
+          <StaffBookingInquiryCreatedEmail context={context} brand={brand} messages={messages} />
+        ),
+        subject: messages.bookingInquiryCreated.subject(
+          context.contact?.name ?? messages.common.unknownCustomer,
+        ),
       }
     }
     case "staff.payment.completed": {

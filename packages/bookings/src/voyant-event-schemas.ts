@@ -46,6 +46,19 @@ export const bookingCancelledPayloadSchema = {
   additionalProperties: false,
 } as const
 
+export const bookingInquiryCreatedPayloadSchema = {
+  type: "object",
+  required: ["inquiryId", "storefrontId", "channelId", "productId", "departureId"],
+  properties: {
+    inquiryId: { type: "string" },
+    storefrontId: { type: "string" },
+    channelId: { type: "string" },
+    productId: { type: "string" },
+    departureId: { type: ["string", "null"] },
+  },
+  additionalProperties: false,
+} as const
+
 export const bookingLifecyclePayloadSchema = {
   type: "object",
   required: ["bookingId", "bookingNumber", "actorId"],

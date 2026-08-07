@@ -38,6 +38,18 @@ export interface StaffAlertEmailMessages {
     reason: string
     previousStatus: string
   }
+  bookingInquiryCreated: {
+    eyebrow: string
+    subject: (customerName: string) => string
+    preview: (customerName: string) => string
+    headline: (customerName: string) => string
+    lead: string
+    phone: string
+    product: string
+    departure: string
+    locale: string
+    message: string
+  }
   paymentCompleted: {
     eyebrow: string
     subject: (amount: string) => string

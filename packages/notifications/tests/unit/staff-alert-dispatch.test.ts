@@ -72,6 +72,58 @@ function runtime(): StaffAlertRuntime {
 }
 
 describe("dispatchStaffAlert", () => {
+  it("enqueues one logical staff intent for an inquiry event identity", async () => {
+    const enqueue = vi.fn(async () => ({}) as never)
+    const db = fakeDb([
+      [
+        {
+          eventKey: "staff.booking.inquiry-created",
+          enabled: true,
+          routeToAssignee: false,
+          routeToRoles: [],
+          extraAddresses: ["ops@op.ro"],
+        },
+      ],
+      [],
+    ])
+    const inquiryResolver: StaffAlertContextResolver<"staff.booking.inquiry-created"> = {
+      eventKey: "staff.booking.inquiry-created",
+      resolve: async () => ({
+        adminPath: "/bookings/inquiries/bkin_1",
+        assigneeUserId: null,
+        actorUserId: null,
+        inquiryId: "bkin_1",
+        contact: { name: "Ana Popescu", email: "ana@example.com" },
+        contactPhone: null,
+        productId: "prod_1",
+        departureId: null,
+        locale: "en",
+        message: "Is this available?",
+      }),
+    }
+
+    await dispatchStaffAlert({
+      db,
+      runtime: {
+        ...runtime(),
+        resolvers: { "staff.booking.inquiry-created": inquiryResolver },
+      },
+      eventKey: "staff.booking.inquiry-created",
+      payload: { inquiryId: "bkin_1" },
+      eventId: "evt_booking_inquiry_created_bkin_1",
+      enqueue,
+    })
+
+    const sent = enqueue.mock.calls[0]?.[0] as unknown as { input: Record<string, unknown> }
+    expect(sent.input).toMatchObject({
+      idempotencyKey:
+        "staff-alert:evt_booking_inquiry_created_bkin_1:staff.booking.inquiry-created:ops@op.ro",
+      templateLabel: "staff.booking.inquiry-created",
+      targetType: "other",
+      targetId: "bkin_1",
+    })
+  })
+
   it("labels the send instead of naming a template row that cannot exist", async () => {
     // Staff templates are React Email components, not `notification_templates`
     // rows. Passing `templateSlug` makes `enqueueNotification` look the slug up

@@ -27,6 +27,7 @@ import { bookingsVoyantAdmin } from "./voyant-admin.js"
 import {
   bookingCancelledPayloadSchema,
   bookingConfirmedPayloadSchema,
+  bookingInquiryCreatedPayloadSchema,
   bookingLifecyclePayloadSchema,
   bookingRefundedPayloadSchema,
   bookingStatusOverriddenPayloadSchema,
@@ -431,6 +432,14 @@ export const bookingsVoyantModule = defineModule({
       eventType: "booking.cancelled",
       version: "1.0.0",
       payloadSchema: bookingCancelledPayloadSchema,
+      visibility: "internal",
+      audit: { sourceModule: "bookings", category: "domain" },
+    },
+    {
+      id: "@voyant-travel/bookings#event.booking.inquiry-created",
+      eventType: "booking.inquiry.created",
+      version: "1.0.0",
+      payloadSchema: bookingInquiryCreatedPayloadSchema,
       visibility: "internal",
       audit: { sourceModule: "bookings", category: "domain" },
     },

@@ -712,6 +712,279 @@
     "parameters": {}
   },
   "paths": {
+    "/v1/public/bookings/inquiries": {
+      "post": {
+        "x-voyant-api-id": "@voyant-travel/bookings#api.public",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "productId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 255
+                  },
+                  "departureId": {
+                    "type": ["string", "null"],
+                    "minLength": 1,
+                    "maxLength": 255
+                  },
+                  "contact": {
+                    "type": "object",
+                    "properties": {
+                      "firstName": {
+                        "type": ["string", "null"],
+                        "minLength": 1,
+                        "maxLength": 120
+                      },
+                      "lastName": {
+                        "type": ["string", "null"],
+                        "minLength": 1,
+                        "maxLength": 120
+                      },
+                      "email": {
+                        "type": ["string", "null"],
+                        "maxLength": 320,
+                        "format": "email"
+                      },
+                      "phone": {
+                        "type": ["string", "null"],
+                        "minLength": 1,
+                        "maxLength": 40
+                      }
+                    }
+                  },
+                  "locale": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 35
+                  },
+                  "message": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 5000
+                  }
+                },
+                "required": ["productId", "contact", "locale", "message"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The previously created durable inquiry receipt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "storefrontId": {
+                          "type": "string"
+                        },
+                        "channelId": {
+                          "type": "string"
+                        },
+                        "productId": {
+                          "type": "string"
+                        },
+                        "departureId": {
+                          "type": ["string", "null"]
+                        },
+                        "contact": {
+                          "type": "object",
+                          "properties": {
+                            "firstName": {
+                              "type": ["string", "null"]
+                            },
+                            "lastName": {
+                              "type": ["string", "null"]
+                            },
+                            "email": {
+                              "type": ["string", "null"]
+                            },
+                            "phone": {
+                              "type": ["string", "null"]
+                            }
+                          },
+                          "required": ["firstName", "lastName", "email", "phone"]
+                        },
+                        "locale": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": ["open", "closed"]
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        },
+                        "updatedAt": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "storefrontId",
+                        "channelId",
+                        "productId",
+                        "departureId",
+                        "contact",
+                        "locale",
+                        "message",
+                        "status",
+                        "createdAt",
+                        "updatedAt"
+                      ]
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "A durable inquiry receipt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "storefrontId": {
+                          "type": "string"
+                        },
+                        "channelId": {
+                          "type": "string"
+                        },
+                        "productId": {
+                          "type": "string"
+                        },
+                        "departureId": {
+                          "type": ["string", "null"]
+                        },
+                        "contact": {
+                          "type": "object",
+                          "properties": {
+                            "firstName": {
+                              "type": ["string", "null"]
+                            },
+                            "lastName": {
+                              "type": ["string", "null"]
+                            },
+                            "email": {
+                              "type": ["string", "null"]
+                            },
+                            "phone": {
+                              "type": ["string", "null"]
+                            }
+                          },
+                          "required": ["firstName", "lastName", "email", "phone"]
+                        },
+                        "locale": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": ["open", "closed"]
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        },
+                        "updatedAt": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "storefrontId",
+                        "channelId",
+                        "productId",
+                        "departureId",
+                        "contact",
+                        "locale",
+                        "message",
+                        "status",
+                        "createdAt",
+                        "updatedAt"
+                      ]
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid inquiry or missing Idempotency-Key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing or inactive storefront channel context",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The idempotency key was already used for another inquiry request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/public/bookings/overview": {
       "get": {
         "x-voyant-api-id": "@voyant-travel/bookings#api.public",

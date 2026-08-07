@@ -88,6 +88,7 @@ export const typeIdSchemas = {
   productVersion: typeIdSchema("product_versions"),
   productNote: typeIdSchema("product_notes"),
   booking: typeIdSchema("bookings"),
+  bookingInquiry: typeIdSchema("booking_inquiries"),
   bookingAmendment: typeIdSchema("booking_amendments"),
   bookingRevision: typeIdSchema("booking_revisions"),
   bookingTraveler: typeIdSchema("booking_travelers"),

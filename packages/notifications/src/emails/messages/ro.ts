@@ -31,6 +31,18 @@ export const staffAlertEmailMessagesRo: StaffAlertEmailMessages = {
     reason: "Motiv",
     previousStatus: "Starea anterioară",
   },
+  bookingInquiryCreated: {
+    eyebrow: "Cerere nouă de rezervare",
+    subject: (customerName) => `Cerere nouă de rezervare de la ${customerName}`,
+    preview: (customerName) => `${customerName} a întrebat despre o rezervare.`,
+    headline: (customerName) => `${customerName} a cerut detalii`,
+    lead: "Un vizitator a trimis o întrebare înainte de rezervare și așteaptă un răspuns.",
+    phone: "Telefon",
+    product: "Produs",
+    departure: "Plecare",
+    locale: "Limbă",
+    message: "Mesaj",
+  },
   paymentCompleted: {
     eyebrow: "Plată încasată",
     subject: (amount) => `Plată încasată — ${amount}`,
