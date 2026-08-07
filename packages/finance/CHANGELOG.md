@@ -1,5 +1,11 @@
 # @voyant-travel/finance
 
+## 0.245.0
+
+### Minor Changes
+
+- c8b9c1e: Add the `invoice_booking` intent Tool, which keeps the authoritative financial snapshot server-side across approval and issuance.
+
 ## 0.244.3
 
 ### Patch Changes
