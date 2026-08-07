@@ -1,5 +1,11 @@
 # @voyant-travel/bookings
 
+## 0.240.7
+
+### Patch Changes
+
+- 18fef07: Resolve per-item cancellation consequences from authoritative Booking facts and frozen policy evidence, with fail-closed aggregate manual-review outcomes.
+
 ## 0.240.6
 
 ### Patch Changes

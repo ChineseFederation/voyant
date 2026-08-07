@@ -1,5 +1,15 @@
 # @voyant-travel/legal
 
+## 0.249.5
+
+### Patch Changes
+
+- 5f6e799: Add a canonical immutable cancellation-policy snapshot, a server-side snapshot producer, and fail-closed evaluation of frozen terms.
+- Updated dependencies [5f6e799]
+- Updated dependencies [18fef07]
+  - @voyant-travel/legal-contracts@0.108.3
+  - @voyant-travel/bookings@0.240.7
+
 ## 0.249.4
 
 ### Patch Changes
