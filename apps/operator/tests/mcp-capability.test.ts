@@ -412,26 +412,9 @@ function buildJourneys(RUN_MARK: string): CapabilityJourney[] {
              join product_options o on o.id = u.option_id
              join products p on p.id = o.product_id
              where p.name ilike '%capability eval tour ${RUN_MARK}%'`,
-      // THE remaining blocker, and the one worth fixing next. Creating a priced
-      // unit goes through confirmation AND approval, and the agent frequently loses
-      // the thread in that loop: 21-24 calls, 200k+ tokens, and then it reports
-      // "successfully published" having written no unit at all. Only the database
-      // check catches that — the prose is confident either way.
-      //
-      // When it does complete, everything downstream works: booking-create has
-      // produced a real booking (BK-2608-845755) end to end. So the write chain is
-      // capable and unreliable, and the unreliability lives here, in the
-      // approval/confirmation round trip rather than in any single tool.
-      // One measured 27-call/280k-token exhaustion here was NOT the approval loop:
-      // the agent called list_price_catalogs, which threw on its own output
-      // because its hand-written catalogType enum shared two of seven values with
-      // the price_catalog_type pgEnum. A read tool broken for most of the rows it
-      // returns burns the budget of every journey that consults it, and it only
-      // showed up on a database that happened to hold a `gross` catalog. Fixed;
-      // pinned by a test in packages/commerce/src/tools.test.ts.
-      intermittent:
-        "priced-unit creation gets lost in the confirmation/approval loop — 20+ calls, " +
-        "200k+ tokens, and it has reported success while writing nothing",
+      // Promoted from intermittent after the 2026-08-07 Terra measurement wrote
+      // the priced unit in all five isolated attempts (16-22 calls, no exhaustion).
+      // The durable row remains the score; confident model prose is not evidence.
     },
     {
       // Exercises configure_option_units, the tool that replaced the preview/apply
@@ -495,37 +478,12 @@ function buildJourneys(RUN_MARK: string): CapabilityJourney[] {
       task: `Book the product 'Capability Eval Tour ${RUN_MARK}' for the client Ioana Marinescu${RUN_MARK} (email ioana.${RUN_MARK}@example.com) on the 2026-09-15 departure. She travels with one companion, Andrei Popescu${RUN_MARK}; both are adults and Ioana is the lead traveller and the billing party. Confirm the booking reference.`,
       expect: "book",
       maxCalls: 24,
-      // Reaches the real domain constraint and stops there:
-      //   "This product has no bookable units on the selected option, so the
-      //    booking would reserve nothing."
-      // That is CORRECT — a product is not sellable until it has an option, a
-      // priced unit, and capacity. The gap is that this journey does not create
-      // them, not that the surface refuses. It is exactly the multi-write setup
-      // #3921 Finding 2 is about: "book the product you just made" is four or five
-      // prior writes an agent has to infer, and nothing in create_product says so.
-      //
-      // Two MCP-level defects surfaced on the way and are FIXED: the model called
-      // `functions.book_product` (its own namespacing artifact) and got a bare
-      // NOT_FOUND with no way back — it now gets "Call it as book_product" and
-      // recovers; and CONFIRMATION_REQUIRED is reached and handled.
-      //
-      // product-option-create now creates the option, but a PRICED UNIT with
-      // capacity is still missing, so the refusal above still stands. The wider
-      // blocker is idempotency: 20 of the 23 create tools still advertise an
-      // `idempotencyKey` the agent must invent, described only as "Must match the
-      // admitted Tool invocation idempotency key" — meaningless to a caller. The
-      // agent duly invents one, reuses it across a retry with different input, and
-      // gets "Action ledger idempotency key was reused with a different
-      // fingerprint". Observed on create_departure and create_product_option here.
-      //
-      // The fix is the one already applied to create_person/create_product/
-      // create_departure, generalised: derive server-side everywhere, then strip
-      // the field from the MCP-projected input schema (schema-projection.ts) so no
-      // agent ever sees it. Both halves have to land together — stripping the field
-      // while 20 tools still require it would break every one of them.
+      // Promoted from intermittent after the 2026-08-07 Terra measurement created
+      // a durable booking in all five attempts (17-26 calls, no exhaustion).
+      // `book_product` owns the ordinary intent and derives protocol identity
+      // server-side; this assertion keeps the full commercial chain gated.
       verify: `select 1 from bookings b join people pe on pe.id = b.person_id
              where pe.last_name ilike '%marinescu${RUN_MARK}%'`,
-      intermittent: "has booked end to end (BK-2608-845755); depends on the unit above",
     },
     {
       // The last link in the commercial chain, and the one never exercised until
