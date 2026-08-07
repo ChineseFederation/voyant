@@ -7,6 +7,7 @@ import type { EventEnvelope, VoyantRuntimeHostPrimitives } from "@voyant-travel/
 import {
   createPostgresFixedWindowRateLimitStore,
   createPostgresKvStore,
+  openNodeDatabase,
   resolveNodeDatabase,
 } from "@voyant-travel/db/runtime"
 import {
@@ -575,8 +576,11 @@ export function createVoyantNodeApp(options: {
 }) {
   const auth = options.app?.auth ?? options.auth
   return createVoyantApp<VoyantNodeRuntimeEnv, VoyantNodeRuntimeResources>({
-    db: resolveDb,
-    dbTransactional: resolveDb,
+    // Hono owns request-scoped disposers. Adapt the resident process pool with
+    // an explicit no-op disposer so one completed request cannot close sockets
+    // still used by its neighbours.
+    db: openRequestNodeDatabase,
+    dbTransactional: openRequestNodeDatabase,
     outbox: true,
     ...options.app,
     modules: {
@@ -917,6 +921,14 @@ function redisUrlProtocol(value: string): string {
 
 function resolveDb(env: unknown): VoyantDb {
   return resolveNodeDatabase(env as VoyantNodeRuntimeEnv) as VoyantDb
+}
+
+function openRequestNodeDatabase(env: VoyantNodeRuntimeEnv): {
+  db: VoyantDb
+  dispose: () => Promise<void>
+} {
+  const requestDatabase = openNodeDatabase(env)
+  return { ...requestDatabase, db: requestDatabase.db as VoyantDb }
 }
 
 export type {
