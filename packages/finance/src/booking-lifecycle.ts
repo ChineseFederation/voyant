@@ -9,6 +9,9 @@ export interface BookingCancellationSettlementInput {
   previousStatus: "confirmed" | "in_progress"
   reason: string | null
   actorId: string
+  cancellationPolicyEntitlement?: Parameters<
+    BookingFinancialLifecycle["recordCancellationFinancialSettlement"]
+  >[1]["cancellationPolicyEntitlement"]
 }
 
 interface PaidInvoice {
@@ -84,6 +87,9 @@ export async function recordPaidBookingCancellationSettlement(
     invoiceNumbers: paidInvoices.map((invoice) => invoice.invoiceNumber),
     financeNoteIds: noteIds,
     paidByCurrency: summarizePaidByCurrency(paidInvoices),
+    ...(input.cancellationPolicyEntitlement
+      ? { cancellationPolicyEntitlement: input.cancellationPolicyEntitlement }
+      : {}),
     message: "Paid booking cancelled; review refund, credit-note, or no-refund settlement.",
   }
 }

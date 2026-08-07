@@ -115,6 +115,18 @@ describe("bookings MCP runtime lifecycle detail", () => {
     expect(statusMutation).toHaveBeenCalledOnce()
     expect(statusMutation.mock.calls[0]?.[4]).toMatchObject({
       actionLedgerCausationActionId: "action_claim_1",
+      cancellationPolicyEntitlement: {
+        status: "evaluated",
+        asOf: expect.any(String),
+        refundCents: 500,
+        items: [
+          expect.objectContaining({
+            bookingItemId: "item_1",
+            policyVersionId: "polv_sale",
+            result: expect.objectContaining({ refundCents: 500 }),
+          }),
+        ],
+      },
       actionLedgerContext: {
         userId: "user_1",
         agentId: "agent_1",

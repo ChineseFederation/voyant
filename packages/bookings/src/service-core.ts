@@ -44,6 +44,7 @@ import {
   assertMonthlyBookingLimitAvailable,
   BookingMonthlyLimitReachedError,
 } from "./booking-plan-limit.js"
+import type { BookingCancellationConsequences } from "./cancellation-consequences.js"
 import {
   type ConvertDayService,
   type ConvertDayServiceProvenance,
@@ -378,6 +379,7 @@ export interface BookingServiceRuntime {
   actionLedgerIdempotencyKey?: string | null
   actionLedgerIdempotencyFingerprint?: string | null
   actionLedgerRouteOrToolName?: string | null
+  cancellationPolicyEntitlement?: BookingCancellationConsequences
   expirePaymentSessionsForBooking?: (
     db: PostgresJsDatabase,
     bookingId: string,
@@ -395,6 +397,7 @@ export interface BookingServiceRuntime {
       previousStatus: BookingCancelledEvent["previousStatus"]
       reason: string | null
       actorId: string
+      cancellationPolicyEntitlement?: BookingCancellationConsequences
     },
   ) =>
     | Promise<Record<string, unknown> | null | undefined>
@@ -3150,6 +3153,9 @@ const bookingsServiceInternal = {
             previousStatus,
             reason: cancellationReason,
             actorId: userId ?? "system",
+            ...(runtime.cancellationPolicyEntitlement
+              ? { cancellationPolicyEntitlement: runtime.cancellationPolicyEntitlement }
+              : {}),
           },
         )
         const financialSettlementMessage =
@@ -3172,6 +3178,9 @@ const bookingsServiceInternal = {
             oldStatus: booking.status,
             newStatus: "cancelled",
             reason: cancellationReason,
+            ...(runtime.cancellationPolicyEntitlement
+              ? { cancellationPolicyEntitlement: runtime.cancellationPolicyEntitlement }
+              : {}),
             ...(financialSettlement ? { financialSettlement } : {}),
           },
         })

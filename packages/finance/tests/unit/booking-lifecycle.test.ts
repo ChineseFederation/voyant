@@ -24,12 +24,14 @@ describe("recordPaidBookingCancellationSettlement", () => {
       },
     ])
 
+    const cancellationPolicyEntitlement = evaluatedEntitlement()
     const settlement = await recordPaidBookingCancellationSettlement(db as never, {
       bookingId: "book_1",
       bookingNumber: "BK-1",
       previousStatus: "confirmed",
       reason: "Client requested",
       actorId: "user_1",
+      cancellationPolicyEntitlement,
     })
 
     expect(settlement).toMatchObject({
@@ -38,6 +40,7 @@ describe("recordPaidBookingCancellationSettlement", () => {
       invoiceIds: ["inv_1", "inv_2"],
       invoiceNumbers: ["INV-1", "INV-2"],
       paidByCurrency: { GBP: 15000 },
+      cancellationPolicyEntitlement,
     })
     expect(db.insertedNotes).toHaveLength(2)
     expect(db.insertedNotes[0]).toMatchObject({ invoiceId: "inv_1", authorId: "user_1" })
@@ -80,6 +83,41 @@ describe("recordPaidBookingCancellationSettlement", () => {
     ).not.toContain("Cancellation reason")
   })
 })
+
+function evaluatedEntitlement() {
+  return {
+    status: "evaluated" as const,
+    asOf: "2026-08-01T00:00:00.000Z",
+    currency: "GBP",
+    totalCents: 15000,
+    refundCents: 7500,
+    knownRefundCents: 7500,
+    refundPercent: 5000,
+    refundType: "cash" as const,
+    reasons: [],
+    items: [
+      {
+        bookingItemId: "item_1",
+        title: "Cruise",
+        currency: "GBP",
+        totalCents: 15000,
+        serviceDate: "2026-09-01",
+        daysBeforeDeparture: 31,
+        policyId: "pol_1",
+        policyVersionId: "polv_sale",
+        policyVersion: 1,
+        status: "evaluated" as const,
+        reason: null,
+        result: {
+          refundPercent: 5000,
+          refundCents: 7500,
+          refundType: "cash" as const,
+          appliedRule: { id: "rule_1" },
+        },
+      },
+    ],
+  }
+}
 
 interface FakePaidInvoice {
   id: string

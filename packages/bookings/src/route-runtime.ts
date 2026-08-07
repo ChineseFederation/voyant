@@ -7,6 +7,7 @@ import {
   resolveMonthlyBookingLimit,
   selectMonthlyBookingLimit,
 } from "./booking-plan-limit.js"
+import type { BookingCancellationConsequences } from "./cancellation-consequences.js"
 import type { BookingTravelerSnapshot } from "./pii.js"
 import type { KmsBindings } from "./routes-shared.js"
 import type {
@@ -98,6 +99,7 @@ export type RecordCancellationFinancialSettlement = (
     previousStatus: Extract<BookingStatus, "confirmed" | "in_progress">
     reason: string | null
     actorId: string
+    cancellationPolicyEntitlement?: BookingCancellationConsequences
   },
 ) =>
   | Promise<Record<string, unknown> | null | undefined>

@@ -18,6 +18,7 @@ import {
 import { sql } from "drizzle-orm"
 import type { Context } from "hono"
 import {
+  type BookingCancellationConsequences,
   type BookingCancellationPolicyEvaluator,
   resolveBookingCancellationConsequences,
 } from "./cancellation-consequences.js"
@@ -364,6 +365,7 @@ async function executeBookingStatusToolCommand(input: {
           userId,
           {
             ...lifecycleRuntime,
+            cancellationPolicyEntitlement: cancellationPolicyEntitlement(currentPreview),
             closePaymentSchedulesForBooking: routeRuntime.closePaymentSchedulesForBooking,
             recordCancellationFinancialSettlement:
               routeRuntime.recordCancellationFinancialSettlement,
@@ -609,6 +611,20 @@ function policyEntitlementAsOf(preview: Record<string, unknown>): Date {
     })
   }
   return parsed
+}
+
+function cancellationPolicyEntitlement(
+  preview: Record<string, unknown>,
+): BookingCancellationConsequences {
+  const entitlement = preview.policyEntitlement
+  if (!isRecord(entitlement) || entitlement.status !== "evaluated") {
+    throw new ToolError(
+      "Cancellation policy entitlement requires manual review; no cancellation was written.",
+      "INVALID_INPUT",
+      { reason: "policy_manual_review_required" },
+    )
+  }
+  return entitlement as unknown as BookingCancellationConsequences
 }
 
 async function loadFinanceConsequenceTables(
