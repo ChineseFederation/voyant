@@ -263,6 +263,7 @@ describe("selected Operator graph runtime composition", () => {
       "payment.completed",
       "booking.cancelled",
       "booking.confirmed",
+      "booking.inquiry.created",
       "contract.signed",
       "customer.signal.created",
       "invoice.settled",

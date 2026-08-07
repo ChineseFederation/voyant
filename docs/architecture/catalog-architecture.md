@@ -1223,6 +1223,13 @@ evaluation parses and evaluates those rules directly. Resolving
 `policies.currentVersionId` is reserved for prospective quote production and is
 never a valid way to evaluate a committed Booking.
 
+Bookings owns consequence composition. Its resolver reads each Booking Item's
+stored amount, currency, service date, and cancellation snapshot, then delegates
+only the frozen policy payload to Legal's pure evaluator. Missing or invalid
+evidence, missing sale facts, and mixed currencies produce an explicit
+`manual_review` result with no aggregate refund entitlement; they must never be
+coerced to a zero refund.
+
 ## 9. Adoption plan
 
 v1 is a single coordinated piece of work: the catalog plane lands and every existing vertical adopts it together. Sequencing inside the work is for development convenience; the release is one cut, not five.

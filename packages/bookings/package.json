@@ -9,6 +9,7 @@
     "./pii": "./src/pii.ts",
     "./schema": "./src/schema.ts",
     "./service-sourced-commitment": "./src/service-sourced-commitment.ts",
+    "./cancellation-consequences": "./src/cancellation-consequences.ts",
     "./requirements": "./src/requirements/index.ts",
     "./requirements/schema": "./src/requirements/schema.ts",
     "./requirements/validation": "./src/requirements/validation.ts",
@@ -95,6 +96,11 @@
         "types": "./dist/pii.d.ts",
         "import": "./dist/pii.js",
         "default": "./dist/pii.js"
+      },
+      "./cancellation-consequences": {
+        "types": "./dist/cancellation-consequences.d.ts",
+        "import": "./dist/cancellation-consequences.js",
+        "default": "./dist/cancellation-consequences.js"
       },
       "./schema": {
         "types": "./dist/schema.d.ts",
