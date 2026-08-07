@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest"
 import type { CancellationRule } from "../../src/policies/service.js"
-import { evaluateCancellationPolicy } from "../../src/policies/service.js"
+import {
+  evaluateCancellationPolicy,
+  evaluateCancellationSnapshot,
+} from "../../src/policies/service.js"
 
 /**
  * Unit tests for `evaluateCancellationPolicy`. Rules are sorted by
@@ -256,5 +259,72 @@ describe("evaluateCancellationPolicy", () => {
     expect(result.appliedRule).not.toBeNull()
     expect(result.appliedRule?.id).toBe("plrl_abc")
     expect(result.appliedRule?.label).toBe("2-week window")
+  })
+})
+
+describe("evaluateCancellationSnapshot", () => {
+  const snapshot = {
+    schemaVersion: 1 as const,
+    policyId: "pol_cancel",
+    policyVersionId: "polv_sale",
+    version: 1,
+    capturedAt: "2026-06-01T10:00:00.000Z",
+    rules: [
+      {
+        id: "rule_sale",
+        daysBeforeDeparture: 14,
+        refundPercent: 7500,
+        refundType: "cash" as const,
+        flatAmountCents: null,
+        currency: "EUR",
+        label: "Sale terms",
+      },
+    ],
+  }
+
+  it("evaluates the frozen version without consulting current policy state", () => {
+    expect(
+      evaluateCancellationSnapshot(snapshot, {
+        daysBeforeDeparture: 20,
+        totalCents: 20_000,
+        currency: "EUR",
+      }),
+    ).toEqual({
+      status: "evaluated",
+      policyId: "pol_cancel",
+      policyVersionId: "polv_sale",
+      version: 1,
+      result: {
+        refundPercent: 7500,
+        refundCents: 15_000,
+        refundType: "cash",
+        appliedRule: snapshot.rules[0],
+      },
+    })
+  })
+
+  it("fails closed for malformed evidence", () => {
+    expect(
+      evaluateCancellationSnapshot(
+        { ...snapshot, policyVersionId: "" },
+        {
+          daysBeforeDeparture: 20,
+          totalCents: 20_000,
+          currency: "EUR",
+        },
+      ),
+    ).toEqual({ status: "unknown", reason: "invalid_snapshot" })
+  })
+
+  it("fails closed when a flat refund currency differs", () => {
+    expect(
+      evaluateCancellationSnapshot(
+        {
+          ...snapshot,
+          rules: [{ ...snapshot.rules[0], refundPercent: null, flatAmountCents: 5_000 }],
+        },
+        { daysBeforeDeparture: 20, totalCents: 20_000, currency: "USD" },
+      ),
+    ).toEqual({ status: "unknown", reason: "currency_mismatch" })
   })
 })

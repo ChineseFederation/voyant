@@ -175,6 +175,28 @@ export const evaluateCancellationInputSchema = z.object({
   currency: z.string().max(10).optional(),
 })
 
+export const cancellationPolicySnapshotRuleV1Schema = z.object({
+  id: z.string().optional(),
+  daysBeforeDeparture: z.number().int().nullable(),
+  refundPercent: z.number().int().min(0).max(10000).nullable(),
+  refundType: policyRefundTypeSchema.nullable(),
+  flatAmountCents: z.number().int().min(0).nullable(),
+  currency: z.string().max(10).nullable(),
+  label: z.string().max(255).nullable(),
+})
+
+/** Immutable cancellation terms copied from one published policy version. */
+export const cancellationPolicySnapshotV1Schema = z.object({
+  schemaVersion: z.literal(1),
+  policyId: z.string().min(1),
+  policyVersionId: z.string().min(1),
+  version: z.number().int().positive(),
+  capturedAt: z.string().datetime(),
+  rules: z.array(cancellationPolicySnapshotRuleV1Schema),
+})
+
+export type CancellationPolicySnapshotV1 = z.infer<typeof cancellationPolicySnapshotV1Schema>
+
 export const resolvePolicyInputSchema = z.object({
   kind: policyKindSchema,
   productId: z.string().optional(),

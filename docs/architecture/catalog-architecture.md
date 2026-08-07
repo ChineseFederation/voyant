@@ -1216,6 +1216,13 @@ refresh it. Legacy items and commits whose Quote carried no authoritative
 cancellation evidence remain `NULL`; consumers must treat that as unknown/manual
 review rather than infer historical terms from current authoring state.
 
+Legal owns the canonical payload inside that evidence:
+`CancellationPolicySnapshotV1` identifies the policy and exact published version
+and carries normalized rules. Quote production freezes it once; historic
+evaluation parses and evaluates those rules directly. Resolving
+`policies.currentVersionId` is reserved for prospective quote production and is
+never a valid way to evaluate a committed Booking.
+
 ## 9. Adoption plan
 
 v1 is a single coordinated piece of work: the catalog plane lands and every existing vertical adopts it together. Sequencing inside the work is for development convenience; the release is one cut, not five.

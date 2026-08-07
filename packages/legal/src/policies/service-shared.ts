@@ -1,3 +1,7 @@
+import {
+  type CancellationPolicySnapshotV1,
+  cancellationPolicySnapshotV1Schema,
+} from "@voyant-travel/legal-contracts"
 import { listResponse } from "@voyant-travel/types"
 import { inArray } from "drizzle-orm"
 import type { z } from "zod"
@@ -53,6 +57,7 @@ export type CancellationRule = {
   refundPercent: number | null
   refundType: "cash" | "credit" | "cash_or_credit" | "none" | null
   flatAmountCents: number | null
+  currency?: string | null
   label: string | null
 }
 
@@ -62,6 +67,44 @@ export type CancellationResult = {
   refundType: "cash" | "credit" | "cash_or_credit" | "none"
   appliedRule: CancellationRule | null
 }
+
+export type CancellationSnapshotEvaluation =
+  | {
+      status: "evaluated"
+      policyId: string
+      policyVersionId: string
+      version: number
+      result: CancellationResult
+    }
+  | { status: "unknown"; reason: "invalid_snapshot" | "currency_mismatch" }
+
+/** Evaluate only immutable terms; never resolves a policy's current version. */
+export function evaluateCancellationSnapshot(
+  snapshot: unknown,
+  input: EvaluateCancellationInput,
+): CancellationSnapshotEvaluation {
+  const parsed = cancellationPolicySnapshotV1Schema.safeParse(snapshot)
+  if (!parsed.success) return { status: "unknown", reason: "invalid_snapshot" }
+
+  const result = evaluateCancellationPolicy(parsed.data.rules, input)
+  const appliedCurrency = result.appliedRule?.currency
+  if (
+    result.appliedRule?.flatAmountCents != null &&
+    appliedCurrency &&
+    input.currency !== appliedCurrency
+  ) {
+    return { status: "unknown", reason: "currency_mismatch" }
+  }
+  return {
+    status: "evaluated",
+    policyId: parsed.data.policyId,
+    policyVersionId: parsed.data.policyVersionId,
+    version: parsed.data.version,
+    result,
+  }
+}
+
+export type { CancellationPolicySnapshotV1 }
 
 export function evaluateCancellationPolicy(
   rules: CancellationRule[],

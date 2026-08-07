@@ -10,6 +10,7 @@ import {
   policyVersions,
 } from "./schema.js"
 import {
+  type CancellationPolicySnapshotV1,
   type CancellationRule,
   type CreatePolicyAcceptanceInput,
   type CreatePolicyAssignmentInput,
@@ -436,6 +437,45 @@ export const policiesCoreService = {
       label: r.label,
     }))
     return evaluateCancellationPolicy(mapped, input)
+  },
+
+  /** Freeze the currently published cancellation version for quote/commit evidence. */
+  async captureCancellationPolicySnapshot(
+    db: PostgresJsDatabase,
+    policyId: string,
+    capturedAt: Date = new Date(),
+  ): Promise<CancellationPolicySnapshotV1 | null> {
+    const [policy] = await db.select().from(policies).where(eq(policies.id, policyId)).limit(1)
+    if (policy?.kind !== "cancellation" || !policy.currentVersionId) return null
+    const [version] = await db
+      .select()
+      .from(policyVersions)
+      .where(
+        and(eq(policyVersions.id, policy.currentVersionId), eq(policyVersions.policyId, policy.id)),
+      )
+      .limit(1)
+    if (version?.status !== "published") return null
+    const rules = await db
+      .select()
+      .from(policyRules)
+      .where(eq(policyRules.policyVersionId, version.id))
+      .orderBy(policyRules.sortOrder, policyRules.createdAt)
+    return {
+      schemaVersion: 1,
+      policyId: policy.id,
+      policyVersionId: version.id,
+      version: version.version,
+      capturedAt: capturedAt.toISOString(),
+      rules: rules.map((rule) => ({
+        id: rule.id,
+        daysBeforeDeparture: rule.daysBeforeDeparture,
+        refundPercent: rule.refundPercent,
+        refundType: rule.refundType,
+        flatAmountCents: rule.flatAmountCents,
+        currency: rule.currency,
+        label: rule.label,
+      })),
+    }
   },
 
   /**

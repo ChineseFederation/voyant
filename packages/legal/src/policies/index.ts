@@ -29,15 +29,19 @@ export type {
   CancellationResult,
   CancellationRule,
   CancellationSegment,
+  CancellationSnapshotEvaluation,
   SegmentedCancellationInput,
   SegmentedCancellationResult,
 } from "./service.js"
 export {
   evaluateCancellationPolicy,
+  evaluateCancellationSnapshot,
   evaluateSegmentedCancellation,
   policiesService,
 } from "./service.js"
 export {
+  cancellationPolicySnapshotRuleV1Schema,
+  cancellationPolicySnapshotV1Schema,
   evaluateCancellationInputSchema,
   insertPolicyAcceptanceSchema,
   insertPolicyAssignmentSchema,
