@@ -1,5 +1,12 @@
 # @voyant-travel/framework
 
+## 0.80.1
+
+### Patch Changes
+
+- 2358cde: Keep the resident Node database pool open when individual HTTP requests finish.
+  - @voyant-travel/operator-standard@0.21.1
+
 ## 0.80.0
 
 ### Minor Changes

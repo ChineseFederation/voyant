@@ -1,5 +1,11 @@
 # @voyant-travel/operator-standard
 
+## 0.21.1
+
+### Patch Changes
+
+- @voyant-travel/mcp@0.21.1
+
 ## 0.21.0
 
 ### Minor Changes

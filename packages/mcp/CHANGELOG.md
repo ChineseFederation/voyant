@@ -1,5 +1,12 @@
 # @voyant-travel/mcp
 
+## 0.21.1
+
+### Patch Changes
+
+- Updated dependencies [2358cde]
+  - @voyant-travel/framework@0.80.1
+
 ## 0.21.0
 
 ### Patch Changes
