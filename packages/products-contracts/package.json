@@ -8,6 +8,7 @@
     ".": "./src/index.ts",
     "./content-shape": "./src/content-shape.ts",
     "./product-version-snapshot": "./src/product-version-snapshot.ts",
+    "./occupancy-pricing": "./src/occupancy-pricing.ts",
     "./validation": "./src/validation.ts",
     "./validation-shared": "./src/validation-shared.ts",
     "./validation-core": "./src/validation-core.ts",
@@ -44,6 +45,11 @@
         "types": "./dist/product-version-snapshot.d.ts",
         "import": "./dist/product-version-snapshot.js",
         "default": "./dist/product-version-snapshot.js"
+      },
+      "./occupancy-pricing": {
+        "types": "./dist/occupancy-pricing.d.ts",
+        "import": "./dist/occupancy-pricing.js",
+        "default": "./dist/occupancy-pricing.js"
       },
       "./validation": {
         "types": "./dist/validation.d.ts",

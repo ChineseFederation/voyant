@@ -338,6 +338,7 @@ export const pricingUiEn = {
       schedule: "Schedule (optional)",
       cancellationPolicy: "Cancellation policy (optional)",
       pricingMode: "Pricing mode",
+      occupancyPriceBasis: "Occupancy price",
       baseSell: "Base sell",
       baseCost: "Base cost",
       minPerBooking: "Min per booking",
@@ -347,6 +348,14 @@ export const pricingUiEn = {
       defaultRule: "Default rule",
       active: "Active",
       notes: "Notes",
+    },
+    occupancyPriceBasisLabels: {
+      supplement: "Supplement added to base fare",
+      all_in: "All-in occupancy fare",
+    },
+    helpText: {
+      occupancyPriceBasis:
+        "Choose whether room prices are added to traveler base fares or already include them.",
     },
     validation: {
       productRequired: "Product is required",

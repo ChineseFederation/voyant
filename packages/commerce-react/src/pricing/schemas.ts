@@ -123,6 +123,7 @@ export const optionPriceRuleRecordSchema = z.object({
   name: z.string(),
   description: z.string().nullable(),
   pricingMode: z.enum(["per_person", "per_booking", "starting_from", "free", "on_request"]),
+  occupancyPriceBasis: z.enum(["supplement", "all_in"]).nullable(),
   baseSellAmountCents: z.number().int().nullable(),
   baseCostAmountCents: z.number().int().nullable(),
   minPerBooking: z.number().int().nullable(),

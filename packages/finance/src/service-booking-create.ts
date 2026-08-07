@@ -21,6 +21,7 @@ import {
   bookingTravelers,
 } from "@voyant-travel/bookings/schema"
 import { withBookingFinanceInsertionFence } from "@voyant-travel/db/booking-finance-fence"
+import { classifyOccupancyPrice } from "@voyant-travel/products-contracts/occupancy-pricing"
 import { and, asc, eq, sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import * as rrulePackage from "rrule"
@@ -1461,10 +1462,11 @@ async function reconcileBookingCreatePricing(
     { ruleBaseTotal: number; noUnitRuleBaseTotal: number; applied: boolean }
   >()
   for (const [optionId, pricing] of persistedPricingByOption) {
-    const ruleBaseTotal = pricing.baseSellAmountCents ?? 0
+    const baseMultiplier = pricing.pricingMode === "per_person" ? Math.max(1, booking.pax ?? 0) : 1
+    const ruleBaseTotal = (pricing.baseSellAmountCents ?? 0) * baseMultiplier
     optionBaseStates.set(optionId, {
       ruleBaseTotal,
-      noUnitRuleBaseTotal: ruleBaseTotal * Math.max(1, booking.pax ?? 0),
+      noUnitRuleBaseTotal: ruleBaseTotal,
       applied: ruleBaseTotal === 0,
     })
   }
@@ -1556,6 +1558,22 @@ async function reconcileBookingCreatePricing(
           ],
         }
       }
+      if (categoryRules.some((rule) => rule.unitType === "room") && optionBaseState) {
+        const occupancyPrice = classifyOccupancyPrice({
+          occupancyPriceBasis: persistedPricing?.occupancyPriceBasis ?? null,
+          travelerBaseFareAmountCents: persistedPricing?.baseSellAmountCents ?? 0,
+          occupancyAmountCents: categoryTotal,
+        })
+        if (occupancyPrice.status === "ambiguous") {
+          return {
+            booking,
+            issues: [{ path: ["itemLines"], message: occupancyPrice.diagnostic }],
+          }
+        }
+        if (occupancyPrice.occupancyPriceBasis === "all_in") {
+          optionBaseState.applied = true
+        }
+      }
       pricedLines.set(item.id, {
         unit: Math.floor(categoryTotal / quantity),
         total: categoryTotal,
@@ -1578,6 +1596,22 @@ async function reconcileBookingCreatePricing(
       chargeQuantity,
     })
     if (flatUnitPrice.status === "priced") {
+      if (unitRule?.unitType === "room" && optionBaseState) {
+        const occupancyPrice = classifyOccupancyPrice({
+          occupancyPriceBasis: persistedPricing?.occupancyPriceBasis ?? null,
+          travelerBaseFareAmountCents: persistedPricing?.baseSellAmountCents ?? 0,
+          occupancyAmountCents: flatUnitPrice.totalAmountCents,
+        })
+        if (occupancyPrice.status === "ambiguous") {
+          return {
+            booking,
+            issues: [{ path: ["itemLines"], message: occupancyPrice.diagnostic }],
+          }
+        }
+        if (occupancyPrice.occupancyPriceBasis === "all_in") {
+          optionBaseState.applied = true
+        }
+      }
       pricedLines.set(item.id, {
         unit: flatUnitPrice.unitAmountCents,
         total: flatUnitPrice.totalAmountCents,
@@ -1922,6 +1956,7 @@ type PersistedPriceRuleCandidate = {
   id: string
   name: string
   pricingMode: string
+  occupancyPriceBasis: "supplement" | "all_in" | null
   baseSellAmountCents: number | null
   priceCatalogId: string
   isDefault: boolean
@@ -2069,6 +2104,7 @@ async function loadPersistedBookingCreatePricing(
         opr.id,
         opr.name,
         opr.pricing_mode AS "pricingMode",
+        opr.occupancy_price_basis AS "occupancyPriceBasis",
         opr.base_sell_amount_cents AS "baseSellAmountCents",
         opr.price_catalog_id AS "priceCatalogId",
         opr.is_default AS "isDefault",

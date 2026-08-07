@@ -51,6 +51,7 @@ export const optionUnitPricingModeSchema = z.enum([
   "free",
   "on_request",
 ])
+export { occupancyPriceBasisSchema } from "@voyant-travel/products-contracts/occupancy-pricing"
 export const optionStartTimeRuleModeSchema = z.enum([
   "included",
   "excluded",

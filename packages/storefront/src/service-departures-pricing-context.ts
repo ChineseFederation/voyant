@@ -1,4 +1,5 @@
 import {
+  classifyOccupancyPrice,
   extraPriceRules,
   loadDeparturePriceOverrides,
   optionPriceRules,
@@ -37,6 +38,7 @@ export type PricingContext = {
     name: string
     description: string | null
     pricingMode: string
+    occupancyPriceBasis: "supplement" | "all_in" | null
     baseSellAmountCents: number | null
   } | null
   units: Array<{
@@ -264,6 +266,7 @@ export async function resolvePricingContext(
       name: optionPriceRules.name,
       description: optionPriceRules.description,
       pricingMode: optionPriceRules.pricingMode,
+      occupancyPriceBasis: optionPriceRules.occupancyPriceBasis,
       baseSellAmountCents: optionPriceRules.baseSellAmountCents,
     })
     .from(optionPriceRules)
@@ -399,15 +402,28 @@ export function buildRatePlans(context: PricingContext) {
   }
 
   const currencyCode = getPreferredCurrency(context)
+  let resolvedOccupancyBasis: "supplement" | "all_in" | null = null
+  let ambiguousOccupancyPrice = false
   const roomPrices = context.units
     .filter((unit) => unit.unitType === "room")
     .map((unit) => {
       const unitRule = context.unitRules.find((row) => row.unitId === unit.id)
       const quantityHint = Math.max(1, unit.occupancyMax ?? unit.occupancyMin ?? 1)
-      const amount = centsToAmount(selectUnitAmount(context, unitRule, quantityHint))
-      if (amount == null) {
+      const amountCents = selectUnitAmount(context, unitRule, quantityHint)
+      const amount = centsToAmount(amountCents)
+      if (amount == null || amountCents == null) {
         return null
       }
+      const classification = classifyOccupancyPrice({
+        occupancyPriceBasis: context.rule?.occupancyPriceBasis ?? null,
+        travelerBaseFareAmountCents: context.rule?.baseSellAmountCents ?? 0,
+        occupancyAmountCents: amountCents,
+      })
+      if (classification.status === "ambiguous") {
+        ambiguousOccupancyPrice = true
+        return null
+      }
+      resolvedOccupancyBasis = classification.occupancyPriceBasis
 
       return {
         amount,
@@ -428,6 +444,8 @@ export function buildRatePlans(context: PricingContext) {
     })
     .filter((value): value is NonNullable<typeof value> => value !== null)
 
+  if (ambiguousOccupancyPrice) return []
+
   const baseAmount = centsToAmount(context.rule.baseSellAmountCents)
 
   return [
@@ -437,7 +455,7 @@ export function buildRatePlans(context: PricingContext) {
       name: context.rule.name,
       pricingModel: roomPrices.length > 0 ? "per_room_person" : context.rule.pricingMode,
       basePrices:
-        baseAmount == null
+        baseAmount == null || resolvedOccupancyBasis === "all_in"
           ? []
           : [
               {

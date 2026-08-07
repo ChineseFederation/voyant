@@ -5,6 +5,8 @@ import {
   channelInventoryReleaseRules,
   channels,
 } from "@voyant-travel/distribution/schema"
+import { RequestValidationError } from "@voyant-travel/hono"
+import { classifyOccupancyPrice } from "@voyant-travel/products-contracts/occupancy-pricing"
 import { and, desc, eq, inArray, type SQL, sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import {
@@ -528,31 +530,10 @@ export async function resolve(db: PostgresJsDatabase, query: SellabilityResolveQ
     const requestedUnits = query.requestedUnits.length > 0 ? query.requestedUnits : []
     const breakdown: ResolvedPriceBreakdown[] = []
     const components: ResolvedPriceComponent[] = []
-    let sellAmountCents = chosenRule.baseSellAmountCents ?? 0
-    let costAmountCents = chosenRule.baseCostAmountCents ?? 0
+    let sellAmountCents = 0
+    let costAmountCents = 0
     let onRequest = chosenRule.pricingMode === "on_request"
-
-    if (
-      (chosenRule.baseSellAmountCents ?? 0) !== 0 ||
-      (chosenRule.baseCostAmountCents ?? 0) !== 0
-    ) {
-      components.push({
-        kind: "base",
-        title: option.optionName,
-        quantity: 1,
-        pricingMode: chosenRule.pricingMode,
-        sellAmountCents: chosenRule.baseSellAmountCents ?? 0,
-        costAmountCents: chosenRule.baseCostAmountCents ?? 0,
-        unitId: null,
-        unitName: null,
-        unitType: null,
-        pricingCategoryId: null,
-        pricingCategoryName: null,
-        requestRef: null,
-        sourceRuleId: chosenRule.id,
-        tierId: null,
-      })
-    }
+    let resolvedOccupancyBasis: "supplement" | "all_in" | null = null
 
     for (const request of requestedUnits) {
       const candidateUnitRules = ruleUnitRows.filter((row) => {
@@ -619,6 +600,22 @@ export async function resolve(db: PostgresJsDatabase, query: SellabilityResolveQ
         tier,
         override,
       )
+      if (item.unitType === "room") {
+        const occupancyPrice = classifyOccupancyPrice({
+          occupancyPriceBasis: chosenRule.occupancyPriceBasis,
+          travelerBaseFareAmountCents: chosenRule.baseSellAmountCents ?? 0,
+          occupancyAmountCents: item.sellAmountCents,
+        })
+        if (occupancyPrice.status === "ambiguous") {
+          throw new RequestValidationError(occupancyPrice.diagnostic, {
+            optionPriceRuleId: chosenRule.id,
+            optionUnitPriceRuleId: unitRule?.id ?? null,
+            unitId: item.unitId,
+            semanticsVersion: occupancyPrice.semanticsVersion,
+          })
+        }
+        resolvedOccupancyBasis = occupancyPrice.occupancyPriceBasis
+      }
       breakdown.push(item)
       components.push({
         kind: "unit",
@@ -641,6 +638,42 @@ export async function resolve(db: PostgresJsDatabase, query: SellabilityResolveQ
       })
       sellAmountCents += item.sellAmountCents
       costAmountCents += item.costAmountCents
+    }
+
+    const travelerCount =
+      query.travelerCount ??
+      Math.max(
+        1,
+        requestedUnits.reduce((sum, unit) => sum + unit.quantity, 0),
+      )
+    const baseMultiplier = chosenRule.pricingMode === "per_person" ? travelerCount : 1
+    const baseSellAmountCents =
+      resolvedOccupancyBasis === "all_in"
+        ? 0
+        : (chosenRule.baseSellAmountCents ?? 0) * baseMultiplier
+    const baseCostAmountCents =
+      resolvedOccupancyBasis === "all_in"
+        ? 0
+        : (chosenRule.baseCostAmountCents ?? 0) * baseMultiplier
+    sellAmountCents += baseSellAmountCents
+    costAmountCents += baseCostAmountCents
+    if (baseSellAmountCents !== 0 || baseCostAmountCents !== 0) {
+      components.unshift({
+        kind: "base",
+        title: option.optionName,
+        quantity: baseMultiplier,
+        pricingMode: chosenRule.pricingMode,
+        sellAmountCents: baseSellAmountCents,
+        costAmountCents: baseCostAmountCents,
+        unitId: null,
+        unitName: null,
+        unitType: null,
+        pricingCategoryId: null,
+        pricingCategoryName: null,
+        requestRef: null,
+        sourceRuleId: chosenRule.id,
+        tierId: null,
+      })
     }
 
     if (query.pickupPointId) {

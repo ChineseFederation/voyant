@@ -1,6 +1,7 @@
 "use client"
 
 import { useProduct } from "@voyant-travel/inventory-react"
+import { classifyOccupancyPrice } from "@voyant-travel/products-contracts/occupancy-pricing"
 import { Button, Label, Textarea } from "@voyant-travel/ui/components"
 import { CurrencyInput } from "@voyant-travel/ui/components/currency-input"
 import * as React from "react"
@@ -289,6 +290,16 @@ export function PriceBreakdownSection({
     }
 
     const findUnitPrice = createUnitPriceLookup(snapshot.unitPrices)
+    const selectedRules = new Map<
+      string,
+      {
+        rule: (typeof snapshot.rules)[number]
+        hasRoomPrice: boolean
+        roomAmountCents: number
+        travelerCount: number
+        fallbackCount: number
+      }
+    >()
 
     for (const [unitId, quantity] of Object.entries(unitQuantities)) {
       if (quantity <= 0) continue
@@ -327,6 +338,21 @@ export function PriceBreakdownSection({
           })
           anyOnRequest = true
           continue
+        }
+
+        const rule = snapshot.rules.find((candidate) => candidate.id === up.optionPriceRuleId)
+        if (rule) {
+          const selected = selectedRules.get(rule.id) ?? {
+            rule,
+            hasRoomPrice: false,
+            roomAmountCents: 0,
+            travelerCount: 0,
+            fallbackCount: 0,
+          }
+          if (up.unitType === "room") selected.hasRoomPrice = true
+          if (up.unitType === "person") selected.travelerCount += selection.quantity
+          selected.fallbackCount = Math.max(selected.fallbackCount, selection.quantity)
+          selectedRules.set(rule.id, selected)
         }
 
         const categoryLabel = selection.pricingCategoryId
@@ -395,7 +421,47 @@ export function PriceBreakdownSection({
           isGroupRate,
         })
         runningTotal += lineTotal
+        if (up.unitType === "room" && rule) {
+          const selected = selectedRules.get(rule.id)
+          if (selected) selected.roomAmountCents += lineTotal
+        }
       }
+    }
+
+    for (const selected of selectedRules.values()) {
+      const baseAmountCents = selected.rule.baseSellAmountCents ?? 0
+      let includeBase = baseAmountCents > 0
+      if (selected.hasRoomPrice) {
+        const classification = classifyOccupancyPrice({
+          occupancyPriceBasis: selected.rule.occupancyPriceBasis,
+          travelerBaseFareAmountCents: baseAmountCents,
+          occupancyAmountCents: selected.roomAmountCents,
+        })
+        if (classification.status === "ambiguous") {
+          anyOnRequest = true
+          includeBase = false
+        } else if (classification.occupancyPriceBasis === "all_in") {
+          includeBase = false
+        }
+      }
+      if (!includeBase) continue
+
+      const quantity =
+        selected.rule.pricingMode === "per_person"
+          ? Math.max(1, selected.travelerCount || selected.fallbackCount)
+          : 1
+      const totalAmountCents = baseAmountCents * quantity
+      out.unshift({
+        unitId: `base:${selected.rule.id}`,
+        label: merged.total,
+        quantity,
+        unitAmountCents: baseAmountCents,
+        totalAmountCents,
+        tierLabel: null,
+        isGroupRate: false,
+        pricingBasis: selected.rule.pricingMode === "per_person" ? "per_person" : "per_booking",
+      })
+      runningTotal += totalAmountCents
     }
 
     return { lines: out, total: anyOnRequest ? null : runningTotal }

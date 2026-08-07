@@ -1,6 +1,11 @@
 import type { EventBus } from "@voyant-travel/core"
 import { RequestValidationError } from "@voyant-travel/hono"
-import { and, asc, desc, eq, isNull, ne, sql } from "drizzle-orm"
+import {
+  AMBIGUOUS_OCCUPANCY_PRICE_DIAGNOSTIC,
+  classifyOccupancyPrice,
+  type OccupancyPriceBasis,
+} from "@voyant-travel/products-contracts/occupancy-pricing"
+import { and, asc, desc, eq, isNull, ne, type SQL, sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 
 import {
@@ -46,6 +51,88 @@ const PER_BOOKING_REJECTS_UNIT_PRICES_MESSAGE =
   "Rules with pricingMode = 'per_booking' cannot carry per-unit prices. " +
   "Use pricingMode = 'per_person' or 'starting_from' for unit-priced rules, " +
   "or remove the unit prices to keep this rule a flat per-booking amount."
+
+async function executeRows(db: PostgresJsDatabase, query: SQL): Promise<unknown[]> {
+  // biome-ignore lint/suspicious/noExplicitAny: pricing authoring checks read Product unit facts across the schema boundary.
+  const result = await (db as any).execute(query)
+  return Array.isArray(result) ? result : (result?.rows ?? [])
+}
+
+async function assertOccupancyPriceIsUnambiguous(
+  db: PostgresJsDatabase,
+  input: {
+    optionPriceRuleId: string
+    unitId: string
+    occupancyAmountCents: number
+  },
+): Promise<void> {
+  const [parent] = await db
+    .select({
+      occupancyPriceBasis: optionPriceRules.occupancyPriceBasis,
+      baseSellAmountCents: optionPriceRules.baseSellAmountCents,
+    })
+    .from(optionPriceRules)
+    .where(eq(optionPriceRules.id, input.optionPriceRuleId))
+    .limit(1)
+  if (!parent) return
+
+  const [unit] = await executeRows(
+    db,
+    // agent-quality: raw-sql reviewed -- owner: pricing; reads the Product-owned unit type required to apply occupancy semantics.
+    sql`SELECT unit_type::text AS "unitType" FROM option_units WHERE id = ${input.unitId} LIMIT 1`,
+  )
+  if ((unit as { unitType?: string } | undefined)?.unitType !== "room") return
+
+  const classification = classifyOccupancyPrice({
+    occupancyPriceBasis: parent.occupancyPriceBasis,
+    travelerBaseFareAmountCents: parent.baseSellAmountCents ?? 0,
+    occupancyAmountCents: input.occupancyAmountCents,
+  })
+  if (classification.status === "ambiguous") {
+    throw new RequestValidationError(classification.diagnostic, {
+      optionPriceRuleId: input.optionPriceRuleId,
+      unitId: input.unitId,
+      semanticsVersion: classification.semanticsVersion,
+    })
+  }
+}
+
+async function assertParentOccupancyPriceIsUnambiguous(
+  db: PostgresJsDatabase,
+  input: {
+    optionPriceRuleId: string
+    occupancyPriceBasis: OccupancyPriceBasis | null
+    baseSellAmountCents: number
+  },
+): Promise<void> {
+  if (input.occupancyPriceBasis !== null || input.baseSellAmountCents <= 0) return
+
+  const [row] = await executeRows(
+    db,
+    // agent-quality: raw-sql reviewed -- owner: pricing; detects positive Product room prices before an ambiguous parent rule is saved.
+    sql`
+      SELECT EXISTS (
+        SELECT 1
+        FROM option_unit_price_rules unit_rule
+        INNER JOIN option_units unit ON unit.id = unit_rule.unit_id
+        LEFT JOIN option_unit_tiers tier
+          ON tier.option_unit_price_rule_id = unit_rule.id AND tier.active = true
+        WHERE unit_rule.option_price_rule_id = ${input.optionPriceRuleId}
+          AND unit.unit_type::text = 'room'
+          AND (
+            coalesce(unit_rule.sell_amount_cents, 0) > 0
+            OR coalesce(tier.sell_amount_cents, 0) > 0
+          )
+      ) AS ambiguous
+    `,
+  )
+  if ((row as { ambiguous?: boolean } | undefined)?.ambiguous) {
+    throw new RequestValidationError(AMBIGUOUS_OCCUPANCY_PRICE_DIAGNOSTIC, {
+      optionPriceRuleId: input.optionPriceRuleId,
+      semanticsVersion: 1,
+    })
+  }
+}
 
 import type {
   CreateOptionPriceRuleInput,
@@ -200,12 +287,26 @@ export async function updateOptionPriceRule(
         productId: optionPriceRules.productId,
         minPerBooking: optionPriceRules.minPerBooking,
         maxPerBooking: optionPriceRules.maxPerBooking,
+        occupancyPriceBasis: optionPriceRules.occupancyPriceBasis,
+        baseSellAmountCents: optionPriceRules.baseSellAmountCents,
       })
       .from(optionPriceRules)
       .where(eq(optionPriceRules.id, id))
       .limit(1)
 
     if (!pre) return null
+
+    await assertParentOccupancyPriceIsUnambiguous(tx, {
+      optionPriceRuleId: id,
+      occupancyPriceBasis:
+        "occupancyPriceBasis" in data
+          ? (data.occupancyPriceBasis ?? null)
+          : pre.occupancyPriceBasis,
+      baseSellAmountCents:
+        "baseSellAmountCents" in data
+          ? (data.baseSellAmountCents ?? 0)
+          : (pre.baseSellAmountCents ?? 0),
+    })
 
     assertPricingValidation(
       validateMergedOptionPriceRule({
@@ -361,6 +462,12 @@ export async function createOptionUnitPriceRule(
     })
   }
 
+  await assertOccupancyPriceIsUnambiguous(db, {
+    optionPriceRuleId: data.optionPriceRuleId,
+    unitId: data.unitId,
+    occupancyAmountCents: data.sellAmountCents ?? 0,
+  })
+
   const [row] = await db.insert(optionUnitPriceRules).values(data).returning()
   if (!row) return null
   if (parent) {
@@ -382,6 +489,9 @@ export async function updateOptionUnitPriceRule(
 ) {
   const [existing] = await db
     .select({
+      optionPriceRuleId: optionUnitPriceRules.optionPriceRuleId,
+      unitId: optionUnitPriceRules.unitId,
+      sellAmountCents: optionUnitPriceRules.sellAmountCents,
       minQuantity: optionUnitPriceRules.minQuantity,
       maxQuantity: optionUnitPriceRules.maxQuantity,
     })
@@ -398,6 +508,16 @@ export async function updateOptionUnitPriceRule(
     }),
     "Invalid option unit price rule",
   )
+
+  await assertOccupancyPriceIsUnambiguous(db, {
+    optionPriceRuleId:
+      "optionPriceRuleId" in data
+        ? (data.optionPriceRuleId ?? existing.optionPriceRuleId)
+        : existing.optionPriceRuleId,
+    unitId: "unitId" in data ? (data.unitId ?? existing.unitId) : existing.unitId,
+    occupancyAmountCents:
+      "sellAmountCents" in data ? (data.sellAmountCents ?? 0) : (existing.sellAmountCents ?? 0),
+  })
 
   // Snapshot the pre-update parent's productId. If the update reassigns
   // `optionPriceRuleId` to a parent rule under a different product, the
@@ -550,10 +670,31 @@ export async function getOptionUnitTierById(db: PostgresJsDatabase, id: string) 
   return row ?? null
 }
 
+async function assertOccupancyTierIsUnambiguous(
+  db: PostgresJsDatabase,
+  optionUnitPriceRuleId: string,
+  occupancyAmountCents: number,
+): Promise<void> {
+  const [unitRule] = await db
+    .select({
+      optionPriceRuleId: optionUnitPriceRules.optionPriceRuleId,
+      unitId: optionUnitPriceRules.unitId,
+    })
+    .from(optionUnitPriceRules)
+    .where(eq(optionUnitPriceRules.id, optionUnitPriceRuleId))
+    .limit(1)
+  if (!unitRule) return
+  await assertOccupancyPriceIsUnambiguous(db, {
+    ...unitRule,
+    occupancyAmountCents,
+  })
+}
+
 export async function createOptionUnitTier(
   db: PostgresJsDatabase,
   data: CreateOptionUnitTierInput,
 ) {
+  await assertOccupancyTierIsUnambiguous(db, data.optionUnitPriceRuleId, data.sellAmountCents ?? 0)
   const [row] = await db.insert(optionUnitTiers).values(data).returning()
   return row ?? null
 }
@@ -563,6 +704,22 @@ export async function updateOptionUnitTier(
   id: string,
   data: UpdateOptionUnitTierInput,
 ) {
+  const [existing] = await db
+    .select({
+      optionUnitPriceRuleId: optionUnitTiers.optionUnitPriceRuleId,
+      sellAmountCents: optionUnitTiers.sellAmountCents,
+    })
+    .from(optionUnitTiers)
+    .where(eq(optionUnitTiers.id, id))
+    .limit(1)
+  if (!existing) return null
+  await assertOccupancyTierIsUnambiguous(
+    db,
+    "optionUnitPriceRuleId" in data
+      ? (data.optionUnitPriceRuleId ?? existing.optionUnitPriceRuleId)
+      : existing.optionUnitPriceRuleId,
+    "sellAmountCents" in data ? (data.sellAmountCents ?? 0) : (existing.sellAmountCents ?? 0),
+  )
   const [row] = await db
     .update(optionUnitTiers)
     .set({ ...data, updatedAt: new Date() })

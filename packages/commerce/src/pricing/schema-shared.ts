@@ -59,6 +59,8 @@ export const optionUnitPricingModeEnum = pgEnum("option_unit_pricing_mode", [
   "on_request",
 ])
 
+export const occupancyPriceBasisEnum = pgEnum("occupancy_price_basis", ["supplement", "all_in"])
+
 export const optionStartTimeRuleModeEnum = pgEnum("option_start_time_rule_mode", [
   "included",
   "excluded",

@@ -7,6 +7,7 @@ import {
 import { z } from "zod"
 
 import {
+  occupancyPriceBasisSchema,
   optionPricingModeSchema,
   optionStartTimeRuleModeSchema,
   optionUnitPricingModeSchema,
@@ -78,6 +79,7 @@ const publicOptionPricingRuleSchema = z.object({
   name: z.string(),
   description: z.string().nullable(),
   pricingMode: optionPricingModeSchema,
+  occupancyPriceBasis: occupancyPriceBasisSchema.nullable(),
   baseSellAmountCents: z.number().int().nullable(),
   minPerBooking: z.number().int().nullable(),
   maxPerBooking: z.number().int().nullable(),

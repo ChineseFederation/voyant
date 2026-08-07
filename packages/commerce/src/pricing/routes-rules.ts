@@ -57,6 +57,7 @@ import {
 } from "./validation.js"
 import {
   addonPricingModeSchema,
+  occupancyPriceBasisSchema,
   optionPricingModeSchema,
   optionStartTimeRuleModeSchema,
   optionUnitPricingModeSchema,
@@ -94,6 +95,7 @@ const optionPriceRuleSchema = z.object({
   name: z.string(),
   description: z.string().nullable(),
   pricingMode: optionPricingModeSchema,
+  occupancyPriceBasis: occupancyPriceBasisSchema.nullable(),
   baseSellAmountCents: z.number().int().nullable(),
   baseCostAmountCents: z.number().int().nullable(),
   minPerBooking: z.number().int().nullable(),

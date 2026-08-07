@@ -52,6 +52,7 @@ export function useDuplicateOptionPricingMutation() {
           description: rule.description,
           pricingMode: rule.pricingMode,
           baseSellAmountCents: rule.baseSellAmountCents,
+          occupancyPriceBasis: rule.occupancyPriceBasis,
           baseCostAmountCents: rule.baseCostAmountCents,
           minPerBooking: rule.minPerBooking,
           maxPerBooking: rule.maxPerBooking,

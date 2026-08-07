@@ -138,6 +138,7 @@
   "dependencies": {
     "@voyant-travel/catalog-contracts": "workspace:^",
     "@voyant-travel/i18n": "workspace:^",
+    "@voyant-travel/products-contracts": "workspace:^",
     "@voyant-travel/react": "workspace:^",
     "@voyant-travel/types": "workspace:^",
     "sonner": "^2.0.7"

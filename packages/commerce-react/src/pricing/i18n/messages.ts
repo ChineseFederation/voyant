@@ -313,6 +313,7 @@ export type PricingUiMessages = {
       schedule: string
       cancellationPolicy: string
       pricingMode: string
+      occupancyPriceBasis: string
       baseSell: string
       baseCost: string
       minPerBooking: string
@@ -322,6 +323,13 @@ export type PricingUiMessages = {
       defaultRule: string
       active: string
       notes: string
+    }
+    occupancyPriceBasisLabels: {
+      supplement: string
+      all_in: string
+    }
+    helpText: {
+      occupancyPriceBasis: string
     }
     validation: {
       productRequired: string

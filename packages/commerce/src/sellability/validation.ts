@@ -19,6 +19,7 @@ export const sellabilityResolveQuerySchema = z.object({
   pickupPointId: z.string().optional(),
   currencyCode: z.string().length(3).optional(),
   requestedUnits: z.array(requestedUnitSchema).default([]),
+  travelerCount: z.number().int().min(1).optional(),
   limit: z.number().int().min(1).max(100).default(25),
 })
 

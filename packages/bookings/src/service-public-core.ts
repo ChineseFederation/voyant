@@ -272,6 +272,7 @@ export async function resolveSessionPricingSnapshot(
         id: optionPriceRulesRef.id,
         optionId: optionPriceRulesRef.optionId,
         pricingMode: optionPriceRulesRef.pricingMode,
+        occupancyPriceBasis: optionPriceRulesRef.occupancyPriceBasis,
         baseSellAmountCents: optionPriceRulesRef.baseSellAmountCents,
         isDefault: optionPriceRulesRef.isDefault,
       })

@@ -424,6 +424,7 @@ const pricingPreviewRuleSchema = z.object({
   id: z.string(),
   optionId: z.string(),
   pricingMode: z.string(),
+  occupancyPriceBasis: z.enum(["supplement", "all_in"]).nullable(),
   baseSellAmountCents: z.number().int().nullable(),
   isDefault: z.boolean(),
 })

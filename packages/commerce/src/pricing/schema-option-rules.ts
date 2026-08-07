@@ -14,6 +14,7 @@ import { pricingCategories } from "./schema-categories.js"
 import { cancellationPolicies } from "./schema-policies.js"
 import {
   addonPricingModeEnum,
+  occupancyPriceBasisEnum,
   optionPricingModeEnum,
   optionStartTimeRuleModeEnum,
   optionUnitPricingModeEnum,
@@ -40,6 +41,7 @@ export const optionPriceRules = pgTable(
     name: text("name").notNull(),
     description: text("description"),
     pricingMode: optionPricingModeEnum("pricing_mode").notNull().default("per_person"),
+    occupancyPriceBasis: occupancyPriceBasisEnum("occupancy_price_basis"),
     baseSellAmountCents: integer("base_sell_amount_cents"),
     baseCostAmountCents: integer("base_cost_amount_cents"),
     minPerBooking: integer("min_per_booking"),

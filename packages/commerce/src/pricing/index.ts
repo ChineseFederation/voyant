@@ -1,5 +1,14 @@
 import type { Module } from "@voyant-travel/core"
 import type { ApiModule } from "@voyant-travel/hono/module"
+
+export {
+  AMBIGUOUS_OCCUPANCY_PRICE_DIAGNOSTIC,
+  classifyOccupancyPrice,
+  OCCUPANCY_PRICING_SEMANTICS_VERSION,
+  type OccupancyPriceBasis,
+  resolveOccupancyPrice,
+} from "@voyant-travel/products-contracts/occupancy-pricing"
+
 import { pricingRoutes } from "./routes.js"
 import { publicPricingRoutes } from "./routes-public.js"
 import { pricingService } from "./service.js"
@@ -58,6 +67,7 @@ export {
   departurePriceOverrides,
   dropoffPriceRules,
   extraPriceRules,
+  occupancyPriceBasisEnum,
   optionPriceRules,
   optionPricingModeEnum,
   optionStartTimeRuleModeEnum,
@@ -106,6 +116,7 @@ export {
   insertPriceScheduleSchema,
   insertPricingCategoryDependencySchema,
   insertPricingCategorySchema,
+  occupancyPriceBasisSchema,
   optionPriceRuleListQuerySchema,
   optionPricingModeSchema,
   optionStartTimeRuleListQuerySchema,

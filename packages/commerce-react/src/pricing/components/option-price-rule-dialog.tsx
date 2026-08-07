@@ -34,6 +34,8 @@ import { ProductOptionCombobox } from "./product-option-combobox.js"
 
 const PRICING_MODES = ["per_person", "per_booking", "starting_from", "free", "on_request"] as const
 type PricingMode = (typeof PRICING_MODES)[number]
+const OCCUPANCY_PRICE_BASES = ["supplement", "all_in"] as const
+type OccupancyPriceBasis = (typeof OCCUPANCY_PRICE_BASES)[number]
 
 function createFormSchema(messages: ReturnType<typeof usePricingUiMessagesOrDefault>) {
   return z.object({
@@ -46,6 +48,7 @@ function createFormSchema(messages: ReturnType<typeof usePricingUiMessagesOrDefa
     code: z.string().max(100).optional().nullable(),
     description: z.string().optional().nullable(),
     pricingMode: z.enum(PRICING_MODES),
+    occupancyPriceBasis: z.enum(OCCUPANCY_PRICE_BASES),
     baseSell: z.coerce.number().min(0),
     baseCost: z.coerce.number().min(0),
     minPerBooking: z.coerce.number().int().min(0).optional().or(z.literal("")).nullable(),
@@ -94,6 +97,7 @@ export function OptionPriceRuleDialog({
       code: "",
       description: "",
       pricingMode: "per_person",
+      occupancyPriceBasis: "supplement",
       baseSell: 0,
       baseCost: 0,
       minPerBooking: "",
@@ -120,6 +124,7 @@ export function OptionPriceRuleDialog({
         code: rule.code ?? "",
         description: rule.description ?? "",
         pricingMode: rule.pricingMode,
+        occupancyPriceBasis: rule.occupancyPriceBasis ?? "supplement",
         baseSell: rule.baseSellAmountCents != null ? rule.baseSellAmountCents / 100 : 0,
         baseCost: rule.baseCostAmountCents != null ? rule.baseCostAmountCents / 100 : 0,
         minPerBooking: rule.minPerBooking ?? "",
@@ -145,6 +150,7 @@ export function OptionPriceRuleDialog({
       code: values.code || null,
       description: values.description || null,
       pricingMode: values.pricingMode,
+      occupancyPriceBasis: values.occupancyPriceBasis,
       baseSellAmountCents: Math.round(values.baseSell * 100),
       baseCostAmountCents: Math.round(values.baseCost * 100),
       minPerBooking: toInt(values.minPerBooking),
@@ -304,6 +310,35 @@ export function OptionPriceRuleDialog({
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+              <div className="flex flex-col gap-2">
+                <Label>{messages.optionPriceRuleDialog.fields.occupancyPriceBasis}</Label>
+                <Select
+                  items={OCCUPANCY_PRICE_BASES.map((basis) => ({
+                    label: messages.optionPriceRuleDialog.occupancyPriceBasisLabels[basis],
+                    value: basis,
+                  }))}
+                  value={form.watch("occupancyPriceBasis")}
+                  onValueChange={(value) =>
+                    form.setValue("occupancyPriceBasis", value as OccupancyPriceBasis, {
+                      shouldDirty: true,
+                    })
+                  }
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {OCCUPANCY_PRICE_BASES.map((basis) => (
+                      <SelectItem key={basis} value={basis}>
+                        {messages.optionPriceRuleDialog.occupancyPriceBasisLabels[basis]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  {messages.optionPriceRuleDialog.helpText.occupancyPriceBasis}
+                </p>
               </div>
               <div className="flex flex-col gap-2">
                 <Label>{messages.optionPriceRuleDialog.fields.baseSell}</Label>

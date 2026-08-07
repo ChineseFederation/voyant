@@ -341,6 +341,7 @@ export const pricingUiRo = {
       schedule: "Calendar (optional)",
       cancellationPolicy: "Politica de anulare (optional)",
       pricingMode: "Mod tarifare",
+      occupancyPriceBasis: "Pret ocupare",
       baseSell: "Pret baza vanzare",
       baseCost: "Cost baza",
       minPerBooking: "Minim per rezervare",
@@ -350,6 +351,14 @@ export const pricingUiRo = {
       defaultRule: "Regula implicita",
       active: "Activ",
       notes: "Note",
+    },
+    occupancyPriceBasisLabels: {
+      supplement: "Supliment adaugat la tariful de baza",
+      all_in: "Tarif total pentru ocupare",
+    },
+    helpText: {
+      occupancyPriceBasis:
+        "Alegeti daca pretul camerei se adauga la tariful de baza sau il include deja.",
     },
     validation: {
       productRequired: "Produsul este obligatoriu",

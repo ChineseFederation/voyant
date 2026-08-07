@@ -1566,6 +1566,9 @@ importers:
       '@voyant-travel/i18n':
         specifier: workspace:^
         version: link:../i18n
+      '@voyant-travel/products-contracts':
+        specifier: workspace:^
+        version: link:../products-contracts
       '@voyant-travel/react':
         specifier: workspace:^
         version: link:../react

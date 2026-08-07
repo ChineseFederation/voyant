@@ -20,6 +20,7 @@ export const optionPriceRulesRef = pgTable("option_price_rules", {
   name: text("name").notNull(),
   description: text("description"),
   pricingMode: text("pricing_mode").notNull(),
+  occupancyPriceBasis: text("occupancy_price_basis"),
   baseSellAmountCents: integer("base_sell_amount_cents"),
   minPerBooking: integer("min_per_booking"),
   maxPerBooking: integer("max_per_booking"),

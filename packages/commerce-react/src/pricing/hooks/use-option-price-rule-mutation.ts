@@ -27,6 +27,7 @@ const optionPriceRuleInputSchema = z.object({
   description: z.string().nullable().optional(),
   pricingMode: optionPricingModeSchema,
   baseSellAmountCents: z.number().int().min(0).nullable().optional(),
+  occupancyPriceBasis: z.enum(["supplement", "all_in"]).nullable().optional(),
   baseCostAmountCents: z.number().int().min(0).nullable().optional(),
   minPerBooking: z.number().int().min(0).nullable().optional(),
   maxPerBooking: z.number().int().min(0).nullable().optional(),
