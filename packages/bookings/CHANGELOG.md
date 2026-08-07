@@ -1,5 +1,11 @@
 # @voyant-travel/bookings
 
+## 0.240.8
+
+### Patch Changes
+
+- ea04a28: Bind frozen cancellation-policy entitlement into the approved Booking cancellation consequence snapshot and recheck it under item locks. Keep per-person option bases from being multiplied twice when unit rules already price each traveler. Pin the packaged operator API reference to the tested version so clean consumer installs do not resolve a broken transitive release.
+
 ## 0.240.7
 
 ### Patch Changes
