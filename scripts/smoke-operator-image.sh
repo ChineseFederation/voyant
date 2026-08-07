@@ -14,6 +14,7 @@ cleanup() {
   status=$?
   if ((status != 0)); then
     docker logs "$container" 2>/dev/null || true
+    docker logs "$api_only_container" 2>/dev/null || true
   fi
   docker rm -f "$container" >/dev/null 2>&1 || true
   docker rm -f "$api_only_container" >/dev/null 2>&1 || true

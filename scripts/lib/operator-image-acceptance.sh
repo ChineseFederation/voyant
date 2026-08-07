@@ -129,11 +129,11 @@ operator_image_boot_api_only_and_assert() {
   done
 
   local health api admin content_type
-  health=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:$port/healthz")
+  health=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:$port/healthz" || true)
   api=$(curl -s -o /dev/null -w "%{http_code}" --max-time 20 \
-    "http://localhost:$port/api/openapi.json")
-  admin=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:$port/")
-  content_type=$(curl -s -o /dev/null -w "%{content_type}" "http://localhost:$port/")
+    "http://localhost:$port/api/openapi.json" || true)
+  admin=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:$port/" || true)
+  content_type=$(curl -s -o /dev/null -w "%{content_type}" "http://localhost:$port/" || true)
   echo "api-only healthz -> $health; api -> $api; admin -> $admin ($content_type)"
   test "$health" = "200"
   test "$api" -lt 500
