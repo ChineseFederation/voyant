@@ -361,7 +361,7 @@ function buildJourneys(RUN_MARK: string): CapabilityJourney[] {
     {
       id: "product-create",
       domain: "products",
-      task: `Create a product called 'Capability Eval Tour ${RUN_MARK}', a guided road tour sold by date. Confirm its id.`,
+      task: `Create a product called 'Capability Eval Tour ${RUN_MARK}', a guided road tour sold by date in EUR. Confirm its id.`,
       expect: `capability eval tour ${RUN_MARK}`,
       maxCalls: 18,
       verify: `select 1 from products where name ilike '%capability eval tour ${RUN_MARK}%'`,
@@ -456,7 +456,7 @@ function buildJourneys(RUN_MARK: string): CapabilityJourney[] {
       // to depend on another journey's output rather than seeded data.
       id: "ops-departure-create",
       domain: "ops",
-      task: `Create a departure for the product 'Capability Eval Tour ${RUN_MARK}' on 2026-09-15 with 20 seats available. Confirm the departure id.`,
+      task: `Create a departure for the product 'Capability Eval Tour ${RUN_MARK}' on 2026-09-15 at 09:00 +03:00 in Europe/Bucharest with 20 seats available. Confirm the departure id.`,
       expect: "2026-09-15",
       maxCalls: 20,
       verify: `select 1 from availability_slots s join products p on p.id = s.product_id
@@ -860,27 +860,20 @@ describe.skipIf(!enabled)("MCP capability — a travel agent's job", () => {
           attempts.set(journey.id, [...(attempts.get(journey.id) ?? []), run])
           // Keep the LAST attempt as the representative transcript for the report.
           runs.set(journey.id, run)
-        }
 
-        // Grade this attempt against the DATABASE before the next one runs, so a
-        // later attempt's rows can never satisfy an earlier attempt's check.
-        for (const journey of journeys) {
-          const run = runs.get(journey.id)
+          // Grade immediately, before the next journey can write a row that
+          // accidentally satisfies this journey's assertion.
           let passed = false
-          if (run) {
-            if (journey.verify) {
-              const rows = await (
-                verifyDb as { execute: (q: unknown) => Promise<unknown> }
-              ).execute(
-                // `sql` is a TEMPLATE TAG — a plain string is read as a
-                // template-strings array and only its first character is sent.
-                sqlRaw.raw(journey.verify),
-              )
-              passed = rowCount(rows) > 0
-              verified.set(journey.id, passed)
-            } else {
-              passed = journeyPassed(journey, run)
-            }
+          if (journey.verify) {
+            const rows = await (verifyDb as { execute: (q: unknown) => Promise<unknown> }).execute(
+              // `sql` is a TEMPLATE TAG — a plain string is read as a
+              // template-strings array and only its first character is sent.
+              sqlRaw.raw(journey.verify),
+            )
+            passed = rowCount(rows) > 0
+            verified.set(journey.id, passed)
+          } else {
+            passed = journeyPassed(journey, run)
           }
           passes.set(journey.id, [...(passes.get(journey.id) ?? []), passed])
         }
