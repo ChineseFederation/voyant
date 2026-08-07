@@ -16,7 +16,16 @@ export interface PaymentAdapterStatusRefreshExecution {
 const PAYMENT_ADAPTER_STATUS_REFRESH_LEASE_MS = 120_000
 const PAYMENT_ADAPTER_STATUS_REFRESH_AFTER_KEY = "paymentAdapterStatusRefreshAfter"
 const PAYMENT_ADAPTER_INITIATION_STATE_KEY = "paymentAdapterInitiationState"
-const PAYMENT_ADAPTER_POLLABLE_STATES = ["requires_redirect", "processing", "authorized"] as const
+// Embedded Payment Element confirmation happens in the shopper's browser. The
+// tenant therefore still has a `pending` session when it first asks the adapter
+// for the processor's authoritative result. The identity guard in the lease
+// query keeps uninitiated pending sessions out of provider polling.
+const PAYMENT_ADAPTER_POLLABLE_STATES = [
+  "pending",
+  "requires_redirect",
+  "processing",
+  "authorized",
+] as const
 
 /**
  * Refresh one persisted session through the deployment-selected adapter.

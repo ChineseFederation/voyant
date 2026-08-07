@@ -2,7 +2,7 @@ import type { VoyantGraphRuntimeFactoryContext } from "@voyant-travel/core/proje
 import { refreshPaymentAdapterStatus } from "@voyant-travel/finance"
 import { paymentSessions } from "@voyant-travel/finance/schema"
 import type { PaymentAdapter } from "@voyant-travel/payments"
-import { asc, inArray } from "drizzle-orm"
+import { and, asc, inArray, isNotNull, or, sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 
 import {
@@ -10,7 +10,8 @@ import {
   storefrontPaymentReconciliationJobRuntimePort,
 } from "./runtime-port.js"
 
-const POLLABLE_STATES = ["requires_redirect", "processing", "authorized"] as const
+const POLLABLE_STATES = ["pending", "requires_redirect", "processing", "authorized"] as const
+const PAYMENT_ADAPTER_INITIATION_STATE_KEY = "paymentAdapterInitiationState"
 const DEFAULT_BATCH_SIZE = 100
 
 export type { PaymentReconciliationJobRuntime } from "./runtime-port.js"
@@ -36,7 +37,22 @@ const dependencies: ReconciliationDependencies = {
     const rows = await db
       .select({ id: paymentSessions.id })
       .from(paymentSessions)
-      .where(inArray(paymentSessions.status, POLLABLE_STATES))
+      .where(
+        and(
+          inArray(paymentSessions.status, POLLABLE_STATES),
+          // A plain pending session has not necessarily reached a processor.
+          // Embedded checkout is distinguishable by the processor identity
+          // persisted at bootstrap, while an ambiguous initiation is marked
+          // uncertain. Excluding every other pending row prevents old drafts
+          // from consuming the bounded batch forever.
+          or(
+            isNotNull(paymentSessions.providerConnectionId),
+            isNotNull(paymentSessions.providerSessionId),
+            isNotNull(paymentSessions.providerPaymentId),
+            sql`${paymentSessions.metadata}->>${PAYMENT_ADAPTER_INITIATION_STATE_KEY}::text = 'uncertain'`,
+          ),
+        ),
+      )
       .orderBy(asc(paymentSessions.updatedAt))
       .limit(limit)
     return rows.map((row) => row.id)
