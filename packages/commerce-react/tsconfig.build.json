@@ -366,6 +366,9 @@
       "@voyant-travel/bookings/booking-create-command-domain": [
         "../bookings/dist/booking-create-command-domain.d.ts"
       ],
+      "@voyant-travel/bookings/cancellation-consequences": [
+        "../bookings/dist/cancellation-consequences.d.ts"
+      ],
       "@voyant-travel/bookings/checkout-capability": ["../bookings/dist/checkout-capability.d.ts"],
       "@voyant-travel/bookings/extensions/suppliers": [
         "../bookings/dist/extensions/suppliers.d.ts"

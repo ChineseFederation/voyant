@@ -44,7 +44,7 @@ const bomPackages = [
 const distributionRuntimeEntryDeps = {
   "@better-auth/api-key": "^1.6.23",
   "@fontsource-variable/inter-tight": "^5.2.7",
-  "@scalar/api-reference-react": "^0.9.51",
+  "@scalar/api-reference-react": "0.9.51",
   "@tailwindcss/vite": "^4.3.2",
   "@tanstack/devtools-vite": "^0.8.1",
   "@tanstack/react-query": "^5.101.2",

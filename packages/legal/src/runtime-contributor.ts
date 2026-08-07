@@ -1,6 +1,7 @@
 import {
   type BookingActionSourceRuntime,
   bookingActionSourceRuntimePort,
+  bookingsCancellationPolicyRuntimePort,
 } from "@voyant-travel/bookings/runtime-port"
 import { commerceLegalRuntimePort } from "@voyant-travel/commerce/runtime-port"
 import type { VoyantRuntimeHostPrimitives } from "@voyant-travel/core"
@@ -14,6 +15,7 @@ import { legalContractDocumentJobRuntimePort } from "./contract-document-job-run
 import { legalContractDocumentRuntimePort } from "./contract-document-runtime-port.js"
 import type { LegalDocumentArtifactProvider } from "./contracts/document-artifact-provider.js"
 import { createStandardLegalDocumentArtifactProvider } from "./document-artifact-runtime.js"
+import { evaluateCancellationSnapshot } from "./policies/service.js"
 import { legalRuntimePort } from "./runtime-port.js"
 
 export interface LegalRuntimeContributorHost {
@@ -55,6 +57,7 @@ export function createLegalRuntimePortContribution(
   return {
     [bookingActionSourceRuntimePort.id]:
       legalBookingActionSource satisfies BookingActionSourceRuntime,
+    [bookingsCancellationPolicyRuntimePort.id]: { evaluateCancellationSnapshot },
     [commerceLegalRuntimePort.id]: createCommerceLegalRuntime(host.primitives),
     [legalRuntimePort.id]: runtime.then((value) => value.legal),
     [legalContractDocumentRuntimePort.id]: runtime.then((value) => value.contractDocument),

@@ -1230,6 +1230,11 @@ evidence, missing sale facts, and mixed currencies produce an explicit
 `manual_review` result with no aggregate refund entitlement; they must never be
 coerced to a zero refund.
 
+The destructive cancellation handler includes this result in its server-held
+consequence preview and approval fingerprint. Execution locks Finance rows, the
+Booking, its Items, and allocations before recomputing with the preview's
+original evaluation timestamp. Manual-review outcomes stop before mutation.
+
 ## 9. Adoption plan
 
 v1 is a single coordinated piece of work: the catalog plane lands and every existing vertical adopts it together. Sequencing inside the work is for development convenience; the release is one cut, not five.

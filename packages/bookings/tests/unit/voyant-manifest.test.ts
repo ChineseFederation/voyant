@@ -25,6 +25,7 @@ describe("bookings deployment manifest", () => {
       runtime: { entry: "@voyant-travel/bookings", export: "createBookingsVoyantRuntime" },
       runtimePorts: [
         { id: "bookings.accommodation.runtime" },
+        { id: "bookings.cancellation-policy.runtime" },
         { id: "custom-fields.runtime" },
         { id: "bookings.finance.runtime" },
         { id: "bookings.relationships.runtime" },

@@ -1474,10 +1474,13 @@ async function reconcileBookingCreatePricing(
   >()
   for (const [optionId, pricing] of persistedPricingByOption) {
     const baseMultiplier = pricing.pricingMode === "per_person" ? Math.max(1, booking.pax ?? 0) : 1
-    const ruleBaseTotal = (pricing.baseSellAmountCents ?? 0) * baseMultiplier
+    const ruleBaseTotal = pricing.baseSellAmountCents ?? 0
     optionBaseStates.set(optionId, {
       ruleBaseTotal,
-      noUnitRuleBaseTotal: ruleBaseTotal,
+      // A per-person option base is the whole price only when no unit rule
+      // prices the travelers. When unit rules exist, those quantities already
+      // carry the per-person multiplication and the option base applies once.
+      noUnitRuleBaseTotal: ruleBaseTotal * baseMultiplier,
       applied: ruleBaseTotal === 0,
     })
   }

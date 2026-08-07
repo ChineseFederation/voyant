@@ -534,6 +534,7 @@ export async function resolve(db: PostgresJsDatabase, query: SellabilityResolveQ
     let costAmountCents = 0
     let onRequest = chosenRule.pricingMode === "on_request"
     let resolvedOccupancyBasis: "supplement" | "all_in" | null = null
+    let matchedUnitPricing = false
 
     for (const request of requestedUnits) {
       const candidateUnitRules = ruleUnitRows.filter((row) => {
@@ -566,6 +567,7 @@ export async function resolve(db: PostgresJsDatabase, query: SellabilityResolveQ
             )
           return scoreB - scoreA
         })[0] ?? null
+      if (unitRule) matchedUnitPricing = true
 
       const tier = unitRule
         ? ([...ruleTierRows]
@@ -646,7 +648,8 @@ export async function resolve(db: PostgresJsDatabase, query: SellabilityResolveQ
         1,
         requestedUnits.reduce((sum, unit) => sum + unit.quantity, 0),
       )
-    const baseMultiplier = chosenRule.pricingMode === "per_person" ? travelerCount : 1
+    const baseMultiplier =
+      chosenRule.pricingMode === "per_person" && !matchedUnitPricing ? travelerCount : 1
     const baseSellAmountCents =
       resolvedOccupancyBasis === "all_in"
         ? 0

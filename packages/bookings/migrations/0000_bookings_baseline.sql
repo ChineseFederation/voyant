@@ -471,7 +471,6 @@ CREATE TABLE "booking_items" (
 	"departure_label_snapshot" text,
 	"source_snapshot_id" text,
 	"source_offer_id" text,
-	"cancellation_terms_snapshot" jsonb,
 	"metadata" jsonb,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,

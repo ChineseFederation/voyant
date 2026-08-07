@@ -21,6 +21,7 @@ import {
   type BookingsSupplierAmendmentRuntime,
   bookingActionProjectionRuntimePort,
   bookingsAccommodationRuntimePort,
+  bookingsCancellationPolicyRuntimePort,
   bookingsFinanceRuntimePort,
   bookingsRelationshipsRuntimePort,
   bookingsSupplierAmendmentRuntimePort,
@@ -210,6 +211,9 @@ export const createBookingsVoyantRuntime = defineGraphRuntimeFactory(
     const amendmentSupplier = hasPort(bookingsSupplierAmendmentRuntimePort)
       ? ((await getPort(bookingsSupplierAmendmentRuntimePort)) as BookingsSupplierAmendmentRuntime)
       : undefined
+    const cancellationPolicy = hasPort(bookingsCancellationPolicyRuntimePort)
+      ? await getPort(bookingsCancellationPolicyRuntimePort)
+      : undefined
     const bookingActions = hasPort(bookingActionProjectionRuntimePort)
       ? await getPort(bookingActionProjectionRuntimePort)
       : undefined
@@ -218,6 +222,7 @@ export const createBookingsVoyantRuntime = defineGraphRuntimeFactory(
       ...provider.options,
       amendmentFinance: finance,
       ...(amendmentSupplier ? { amendmentSupplier } : {}),
+      ...(cancellationPolicy ? { cancellationPolicy } : {}),
       ...(bookingActions ? { bookingActions } : {}),
       // Last: the deployment composing this graph is the authority over what
       // it composed. This is how a graph-composed host installs options the
@@ -286,6 +291,7 @@ export type { BookingsRuntimeProvider } from "./runtime-port.js"
 export {
   bookingRequirementsRuntimePort,
   bookingsAccommodationRuntimePort,
+  bookingsCancellationPolicyRuntimePort,
   bookingsFinanceRuntimePort,
   bookingsInventoryRuntimePort,
   bookingsRelationshipsRuntimePort,

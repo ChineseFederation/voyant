@@ -12,7 +12,7 @@ import type {
 } from "@voyant-travel/bookings-contracts/booking-actions"
 import { definePort } from "@voyant-travel/core/project"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
-
+import type { BookingCancellationPolicyEvaluator } from "./cancellation-consequences.js"
 import type { BookingsApiModuleOptions } from "./index.js"
 import type { BookingRequirementsApiModuleOptions } from "./requirements/index.js"
 import type { ResolveBookingRequirementsProductSnapshot } from "./requirements/service-public.js"
@@ -116,6 +116,10 @@ export interface BookingsRelationshipsRuntime {
   ): Promise<{ id: string } | null>
   getPersonById(db: PostgresJsDatabase, personId: string): Promise<unknown | null>
   getOrganizationById(db: PostgresJsDatabase, organizationId: string): Promise<unknown | null>
+}
+
+export interface BookingsCancellationPolicyRuntime {
+  evaluateCancellationSnapshot: BookingCancellationPolicyEvaluator
 }
 
 /**
@@ -222,6 +226,10 @@ export const bookingsInventoryRuntimePort = objectPort<BookingsInventoryRuntime>
 export const bookingsRelationshipsRuntimePort = objectPort<BookingsRelationshipsRuntime>(
   "bookings.relationships.runtime",
   ["loadPersonTravelSnapshot", "upsertPersonFromContact", "getPersonById", "getOrganizationById"],
+)
+export const bookingsCancellationPolicyRuntimePort = objectPort<BookingsCancellationPolicyRuntime>(
+  "bookings.cancellation-policy.runtime",
+  ["evaluateCancellationSnapshot"],
 )
 export const bookingActionSourceRuntimePort = objectPort<BookingActionSourceRuntime>(
   "bookings.booking-action-source.runtime",

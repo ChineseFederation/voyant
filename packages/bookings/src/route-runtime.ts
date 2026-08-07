@@ -9,7 +9,11 @@ import {
 } from "./booking-plan-limit.js"
 import type { BookingTravelerSnapshot } from "./pii.js"
 import type { KmsBindings } from "./routes-shared.js"
-import type { BookingsFinanceRuntime, BookingsSupplierAmendmentRuntime } from "./runtime-port.js"
+import type {
+  BookingsCancellationPolicyRuntime,
+  BookingsFinanceRuntime,
+  BookingsSupplierAmendmentRuntime,
+} from "./runtime-port.js"
 import type { BookingStatus } from "./state-machine.js"
 
 export const BOOKING_ROUTE_RUNTIME_CONTAINER_KEY = "runtime.bookings.routes"
@@ -151,6 +155,7 @@ export interface BookingRouteRuntime {
   overviewItemEnrichers?: Partial<Record<string, BookingOverviewItemEnricher>>
   amendmentFinance?: BookingsFinanceRuntime
   amendmentSupplier?: BookingsSupplierAmendmentRuntime
+  cancellationPolicy?: BookingsCancellationPolicyRuntime
 }
 
 /**
@@ -186,6 +191,7 @@ export interface BookingRouteRuntimeOptions {
   overviewItemEnrichers?: Partial<Record<string, BookingOverviewItemEnricher>>
   amendmentFinance?: BookingsFinanceRuntime
   amendmentSupplier?: BookingsSupplierAmendmentRuntime
+  cancellationPolicy?: BookingsCancellationPolicyRuntime
 }
 
 function buildRuntimeEnv(bindings: KmsBindings): Record<string, string | undefined> {
@@ -233,5 +239,6 @@ export function buildBookingRouteRuntime(
     overviewItemEnrichers: options.overviewItemEnrichers,
     amendmentFinance: options.amendmentFinance,
     amendmentSupplier: options.amendmentSupplier,
+    cancellationPolicy: options.cancellationPolicy,
   }
 }

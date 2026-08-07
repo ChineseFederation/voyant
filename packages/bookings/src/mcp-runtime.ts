@@ -17,6 +17,10 @@ import {
 } from "@voyant-travel/tools"
 import { sql } from "drizzle-orm"
 import type { Context } from "hono"
+import {
+  type BookingCancellationPolicyEvaluator,
+  resolveBookingCancellationConsequences,
+} from "./cancellation-consequences.js"
 import { contributeBookingsExtrasToolContext } from "./extras/mcp-runtime.js"
 import {
   type BookingStatusToolAction,
@@ -277,6 +281,17 @@ async function executeBookingStatusToolCommand(input: {
     ...input,
     settlementHookAvailable: Boolean(routeRuntime.recordCancellationFinancialSettlement),
   })
+  if (
+    input.action === "cancel" &&
+    isRecord(preview.policyEntitlement) &&
+    preview.policyEntitlement.status === "manual_review"
+  ) {
+    throw new ToolError(
+      "Cancellation policy entitlement requires manual review; no cancellation was written.",
+      "INVALID_INPUT",
+      { bookingId: input.input.id, reason: "policy_manual_review_required" },
+    )
+  }
   const previewJson = canonicalJson(preview)
   const bufferedEvents: BufferedEvent[] = []
   const bufferingEventBus = {
@@ -321,6 +336,8 @@ async function executeBookingStatusToolCommand(input: {
           input.action,
           input.input.suppressNotifications === true,
           Boolean(routeRuntime.recordCancellationFinancialSettlement),
+          routeRuntime.cancellationPolicy?.evaluateCancellationSnapshot,
+          policyEntitlementAsOf(preview),
         )
         if (canonicalJson(currentPreview) !== previewJson) {
           throw new ToolError(
@@ -451,6 +468,7 @@ async function bookingStatusConsequencePreviewForAdmission(input: {
     input.action,
     input.input.suppressNotifications === true,
     input.settlementHookAvailable,
+    getBookingToolRouteRuntime(input.c).cancellationPolicy?.evaluateCancellationSnapshot,
   )
 }
 
@@ -460,6 +478,8 @@ export async function loadBookingStatusConsequencePreview(
   action: BookingStatusToolAction,
   suppressNotifications: boolean,
   settlementHookAvailable: boolean,
+  evaluateCancellationPolicy?: BookingCancellationPolicyEvaluator,
+  policyAsOf: Date = new Date(),
 ) {
   const booking = await bookingsService.getBookingById(db, bookingId)
   if (!booking) {
@@ -476,6 +496,18 @@ export async function loadBookingStatusConsequencePreview(
     bookingId,
     settlementHookAvailable,
   )
+  const policyEntitlement = evaluateCancellationPolicy
+    ? await resolveBookingCancellationConsequences(
+        await bookingsService.listItems(db, bookingId),
+        policyAsOf,
+        evaluateCancellationPolicy,
+      )
+    : {
+        status: "manual_review" as const,
+        asOf: policyAsOf.toISOString(),
+        reasons: ["policy_evaluator_unavailable"],
+        refundCents: null,
+      }
   return {
     action,
     bookingId,
@@ -489,6 +521,7 @@ export async function loadBookingStatusConsequencePreview(
     notificationsSuppressed: booking.notificationsSuppressed || suppressNotifications === true,
     closesPaymentSchedules: true,
     financialSettlement,
+    policyEntitlement,
     allocations: allocations.map((allocation) => ({
       id: allocation.id,
       status: allocation.status,
@@ -553,11 +586,29 @@ async function lockBookingAndAllocations(
   `)
   await db.execute(sql`
     SELECT id
+    FROM booking_items
+    WHERE booking_id = ${bookingId}
+    ORDER BY id
+    FOR UPDATE
+  `)
+  await db.execute(sql`
+    SELECT id
     FROM booking_allocations
     WHERE booking_id = ${bookingId}
     ORDER BY id
     FOR UPDATE
   `)
+}
+
+function policyEntitlementAsOf(preview: Record<string, unknown>): Date {
+  const entitlement = isRecord(preview.policyEntitlement) ? preview.policyEntitlement : null
+  const parsed = typeof entitlement?.asOf === "string" ? new Date(entitlement.asOf) : new Date(NaN)
+  if (Number.isNaN(parsed.getTime())) {
+    throw new ToolError("The approved cancellation policy timestamp is invalid.", "INVALID_INPUT", {
+      reason: "policy_consequence_invalid",
+    })
+  }
+  return parsed
 }
 
 async function loadFinanceConsequenceTables(

@@ -18,6 +18,7 @@ import { bookingsReportingDeclaration } from "./reporting-definitions.js"
 import {
   bookingActionProjectionRuntimePort,
   bookingsAccommodationRuntimePort,
+  bookingsCancellationPolicyRuntimePort,
   bookingsFinanceRuntimePort,
   bookingsInventoryRuntimePort,
   bookingsRelationshipsRuntimePort,
@@ -330,6 +331,7 @@ export const bookingsVoyantModule = defineModule({
   runtime: { entry: "@voyant-travel/bookings", export: "createBookingsVoyantRuntime" },
   runtimePorts: [
     requirePort(bookingsAccommodationRuntimePort),
+    requirePort(bookingsCancellationPolicyRuntimePort),
     requirePort(customFieldsRuntimePort),
     requirePort(bookingsFinanceRuntimePort),
     requirePort(bookingsRelationshipsRuntimePort),

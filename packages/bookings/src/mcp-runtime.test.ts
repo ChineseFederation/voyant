@@ -13,6 +13,7 @@ import {
   loadBookingStatusConsequencePreview,
   voyantToolContextContribution,
 } from "./mcp-runtime.js"
+import { buildBookingRouteRuntime } from "./route-runtime.js"
 import { bookingsService } from "./service.js"
 
 afterEach(() => {
@@ -162,7 +163,7 @@ describe("bookings MCP runtime lifecycle detail", () => {
       invocation: {},
     } as ToolHandlerActionPolicyContext)
 
-    expect(execute).toHaveBeenCalledTimes(6)
+    expect(execute).toHaveBeenCalledTimes(7)
     expect(cancelBooking).toHaveBeenCalledOnce()
   })
 
@@ -306,7 +307,7 @@ function bookingDetailWithDates(id: string) {
     description: null,
     itemType: "unit",
     status: "confirmed",
-    serviceDate: null,
+    serviceDate: "2026-08-28",
     startsAt: null,
     endsAt: null,
     quantity: 1,
@@ -321,6 +322,9 @@ function bookingDetailWithDates(id: string) {
     optionNameSnapshot: "Suite",
     unitNameSnapshot: "Cabin",
     departureLabelSnapshot: null,
+    cancellationTermsSnapshot: {
+      policy: { policyVersionId: "polv_sale" },
+    },
     metadata: null,
     createdAt: new Date("2026-07-28T10:01:00.000Z"),
     updatedAt: new Date("2026-07-28T10:31:00.000Z"),
@@ -342,6 +346,20 @@ function bookingDetailWithDates(id: string) {
 }
 
 function request(): never {
+  const cancellationPolicy = {
+    evaluateCancellationSnapshot: async () => ({
+      status: "evaluated" as const,
+      policyId: "pol_cancel",
+      policyVersionId: "polv_sale",
+      version: 1,
+      result: {
+        refundPercent: 5000,
+        refundCents: 500,
+        refundType: "cash" as const,
+        appliedRule: { id: "rule_sale" },
+      },
+    }),
+  }
   const vars = {
     actor: "staff",
     callerType: "agent",
@@ -350,6 +368,9 @@ function request(): never {
     organizationId: "organization_1",
     scopes: ["bookings:read", "bookings:write"],
     isInternalRequest: false,
+    container: {
+      resolve: () => buildBookingRouteRuntime({}, { cancellationPolicy }),
+    },
   }
   return {
     var: vars,

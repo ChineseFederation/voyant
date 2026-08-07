@@ -1,6 +1,9 @@
 // agent-quality: file-size exception -- owner: legal; the import-cheap package manifest keeps routes, events, actions, setup, and runtime-port declarations co-located for deterministic graph review.
 
-import { bookingActionSourceRuntimePort } from "@voyant-travel/bookings/runtime-port"
+import {
+  bookingActionSourceRuntimePort,
+  bookingsCancellationPolicyRuntimePort,
+} from "@voyant-travel/bookings/runtime-port"
 import { commerceLegalRuntimePort } from "@voyant-travel/commerce/runtime-port"
 import {
   defineExtension,
@@ -182,6 +185,7 @@ export const legalVoyantModule = defineModule({
       providePort(legalDocumentArtifactProviderPort),
       providePort(legalContractDocumentJobRuntimePort),
       providePort(bookingActionSourceRuntimePort),
+      providePort(bookingsCancellationPolicyRuntimePort),
     ],
   },
   runtimePorts: [
