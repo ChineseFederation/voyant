@@ -1,5 +1,11 @@
 # @voyant-travel/bookings-contracts
 
+## 0.114.1
+
+### Patch Changes
+
+- 669a0d7: Preserve accepted quote cancellation terms as an immutable, per-item Booking snapshot during owned and sourced booking commitment.
+
 ## 0.114.0
 
 ### Minor Changes
