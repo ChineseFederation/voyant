@@ -1,5 +1,11 @@
 # @voyant-travel/core
 
+## 0.140.3
+
+### Patch Changes
+
+- 21a28ef: Carry a quote-supported checkout intent through Booking Session commit, reject stale or unsupported choices before side effects, and return durable bank-transfer instructions when the host configures offline-payment orchestration.
+
 ## 0.140.2
 
 ### Patch Changes

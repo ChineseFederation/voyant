@@ -1,6 +1,6 @@
 {
   "name": "@voyant-travel/core",
-  "version": "0.140.2",
+  "version": "0.140.3",
   "license": "Apache-2.0",
   "type": "module",
   "exports": {
