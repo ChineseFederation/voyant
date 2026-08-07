@@ -492,6 +492,7 @@ async function commitSourcedBooking(
       channelId: input.session.storefrontOrigin?.channelId,
       supplierOperationId: operation.id,
       now: input.now,
+      cancellationTermsEvidence: cancellationTermsEvidence(input.quote, "supplier_quote"),
     })
     await captureSnapshot(transaction, {
       bookingId: materialized.bookingId,
@@ -613,10 +614,15 @@ async function commitOwnedBookingInTransaction(
     },
   )
   if (derived.status !== "ok") throw new BookingSessionCommitRejectedError(derived.reason)
-  const command =
+  const derivedCommand =
     input.access.actorKind === "staff" && input.access.staffBookingAuthority?.admitted
       ? applyStaffSelection(derived.command, input.session.statePayload)
       : derived.command
+  const termsEvidence = cancellationTermsEvidence(input.quote, "booking_quote")
+  const command = {
+    ...derivedCommand,
+    ...(termsEvidence ? { cancellationTermsEvidence: termsEvidence } : {}),
+  }
 
   const routeActions = createRouteActionRegistry()
   routeActions.register(FINANCE_BOOKING_CREATE_SELF_SERVICE_ROUTE_ACTION)
@@ -825,6 +831,21 @@ function policyEvidenceFromValues(values?: Record<string, unknown>) {
   return {
     ...(cancellation !== undefined ? { cancellation } : {}),
     ...(bookingTerms !== undefined ? { bookingTerms } : {}),
+  }
+}
+
+function cancellationTermsEvidence(
+  quote: CommitOwnedBookingInput["quote"] | CommitSourcedBookingInput["quote"],
+  source: "booking_quote" | "supplier_quote",
+) {
+  const policy = quote.pricing.policyEvidence?.cancellation
+  if (policy === undefined) return null
+  return {
+    schemaVersion: 1 as const,
+    source,
+    sourceId: quote.id,
+    capturedAt: quote.quotedAt.toISOString(),
+    policy,
   }
 }
 

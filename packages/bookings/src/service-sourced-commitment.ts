@@ -2,6 +2,7 @@ import { newId } from "@voyant-travel/db/lib/typeid"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 
 import { bookings, bookingTravelers } from "./schema-core.js"
+import type { BookingItemCancellationTermsSnapshotV1 } from "./schema-items.js"
 import { bookingAllocations, bookingItems, bookingItemTravelers } from "./schema-items.js"
 import { upsertBookingOrigin } from "./service-origin.js"
 
@@ -50,6 +51,10 @@ export interface CreateSourcedBookingCommitmentInput {
   channelId?: string | null
   supplierOperationId: string
   now: Date
+  cancellationTermsEvidence?: Omit<
+    BookingItemCancellationTermsSnapshotV1,
+    "sellCurrency" | "totalSellAmountCents" | "serviceDate"
+  > | null
 }
 
 export interface CreateSourcedBookingCommitmentResult {
@@ -118,6 +123,14 @@ export async function createSourcedBookingCommitment(
     totalSellAmountCents: input.sellAmountCents,
     productNameSnapshot: input.title,
     sourceOfferId: input.sourceRef,
+    cancellationTermsSnapshot: input.cancellationTermsEvidence
+      ? {
+          ...input.cancellationTermsEvidence,
+          sellCurrency: input.sellCurrency,
+          totalSellAmountCents: input.sellAmountCents,
+          serviceDate: input.serviceDate ?? startDate,
+        }
+      : null,
     metadata: {
       entityModule: input.entityModule,
       entityId: input.entityId,

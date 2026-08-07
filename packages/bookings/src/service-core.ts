@@ -2629,6 +2629,14 @@ const bookingsServiceInternal = {
               ...productOptionSnapshot,
               unitNameSnapshot: unit.name,
               ...slotFields,
+              cancellationTermsSnapshot: data.cancellationTermsEvidence
+                ? {
+                    ...data.cancellationTermsEvidence,
+                    sellCurrency: product.sellCurrency,
+                    totalSellAmountCents,
+                    serviceDate: slot?.dateLocal ?? null,
+                  }
+                : null,
               metadata: itemLineMetadata(line.clientLineKey),
             }
           })
@@ -2670,6 +2678,16 @@ const bookingsServiceInternal = {
                 ...productOptionSnapshot,
                 unitNameSnapshot: unit.name,
                 ...slotFields,
+                cancellationTermsSnapshot: data.cancellationTermsEvidence
+                  ? {
+                      ...data.cancellationTermsEvidence,
+                      sellCurrency: product.sellCurrency,
+                      totalSellAmountCents: singleSeedItem
+                        ? (effectiveSellAmountCents ?? null)
+                        : null,
+                      serviceDate: slot?.dateLocal ?? null,
+                    }
+                  : null,
               }
             })
           : [
@@ -2692,6 +2710,14 @@ const bookingsServiceInternal = {
                 ...productOptionSnapshot,
                 unitNameSnapshot: null,
                 ...slotFields,
+                cancellationTermsSnapshot: data.cancellationTermsEvidence
+                  ? {
+                      ...data.cancellationTermsEvidence,
+                      sellCurrency: product.sellCurrency,
+                      totalSellAmountCents: effectiveSellAmountCents ?? null,
+                      serviceDate: slot?.dateLocal ?? null,
+                    }
+                  : null,
               },
             ]
 

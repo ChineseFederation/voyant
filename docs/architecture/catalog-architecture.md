@@ -1208,6 +1208,14 @@ booking_catalog_snapshot rows:
 
 Refunding, modifying, or status-syncing this booking eight months later can read each component's frozen view to know exactly what the customer paid for and what cancellation policy applied to each piece. The same pattern applies whether the composite vertical exists today or is added later — the snapshot table accepts any registered `entity_module`.
 
+At commercial commitment, accepted Quote cancellation evidence is also copied to
+`booking_items.cancellation_terms_snapshot`. The per-item snapshot adds the sold
+amount, currency, service date, Quote identity, and capture time to the frozen
+policy payload. It is immutable sale evidence: later policy publication must not
+refresh it. Legacy items and commits whose Quote carried no authoritative
+cancellation evidence remain `NULL`; consumers must treat that as unknown/manual
+review rather than infer historical terms from current authoring state.
+
 ## 9. Adoption plan
 
 v1 is a single coordinated piece of work: the catalog plane lands and every existing vertical adopts it together. Sequencing inside the work is for development convenience; the release is one cut, not five.

@@ -173,6 +173,15 @@ export const sharingGroupsForSlotQuerySchema = z.object({
   slotId: z.string().min(1),
 })
 
+export const cancellationTermsEvidenceV1Schema = z.object({
+  schemaVersion: z.literal(1),
+  source: z.enum(["booking_quote", "supplier_quote"]),
+  sourceId: z.string().min(1),
+  capturedAt: z.string().datetime(),
+  /** Frozen cancellation terms carried by the accepted quote. */
+  policy: z.unknown(),
+})
+
 export const convertProductSchema = z
   .object({
     productId: z.string().min(1),
@@ -239,6 +248,11 @@ export const convertProductSchema = z
     contactAddressLine1: z.string().max(500).optional().nullable(),
     contactAddressLine2: z.string().max(500).optional().nullable(),
     contactPostalCode: z.string().max(20).optional().nullable(),
+    /**
+     * Server-held evidence from the accepted quote. Public/operator inputs must
+     * not expose this field; the booking-session commit boundary supplies it.
+     */
+    cancellationTermsEvidence: cancellationTermsEvidenceV1Schema.optional().nullable(),
     itemLines: z
       .array(
         z.object({

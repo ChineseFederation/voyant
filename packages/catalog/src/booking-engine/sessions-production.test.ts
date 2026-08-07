@@ -305,6 +305,53 @@ describe("production Booking Session ports", () => {
     })
   })
 
+  it("carries frozen quote cancellation terms into the server-held create command", async () => {
+    const policy = {
+      policyId: "pol_cancellation",
+      policyVersionId: "polv_sale",
+      version: 3,
+      rules: [{ daysBeforeDeparture: 30, refundPercent: 80 }],
+    }
+    const module = createCommittableProductionModule({}, { cancellationSnapshot: policy })
+    const access = {
+      actorKind: "anonymous" as const,
+      capability: TEST_CAPABILITY,
+      ...STOREFRONT_ACCESS,
+    }
+    const created = await module.createSession(committableCreateInput("create_terms"), access)
+    if (created.kind !== "session_created") throw new Error("session not created")
+    const prepared = await quoteAndHoldForCommit(
+      module,
+      created.session.id,
+      created.session.revision,
+      access,
+      "terms",
+    )
+
+    await module.commitSession(
+      created.session.id,
+      {
+        expectedRevision: created.session.revision,
+        ...prepared,
+        idempotencyKey: "commit_terms",
+      },
+      access,
+    )
+
+    expect(financeCreate.resolvedCommand).toMatchObject({
+      cancellationTermsEvidence: {
+        schemaVersion: 1,
+        source: "booking_quote",
+        sourceId: prepared.quoteId,
+        policy,
+      },
+    })
+    expect(
+      (financeCreate.resolvedCommand?.cancellationTermsEvidence as { capturedAt: string })
+        .capturedAt,
+    ).toMatch(/^\d{4}-\d{2}-\d{2}T/)
+  })
+
   it.each([
     [
       "anonymous",
@@ -792,7 +839,10 @@ describe("production Booking Session ports", () => {
   })
 })
 
-function createCommittableProductionModule(command: Record<string, unknown> = {}) {
+function createCommittableProductionModule(
+  command: Record<string, unknown> = {},
+  upstreamPayload?: Record<string, unknown>,
+) {
   const repository = createInMemoryBookingSessionRepository()
   const handlers = createOwnedBookingHandlerRegistry()
   handlers.register({
@@ -808,6 +858,7 @@ function createCommittableProductionModule(command: Record<string, unknown> = {}
           surcharges: 0,
           currency: "EUR",
         },
+        upstreamPayload,
       }
     },
     async placeHold(_context, request) {

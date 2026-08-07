@@ -335,6 +335,30 @@ describe("Convert product schema", () => {
     expect(result.slotId).toBeUndefined()
   })
 
+  it("accepts only typed server-held cancellation evidence", () => {
+    const evidence = {
+      schemaVersion: 1 as const,
+      source: "booking_quote" as const,
+      sourceId: "quote_1",
+      capturedAt: "2026-08-07T10:00:00.000Z",
+      policy: { policyVersionId: "polv_sale", rules: [] },
+    }
+    expect(
+      convertProductSchema.parse({
+        productId: "prod_abc",
+        bookingNumber: "BK-001",
+        cancellationTermsEvidence: evidence,
+      }).cancellationTermsEvidence,
+    ).toEqual(evidence)
+    expect(() =>
+      convertProductSchema.parse({
+        productId: "prod_abc",
+        bookingNumber: "BK-001",
+        cancellationTermsEvidence: { ...evidence, schemaVersion: 2 },
+      }),
+    ).toThrow()
+  })
+
   it("rejects placeholder organization IDs", () => {
     expect(() =>
       convertProductSchema.parse({

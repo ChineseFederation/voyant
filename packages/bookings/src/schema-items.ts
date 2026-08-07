@@ -25,6 +25,17 @@ import {
   bookingRedemptionMethodEnum,
 } from "./schema-shared.js"
 
+export interface BookingItemCancellationTermsSnapshotV1 {
+  schemaVersion: 1
+  source: "booking_quote" | "supplier_quote"
+  sourceId: string
+  capturedAt: string
+  policy: unknown
+  sellCurrency: string
+  totalSellAmountCents: number | null
+  serviceDate: string | null
+}
+
 export const bookingItems = pgTable(
   "booking_items",
   {
@@ -71,6 +82,9 @@ export const bookingItems = pgTable(
     departureLabelSnapshot: text("departure_label_snapshot"),
     sourceSnapshotId: text("source_snapshot_id"),
     sourceOfferId: text("source_offer_id"),
+    cancellationTermsSnapshot: jsonb(
+      "cancellation_terms_snapshot",
+    ).$type<BookingItemCancellationTermsSnapshotV1>(),
     metadata: jsonb("metadata").$type<Record<string, unknown>>(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),

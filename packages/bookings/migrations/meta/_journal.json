@@ -78,6 +78,13 @@
       "when": 1786093200000,
       "tag": "20260807110000_booking_inquiries",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1786102200000,
+      "tag": "20260807143000_booking_item_cancellation_terms_snapshot",
+      "breakpoints": true
     }
   ]
 }

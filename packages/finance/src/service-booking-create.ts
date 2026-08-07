@@ -548,6 +548,16 @@ const bookingCreateBaseSchema = z.object({
   contactAddressLine1: z.string().max(500).optional().nullable(),
   contactAddressLine2: z.string().max(500).optional().nullable(),
   contactPostalCode: z.string().max(20).optional().nullable(),
+  cancellationTermsEvidence: z
+    .object({
+      schemaVersion: z.literal(1),
+      source: z.enum(["booking_quote", "supplier_quote"]),
+      sourceId: z.string().min(1),
+      capturedAt: z.string().datetime(),
+      policy: z.unknown(),
+    })
+    .optional()
+    .nullable(),
 
   // Orchestration fields
   travelers: z
@@ -583,6 +593,7 @@ const bookingCreateOperatorInputSchema = bookingCreateBaseSchema
     catalogSellAmountCents: true,
     confirmedSellAmountCents: true,
     priceOverrideReason: true,
+    cancellationTermsEvidence: true,
   })
   .extend({
     // The reference is resolved server-side: omit it and the tool allocates one.
