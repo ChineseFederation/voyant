@@ -1676,6 +1676,9 @@
       "@voyant-travel/products-contracts/content-shape": [
         "../products-contracts/dist/content-shape.d.ts"
       ],
+      "@voyant-travel/products-contracts/occupancy-pricing": [
+        "../products-contracts/dist/occupancy-pricing.d.ts"
+      ],
       "@voyant-travel/products-contracts/product-version-snapshot": [
         "../products-contracts/dist/product-version-snapshot.d.ts"
       ],
