@@ -232,6 +232,7 @@ jobs:
           ln -s "$acceptance_deploy/node_modules" apps/operator/dist/node_modules
           node scripts/measure-operator-application.mjs --require-build --check
           node --test scripts/tests/minimal-starter-acceptance.test.mjs
+          node --test scripts/tests/operator-admin-shell-browser.test.mjs
 
   package-artifacts:
     name: package-artifacts

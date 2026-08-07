@@ -235,10 +235,40 @@ const getShellBootstrap = createServerFn({ method: "GET" })
     return bootstrap
   })
 
+async function fetchBrowserApi<T>(path: string): Promise<T | null> {
+  const response = await fetch(`/api${path}`, { credentials: "include", cache: "no-store" })
+  if (response.status === 401) return null
+  if (!response.ok) throw new Error(`Failed to fetch ${path}`)
+  return response.json() as Promise<T>
+}
+
+const getBrowserBootstrapStatus = async () => {
+  const status = await fetchBrowserApi<{ hasUsers: boolean; authMode?: "local" | "voyant-cloud" }>(
+    "/auth/bootstrap-status",
+  )
+  if (!status) throw new Error("Failed to fetch bootstrap status")
+  return status
+}
+
+const getBrowserCurrentUser = () => fetchBrowserApi<StandardOperatorCurrentUser>("/auth/me")
+
+const getBrowserShellBootstrap = async () => {
+  const bootstrap = await fetchBrowserApi<StandardOperatorShellBootstrap>("/auth/shell-bootstrap")
+  if (bootstrap && (bootstrap.version !== 1 || bootstrap.compatibility.minimumShellVersion > 1)) {
+    throw new Error(
+      `Incompatible admin shell bootstrap contract (received ${bootstrap.version}, shell supports 1)`,
+    )
+  }
+  return bootstrap
+}
+
+const isPortableBrowser =
+  typeof document !== "undefined" && document.documentElement.dataset.voyantPortableShell === "1"
+
 const adminAuthRuntime: AdminAuthRuntime<StandardOperatorCurrentUser> = {
-  getCurrentUser,
-  getShellBootstrap,
-  getBootstrapStatus,
+  getCurrentUser: isPortableBrowser ? getBrowserCurrentUser : getCurrentUser,
+  getShellBootstrap: isPortableBrowser ? getBrowserShellBootstrap : getShellBootstrap,
+  getBootstrapStatus: isPortableBrowser ? getBrowserBootstrapStatus : getBootstrapStatus,
   cloudAuthStartHref,
   signOut: async () => {
     await authClient.signOut()

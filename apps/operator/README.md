@@ -143,8 +143,11 @@ runtime; this is a packaging profile, not a second product.
 
 Every build also places the portable shell at `/app/admin-shell`. Its
 `manifest.json` records the source revision, image version, graph hash, UI build
-ID, bootstrap compatibility range, and hashes for every fingerprinted client
-file. Export the exact same bytes without constructing another frontend:
+ID, bootstrap compatibility range, and hashes and media types for every
+fingerprinted client file. The packaged `client/index.html` is generated from
+the build manifest, boots without SSR state, and is both the navigation entry
+document and deep-link fallback. Export the exact same bytes without
+constructing another frontend:
 
 ```bash
 docker build -f apps/operator/Dockerfile --target admin-shell-artifact \

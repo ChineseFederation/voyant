@@ -208,10 +208,15 @@ The frontend build is assembled once into `dist/client`. The build then copies
 those exact bytes into the versioned `admin-shell` artifact and the runtime image
 embeds that directory at `/app/admin-shell`; the Docker
 `admin-shell-artifact` target exports the same directory rather than rebuilding
-it. `manifest.json` is the machine-readable receipt. It records source revision,
-image version, resolved graph hash, a content-derived UI build ID, the relative
-`/api` base, the shell-bootstrap compatibility interval, portable document
-fallback/API passthrough routing, and each file's size and SHA-256 digest.
+it. Packaging generates `client/index.html` from the build's root assets; that
+document contains no tenant or user state and boots the client directly against
+same-origin `/api`. `manifest.json` is the machine-readable receipt. It records
+source revision, image version, resolved graph hash, a content-derived UI build
+ID, the relative `/api` base, the shell-bootstrap compatibility interval,
+portable document fallback/API passthrough routing, and each file's media type,
+size, and SHA-256 digest. Verification requires the declared HTML entry and
+fallback to identify that receipt file and rejects document references to
+anything outside the receipt.
 
 The shell contains build-time admitted presentation code only. Authenticated
 bootstrap data can select active capabilities, entitlements, navigation,

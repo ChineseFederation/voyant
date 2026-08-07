@@ -140,7 +140,11 @@ export function createAdminWorkspaceBeforeLoad<TUser>({
 
 export function AdminWorkspacePendingFallback({ label }: { label?: string }) {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background">
+    <div
+      className="flex min-h-screen items-center justify-center bg-background"
+      role="status"
+      aria-live="polite"
+    >
       <div className="flex flex-col items-center gap-4">
         <Loader2 className="size-8 animate-spin text-muted-foreground" />
         {label ? <p className="text-sm text-muted-foreground">{label}</p> : null}

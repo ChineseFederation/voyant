@@ -13,6 +13,7 @@ const expected = [
   "admin/README.md",
   "api/admin/README.md",
   "api/public/README.md",
+  "client.tsx",
   "extensions/README.md",
   "links/README.md",
   "modules/README.md",
@@ -48,7 +49,7 @@ assert(
   "custom-fields overlay must stay deleted",
 )
 
-const composition = ["router.tsx", "start.ts", "styles.css"]
+const composition = ["client.tsx", "router.tsx", "start.ts", "styles.css"]
   .map((file) => readFileSync(join(applicationRoot, file), "utf8"))
   .join("\n")
 assert(!composition.includes("#"), "application composition must not contain first-party unit IDs")
@@ -60,6 +61,17 @@ assert(
   !composition.includes("@voyant-travel/finance"),
   "application must not select product packages",
 )
+
+const client = readFileSync(join(applicationRoot, "client.tsx"), "utf8")
+for (const token of [
+  'document.documentElement.dataset.voyantPortableShell === "1"',
+  "createRoot(document).render(",
+  "<RouterProvider router={getRouter()} />",
+  "hydrateRoot(",
+  "<StartClient />",
+]) {
+  assert(client.includes(token), `application client bootstrap must contain ${token}`)
+}
 
 const routeRegistry = readFileSync(
   join(root, "packages/operator-standard/src/standard-route-files.ts"),
