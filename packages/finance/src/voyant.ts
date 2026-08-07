@@ -478,6 +478,17 @@ export const financeVoyantModule = defineModule({
       risk: "low",
     },
     {
+      id: "@voyant-travel/finance#tool.invoice-booking",
+      name: "invoice_booking",
+      runtime: {
+        entry: "@voyant-travel/finance/tools",
+        export: "invoiceBookingTool",
+      },
+      requiredScopes: ["finance:write", "bookings:read"],
+      context: ["finance"],
+      risk: "high",
+    },
+    {
       id: "@voyant-travel/finance#tool.issue-unsynced-proforma-from-booking",
       name: "issue_unsynced_proforma_from_booking",
       runtime: {
@@ -603,6 +614,7 @@ export const financeVoyantModule = defineModule({
         tools: [
           "@voyant-travel/finance#tool.issue-invoice-from-booking",
           "@voyant-travel/finance#tool.issue-unsynced-proforma-from-booking",
+          "@voyant-travel/finance#tool.invoice-booking",
         ],
       },
     },

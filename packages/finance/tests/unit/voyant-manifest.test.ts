@@ -138,6 +138,11 @@ describe("finance deployment manifest", () => {
           name: "issue_unsynced_proforma_from_booking",
           risk: "high",
         }),
+        expect.objectContaining({
+          id: "@voyant-travel/finance#tool.invoice-booking",
+          name: "invoice_booking",
+          risk: "high",
+        }),
       ]),
     )
     expect(financeVoyantModule.actions).toContainEqual(
@@ -161,6 +166,7 @@ describe("finance deployment manifest", () => {
           tools: [
             "@voyant-travel/finance#tool.issue-invoice-from-booking",
             "@voyant-travel/finance#tool.issue-unsynced-proforma-from-booking",
+            "@voyant-travel/finance#tool.invoice-booking",
           ],
         },
       }),

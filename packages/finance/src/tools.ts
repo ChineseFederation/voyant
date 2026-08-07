@@ -97,6 +97,11 @@ export interface FinanceToolServices {
   issueUnsyncedProformaFromBooking(
     input: z.infer<typeof issueUnsyncedProformaFromBookingToolInputSchema>,
   ): Promise<unknown>
+  invoiceBooking(
+    input: z.infer<typeof invoiceBookingToolInputSchema> & {
+      approvalId?: string
+    },
+  ): Promise<unknown>
 }
 
 export type FinanceToolContext = ToolContext & { finance?: FinanceToolServices }
@@ -417,6 +422,50 @@ export const unsyncedProformaApprovalSnapshotSchema = z.object({
   ),
 })
 
+export const invoiceBookingToolInputSchema = z.strictObject({
+  bookingId: z.string().min(1),
+  issueDate: z.string().min(1).describe("The proforma issue date (YYYY-MM-DD)."),
+  dueDate: z.string().min(1).describe("The proforma due date (YYYY-MM-DD)."),
+})
+
+export const invoiceBookingToolOutputSchema = z.union([
+  pendingFinanceApprovalSchema.extend({ preview: unsyncedProformaApprovalSnapshotSchema }),
+  z.object({ status: z.literal("issued"), invoice: invoiceSchema, replayed: z.boolean() }),
+])
+
+export const invoiceBookingTool = defineTool<
+  z.infer<typeof invoiceBookingToolInputSchema>,
+  z.infer<typeof invoiceBookingToolOutputSchema>,
+  FinanceToolContext
+>({
+  owner: "@voyant-travel/finance",
+  capabilityId: "@voyant-travel/finance#tool.invoice-booking",
+  capabilityVersion: "v1",
+  name: "invoice_booking",
+  description:
+    "Issue an unsynced proforma for a booking. The first call returns the exact payer, amount, lines, taxes, and a server-issued approval without writing a document. Approve it, then retry the same business input with `_voyant.approvalId`; the server revalidates the financial snapshot before issuing.",
+  inputSchema: invoiceBookingToolInputSchema,
+  outputSchema: invoiceBookingToolOutputSchema,
+  requiredScopes: ["finance:write", "bookings:read"],
+  audience: { source: "grant", allowed: ["staff"] },
+  resolvesIdempotencyKeyServerSide: true,
+  actionPolicyEnforcement: "handler",
+  tier: "destructive",
+  riskPolicy: {
+    destructive: false,
+    reversible: false,
+    dryRunSupported: false,
+    confirmationRequired: false,
+    sideEffects: ["data-write"],
+  },
+  annotations: { idempotentHint: true },
+  async handler(input, ctx) {
+    return invoiceBookingToolOutputSchema.parse(
+      await finance(ctx).invoiceBooking({ ...input, approvalId: handlerApprovalId(ctx) }),
+    )
+  },
+})
+
 export const previewUnsyncedProformaFromBookingTool = defineTool<
   { bookingId: string },
   z.infer<typeof unsyncedProformaApprovalSnapshotSchema>,
@@ -427,7 +476,7 @@ export const previewUnsyncedProformaFromBookingTool = defineTool<
   capabilityVersion: "v1",
   name: "preview_unsynced_proforma_from_booking",
   description:
-    "Read the exact authoritative payer, amount, line, and tax snapshot for an unsynced proforma. Call once before issue_unsynced_proforma_from_booking and pass its revision and fingerprint unchanged.",
+    "Advanced read of the exact authoritative payer, amount, line, and tax snapshot for an unsynced proforma. Prefer invoice_booking for the ordinary issue workflow.",
   inputSchema: z.strictObject({ bookingId: z.string().min(1) }),
   outputSchema: unsyncedProformaApprovalSnapshotSchema,
   requiredScopes: ["finance:write", "bookings:read"],
@@ -478,7 +527,7 @@ export const issueUnsyncedProformaFromBookingTool = defineTool<
   capabilityVersion: "v1",
   name: "issue_unsynced_proforma_from_booking",
   description:
-    "Create and issue one proforma from a known booking after exact approval, without fiscalizing it, syncing it to an external accounting provider, sending it, or creating a payment link. This capability cannot create a draft: for a draft-only request, do not call it; explain that draft-only is unsupported and offer either this created/issued unsynced proforma or no document. Call preview_unsynced_proforma_from_booking once, then pass its booking id, revision, and snapshot fingerprint unchanged. Amount, currency, payer, line items, and taxes are derived from that authoritative snapshot.",
+    "Advanced low-level command that creates and issues one unsynced proforma from a caller-held approval snapshot. Prefer invoice_booking for the ordinary workflow; use this only when the caller deliberately manages the revision, fingerprint, and idempotency contract.",
   inputSchema: issueUnsyncedProformaFromBookingToolInputSchema,
   outputSchema: issueInvoiceFromBookingToolOutputSchema,
   requiredScopes: ["finance:write", "bookings:read"],
@@ -625,6 +674,7 @@ export const financeTools = [
   voidInvoiceTool,
   issueInvoiceRefundTool,
   issueInvoiceFromBookingTool,
+  invoiceBookingTool,
   recordPaymentDisputeTool,
   recordRefundSettlementTool,
   previewUnsyncedProformaFromBookingTool,

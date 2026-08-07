@@ -232,6 +232,58 @@ export const voyantToolContextContribution = defineToolContextContribution({
           }
           return snapshot
         },
+        async invoiceBooking(input: {
+          bookingId: string
+          issueDate: string
+          dueDate: string
+          approvalId?: string
+        }) {
+          const preview = await buildUnsyncedProformaApprovalSnapshot(
+            db,
+            input.bookingId,
+            getFinanceRouteRuntime(c),
+          )
+          if (!preview) {
+            throw new ToolError("Booking was not found.", "NOT_FOUND", {
+              bookingId: input.bookingId,
+            })
+          }
+          const command = {
+            bookingId: input.bookingId,
+            issueDate: input.issueDate,
+            dueDate: input.dueDate,
+            invoiceType: "proforma" as const,
+            skipExternalSync: true,
+          }
+          const authorizationCommand = {
+            ...command,
+            bookingUpdatedAt: preview.bookingUpdatedAt,
+            snapshotFingerprint: preview.snapshotFingerprint,
+          }
+          const result = await executeInvoiceIssueTool({
+            db,
+            c,
+            command,
+            authorizationCommand,
+            expectedBookingUpdatedAt: preview.bookingUpdatedAt,
+            expectedSnapshotFingerprint: preview.snapshotFingerprint,
+            idempotencyKey: await deriveCommandIdempotencyKey(
+              "invoice-booking",
+              authorizationCommand,
+            ),
+            approvalId: input.approvalId,
+          })
+          return result.status === "approval_required"
+            ? {
+                ...result,
+                preview,
+                nextSteps: [
+                  `1. Call approve_action_approval with approvalId "${result.approval.id}". This approval is already pending; do not request another one.`,
+                  `2. Call invoice_booking again with the identical bookingId, issueDate, and dueDate plus the nested control object "_voyant": {"approvalId": "${result.approval.id}"}. The server will rebuild the financial snapshot and refuse if it changed.`,
+                ],
+              }
+            : result
+        },
         async issueUnsyncedProformaFromBooking(input: {
           bookingId: string
           bookingUpdatedAt: string

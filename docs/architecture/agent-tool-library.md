@@ -118,6 +118,16 @@ reach back into Finance to do the real work. When a workflow's home is
 non-obvious, it is because the orchestration service already lives somewhere the
 job's name does not point to — follow the service, not the noun.
 
+Invoice issuance follows the same ownership rule. `invoice_booking` lives in
+Finance because Finance owns both the authoritative booking-billing projection
+and invoice issuance. Its first call returns the payer, amount, lines, and taxes
+alongside a server-issued approval; after that approval is granted, the same Tool
+rebuilds the snapshot and issues only if it still matches. The fingerprint stays
+server-owned. This is intentionally a two-stage financial interlock rather than a
+single blind write: resolving the fingerprint at execution time alone would make
+the stale-snapshot check compare a value with itself and silently approve changed
+money.
+
 ## Domain completeness notes
 
 Inventory owns guarded core authoring and lifecycle Tools (`create_product`,

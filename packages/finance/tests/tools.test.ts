@@ -12,6 +12,7 @@ import {
   type FinanceToolServices,
   financeBookingsCreateTools,
   financeTools,
+  invoiceBookingTool,
   issueInvoiceFromBookingTool,
   issueInvoiceFromBookingToolInputSchema,
   issueInvoiceRefundInputSchema,
@@ -87,6 +88,71 @@ function bookingDetail(id = "booking_1") {
 }
 
 describe("finance tools", () => {
+  it("previews and requests approval through one invoice-booking intent call", async () => {
+    const received: unknown[] = []
+    const preview = {
+      id: "booking_1",
+      bookingId: "booking_1",
+      bookingNumber: "BK-1",
+      bookingUpdatedAt: "2026-07-15T09:30:00.000Z",
+      snapshotFingerprint: "snapshot_1",
+      payer: { type: "organization" as const, id: "org_1" },
+      currency: "EUR",
+      subtotalCents: 80_000,
+      taxCents: 0,
+      totalCents: 80_000,
+      lines: [],
+    }
+    const services: Partial<FinanceToolServices> = {
+      async invoiceBooking(input) {
+        received.push(input)
+        return {
+          status: "approval_required",
+          requestedAction: {
+            id: "action_1",
+            status: "awaiting_approval",
+            actionName: "finance.invoice.issue_from_booking",
+            targetType: "booking",
+            targetId: "booking_1",
+          },
+          approval: {
+            id: "approval_1",
+            status: "pending",
+            requestedActionId: "action_1",
+            policyName: "finance-invoice-issue-approval-v1",
+            policyVersion: "v1",
+            riskSnapshot: "high",
+            reasonCode: "invoice_issue_from_booking_requested_by_agent",
+            expiresAt: null,
+            createdAt: "2026-07-15T10:00:00.000Z",
+          },
+          replayed: false,
+          preview,
+          nextSteps: [],
+        }
+      },
+    }
+
+    await expect(
+      invoiceBookingTool.handler(
+        { bookingId: "booking_1", issueDate: "2026-07-15", dueDate: "2026-08-15" },
+        ctx(services),
+      ),
+    ).resolves.toMatchObject({
+      status: "approval_required",
+      approval: { id: "approval_1" },
+      preview: { bookingId: "booking_1", totalCents: 80_000 },
+    })
+    expect(received).toEqual([
+      {
+        bookingId: "booking_1",
+        issueDate: "2026-07-15",
+        dueDate: "2026-08-15",
+        approvalId: undefined,
+      },
+    ])
+  })
+
   it("carries approvals through the _voyant admission instead of a duplicate domain field", async () => {
     expect(issueInvoiceFromBookingToolInputSchema.shape).not.toHaveProperty("approvalId")
     expect(issueInvoiceRefundInputSchema.shape).not.toHaveProperty("approvalId")
@@ -181,6 +247,7 @@ describe("finance tools", () => {
     const list = registry.list()
     expect(list.map((t) => t.name).sort()).toEqual([
       "get_invoice",
+      "invoice_booking",
       "issue_invoice_from_booking",
       "issue_invoice_refund",
       "issue_unsynced_proforma_from_booking",
@@ -381,6 +448,9 @@ describe("finance tools", () => {
           },
           replayed: false,
         }
+      },
+      async invoiceBooking() {
+        throw new Error("not called")
       },
     }
     expect(await registry.dispatch("get_invoice", { id: "inv_1" }, ctx(services))).toMatchObject({
