@@ -72,6 +72,7 @@ import {
   type CatalogCruisesRuntimeExtension,
   type CatalogDistributionRuntimeExtension,
   type CatalogInventoryRuntimeExtension,
+  type CatalogLegalRuntimeExtension,
   type CatalogOperationsRuntimeExtension,
   type CatalogRuntimeServices,
   type CatalogSourcesRuntimeExtension,
@@ -81,6 +82,7 @@ import {
   catalogCruisesRuntimeExtensionPort,
   catalogDistributionRuntimeExtensionPort,
   catalogInventoryRuntimeExtensionPort,
+  catalogLegalRuntimeExtensionPort,
   catalogOperationsRuntimeExtensionPort,
   catalogRuntimeServicesPort,
   catalogSourcesRuntimeExtensionPort,
@@ -136,6 +138,7 @@ export function createCatalogRuntimePortContribution(
       ),
       host.getRuntimePort<CatalogCruisesRuntimeExtension>(catalogCruisesRuntimeExtensionPort),
       host.getRuntimePort<CatalogInventoryRuntimeExtension>(catalogInventoryRuntimeExtensionPort),
+      host.getRuntimePort<CatalogLegalRuntimeExtension>(catalogLegalRuntimeExtensionPort),
       host.getRuntimePort<CatalogOperationsRuntimeExtension>(catalogOperationsRuntimeExtensionPort),
       host.getRuntimePort<FinanceOperatorSettingsRuntime>(financeOperatorSettingsRuntimePort),
       hasIndexerPort ? host.getRuntimePort<unknown>(catalogIndexerProviderPort) : undefined,
@@ -152,6 +155,7 @@ export function createCatalogRuntimePortContribution(
       distribution,
       cruises,
       inventory,
+      legal,
       operations,
       settings,
       indexer,
@@ -171,6 +175,7 @@ export function createCatalogRuntimePortContribution(
           distribution,
           cruises,
           inventory,
+          legal,
           operations,
           ...(sources ? { sources } : {}),
         },
@@ -207,7 +212,7 @@ export function createCatalogRuntimePortContribution(
     const db = host.primitives.database.resolve(undefined) as PostgresJsDatabase
     const runtime = await contribution
     const services = await runtime.services
-    const [, , , distribution, , inventory, , settings] = await dependencies
+    const [, , , distribution, , inventory, , , settings] = await dependencies
     return createProductionBookingSessionModule({
       db,
       ...(analytics ? { analytics } : {}),

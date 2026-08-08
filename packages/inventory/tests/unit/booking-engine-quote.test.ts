@@ -63,6 +63,30 @@ describe("createProductsBookingHandler.computeQuote", () => {
     expect(lines[0]?.quantity).toBe(2)
   })
 
+  it("carries the applicable immutable cancellation policy snapshot as quote evidence", async () => {
+    const cancellationSnapshot = {
+      schemaVersion: 1,
+      policyId: "pol_cancel",
+      policyVersionId: "polv_sale",
+      version: 1,
+      capturedAt: "2026-08-08T09:00:00.000Z",
+      rules: [],
+    }
+    const loadCancellationPolicySnapshot = vi.fn(async () => cancellationSnapshot)
+    const handler = createProductsBookingHandler({ loadCancellationPolicySnapshot })
+
+    const result = await handler.computeQuote(
+      makeCtx([product]),
+      baseRequest({ configure: { pax: { adult: 2 } } }),
+    )
+
+    expect(loadCancellationPolicySnapshot).toHaveBeenCalledWith(expect.anything(), {
+      productId: product.id,
+      at: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
+    })
+    expect(result.upstreamPayload).toEqual({ cancellationSnapshot })
+  })
+
   it("uses per-band unit prices when the resolver returns matching units", async () => {
     const loadResolvedOptionPrice = vi.fn(
       async (): Promise<ResolvedOptionPrice> => ({

@@ -41,6 +41,10 @@ import {
 
 export interface ProductBookingRuntimeHost {
   withDatabase<T>(operation: (db: PostgresJsDatabase) => Promise<T>): Promise<T>
+  captureCancellationPolicySnapshot(
+    db: PostgresJsDatabase,
+    input: { productId: string; at: string },
+  ): Promise<unknown | null>
 }
 
 function asPostgresDb(db: unknown): PostgresJsDatabase {
@@ -98,10 +102,12 @@ async function loadProductTravelerCategories(
 
 export function registerProductBookingHandler(
   registry: OwnedBookingHandlerRegistry,
-  _host: ProductBookingRuntimeHost,
+  host: ProductBookingRuntimeHost,
 ): void {
   registry.register(
     createProductsBookingHandler({
+      loadCancellationPolicySnapshot: (ctx, input) =>
+        host.captureCancellationPolicySnapshot(asPostgresDb(ctx.db), input),
       holds: {
         async place(ctx, input) {
           const db = asPostgresDb(ctx.db)

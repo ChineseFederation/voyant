@@ -259,6 +259,11 @@ export interface ResolvedTaxRate {
  *  Templates wire these to the modules they have on hand
  *  (booking requirements, Inventory/Bookings extras, finance). */
 export interface OwnedProductsShapeLoaders {
+  /** Freeze the applicable published Legal cancellation policy into quote evidence. */
+  loadCancellationPolicySnapshot?: (
+    ctx: OwnedHandlerContext,
+    input: { productId: string; at: string },
+  ) => Promise<unknown | null>
   /**
    * Resolve per-traveler field requirements from
    * @voyant-travel/bookings/requirements. Called per-quote so the descriptor
@@ -608,6 +613,13 @@ export function createProductsBookingHandler(
             )
           : Promise.resolve(draft.configure?.departureDate ?? null),
       ])
+      const cancellationSnapshot = await safeLoad(
+        "loadCancellationPolicySnapshot",
+        options.loadCancellationPolicySnapshot?.(ctx, {
+          productId: request.entityId,
+          at: slotDate ?? new Date().toISOString().slice(0, 10),
+        }),
+      )
 
       let available = false
       let pricing: ComputeQuoteResult["pricing"]
@@ -730,6 +742,7 @@ export function createProductsBookingHandler(
         available,
         invalidReason: available ? undefined : "no_sell_amount_configured",
         pricing,
+        ...(cancellationSnapshot ? { upstreamPayload: { cancellationSnapshot } } : {}),
         requirements: shape,
       }
     },

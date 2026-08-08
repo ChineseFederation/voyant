@@ -12,11 +12,15 @@ export function createOwnedBookingHandlersRegistry(
   getSourceRegistry: () => SourceAdapterRegistry,
 ): OwnedBookingHandlerRegistry {
   const registry = createOwnedBookingHandlerRegistry()
-  const { accommodations, cruises, inventory } = catalogRuntimeExtensions()
+  const { accommodations, cruises, inventory, legal } = catalogRuntimeExtensions()
   const host = {
     getSourceRegistry,
     withDatabase: <T>(operation: (db: ReturnType<typeof asPostgresDb>) => Promise<T>) =>
       catalogRuntimeHost().database.transaction(env, (db) => operation(asPostgresDb(db))),
+    captureCancellationPolicySnapshot: (
+      db: Parameters<typeof legal.captureCancellationPolicySnapshot>[0],
+      input: Parameters<typeof legal.captureCancellationPolicySnapshot>[1],
+    ) => legal.captureCancellationPolicySnapshot(db, input),
   }
   inventory.registerOwnedBookingHandler(registry, host)
   accommodations.registerOwnedBookingHandler(registry, host)

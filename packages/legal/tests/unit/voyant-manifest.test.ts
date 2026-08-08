@@ -27,6 +27,7 @@ describe("legal deployment manifest", () => {
           { id: "legal.contract-document.job-runtime" },
           { id: "bookings.booking-action-source.runtime" },
           { id: "bookings.cancellation-policy.runtime" },
+          { id: "catalog.extension.legal" },
         ],
       },
       api: [

@@ -50,6 +50,10 @@ export interface CatalogProjectionExtension {
 export interface CatalogOwnedBookingHandlerHost {
   withDatabase<T>(operation: (db: PostgresJsDatabase) => Promise<T>): Promise<T>
   getSourceRegistry(): SourceAdapterRegistry
+  captureCancellationPolicySnapshot(
+    db: AnyDrizzleDb,
+    input: { productId: string; at: string },
+  ): Promise<unknown | null>
 }
 
 export interface CatalogPolicyRuntimeExtension {
@@ -80,6 +84,13 @@ export interface CatalogCommerceRuntimeExtension {
   }>
   createPricingProjectionExtension(): CatalogProjectionExtension
   createPromotionsProjectionExtension(): CatalogProjectionExtension
+}
+
+export interface CatalogLegalRuntimeExtension {
+  captureCancellationPolicySnapshot(
+    db: AnyDrizzleDb,
+    input: { productId: string; at: string },
+  ): Promise<unknown | null>
 }
 
 export interface CatalogDistributionRuntimeExtension {
@@ -262,6 +273,7 @@ export interface CatalogRuntimeExtensions {
   distribution: CatalogDistributionRuntimeExtension
   cruises: CatalogCruisesRuntimeExtension
   inventory: CatalogInventoryRuntimeExtension
+  legal: CatalogLegalRuntimeExtension
   operations: CatalogOperationsRuntimeExtension
   /** Absent when the deployment binds no inventory channel. */
   sources?: CatalogSourcesRuntimeExtension
@@ -300,6 +312,8 @@ export const catalogCruisesRuntimeExtensionPort = extensionPort<CatalogCruisesRu
 export const catalogInventoryRuntimeExtensionPort = extensionPort<CatalogInventoryRuntimeExtension>(
   "catalog.extension.inventory",
 )
+export const catalogLegalRuntimeExtensionPort =
+  extensionPort<CatalogLegalRuntimeExtension>("catalog.extension.legal")
 export const catalogOperationsRuntimeExtensionPort =
   extensionPort<CatalogOperationsRuntimeExtension>("catalog.extension.operations")
 export type CatalogBookingSnapshotRuntimeFactory = (

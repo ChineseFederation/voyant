@@ -3,6 +3,7 @@ import {
   bookingActionSourceRuntimePort,
   bookingsCancellationPolicyRuntimePort,
 } from "@voyant-travel/bookings/runtime-port"
+import { catalogLegalRuntimeExtensionPort } from "@voyant-travel/catalog/runtime-contracts"
 import { commerceLegalRuntimePort } from "@voyant-travel/commerce/runtime-port"
 import type { VoyantRuntimeHostPrimitives } from "@voyant-travel/core"
 import type { DocumentRenderer } from "@voyant-travel/core/document-rendering"
@@ -15,7 +16,7 @@ import { legalContractDocumentJobRuntimePort } from "./contract-document-job-run
 import { legalContractDocumentRuntimePort } from "./contract-document-runtime-port.js"
 import type { LegalDocumentArtifactProvider } from "./contracts/document-artifact-provider.js"
 import { createStandardLegalDocumentArtifactProvider } from "./document-artifact-runtime.js"
-import { evaluateCancellationSnapshot } from "./policies/service.js"
+import { evaluateCancellationSnapshot, policiesService } from "./policies/service.js"
 import { legalRuntimePort } from "./runtime-port.js"
 
 export interface LegalRuntimeContributorHost {
@@ -58,6 +59,21 @@ export function createLegalRuntimePortContribution(
     [bookingActionSourceRuntimePort.id]:
       legalBookingActionSource satisfies BookingActionSourceRuntime,
     [bookingsCancellationPolicyRuntimePort.id]: { evaluateCancellationSnapshot },
+    [catalogLegalRuntimeExtensionPort.id]: {
+      async captureCancellationPolicySnapshot(
+        db: PostgresJsDatabase,
+        input: { productId: string; at: string },
+      ) {
+        const resolved = await policiesService.resolvePolicy(db, {
+          kind: "cancellation",
+          productId: input.productId,
+          at: input.at,
+        })
+        return resolved
+          ? policiesService.captureCancellationPolicySnapshot(db, resolved.policy.id)
+          : null
+      },
+    },
     [commerceLegalRuntimePort.id]: createCommerceLegalRuntime(host.primitives),
     [legalRuntimePort.id]: runtime.then((value) => value.legal),
     [legalContractDocumentRuntimePort.id]: runtime.then((value) => value.contractDocument),

@@ -9,6 +9,7 @@ import {
   catalogCruisesRuntimeExtensionPort,
   catalogDistributionRuntimeExtensionPort,
   catalogInventoryRuntimeExtensionPort,
+  catalogLegalRuntimeExtensionPort,
   catalogOperationsRuntimeExtensionPort,
 } from "@voyant-travel/catalog/runtime-contracts"
 import type { IndexerAdapter } from "@voyant-travel/catalog-contracts/indexer/contract"
@@ -153,6 +154,9 @@ describe("createCatalogRuntimePortContribution", () => {
         getProductContent: vi.fn(),
         getOwnedProductById: vi.fn(),
         loadProductReservationPolicy: vi.fn(),
+      },
+      [catalogLegalRuntimeExtensionPort.id]: {
+        captureCancellationPolicySnapshot: vi.fn(async () => null),
       },
       [catalogOperationsRuntimeExtensionPort.id]: {
         createDeparturesProjectionExtension: () => emptyProjection,

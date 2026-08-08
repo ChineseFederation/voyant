@@ -3427,6 +3427,9 @@ importers:
       '@voyant-travel/bookings-contracts':
         specifier: workspace:^
         version: link:../bookings-contracts
+      '@voyant-travel/catalog':
+        specifier: workspace:^
+        version: link:../catalog
       '@voyant-travel/commerce':
         specifier: workspace:^
         version: link:../commerce

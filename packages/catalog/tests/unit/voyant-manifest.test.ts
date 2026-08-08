@@ -44,6 +44,7 @@ describe("catalog deployment manifest", () => {
           { id: "catalog.extension.cruises" },
           { id: "catalog.extension.sources", optional: true },
           { id: "catalog.extension.inventory" },
+          { id: "catalog.extension.legal" },
           { id: "catalog.extension.operations" },
           { id: "finance.operator-settings.runtime" },
           { id: "payments.adapter.runtime", optional: true },

@@ -4,6 +4,7 @@ import {
   bookingActionSourceRuntimePort,
   bookingsCancellationPolicyRuntimePort,
 } from "@voyant-travel/bookings/runtime-port"
+import { catalogLegalRuntimeExtensionPort } from "@voyant-travel/catalog/ports"
 import { commerceLegalRuntimePort } from "@voyant-travel/commerce/runtime-port"
 import {
   defineExtension,
@@ -186,6 +187,7 @@ export const legalVoyantModule = defineModule({
       providePort(legalContractDocumentJobRuntimePort),
       providePort(bookingActionSourceRuntimePort),
       providePort(bookingsCancellationPolicyRuntimePort),
+      providePort(catalogLegalRuntimeExtensionPort),
     ],
   },
   runtimePorts: [
