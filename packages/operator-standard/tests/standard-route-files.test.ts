@@ -123,6 +123,16 @@ describe("createStandardOperatorRouteFiles", () => {
     )
   })
 
+  it("keeps the authenticated workspace client-rendered without disabling public SSR", () => {
+    const files = createStandardOperatorRouteFiles({ presentations: [storefrontCustomer] })
+    const workspace = files.find((file) => file.path === "_workspace/route.tsx")
+    const storefront = files.find((file) => file.path === "(storefront)/route.tsx")
+
+    expect(workspace?.source).toContain("ssr: false")
+    expect(workspace?.source).toContain("workspace.beforeLoad")
+    expect(storefront?.source).not.toContain("ssr: false")
+  })
+
   it("emits routes for a presentation declared entirely outside operator-standard", () => {
     // The whole point of the refactor: a package that declares a presentation
     // with a contribution + routes gets admin route files emitted without any

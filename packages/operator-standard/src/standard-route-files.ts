@@ -114,7 +114,11 @@ import { operatorFrontend } from "../_lib/operator-frontend.js"
 const workspace = operatorFrontend.workspace
 
 export const Route = createFileRoute("/_workspace")({
-  ssr: "data-only",
+  // The authenticated workspace bootstrap is intentionally browser-owned.
+  // Running it during SSR holds the document stream open on a cold runtime,
+  // which also delays discovery of the hydration script until auth and data
+  // probes finish. Public/storefront routes remain SSR-enabled.
+  ssr: false,
   beforeLoad: ({ location, context }) => workspace.beforeLoad({ location, context }),
   loader: ({ context }) => ({ user: context.user }),
   pendingComponent: workspace.PendingComponent,
