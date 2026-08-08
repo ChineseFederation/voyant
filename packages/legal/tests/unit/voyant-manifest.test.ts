@@ -117,6 +117,32 @@ describe("legal deployment manifest", () => {
       commandTargetField: "bookingId",
       targetLifecycle: "existing",
     })
+    expect(legalVoyantModule.subscribers).toContainEqual({
+      id: "@voyant-travel/legal#subscriber.booking-contract-confirmed",
+      eventType: "booking.confirmed",
+      source: "@voyant-travel/legal/booking-contract-confirmed-subscriber",
+      runtime: {
+        entry: "@voyant-travel/legal/booking-contract-confirmed-subscriber",
+        export: "createLegalBookingContractConfirmedSubscriberGraphRuntime",
+      },
+    })
+    expect(
+      legalVoyantModule.actions?.find(
+        ({ id }) => id === "@voyant-travel/legal#action.generate-booking-contract-on-confirmation",
+      ),
+    ).toMatchObject({
+      kind: "execute",
+      targetType: "booking",
+      risk: "high",
+      ledger: "required",
+      approval: "never",
+      allowedActorTypes: ["system"],
+      from: { events: ["@voyant-travel/bookings#event.booking.confirmed"] },
+      durability: {
+        strategy: "outbox",
+        testReference: "packages/legal/tests/integration/booking-contract-confirmed.test.ts",
+      },
+    })
     expect(legalVoyantModule.meta?.agentTools).toBeUndefined()
   })
 

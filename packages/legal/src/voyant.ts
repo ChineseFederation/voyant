@@ -70,6 +70,40 @@ const contractDocumentTools = [
 
 const contractDocumentActions = [
   {
+    id: "@voyant-travel/legal#action.generate-booking-contract-on-confirmation",
+    version: "v1",
+    kind: "execute" as const,
+    targetType: "booking",
+    commandTargetField: "bookingId",
+    targetLifecycle: "existing" as const,
+    existingTarget: { durability: "handler-command-result-v1" as const },
+    availability: {
+      status: "unavailable" as const,
+      reasonCode: "provider-not-conformant",
+      enableWhen: {
+        selectedProviderPorts: {
+          mode: "all" as const,
+          ports: [legalDocumentArtifactProviderPort.id],
+        },
+      },
+    },
+    effectBoundary: "multistage" as const,
+    durability: {
+      strategy: "outbox" as const,
+      testReference: "packages/legal/tests/integration/booking-contract-confirmed.test.ts",
+    },
+    resource: "legal",
+    action: "write",
+    requiredScopes: ["legal:write"],
+    risk: "high" as const,
+    ledger: "required" as const,
+    approval: "never" as const,
+    policy: "legal.booking-contract-confirmed.v1",
+    reversible: false,
+    allowedActorTypes: ["system" as const],
+    from: { events: ["@voyant-travel/bookings#event.booking.confirmed"] },
+  },
+  {
     id: "@voyant-travel/legal#action.generate-booking-contract-document",
     version: "v1",
     kind: "execute" as const,
@@ -400,6 +434,17 @@ export const legalVoyantModule = defineModule({
       payloadSchema: contractDocumentGeneratedEventPayloadSchema,
       visibility: "internal",
       audit: { sourceModule: "legal", category: "domain" },
+    },
+  ],
+  subscribers: [
+    {
+      id: "@voyant-travel/legal#subscriber.booking-contract-confirmed",
+      eventType: "booking.confirmed",
+      source: "@voyant-travel/legal/booking-contract-confirmed-subscriber",
+      runtime: {
+        entry: "@voyant-travel/legal/booking-contract-confirmed-subscriber",
+        export: "createLegalBookingContractConfirmedSubscriberGraphRuntime",
+      },
     },
   ],
   access: {

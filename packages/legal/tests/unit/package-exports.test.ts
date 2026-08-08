@@ -22,6 +22,17 @@ describe("@voyant-travel/legal package exports", () => {
     })
   })
 
+  it("publishes the booking-confirmed durable subscriber", () => {
+    expect(packageJson.exports["./booking-contract-confirmed-subscriber"]).toBe(
+      "./src/booking-contract-confirmed-subscriber.ts",
+    )
+    expect(packageJson.publishConfig.exports["./booking-contract-confirmed-subscriber"]).toEqual({
+      types: "./dist/booking-contract-confirmed-subscriber.d.ts",
+      import: "./dist/booking-contract-confirmed-subscriber.js",
+      default: "./dist/booking-contract-confirmed-subscriber.js",
+    })
+  })
+
   it("does not publish retired document-generation runtime subpaths", () => {
     for (const subpath of [
       "./booking-contract-subscriber",

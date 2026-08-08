@@ -1302,6 +1302,9 @@
       "@voyant-travel/legal-react/provider": ["../legal-react/dist/provider.d.ts"],
       "@voyant-travel/legal-react/query-keys": ["../legal-react/dist/query-keys.d.ts"],
       "@voyant-travel/legal-react/ui": ["../legal-react/dist/ui.d.ts"],
+      "@voyant-travel/legal/booking-contract-confirmed-subscriber": [
+        "../legal/dist/booking-contract-confirmed-subscriber.d.ts"
+      ],
       "@voyant-travel/legal/contract-document-job": ["../legal/dist/contract-document-job.d.ts"],
       "@voyant-travel/legal/contract-document-routes": [
         "../legal/dist/contract-document-routes.d.ts"

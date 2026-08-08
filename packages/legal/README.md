@@ -77,6 +77,14 @@ attachment with the immutable result and deterministic outbox event. The prior
 canonical attachment remains readable until that final transaction; deletion
 of its old object is an idempotent, resumable cleanup checkpoint.
 
+When a deployment selects a conformant Legal document-artifact provider, the
+Legal `booking.confirmed` subscriber automatically selects the active default
+customer template, records a system action-ledger claim, and admits that same
+durable document operation. Redelivery is idempotent per booking. Deployments
+without a provider remain inert, and a missing applicable template or required
+booking data skips generation without inventing customer data. Public booking
+commands do not expose or require a document-generation switch.
+
 The previous direct generator/reset routes have been removed:
 
 - `POST /v1/admin/legal/contracts/bookings/:bookingId/generate-document`

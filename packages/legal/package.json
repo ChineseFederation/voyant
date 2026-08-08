@@ -9,6 +9,7 @@
     "./standard-links": "./src/standard-links.ts",
     "./contract-document-routes": "./src/contract-document-routes.ts",
     "./contract-document-job": "./src/contract-document-job.ts",
+    "./booking-contract-confirmed-subscriber": "./src/booking-contract-confirmed-subscriber.ts",
     "./schema": "./src/schema.ts",
     "./contracts": "./src/contracts/index.ts",
     "./contracts/linkables": "./src/contracts/linkables.ts",
@@ -110,6 +111,11 @@
         "types": "./dist/contract-document-job.d.ts",
         "import": "./dist/contract-document-job.js",
         "default": "./dist/contract-document-job.js"
+      },
+      "./booking-contract-confirmed-subscriber": {
+        "types": "./dist/booking-contract-confirmed-subscriber.d.ts",
+        "import": "./dist/booking-contract-confirmed-subscriber.js",
+        "default": "./dist/booking-contract-confirmed-subscriber.js"
       },
       "./schema": {
         "types": "./dist/schema.d.ts",
