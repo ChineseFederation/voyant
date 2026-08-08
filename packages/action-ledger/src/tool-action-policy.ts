@@ -649,7 +649,7 @@ async function requestApprovalPreflight(input: {
       // reason as the invoice payload: an id the caller has to go and find is an
       // id the caller can get wrong.
       nextSteps: [
-        `1. Call approve_action_approval with approvalId "${result.approval.id}". This approval already exists and is PENDING — do NOT call request_action_approval, which would create a different one and leave this one blocking.`,
+        `1. Call approve_action_approval with arguments {"approvalId": "${result.approval.id}", "_voyant": {"confirmed": true}}. This approval already exists and is PENDING — do NOT call request_action_approval, which would create a different one and leave this one blocking.`,
         // "keep _voyant.confirmed=true" is not padding. assertConfirmation runs on
         // EVERY dispatch, the approved retry included, so a caller that rebuilds
         // the control block with only approvalId loses its confirmation and is

@@ -153,6 +153,7 @@ describe("generic MCP action-policy gate", () => {
     // The concrete id, not a description of where to find it.
     expect(error.nextSteps?.[0]).toContain("approve_action_approval")
     expect(error.nextSteps?.[0]).toContain("approval_1")
+    expect(error.nextSteps?.[0]).toContain('"_voyant": {"confirmed": true}')
     expect(error.nextSteps?.[1]).toContain('"approvalId": "approval_1"')
     expect(error.nextSteps?.[1]).toContain("approval_1")
     // Confirmation is asserted on the approved retry too, so the retry step has

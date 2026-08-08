@@ -1158,7 +1158,7 @@ async function throwHandlerApprovalRequired(input: {
       // request_action_approval" first step sends the caller to mint a second
       // one and loop on the first. See that site for the measured trace.
       nextSteps: [
-        `1. Call approve_action_approval with approvalId "${result.approval.id}". This approval already exists and is PENDING — do NOT call request_action_approval, which would create a different one and leave this one blocking.`,
+        `1. Call approve_action_approval with arguments {"approvalId": "${result.approval.id}", "_voyant": {"confirmed": true}}. This approval already exists and is PENDING — do NOT call request_action_approval, which would create a different one and leave this one blocking.`,
         // Confirmation is re-asserted on the approved retry too — see the note at
         // the matching step in tool-action-policy.ts.
         `2. Re-call this tool with the nested control object "_voyant": {"confirmed": true, "approvalId": "${result.approval.id}"}, and the command otherwise unchanged. Do not send flat keys such as "_voyant.confirmed". Both fields must be present on the same call.`,
