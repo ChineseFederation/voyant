@@ -1,3 +1,4 @@
+// agent-quality: file-size exception -- storefront graph facets stay co-located so one import-cheap manifest remains authoritative.
 import { customerBusinessAccountOnboardingRuntimePort } from "@voyant-travel/auth/ports"
 import { catalogPublicationRuntimePort } from "@voyant-travel/catalog/ports"
 import { defineModule, providePort, requirePort } from "@voyant-travel/core/project"
@@ -17,6 +18,10 @@ import {
   storefrontPaymentReconciliationJobRuntimePort,
   storefrontVerificationRuntimePort,
 } from "./runtime-port.js"
+import {
+  storefrontShoppingRuntimePort,
+  storefrontTripSelectionsRuntimePort,
+} from "./shopping/runtime-port.js"
 
 /** Import-cheap deployment declarations owned by the storefront package. */
 export const storefrontVoyantModule = defineModule({
@@ -35,6 +40,8 @@ export const storefrontVoyantModule = defineModule({
     requirePort(storefrontOffersRuntimePort),
     requirePort(storefrontIntakeRuntimePort),
     requirePort(catalogPublicationRuntimePort),
+    requirePort(storefrontShoppingRuntimePort, { optional: true }),
+    requirePort(storefrontTripSelectionsRuntimePort, { optional: true }),
   ],
   subscribers: [
     {

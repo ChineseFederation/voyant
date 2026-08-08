@@ -3,6 +3,41 @@
 Public storefront routes and service helpers for checkout-adjacent product, departure,
 offer, and eligibility flows.
 
+## Shopping gateway
+
+`@voyant-travel/storefront/shopping` is the provider-first boundary for a
+theme or same-origin storefront BFF. It keeps three different kinds of work
+explicit instead of pretending they share one ranking or cursor:
+
+- grouped indexed inspiration for tours, excursions, experiences/activities,
+  stays, cruises, and charters; each group owns its result count and cursor;
+- discriminated live flight, stay, and flight-plus-stay package searches with
+  aggregate partial-provider coverage;
+- a separate, stateful Trip-selection seam with opaque references and
+  compare-and-swap revisions.
+
+Every browser object is strict. A browser may request only `marketId`, `locale`,
+and `currency`; it cannot choose a tenant, organization, storefront, channel,
+engine, provider, connection, or source. The host supplies trusted
+`storefrontId` and `channelId` context, resolves the request against active
+market configuration, and may attach Voyant-managed `userId` and
+`buyerAccountId` ownership for a signed-in journey. Those identity values are
+nullable/absent for anonymous capability-owned journeys and are never accepted
+from the browser body. The runtime returns the selected scope plus the available
+values for pickers.
+
+Search prices carry both their supplier-native amount and their one selected
+presentation-currency amount. A currency conversion must include the server's
+FX authority, rate, and quote time. Themes format these values but never
+calculate exchange rates.
+
+Deployments may bind `storefront.shopping.runtime` and
+`storefront.trip-selections.runtime`. Both graph ports are optional so an
+operator without a provider continues to boot; attempts to use an unbound
+capability fail explicitly. Provider implementations keep connection and
+supplier identifiers behind the runtime boundary and return only opaque
+`offerRef`, `itemRef`, and `selectionRef` capabilities.
+
 ## Customer auth client
 
 `@voyant-travel/storefront/customer-auth-client` is the framework-neutral

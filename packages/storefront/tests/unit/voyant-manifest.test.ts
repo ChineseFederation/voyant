@@ -10,6 +10,10 @@ import {
   storefrontPaymentReconciliationJobRuntimePort,
 } from "../../src/runtime-port.js"
 import {
+  storefrontShoppingRuntimePort,
+  storefrontTripSelectionsRuntimePort,
+} from "../../src/shopping/runtime-port.js"
+import {
   storefrontCustomerPortalVoyantModule,
   storefrontPaymentLinkVoyantModule,
   storefrontVerificationVoyantModule,
@@ -42,6 +46,8 @@ describe("storefront deployment manifest", () => {
         { id: "storefront.offers.runtime" },
         { id: "storefront.intake.runtime" },
         { id: catalogPublicationRuntimePort.id },
+        { id: storefrontShoppingRuntimePort.id, optional: true },
+        { id: storefrontTripSelectionsRuntimePort.id, optional: true },
       ],
       api: [
         {

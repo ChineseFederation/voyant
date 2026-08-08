@@ -283,3 +283,23 @@ export {
   storefrontPaymentReconciliationJobRuntimePort,
   storefrontVerificationRuntimePort,
 } from "./runtime-port.js"
+export type {
+  StorefrontRequestedScope,
+  StorefrontResolvedScope,
+  StorefrontShoppingContext,
+  StorefrontShoppingGateway,
+  StorefrontShoppingIntent,
+  StorefrontShoppingRequest,
+  StorefrontShoppingResult,
+  StorefrontShoppingRuntime,
+  StorefrontTripSelection,
+  StorefrontTripSelectionCreate,
+  StorefrontTripSelectionsRuntime,
+  StorefrontTripSelectionUpdate,
+} from "./shopping/index.js"
+export {
+  createStorefrontShoppingGateway,
+  StorefrontShoppingUnavailableError,
+  storefrontShoppingRuntimePort,
+  storefrontTripSelectionsRuntimePort,
+} from "./shopping/index.js"

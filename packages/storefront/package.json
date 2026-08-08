@@ -16,6 +16,7 @@
     "./public-routes": "./src/routes-public.ts",
     "./runtime-contributor": "./src/runtime-contributor.ts",
     "./runtime-port": "./src/runtime-port.ts",
+    "./shopping": "./src/shopping/index.ts",
     "./service": "./src/service.ts",
     "./tools": "./src/mcp-runtime.ts",
     "./transport-eligibility": "./src/transport-eligibility.ts",
@@ -179,6 +180,11 @@
         "types": "./dist/runtime-port.d.ts",
         "import": "./dist/runtime-port.js",
         "default": "./dist/runtime-port.js"
+      },
+      "./shopping": {
+        "types": "./dist/shopping/index.d.ts",
+        "import": "./dist/shopping/index.js",
+        "default": "./dist/shopping/index.js"
       },
       "./service": {
         "types": "./dist/service.d.ts",

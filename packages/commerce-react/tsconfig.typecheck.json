@@ -1889,6 +1889,7 @@
       ],
       "@voyant-travel/storefront/runtime-port": ["../storefront/dist/runtime-port.d.ts"],
       "@voyant-travel/storefront/service": ["../storefront/dist/service.d.ts"],
+      "@voyant-travel/storefront/shopping": ["../storefront/dist/shopping/index.d.ts"],
       "@voyant-travel/storefront/tools": ["../storefront/dist/mcp-runtime.d.ts"],
       "@voyant-travel/storefront/transport-eligibility": [
         "../storefront/dist/transport-eligibility.d.ts"
