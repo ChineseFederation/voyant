@@ -1,21 +1,26 @@
 import { customerBusinessAccountOnboardingRuntimePort } from "@voyant-travel/auth/customer-business-onboarding-runtime-port"
+import {
+  type CatalogSearchRuntimeOptions,
+  catalogSearchRuntimePort,
+} from "@voyant-travel/catalog/api-runtime-ports"
+import {
+  type CatalogRuntimeServices,
+  catalogRuntimeServicesPort,
+} from "@voyant-travel/catalog/runtime-contracts"
 import type { PresentationFxQuoter } from "@voyant-travel/catalog-contracts/presentation-money"
 import { createCommerceStorefrontOfferResolvers } from "@voyant-travel/commerce"
 import type { VoyantRuntimeHostPrimitives } from "@voyant-travel/core"
 import type { VoyantPort } from "@voyant-travel/core/project"
 import { createStorefrontCustomerBusinessOnboardingRuntime } from "./customer-business-onboarding-runtime.js"
 import { storefrontCustomerPortalRuntimePort, storefrontOffersRuntimePort } from "./runtime-port.js"
+import { createClosedStorefrontShoppingAdapters } from "./shopping/closed-provider-adapters.js"
 import { createManagedStorefrontShoppingRuntime } from "./shopping/managed-runtime.js"
 import {
   type StorefrontOpaqueReferenceIssuer,
-  type StorefrontShoppingCatalogProvider,
   type StorefrontShoppingLiveProvider,
-  type StorefrontShoppingMarketProvider,
   storefrontOpaqueReferenceIssuerPort,
   storefrontPresentationFxProviderPort,
-  storefrontShoppingCatalogProviderPort,
   storefrontShoppingLiveProviderPort,
-  storefrontShoppingMarketProviderPort,
 } from "./shopping/provider-ports.js"
 import { storefrontShoppingRuntimePort } from "./shopping/runtime-port.js"
 
@@ -30,8 +35,8 @@ export function createStorefrontRuntimePortContribution(
   host: StorefrontRuntimeContributorHost,
 ): Readonly<Record<string, unknown>> {
   const managedShoppingDependencies = [
-    storefrontShoppingMarketProviderPort,
-    storefrontShoppingCatalogProviderPort,
+    catalogSearchRuntimePort,
+    catalogRuntimeServicesPort,
     storefrontShoppingLiveProviderPort,
     storefrontOpaqueReferenceIssuerPort,
   ] as const
@@ -53,26 +58,26 @@ export function createStorefrontRuntimePortContribution(
     ...(canProvideManagedShopping
       ? {
           [storefrontShoppingRuntimePort.id]: Promise.all([
-            getRuntimePort?.<StorefrontShoppingMarketProvider>(
-              storefrontShoppingMarketProviderPort,
-            ),
-            getRuntimePort?.<StorefrontShoppingCatalogProvider>(
-              storefrontShoppingCatalogProviderPort,
-            ),
+            getRuntimePort?.<CatalogSearchRuntimeOptions>(catalogSearchRuntimePort),
+            getRuntimePort?.<CatalogRuntimeServices>(catalogRuntimeServicesPort),
             getRuntimePort?.<StorefrontShoppingLiveProvider>(storefrontShoppingLiveProviderPort),
             getRuntimePort?.<StorefrontOpaqueReferenceIssuer>(storefrontOpaqueReferenceIssuerPort),
             host.hasRuntimePort?.(storefrontPresentationFxProviderPort)
               ? getRuntimePort?.<PresentationFxQuoter>(storefrontPresentationFxProviderPort)
               : undefined,
-          ]).then(([markets, catalog, live, references, quoteFx]) =>
-            createManagedStorefrontShoppingRuntime({
-              markets: markets as StorefrontShoppingMarketProvider,
-              catalog: catalog as StorefrontShoppingCatalogProvider,
+          ]).then(([catalogSearch, catalogServices, live, references, quoteFx]) => {
+            const adapters = createClosedStorefrontShoppingAdapters({
+              primitives: host.primitives,
+              catalogSearch: catalogSearch as CatalogSearchRuntimeOptions,
+              catalogServices: catalogServices as CatalogRuntimeServices,
+            })
+            return createManagedStorefrontShoppingRuntime({
+              ...adapters,
               live: live as StorefrontShoppingLiveProvider,
               references: references as StorefrontOpaqueReferenceIssuer,
               ...(quoteFx ? { quoteFx } : {}),
-            }),
-          ),
+            })
+          }),
         }
       : {}),
   }

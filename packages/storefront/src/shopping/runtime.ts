@@ -17,7 +17,18 @@ import {
 export class StorefrontShoppingUnavailableError extends Error {
   readonly code = "storefront_shopping_unavailable"
 
-  constructor(capability: "shopping" | "trip-selections") {
+  constructor(
+    capability:
+      | "shopping"
+      | "trip-selections"
+      | "active storefront channel"
+      | "trusted storefront channel context"
+      | "active market scope"
+      | "catalog field policy"
+      | "catalog indexer"
+      | "customer catalog title"
+      | `customer catalog field policy for ${string}`,
+  ) {
     super(`Storefront ${capability} runtime is not configured.`)
     this.name = "StorefrontShoppingUnavailableError"
   }

@@ -1,7 +1,14 @@
 // agent-quality: file-size exception -- storefront graph facets stay co-located so one import-cheap manifest remains authoritative.
 import { customerBusinessAccountOnboardingRuntimePort } from "@voyant-travel/auth/ports"
-import { catalogPublicationRuntimePort } from "@voyant-travel/catalog/ports"
+import {
+  catalogPublicationRuntimePort,
+  catalogRuntimeServicesPort,
+} from "@voyant-travel/catalog/ports"
 import { defineModule, providePort, requirePort } from "@voyant-travel/core/project"
+
+// Search route contracts are intentionally not imported into this import-cheap
+// manifest; the runtime contributor resolves the real typed port.
+const catalogSearchRuntimePortReference = { id: "catalog.search-runtime" } as const
 
 // Lightweight reference (id only) so the deployment-graph manifest stays
 // import-cheap — importing the real port from @voyant-travel/payments would
@@ -21,9 +28,7 @@ import {
 import {
   storefrontOpaqueReferenceIssuerPort,
   storefrontPresentationFxProviderPort,
-  storefrontShoppingCatalogProviderPort,
   storefrontShoppingLiveProviderPort,
-  storefrontShoppingMarketProviderPort,
 } from "./shopping/provider-ports.js"
 import {
   storefrontShoppingRuntimePort,
@@ -434,8 +439,8 @@ export const storefrontShoppingProviderVoyantModule = defineModule({
     export: "createStorefrontRuntimePortContribution",
   },
   runtimePorts: [
-    requirePort(storefrontShoppingMarketProviderPort),
-    requirePort(storefrontShoppingCatalogProviderPort),
+    catalogSearchRuntimePortReference,
+    requirePort(catalogRuntimeServicesPort),
     requirePort(storefrontShoppingLiveProviderPort),
     requirePort(storefrontOpaqueReferenceIssuerPort),
     requirePort(storefrontPresentationFxProviderPort, { optional: true }),

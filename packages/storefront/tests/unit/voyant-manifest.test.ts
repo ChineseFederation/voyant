@@ -1,4 +1,7 @@
-import { catalogPublicationRuntimePort } from "@voyant-travel/catalog/runtime-contracts"
+import {
+  catalogPublicationRuntimePort,
+  catalogRuntimeServicesPort,
+} from "@voyant-travel/catalog/runtime-contracts"
 import { Hono } from "hono"
 import { describe, expect, it, vi } from "vitest"
 import { createStorefrontVoyantRuntime } from "../../src/index.js"
@@ -12,9 +15,7 @@ import {
 import {
   storefrontOpaqueReferenceIssuerPort,
   storefrontPresentationFxProviderPort,
-  storefrontShoppingCatalogProviderPort,
   storefrontShoppingLiveProviderPort,
-  storefrontShoppingMarketProviderPort,
 } from "../../src/shopping/provider-ports.js"
 import {
   storefrontShoppingRuntimePort,
@@ -43,8 +44,8 @@ describe("storefront deployment manifest", () => {
       id: "@voyant-travel/storefront#shopping-provider",
       provides: { ports: [{ id: storefrontShoppingRuntimePort.id }] },
       runtimePorts: [
-        { id: storefrontShoppingMarketProviderPort.id },
-        { id: storefrontShoppingCatalogProviderPort.id },
+        { id: "catalog.search-runtime" },
+        { id: catalogRuntimeServicesPort.id },
         { id: storefrontShoppingLiveProviderPort.id },
         { id: storefrontOpaqueReferenceIssuerPort.id },
         { id: storefrontPresentationFxProviderPort.id, optional: true },

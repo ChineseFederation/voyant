@@ -1,12 +1,12 @@
 import { customerBusinessAccountOnboardingRuntimePort } from "@voyant-travel/auth/customer-business-onboarding-runtime-port"
+import { catalogSearchRuntimePort } from "@voyant-travel/catalog/api-runtime-ports"
+import { catalogRuntimeServicesPort } from "@voyant-travel/catalog/runtime-contracts"
 import { describe, expect, it, vi } from "vitest"
 
 import { createStorefrontRuntimePortContribution } from "../../src/runtime-contributor.js"
 import {
   storefrontOpaqueReferenceIssuerPort,
-  storefrontShoppingCatalogProviderPort,
   storefrontShoppingLiveProviderPort,
-  storefrontShoppingMarketProviderPort,
 } from "../../src/shopping/provider-ports.js"
 import { storefrontShoppingRuntimePort } from "../../src/shopping/runtime-port.js"
 
@@ -45,7 +45,7 @@ describe("storefront customer business onboarding runtime contribution", () => {
   it("keeps managed shopping absent until every closed dependency is configured", () => {
     const ports = createStorefrontRuntimePortContribution({
       primitives: primitives(),
-      hasRuntimePort: ({ id }) => id === storefrontShoppingMarketProviderPort.id,
+      hasRuntimePort: ({ id }) => id === catalogSearchRuntimePort.id,
       getRuntimePort: vi.fn(),
     })
     expect(ports).not.toHaveProperty(storefrontShoppingRuntimePort.id)
@@ -53,8 +53,8 @@ describe("storefront customer business onboarding runtime contribution", () => {
 
   it("contributes managed shopping after every closed dependency is configured", async () => {
     const providers = new Map<string, unknown>([
-      [storefrontShoppingMarketProviderPort.id, { listActiveMarkets: vi.fn() }],
-      [storefrontShoppingCatalogProviderPort.id, { searchSlice: vi.fn() }],
+      [catalogSearchRuntimePort.id, { resolveRuntime: vi.fn() }],
+      [catalogRuntimeServicesPort.id, { fieldPolicyRegistries: vi.fn() }],
       [
         storefrontShoppingLiveProviderPort.id,
         { searchFlights: vi.fn(), searchStays: vi.fn(), searchPackages: vi.fn() },
