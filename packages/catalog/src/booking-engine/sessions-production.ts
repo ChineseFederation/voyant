@@ -691,7 +691,6 @@ async function resolveBilling(
   if (input.access.actorKind === "staff" && input.access.staffBookingAuthority?.admitted) {
     if (contact.personId || contact.organizationId) return contact
   }
-  if (!contact.contactEmail && !contact.contactPhone) return null
   // Authentication identifies the actor, not the buyer. In particular, a
   // staff user id must never be persisted as the Booking's CRM person id.
   const personId = await deps.relationships?.upsertPersonFromContact(
@@ -703,7 +702,7 @@ async function resolveBilling(
       phone: contact.contactPhone,
       preferredLanguage: null,
     },
-    { source: "booking-session-v1", sourceRef: input.session.id, requireContactPoint: true },
+    { source: "booking-session-v1", sourceRef: input.session.id },
   )
   return personId ? { ...contact, personId: personId.id, organizationId: null } : null
 }

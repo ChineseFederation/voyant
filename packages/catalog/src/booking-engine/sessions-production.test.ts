@@ -47,6 +47,7 @@ import { createInMemoryBookingSessionRepository } from "./sessions-memory.js"
 import {
   createProductionBookingSessionModule,
   normalizeProductSelection,
+  type ProductionBookingSessionModuleDeps,
 } from "./sessions-production.js"
 import type { BookingSessionAccessContext } from "./sessions-service.js"
 
@@ -350,6 +351,60 @@ describe("production Booking Session ports", () => {
       (financeCreate.resolvedCommand?.cancellationTermsEvidence as { capturedAt: string })
         .capturedAt,
     ).toMatch(/^\d{4}-\d{2}-\d{2}T/)
+  })
+
+  it("commits a guest booking when email and phone are both optional", async () => {
+    const upsertPersonFromContact = vi.fn(async () => ({ id: "per_contactless_buyer" }))
+    const module = createCommittableProductionModule({}, undefined, upsertPersonFromContact)
+    const access = {
+      actorKind: "anonymous" as const,
+      capability: TEST_CAPABILITY,
+      ...STOREFRONT_ACCESS,
+    }
+    const created = await module.createSession(
+      {
+        idempotencyKey: "create_contactless_buyer",
+        target: PRODUCT_TARGET,
+        selection: {
+          configure: { pax: { adult: 1 }, departureSlotId: "slot_1" },
+          billing: { buyerType: "B2C", contact: { firstName: "E2E", lastName: "Final" } },
+        },
+      },
+      access,
+    )
+    if (created.kind !== "session_created") throw new Error("session not created")
+    const prepared = await quoteAndHoldForCommit(
+      module,
+      created.session.id,
+      created.session.revision,
+      access,
+      "contactless_buyer",
+    )
+
+    const committed = await module.commitSession(
+      created.session.id,
+      {
+        expectedRevision: created.session.revision,
+        ...prepared,
+        idempotencyKey: "commit_contactless_buyer",
+      },
+      access,
+    )
+
+    expect(committed).toMatchObject({
+      kind: "commit_result",
+      outcome: { kind: "committed", booking: { id: "book_committed" } },
+    })
+    expect(upsertPersonFromContact).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        firstName: "E2E",
+        lastName: "Final",
+        email: null,
+        phone: null,
+      }),
+      { source: "booking-session-v1", sourceRef: created.session.id },
+    )
   })
 
   it.each([
@@ -842,6 +897,9 @@ describe("production Booking Session ports", () => {
 function createCommittableProductionModule(
   command: Record<string, unknown> = {},
   upstreamPayload?: Record<string, unknown>,
+  upsertPersonFromContact: NonNullable<
+    ProductionBookingSessionModuleDeps["relationships"]
+  >["upsertPersonFromContact"] = async () => ({ id: "per_buyer" }) as never,
 ) {
   const repository = createInMemoryBookingSessionRepository()
   const handlers = createOwnedBookingHandlerRegistry()
@@ -883,7 +941,7 @@ function createCommittableProductionModule(
     resolveOwnedHandlers: () => handlers,
     resolveSourceRegistry: () => createSourceAdapterRegistry(),
     relationships: {
-      upsertPersonFromContact: async () => ({ id: "per_buyer" }),
+      upsertPersonFromContact,
     } as never,
   })
 }
