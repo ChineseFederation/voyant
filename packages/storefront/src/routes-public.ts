@@ -10,6 +10,10 @@ import {
 import type { Context, Next } from "hono"
 
 import { departuresDocKey, readThroughDepartures } from "./departures-read-model.js"
+import {
+  createStorefrontShoppingPublicRoutes,
+  type StorefrontShoppingPublicRoutesOptions,
+} from "./shopping/routes-public.js"
 
 export { departuresDocKey, readThroughDepartures }
 
@@ -376,7 +380,11 @@ const subscribeNewsletterRoute = createRoute({
   },
 })
 
-export function createStorefrontPublicRoutes(options?: StorefrontServiceOptions) {
+export type StorefrontPublicRoutesOptions = StorefrontServiceOptions & {
+  shoppingGateway?: StorefrontShoppingPublicRoutesOptions
+}
+
+export function createStorefrontPublicRoutes(options?: StorefrontPublicRoutesOptions) {
   const storefrontService = createStorefrontService(options)
 
   function getRequestContext(c: Context<Env>): StorefrontRequestContext {
@@ -475,7 +483,7 @@ export function createStorefrontPublicRoutes(options?: StorefrontServiceOptions)
   app.use("/leads", requireActiveChannel)
   app.use("/newsletter/*", requireActiveChannel)
 
-  return app
+  const routes = app
     .openapi(listProductOffersRoute, async (c) => {
       const query = c.req.valid("query")
       const offers = await storefrontService.listApplicableOffers({
@@ -684,6 +692,9 @@ export function createStorefrontPublicRoutes(options?: StorefrontServiceOptions)
         }),
       })
     })
+
+  routes.route("/shopping", createStorefrontShoppingPublicRoutes(options?.shoppingGateway))
+  return routes
 }
 
 export type StorefrontPublicRoutes = ReturnType<typeof createStorefrontPublicRoutes>

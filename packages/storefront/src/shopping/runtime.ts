@@ -23,6 +23,16 @@ export class StorefrontShoppingUnavailableError extends Error {
   }
 }
 
+/** Provider-neutral compare-and-swap failure surfaced by Trip-selection runtimes. */
+export class StorefrontTripSelectionRevisionConflictError extends Error {
+  readonly code = "trip_selection_revision_conflict"
+
+  constructor() {
+    super("Trip selection changed after it was read.")
+    this.name = "StorefrontTripSelectionRevisionConflictError"
+  }
+}
+
 export interface StorefrontShoppingGateway {
   search(context: StorefrontShoppingContext, request: unknown): Promise<StorefrontShoppingResult>
   createTripSelection(

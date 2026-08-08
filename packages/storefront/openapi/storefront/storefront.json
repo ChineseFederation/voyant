@@ -3271,6 +3271,2035 @@
         "x-voyant-unit-id": "@voyant-travel/storefront",
         "x-voyant-package-name": "@voyant-travel/storefront"
       }
+    },
+    "/v1/public/shopping/search": {
+      "post": {
+        "x-voyant-api-id": "@voyant-travel/storefront#api.public",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "scope": {
+                    "type": "object",
+                    "properties": {
+                      "marketId": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128
+                      },
+                      "locale": {
+                        "type": "string",
+                        "pattern": "^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$"
+                      },
+                      "currency": {
+                        "type": "string",
+                        "pattern": "^[A-Z]{3}$"
+                      }
+                    },
+                    "additionalProperties": false
+                  },
+                  "intent": {
+                    "oneOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "enum": ["indexed-inspiration"]
+                          },
+                          "groups": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "group": {
+                                  "type": "string",
+                                  "enum": [
+                                    "tours",
+                                    "excursions",
+                                    "experiences",
+                                    "activities",
+                                    "stays",
+                                    "cruises",
+                                    "charters"
+                                  ]
+                                },
+                                "query": {
+                                  "type": "string",
+                                  "maxLength": 300
+                                },
+                                "destination": {
+                                  "type": "object",
+                                  "properties": {
+                                    "query": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 200
+                                    },
+                                    "countryCode": {
+                                      "type": "string",
+                                      "minLength": 2,
+                                      "maxLength": 2
+                                    },
+                                    "city": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 120
+                                    },
+                                    "latitude": {
+                                      "type": "number",
+                                      "minimum": -90,
+                                      "maximum": 90
+                                    },
+                                    "longitude": {
+                                      "type": "number",
+                                      "minimum": -180,
+                                      "maximum": 180
+                                    }
+                                  },
+                                  "additionalProperties": false
+                                },
+                                "fromDate": {
+                                  "type": "string",
+                                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                                },
+                                "toDate": {
+                                  "type": "string",
+                                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                                },
+                                "pagination": {
+                                  "type": "object",
+                                  "properties": {
+                                    "cursor": {
+                                      "type": "string",
+                                      "minLength": 16,
+                                      "maxLength": 512
+                                    },
+                                    "limit": {
+                                      "type": "integer",
+                                      "minimum": 1,
+                                      "maximum": 100
+                                    }
+                                  },
+                                  "additionalProperties": false
+                                }
+                              },
+                              "required": ["group"],
+                              "additionalProperties": false
+                            },
+                            "minItems": 1,
+                            "maxItems": 7
+                          }
+                        },
+                        "required": ["kind", "groups"],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "enum": ["flight"]
+                          },
+                          "slices": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "origin": {
+                                  "type": "string",
+                                  "minLength": 3,
+                                  "maxLength": 3
+                                },
+                                "destination": {
+                                  "type": "string",
+                                  "minLength": 3,
+                                  "maxLength": 3
+                                },
+                                "departureDate": {
+                                  "type": "string",
+                                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                                }
+                              },
+                              "required": ["origin", "destination", "departureDate"],
+                              "additionalProperties": false
+                            },
+                            "minItems": 1,
+                            "maxItems": 6
+                          },
+                          "travelers": {
+                            "type": "object",
+                            "properties": {
+                              "adults": {
+                                "type": "integer",
+                                "minimum": 1,
+                                "maximum": 20
+                              },
+                              "childrenAges": {
+                                "type": "array",
+                                "items": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 17
+                                },
+                                "maxItems": 20
+                              },
+                              "infants": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 10
+                              }
+                            },
+                            "required": ["adults"],
+                            "additionalProperties": false
+                          },
+                          "cabin": {
+                            "type": "string",
+                            "enum": ["economy", "premium_economy", "business", "first"]
+                          },
+                          "directOnly": {
+                            "type": "boolean"
+                          },
+                          "pagination": {
+                            "type": "object",
+                            "properties": {
+                              "cursor": {
+                                "type": "string",
+                                "minLength": 16,
+                                "maxLength": 512
+                              },
+                              "limit": {
+                                "type": "integer",
+                                "minimum": 1,
+                                "maximum": 100
+                              }
+                            },
+                            "additionalProperties": false
+                          }
+                        },
+                        "required": ["kind", "slices", "travelers"],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "enum": ["stay"]
+                          },
+                          "destination": {
+                            "type": "object",
+                            "properties": {
+                              "query": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 200
+                              },
+                              "countryCode": {
+                                "type": "string",
+                                "minLength": 2,
+                                "maxLength": 2
+                              },
+                              "city": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 120
+                              },
+                              "latitude": {
+                                "type": "number",
+                                "minimum": -90,
+                                "maximum": 90
+                              },
+                              "longitude": {
+                                "type": "number",
+                                "minimum": -180,
+                                "maximum": 180
+                              }
+                            },
+                            "additionalProperties": false
+                          },
+                          "checkIn": {
+                            "type": "string",
+                            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                          },
+                          "checkOut": {
+                            "type": "string",
+                            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                          },
+                          "rooms": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "adults": {
+                                  "type": "integer",
+                                  "minimum": 1,
+                                  "maximum": 20
+                                },
+                                "childrenAges": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "integer",
+                                    "minimum": 0,
+                                    "maximum": 17
+                                  },
+                                  "maxItems": 20
+                                }
+                              },
+                              "required": ["adults"],
+                              "additionalProperties": false
+                            },
+                            "minItems": 1,
+                            "maxItems": 10
+                          },
+                          "minStars": {
+                            "type": "number",
+                            "minimum": 1,
+                            "maximum": 5
+                          },
+                          "pagination": {
+                            "type": "object",
+                            "properties": {
+                              "cursor": {
+                                "type": "string",
+                                "minLength": 16,
+                                "maxLength": 512
+                              },
+                              "limit": {
+                                "type": "integer",
+                                "minimum": 1,
+                                "maximum": 100
+                              }
+                            },
+                            "additionalProperties": false
+                          }
+                        },
+                        "required": ["kind", "destination", "checkIn", "checkOut", "rooms"],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "enum": ["package"]
+                          },
+                          "origin": {
+                            "type": "string",
+                            "minLength": 3,
+                            "maxLength": 3
+                          },
+                          "destination": {
+                            "type": "object",
+                            "properties": {
+                              "query": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 200
+                              },
+                              "countryCode": {
+                                "type": "string",
+                                "minLength": 2,
+                                "maxLength": 2
+                              },
+                              "city": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 120
+                              },
+                              "latitude": {
+                                "type": "number",
+                                "minimum": -90,
+                                "maximum": 90
+                              },
+                              "longitude": {
+                                "type": "number",
+                                "minimum": -180,
+                                "maximum": 180
+                              }
+                            },
+                            "additionalProperties": false
+                          },
+                          "departureDateFrom": {
+                            "type": "string",
+                            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                          },
+                          "departureDateTo": {
+                            "type": "string",
+                            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                          },
+                          "nights": {
+                            "type": "object",
+                            "properties": {
+                              "min": {
+                                "type": "integer",
+                                "minimum": 1
+                              },
+                              "max": {
+                                "type": "integer",
+                                "minimum": 1
+                              }
+                            },
+                            "required": ["min", "max"],
+                            "additionalProperties": false
+                          },
+                          "travelers": {
+                            "type": "object",
+                            "properties": {
+                              "adults": {
+                                "type": "integer",
+                                "minimum": 1,
+                                "maximum": 20
+                              },
+                              "childrenAges": {
+                                "type": "array",
+                                "items": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 17
+                                },
+                                "maxItems": 20
+                              },
+                              "infants": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 10
+                              }
+                            },
+                            "required": ["adults"],
+                            "additionalProperties": false
+                          },
+                          "boards": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 80
+                            },
+                            "maxItems": 20
+                          },
+                          "minStars": {
+                            "type": "number",
+                            "minimum": 1,
+                            "maximum": 5
+                          },
+                          "pagination": {
+                            "type": "object",
+                            "properties": {
+                              "cursor": {
+                                "type": "string",
+                                "minLength": 16,
+                                "maxLength": 512
+                              },
+                              "limit": {
+                                "type": "integer",
+                                "minimum": 1,
+                                "maximum": 100
+                              }
+                            },
+                            "additionalProperties": false
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "origin",
+                          "destination",
+                          "departureDateFrom",
+                          "departureDateTo",
+                          "nights",
+                          "travelers"
+                        ],
+                        "additionalProperties": false
+                      }
+                    ]
+                  }
+                },
+                "required": ["scope", "intent"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "A provider-neutral Storefront shopping result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "oneOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": {
+                              "type": "string",
+                              "enum": ["indexed-inspiration"]
+                            },
+                            "scope": {
+                              "type": "object",
+                              "properties": {
+                                "marketId": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 128
+                                },
+                                "locale": {
+                                  "type": "string",
+                                  "pattern": "^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$"
+                                },
+                                "currency": {
+                                  "type": "string",
+                                  "pattern": "^[A-Z]{3}$"
+                                },
+                                "available": {
+                                  "type": "object",
+                                  "properties": {
+                                    "marketIds": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 128
+                                      },
+                                      "minItems": 1
+                                    },
+                                    "locales": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string",
+                                        "pattern": "^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$"
+                                      },
+                                      "minItems": 1
+                                    },
+                                    "currencies": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string",
+                                        "pattern": "^[A-Z]{3}$"
+                                      },
+                                      "minItems": 1
+                                    }
+                                  },
+                                  "required": ["marketIds", "locales", "currencies"],
+                                  "additionalProperties": false
+                                }
+                              },
+                              "required": ["marketId", "locale", "currency", "available"],
+                              "additionalProperties": false
+                            },
+                            "groups": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "group": {
+                                    "type": "string",
+                                    "enum": [
+                                      "tours",
+                                      "excursions",
+                                      "experiences",
+                                      "activities",
+                                      "stays",
+                                      "cruises",
+                                      "charters"
+                                    ]
+                                  },
+                                  "items": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "itemRef": {
+                                          "type": "string",
+                                          "minLength": 16,
+                                          "maxLength": 512
+                                        },
+                                        "title": {
+                                          "type": "string",
+                                          "minLength": 1
+                                        },
+                                        "summary": {
+                                          "type": "string"
+                                        },
+                                        "href": {
+                                          "type": "string",
+                                          "minLength": 1
+                                        },
+                                        "image": {
+                                          "type": "object",
+                                          "properties": {
+                                            "url": {
+                                              "type": "string",
+                                              "format": "uri"
+                                            },
+                                            "alt": {
+                                              "type": "string",
+                                              "maxLength": 300
+                                            }
+                                          },
+                                          "required": ["url"],
+                                          "additionalProperties": false
+                                        },
+                                        "priceFrom": {
+                                          "type": "object",
+                                          "properties": {
+                                            "native": {
+                                              "type": "object",
+                                              "properties": {
+                                                "amount": {
+                                                  "type": "string",
+                                                  "minLength": 1
+                                                },
+                                                "currency": {
+                                                  "type": "string",
+                                                  "pattern": "^[A-Z]{3}$"
+                                                }
+                                              },
+                                              "required": ["amount", "currency"],
+                                              "additionalProperties": false
+                                            },
+                                            "presentation": {
+                                              "type": "object",
+                                              "properties": {
+                                                "amount": {
+                                                  "type": "string",
+                                                  "minLength": 1
+                                                },
+                                                "currency": {
+                                                  "type": "string",
+                                                  "pattern": "^[A-Z]{3}$"
+                                                }
+                                              },
+                                              "required": ["amount", "currency"],
+                                              "additionalProperties": false
+                                            },
+                                            "fx": {
+                                              "type": "object",
+                                              "properties": {
+                                                "authority": {
+                                                  "type": "string",
+                                                  "minLength": 1,
+                                                  "maxLength": 128
+                                                },
+                                                "rate": {
+                                                  "type": "string",
+                                                  "minLength": 1
+                                                },
+                                                "quotedAt": {
+                                                  "type": "string",
+                                                  "format": "date-time"
+                                                },
+                                                "validUntil": {
+                                                  "type": "string",
+                                                  "format": "date-time"
+                                                }
+                                              },
+                                              "required": ["authority", "rate", "quotedAt"],
+                                              "additionalProperties": false
+                                            }
+                                          },
+                                          "required": ["native", "presentation"],
+                                          "additionalProperties": false
+                                        }
+                                      },
+                                      "required": ["itemRef", "title"],
+                                      "additionalProperties": false
+                                    }
+                                  },
+                                  "total": {
+                                    "type": "integer",
+                                    "minimum": 0
+                                  },
+                                  "nextCursor": {
+                                    "type": "string",
+                                    "minLength": 16,
+                                    "maxLength": 512
+                                  }
+                                },
+                                "required": ["group", "items", "total"],
+                                "additionalProperties": false
+                              }
+                            }
+                          },
+                          "required": ["kind", "scope", "groups"],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": {
+                              "type": "string",
+                              "enum": ["flight"]
+                            },
+                            "scope": {
+                              "type": "object",
+                              "properties": {
+                                "marketId": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 128
+                                },
+                                "locale": {
+                                  "type": "string",
+                                  "pattern": "^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$"
+                                },
+                                "currency": {
+                                  "type": "string",
+                                  "pattern": "^[A-Z]{3}$"
+                                },
+                                "available": {
+                                  "type": "object",
+                                  "properties": {
+                                    "marketIds": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 128
+                                      },
+                                      "minItems": 1
+                                    },
+                                    "locales": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string",
+                                        "pattern": "^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$"
+                                      },
+                                      "minItems": 1
+                                    },
+                                    "currencies": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string",
+                                        "pattern": "^[A-Z]{3}$"
+                                      },
+                                      "minItems": 1
+                                    }
+                                  },
+                                  "required": ["marketIds", "locales", "currencies"],
+                                  "additionalProperties": false
+                                }
+                              },
+                              "required": ["marketId", "locale", "currency", "available"],
+                              "additionalProperties": false
+                            },
+                            "offers": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "offerRef": {
+                                    "type": "string",
+                                    "minLength": 16,
+                                    "maxLength": 512
+                                  },
+                                  "itineraries": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "segments": {
+                                          "type": "array",
+                                          "items": {
+                                            "type": "object",
+                                            "properties": {
+                                              "origin": {
+                                                "type": "object",
+                                                "properties": {
+                                                  "code": {
+                                                    "type": "string",
+                                                    "minLength": 3,
+                                                    "maxLength": 3
+                                                  },
+                                                  "at": {
+                                                    "type": "string",
+                                                    "format": "date-time"
+                                                  }
+                                                },
+                                                "required": ["code", "at"],
+                                                "additionalProperties": false
+                                              },
+                                              "destination": {
+                                                "type": "object",
+                                                "properties": {
+                                                  "code": {
+                                                    "type": "string",
+                                                    "minLength": 3,
+                                                    "maxLength": 3
+                                                  },
+                                                  "at": {
+                                                    "type": "string",
+                                                    "format": "date-time"
+                                                  }
+                                                },
+                                                "required": ["code", "at"],
+                                                "additionalProperties": false
+                                              },
+                                              "marketingCarrier": {
+                                                "type": "string",
+                                                "minLength": 2,
+                                                "maxLength": 3
+                                              },
+                                              "flightNumber": {
+                                                "type": "string",
+                                                "minLength": 1,
+                                                "maxLength": 12
+                                              }
+                                            },
+                                            "required": [
+                                              "origin",
+                                              "destination",
+                                              "marketingCarrier",
+                                              "flightNumber"
+                                            ],
+                                            "additionalProperties": false
+                                          },
+                                          "minItems": 1
+                                        },
+                                        "duration": {
+                                          "type": "string"
+                                        }
+                                      },
+                                      "required": ["segments"],
+                                      "additionalProperties": false
+                                    },
+                                    "minItems": 1
+                                  },
+                                  "price": {
+                                    "type": "object",
+                                    "properties": {
+                                      "native": {
+                                        "type": "object",
+                                        "properties": {
+                                          "amount": {
+                                            "type": "string",
+                                            "minLength": 1
+                                          },
+                                          "currency": {
+                                            "type": "string",
+                                            "pattern": "^[A-Z]{3}$"
+                                          }
+                                        },
+                                        "required": ["amount", "currency"],
+                                        "additionalProperties": false
+                                      },
+                                      "presentation": {
+                                        "type": "object",
+                                        "properties": {
+                                          "amount": {
+                                            "type": "string",
+                                            "minLength": 1
+                                          },
+                                          "currency": {
+                                            "type": "string",
+                                            "pattern": "^[A-Z]{3}$"
+                                          }
+                                        },
+                                        "required": ["amount", "currency"],
+                                        "additionalProperties": false
+                                      },
+                                      "fx": {
+                                        "type": "object",
+                                        "properties": {
+                                          "authority": {
+                                            "type": "string",
+                                            "minLength": 1,
+                                            "maxLength": 128
+                                          },
+                                          "rate": {
+                                            "type": "string",
+                                            "minLength": 1
+                                          },
+                                          "quotedAt": {
+                                            "type": "string",
+                                            "format": "date-time"
+                                          },
+                                          "validUntil": {
+                                            "type": "string",
+                                            "format": "date-time"
+                                          }
+                                        },
+                                        "required": ["authority", "rate", "quotedAt"],
+                                        "additionalProperties": false
+                                      }
+                                    },
+                                    "required": ["native", "presentation"],
+                                    "additionalProperties": false
+                                  },
+                                  "expiresAt": {
+                                    "type": "string",
+                                    "format": "date-time"
+                                  }
+                                },
+                                "required": ["offerRef", "itineraries", "price"],
+                                "additionalProperties": false
+                              }
+                            },
+                            "coverage": {
+                              "type": "object",
+                              "properties": {
+                                "status": {
+                                  "type": "string",
+                                  "enum": ["complete", "partial", "unavailable"]
+                                },
+                                "succeeded": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "failed": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "timedOut": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                }
+                              },
+                              "required": ["status", "succeeded", "failed", "timedOut"],
+                              "additionalProperties": false
+                            },
+                            "nextCursor": {
+                              "type": "string",
+                              "minLength": 16,
+                              "maxLength": 512
+                            }
+                          },
+                          "required": ["kind", "scope", "offers", "coverage"],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": {
+                              "type": "string",
+                              "enum": ["stay"]
+                            },
+                            "scope": {
+                              "type": "object",
+                              "properties": {
+                                "marketId": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 128
+                                },
+                                "locale": {
+                                  "type": "string",
+                                  "pattern": "^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$"
+                                },
+                                "currency": {
+                                  "type": "string",
+                                  "pattern": "^[A-Z]{3}$"
+                                },
+                                "available": {
+                                  "type": "object",
+                                  "properties": {
+                                    "marketIds": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 128
+                                      },
+                                      "minItems": 1
+                                    },
+                                    "locales": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string",
+                                        "pattern": "^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$"
+                                      },
+                                      "minItems": 1
+                                    },
+                                    "currencies": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string",
+                                        "pattern": "^[A-Z]{3}$"
+                                      },
+                                      "minItems": 1
+                                    }
+                                  },
+                                  "required": ["marketIds", "locales", "currencies"],
+                                  "additionalProperties": false
+                                }
+                              },
+                              "required": ["marketId", "locale", "currency", "available"],
+                              "additionalProperties": false
+                            },
+                            "offers": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "offerRef": {
+                                    "type": "string",
+                                    "minLength": 16,
+                                    "maxLength": 512
+                                  },
+                                  "accommodationRef": {
+                                    "type": "string",
+                                    "minLength": 16,
+                                    "maxLength": 512
+                                  },
+                                  "title": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "checkIn": {
+                                    "type": "string",
+                                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                                  },
+                                  "checkOut": {
+                                    "type": "string",
+                                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                                  },
+                                  "roomName": {
+                                    "type": "string"
+                                  },
+                                  "boardName": {
+                                    "type": "string"
+                                  },
+                                  "image": {
+                                    "type": "object",
+                                    "properties": {
+                                      "url": {
+                                        "type": "string",
+                                        "format": "uri"
+                                      },
+                                      "alt": {
+                                        "type": "string",
+                                        "maxLength": 300
+                                      }
+                                    },
+                                    "required": ["url"],
+                                    "additionalProperties": false
+                                  },
+                                  "price": {
+                                    "type": "object",
+                                    "properties": {
+                                      "native": {
+                                        "type": "object",
+                                        "properties": {
+                                          "amount": {
+                                            "type": "string",
+                                            "minLength": 1
+                                          },
+                                          "currency": {
+                                            "type": "string",
+                                            "pattern": "^[A-Z]{3}$"
+                                          }
+                                        },
+                                        "required": ["amount", "currency"],
+                                        "additionalProperties": false
+                                      },
+                                      "presentation": {
+                                        "type": "object",
+                                        "properties": {
+                                          "amount": {
+                                            "type": "string",
+                                            "minLength": 1
+                                          },
+                                          "currency": {
+                                            "type": "string",
+                                            "pattern": "^[A-Z]{3}$"
+                                          }
+                                        },
+                                        "required": ["amount", "currency"],
+                                        "additionalProperties": false
+                                      },
+                                      "fx": {
+                                        "type": "object",
+                                        "properties": {
+                                          "authority": {
+                                            "type": "string",
+                                            "minLength": 1,
+                                            "maxLength": 128
+                                          },
+                                          "rate": {
+                                            "type": "string",
+                                            "minLength": 1
+                                          },
+                                          "quotedAt": {
+                                            "type": "string",
+                                            "format": "date-time"
+                                          },
+                                          "validUntil": {
+                                            "type": "string",
+                                            "format": "date-time"
+                                          }
+                                        },
+                                        "required": ["authority", "rate", "quotedAt"],
+                                        "additionalProperties": false
+                                      }
+                                    },
+                                    "required": ["native", "presentation"],
+                                    "additionalProperties": false
+                                  },
+                                  "expiresAt": {
+                                    "type": "string",
+                                    "format": "date-time"
+                                  }
+                                },
+                                "required": [
+                                  "offerRef",
+                                  "accommodationRef",
+                                  "title",
+                                  "checkIn",
+                                  "checkOut",
+                                  "price"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "coverage": {
+                              "type": "object",
+                              "properties": {
+                                "status": {
+                                  "type": "string",
+                                  "enum": ["complete", "partial", "unavailable"]
+                                },
+                                "succeeded": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "failed": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "timedOut": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                }
+                              },
+                              "required": ["status", "succeeded", "failed", "timedOut"],
+                              "additionalProperties": false
+                            },
+                            "nextCursor": {
+                              "type": "string",
+                              "minLength": 16,
+                              "maxLength": 512
+                            }
+                          },
+                          "required": ["kind", "scope", "offers", "coverage"],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": {
+                              "type": "string",
+                              "enum": ["package"]
+                            },
+                            "scope": {
+                              "type": "object",
+                              "properties": {
+                                "marketId": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 128
+                                },
+                                "locale": {
+                                  "type": "string",
+                                  "pattern": "^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$"
+                                },
+                                "currency": {
+                                  "type": "string",
+                                  "pattern": "^[A-Z]{3}$"
+                                },
+                                "available": {
+                                  "type": "object",
+                                  "properties": {
+                                    "marketIds": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 128
+                                      },
+                                      "minItems": 1
+                                    },
+                                    "locales": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string",
+                                        "pattern": "^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$"
+                                      },
+                                      "minItems": 1
+                                    },
+                                    "currencies": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string",
+                                        "pattern": "^[A-Z]{3}$"
+                                      },
+                                      "minItems": 1
+                                    }
+                                  },
+                                  "required": ["marketIds", "locales", "currencies"],
+                                  "additionalProperties": false
+                                }
+                              },
+                              "required": ["marketId", "locale", "currency", "available"],
+                              "additionalProperties": false
+                            },
+                            "offers": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "offerRef": {
+                                    "type": "string",
+                                    "minLength": 16,
+                                    "maxLength": 512
+                                  },
+                                  "title": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "origin": {
+                                    "type": "string",
+                                    "minLength": 3,
+                                    "maxLength": 3
+                                  },
+                                  "destination": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "departureDate": {
+                                    "type": "string",
+                                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                                  },
+                                  "nights": {
+                                    "type": "integer",
+                                    "minimum": 1
+                                  },
+                                  "accommodationName": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "boardName": {
+                                    "type": "string"
+                                  },
+                                  "image": {
+                                    "type": "object",
+                                    "properties": {
+                                      "url": {
+                                        "type": "string",
+                                        "format": "uri"
+                                      },
+                                      "alt": {
+                                        "type": "string",
+                                        "maxLength": 300
+                                      }
+                                    },
+                                    "required": ["url"],
+                                    "additionalProperties": false
+                                  },
+                                  "price": {
+                                    "type": "object",
+                                    "properties": {
+                                      "native": {
+                                        "type": "object",
+                                        "properties": {
+                                          "amount": {
+                                            "type": "string",
+                                            "minLength": 1
+                                          },
+                                          "currency": {
+                                            "type": "string",
+                                            "pattern": "^[A-Z]{3}$"
+                                          }
+                                        },
+                                        "required": ["amount", "currency"],
+                                        "additionalProperties": false
+                                      },
+                                      "presentation": {
+                                        "type": "object",
+                                        "properties": {
+                                          "amount": {
+                                            "type": "string",
+                                            "minLength": 1
+                                          },
+                                          "currency": {
+                                            "type": "string",
+                                            "pattern": "^[A-Z]{3}$"
+                                          }
+                                        },
+                                        "required": ["amount", "currency"],
+                                        "additionalProperties": false
+                                      },
+                                      "fx": {
+                                        "type": "object",
+                                        "properties": {
+                                          "authority": {
+                                            "type": "string",
+                                            "minLength": 1,
+                                            "maxLength": 128
+                                          },
+                                          "rate": {
+                                            "type": "string",
+                                            "minLength": 1
+                                          },
+                                          "quotedAt": {
+                                            "type": "string",
+                                            "format": "date-time"
+                                          },
+                                          "validUntil": {
+                                            "type": "string",
+                                            "format": "date-time"
+                                          }
+                                        },
+                                        "required": ["authority", "rate", "quotedAt"],
+                                        "additionalProperties": false
+                                      }
+                                    },
+                                    "required": ["native", "presentation"],
+                                    "additionalProperties": false
+                                  },
+                                  "expiresAt": {
+                                    "type": "string",
+                                    "format": "date-time"
+                                  }
+                                },
+                                "required": [
+                                  "offerRef",
+                                  "title",
+                                  "origin",
+                                  "destination",
+                                  "departureDate",
+                                  "nights",
+                                  "accommodationName",
+                                  "price"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "coverage": {
+                              "type": "object",
+                              "properties": {
+                                "status": {
+                                  "type": "string",
+                                  "enum": ["complete", "partial", "unavailable"]
+                                },
+                                "succeeded": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "failed": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "timedOut": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                }
+                              },
+                              "required": ["status", "succeeded", "failed", "timedOut"],
+                              "additionalProperties": false
+                            },
+                            "nextCursor": {
+                              "type": "string",
+                              "minLength": 16,
+                              "maxLength": 512
+                            }
+                          },
+                          "required": ["kind", "scope", "offers", "coverage"],
+                          "additionalProperties": false
+                        }
+                      ]
+                    }
+                  },
+                  "required": ["data"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The strict shopping request was invalid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "An active server-resolved Storefront Channel is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "The shopping request body exceeded 64 KiB",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string",
+                      "enum": ["request_body_too_large"]
+                    },
+                    "maxBytes": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": ["error", "code", "maxBytes"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "No shopping runtime is bound",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        },
+        "operationId": "postPublicShoppingSearch",
+        "summary": "POST /v1/public/shopping/search",
+        "tags": ["shopping"],
+        "x-voyant-module": "shopping",
+        "x-voyant-surface": "storefront",
+        "x-voyant-package-name": "@voyant-travel/storefront"
+      }
+    },
+    "/v1/public/shopping/trip-selections": {
+      "post": {
+        "x-voyant-api-id": "@voyant-travel/storefront#api.public",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "scope": {
+                    "type": "object",
+                    "properties": {
+                      "marketId": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128
+                      },
+                      "locale": {
+                        "type": "string",
+                        "pattern": "^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$"
+                      },
+                      "currency": {
+                        "type": "string",
+                        "pattern": "^[A-Z]{3}$"
+                      }
+                    },
+                    "additionalProperties": false
+                  },
+                  "offers": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string",
+                          "enum": ["product", "flight", "stay", "package"]
+                        },
+                        "offerRef": {
+                          "type": "string",
+                          "minLength": 16,
+                          "maxLength": 512
+                        },
+                        "quantity": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 99
+                        }
+                      },
+                      "required": ["kind", "offerRef"],
+                      "additionalProperties": false
+                    },
+                    "minItems": 1,
+                    "maxItems": 100
+                  }
+                },
+                "required": ["scope", "offers"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "A newly created opaque Trip selection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "selectionRef": {
+                          "type": "string",
+                          "minLength": 16,
+                          "maxLength": 512
+                        },
+                        "revision": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "scope": {
+                          "type": "object",
+                          "properties": {
+                            "marketId": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 128
+                            },
+                            "locale": {
+                              "type": "string",
+                              "pattern": "^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$"
+                            },
+                            "currency": {
+                              "type": "string",
+                              "pattern": "^[A-Z]{3}$"
+                            },
+                            "available": {
+                              "type": "object",
+                              "properties": {
+                                "marketIds": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 128
+                                  },
+                                  "minItems": 1
+                                },
+                                "locales": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string",
+                                    "pattern": "^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$"
+                                  },
+                                  "minItems": 1
+                                },
+                                "currencies": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string",
+                                    "pattern": "^[A-Z]{3}$"
+                                  },
+                                  "minItems": 1
+                                }
+                              },
+                              "required": ["marketIds", "locales", "currencies"],
+                              "additionalProperties": false
+                            }
+                          },
+                          "required": ["marketId", "locale", "currency", "available"],
+                          "additionalProperties": false
+                        },
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "itemRef": {
+                                "type": "string",
+                                "minLength": 16,
+                                "maxLength": 512
+                              },
+                              "kind": {
+                                "type": "string",
+                                "enum": ["product", "flight", "stay", "package"]
+                              },
+                              "quantity": {
+                                "type": "integer",
+                                "minimum": 1
+                              }
+                            },
+                            "required": ["itemRef", "kind", "quantity"],
+                            "additionalProperties": false
+                          },
+                          "maxItems": 100
+                        }
+                      },
+                      "required": ["selectionRef", "revision", "scope", "items"],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": ["data"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The strict Trip-selection request was invalid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The active Storefront Channel or same-origin mutation proof is missing",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "The Trip-selection request body exceeded 64 KiB",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string",
+                      "enum": ["request_body_too_large"]
+                    },
+                    "maxBytes": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": ["error", "code", "maxBytes"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A required shopping or Trip-selection runtime is not bound",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        },
+        "operationId": "postPublicShoppingTripSelections",
+        "summary": "POST /v1/public/shopping/trip-selections",
+        "tags": ["shopping"],
+        "x-voyant-module": "shopping",
+        "x-voyant-surface": "storefront",
+        "x-voyant-package-name": "@voyant-travel/storefront"
+      },
+      "patch": {
+        "x-voyant-api-id": "@voyant-travel/storefront#api.public",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "selectionRef": {
+                    "type": "string",
+                    "minLength": 16,
+                    "maxLength": 512
+                  },
+                  "expectedRevision": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "mutation": {
+                    "oneOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "enum": ["add"]
+                          },
+                          "offer": {
+                            "type": "object",
+                            "properties": {
+                              "kind": {
+                                "type": "string",
+                                "enum": ["product", "flight", "stay", "package"]
+                              },
+                              "offerRef": {
+                                "type": "string",
+                                "minLength": 16,
+                                "maxLength": 512
+                              },
+                              "quantity": {
+                                "type": "integer",
+                                "minimum": 1,
+                                "maximum": 99
+                              }
+                            },
+                            "required": ["kind", "offerRef"],
+                            "additionalProperties": false
+                          }
+                        },
+                        "required": ["kind", "offer"],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "enum": ["remove"]
+                          },
+                          "itemRef": {
+                            "type": "string",
+                            "minLength": 16,
+                            "maxLength": 512
+                          }
+                        },
+                        "required": ["kind", "itemRef"],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "enum": ["reorder"]
+                          },
+                          "itemRefs": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "minLength": 16,
+                              "maxLength": 512
+                            },
+                            "minItems": 1,
+                            "maxItems": 100
+                          }
+                        },
+                        "required": ["kind", "itemRefs"],
+                        "additionalProperties": false
+                      }
+                    ]
+                  }
+                },
+                "required": ["selectionRef", "expectedRevision", "mutation"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The compare-and-swap updated Trip selection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "selectionRef": {
+                          "type": "string",
+                          "minLength": 16,
+                          "maxLength": 512
+                        },
+                        "revision": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "scope": {
+                          "type": "object",
+                          "properties": {
+                            "marketId": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 128
+                            },
+                            "locale": {
+                              "type": "string",
+                              "pattern": "^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$"
+                            },
+                            "currency": {
+                              "type": "string",
+                              "pattern": "^[A-Z]{3}$"
+                            },
+                            "available": {
+                              "type": "object",
+                              "properties": {
+                                "marketIds": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 128
+                                  },
+                                  "minItems": 1
+                                },
+                                "locales": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string",
+                                    "pattern": "^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$"
+                                  },
+                                  "minItems": 1
+                                },
+                                "currencies": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string",
+                                    "pattern": "^[A-Z]{3}$"
+                                  },
+                                  "minItems": 1
+                                }
+                              },
+                              "required": ["marketIds", "locales", "currencies"],
+                              "additionalProperties": false
+                            }
+                          },
+                          "required": ["marketId", "locale", "currency", "available"],
+                          "additionalProperties": false
+                        },
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "itemRef": {
+                                "type": "string",
+                                "minLength": 16,
+                                "maxLength": 512
+                              },
+                              "kind": {
+                                "type": "string",
+                                "enum": ["product", "flight", "stay", "package"]
+                              },
+                              "quantity": {
+                                "type": "integer",
+                                "minimum": 1
+                              }
+                            },
+                            "required": ["itemRef", "kind", "quantity"],
+                            "additionalProperties": false
+                          },
+                          "maxItems": 100
+                        }
+                      },
+                      "required": ["selectionRef", "revision", "scope", "items"],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": ["data"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The strict Trip-selection mutation was invalid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The active Storefront Channel or same-origin mutation proof is missing",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The Trip-selection revision changed after it was read",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "The Trip-selection mutation body exceeded 64 KiB",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string",
+                      "enum": ["request_body_too_large"]
+                    },
+                    "maxBytes": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": ["error", "code", "maxBytes"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "No Trip-selection runtime is bound",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        },
+        "operationId": "patchPublicShoppingTripSelections",
+        "summary": "PATCH /v1/public/shopping/trip-selections",
+        "tags": ["shopping"],
+        "x-voyant-module": "shopping",
+        "x-voyant-surface": "storefront",
+        "x-voyant-package-name": "@voyant-travel/storefront"
+      }
     }
   },
   "webhooks": {}

@@ -129,6 +129,8 @@ export function handleApiError(
       status: statusCode,
       headers: {
         "content-type": "application/json",
+        "cache-control": "private, no-store",
+        vary: "Cookie, Authorization",
         // Carry the correlation id on the error response too — `onError`
         // replaces `c.res`, which would otherwise drop the header set by the
         // `requestId` middleware (RFC #1553).

@@ -66,7 +66,15 @@ describe("storefront deployment manifest", () => {
           mount: "/",
           resource: "storefront",
           openapi: { document: "storefront" },
-          anonymous: ["/bookings", "/departures", "/leads", "/newsletter", "/offers", "/settings"],
+          anonymous: [
+            "/bookings",
+            "/departures",
+            "/leads",
+            "/newsletter",
+            "/offers",
+            "/shopping",
+            "/settings",
+          ],
           runtime: {
             entry: "@voyant-travel/storefront",
             export: "createStorefrontApiModule",

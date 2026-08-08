@@ -72,11 +72,13 @@ export function requestBodyLimit(options: RequestBodyLimitOptions): MiddlewareHa
 }
 
 function tooLargeResponse(c: Context, maxBytes: number): Response {
+  const requestId = c.get("requestId" as never) as string | undefined
   return c.json(
     {
       error: "Request body too large",
       code: "request_body_too_large",
       maxBytes,
+      requestId,
     },
     413,
   )

@@ -400,10 +400,10 @@ export function publicResponseCache<TBindings extends VoyantBindings>(
     const isBodyKeyed = c.req.method === "POST" && bodyKeyedPaths.has(normalizePath(path))
     if (c.req.method !== "GET" && !isBodyKeyed) return next()
     if (!prefixes.some((prefix) => path.startsWith(prefix))) return next()
-    // A credentialed request is outside the shared representation contract:
+    // A credentialed or cookie-bearing request is outside the shared representation contract:
     // it is neither served from nor stored into an entry other requesters
     // can read. `Set-Cookie` on the response opts out on the way back.
-    if (c.req.header("authorization")) return next()
+    if (c.req.header("authorization") || c.req.header("cookie")) return next()
     // Standard escape hatch: a requester (or a debugging operator) can
     // force revalidation with `Cache-Control: no-cache`.
     const requestDirective = c.req.header("cache-control")?.toLowerCase() ?? ""

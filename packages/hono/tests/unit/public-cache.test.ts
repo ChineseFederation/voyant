@@ -184,6 +184,27 @@ describe("publicResponseCache (KV fallback — no Cache API in the test runtime)
     expect(handler).toHaveBeenCalledTimes(2)
   })
 
+  it("never serves an anonymous cached copy to a cookie-bearing request", async () => {
+    const kv = fakeKv()
+    let call = 0
+    const handler = vi.fn(
+      () =>
+        new Response(JSON.stringify({ call: ++call }), {
+          status: 200,
+          headers: { "cache-control": "public, s-maxage=60" },
+        }),
+    )
+    const app = buildApp(kv, handler)
+
+    expect(await (await app.request("/v1/public/products")).json()).toEqual({ call: 1 })
+    expect(
+      await (
+        await app.request("/v1/public/products", { headers: { cookie: "session=opaque" } })
+      ).json(),
+    ).toEqual({ call: 2 })
+    expect(handler).toHaveBeenCalledTimes(2)
+  })
+
   it("clamps KV expirationTtl to the 60s KV minimum", async () => {
     const kv = fakeKv()
     const handler = vi.fn(

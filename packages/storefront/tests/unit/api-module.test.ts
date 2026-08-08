@@ -19,6 +19,7 @@ describe("createStorefrontApiModule", () => {
       "/leads",
       "/newsletter",
       "/offers",
+      "/shopping",
       "/settings",
     ])
     expect(assembleAnonymousPaths([module], [])).toEqual([
@@ -28,6 +29,7 @@ describe("createStorefrontApiModule", () => {
       "/v1/public/newsletter",
       "/v1/public/offers",
       "/v1/public/settings",
+      "/v1/public/shopping",
     ])
     expect(module.optionalCustomerAuth).toBe(storefrontOptionalCustomerAuthPaths)
     expect(module.optionalCustomerAuth).toEqual([
@@ -37,8 +39,10 @@ describe("createStorefrontApiModule", () => {
       "/newsletter",
       "/offers",
       "/products",
+      "/shopping",
       "/settings",
     ])
+    expect(module.bodyKeyedCache).toEqual(["/shopping/search"])
 
     const anonymouslyMatchedDepartureAndSettingsRoutes = new Set(
       module.publicRoutes?.routes

@@ -10,6 +10,10 @@ import type { ApiModule } from "@voyant-travel/hono/module"
 import { createStorefrontAdminRoutes } from "./routes-admin.js"
 import { createStorefrontPublicRoutes } from "./routes-public.js"
 import { storefrontIntakeRuntimePort, storefrontOffersRuntimePort } from "./runtime-port.js"
+import {
+  storefrontShoppingRuntimePort,
+  storefrontTripSelectionsRuntimePort,
+} from "./shopping/runtime-port.js"
 
 export {
   createStorefrontAvailabilityReadModelInvalidationSubscriber,
@@ -203,6 +207,7 @@ export const storefrontAnonymousPublicPaths = [
   "/leads",
   "/newsletter",
   "/offers",
+  "/shopping",
   "/settings",
 ] as const
 // These guest-facing route families still need the customer-auth resolver to
@@ -216,6 +221,7 @@ export const storefrontOptionalCustomerAuthPaths = [
   "/newsletter",
   "/offers",
   "/products",
+  "/shopping",
   "/settings",
 ] as const
 
@@ -237,43 +243,57 @@ export function createStorefrontApiModule(options?: StorefrontApiModuleOptions):
     ),
     anonymous: storefrontAnonymousPublicPaths,
     optionalCustomerAuth: storefrontOptionalCustomerAuthPaths,
+    bodyKeyedCache: ["/shopping/search"],
   }
 }
 
-export const createStorefrontVoyantRuntime = defineGraphRuntimeFactory(async ({ api, getPort }) => {
-  const [offers, persistence, publication] = await Promise.all([
-    getPort(storefrontOffersRuntimePort),
-    getPort(storefrontIntakeRuntimePort),
-    getPort<CatalogPublicationRuntime>(catalogPublicationRuntimePort),
-  ])
-  const configured = createStorefrontApiModule({
-    offers,
-    intake: { persistence },
-    publication: {
-      isProductPublished: ({ productId, context }) => {
-        if (!context.db || !context.channelId) return false
-        return publication.isProductPublished({
-          db: context.db,
-          productId,
-          channelId: context.channelId,
-        })
+export const createStorefrontVoyantRuntime = defineGraphRuntimeFactory(
+  async ({ api, getPort, hasPort }) => {
+    const [offers, persistence, publication] = await Promise.all([
+      getPort(storefrontOffersRuntimePort),
+      getPort(storefrontIntakeRuntimePort),
+      getPort<CatalogPublicationRuntime>(catalogPublicationRuntimePort),
+    ])
+    const configured = createStorefrontApiModule({
+      offers,
+      intake: { persistence },
+      publication: {
+        isProductPublished: ({ productId, context }) => {
+          if (!context.db || !context.channelId) return false
+          return publication.isProductPublished({
+            db: context.db,
+            productId,
+            channelId: context.channelId,
+          })
+        },
       },
-    },
-  })
-  const selected: ApiModule = { module: configured.module }
-  if (api.some(({ surface }) => surface === "admin") && configured.adminRoutes) {
-    selected.adminRoutes = configured.adminRoutes
-  }
-  if (api.some(({ surface }) => surface === "public") && configured.publicRoutes) {
-    selected.publicRoutes = configured.publicRoutes
-    if (configured.publicPath !== undefined) selected.publicPath = configured.publicPath
-    if (configured.anonymous !== undefined) selected.anonymous = configured.anonymous
-    if (configured.optionalCustomerAuth !== undefined) {
-      selected.optionalCustomerAuth = configured.optionalCustomerAuth
+      shoppingGateway: {
+        shopping: hasPort(storefrontShoppingRuntimePort)
+          ? await getPort(storefrontShoppingRuntimePort)
+          : undefined,
+        tripSelections: hasPort(storefrontTripSelectionsRuntimePort)
+          ? await getPort(storefrontTripSelectionsRuntimePort)
+          : undefined,
+      },
+    })
+    const selected: ApiModule = { module: configured.module }
+    if (api.some(({ surface }) => surface === "admin") && configured.adminRoutes) {
+      selected.adminRoutes = configured.adminRoutes
     }
-  }
-  return selected
-})
+    if (api.some(({ surface }) => surface === "public") && configured.publicRoutes) {
+      selected.publicRoutes = configured.publicRoutes
+      if (configured.publicPath !== undefined) selected.publicPath = configured.publicPath
+      if (configured.anonymous !== undefined) selected.anonymous = configured.anonymous
+      if (configured.optionalCustomerAuth !== undefined) {
+        selected.optionalCustomerAuth = configured.optionalCustomerAuth
+      }
+      if (configured.bodyKeyedCache !== undefined) {
+        selected.bodyKeyedCache = configured.bodyKeyedCache
+      }
+    }
+    return selected
+  },
+)
 
 export {
   createVoyantDataPresentationFxQuoter,
