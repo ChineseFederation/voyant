@@ -155,40 +155,66 @@ export function createToolActionPolicyGate(
           : null
 
       const actionName = selected.capabilityId ?? selected.id
-      const preflight = await appendActionLedgerMutation(input.db, {
-        context: input.requestContext,
-        actionName,
-        actionVersion: selected.version,
-        actionKind: "execute",
-        status: "requested",
-        evaluatedRisk: selected.risk,
-        targetType: selected.targetType,
-        targetId,
-        routeOrToolName: execution.capabilityId,
-        capabilityId: actionName,
-        capabilityVersion: selected.version,
-        authorizationSource: "selected_graph_mcp_gate",
-        causationActionId: approved?.requestedAction.id ?? null,
-        approvalId: approved?.approval.id ?? null,
-        idempotencyScope: approved
-          ? `${approved.approval.id}:mcp-execution-preflight`
-          : `${actionName}:${selected.version}:${targetId}:mcp-preflight`,
-        idempotencyKey: approved?.approval.id ?? executionKey,
-        idempotencyFingerprint: fingerprint,
-        mutationDetail: {
-          summary: `MCP Tool ${execution.canonicalName} passed selected action policy`,
-          reversalKind: "none",
-        },
-      })
-      if (preflight.replayed) {
-        throw new ToolError(
-          "This exact Tool execution has already been claimed; refusing duplicate dispatch.",
-          "AUTHORIZATION_DENIED",
-          {
-            actionId: preflight.entry.id,
-            ...(serverOwnedTarget ? { requestId: executionKey } : { idempotencyKey: executionKey }),
+      let attempt = 1
+      let preflight: Awaited<ReturnType<typeof appendActionLedgerMutation>>
+      while (true) {
+        preflight = await appendActionLedgerMutation(input.db, {
+          context: input.requestContext,
+          actionName,
+          actionVersion: selected.version,
+          actionKind: "execute",
+          status: "requested",
+          evaluatedRisk: selected.risk,
+          targetType: selected.targetType,
+          targetId,
+          routeOrToolName: execution.capabilityId,
+          capabilityId: actionName,
+          capabilityVersion: selected.version,
+          authorizationSource: "selected_graph_mcp_gate",
+          causationActionId: approved?.requestedAction.id ?? null,
+          approvalId: approved?.approval.id ?? null,
+          idempotencyScope: approved
+            ? `${approved.approval.id}:mcp-execution-preflight:${attempt}`
+            : `${actionName}:${selected.version}:${targetId}:mcp-preflight`,
+          idempotencyKey: approved?.approval.id ?? executionKey,
+          idempotencyFingerprint: fingerprint,
+          mutationDetail: {
+            summary: `MCP Tool ${execution.canonicalName} passed selected action policy`,
+            reversalKind: "none",
           },
-        )
+        })
+        if (!preflight.replayed) break
+        if (!approved) {
+          throw duplicateDispatchError(preflight.entry.id, serverOwnedTarget, executionKey)
+        }
+        const result = await actionLedgerService.listEntries(input.db, {
+          idempotencyScope: `${approved.approval.id}:execution:${attempt}`,
+          idempotencyKey: approved.approval.id,
+          limit: 1,
+        })
+        const terminal = result.entries[0]
+        if (terminal?.status === "failed") {
+          attempt += 1
+          continue
+        }
+        if (!terminal) {
+          throw new ToolError(
+            "This approved Tool execution is already in progress.",
+            "PROVIDER_UNAVAILABLE",
+            {
+              reason: "approved_execution_in_progress",
+              attempt,
+              actionId: preflight.entry.id,
+            },
+            undefined,
+            {
+              nextSteps: [
+                "Wait briefly, then retry the same approved command. Do not request another approval.",
+              ],
+            },
+          )
+        }
+        throw duplicateDispatchError(preflight.entry.id, serverOwnedTarget, executionKey)
       }
 
       try {
@@ -202,6 +228,7 @@ export function createToolActionPolicyGate(
           executionKey,
           fingerprint,
           preflightActionId: preflight.entry.id,
+          attempt,
           approved,
           status: "succeeded",
         })
@@ -216,6 +243,7 @@ export function createToolActionPolicyGate(
           executionKey,
           fingerprint,
           preflightActionId: preflight.entry.id,
+          attempt,
           approved,
           status: "failed",
         })
@@ -223,6 +251,21 @@ export function createToolActionPolicyGate(
       }
     },
   }
+}
+
+function duplicateDispatchError(
+  actionId: string,
+  serverOwnedTarget: boolean,
+  executionKey: string,
+) {
+  return new ToolError(
+    "This exact Tool execution has already been claimed; refusing duplicate dispatch.",
+    "AUTHORIZATION_DENIED",
+    {
+      actionId,
+      ...(serverOwnedTarget ? { requestId: executionKey } : { idempotencyKey: executionKey }),
+    },
+  )
 }
 
 function resolveSelectedAction(
@@ -628,6 +671,7 @@ async function appendExecutionResult(input: {
   executionKey: string
   fingerprint: string
   preflightActionId: string
+  attempt: number
   approved:
     | Awaited<ReturnType<typeof validateApproval>>
     | Awaited<ReturnType<typeof validateLegacyApproval>>
@@ -648,10 +692,10 @@ async function appendExecutionResult(input: {
     capabilityId: actionName,
     capabilityVersion: input.selected.version,
     authorizationSource: "selected_graph_mcp_gate",
-    causationActionId: input.approved?.requestedAction.id ?? input.preflightActionId,
+    causationActionId: input.preflightActionId,
     approvalId: input.approved?.approval.id ?? null,
     idempotencyScope: input.approved
-      ? `${input.approved.approval.id}:execution`
+      ? `${input.approved.approval.id}:execution:${input.attempt}`
       : `${actionName}:${input.selected.version}:${input.targetId}:mcp-result`,
     idempotencyKey: input.approved?.approval.id ?? input.executionKey,
     idempotencyFingerprint: input.fingerprint,

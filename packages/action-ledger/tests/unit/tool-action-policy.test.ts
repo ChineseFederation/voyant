@@ -285,11 +285,70 @@ describe("generic MCP action-policy gate", () => {
       expect.objectContaining({ status: "requested", causationActionId: "requested_1" }),
       expect.objectContaining({
         status: "succeeded",
-        causationActionId: "requested_1",
+        causationActionId: "entry_1",
         approvalId: "approval_1",
         idempotencyFingerprint: fingerprint,
       }),
     ])
+  })
+
+  it("allows one exact retry after an approved dispatch fails", async () => {
+    const selected = action({ approval: "required" })
+    const commandInput = { value: 1 }
+    const fingerprint = await exactFingerprint(selected, commandInput)
+    const derivedRequestId = `mcp-request:${fingerprint}`
+    vi.spyOn(actionLedgerService, "validateApprovedAction").mockResolvedValue({
+      ok: true,
+      approval: { id: "approval_1" },
+      requestedAction: { id: "requested_1", idempotencyKey: derivedRequestId },
+      idempotencyFingerprint: fingerprint,
+    } as never)
+    const entries = new Map<
+      string,
+      { id: string; status: string; idempotencyScope?: string | null }
+    >()
+    vi.spyOn(actionLedgerService, "appendEntry").mockImplementation(async (_db, input) => {
+      const identity = `${input.idempotencyScope}:${input.idempotencyKey}`
+      const existing = entries.get(identity)
+      if (existing) return { entry: existing, replayed: true } as never
+      const entry = { id: `entry_${entries.size + 1}`, ...input }
+      entries.set(identity, entry)
+      return { entry, replayed: false } as never
+    })
+    vi.spyOn(actionLedgerService, "listEntries").mockImplementation(
+      async (_db, input) =>
+        ({
+          entries: [...entries.values()].filter(
+            (entry) => entry.idempotencyScope === input.idempotencyScope,
+          ),
+          nextCursor: null,
+        }) as never,
+    )
+    let completeRetry!: (value: { ok: true }) => void
+    const retryResult = new Promise<{ ok: true }>((resolve) => {
+      completeRetry = resolve
+    })
+    const dispatch = vi
+      .fn<() => Promise<{ ok: true }>>()
+      .mockRejectedValueOnce(new Error("readiness changed before publication"))
+      .mockReturnValueOnce(retryResult)
+    const invoke = () =>
+      gate(selected).execute(
+        execution(selected, { confirmed: true, approvalId: "approval_1" }, commandInput),
+        dispatch,
+      )
+
+    await expect(invoke()).rejects.toThrow("readiness changed before publication")
+    const retry = invoke()
+    await vi.waitFor(() => expect(dispatch).toHaveBeenCalledTimes(2))
+    await expect(invoke()).rejects.toMatchObject({
+      code: "PROVIDER_UNAVAILABLE",
+      retryable: true,
+      meta: { reason: "approved_execution_in_progress", attempt: 2 },
+    })
+    completeRetry({ ok: true })
+    await expect(retry).resolves.toEqual({ ok: true })
+    expect(dispatch).toHaveBeenCalledTimes(2)
   })
 
   it("rejects a package-resolved target that conflicts with the declared command target", async () => {
