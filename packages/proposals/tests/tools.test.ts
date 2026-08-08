@@ -11,6 +11,8 @@ import {
   proposalsHandlerActionPolicyExpectation,
 } from "../src/created-target-policy.js"
 import {
+  ACCEPT_PROPOSAL_VERSION_HANDLER_POLICY,
+  acceptProposalVersionTool,
   createProposalTool,
   type ProposalDeliveryToolServices,
   type ProposalsToolServices,
@@ -93,12 +95,39 @@ function snapshotSendActionPolicy(): ToolHandlerActionPolicyContext {
   }
 }
 
+function acceptProposalActionPolicy(): ToolHandlerActionPolicyContext {
+  return {
+    capabilityId: ACCEPT_PROPOSAL_VERSION_HANDLER_POLICY.capabilityId,
+    capabilityVersion: ACCEPT_PROPOSAL_VERSION_HANDLER_POLICY.capabilityVersion,
+    canonicalName: ACCEPT_PROPOSAL_VERSION_HANDLER_POLICY.canonicalName,
+    actionPolicy: {
+      ...ACCEPT_PROPOSAL_VERSION_HANDLER_POLICY.actionPolicy,
+      enforcement: "handler",
+      invocation: {
+        controlField: "_voyant",
+        requiredFields: ["idempotencyKey", "approvalId", "idempotencyFingerprint"],
+        optionalFields: ["reasonCode", "approvalId", "idempotencyFingerprint"],
+        fingerprintAlgorithm: "action-ledger-command-v1",
+      },
+    },
+    invocation: {
+      idempotencyKey: "proposal-accept-1",
+      approvalId: "approval_1",
+      idempotencyFingerprint: "sha256:test",
+    },
+  }
+}
+
 function registry() {
   const registry = createToolRegistry()
   for (const tool of proposalsTools) {
     if (tool === snapshotAndSendProposalTool) {
       registry.register(tool, {
         actionPolicy: SNAPSHOT_AND_SEND_PROPOSAL_HANDLER_POLICY.actionPolicy,
+      })
+    } else if (tool === acceptProposalVersionTool) {
+      registry.register(tool, {
+        actionPolicy: ACCEPT_PROPOSAL_VERSION_HANDLER_POLICY.actionPolicy,
       })
     } else if (tool === createProposalTool) {
       registry.register(tool, {
@@ -280,7 +309,8 @@ describe("proposals Tools", () => {
           sentAt: timestamp,
         }
       },
-      async acceptProposalVersion(id) {
+      async acceptProposalVersion(id, admitted) {
+        expect(admitted.invocation.idempotencyKey).toBe("proposal-accept-1")
         calls.push(`accept:${id}`)
         return {
           proposal: { ...proposal, status: "won", acceptedVersionId: id, closedAt: timestamp },
@@ -307,7 +337,7 @@ describe("proposals Tools", () => {
     const accepted = await toolRegistry.dispatch<{ proposalVersion: Record<string, unknown> }>(
       "accept_proposal_version",
       { proposalVersionId: version.id },
-      ctx(services),
+      ctx(services, "staff", undefined, acceptProposalActionPolicy()),
     )
     const declined = await toolRegistry.dispatch<Record<string, unknown>>(
       "decline_proposal_version",

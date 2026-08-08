@@ -225,7 +225,12 @@ describe("proposals deployment manifests", () => {
       proposalsVoyantModule.actions?.find(
         ({ id }) => id === "@voyant-travel/proposals#action.accept-proposal-version",
       ),
-    ).toMatchObject({ risk: "high", approval: "required" })
+    ).toMatchObject({
+      risk: "high",
+      approval: "required",
+      targetLifecycle: "existing",
+      existingTarget: { durability: "handler-command-result-v1" },
+    })
   })
 
   it("owns the cross-module proposal snapshot and notification action", () => {

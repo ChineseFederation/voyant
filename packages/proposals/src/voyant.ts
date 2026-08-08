@@ -358,6 +358,7 @@ export const proposalsVoyantModule = defineModule({
       availability: { status: "available" },
       effectBoundary: "local",
       targetLifecycle: "existing",
+      existingTarget: { durability: "handler-command-result-v1" },
       from: { tools: ["@voyant-travel/proposals#tool.accept-proposal-version"] },
     },
     {

@@ -60,7 +60,10 @@ export interface ProposalsToolServices {
     proposalVersionId: string,
     input: z.infer<typeof sendProposalVersionSchema>,
   ): Promise<unknown>
-  acceptProposalVersion(proposalVersionId: string): Promise<unknown>
+  acceptProposalVersion(
+    proposalVersionId: string,
+    admitted: ToolHandlerActionPolicyContext,
+  ): Promise<unknown>
   declineProposalVersion(proposalVersionId: string): Promise<unknown>
 }
 
@@ -146,6 +149,26 @@ export const SNAPSHOT_AND_SEND_PROPOSAL_HANDLER_POLICY = {
     kind: "execute",
     targetType: "proposal",
     commandTargetField: "proposalId",
+    targetLifecycle: "existing",
+    existingTarget: { durability: "handler-command-result-v1" },
+    risk: "high",
+    ledger: "required",
+    approval: "required",
+    reversible: false,
+  },
+} as const satisfies HandlerActionPolicyExpectation
+
+export const ACCEPT_PROPOSAL_VERSION_HANDLER_POLICY = {
+  capabilityId: `${OWNER}#tool.accept-proposal-version`,
+  capabilityVersion: VERSION,
+  canonicalName: "accept_proposal_version",
+  actionPolicy: {
+    id: `${OWNER}#action.accept-proposal-version`,
+    capabilityId: `${OWNER}#action.accept-proposal-version`,
+    version: VERSION,
+    kind: "execute",
+    targetType: "proposal-version",
+    commandTargetField: "proposalVersionId",
     targetLifecycle: "existing",
     existingTarget: { durability: "handler-command-result-v1" },
     risk: "high",
@@ -364,10 +387,13 @@ export const acceptProposalVersionTool = defineTool({
   audience: STAFF_AUDIENCE,
   tier: "write",
   riskPolicy: proposalWriteRisk,
+  annotations: { idempotentHint: true },
+  actionPolicyEnforcement: "handler",
   async handler({ proposalVersionId }, ctx: ProposalsToolContext) {
+    const admitted = admitHandlerActionPolicy(ctx, ACCEPT_PROPOSAL_VERSION_HANDLER_POLICY)
     return parseJsonResult(
       acceptProposalVersionResultSchema.nullable(),
-      await proposals(ctx).acceptProposalVersion(proposalVersionId),
+      await proposals(ctx).acceptProposalVersion(proposalVersionId, admitted),
     )
   },
 })

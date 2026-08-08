@@ -20,6 +20,7 @@ import {
   ProposalAcceptanceError,
 } from "./service/proposal-acceptance.js"
 import { executeSnapshotAndSendProposalCommand } from "./service/proposal-delivery.js"
+import { executeAcceptProposalVersionCommand } from "./service/proposal-version-acceptance-command.js"
 
 export * from "./tools.js"
 
@@ -76,7 +77,15 @@ export const voyantToolContextContribution = defineToolContextContribution({
           id: string,
           input: Parameters<typeof proposalsService.sendProposalVersion>[2],
         ) => proposalsService.sendProposalVersion(db, id, input),
-        acceptProposalVersion: (id: string) => proposalsService.acceptProposalVersion(db, id),
+        async acceptProposalVersion(id: string, admitted: ToolHandlerActionPolicyContext) {
+          const result = await executeAcceptProposalVersionCommand({
+            db,
+            context: actionLedgerContext(c),
+            admitted,
+            proposalVersionId: id,
+          })
+          return result.value
+        },
         declineProposalVersion: (id: string) => proposalsService.declineProposalVersion(db, id),
       },
       proposalDelivery: {
