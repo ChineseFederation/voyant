@@ -147,12 +147,14 @@ describe("bookings tools", () => {
       requiredScopes: ["bookings:write"],
       riskPolicy: { destructive: true, reversible: false, confirmationRequired: true },
     })
+    expect(bookingsTools.find((tool) => tool.name === "cancel_booking")).toMatchObject({
+      resolvesIdempotencyKeyServerSide: true,
+    })
     expect(
       bookingsTools
         .find((tool) => tool.name === "cancel_booking")
         ?.inputSchema.parse({
           id: "bk_1",
-          idempotencyKey: "cancel-bk-1",
           approvalId: "dead-top-level-field",
         }),
     ).not.toHaveProperty("approvalId")
@@ -173,7 +175,7 @@ describe("bookings tools", () => {
         ...CANCEL_BOOKING_HANDLER_POLICY.actionPolicy,
         enforcement: "handler",
         invocation: {
-          requiredFields: ["confirmed", "idempotencyKey"],
+          requiredFields: ["confirmed"],
           optionalFields: ["reasonCode", "approvalId", "idempotencyFingerprint"],
         },
       },
@@ -183,14 +185,14 @@ describe("bookings tools", () => {
       {
         id: "bk_1",
         note: "operator request",
-        idempotencyKey: "cancel-bk-1",
         approvalId: "dead-top-level-field",
       },
       ctx(
         {
           async cancelBooking(_input, admitted) {
             expect(_input).not.toHaveProperty("approvalId")
-            expect(admitted.invocation.idempotencyKey).toBe("cancel-bk-1")
+            expect(admitted.invocation.idempotencyKey).toMatch(/^cancel-booking:v1:/)
+            expect(_input.idempotencyKey).toBe(admitted.invocation.idempotencyKey)
             expect(admitted.invocation.approvalId).toBe("approval-reserved")
             expect(admitted.invocation.idempotencyFingerprint).toBe("sha256:reserved")
             return {
@@ -208,13 +210,12 @@ describe("bookings tools", () => {
             ...CANCEL_BOOKING_HANDLER_POLICY.actionPolicy,
             enforcement: "handler",
             invocation: {
-              requiredFields: ["confirmed", "idempotencyKey"],
+              requiredFields: ["confirmed"],
               optionalFields: ["reasonCode", "approvalId", "idempotencyFingerprint"],
             },
           },
           invocation: {
             confirmed: true,
-            idempotencyKey: "cancel-bk-1",
             approvalId: "approval-reserved",
             idempotencyFingerprint: "sha256:reserved",
           },

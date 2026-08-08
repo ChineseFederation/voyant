@@ -22,12 +22,14 @@ import {
 import {
   admitHandlerActionPolicy,
   defineTool,
+  deriveCommandIdempotencyKey,
   type HandlerActionPolicyExpectation,
   READ_ONLY_RISK,
   requireService,
   type ToolContext,
   ToolError,
   type ToolHandlerActionPolicyContext,
+  withServerResolvedIdempotencyKey,
 } from "@voyant-travel/tools"
 import { listResponseSchema } from "@voyant-travel/types"
 import { z } from "zod"
@@ -90,7 +92,7 @@ export interface BookingsToolServices {
     upcomingLimit?: number
   }): Promise<unknown>
   cancelBooking(
-    input: z.infer<typeof cancelBookingToolInputSchema>,
+    input: z.infer<typeof cancelBookingToolInputSchema> & { idempotencyKey: string },
     admitted: ToolHandlerActionPolicyContext,
   ): Promise<unknown>
   previewTravelerCorrectionAmendment(
@@ -183,11 +185,6 @@ export const cancelBookingToolInputSchema = z.object({
     .boolean()
     .optional()
     .describe("Keep customer email and SMS suppressed for this booking lifecycle."),
-  idempotencyKey: z
-    .string()
-    .trim()
-    .min(1)
-    .describe("Stable key used when requesting approval and replaying the command."),
 })
 
 const completedCancelledBookingActionSchema = z.object({
@@ -245,9 +242,16 @@ export const cancelBookingTool = defineTool<
   },
   annotations: { idempotentHint: true },
   actionPolicyEnforcement: "handler",
+  resolvesIdempotencyKeyServerSide: true,
   async handler(input, ctx) {
-    const admitted = admitHandlerActionPolicy(ctx, CANCEL_BOOKING_HANDLER_POLICY)
-    return cancelBookingToolOutputSchema.parse(await bookings(ctx).cancelBooking(input, admitted))
+    const idempotencyKey = await deriveCommandIdempotencyKey("cancel-booking", input)
+    const admitted = withServerResolvedIdempotencyKey(
+      admitHandlerActionPolicy(ctx, CANCEL_BOOKING_HANDLER_POLICY),
+      idempotencyKey,
+    )
+    return cancelBookingToolOutputSchema.parse(
+      await bookings(ctx).cancelBooking({ ...input, idempotencyKey }, admitted),
+    )
   },
 })
 
