@@ -1,5 +1,13 @@
 # @voyant-travel/finance
 
+## 0.245.5
+
+### Patch Changes
+
+- 6afd487: Carry the exact approved cancellation-policy entitlement into financial settlement and booking activity audit records.
+- Updated dependencies [6afd487]
+  - @voyant-travel/bookings@0.240.9
+
 ## 0.245.4
 
 ### Patch Changes

@@ -1,5 +1,16 @@
 # @voyant-travel/inventory
 
+## 0.40.9
+
+### Patch Changes
+
+- 72bf42c: Capture the applicable published Legal cancellation-policy version in owned-product quote evidence so booking commitment preserves the terms effective at sale.
+- Updated dependencies [6afd487]
+- Updated dependencies [72bf42c]
+  - @voyant-travel/bookings@0.240.9
+  - @voyant-travel/finance@0.245.5
+  - @voyant-travel/catalog@0.252.2
+
 ## 0.40.8
 
 ### Patch Changes

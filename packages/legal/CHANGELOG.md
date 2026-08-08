@@ -1,5 +1,17 @@
 # @voyant-travel/legal
 
+## 0.249.7
+
+### Patch Changes
+
+- 284f070: Generate the customer contract document automatically and idempotently when a booking is confirmed, using the selected Legal artifact provider and the durable action-ledger-backed operation.
+- 72bf42c: Capture the applicable published Legal cancellation-policy version in owned-product quote evidence so booking commitment preserves the terms effective at sale.
+- Updated dependencies [6afd487]
+- Updated dependencies [72bf42c]
+  - @voyant-travel/bookings@0.240.9
+  - @voyant-travel/finance@0.245.5
+  - @voyant-travel/catalog@0.252.2
+
 ## 0.249.6
 
 ### Patch Changes
