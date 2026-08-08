@@ -247,7 +247,7 @@ function convertedFxFreshness(result: z.infer<typeof storefrontShoppingResultSch
       if (!Number.isFinite(expires)) return { keys: [], validUntil: null }
       validUntil = validUntil === null ? expires : Math.min(validUntil, expires)
       keys.push(
-        [money.fx.authority, money.fx.quotedAt, money.fx.validUntil, money.fx.rate].join(":"),
+        [money.fx.provider, money.fx.quotedAt, money.fx.validUntil, money.fx.rate].join(":"),
       )
     }
   }
