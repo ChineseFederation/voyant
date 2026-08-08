@@ -184,13 +184,16 @@ export interface CatalogRuntimeEnv {
    * at collection creation and `ensureCollection` does not migrate it, so a
    * Typesense-backed deployment must recreate/migrate the vector field before
    * enabling a provider whose model dimension differs.
+   * Keyword-only indexers select `none` explicitly; the legacy default remains
+   * Gemini when a Voyant Cloud API key is present.
    */
-  CATALOG_EMBEDDING_PROVIDER?: "openai" | "gemini"
+  CATALOG_EMBEDDING_PROVIDER?: "none" | "openai" | "gemini"
 }
 
 export function buildCatalogEmbeddingProvider(
   env: CatalogRuntimeEnv,
 ): EmbeddingProvider | undefined {
+  if (env.CATALOG_EMBEDDING_PROVIDER === "none") return undefined
   const apiKey = env.VOYANT_API_KEY ?? env.VOYANT_CLOUD_API_KEY
   if (!apiKey) return undefined
   const cloudBase = (env.VOYANT_CLOUD_API_URL ?? "https://api.voyant.travel").replace(/\/$/, "")

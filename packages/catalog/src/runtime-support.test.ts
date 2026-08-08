@@ -8,6 +8,7 @@ import {
 } from "@voyant-travel/catalog-contracts/indexer/contract"
 import { describe, expect, it, vi } from "vitest"
 import {
+  buildCatalogEmbeddingProvider,
   buildCatalogSlices,
   createCatalogOffersSearchResolvers,
   DEFAULT_CATALOG_SLICES,
@@ -22,6 +23,17 @@ const scope = withoutCatalogScopeChannel({
   audience: "staff",
   market: "ro",
   channel: "website",
+})
+
+describe("catalog embedding provider selection", () => {
+  it("allows keyword-only deployments to explicitly disable embeddings", () => {
+    expect(
+      buildCatalogEmbeddingProvider({
+        VOYANT_API_KEY: "cloud-api-key",
+        CATALOG_EMBEDDING_PROVIDER: "none",
+      }),
+    ).toBeUndefined()
+  })
 })
 
 function createIndexer(search: IndexerAdapter["search"]): IndexerAdapter {

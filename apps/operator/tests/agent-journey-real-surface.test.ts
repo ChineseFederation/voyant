@@ -38,7 +38,11 @@ const MCP_HEADERS = {
   "content-type": "application/json",
   accept: "application/json, text/event-stream",
 }
-const TEST_ENV = { DATABASE_URL: "postgres://test", VOYANT_API_KEY: "test" } as never
+const TEST_ENV = {
+  DATABASE_URL: "postgres://test",
+  VOYANT_API_KEY: "test",
+  CATALOG_EMBEDDING_PROVIDER: "none",
+} as never
 const TEST_CTX = { waitUntil() {}, passThroughOnException() {} } as never
 
 /** Response-bytes ÷ 4 token proxy — a floor; see the mcp harness docblock. */

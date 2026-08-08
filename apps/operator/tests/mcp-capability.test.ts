@@ -85,7 +85,11 @@ const enabled = Boolean(TEST_DATABASE_URL && apiKey)
 /** A live model turn plus a real dispatch is slow; the default would time out on latency. */
 const JOURNEY_TIMEOUT_MS = 180_000
 
-const TEST_ENV = { DATABASE_URL: TEST_DATABASE_URL ?? "", VOYANT_API_KEY: "test" } as never
+const TEST_ENV = {
+  DATABASE_URL: TEST_DATABASE_URL ?? "",
+  VOYANT_API_KEY: "test",
+  CATALOG_EMBEDDING_PROVIDER: "none",
+} as never
 const TEST_CTX = { waitUntil() {}, passThroughOnException() {} } as never
 
 let rpcSeq = 0
