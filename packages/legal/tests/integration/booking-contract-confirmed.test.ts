@@ -1,5 +1,5 @@
 import { actionLedgerEntries } from "@voyant-travel/action-ledger/schema"
-import { bookingItems, bookings } from "@voyant-travel/bookings/schema"
+import { bookingItems, bookings, bookingTravelers } from "@voyant-travel/bookings/schema"
 import { createEventBus } from "@voyant-travel/core"
 import { createDbClient } from "@voyant-travel/db"
 import { cleanupTestDb } from "@voyant-travel/db/test-utils"
@@ -101,6 +101,7 @@ describe.skipIf(!DB_AVAILABLE)("booking-confirmed contract generation", () => {
         sellAmountCents: 120_00,
         startDate: "2026-09-01",
         endDate: "2026-09-07",
+        pax: 2,
       })
       .returning()
     await db.insert(bookingItems).values({
@@ -112,6 +113,22 @@ describe.skipIf(!DB_AVAILABLE)("booking-confirmed contract generation", () => {
       sellCurrency: "EUR",
       totalSellAmountCents: 120_00,
     })
+    await db.insert(bookingTravelers).values([
+      {
+        bookingId: booking!.id,
+        firstName: "Ana",
+        lastName: "Pop",
+        email: "ana@example.test",
+        travelerCategory: "adult",
+        isPrimary: true,
+      },
+      {
+        bookingId: booking!.id,
+        firstName: "Mara",
+        lastName: "Pop",
+        travelerCategory: "child",
+      },
+    ])
     const [template] = await db
       .insert(contractTemplates)
       .values({
@@ -119,7 +136,7 @@ describe.skipIf(!DB_AVAILABLE)("booking-confirmed contract generation", () => {
         slug: "customer-agreement-auto",
         scope: "customer",
         language: "en",
-        body: "Hello {{ customer.name }}, booking {{ booking.reference }}",
+        body: "Booking {{ booking.number }} for {{ leadTraveler.fullName }} and {{ travelers.size }} travellers: {{ booking.totalAmountCents | cents: booking.currency }} on {{ contract.date }}",
         active: true,
         isDefault: true,
       })
@@ -129,8 +146,16 @@ describe.skipIf(!DB_AVAILABLE)("booking-confirmed contract generation", () => {
       .values({
         templateId: template!.id,
         version: 1,
-        body: "Hello {{ customer.name }}, booking {{ booking.reference }}",
-        variableSchema: { required: ["customer.name", "booking.reference"] },
+        body: "Booking {{ booking.number }} for {{ leadTraveler.fullName }} and {{ travelers.size }} travellers: {{ booking.totalAmountCents | cents: booking.currency }} on {{ contract.date }}",
+        variableSchema: {
+          required: [
+            "booking.number",
+            "leadTraveler.fullName",
+            "booking.totalAmountCents",
+            "booking.currency",
+            "contract.date",
+          ],
+        },
       })
       .returning()
     await db
@@ -178,7 +203,9 @@ describe.skipIf(!DB_AVAILABLE)("booking-confirmed contract generation", () => {
     expect(contractRows[0]).toMatchObject({
       bookingId: booking!.id,
       templateVersionId: version!.id,
-      renderedBody: "Hello Ana Pop, booking BK-AUTO-CONTRACT-1",
+      renderedBody: expect.stringMatching(
+        /^Booking BK-AUTO-CONTRACT-1 for Ana Pop and 2 travellers: €120\.00 on \d{4}-\d{2}-\d{2}$/,
+      ),
     })
     expect(attachmentRows).toHaveLength(1)
     expect(attachmentRows[0]).toMatchObject({

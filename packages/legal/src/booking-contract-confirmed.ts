@@ -230,7 +230,10 @@ async function prepareBookingContractTarget(
   }
 
   const origin = await getBookingOriginByBookingId(db, bookingId)
-  const items = await bookingsService.listItems(db, bookingId)
+  const [items, travelers] = await Promise.all([
+    bookingsService.listItems(db, bookingId),
+    bookingsService.listTravelers(db, bookingId),
+  ])
   const language = resolveBookingContractLanguage(booking)
   const reusable = existingContracts.find((contract) => {
     const metadata = record(contract.metadata)
@@ -249,7 +252,7 @@ async function prepareBookingContractTarget(
   })
   if (selected.status !== "selected") return selected
 
-  const variables = bookingContractVariables(booking, items)
+  const variables = bookingContractVariables(booking, items, travelers)
   const missingPrerequisites = bookingContractPrerequisites({
     templateApplicable:
       reusable?.templateVersionId === selected.version.id ||
@@ -408,32 +411,94 @@ async function resolveTemplateSelection(
     : { status: "skipped", reason: "template_version_missing" }
 }
 
-function bookingContractVariables(
+export function bookingContractVariables(
   booking: BookingContractReviewInput["booking"],
   items: BookingContractReviewInput["items"],
+  travelers: Awaited<ReturnType<typeof bookingsService.listTravelers>>,
+  now = new Date(),
 ): Record<string, unknown> {
   const primaryProduct = items[0]
+  const today = now.toISOString().slice(0, 10)
   const normalizedItems = items.map((item) => ({
     title: item.productNameSnapshot ?? item.title,
     quantity: item.quantity,
     amountCents: item.totalSellAmountCents,
     currency: item.sellCurrency,
   }))
+  const normalizedTravelers = travelers.map((traveler) => ({
+    id: traveler.id,
+    firstName: traveler.firstName,
+    lastName: traveler.lastName,
+    fullName: [traveler.firstName, traveler.lastName].filter(Boolean).join(" "),
+    email: traveler.email,
+    phone: traveler.phone,
+    category: traveler.travelerCategory,
+    isPrimary: traveler.isPrimary,
+  }))
+  const leadTraveler =
+    normalizedTravelers.find((traveler) => traveler.isPrimary) ?? normalizedTravelers[0] ?? null
+  const customerName = [booking.contactFirstName, booking.contactLastName].filter(Boolean).join(" ")
+  const pax = booking.pax ?? (normalizedTravelers.length > 0 ? normalizedTravelers.length : null)
   return {
+    today,
+    currentDate: today,
+    currentDateTime: now.toISOString(),
+    currentTime: now.toISOString().slice(11, 19),
+    contract: {
+      contractNumber: "",
+      number: "",
+      contractDate: today,
+      date: today,
+      signedAt: "",
+      isManual: false,
+      series: "",
+      channel: "storefront",
+      source: "self_service",
+    },
     booking: {
       id: booking.id,
       bookingId: booking.id,
       reference: booking.bookingNumber,
       bookingNumber: booking.bookingNumber,
+      number: booking.bookingNumber,
+      status: booking.status,
       startDate: booking.startDate,
       endDate: booking.endDate,
       productName: primaryProduct?.productNameSnapshot ?? primaryProduct?.title ?? null,
+      pax,
+      paxTotal: pax,
+      sellCurrency: booking.sellCurrency,
+      currency: booking.sellCurrency,
+      sellAmountCents: booking.sellAmountCents,
+      totalAmountCents: booking.sellAmountCents,
       items: normalizedItems,
     },
-    customer: bookingContractCustomerVariables(booking),
+    customer: {
+      ...bookingContractCustomerVariables(booking),
+      firstName: booking.contactFirstName,
+      lastName: booking.contactLastName,
+      fullName: customerName || null,
+      type: booking.contactPartyType === "company" ? "B2B" : "B2C",
+      address: {
+        line1: booking.contactAddressLine1,
+        line2: booking.contactAddressLine2,
+        city: booking.contactCity,
+        region: booking.contactRegion,
+        postal: booking.contactPostalCode,
+        country: booking.contactCountry,
+      },
+    },
+    leadTraveler,
+    travelers: normalizedTravelers,
+    passengers: normalizedTravelers,
+    items: normalizedItems,
     commercial: {
       currency: booking.sellCurrency,
       totalAmountCents: booking.sellAmountCents,
+    },
+    payment: {
+      amountCents: booking.sellAmountCents,
+      currency: booking.sellCurrency,
     },
     product: {
       title: primaryProduct?.productNameSnapshot ?? primaryProduct?.title ?? null,
