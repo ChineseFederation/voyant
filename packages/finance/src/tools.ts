@@ -8,9 +8,11 @@ import { bookingToolDetailSchema } from "@voyant-travel/bookings"
 import {
   admitHandlerActionPolicy,
   defineTool,
+  type HandlerActionPolicyExpectation,
   READ_ONLY_RISK,
   requireService,
   type ToolContext,
+  type ToolHandlerActionPolicyContext,
 } from "@voyant-travel/tools"
 import { listResponseSchema } from "@voyant-travel/types"
 import { z } from "zod"
@@ -60,7 +62,11 @@ export interface FinanceToolServices {
     to?: string
     outstandingTopLimit?: number
   }): Promise<unknown>
-  voidInvoice(id: string, input: { reason?: string }): Promise<unknown>
+  voidInvoice(
+    id: string,
+    input: { reason?: string },
+    admitted: ToolHandlerActionPolicyContext,
+  ): Promise<unknown>
   issueInvoiceRefund(input: {
     invoiceId: string
     creditNoteNumber: string
@@ -136,6 +142,26 @@ export const listInvoicesTool = defineTool<
 
 const getInvoiceArgs = z.object({ id: z.string().min(1).describe("The invoice id.") })
 
+export const VOID_INVOICE_HANDLER_POLICY = {
+  capabilityId: "@voyant-travel/finance#tool.void-invoice",
+  capabilityVersion: "v1",
+  canonicalName: "void_invoice",
+  actionPolicy: {
+    id: "@voyant-travel/finance#action.void-invoice",
+    capabilityId: "@voyant-travel/finance#action.void-invoice",
+    version: "v1",
+    kind: "execute",
+    targetType: "invoice",
+    commandTargetField: "id",
+    targetLifecycle: "existing",
+    existingTarget: { durability: "handler-command-result-v1" },
+    risk: "critical",
+    ledger: "required",
+    approval: "required",
+    reversible: false,
+  },
+} as const satisfies HandlerActionPolicyExpectation
+
 export const getInvoiceTool = defineTool<
   z.infer<typeof getInvoiceArgs>,
   unknown,
@@ -176,8 +202,14 @@ export const voidInvoiceTool = defineTool<
     dryRunSupported: false,
     confirmationRequired: true,
   },
+  annotations: { idempotentHint: true },
+  actionPolicyEnforcement: "handler",
   async handler({ id, reason }, ctx) {
-    return parseJsonResult(voidInvoiceResultSchema, await finance(ctx).voidInvoice(id, { reason }))
+    const admitted = admitHandlerActionPolicy(ctx, VOID_INVOICE_HANDLER_POLICY)
+    return parseJsonResult(
+      voidInvoiceResultSchema,
+      await finance(ctx).voidInvoice(id, { reason }, admitted),
+    )
   },
 })
 

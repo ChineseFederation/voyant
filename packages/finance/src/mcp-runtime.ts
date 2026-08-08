@@ -1,4 +1,7 @@
-import { buildActionLedgerApprovedExecutionFields } from "@voyant-travel/action-ledger"
+import {
+  buildActionLedgerApprovedExecutionFields,
+  executeAdmittedExistingTargetCommand,
+} from "@voyant-travel/action-ledger"
 import {
   type BookingsCancellationPolicyRuntime,
   bookingsCancellationPolicyRuntimePort,
@@ -7,6 +10,7 @@ import {
   defineToolContextContribution,
   deriveCommandIdempotencyKey,
   ToolError,
+  type ToolHandlerActionPolicyContext,
 } from "@voyant-travel/tools"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import type { Context } from "hono"
@@ -58,8 +62,34 @@ export const voyantToolContextContribution = defineToolContextContribution({
         getInvoiceById: (id: string) => financeService.getInvoiceById(db, id),
         getFinanceAggregates: (query: Parameters<typeof financeService.getFinanceAggregates>[1]) =>
           financeService.getFinanceAggregates(db, query),
-        voidInvoice: (id: string, input: { reason?: string }) =>
-          financeService.voidInvoice(db, id, input),
+        voidInvoice: async (
+          id: string,
+          input: { reason?: string },
+          admitted: ToolHandlerActionPolicyContext,
+        ) => {
+          let result: Awaited<ReturnType<typeof financeService.voidInvoice>> | undefined
+          const execute = (commandDb: PostgresJsDatabase) =>
+            financeService.voidInvoice(commandDb, id, input)
+          return executeAdmittedExistingTargetCommand(
+            {
+              db: db as PostgresJsDatabase,
+              context: financeToolActionLedgerContext(c),
+              admitted,
+              commandInput: { id, ...input },
+              evaluatedRisk: "critical",
+            },
+            {
+              async prepare(tx) {
+                result = await execute(tx as PostgresJsDatabase)
+              },
+              execute() {
+                if (!result) throw new Error("Invoice void produced no result")
+                return Promise.resolve(result)
+              },
+              replay: () => execute(db as PostgresJsDatabase),
+            },
+          )
+        },
         // create_booking + book_product (voyant#3933) — both compose the durable
         // booking-create command; book_product resolves reference and key server-side.
         ...financeBookingToolServices(db as PostgresJsDatabase, c, cancellationPolicy),

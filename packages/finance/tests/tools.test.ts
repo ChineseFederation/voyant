@@ -3,7 +3,7 @@ import {
   type ToolContext,
   type ToolHandlerActionPolicyContext,
 } from "@voyant-travel/tools"
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 import {
   FINANCE_BOOK_PRODUCT_HANDLER_POLICY,
   FINANCE_BOOKING_CREATE_HANDLER_POLICY,
@@ -18,8 +18,10 @@ import {
   issueInvoiceRefundInputSchema,
   issueInvoiceRefundTool,
   issueUnsyncedProformaFromBookingToolInputSchema,
+  VOID_INVOICE_HANDLER_POLICY,
+  voidInvoiceTool,
 } from "../src/tools.js"
-import { financeBookingsCreateVoyantPlugin } from "../src/voyant.js"
+import { financeBookingsCreateVoyantPlugin, financeVoyantModule } from "../src/voyant.js"
 
 function ctx(
   services?: Partial<FinanceToolServices>,
@@ -275,6 +277,7 @@ describe("finance tools", () => {
     expect(voidTool?.tier).toBe("destructive")
     expect(voidTool?.requiredScopes).toEqual(["finance:void"])
     expect(voidTool?.riskPolicy).toMatchObject({ destructive: true, confirmationRequired: true })
+    expect(voidInvoiceTool.actionPolicyEnforcement).toBe("handler")
     const refundTool = list.find((t) => t.name === "issue_invoice_refund")
     expect(refundTool).toMatchObject({
       tier: "destructive",
@@ -285,6 +288,48 @@ describe("finance tools", () => {
       expect(t.tier).toBe("read")
       expect(t.requiredScopes).toEqual(["finance:read"])
     }
+  })
+
+  it("passes the admitted durable action policy to invoice voiding", async () => {
+    const voidInvoice = vi.fn(async () => ({ status: "not_found" as const }))
+    const registry = createToolRegistry()
+    const action = financeVoyantModule.actions?.find(
+      (entry) => entry.id === VOID_INVOICE_HANDLER_POLICY.actionPolicy.id,
+    )
+    if (!action) throw new Error("void invoice action is missing")
+    registry.register(voidInvoiceTool, {
+      capabilityId: VOID_INVOICE_HANDLER_POLICY.capabilityId,
+      owner: "@voyant-travel/finance",
+      capabilityVersion: VOID_INVOICE_HANDLER_POLICY.capabilityVersion,
+      name: VOID_INVOICE_HANDLER_POLICY.canonicalName,
+      requiredScopes: ["finance:void"],
+      deploymentRisk: "critical",
+      actionPolicy: action,
+    })
+    const registeredPolicy = registry
+      .list()
+      .find((entry) => entry.name === "void_invoice")?.actionPolicy
+    if (!registeredPolicy) throw new Error("void invoice registered policy is missing")
+
+    await expect(
+      registry.dispatch(
+        "void_invoice",
+        { id: "inv_1", reason: "duplicate" },
+        ctx({ voidInvoice }, {
+          capabilityId: VOID_INVOICE_HANDLER_POLICY.capabilityId,
+          capabilityVersion: VOID_INVOICE_HANDLER_POLICY.capabilityVersion,
+          canonicalName: VOID_INVOICE_HANDLER_POLICY.canonicalName,
+          actionPolicy: registeredPolicy,
+          invocation: {
+            approvalId: "approval_1",
+            confirmed: true,
+            targetId: "inv_1",
+            idempotencyFingerprint: "fingerprint_1",
+          },
+        } as ToolHandlerActionPolicyContext),
+      ),
+    ).resolves.toEqual({ status: "not_found" })
+    expect(voidInvoice).toHaveBeenCalledWith("inv_1", { reason: "duplicate" }, expect.any(Object))
   })
 
   it("dispatches reads + void through the injected service", async () => {
@@ -455,12 +500,6 @@ describe("finance tools", () => {
     }
     expect(await registry.dispatch("get_invoice", { id: "inv_1" }, ctx(services))).toMatchObject({
       id: "inv_1",
-    })
-    expect(
-      await registry.dispatch("void_invoice", { id: "inv_2", reason: "dup" }, ctx(services)),
-    ).toMatchObject({
-      status: "voided",
-      invoice: { id: "inv_2", status: "void", voidReason: "dup" },
     })
     expect(
       await registry.dispatch(
