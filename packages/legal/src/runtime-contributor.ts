@@ -58,7 +58,22 @@ export function createLegalRuntimePortContribution(
   return {
     [bookingActionSourceRuntimePort.id]:
       legalBookingActionSource satisfies BookingActionSourceRuntime,
-    [bookingsCancellationPolicyRuntimePort.id]: { evaluateCancellationSnapshot },
+    [bookingsCancellationPolicyRuntimePort.id]: {
+      evaluateCancellationSnapshot,
+      async captureApplicableCancellationPolicySnapshot(
+        db: PostgresJsDatabase,
+        input: { productId: string; at: string },
+      ) {
+        const resolved = await policiesService.resolvePolicy(db, {
+          kind: "cancellation",
+          productId: input.productId,
+          at: input.at,
+        })
+        return resolved
+          ? policiesService.captureCancellationPolicySnapshot(db, resolved.policy.id)
+          : null
+      },
+    },
     [catalogLegalRuntimeExtensionPort.id]: {
       async captureCancellationPolicySnapshot(
         db: PostgresJsDatabase,

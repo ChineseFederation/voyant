@@ -230,7 +230,7 @@ export const cancelBookingTool = defineTool<
   capabilityVersion: "v1",
   name: "cancel_booking",
   description:
-    "Request approval to cancel a booking, or execute the exact approved cancellation. Supplier and financial side effects may be irreversible.",
+    "Cancel a booking through its contractual consequence preview. First call cancel_booking with `_voyant.confirmed: true` but no approval id so this handler computes the refund entitlement and requests an approval containing that canonical preview; do not call request_action_approval directly. Approve the returned approval id, then retry the exact cancel_booking command with `_voyant.confirmed` and that approval id. Supplier and financial side effects may be irreversible.",
   inputSchema: cancelBookingToolInputSchema,
   outputSchema: cancelBookingToolOutputSchema,
   requiredScopes: ["bookings:write"],

@@ -359,6 +359,7 @@ function bookingDetailWithDates(id: string) {
 
 function request(): never {
   const cancellationPolicy = {
+    captureApplicableCancellationPolicySnapshot: async () => null,
     evaluateCancellationSnapshot: async () => ({
       status: "evaluated" as const,
       policyId: "pol_cancel",

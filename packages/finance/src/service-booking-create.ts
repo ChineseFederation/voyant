@@ -2600,6 +2600,7 @@ export async function createBookingMutation(
           contactAddressLine1: input.contactAddressLine1 ?? null,
           contactAddressLine2: input.contactAddressLine2 ?? null,
           contactPostalCode: input.contactPostalCode ?? null,
+          cancellationTermsEvidence: input.cancellationTermsEvidence ?? null,
           itemLines: normalizedItemLines,
         },
         userId,

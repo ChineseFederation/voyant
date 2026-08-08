@@ -120,6 +120,10 @@ export interface BookingsRelationshipsRuntime {
 
 export interface BookingsCancellationPolicyRuntime {
   evaluateCancellationSnapshot: BookingCancellationPolicyEvaluator
+  captureApplicableCancellationPolicySnapshot(
+    db: PostgresJsDatabase,
+    input: { productId: string; at: string },
+  ): Promise<unknown | null>
 }
 
 /**
@@ -229,7 +233,7 @@ export const bookingsRelationshipsRuntimePort = objectPort<BookingsRelationships
 )
 export const bookingsCancellationPolicyRuntimePort = objectPort<BookingsCancellationPolicyRuntime>(
   "bookings.cancellation-policy.runtime",
-  ["evaluateCancellationSnapshot"],
+  ["evaluateCancellationSnapshot", "captureApplicableCancellationPolicySnapshot"],
 )
 export const bookingActionSourceRuntimePort = objectPort<BookingActionSourceRuntime>(
   "bookings.booking-action-source.runtime",

@@ -1086,6 +1086,16 @@ export interface FinanceServiceRuntime extends InvoiceFxOptions {
   descriptionResolver?: InvoiceLineDescriptionResolver
   invoiceDueDateResolver?: InvoiceDueDateResolver
   paymentScheduleLineDescriptionFormat?: PaymentScheduleLineDescriptionFormat
+  captureBookingCancellationTerms?: (
+    db: PostgresJsDatabase,
+    input: { productId: string },
+  ) => Promise<{
+    schemaVersion: 1
+    source: "booking_quote"
+    sourceId: string
+    capturedAt: string
+    policy: unknown
+  } | null>
 }
 
 export interface InvoiceVoidedEvent {

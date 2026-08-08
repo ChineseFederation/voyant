@@ -14,6 +14,7 @@ import {
   redactTravelerIdentity,
   shouldRevealBookingPii,
 } from "@voyant-travel/bookings"
+import type { BookingsCancellationPolicyRuntime } from "@voyant-travel/bookings/runtime-port"
 import { isStaffRbacEnforced } from "@voyant-travel/hono"
 import { ToolError, withServerResolvedIdempotencyKey } from "@voyant-travel/tools"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
@@ -39,7 +40,11 @@ import { toJsonValue } from "./tool-json.js"
 
 type BookingRuntimeDb = PostgresJsDatabase
 
-export function financeBookingToolServices(db: BookingRuntimeDb, c: Context<Env>) {
+export function financeBookingToolServices(
+  db: BookingRuntimeDb,
+  c: Context<Env>,
+  cancellationPolicy?: BookingsCancellationPolicyRuntime,
+) {
   return {
     createBooking: async (
       input: Omit<BookingCreateInput, "bookingNumber"> & { bookingNumber?: string | null },
@@ -75,12 +80,40 @@ export function financeBookingToolServices(db: BookingRuntimeDb, c: Context<Env>
       const idempotencyKey = await deriveBookProductIdempotencyKey(input)
       const bookingNumber = await allocateBookingNumber(db)
       const commandInput = mapBookProductIntentToCommand(input, bookingNumber)
+      const financeRuntime = getFinanceRouteRuntime(c)
+      const captureCancellationPolicy =
+        cancellationPolicy?.captureApplicableCancellationPolicySnapshot
       const result = await executeFinanceBookProductCommand({
         db,
         context: financeToolActionLedgerContext(c),
         commandInput,
         admitted: withServerResolvedIdempotencyKey(admitted, idempotencyKey),
-        runtime: getFinanceRouteRuntime(c),
+        runtime: {
+          ...financeRuntime,
+          ...(captureCancellationPolicy
+            ? {
+                async captureBookingCancellationTerms(
+                  transaction: PostgresJsDatabase,
+                  termsInput: { productId: string },
+                ) {
+                  const capturedAt = new Date().toISOString()
+                  const policy = await captureCancellationPolicy(transaction, {
+                    productId: termsInput.productId,
+                    at: capturedAt.slice(0, 10),
+                  })
+                  return policy
+                    ? {
+                        schemaVersion: 1 as const,
+                        source: "booking_quote" as const,
+                        sourceId: `book_product:${idempotencyKey}`,
+                        capturedAt,
+                        policy,
+                      }
+                    : null
+                },
+              }
+            : {}),
+        },
       })
       const detail = await readBookingCreateResult(db, c, result.value.bookingId, result.replayed)
       return {

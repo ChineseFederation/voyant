@@ -53,6 +53,7 @@ import { createDbClient } from "@voyant-travel/db"
 import { dbClientDispose } from "@voyant-travel/db/transaction-capability"
 import { financeService } from "@voyant-travel/finance"
 import { composeVoyantGraphRuntime } from "@voyant-travel/framework"
+import { policiesService } from "@voyant-travel/legal"
 import { sql as sqlRaw } from "drizzle-orm"
 import { Hono } from "hono"
 import { afterAll, beforeAll, describe, expect, it } from "vitest"
@@ -505,6 +506,24 @@ function buildJourneys(RUN_MARK: string): CapabilityJourney[] {
       // chained publication and booking journeys above it.
     },
     {
+      // The contractual unwind of the commercial chain. The policy is assigned
+      // before sale by `seedCancellationPolicy`, so this proves that the ordinary
+      // product quote captured immutable terms and that cancellation evaluates,
+      // approves, applies, and audits those exact terms rather than today's policy.
+      id: "booking-cancel",
+      domain: "bookings",
+      task: `Cancel the booking belonging to Ioana Marinescu${RUN_MARK} according to the cancellation terms agreed when it was booked. Complete any required approval, use a cash refund when the agreed terms permit it, and confirm the cancellation and refund entitlement.`,
+      expect: "cancel",
+      maxCalls: 28,
+      verify: `select 1 from bookings b
+             join people pe on pe.id = b.person_id
+             join booking_activity_log a on a.booking_id = b.id
+             where pe.last_name ilike '%marinescu${RUN_MARK}%'
+               and b.status = 'cancelled'
+               and a.metadata->'cancellationPolicyEntitlement'->>'status' = 'evaluated'
+               and (a.metadata->'cancellationPolicyEntitlement'->>'refundCents')::int > 0`,
+    },
+    {
       id: "contracts-read",
       domain: "contracts",
       task: "What contract templates exist? If there are none, say so explicitly.",
@@ -564,6 +583,71 @@ function rowCount(rows: unknown): number {
   if (Array.isArray(rows)) return rows.length
   const count = (rows as { rowCount?: number; length?: number } | null)?.rowCount
   return typeof count === "number" ? count : ((rows as { length?: number } | null)?.length ?? 0)
+}
+
+function firstRow(rows: unknown): Record<string, unknown> | undefined {
+  if (Array.isArray(rows)) return rows[0] as Record<string, unknown> | undefined
+  const resultRows = (rows as { rows?: unknown[] } | null)?.rows
+  return resultRows?.[0] as Record<string, unknown> | undefined
+}
+
+/**
+ * Ordinary deployment fixture, analogous to the default invoice number series.
+ * Policy authoring is not the capability under test; cancellation of terms that
+ * were actually sold is. Use Legal's real domain service so the quote path sees
+ * the same published assignment as production.
+ */
+async function seedCancellationPolicy(mark: string): Promise<void> {
+  if (!verifyDb) throw new Error("Capability eval database is not mounted")
+  const productRows = await verifyDb.execute(
+    sqlRaw.raw(`select id from products where name ilike '%capability eval tour ${mark}%' limit 1`),
+  )
+  const productId = firstRow(productRows)?.id
+  if (typeof productId !== "string") {
+    throw new Error(`Cannot seed cancellation policy: product ${mark} was not found`)
+  }
+
+  const policy = await policiesService.createPolicy(verifyDb, {
+    kind: "cancellation",
+    name: `Capability Eval Cancellation ${mark}`,
+    slug: `capability-eval-cancellation-${mark.toLowerCase()}`,
+    description: "50% cash refund at least 30 days before departure",
+    language: "en",
+  })
+  if (!policy) throw new Error("Cannot seed cancellation policy")
+  const version = await policiesService.createPolicyVersion(verifyDb, policy.id, {
+    title: "Capability eval cancellation terms",
+    body: "Cancel at least 30 days before departure for a 50% cash refund.",
+  })
+  if (!version) throw new Error("Cannot seed cancellation policy version")
+  const rule = await policiesService.createPolicyRule(verifyDb, version.id, {
+    ruleType: "window",
+    label: "50% cash refund 30 days before departure",
+    daysBeforeDeparture: 30,
+    refundPercent: 5000,
+    refundType: "cash",
+    sortOrder: 0,
+  })
+  if (!rule) throw new Error("Cannot seed cancellation policy rule")
+  const published = await policiesService.publishPolicyVersion(verifyDb, version.id)
+  if (published.status !== "published") throw new Error("Cannot publish cancellation policy")
+  const assignment = await policiesService.createPolicyAssignment(verifyDb, {
+    policyId: policy.id,
+    scope: "product",
+    productId,
+    priority: 100,
+  })
+  if (!assignment) throw new Error("Cannot assign cancellation policy")
+  const resolved = await policiesService.resolvePolicy(verifyDb, {
+    kind: "cancellation",
+    productId,
+    at: new Date().toISOString().slice(0, 10),
+  })
+  if (resolved?.policy.id !== policy.id) {
+    throw new Error("Seeded cancellation policy is not applicable to the product")
+  }
+  const snapshot = await policiesService.captureCancellationPolicySnapshot(verifyDb, policy.id)
+  if (!snapshot) throw new Error("Seeded cancellation policy cannot be captured")
 }
 
 /** Exactly the conditions `it.each` asserts, so the report can never disagree. */
@@ -834,6 +918,7 @@ describe.skipIf(!enabled)("MCP capability — a travel agent's job", () => {
             passed = journeyPassed(journey, run)
           }
           passes.set(journey.id, [...(passes.get(journey.id) ?? []), passed])
+          if (journey.id === "product-create" && passed) await seedCancellationPolicy(mark)
         }
       }
       process.stdout.write(`\n${report()}\n\n`)

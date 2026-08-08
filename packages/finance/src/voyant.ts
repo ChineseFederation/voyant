@@ -2,6 +2,7 @@
 import { actionLedgerFinanceDriftRuntimePort } from "@voyant-travel/action-ledger/runtime-port"
 import {
   bookingActionSourceRuntimePort,
+  bookingsCancellationPolicyRuntimePort,
   bookingsFinanceRuntimePort,
 } from "@voyant-travel/bookings/runtime-port"
 import {
@@ -708,6 +709,7 @@ export const financeBookingsCreateVoyantPlugin = defineExtension({
   id: "@voyant-travel/finance#bookings-create-extension",
   packageName: "@voyant-travel/finance",
   localId: "finance.bookings-create-extension",
+  runtimePorts: [requirePort(bookingsCancellationPolicyRuntimePort)],
   tools: [
     {
       id: "@voyant-travel/finance#bookings-create-extension.tool.book-product",

@@ -1,5 +1,9 @@
 import { buildActionLedgerApprovedExecutionFields } from "@voyant-travel/action-ledger"
 import {
+  type BookingsCancellationPolicyRuntime,
+  bookingsCancellationPolicyRuntimePort,
+} from "@voyant-travel/bookings/runtime-port"
+import {
   defineToolContextContribution,
   deriveCommandIdempotencyKey,
   ToolError,
@@ -37,9 +41,16 @@ export * from "./tools.js"
 
 export const voyantToolContextContribution = defineToolContextContribution({
   context: ["finance"],
-  contribute: ({ context, request }) => {
+  async contribute({ context, request, resources }) {
     const c = request as Context<Env>
     const db = context.db as Parameters<typeof financeService.listInvoices>[0]
+    const cancellationPolicyValue = await Promise.resolve(
+      resources[bookingsCancellationPolicyRuntimePort.id],
+    )
+    const cancellationPolicy = cancellationPolicyValue as
+      | BookingsCancellationPolicyRuntime
+      | undefined
+    if (cancellationPolicy) await bookingsCancellationPolicyRuntimePort.test(cancellationPolicy)
     return {
       finance: {
         listInvoices: (query: Parameters<typeof financeService.listInvoices>[1]) =>
@@ -51,7 +62,7 @@ export const voyantToolContextContribution = defineToolContextContribution({
           financeService.voidInvoice(db, id, input),
         // create_booking + book_product (voyant#3933) — both compose the durable
         // booking-create command; book_product resolves reference and key server-side.
-        ...financeBookingToolServices(db as PostgresJsDatabase, c),
+        ...financeBookingToolServices(db as PostgresJsDatabase, c, cancellationPolicy),
         async issueInvoiceFromBooking(input: {
           command: CreateInvoiceFromBookingInput
           idempotencyKey?: string

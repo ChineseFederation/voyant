@@ -136,7 +136,16 @@ async function executeBookingCreateCommand(
     {
       async create(tx, lease) {
         const transaction = tx as PostgresJsDatabase
-        const outcome = await createBookingMutation(transaction, input.commandInput, {
+        const capturedTerms =
+          input.commandInput.cancellationTermsEvidence == null
+            ? await input.runtime?.captureBookingCancellationTerms?.(transaction, {
+                productId: input.commandInput.productId,
+              })
+            : null
+        const commandInput = capturedTerms
+          ? { ...input.commandInput, cancellationTermsEvidence: capturedTerms }
+          : input.commandInput
+        const outcome = await createBookingMutation(transaction, commandInput, {
           commandIdempotencyKey: input.admitted.invocation.idempotencyKey!,
           ...(actionName ? { actionName } : {}),
           lease,
