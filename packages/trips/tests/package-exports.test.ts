@@ -19,6 +19,25 @@ const packageJson = JSON.parse(
 ) as PackageJson
 
 describe("@voyant-travel/trips package exports", () => {
+  it("publishes the Storefront Trip selections provider subpath", () => {
+    expect(packageJson.exports["./storefront-trip-offer-resolver-port"]).toBe(
+      "./src/storefront-trip-offer-resolver-port.ts",
+    )
+    expect(packageJson.publishConfig.exports["./storefront-trip-offer-resolver-port"]).toEqual({
+      types: "./dist/storefront-trip-offer-resolver-port.d.ts",
+      import: "./dist/storefront-trip-offer-resolver-port.js",
+      default: "./dist/storefront-trip-offer-resolver-port.js",
+    })
+    expect(packageJson.exports["./storefront-trip-selections-runtime"]).toBe(
+      "./src/storefront-trip-selections-runtime.ts",
+    )
+    expect(packageJson.publishConfig.exports["./storefront-trip-selections-runtime"]).toEqual({
+      types: "./dist/storefront-trip-selections-runtime.d.ts",
+      import: "./dist/storefront-trip-selections-runtime.js",
+      default: "./dist/storefront-trip-selections-runtime.js",
+    })
+  })
+
   it("publishes the payment subscriber runtime subpath", () => {
     expect(packageJson.exports["./payment-subscribers"]).toBe("./src/payment-subscriber-runtime.ts")
     expect(packageJson.publishConfig.exports["./payment-subscribers"]).toEqual({

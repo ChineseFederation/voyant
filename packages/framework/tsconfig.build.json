@@ -1988,6 +1988,9 @@
       "@voyant-travel/storefront/runtime-port": ["../storefront/dist/runtime-port.d.ts"],
       "@voyant-travel/storefront/service": ["../storefront/dist/service.d.ts"],
       "@voyant-travel/storefront/shopping": ["../storefront/dist/shopping/index.d.ts"],
+      "@voyant-travel/storefront/shopping/runtime-port": [
+        "../storefront/dist/shopping/runtime-port.d.ts"
+      ],
       "@voyant-travel/storefront/tools": ["../storefront/dist/mcp-runtime.d.ts"],
       "@voyant-travel/storefront/transport-eligibility": [
         "../storefront/dist/transport-eligibility.d.ts"
@@ -2039,6 +2042,12 @@
       "@voyant-travel/trips/schema": ["../trips/dist/schema.d.ts"],
       "@voyant-travel/trips/service": ["../trips/dist/service.d.ts"],
       "@voyant-travel/trips/sourcing-job": ["../trips/dist/sourcing-job.d.ts"],
+      "@voyant-travel/trips/storefront-trip-offer-resolver-port": [
+        "../trips/dist/storefront-trip-offer-resolver-port.d.ts"
+      ],
+      "@voyant-travel/trips/storefront-trip-selections-runtime": [
+        "../trips/dist/storefront-trip-selections-runtime.d.ts"
+      ],
       "@voyant-travel/trips/tools": ["../trips/dist/mcp-runtime.d.ts"],
       "@voyant-travel/trips/validation": ["../trips/dist/validation.d.ts"],
       "@voyant-travel/trips/voyant": ["../trips/dist/voyant.d.ts"],

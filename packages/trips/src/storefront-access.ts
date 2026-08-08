@@ -76,6 +76,18 @@ export async function createStorefrontTrip(
   context: StorefrontTripContext,
   options: StorefrontTripAccessOptions = {},
 ): Promise<StorefrontTripHandle> {
+  return db.transaction((tx) =>
+    createStorefrontTripInTransaction(tx as unknown as AnyDrizzleDb, input, context, options),
+  )
+}
+
+/** Package-internal transaction primitive used by the Storefront selection provider. */
+export async function createStorefrontTripInTransaction(
+  db: AnyDrizzleDb,
+  input: CreateStorefrontTripInput,
+  context: StorefrontTripContext,
+  options: StorefrontTripAccessOptions = {},
+): Promise<StorefrontTripHandle> {
   const scope = storefrontTripScopeSchema.parse(input.scope)
   assertActiveStorefrontContext(context)
   const capability = (options.createCapability ?? createStorefrontTripCapability)()
@@ -84,45 +96,43 @@ export async function createStorefrontTrip(
   const now = options.now?.() ?? new Date()
   const expiresAt = new Date(now.getTime() + (options.ttlMs ?? STOREFRONT_TRIP_CAPABILITY_TTL_MS))
 
-  return db.transaction(async (tx) => {
-    const actor = storefrontActor(context)
-    const values: NewTripEnvelope = {
-      title: input.title,
-      description: input.description,
-      travelerParty: {},
-      constraints: { storefrontScope: scope },
-      createdBy: actor,
-      updatedBy: actor,
-    }
-    const [envelope] = await tx.insert(tripEnvelopes).values(values).returning()
-    if (!envelope) throw new Error("createStorefrontTrip: insert returned no envelope")
+  const actor = storefrontActor(context)
+  const values: NewTripEnvelope = {
+    title: input.title,
+    description: input.description,
+    travelerParty: {},
+    constraints: { storefrontScope: scope },
+    createdBy: actor,
+    updatedBy: actor,
+  }
+  const [envelope] = await db.insert(tripEnvelopes).values(values).returning()
+  if (!envelope) throw new Error("createStorefrontTrip: insert returned no envelope")
 
-    const [access] = await tx
-      .insert(tripStorefrontAccess)
-      .values({
-        envelopeId: envelope.id,
-        capabilityDigest,
-        storefrontId: context.storefrontId,
-        channelId: context.channelId,
-        marketId: scope.marketId,
-        locale: scope.locale,
-        currency: scope.currency,
-        ownerUserId: authenticatedUserId(context),
-        ownerBuyerAccountId: context.buyerAccountId ?? null,
-        expiresAt,
-        createdAt: now,
-        updatedAt: now,
-      })
-      .returning()
-    if (!access) throw new Error("createStorefrontTrip: access insert returned no row")
+  const [access] = await db
+    .insert(tripStorefrontAccess)
+    .values({
+      envelopeId: envelope.id,
+      capabilityDigest,
+      storefrontId: context.storefrontId,
+      channelId: context.channelId,
+      marketId: scope.marketId,
+      locale: scope.locale,
+      currency: scope.currency,
+      ownerUserId: authenticatedUserId(context),
+      ownerBuyerAccountId: context.buyerAccountId ?? null,
+      expiresAt,
+      createdAt: now,
+      updatedAt: now,
+    })
+    .returning()
+  if (!access) throw new Error("createStorefrontTrip: access insert returned no row")
 
-    return {
-      capability,
-      revision: access.revision,
-      scope,
-      trip: { envelope, components: [] },
-    }
-  })
+  return {
+    capability,
+    revision: access.revision,
+    scope,
+    trip: { envelope, components: [] },
+  }
 }
 
 /** Resolve an opaque capability without ever accepting an envelope id. */

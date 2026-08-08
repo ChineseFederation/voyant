@@ -17,6 +17,8 @@
       "portIds": [
         "trips.routes-runtime",
         "trips.database-runtime",
+        "storefront.trip-selections.runtime",
+        "trips.storefront-offer-resolver.runtime",
         "catalog.runtime-services",
         "commerce.checkout-api-options",
         "flights.runtime"

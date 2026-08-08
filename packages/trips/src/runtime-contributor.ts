@@ -12,12 +12,14 @@ import {
 } from "@voyant-travel/commerce/runtime-port"
 import type { VoyantRuntimeHostPrimitives } from "@voyant-travel/core"
 import type { VoyantPort } from "@voyant-travel/core/project"
+import type { AnyDrizzleDb } from "@voyant-travel/db"
 import { type FlightsRuntime, flightsRuntimePort } from "@voyant-travel/flights"
 import { type PaymentAdapter, paymentAdapterRuntimePort } from "@voyant-travel/payments"
 import {
   storefrontPaymentLinkRuntimePort,
   storefrontPaymentReconciliationJobRuntimePort,
 } from "@voyant-travel/storefront"
+import { storefrontTripSelectionsRuntimePort } from "@voyant-travel/storefront/shopping"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import { createTripBookingSessionCompositeHandler } from "./booking-session-composite-handler.js"
 import type { TripsRoutesOptionsProvider } from "./routes.js"
@@ -32,6 +34,11 @@ import {
   createCommerceCardPaymentRuntime,
   createStandardPaymentLinkRouteOptions,
 } from "./storefront-payment-link-runtime.js"
+import {
+  type StorefrontTripOfferResolver,
+  storefrontTripOfferResolverPort,
+} from "./storefront-trip-offer-resolver-port.js"
+import { createStorefrontTripSelectionsRuntime } from "./storefront-trip-selections-runtime.js"
 
 type RuntimePortValue<T> = T | Promise<T>
 
@@ -91,6 +98,10 @@ export function createTripsRuntimePortContribution(
     withDb: (bindings, operation) =>
       host.primitives.database.transaction(bindings, (database) => operation(database as never)),
   }
+  const storefrontOfferResolver =
+    host.hasRuntimePort?.(storefrontTripOfferResolverPort) === true
+      ? host.getRuntimePort<StorefrontTripOfferResolver>(storefrontTripOfferResolverPort)
+      : null
   const contribution: Record<string, unknown> = {
     [storefrontPaymentLinkRuntimePort.id]: createStandardPaymentLinkRouteOptions(paymentAdapter),
     [storefrontPaymentReconciliationJobRuntimePort.id]: {
@@ -102,6 +113,21 @@ export function createTripsRuntimePortContribution(
     },
     [tripsRoutesRuntimePort.id]: tripsRoutes,
     [tripsDatabaseRuntimePort.id]: tripsDatabase,
+    [storefrontTripSelectionsRuntimePort.id]: createStorefrontTripSelectionsRuntime({
+      withTransaction: (operation) =>
+        host.primitives.database.transaction(undefined, (database) =>
+          operation(database as AnyDrizzleDb),
+        ),
+      ...(storefrontOfferResolver
+        ? {
+            offerResolver: {
+              async resolve(context, input) {
+                return (await storefrontOfferResolver).resolve(context, input)
+              },
+            },
+          }
+        : {}),
+    }),
     [tripsSourcingJobRuntimePort.id]: {
       resolveDb: (bindings: unknown) =>
         host.primitives.database.resolve<PostgresJsDatabase>(bindings),

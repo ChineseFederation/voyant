@@ -82,6 +82,19 @@ export {
   type StorefrontTripScope,
   storefrontTripScopeSchema,
 } from "./storefront-access.js"
+export {
+  type StorefrontTripOfferResolutionInput,
+  type StorefrontTripOfferResolver,
+  storefrontTripOfferResolverPort,
+} from "./storefront-trip-offer-resolver-port.js"
+export {
+  createStorefrontTripSelectionsRuntime,
+  StorefrontTripSelectionAccessError,
+  StorefrontTripSelectionConflictError,
+  StorefrontTripSelectionMutationError,
+  type StorefrontTripSelectionsRuntimeOptions,
+  StorefrontTripSelectionUnavailableError,
+} from "./storefront-trip-selections-runtime.js"
 
 export const tripsModule: Module = {
   name: "trips",

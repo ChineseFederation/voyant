@@ -18,6 +18,7 @@
     "./runtime-contributor": "./src/runtime-contributor.ts",
     "./runtime-port": "./src/runtime-port.ts",
     "./shopping": "./src/shopping/index.ts",
+    "./shopping/runtime-port": "./src/shopping/runtime-port.ts",
     "./service": "./src/service.ts",
     "./tools": "./src/mcp-runtime.ts",
     "./transport-eligibility": "./src/transport-eligibility.ts",
@@ -194,6 +195,11 @@
         "types": "./dist/shopping/index.d.ts",
         "import": "./dist/shopping/index.js",
         "default": "./dist/shopping/index.js"
+      },
+      "./shopping/runtime-port": {
+        "types": "./dist/shopping/runtime-port.d.ts",
+        "import": "./dist/shopping/runtime-port.js",
+        "default": "./dist/shopping/runtime-port.js"
       },
       "./service": {
         "types": "./dist/service.d.ts",

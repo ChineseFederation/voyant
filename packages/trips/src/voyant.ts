@@ -4,9 +4,11 @@ import {
   storefrontPaymentLinkRuntimePort,
   storefrontPaymentReconciliationJobRuntimePort,
 } from "@voyant-travel/storefront/runtime-port"
+import { storefrontTripSelectionsRuntimePort } from "@voyant-travel/storefront/shopping/runtime-port"
 import { durableTripActionRuntimePort } from "./durable-action-runtime-port.js"
 import { tripsDatabaseRuntimePort, tripsRoutesRuntimePort } from "./runtime-port.js"
 import { tripsSourcingJobRuntimePort } from "./sourcing-job-runtime-port.js"
+import { storefrontTripOfferResolverPort } from "./storefront-trip-offer-resolver-port.js"
 
 const catalogRuntimeServicesPortReference = { id: "catalog.runtime-services" } as const
 const catalogCheckoutApiRuntimePortReference = { id: "commerce.checkout-api-options" } as const
@@ -107,6 +109,7 @@ export const tripsVoyantModule = defineModule({
       providePort(commerceCardPaymentRuntimePort),
       providePort(storefrontPaymentLinkRuntimePort),
       providePort(storefrontPaymentReconciliationJobRuntimePort),
+      providePort(storefrontTripSelectionsRuntimePort),
       providePort(tripsRoutesRuntimePort),
       providePort(tripsDatabaseRuntimePort),
       providePort(tripsSourcingJobRuntimePort),
@@ -118,6 +121,7 @@ export const tripsVoyantModule = defineModule({
     requirePort(tripsDatabaseRuntimePort),
     requirePort(tripsSourcingJobRuntimePort),
     requirePort(durableTripActionRuntimePort, { optional: true }),
+    requirePort(storefrontTripOfferResolverPort, { optional: true }),
     { ...paymentAdapterRuntimePortReference, optional: true },
     catalogRuntimeServicesPortReference,
     catalogCheckoutApiRuntimePortReference,

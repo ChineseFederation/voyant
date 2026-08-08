@@ -21,6 +21,8 @@
     "./routes": "./src/routes.ts",
     "./runtime-contributor": "./src/runtime-contributor.ts",
     "./runtime-port": "./src/runtime-port.ts",
+    "./storefront-trip-offer-resolver-port": "./src/storefront-trip-offer-resolver-port.ts",
+    "./storefront-trip-selections-runtime": "./src/storefront-trip-selections-runtime.ts",
     "./voyant": "./src/voyant.ts",
     "./openapi/admin": "./openapi/admin/trips.json",
     "./openapi/storefront": "./openapi/storefront/trips.json"
@@ -179,6 +181,16 @@
         "types": "./dist/runtime-port.d.ts",
         "import": "./dist/runtime-port.js",
         "default": "./dist/runtime-port.js"
+      },
+      "./storefront-trip-offer-resolver-port": {
+        "types": "./dist/storefront-trip-offer-resolver-port.d.ts",
+        "import": "./dist/storefront-trip-offer-resolver-port.js",
+        "default": "./dist/storefront-trip-offer-resolver-port.js"
+      },
+      "./storefront-trip-selections-runtime": {
+        "types": "./dist/storefront-trip-selections-runtime.d.ts",
+        "import": "./dist/storefront-trip-selections-runtime.js",
+        "default": "./dist/storefront-trip-selections-runtime.js"
       },
       "./voyant": {
         "types": "./dist/voyant.d.ts",
