@@ -169,6 +169,9 @@ async function main() {
       ...process.env,
       DATABASE_URL: databaseUrl,
       TEST_DATABASE_URL: databaseUrl,
+      POSTGRES_SEARCH_CURSOR_SIGNING_KEY:
+        process.env.POSTGRES_SEARCH_CURSOR_SIGNING_KEY ??
+        "mcp-capability-eval-catalog-cursor-signing-key",
       VOYANT_EVAL_MODEL: options.model,
       VOYANT_EVAL_REPORT_FILE: path.join(artifactDir, "report.json"),
       VOYANT_EVAL_RUNS: options.mode === "measure" ? "5" : "1",

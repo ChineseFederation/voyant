@@ -16,6 +16,7 @@ import {
   catalogOffersRuntimePort,
   catalogSearchRuntimePort,
 } from "@voyant-travel/catalog/graph-runtime"
+import { catalogIndexerProviderPort } from "@voyant-travel/catalog/indexer/provider"
 import { BULK_REINDEX_SERVICE_KEY } from "@voyant-travel/commerce"
 import { catalogCheckoutApiRuntimePort } from "@voyant-travel/commerce/catalog-checkout-subscribers"
 import { bookingMaintenanceRuntimePort } from "@voyant-travel/commerce/checkout"
@@ -88,6 +89,12 @@ async function composeOperatorGraph(runtime = createGeneratedGraphRuntime()) {
 }
 
 describe("selected Operator graph runtime composition", () => {
+  it("selects a real Catalog indexer for the exposed catalog search Tool", async () => {
+    const selected = await createGeneratedTestDeploymentResources()
+
+    expect(selected.ports).toHaveProperty(catalogIndexerProviderPort.id)
+  })
+
   it("activates selected Legal document actions and rejects stale unactivated composition", async () => {
     const staleRuntime = createGeneratedGraphRuntime()
     const selected = await createGeneratedTestDeploymentResources(staleRuntime)

@@ -5,6 +5,7 @@ export default defineConfig({
     target: "node",
     providers: {
       database: "postgres",
+      search: "postgres",
     },
   },
 })

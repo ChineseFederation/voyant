@@ -31,7 +31,10 @@ export const {
   GENERATED_GRAPH_RUNTIME_PLUGIN_IDS,
 } = generatedRuntime
 
-const TEST_DEPLOYMENT_VALUES = { DATABASE_URL: "postgres://test" }
+const TEST_DEPLOYMENT_VALUES = {
+  DATABASE_URL: "postgres://test",
+  POSTGRES_SEARCH_CURSOR_SIGNING_KEY: "operator-test-catalog-cursor-signing-key",
+}
 const TEST_DOCUMENT_STORAGE = createLocalStorageProvider({
   name: "operator-test:documents",
   baseUrl: "test://documents/",
