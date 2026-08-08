@@ -18,6 +18,8 @@
     "./runtime-contributor": "./src/runtime-contributor.ts",
     "./runtime-port": "./src/runtime-port.ts",
     "./shopping": "./src/shopping/index.ts",
+    "./shopping/managed-runtime": "./src/shopping/managed-runtime.ts",
+    "./shopping/provider-ports": "./src/shopping/provider-ports.ts",
     "./shopping/runtime-port": "./src/shopping/runtime-port.ts",
     "./service": "./src/service.ts",
     "./tools": "./src/mcp-runtime.ts",
@@ -195,6 +197,16 @@
         "types": "./dist/shopping/index.d.ts",
         "import": "./dist/shopping/index.js",
         "default": "./dist/shopping/index.js"
+      },
+      "./shopping/managed-runtime": {
+        "types": "./dist/shopping/managed-runtime.d.ts",
+        "import": "./dist/shopping/managed-runtime.js",
+        "default": "./dist/shopping/managed-runtime.js"
+      },
+      "./shopping/provider-ports": {
+        "types": "./dist/shopping/provider-ports.d.ts",
+        "import": "./dist/shopping/provider-ports.js",
+        "default": "./dist/shopping/provider-ports.js"
       },
       "./shopping/runtime-port": {
         "types": "./dist/shopping/runtime-port.d.ts",

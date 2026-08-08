@@ -10,12 +10,20 @@ import {
   storefrontPaymentReconciliationJobRuntimePort,
 } from "../../src/runtime-port.js"
 import {
+  storefrontOpaqueReferenceIssuerPort,
+  storefrontPresentationFxProviderPort,
+  storefrontShoppingCatalogProviderPort,
+  storefrontShoppingLiveProviderPort,
+  storefrontShoppingMarketProviderPort,
+} from "../../src/shopping/provider-ports.js"
+import {
   storefrontShoppingRuntimePort,
   storefrontTripSelectionsRuntimePort,
 } from "../../src/shopping/runtime-port.js"
 import {
   storefrontCustomerPortalVoyantModule,
   storefrontPaymentLinkVoyantModule,
+  storefrontShoppingProviderVoyantModule,
   storefrontVerificationVoyantModule,
   storefrontVoyantModule,
 } from "../../src/voyant.js"
@@ -27,6 +35,21 @@ describe("storefront deployment manifest", () => {
     expect(storefrontPaymentReconciliationJobRuntimePort.id).toBe(
       "storefront.payment-reconciliation-job.runtime",
     )
+  })
+
+  it("declares the optional OSS shopping provider graph", () => {
+    expect(storefrontShoppingProviderVoyantModule).toMatchObject({
+      schemaVersion: "voyant.module.v1",
+      id: "@voyant-travel/storefront#shopping-provider",
+      provides: { ports: [{ id: storefrontShoppingRuntimePort.id }] },
+      runtimePorts: [
+        { id: storefrontShoppingMarketProviderPort.id },
+        { id: storefrontShoppingCatalogProviderPort.id },
+        { id: storefrontShoppingLiveProviderPort.id },
+        { id: storefrontOpaqueReferenceIssuerPort.id },
+        { id: storefrontPresentationFxProviderPort.id, optional: true },
+      ],
+    })
   })
 
   it("owns the base runtime, persistence, and verification link facets", () => {

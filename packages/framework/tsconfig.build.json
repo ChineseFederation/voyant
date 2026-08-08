@@ -1988,6 +1988,12 @@
       "@voyant-travel/storefront/runtime-port": ["../storefront/dist/runtime-port.d.ts"],
       "@voyant-travel/storefront/service": ["../storefront/dist/service.d.ts"],
       "@voyant-travel/storefront/shopping": ["../storefront/dist/shopping/index.d.ts"],
+      "@voyant-travel/storefront/shopping/managed-runtime": [
+        "../storefront/dist/shopping/managed-runtime.d.ts"
+      ],
+      "@voyant-travel/storefront/shopping/provider-ports": [
+        "../storefront/dist/shopping/provider-ports.d.ts"
+      ],
       "@voyant-travel/storefront/shopping/runtime-port": [
         "../storefront/dist/shopping/runtime-port.d.ts"
       ],

@@ -19,6 +19,13 @@ import {
   storefrontVerificationRuntimePort,
 } from "./runtime-port.js"
 import {
+  storefrontOpaqueReferenceIssuerPort,
+  storefrontPresentationFxProviderPort,
+  storefrontShoppingCatalogProviderPort,
+  storefrontShoppingLiveProviderPort,
+  storefrontShoppingMarketProviderPort,
+} from "./shopping/provider-ports.js"
+import {
   storefrontShoppingRuntimePort,
   storefrontTripSelectionsRuntimePort,
 } from "./shopping/runtime-port.js"
@@ -410,6 +417,36 @@ export const storefrontCustomerPortalVoyantModule = defineModule({
   ],
   meta: {
     ownership: "package",
+  },
+})
+
+/**
+ * Optional OSS composition unit. Selecting it binds the managed shopping
+ * runtime only when all closed trust/supply/reference dependencies exist.
+ */
+export const storefrontShoppingProviderVoyantModule = defineModule({
+  id: "@voyant-travel/storefront#shopping-provider",
+  packageName: "@voyant-travel/storefront",
+  localId: "storefront.shopping-provider",
+  provides: { ports: [providePort(storefrontShoppingRuntimePort)] },
+  runtime: {
+    entry: "@voyant-travel/storefront/runtime-contributor",
+    export: "createStorefrontRuntimePortContribution",
+  },
+  runtimePorts: [
+    requirePort(storefrontShoppingMarketProviderPort),
+    requirePort(storefrontShoppingCatalogProviderPort),
+    requirePort(storefrontShoppingLiveProviderPort),
+    requirePort(storefrontOpaqueReferenceIssuerPort),
+    requirePort(storefrontPresentationFxProviderPort, { optional: true }),
+  ],
+  meta: {
+    ownership: "package",
+    agentTools: {
+      posture: "not-applicable",
+      rationale:
+        "This module binds managed customer shopping ports; product domains own agent-facing Tools.",
+    },
   },
 })
 

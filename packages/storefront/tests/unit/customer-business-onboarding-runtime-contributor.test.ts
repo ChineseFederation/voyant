@@ -2,6 +2,13 @@ import { customerBusinessAccountOnboardingRuntimePort } from "@voyant-travel/aut
 import { describe, expect, it, vi } from "vitest"
 
 import { createStorefrontRuntimePortContribution } from "../../src/runtime-contributor.js"
+import {
+  storefrontOpaqueReferenceIssuerPort,
+  storefrontShoppingCatalogProviderPort,
+  storefrontShoppingLiveProviderPort,
+  storefrontShoppingMarketProviderPort,
+} from "../../src/shopping/provider-ports.js"
+import { storefrontShoppingRuntimePort } from "../../src/shopping/runtime-port.js"
 
 function primitives() {
   return {
@@ -33,5 +40,34 @@ describe("storefront customer business onboarding runtime contribution", () => {
       hasRuntimePort: ({ id }) => id === customerBusinessAccountOnboardingRuntimePort.id,
     })
     expect(ports).not.toHaveProperty(customerBusinessAccountOnboardingRuntimePort.id)
+  })
+
+  it("keeps managed shopping absent until every closed dependency is configured", () => {
+    const ports = createStorefrontRuntimePortContribution({
+      primitives: primitives(),
+      hasRuntimePort: ({ id }) => id === storefrontShoppingMarketProviderPort.id,
+      getRuntimePort: vi.fn(),
+    })
+    expect(ports).not.toHaveProperty(storefrontShoppingRuntimePort.id)
+  })
+
+  it("contributes managed shopping after every closed dependency is configured", async () => {
+    const providers = new Map<string, unknown>([
+      [storefrontShoppingMarketProviderPort.id, { listActiveMarkets: vi.fn() }],
+      [storefrontShoppingCatalogProviderPort.id, { searchSlice: vi.fn() }],
+      [
+        storefrontShoppingLiveProviderPort.id,
+        { searchFlights: vi.fn(), searchStays: vi.fn(), searchPackages: vi.fn() },
+      ],
+      [storefrontOpaqueReferenceIssuerPort.id, { issue: vi.fn() }],
+    ])
+    const ports = createStorefrontRuntimePortContribution({
+      primitives: primitives(),
+      hasRuntimePort: ({ id }) => providers.has(id),
+      getRuntimePort: ({ id }) => providers.get(id) as never,
+    })
+    await expect(ports[storefrontShoppingRuntimePort.id]).resolves.toEqual(
+      expect.objectContaining({ resolveScope: expect.any(Function), search: expect.any(Function) }),
+    )
   })
 })

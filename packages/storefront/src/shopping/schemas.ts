@@ -60,6 +60,7 @@ export const storefrontInspirationGroupSchema = z.enum([
   "excursions",
   "experiences",
   "activities",
+  "attractions",
   "stays",
   "cruises",
   "charters",
@@ -115,7 +116,7 @@ const inspirationGroupRequestSchema = z
 export const storefrontIndexedInspirationIntentSchema = z
   .object({
     kind: z.literal("indexed-inspiration"),
-    groups: z.array(inspirationGroupRequestSchema).min(1).max(7),
+    groups: z.array(inspirationGroupRequestSchema).min(1).max(8),
   })
   .strict()
   .superRefine((intent, ctx) => {
