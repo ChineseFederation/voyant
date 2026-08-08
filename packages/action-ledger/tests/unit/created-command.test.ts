@@ -482,8 +482,6 @@ describe("existing-target durable command protocol", () => {
       invocation: {
         idempotencyKey: "price_1",
         approvalId: "appr_existing",
-        idempotencyFingerprint: fingerprint,
-        reasonCode: "operator_approved",
       },
     })
     const scope = await buildExistingTargetIdempotencyScope({
@@ -525,6 +523,18 @@ describe("existing-target durable command protocol", () => {
     await expect(
       executeAdmittedExistingTargetCommand(existingCommandInput(harness.db, changedKey), handlers),
     ).rejects.toMatchObject({ code: "ACTION_POLICY_REQUIRED" })
+    await expect(
+      executeAdmittedExistingTargetCommand(
+        {
+          ...existingCommandInput(harness.db, admitted),
+          commandInput: { tripId: "trip_1", currency: "USD" },
+        },
+        handlers,
+      ),
+    ).rejects.toMatchObject({
+      name: "ActionLedgerIdempotencyConflictError",
+      message: "Action ledger idempotency key was reused with a different fingerprint",
+    })
   })
 
   it("rolls back the claim and package intent when intent preparation fails", async () => {

@@ -168,7 +168,10 @@ function deriveActionPolicy(
       requiredFields.push("idempotencyKey")
     }
     if (action.approval === "required") {
-      requiredFields.push("approvalId", "idempotencyFingerprint")
+      requiredFields.push("approvalId")
+      if (!tool.resolvesIdempotencyKeyServerSide) {
+        requiredFields.push("idempotencyFingerprint")
+      }
     }
   }
   return {
@@ -182,7 +185,9 @@ function deriveActionPolicy(
           ? serverOwnedGenericTarget
             ? ["reasonCode", "approvalId"]
             : ["reasonCode", "approvalId", "idempotencyFingerprint"]
-          : ["reasonCode", "approvalId", "idempotencyFingerprint"],
+          : tool.resolvesIdempotencyKeyServerSide
+            ? ["reasonCode", "approvalId"]
+            : ["reasonCode", "approvalId", "idempotencyFingerprint"],
       fingerprintAlgorithm: "action-ledger-command-v1",
       ...targetResolution,
     },
