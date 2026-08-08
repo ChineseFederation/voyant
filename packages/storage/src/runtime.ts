@@ -137,9 +137,13 @@ export async function resolveDocumentDownloadUrl(
   env: RuntimeEnv,
   storage: StorageProvider | null,
   storageKey: string,
-  _expiresIn?: number,
+  expiresIn = 300,
 ): Promise<string | null> {
   if (!storage) return null
+  if (storage.signedUrl) {
+    const signedUrl = await storage.signedUrl(storageKey, expiresIn)
+    if (isHttpUrl(signedUrl)) return signedUrl
+  }
   const apiBaseUrl = resolveDocumentDownloadApiBaseUrl(env)
   if (!apiBaseUrl) return null
   const keyPath = storageKey
@@ -147,6 +151,15 @@ export async function resolveDocumentDownloadUrl(
     .map((segment) => encodeURIComponent(segment))
     .join("/")
   return `${apiBaseUrl}/v1/admin/documents/files/${keyPath}`
+}
+
+function isHttpUrl(value: string): boolean {
+  try {
+    const protocol = new URL(value).protocol
+    return protocol === "http:" || protocol === "https:"
+  } catch {
+    return false
+  }
 }
 
 /** Voyant Cloud one-shot video upload ticket provider. */
