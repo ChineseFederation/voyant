@@ -142,7 +142,7 @@ export function createProductionBookingSessionPaymentPorts(
       }
 
       const adapter = await deps.resolvePaymentAdapter?.()
-      if (adapter && paymentSession.status === "pending" && contact.email && contact.firstName) {
+      if (adapter && paymentSession.status === "pending") {
         const reference = customerReference(session)
         await startPaymentAdapterCardPayment(
           adapter,
@@ -150,8 +150,8 @@ export function createProductionBookingSessionPaymentPorts(
             db: deps.db,
             sessionId: paymentSession.id,
             billing: {
-              email: contact.email,
-              firstName: contact.firstName,
+              ...(contact.email ? { email: contact.email } : {}),
+              ...(contact.firstName ? { firstName: contact.firstName } : {}),
               ...(contact.lastName ? { lastName: contact.lastName } : {}),
               ...(contact.phone ? { phone: contact.phone } : {}),
               ...(contact.country ? { country: contact.country } : {}),

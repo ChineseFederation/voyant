@@ -37,9 +37,9 @@ const PAYMENT_ADAPTER_INITIATION_STATE_KEY = "paymentAdapterInitiationState"
  * ISO string depending on the processor.
  */
 export interface CardPaymentBilling {
-  email: string
+  email?: string
   phone?: string
-  firstName: string
+  firstName?: string
   lastName?: string
   city?: string
   country?: number | string
@@ -219,9 +219,9 @@ export async function startPaymentAdapterCardPayment(
       idempotencyKey,
       customer: {
         reference: args.customerReference ?? null,
-        email: args.billing.email,
+        email: args.billing.email ?? null,
         phone: args.billing.phone ?? null,
-        firstName: args.billing.firstName,
+        firstName: args.billing.firstName ?? null,
         lastName: args.billing.lastName ?? null,
       },
       shipping: args.shipping,

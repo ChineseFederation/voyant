@@ -186,6 +186,17 @@ describe("production Booking Session hosted-checkout initiation", () => {
 
     expect(startArgs().customerReference).toBeUndefined()
   })
+
+  it("starts checkout when optional contact details are absent", async () => {
+    await prepare({
+      locale: "en-GB",
+      departureDate: null,
+      omitContact: true,
+    })
+
+    expect(startPaymentAdapterCardPayment).toHaveBeenCalledOnce()
+    expect(startArgs().billing).toEqual({})
+  })
 })
 
 /**
@@ -322,6 +333,7 @@ async function prepare(input: {
   personId?: string
   actorKind?: string
   ownerPrincipalId?: string
+  omitContact?: boolean
   acceptedCheckoutHandoffs?: readonly ("redirect" | "embedded")[]
   refreshedCheckout?: Record<string, unknown>
   refreshedRedirectUrl?: string | null
@@ -367,12 +379,14 @@ async function prepare(input: {
       expiresAt: new Date("2026-08-06T00:00:00Z"),
       statePayload: {
         billing: {
-          contact: {
-            firstName: "Ana",
-            lastName: "Pop",
-            email: "ana@example.com",
-            ...(input.personId ? { personId: input.personId } : {}),
-          },
+          contact: input.omitContact
+            ? {}
+            : {
+                firstName: "Ana",
+                lastName: "Pop",
+                email: "ana@example.com",
+                ...(input.personId ? { personId: input.personId } : {}),
+              },
         },
       },
     },
@@ -410,6 +424,7 @@ function startArgs() {
     description?: string
     locale?: string
     customerReference?: string
+    billing?: Record<string, unknown>
     acceptedCheckoutHandoffs?: readonly ("redirect" | "embedded")[]
   }
 }
