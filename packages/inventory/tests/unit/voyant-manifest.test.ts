@@ -183,6 +183,7 @@ describe("inventory deployment manifests", () => {
           ledger: "required",
           approval: "required",
           allowedActorTypes: ["staff"],
+          existingTarget: { durability: "handler-command-result-v1" },
         }),
         expect.objectContaining({
           id: "@voyant-travel/inventory#action.set-product-open-graph-image",

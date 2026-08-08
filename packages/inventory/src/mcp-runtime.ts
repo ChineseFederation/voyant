@@ -2,6 +2,8 @@
 // service wiring, created-command execution, slug resolution, and content runtime
 // binding stay co-located until a dedicated runtime split preserves the public
 // contribution entry and its tests.
+
+import { executeAdmittedExistingTargetCommand } from "@voyant-travel/action-ledger"
 import {
   buildCreatedTargetCommandFingerprint,
   executeAdmittedCreatedTargetCommand,
@@ -174,6 +176,34 @@ export const voyantToolContextContribution = defineToolContextContribution({
           return { ...row, slug }
         }
         return row
+      },
+      async updateProductLifecycle(id, patch, admitted) {
+        const commandInput = { id, ...patch }
+        const idempotencyKey = await deriveCommandIdempotencyKey("product-lifecycle", commandInput)
+        const result = await executeAdmittedExistingTargetCommand(
+          {
+            db: asLedgerDb(db),
+            context: actionLedgerContext(c),
+            admitted: withServerResolvedIdempotencyKey(admitted, idempotencyKey),
+            commandInput,
+            evaluatedRisk: "high",
+          },
+          {
+            async prepare(tx) {
+              const row = await productsService.updateProduct(asPostgresDb(tx), id, patch)
+              if (!row) {
+                throw new ToolError(`No product exists with id "${id}".`, "NOT_FOUND", { id })
+              }
+            },
+            execute: () => loadProductById(id),
+            replay: () => loadProductById(id),
+          },
+        )
+        if (result.value) {
+          await eventBus?.emit("product.updated", { id })
+          await emitProductContentChanged(eventBus, { id, axis: "product" })
+        }
+        return result.value
       },
       async setProductOpenGraphImage(productId, mediaId) {
         try {

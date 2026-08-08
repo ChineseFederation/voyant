@@ -499,6 +499,7 @@ export const inventoryVoyantModule = defineModule({
       availability: { status: "available" },
       effectBoundary: "local",
       targetLifecycle: "existing",
+      existingTarget: { durability: "handler-command-result-v1" },
       from: { tools: ["@voyant-travel/inventory#tool.publish-product"] },
     },
     {
@@ -516,6 +517,7 @@ export const inventoryVoyantModule = defineModule({
       availability: { status: "available" },
       effectBoundary: "local",
       targetLifecycle: "existing",
+      existingTarget: { durability: "handler-command-result-v1" },
       from: { tools: ["@voyant-travel/inventory#tool.unpublish-product"] },
     },
     {
@@ -533,6 +535,7 @@ export const inventoryVoyantModule = defineModule({
       availability: { status: "available" },
       effectBoundary: "local",
       targetLifecycle: "existing",
+      existingTarget: { durability: "handler-command-result-v1" },
       from: { tools: ["@voyant-travel/inventory#tool.archive-product"] },
     },
     ...(

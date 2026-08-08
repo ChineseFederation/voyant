@@ -126,6 +126,19 @@ export const COMPOSE_PRODUCT_HANDLER_POLICY = {
   },
 } as const satisfies HandlerActionPolicyExpectation
 
+export const PUBLISH_PRODUCT_HANDLER_POLICY = productLifecycleHandlerPolicy({
+  capabilityId: `${OWNER}#tool.publish-product`,
+  name: "publish_product",
+})
+export const UNPUBLISH_PRODUCT_HANDLER_POLICY = productLifecycleHandlerPolicy({
+  capabilityId: `${OWNER}#tool.unpublish-product`,
+  name: "unpublish_product",
+})
+export const ARCHIVE_PRODUCT_HANDLER_POLICY = productLifecycleHandlerPolicy({
+  capabilityId: `${OWNER}#tool.archive-product`,
+  name: "archive_product",
+})
+
 type ProductListQuery = z.infer<typeof productListQuerySchema>
 
 const productToolSchema = z
@@ -242,6 +255,11 @@ export interface InventoryToolServices {
     admitted: ToolHandlerActionPolicyContext,
   ): Promise<unknown>
   updateProduct(id: string, input: z.output<typeof updateProductSchema>): Promise<unknown | null>
+  updateProductLifecycle(
+    id: string,
+    input: z.output<typeof updateProductSchema>,
+    admitted: ToolHandlerActionPolicyContext,
+  ): Promise<unknown | null>
   setProductOpenGraphImage(productId: string, mediaId: string | null): Promise<unknown | null>
   listProductDays(productId: string): Promise<unknown[]>
   updateProductDay(input: UpdateProductDayInput): Promise<unknown | null>
@@ -501,6 +519,7 @@ export const publishProductTool = defineTool(
     description:
       "Make a product active. Inventory enforces scheduled-product departure readiness; effective channel publication controls where it is distributed.",
     patch: { status: "active" },
+    handlerPolicy: PUBLISH_PRODUCT_HANDLER_POLICY,
   }),
 )
 
@@ -511,6 +530,7 @@ export const unpublishProductTool = defineTool(
     description:
       "Return a product to draft without deleting authored history or its channel publication rules.",
     patch: { status: "draft" },
+    handlerPolicy: UNPUBLISH_PRODUCT_HANDLER_POLICY,
   }),
 )
 
@@ -520,6 +540,7 @@ export const archiveProductTool = defineTool(
     name: "archive_product",
     description: "Archive a product while preserving its history and owned records.",
     patch: { status: "archived" },
+    handlerPolicy: ARCHIVE_PRODUCT_HANDLER_POLICY,
   }),
 )
 
@@ -615,6 +636,7 @@ function productLifecycleToolDefinition(input: {
   name: string
   description: string
   patch: z.output<typeof updateProductSchema>
+  handlerPolicy: HandlerActionPolicyExpectation
 }) {
   return {
     capabilityId: input.capabilityId,
@@ -628,9 +650,11 @@ function productLifecycleToolDefinition(input: {
     tier: "write",
     riskPolicy: PRODUCT_LIFECYCLE_RISK,
     annotations: { idempotentHint: true },
+    actionPolicyEnforcement: "handler",
     async handler({ id }: z.infer<typeof productIdArgs>, ctx: InventoryToolContext) {
       try {
-        const product = await inventory(ctx).updateProduct(id, input.patch)
+        const admitted = admitHandlerActionPolicy(ctx, input.handlerPolicy)
+        const product = await inventory(ctx).updateProductLifecycle(id, input.patch, admitted)
         if (!product) {
           // A lifecycle mutation returning `null` is not success. The live GPT
           // client supplied a run-marker suffix as the id, received
@@ -649,6 +673,29 @@ function productLifecycleToolDefinition(input: {
       }
     },
   } as const
+}
+
+function productLifecycleHandlerPolicy(input: { capabilityId: string; name: string }) {
+  return {
+    capabilityId: input.capabilityId,
+    capabilityVersion: VERSION,
+    canonicalName: input.name,
+    actionPolicy: {
+      id: input.capabilityId.replace("#tool.", "#action."),
+      capabilityId: input.capabilityId.replace("#tool.", "#action."),
+      version: VERSION,
+      kind: "execute",
+      targetType: "product",
+      commandTargetField: "id",
+      targetLifecycle: "existing",
+      existingTarget: { durability: "handler-command-result-v1" },
+      risk: "high",
+      ledger: "required",
+      approval: "required",
+      reversible: true,
+      allowedActorTypes: ["staff"],
+    },
+  } as const satisfies HandlerActionPolicyExpectation
 }
 
 /**

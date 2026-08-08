@@ -2,6 +2,7 @@ import { createToolRegistry, type ToolContext } from "@voyant-travel/tools"
 import { describe, expect, it } from "vitest"
 
 import {
+  ARCHIVE_PRODUCT_HANDLER_POLICY,
   COMPOSE_PRODUCT_HANDLER_POLICY,
   CREATE_PRODUCT_HANDLER_POLICY,
   type InventoryAuthoringToolServices,
@@ -9,11 +10,15 @@ import {
   type InventoryContentToolServices,
   type InventoryToolServices,
   inventoryTools,
-  publishProductTool,
+  PUBLISH_PRODUCT_HANDLER_POLICY,
+  UNPUBLISH_PRODUCT_HANDLER_POLICY,
 } from "../src/tools.js"
 
 function admitted(
-  expected: typeof CREATE_PRODUCT_HANDLER_POLICY | typeof COMPOSE_PRODUCT_HANDLER_POLICY,
+  expected:
+    | typeof CREATE_PRODUCT_HANDLER_POLICY
+    | typeof COMPOSE_PRODUCT_HANDLER_POLICY
+    | typeof PUBLISH_PRODUCT_HANDLER_POLICY,
 ): ToolContext["handlerActionPolicy"] {
   return {
     capabilityId: expected.capabilityId,
@@ -92,6 +97,12 @@ function makeRegistry() {
       registry.register(tool, { actionPolicy: COMPOSE_PRODUCT_HANDLER_POLICY.actionPolicy })
     } else if (tool.name === "update_product_day") {
       registry.register(tool, { actionPolicy: UPDATE_PRODUCT_DAY_ACTION_POLICY })
+    } else if (tool.name === "publish_product") {
+      registry.register(tool, { actionPolicy: PUBLISH_PRODUCT_HANDLER_POLICY.actionPolicy })
+    } else if (tool.name === "unpublish_product") {
+      registry.register(tool, { actionPolicy: UNPUBLISH_PRODUCT_HANDLER_POLICY.actionPolicy })
+    } else if (tool.name === "archive_product") {
+      registry.register(tool, { actionPolicy: ARCHIVE_PRODUCT_HANDLER_POLICY.actionPolicy })
     } else {
       registry.register(tool)
     }
@@ -482,12 +493,16 @@ describe("inventory tools", () => {
       { id: "prod_1" },
       ctxWith(
         {
-          async updateProduct(_id, input) {
+          async updateProductLifecycle(_id, input) {
             forwarded = input
             return product(input)
           },
         },
-        { actor: "staff", audience: "staff" },
+        {
+          actor: "staff",
+          audience: "staff",
+          handlerActionPolicy: admitted(PUBLISH_PRODUCT_HANDLER_POLICY),
+        },
       ),
     )
     expect(forwarded).toEqual({ status: "active" })
@@ -534,14 +549,22 @@ describe("inventory tools", () => {
       ],
     })
 
-    const error = await publishProductTool
-      .handler(
+    const error = await makeRegistry()
+      .dispatch(
+        "publish_product",
         { id: "prod_1" },
-        ctxWith({
-          async updateProduct() {
-            throw readinessError
+        ctxWith(
+          {
+            async updateProductLifecycle() {
+              throw readinessError
+            },
+          } as never,
+          {
+            actor: "staff",
+            audience: "staff",
+            handlerActionPolicy: admitted(PUBLISH_PRODUCT_HANDLER_POLICY),
           },
-        } as never),
+        ),
       )
       .catch((thrown: unknown) => thrown as { code?: string; nextSteps?: string[] })
 
@@ -554,14 +577,22 @@ describe("inventory tools", () => {
   })
 
   it("refuses a missing lifecycle target instead of reporting null success", async () => {
-    const error = await publishProductTool
-      .handler(
+    const error = await makeRegistry()
+      .dispatch(
+        "publish_product",
         { id: "8014752" },
-        ctxWith({
-          async updateProduct() {
-            return null
+        ctxWith(
+          {
+            async updateProductLifecycle() {
+              return null
+            },
+          } as never,
+          {
+            actor: "staff",
+            audience: "staff",
+            handlerActionPolicy: admitted(PUBLISH_PRODUCT_HANDLER_POLICY),
           },
-        } as never),
+        ),
       )
       .catch((thrown: unknown) => thrown as { code?: string; message?: string })
 
@@ -575,14 +606,25 @@ describe("inventory tools", () => {
     // failure with a confident, wrong remediation.
     const other = new Error("connection reset")
     await expect(
-      publishProductTool.handler(
+      makeRegistry().dispatch(
+        "publish_product",
         { id: "prod_1" },
-        ctxWith({
-          async updateProduct() {
-            throw other
+        ctxWith(
+          {
+            async updateProductLifecycle() {
+              throw other
+            },
+          } as never,
+          {
+            actor: "staff",
+            audience: "staff",
+            handlerActionPolicy: admitted(PUBLISH_PRODUCT_HANDLER_POLICY),
           },
-        } as never),
+        ),
       ),
-    ).rejects.toBe(other)
+    ).rejects.toMatchObject({
+      code: "PROVIDER_ERROR",
+      message: 'Tool "publish_product" failed: connection reset',
+    })
   })
 })
