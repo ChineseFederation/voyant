@@ -1,5 +1,16 @@
 # @voyant-travel/plugin-voyant-connect
 
+## 0.26.0
+
+### Patch Changes
+
+- 6b672c0: Commit sourced dynamic packages through a freshly validated Voyant Connect
+  hold while preserving Catalog Booking Session quote and supplier-operation
+  idempotency semantics.
+- Updated dependencies [6b672c0]
+- Updated dependencies [03a91d0]
+  - @voyant-travel/catalog-contracts@0.130.0
+
 ## 0.25.0
 
 ### Patch Changes

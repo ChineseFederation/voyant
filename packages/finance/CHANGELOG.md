@@ -1,5 +1,19 @@
 # @voyant-travel/finance
 
+## 0.245.6
+
+### Patch Changes
+
+- 5cda348: Start a configured payment adapter when optional shopper contact details are absent, and carry missing email and name fields as null provider prefill instead of blocking checkout initiation.
+- 8688ef1: Make approved invoice voiding use the handler-owned durable existing-target command protocol.
+- Updated dependencies [b3cd1a5]
+- Updated dependencies [4c218bc]
+- Updated dependencies [aea1a83]
+- Updated dependencies [3a91bc8]
+  - @voyant-travel/action-ledger@0.115.17
+  - @voyant-travel/tools@0.10.1
+  - @voyant-travel/products-contracts@0.111.1
+
 ## 0.245.5
 
 ### Patch Changes

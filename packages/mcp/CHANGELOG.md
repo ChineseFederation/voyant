@@ -1,5 +1,15 @@
 # @voyant-travel/mcp
 
+## 0.21.4
+
+### Patch Changes
+
+- 092b17f: Treat the optional tool-search domain as a soft hint so familiar but non-canonical domain labels do not create empty discovery loops.
+- 3a91bc8: Tell agents to invoke governed domain tools before requesting approval so handler-owned commands can issue the approval bound to their exact command.
+- Updated dependencies [4c218bc]
+  - @voyant-travel/tools@0.10.1
+  - @voyant-travel/framework@0.80.4
+
 ## 0.21.3
 
 ### Patch Changes

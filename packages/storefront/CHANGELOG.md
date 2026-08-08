@@ -1,5 +1,28 @@
 # @voyant-travel/storefront
 
+## 0.254.0
+
+### Minor Changes
+
+- e0e62f3: Add a provider-first storefront shopping contract for grouped indexed inspiration and live flight, stay, and flight-plus-stay searches. Add optional deployment ports for shopping and revision-checked opaque Trip selections, with server-resolved market, locale, currency, and presentation-money authority.
+- 03a91d0: Add provider-neutral presentation-money and FX provenance contracts, fail-closed mixed-currency ranking for availability and flight fan-outs, and a server-only Voyant Data FX adapter for storefront shopping.
+- 34713bd: Add the optional OSS managed storefront shopping provider, with active Commerce scope resolution, server-authored Catalog inspiration slices, closed live-search and opaque-reference ports, and shared presentation-currency normalization.
+
+### Patch Changes
+
+- 334e990: Use the standardized FX provider provenance field when deriving public shopping cache keys.
+- Updated dependencies [8ab3f96]
+- Updated dependencies [4c218bc]
+- Updated dependencies [6b672c0]
+- Updated dependencies [03a91d0]
+- Updated dependencies [5cda348]
+- Updated dependencies [e04b812]
+- Updated dependencies [8688ef1]
+  - @voyant-travel/catalog@0.252.3
+  - @voyant-travel/tools@0.10.1
+  - @voyant-travel/catalog-contracts@0.130.0
+  - @voyant-travel/finance@0.245.6
+
 ## 0.253.8
 
 ### Patch Changes

@@ -1,5 +1,27 @@
 # @voyant-travel/proposals
 
+## 0.138.1
+
+### Patch Changes
+
+- e76deda: Execute approved proposal-version acceptance through the handler-owned durable command-result protocol.
+- bde8f18: Bind approved proposal-to-booking acceptance to the handler-owned durable command-result protocol.
+- Updated dependencies [b3cd1a5]
+- Updated dependencies [8ab3f96]
+- Updated dependencies [4c218bc]
+- Updated dependencies [6b672c0]
+- Updated dependencies [f9ea99e]
+- Updated dependencies [aea1a83]
+- Updated dependencies [051f005]
+- Updated dependencies [5cda348]
+- Updated dependencies [e04b812]
+- Updated dependencies [5727c2f]
+- Updated dependencies [3a91bc8]
+  - @voyant-travel/action-ledger@0.115.17
+  - @voyant-travel/catalog@0.252.3
+  - @voyant-travel/tools@0.10.1
+  - @voyant-travel/trips@0.233.0
+
 ## 0.138.0
 
 ### Minor Changes

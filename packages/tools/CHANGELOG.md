@@ -1,5 +1,11 @@
 # @voyant-travel/tools
 
+## 0.10.1
+
+### Patch Changes
+
+- 4c218bc: Keep approval command fingerprints server-owned for handler-managed tools while preserving exact-command validation against the approved ledger request.
+
 ## 0.10.0
 
 ### Minor Changes

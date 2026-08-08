@@ -1,5 +1,26 @@
 # @voyant-travel/inventory
 
+## 0.40.10
+
+### Patch Changes
+
+- 5c9aa4d: Run approved product lifecycle tools through the handler-owned durable existing-target command protocol so an interrupted publication can be retried without losing its approval or applying the lifecycle mutation twice.
+- d03f316: Declare the approval policy used by durable product lifecycle commands so their server-issued approvals can be validated on the approved retry.
+- Updated dependencies [b3cd1a5]
+- Updated dependencies [8ab3f96]
+- Updated dependencies [4c218bc]
+- Updated dependencies [6b672c0]
+- Updated dependencies [aea1a83]
+- Updated dependencies [5cda348]
+- Updated dependencies [e04b812]
+- Updated dependencies [8688ef1]
+- Updated dependencies [3a91bc8]
+  - @voyant-travel/action-ledger@0.115.17
+  - @voyant-travel/catalog@0.252.3
+  - @voyant-travel/tools@0.10.1
+  - @voyant-travel/finance@0.245.6
+  - @voyant-travel/products-contracts@0.111.1
+
 ## 0.40.9
 
 ### Patch Changes

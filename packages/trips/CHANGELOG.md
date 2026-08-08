@@ -1,5 +1,39 @@
 # @voyant-travel/trips
 
+## 0.233.0
+
+### Minor Changes
+
+- 5727c2f: Add storefront-bound opaque itinerary capabilities and persist validated market, locale, and currency scope for managed Trip composition.
+
+### Patch Changes
+
+- f9ea99e: Make approved trip candidate selection use durable existing-target command replay.
+- 051f005: Provide the Storefront Trip selection runtime with opaque capability and item references, owner- and scope-bound access, atomic revision checks, and an injected offer reference resolver.
+- Updated dependencies [b3cd1a5]
+- Updated dependencies [8ab3f96]
+- Updated dependencies [e0e62f3]
+- Updated dependencies [4c218bc]
+- Updated dependencies [6b672c0]
+- Updated dependencies [5c9aa4d]
+- Updated dependencies [03a91d0]
+- Updated dependencies [aea1a83]
+- Updated dependencies [334e990]
+- Updated dependencies [d03f316]
+- Updated dependencies [5cda348]
+- Updated dependencies [e04b812]
+- Updated dependencies [8688ef1]
+- Updated dependencies [34713bd]
+- Updated dependencies [3a91bc8]
+  - @voyant-travel/action-ledger@0.115.17
+  - @voyant-travel/catalog@0.252.3
+  - @voyant-travel/storefront@0.254.0
+  - @voyant-travel/tools@0.10.1
+  - @voyant-travel/catalog-contracts@0.130.0
+  - @voyant-travel/inventory@0.40.10
+  - @voyant-travel/finance@0.245.6
+  - @voyant-travel/flights@0.236.28
+
 ## 0.232.14
 
 ### Patch Changes

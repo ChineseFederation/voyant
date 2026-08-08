@@ -1,5 +1,24 @@
 # @voyant-travel/catalog
 
+## 0.252.3
+
+### Patch Changes
+
+- 8ab3f96: Allow keyword-only catalog deployments to explicitly disable embeddings even when a Voyant Cloud API key is configured.
+- 6b672c0: Commit sourced dynamic packages through a freshly validated Voyant Connect
+  hold while preserving Catalog Booking Session quote and supplier-operation
+  idempotency semantics.
+- 5cda348: Start a configured payment adapter when optional shopper contact details are absent, and carry missing email and name fields as null provider prefill instead of blocking checkout initiation.
+- e04b812: Allow guest Booking Sessions to resolve a billing person from the traveller name when both email and phone are optional.
+- Updated dependencies [4c218bc]
+- Updated dependencies [6b672c0]
+- Updated dependencies [03a91d0]
+- Updated dependencies [5cda348]
+- Updated dependencies [8688ef1]
+  - @voyant-travel/tools@0.10.1
+  - @voyant-travel/catalog-contracts@0.130.0
+  - @voyant-travel/finance@0.245.6
+
 ## 0.252.2
 
 ### Patch Changes

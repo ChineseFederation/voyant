@@ -1,5 +1,16 @@
 # @voyant-travel/action-ledger
 
+## 0.115.17
+
+### Patch Changes
+
+- b3cd1a5: Include the required confirmation control in server-issued approval decision remediation so agents can approve without a preventable failed call.
+- 4c218bc: Keep approval command fingerprints server-owned for handler-managed tools while preserving exact-command validation against the approved ledger request.
+- aea1a83: Allow one atomically claimed retry after a generic approved Tool attempt records a terminal failure, and report concurrent attempts as retryable in-progress work.
+- 3a91bc8: Tell agents to invoke governed domain tools before requesting approval so handler-owned commands can issue the approval bound to their exact command.
+- Updated dependencies [4c218bc]
+  - @voyant-travel/tools@0.10.1
+
 ## 0.115.16
 
 ### Patch Changes

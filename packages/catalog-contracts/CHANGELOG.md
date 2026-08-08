@@ -1,5 +1,17 @@
 # @voyant-travel/catalog-contracts
 
+## 0.130.0
+
+### Minor Changes
+
+- 03a91d0: Add provider-neutral presentation-money and FX provenance contracts, fail-closed mixed-currency ranking for availability and flight fan-outs, and a server-only Voyant Data FX adapter for storefront shopping.
+
+### Patch Changes
+
+- 6b672c0: Commit sourced dynamic packages through a freshly validated Voyant Connect
+  hold while preserving Catalog Booking Session quote and supplier-operation
+  idempotency semantics.
+
 ## 0.129.0
 
 ### Minor Changes
