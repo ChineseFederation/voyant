@@ -102,7 +102,7 @@ describe("storefront shopping schemas", () => {
         native: { amount: "100.00", currency: "EUR" },
         presentation: { amount: "497.50", currency: "RON" },
         fx: {
-          authority: "voyant-data",
+          provider: "voyant-data-fx",
           rate: "4.975",
           quotedAt: "2026-08-08T10:00:00+00:00",
         },

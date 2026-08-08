@@ -5545,12 +5545,18 @@ importers:
       '@voyant-travel/catalog':
         specifier: workspace:^
         version: link:../catalog
+      '@voyant-travel/catalog-contracts':
+        specifier: workspace:^
+        version: link:../catalog-contracts
       '@voyant-travel/commerce':
         specifier: workspace:^
         version: link:../commerce
       '@voyant-travel/core':
         specifier: workspace:^
         version: link:../core
+      '@voyant-travel/data-sdk':
+        specifier: ^0.8.0
+        version: 0.8.0
       '@voyant-travel/db':
         specifier: workspace:^
         version: link:../db

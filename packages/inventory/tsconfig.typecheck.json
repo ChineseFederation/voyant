@@ -463,6 +463,9 @@
       "@voyant-travel/catalog-contracts/indexer/contract": [
         "../catalog-contracts/dist/indexer/contract.d.ts"
       ],
+      "@voyant-travel/catalog-contracts/presentation-money": [
+        "../catalog-contracts/dist/presentation-money.d.ts"
+      ],
       "@voyant-travel/catalog-contracts/provenance": ["../catalog-contracts/dist/provenance.d.ts"],
       "@voyant-travel/catalog-contracts/snapshot": ["../catalog-contracts/dist/snapshot.d.ts"],
       "@voyant-travel/catalog-react": ["../catalog-react/dist/index.d.ts"],
@@ -557,6 +560,9 @@
         "../catalog/dist/schema-sourced-entries.d.ts"
       ],
       "@voyant-travel/catalog/search/federate": ["../catalog/dist/search/federate.d.ts"],
+      "@voyant-travel/catalog/search/presentation-money": [
+        "../catalog/dist/search/presentation-money.d.ts"
+      ],
       "@voyant-travel/catalog/search/rerank": ["../catalog/dist/search/rerank.d.ts"],
       "@voyant-travel/catalog/search/routes": ["../catalog/dist/search/routes.d.ts"],
       "@voyant-travel/catalog/search/semantic": ["../catalog/dist/search/semantic.d.ts"],
@@ -1902,6 +1908,9 @@
       "@voyant-travel/storefront/payment-link": ["../storefront/dist/payment-link/routes.d.ts"],
       "@voyant-travel/storefront/payment-reconciliation-job": [
         "../storefront/dist/payment-reconciliation-job.d.ts"
+      ],
+      "@voyant-travel/storefront/presentation-money/voyant-data-fx": [
+        "../storefront/dist/presentation-money/voyant-data-fx.d.ts"
       ],
       "@voyant-travel/storefront/public-routes": ["../storefront/dist/routes-public.d.ts"],
       "@voyant-travel/storefront/runtime-contributor": [

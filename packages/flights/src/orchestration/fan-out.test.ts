@@ -297,4 +297,75 @@ describe("fanOutFlightSearch", () => {
     })
     expect(captured[0]?.signal).toBe(controller.signal)
   })
+
+  it("does not choose a fake cheapest offer across unconverted currencies", async () => {
+    const result = await fanOutFlightSearch({
+      adapters: [
+        {
+          connectionId: "eur-first",
+          adapter: makeAdapter("eur-first", {
+            offers: [
+              makeOffer({ source: "eur-first", totalPrice: { amount: "900", currency: "EUR" } }),
+            ],
+          }),
+        },
+        {
+          connectionId: "ron-second",
+          adapter: makeAdapter("ron-second", {
+            offers: [
+              makeOffer({ source: "ron-second", totalPrice: { amount: "10", currency: "RON" } }),
+            ],
+          }),
+        },
+      ],
+      request: oneSliceRequest,
+    })
+
+    expect(result.offers[0]?.cheapest.source).toBe("eur-first")
+    expect(result.priceRanking).toEqual({
+      status: "unranked_mixed_currency",
+      unavailableCurrencies: ["EUR", "RON"],
+    })
+  })
+
+  it("selects and ranks offers using presentation money with provenance", async () => {
+    const result = await fanOutFlightSearch({
+      adapters: [
+        {
+          connectionId: "eur",
+          adapter: makeAdapter("eur", {
+            offers: [makeOffer({ source: "eur", totalPrice: { amount: "10", currency: "EUR" } })],
+          }),
+        },
+        {
+          connectionId: "ron",
+          adapter: makeAdapter("ron", {
+            offers: [makeOffer({ source: "ron", totalPrice: { amount: "40", currency: "RON" } })],
+          }),
+        },
+      ],
+      request: oneSliceRequest,
+      presentation: {
+        targetCurrency: "RON",
+        quoteFx: async () => ({
+          rate: "5",
+          provider: "bnr",
+          quotedAt: "2026-08-08T08:00:00.000Z",
+          validUntil: "2026-08-09T08:00:00.000Z",
+        }),
+      },
+    })
+
+    expect(result.offers[0]?.cheapest.source).toBe("ron")
+    expect(result.offers[0]?.cheapestPresentationPrice).toEqual({
+      native: { amount: "40", currency: "RON" },
+      presentation: { amount: "40", currency: "RON" },
+    })
+    expect(result.offers[0]?.alternatePresentationPrices?.[0]).toMatchObject({
+      native: { amount: "10", currency: "EUR" },
+      presentation: { amount: "50.00", currency: "RON" },
+      fx: { rate: "5", provider: "bnr" },
+    })
+    expect(result.priceRanking).toEqual({ status: "ranked_presentation", currency: "RON" })
+  })
 })

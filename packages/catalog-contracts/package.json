@@ -8,6 +8,7 @@
     ".": "./src/index.ts",
     "./contract": "./src/contract.ts",
     "./provenance": "./src/provenance.ts",
+    "./presentation-money": "./src/presentation-money.ts",
     "./content": "./src/content.ts",
     "./drift/events": "./src/drift/events.ts",
     "./indexer/contract": "./src/indexer/contract.ts",
@@ -58,6 +59,11 @@
         "types": "./dist/provenance.d.ts",
         "import": "./dist/provenance.js",
         "default": "./dist/provenance.js"
+      },
+      "./presentation-money": {
+        "types": "./dist/presentation-money.d.ts",
+        "import": "./dist/presentation-money.js",
+        "default": "./dist/presentation-money.js"
       },
       "./content": {
         "types": "./dist/content.d.ts",

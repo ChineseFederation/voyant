@@ -5,7 +5,9 @@
  * with per-connection timeouts, partial-success handling, and merge by
  * itinerary fingerprint. Returns a merged result set with the cheapest
  * offer per itinerary as the primary rank, alternates from other
- * connections beneath it, and a per-connection status map.
+ * connections beneath it, and a per-connection status map. Mixed currencies
+ * are never compared unless a server-side presentation FX quoter normalizes
+ * every offer into the shopper-selected currency.
  *
  * Implements voyant-cloud's `MergedFlightOffer` shape so consumers see the
  * same result format regardless of where the orchestration runs.
@@ -13,6 +15,15 @@
  * See `docs/architecture/catalog-flights-architecture.md` §4.
  */
 
+import {
+  comparePresentationMoney,
+  type NormalizePresentationMoneyOptions,
+  normalizePresentationMoney,
+} from "@voyant-travel/catalog/search/presentation-money"
+import type {
+  PresentationMoney,
+  PriceRanking,
+} from "@voyant-travel/catalog-contracts/presentation-money"
 import type { FlightAdapterContext, FlightConnectorAdapter } from "../contract/adapter.js"
 import type { FlightOffer, FlightSearchRequest } from "../contract/types.js"
 import { itineraryFingerprint } from "./fingerprint.js"
@@ -23,10 +34,17 @@ import { itineraryFingerprint } from "./fingerprint.js"
  */
 export interface MergedFlightOffer {
   itineraryFingerprint: string
-  /** Cheapest offer for this itinerary across all responding connections. */
+  /**
+   * Cheapest offer when `priceRanking` is ranked; stable first-provider offer
+   * when FX is unavailable. The property name is retained for compatibility.
+   */
   cheapest: FlightOffer
-  /** Other offers for the same itinerary, sorted by total price ascending. */
+  /** Native + shopper-selected money for `cheapest`, when presentation succeeded. */
+  cheapestPresentationPrice?: PresentationMoney
+  /** Other offers, price-sorted only when `priceRanking` is ranked. */
   alternates: FlightOffer[]
+  /** Presentation prices aligned by index with `alternates`. */
+  alternatePresentationPrices?: Array<PresentationMoney | undefined>
   /** Connection ids that returned an offer for this itinerary. */
   sourceConnectionIds: string[]
 }
@@ -65,11 +83,15 @@ export interface FanOutFlightSearchOptions {
    * still queries every connection in full; this caps the merged result.
    */
   limit?: number
+  /** Server-side display FX configuration. Credentials stay behind `quoteFx`. */
+  presentation?: NormalizePresentationMoneyOptions
 }
 
 export interface FanOutFlightSearchResult {
   offers: MergedFlightOffer[]
   perConnection: ConnectionResult[]
+  /** Explicitly fails closed when a mixed-currency page cannot be normalized. */
+  priceRanking?: PriceRanking
 }
 
 /**
@@ -137,15 +159,34 @@ export async function fanOutFlightSearch(
     errorMessage: r.errorMessage,
   }))
 
-  // Group offers by itinerary fingerprint, building MergedFlightOffer per group.
-  const merged = mergeByFingerprint(settled)
+  const flatOffers = settled.flatMap((result) => result.offers)
+  const presentation = await normalizePresentationMoney(
+    flatOffers.map((offer) => offer.totalPrice),
+    options.presentation,
+  )
+  const presentedByOffer = new Map<FlightOffer, PresentationMoney>()
+  for (const [index, price] of presentation.prices.entries()) {
+    const offer = flatOffers[index]
+    if (offer && price) presentedByOffer.set(offer, price)
+  }
+  const canRank =
+    presentation.ranking.status === "ranked_native" ||
+    presentation.ranking.status === "ranked_presentation"
 
-  // Sort merged offers by cheapest price ascending.
-  merged.sort((a, b) => compareMoney(a.cheapest.totalPrice, b.cheapest.totalPrice))
+  // Group offers by itinerary fingerprint, building MergedFlightOffer per group.
+  const merged = mergeByFingerprint(settled, presentedByOffer, canRank)
+
+  // Only sort when every compared amount is in one proven currency.
+  if (canRank) {
+    merged.sort((a, b) => {
+      if (!a.cheapestPresentationPrice || !b.cheapestPresentationPrice) return 0
+      return comparePresentationMoney(a.cheapestPresentationPrice, b.cheapestPresentationPrice)
+    })
+  }
 
   const limited = options.limit != null ? merged.slice(0, options.limit) : merged
 
-  return { offers: limited, perConnection }
+  return { offers: limited, perConnection, priceRanking: presentation.ranking }
 }
 
 interface ConnectionFanOutOk {
@@ -155,6 +196,8 @@ interface ConnectionFanOutOk {
 
 function mergeByFingerprint(
   results: ReadonlyArray<{ connectionId: string; offers: FlightOffer[] }>,
+  presentedByOffer: ReadonlyMap<FlightOffer, PresentationMoney>,
+  canRank: boolean,
 ): MergedFlightOffer[] {
   const buckets = new Map<
     string,
@@ -182,38 +225,30 @@ function mergeByFingerprint(
 
   const merged: MergedFlightOffer[] = []
   for (const [fingerprint, bucket] of buckets) {
-    // Sort offers within the bucket by total price ascending.
-    bucket.offers.sort((a, b) => compareMoney(a.offer.totalPrice, b.offer.totalPrice))
+    // Sort only after all offers have one comparable presentation currency.
+    if (canRank) {
+      bucket.offers.sort((a, b) => {
+        const left = presentedByOffer.get(a.offer)
+        const right = presentedByOffer.get(b.offer)
+        if (!left || !right) return 0
+        return comparePresentationMoney(left, right)
+      })
+    }
     const cheapestEntry = bucket.offers[0]
     if (!cheapestEntry) continue
+    const alternateEntries = bucket.offers.slice(1)
     merged.push({
       itineraryFingerprint: fingerprint,
       cheapest: cheapestEntry.offer,
-      alternates: bucket.offers.slice(1).map((entry) => entry.offer),
+      cheapestPresentationPrice: presentedByOffer.get(cheapestEntry.offer),
+      alternates: alternateEntries.map((entry) => entry.offer),
+      alternatePresentationPrices: alternateEntries.map((entry) =>
+        presentedByOffer.get(entry.offer),
+      ),
       sourceConnectionIds: Array.from(bucket.sourceConnectionIds),
     })
   }
   return merged
-}
-
-/**
- * Compare two `Money` values. Currencies must match — cross-currency
- * comparison would require live FX which the orchestration doesn't have.
- * Returns negative if `a < b`, positive if `a > b`, 0 if equal.
- */
-function compareMoney(
-  a: { amount: string; currency: string },
-  b: { amount: string; currency: string },
-): number {
-  if (a.currency !== b.currency) {
-    // Fall back to string compare on amount when currencies differ —
-    // produces a stable but not-meaningful order. Real deployments
-    // normalize currency upstream of the orchestration.
-    return a.amount.localeCompare(b.amount)
-  }
-  const aNum = Number.parseFloat(a.amount)
-  const bNum = Number.parseFloat(b.amount)
-  return aNum - bNum
 }
 
 async function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {

@@ -260,6 +260,7 @@ export {
   type FanOutAvailabilityResult,
   type FanOutAvailabilitySearchOptions,
   fanOutAvailabilitySearch,
+  type PresentedAvailabilityCandidate,
 } from "./search/availability-fan-out.js"
 export {
   DEFAULT_FEDERATED_CANDIDATE_DEPTH,
@@ -275,6 +276,12 @@ export {
   type OwnedAvailabilitySearchHandlerRegistry,
   type OwnedSearchContext,
 } from "./search/owned-search-handler.js"
+export {
+  comparePresentationMoney,
+  type NormalizePresentationMoneyOptions,
+  type NormalizePresentationMoneyResult,
+  normalizePresentationMoney,
+} from "./search/presentation-money.js"
 export {
   type LivePriceFn,
   type LivePriceResult,

@@ -13,6 +13,7 @@
     "./customer-portal/routes": "./src/customer-portal/routes.ts",
     "./payment-link": "./src/payment-link/routes.ts",
     "./payment-reconciliation-job": "./src/payment-reconciliation-job.ts",
+    "./presentation-money/voyant-data-fx": "./src/presentation-money/voyant-data-fx.ts",
     "./public-routes": "./src/routes-public.ts",
     "./runtime-contributor": "./src/runtime-contributor.ts",
     "./runtime-port": "./src/runtime-port.ts",
@@ -72,9 +73,11 @@
     "@hono/zod-openapi": "catalog:",
     "@voyant-travel/bookings": "workspace:^",
     "@voyant-travel/catalog": "workspace:^",
+    "@voyant-travel/catalog-contracts": "workspace:^",
     "@voyant-travel/commerce": "workspace:^",
     "@voyant-travel/core": "workspace:^",
     "@voyant-travel/db": "workspace:^",
+    "@voyant-travel/data-sdk": "^0.8.0",
     "@voyant-travel/finance": "workspace:^",
     "@voyant-travel/hono": "workspace:^",
     "@voyant-travel/relationships-contracts": "workspace:^",
@@ -165,6 +168,11 @@
         "types": "./dist/payment-reconciliation-job.d.ts",
         "import": "./dist/payment-reconciliation-job.js",
         "default": "./dist/payment-reconciliation-job.js"
+      },
+      "./presentation-money/voyant-data-fx": {
+        "types": "./dist/presentation-money/voyant-data-fx.d.ts",
+        "import": "./dist/presentation-money/voyant-data-fx.js",
+        "default": "./dist/presentation-money/voyant-data-fx.js"
       },
       "./public-routes": {
         "types": "./dist/routes-public.d.ts",

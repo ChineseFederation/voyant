@@ -3,7 +3,9 @@
  *
  * Parallel `searchAvailability` across an operator's sourced connections and
  * owned search handlers, with per-connection timeouts, partial-success
- * handling, and a ranked merge into one `AvailabilityCandidate` list. The
+ * handling, and a comparable-price merge into one `AvailabilityCandidate`
+ * list. Mixed currencies remain in stable source order unless presentation FX
+ * normalizes every candidate. The
  * non-flight counterpart of `fanOutFlightSearch`
  * (`@voyant-travel/flights`), built on the catalog source-adapter contract.
  *
@@ -19,7 +21,16 @@ import type {
   SourceAdapter,
   SourceAdapterContext,
 } from "@voyant-travel/catalog-contracts/adapter/contract"
+import type {
+  PresentationMoney,
+  PriceRanking,
+} from "@voyant-travel/catalog-contracts/presentation-money"
 import type { OwnedAvailabilitySearchHandler, OwnedSearchContext } from "./owned-search-handler.js"
+import {
+  comparePresentationMoney,
+  type NormalizePresentationMoneyOptions,
+  normalizePresentationMoney,
+} from "./presentation-money.js"
 
 /** Per-source outcome, returned alongside merged candidates for partial-success UX. */
 export type AvailabilityConnectionStatus =
@@ -49,9 +60,16 @@ export interface AvailabilityConnectionResult {
 }
 
 export interface FanOutAvailabilityResult {
-  /** Merged + ranked candidates across every responding source. */
-  candidates: AvailabilityCandidate[]
+  /** Merged candidates; price-ranked only when `priceRanking` says so. */
+  candidates: PresentedAvailabilityCandidate[]
   perConnection: AvailabilityConnectionResult[]
+  /** Explicitly fails closed when a mixed-currency page cannot be normalized. */
+  priceRanking?: PriceRanking
+}
+
+export type PresentedAvailabilityCandidate = AvailabilityCandidate & {
+  /** Native + shopper-selected display money. `price` remains provider-native. */
+  presentationPrice?: PresentationMoney
 }
 
 export interface FanOutAvailabilitySearchOptions {
@@ -74,6 +92,8 @@ export interface FanOutAvailabilitySearchOptions {
   perConnectionTimeoutMs?: number
   /** Optional cap on the merged candidate count (the search still runs in full). */
   limit?: number
+  /** Server-side display FX configuration. Credentials stay behind `quoteFx`. */
+  presentation?: NormalizePresentationMoneyOptions
 }
 
 interface SourceOutcome {
@@ -150,13 +170,29 @@ export async function fanOutAvailabilitySearch(
     nextCursor: o.nextCursor,
   }))
 
-  const merged = outcomes
+  const merged: PresentedAvailabilityCandidate[] = outcomes
     .flatMap((o) => o.candidates)
-    .sort((a, b) => comparePrice(a.price, b.price))
+    .map((candidate) => ({ ...candidate }))
+  const presentation = await normalizePresentationMoney(
+    merged.map((candidate) => candidate.price),
+    options.presentation,
+  )
+  for (const [index, price] of presentation.prices.entries()) {
+    if (price && merged[index]) merged[index].presentationPrice = price
+  }
+  if (
+    presentation.ranking.status === "ranked_native" ||
+    presentation.ranking.status === "ranked_presentation"
+  ) {
+    merged.sort((a, b) => {
+      if (!a.presentationPrice || !b.presentationPrice) return 0
+      return comparePresentationMoney(a.presentationPrice, b.presentationPrice)
+    })
+  }
 
   const candidates = options.limit != null ? merged.slice(0, options.limit) : merged
 
-  return { candidates, perConnection }
+  return { candidates, perConnection, priceRanking: presentation.ranking }
 }
 
 async function runSource(
@@ -189,20 +225,6 @@ async function runSource(
       errorMessage: message,
     }
   }
-}
-
-/**
- * Rank by price ascending. Currencies must match for a meaningful compare;
- * cross-currency falls back to a stable-but-not-meaningful string order
- * (real deployments normalize currency upstream with live FX). Mirrors the
- * flights fan-out's `compareMoney`.
- */
-function comparePrice(
-  a: { amount: string; currency: string },
-  b: { amount: string; currency: string },
-): number {
-  if (a.currency !== b.currency) return a.amount.localeCompare(b.amount)
-  return Number.parseFloat(a.amount) - Number.parseFloat(b.amount)
 }
 
 async function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {

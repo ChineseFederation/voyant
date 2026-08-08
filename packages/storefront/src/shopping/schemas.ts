@@ -1,3 +1,11 @@
+import {
+  type CatalogMoney,
+  catalogMoneySchema,
+  type PresentationFxQuote,
+  type PresentationMoney,
+  presentationFxProvenanceSchema,
+  presentationMoneySchema,
+} from "@voyant-travel/catalog-contracts/presentation-money"
 import { z } from "zod"
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/
@@ -38,36 +46,14 @@ export const storefrontResolvedScopeSchema = z
   })
   .strict()
 
-export const storefrontNativeMoneySchema = z
-  .object({ amount: z.string().min(1), currency: currencyCodeSchema })
-  .strict()
-
-export const storefrontFxQuoteSchema = z
-  .object({
-    authority: z.string().min(1).max(128),
-    rate: z.string().min(1),
-    quotedAt: z.string().datetime({ offset: true }),
-    validUntil: z.string().datetime({ offset: true }).optional(),
-  })
-  .strict()
-
+/** Shared Catalog money authority re-exported under the Storefront names. */
+export const storefrontNativeMoneySchema = catalogMoneySchema
+export const storefrontFxQuoteSchema = presentationFxProvenanceSchema
 /** Native supplier amount plus server-normalized display amount. Themes never calculate FX. */
-export const storefrontPresentationMoneySchema = z
-  .object({
-    native: storefrontNativeMoneySchema,
-    presentation: storefrontNativeMoneySchema,
-    fx: storefrontFxQuoteSchema.optional(),
-  })
-  .strict()
-  .superRefine((money, ctx) => {
-    if (money.native.currency !== money.presentation.currency && !money.fx) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["fx"],
-        message: "FX provenance is required when native and presentation currencies differ",
-      })
-    }
-  })
+export const storefrontPresentationMoneySchema = presentationMoneySchema
+export type StorefrontNativeMoney = CatalogMoney
+export type StorefrontFxQuote = PresentationFxQuote
+export type StorefrontPresentationMoney = PresentationMoney
 
 export const storefrontInspirationGroupSchema = z.enum([
   "tours",

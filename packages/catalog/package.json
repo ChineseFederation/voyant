@@ -25,6 +25,7 @@
     "./search/rerank": "./src/search/rerank.ts",
     "./search/semantic": "./src/search/semantic.ts",
     "./search/federate": "./src/search/federate.ts",
+    "./search/presentation-money": "./src/search/presentation-money.ts",
     "./embeddings/contract": "./src/embeddings/contract.ts",
     "./embeddings/openai": "./src/embeddings/openai.ts",
     "./embeddings/gemini": "./src/embeddings/gemini.ts",
@@ -216,6 +217,11 @@
         "types": "./dist/search/federate.d.ts",
         "import": "./dist/search/federate.js",
         "default": "./dist/search/federate.js"
+      },
+      "./search/presentation-money": {
+        "types": "./dist/search/presentation-money.d.ts",
+        "import": "./dist/search/presentation-money.js",
+        "default": "./dist/search/presentation-money.js"
       },
       "./embeddings/contract": {
         "types": "./dist/embeddings/contract.d.ts",

@@ -260,4 +260,64 @@ describe("fanOutAvailabilitySearch", () => {
 
     expect(result.candidates.map((c) => c.entity_id)).toEqual(["lo", "mid"])
   })
+
+  it("preserves source order instead of meaninglessly ranking mixed native currencies", async () => {
+    const result = await fanOutAvailabilitySearch({
+      adapters: [
+        {
+          connectionId: "mixed",
+          adapter: adapter("mixed", {
+            result: {
+              candidates: [candidate("eur", "900", "EUR"), candidate("ron", "10", "RON")],
+              status: "ok",
+            },
+          }),
+        },
+      ],
+      request: REQUEST,
+    })
+
+    expect(result.candidates.map((item) => item.entity_id)).toEqual(["eur", "ron"])
+    expect(result.priceRanking).toEqual({
+      status: "unranked_mixed_currency",
+      unavailableCurrencies: ["EUR", "RON"],
+    })
+  })
+
+  it("ranks in one shopper-selected currency while preserving native prices and FX provenance", async () => {
+    const result = await fanOutAvailabilitySearch({
+      adapters: [
+        {
+          connectionId: "mixed",
+          adapter: adapter("mixed", {
+            result: {
+              candidates: [candidate("eur", "10", "EUR"), candidate("ron", "40", "RON")],
+              status: "ok",
+            },
+          }),
+        },
+      ],
+      request: REQUEST,
+      presentation: {
+        targetCurrency: "RON",
+        quoteFx: async () => ({
+          rate: "5",
+          provider: "bnr",
+          quotedAt: "2026-08-08T08:00:00.000Z",
+          validUntil: "2026-08-09T08:00:00.000Z",
+        }),
+      },
+    })
+
+    expect(result.candidates.map((item) => item.entity_id)).toEqual(["ron", "eur"])
+    expect(result.candidates.find((item) => item.entity_id === "eur")).toMatchObject({
+      price: { amount: "10", currency: "EUR" },
+      presentationPrice: {
+        native: { amount: "10", currency: "EUR" },
+        presentation: { amount: "50.00", currency: "RON" },
+        fx: { rate: "5", provider: "bnr" },
+      },
+    })
+    expect(result.priceRanking).toEqual({ status: "ranked_presentation", currency: "RON" })
+  })
 })

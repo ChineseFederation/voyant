@@ -276,6 +276,10 @@ export const createStorefrontVoyantRuntime = defineGraphRuntimeFactory(async ({ 
 })
 
 export {
+  createVoyantDataPresentationFxQuoter,
+  type VoyantDataPresentationFxOptions,
+} from "./presentation-money/voyant-data-fx.js"
+export {
   storefrontCustomerPortalRuntimePort,
   storefrontIntakeRuntimePort,
   storefrontOffersRuntimePort,
