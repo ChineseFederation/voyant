@@ -170,6 +170,27 @@ export const RESERVE_TRIP_HANDLER_POLICY = {
   },
 } as const satisfies HandlerActionPolicyExpectation
 
+export const SELECT_TRIP_CANDIDATE_HANDLER_POLICY = {
+  capabilityId: `${OWNER}#tool.select-candidate`,
+  capabilityVersion: VERSION,
+  canonicalName: "select_trip_candidate",
+  actionPolicy: {
+    id: `${OWNER}#action.select-candidate`,
+    capabilityId: `${OWNER}#action.select-candidate`,
+    version: VERSION,
+    kind: "execute",
+    targetType: "trip-requirement",
+    commandTargetField: "requirementId",
+    targetLifecycle: "existing",
+    existingTarget: { durability: "handler-command-result-v1" },
+    risk: "medium",
+    ledger: "required",
+    approval: "required",
+    reversible: true,
+    allowedActorTypes: ["staff"],
+  },
+} as const satisfies HandlerActionPolicyExpectation
+
 /** The trips service surface a deployment binds into the tool context. */
 export interface TripsToolServices {
   createTrip(
@@ -198,7 +219,10 @@ export interface TripsToolServices {
   getRequirementSourcingOperation(
     input: z.infer<typeof getRequirementSourcingOperationSchema>,
   ): Promise<unknown | null>
-  selectCandidate(input: z.infer<typeof selectCandidateSchema>): Promise<unknown>
+  selectCandidate(
+    input: z.infer<typeof selectCandidateSchema>,
+    admitted: ToolHandlerActionPolicyContext,
+  ): Promise<unknown>
   listTrips(input: ListTripsArgs): Promise<unknown>
   getTrip(envelopeId: string): Promise<unknown | null>
 }
@@ -478,8 +502,14 @@ export const selectTripCandidateTool = defineTool({
   audience: STAFF_AUDIENCE,
   tier: "write",
   riskPolicy: CANDIDATE_SELECTION_RISK,
+  annotations: { idempotentHint: true },
+  actionPolicyEnforcement: "handler",
   async handler(input, ctx: TripsToolContext) {
-    return parseJsonResult(selectTripCandidateResultSchema, await trips(ctx).selectCandidate(input))
+    const admitted = admitHandlerActionPolicy(ctx, SELECT_TRIP_CANDIDATE_HANDLER_POLICY)
+    return parseJsonResult(
+      selectTripCandidateResultSchema,
+      await trips(ctx).selectCandidate(input, admitted),
+    )
   },
 })
 

@@ -1,3 +1,4 @@
+import { executeAdmittedExistingTargetCommand } from "@voyant-travel/action-ledger"
 import { executeAdmittedCreatedTargetCommand } from "@voyant-travel/action-ledger/created-command"
 import {
   type ActionLedgerRequestContextValues,
@@ -117,7 +118,29 @@ export const voyantToolContextContribution = defineToolContextContribution({
           ...input,
           organizationId: actionLedgerContext(c).organizationId ?? null,
         }),
-      selectCandidate: (input) => tripsService.selectCandidate(c.var.db, input),
+      selectCandidate: async (input, admitted) => {
+        let selected: Awaited<ReturnType<typeof tripsService.selectCandidate>> | undefined
+        const result = await executeAdmittedExistingTargetCommand(
+          {
+            db,
+            context: actionLedgerContext(c),
+            admitted,
+            commandInput: input,
+            evaluatedRisk: "medium",
+          },
+          {
+            async prepare(tx) {
+              selected = await tripsService.selectCandidate(tx, input)
+            },
+            execute() {
+              if (!selected) throw new Error("Trip candidate selection produced no result")
+              return Promise.resolve(selected)
+            },
+            replay: () => tripsService.getSelectedCandidateResult(db, input.requirementId),
+          },
+        )
+        return result
+      },
     }
     return { trips }
   },

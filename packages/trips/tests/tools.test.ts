@@ -11,7 +11,9 @@ import {
   priceTripTool,
   RESERVE_TRIP_HANDLER_POLICY,
   reserveTripTool,
+  SELECT_TRIP_CANDIDATE_HANDLER_POLICY,
   SOURCE_REQUIREMENT_CANDIDATES_HANDLER_POLICY,
+  selectTripCandidateTool,
   sourceTripRequirementCandidatesTool,
   type TripsToolServices,
   tripsTools,
@@ -52,6 +54,10 @@ function makeRegistry() {
     } else if (tool === sourceTripRequirementCandidatesTool) {
       registry.register(tool, {
         actionPolicy: SOURCE_REQUIREMENT_CANDIDATES_HANDLER_POLICY.actionPolicy,
+      })
+    } else if (tool === selectTripCandidateTool) {
+      registry.register(tool, {
+        actionPolicy: SELECT_TRIP_CANDIDATE_HANDLER_POLICY.actionPolicy,
       })
     } else {
       registry.register(tool)
@@ -129,6 +135,7 @@ describe("trips tools", () => {
       requiredScopes: ["trips:write"],
       deploymentRisk: "medium",
     })
+    expect(selectTripCandidateTool.actionPolicyEnforcement).toBe("handler")
     expect(price?.riskPolicy).toMatchObject({
       confirmationRequired: true,
       sideEffects: ["data-write"],

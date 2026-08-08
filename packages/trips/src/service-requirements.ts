@@ -243,6 +243,28 @@ async function loadCandidate(db: AnyDrizzleDb, candidateId: string): Promise<Tri
   return candidate
 }
 
+export async function getSelectedCandidateResult(
+  db: AnyDrizzleDb,
+  requirementId: string,
+): Promise<{ requirement: TripRequirement; candidate: TripCandidate; component: TripComponent }> {
+  const requirement = await loadRequirement(db, requirementId)
+  if (!requirement.selectedCandidateId || !requirement.resolvedComponentId) {
+    throw new TripsInvariantError(`Trip requirement ${requirementId} has no selected candidate`)
+  }
+  const candidate = await loadCandidate(db, requirement.selectedCandidateId)
+  const [component] = (await db
+    .select()
+    .from(tripComponents)
+    .where(eq(tripComponents.id, requirement.resolvedComponentId))
+    .limit(1)) as TripComponent[]
+  if (!component) {
+    throw new TripsInvariantError(
+      `Trip requirement ${requirementId} resolved component was not found`,
+    )
+  }
+  return { requirement, candidate, component }
+}
+
 async function nextComponentSequence(db: AnyDrizzleDb, envelopeId: string): Promise<number> {
   const rows = (await db
     .select()

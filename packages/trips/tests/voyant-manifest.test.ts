@@ -335,6 +335,7 @@ describe("trips deployment manifest", () => {
           ledger: "required",
           approval: "required",
           allowedActorTypes: ["staff"],
+          existingTarget: { durability: "handler-command-result-v1" },
         }),
       ]),
     )

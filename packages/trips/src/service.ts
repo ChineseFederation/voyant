@@ -39,6 +39,7 @@ export {
   assertRequiredRequirementsResolved,
   availabilityCandidateToRow,
   expireStaleTripCandidates,
+  getSelectedCandidateResult,
   isTripCandidateExpired,
   listEnvelopeRequirements,
   pinnedComponentValuesFromCandidate,
@@ -112,6 +113,7 @@ import { priceTrip } from "./service-pricing.js"
 import {
   addRequirement,
   expireStaleTripCandidates,
+  getSelectedCandidateResult,
   listEnvelopeRequirements,
   selectCandidate,
 } from "./service-requirements.js"
@@ -158,5 +160,6 @@ export const tripsService = {
   listEnvelopeRequirements,
   getTripRequirementSourcingOperation,
   selectCandidate,
+  getSelectedCandidateResult,
   expireStaleTripCandidates,
 }
