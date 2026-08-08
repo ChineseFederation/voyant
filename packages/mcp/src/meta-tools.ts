@@ -174,7 +174,8 @@ function registerSearchTools({ server, surface, projection }: RegisterMetaToolsI
     SEARCH_TOOLS_NAME,
     {
       description:
-        "Find tools by keyword and/or domain. Reads are grouped into one " +
+        "Find tools by keyword and/or optional domain hint. If the hint has no matches, " +
+        "search continues across the authorized surface. Reads are grouped into one " +
         "`<domain>_query` tool per product area — search for the KIND of record you " +
         "want (e.g. `products`, `bookings`, not an individual record's name) to find " +
         "its query tool, then call that tool to look up the individual record. " +
@@ -252,19 +253,27 @@ function searchTools(
   // a term matches if ANY of its expansions appears, so this only ever widens.
   const expanded = terms.map((term) => expandSearchTerm(term))
 
-  const matches: Array<SearchCandidate & { score: number }> = []
-  for (const candidate of discoverableCandidates(surface, projection)) {
-    if (domain && candidate.domain.toLowerCase() !== domain) continue
-    const haystack =
-      `${candidate.name} ${candidate.description} ${candidate.domain} ${(candidate.keywords ?? []).join(" ")}`.toLowerCase()
-    if (
-      expanded.length > 0 &&
-      !expanded.every((forms) => forms.some((f) => haystack.includes(f)))
-    ) {
-      continue
+  const candidates = discoverableCandidates(surface, projection)
+  const collectMatches = (domainFilter?: string) => {
+    const collected: Array<SearchCandidate & { score: number }> = []
+    for (const candidate of candidates) {
+      if (domainFilter && candidate.domain.toLowerCase() !== domainFilter) continue
+      const haystack =
+        `${candidate.name} ${candidate.description} ${candidate.domain} ${(candidate.keywords ?? []).join(" ")}`.toLowerCase()
+      if (
+        expanded.length > 0 &&
+        !expanded.every((forms) => forms.some((f) => haystack.includes(f)))
+      ) {
+        continue
+      }
+      collected.push({ ...candidate, score: scoreCandidate(candidate, expanded) })
     }
-    matches.push({ ...candidate, score: scoreCandidate(candidate, expanded) })
+    return collected
   }
+
+  let matches = collectMatches(domain)
+  const ignoredDomain = domain !== undefined && matches.length === 0
+  if (ignoredDomain) matches = collectMatches()
 
   matches.sort((a, b) => b.score - a.score || a.name.localeCompare(b.name))
   const returned = matches.slice(0, limit)
@@ -284,7 +293,7 @@ function searchTools(
   // TOOLS, in the field it already knows how to read — so a no-hit search falls
   // back to the query tools, which is the answer to "where do I look for a
   // record" in the only vocabulary the caller is already using.
-  const fellBack = matches.length === 0 && !args.domain
+  const fellBack = matches.length === 0
   const fallback = fellBack ? queryToolCandidates(projection) : []
 
   const payload = {
@@ -292,6 +301,7 @@ function searchTools(
     returned: returned.length,
     truncated: matches.length > returned.length,
     tools: fellBack ? fallback : returned.map(({ score: _score, ...tool }) => tool),
+    ...(ignoredDomain ? { ignoredDomain: args.domain } : {}),
     ...(fellBack ? { howToFindARecord: recordLookupGuidance() } : {}),
   }
   return {

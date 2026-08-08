@@ -586,6 +586,11 @@ describe("createMcpApiRoutes", () => {
     // The lazy tool is discoverable through search_tools and its full descriptor
     // — output schema, annotations, discovery metadata — comes from describe_tool.
     expect(await searchToolNames(app, { query: "echo" })).toContain("echo")
+    // Domain is an optional ranking hint, not an authority boundary. Agents use
+    // familiar labels such as "crm", "billing", or "all" that need not match
+    // package-owned domain ids; a wrong guess must not turn a valid query into a
+    // dead end that requires another discovery round-trip.
+    expect(await searchToolNames(app, { query: "echo", domain: "crm" })).toContain("echo")
     expect((await describeTool(app, "echo")).structuredContent).toMatchObject({
       name: "echo",
       outputSchema: {

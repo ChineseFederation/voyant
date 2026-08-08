@@ -70,10 +70,11 @@ export function createGeneratedStaticTestDeploymentResources(
 
 export async function createGeneratedTestDeploymentResources(
   runtime = createGeneratedGraphRuntime(),
+  options: { database?: unknown } = {},
 ) {
   const providers = await resolveSelectedGraphRuntimeProviders(runtime, TEST_DEPLOYMENT_VALUES, {
     resolveResource: (resource) => {
-      if (resource.kind === "database") return TEST_DOCUMENT_DATABASE
+      if (resource.kind === "database") return options.database ?? TEST_DOCUMENT_DATABASE
       if (resource.kind === "document-storage") return TEST_DOCUMENT_STORAGE
       if (resource.kind === "document-renderer") return TEST_DOCUMENT_RENDERER
       return undefined

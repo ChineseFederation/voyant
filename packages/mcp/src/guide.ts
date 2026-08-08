@@ -345,15 +345,16 @@ function productsSection(scope: GuideScope): string {
     "1. `create_product` — creates the Product AND a default Option named " +
     "'Standard'. You do not need to create an Option; reuse that one unless you " +
     "genuinely want a second.\n" +
-    "2. `create_option_unit` — add a priced, bookable unit to that Option. This is " +
-    "the step that makes the Product sellable at all: an Option with no unit " +
-    "reserves nothing, and a booking against it is refused. Use this Tool, not " +
-    "`compose_product` (whole-graph authoring) and not " +
-    "`apply_product_unit_configuration` (bulk reconfiguration of units that already " +
-    "exist).\n" +
-    "3. `create_departure` — for date-based products, add the dated departure(s) " +
+    "2. `create_option_unit` — add a bookable unit to that Option. This Tool does not " +
+    "set a price; an Option with no unit reserves nothing, and a booking against it " +
+    "is refused. Use this Tool, not `compose_product` (whole-graph authoring).\n" +
+    "3. `update_product` — set `sellAmountCents` and `sellCurrency` for a simple flat " +
+    "package sell price. Do not search for a price field on `create_option_unit`; it " +
+    "does not have one.\n" +
+    "4. `create_departure` — for date-based products, add the dated departure(s) " +
     "customers will book.\n" +
-    "4. `publish_product` — promote it to the public catalog.\n\n" +
+    "5. `publish_product` — only after the future departure exists, promote it to the " +
+    "public catalog.\n\n" +
     'Check with `inventory_query` (`resource: "product_options"`, then ' +
     '`"option_units"`) that the unit you created sits on the Option being booked. ' +
     "A unit on a different Option reads exactly like no unit at all." +

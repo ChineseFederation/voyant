@@ -35,7 +35,7 @@
  * fixtures need minting first — do that before retrying the chokepoint.
  *
  * READING THE PASS RATES. The journeys are chained, so a downstream rate is
- * CAPPED by its upstream one: if product-option-create leaves no priced unit on
+ * CAPPED by its upstream one: if product-option-create leaves no bookable unit on
  * an attempt, booking-create on that same attempt is correctly refused, and
  * invoice-issue after it has no booking to invoice. A 0/3 on booking-create
  * therefore does not mean booking is broken — it usually means the setup ahead of
@@ -123,7 +123,15 @@ async function readRpc(res: Response): Promise<Record<string, unknown>> {
 let verifyDb: ReturnType<typeof createDbClient> | undefined
 
 async function mountRealMcp(): Promise<Hono> {
-  const selected = await createGeneratedTestDeploymentResources(createGeneratedGraphRuntime())
+  const db = createDbClient(TEST_DATABASE_URL as string, {
+    adapter: "node",
+    nodeMaxConnections: 4,
+    timeouts: { statementMs: false, queryMs: false, connectMs: false },
+  })
+  verifyDb = db
+  const selected = await createGeneratedTestDeploymentResources(createGeneratedGraphRuntime(), {
+    database: db,
+  })
   const composed = await composeVoyantGraphRuntime({
     runtime: selected.runtime,
     capabilities: selected.capabilities,
@@ -134,12 +142,6 @@ async function mountRealMcp(): Promise<Hono> {
     ?.lazyAdminRoutes?.()
   if (!routes) throw new Error("selected graph did not expose MCP admin routes")
 
-  const db = createDbClient(TEST_DATABASE_URL as string, {
-    adapter: "node",
-    nodeMaxConnections: 4,
-    timeouts: { statementMs: false, queryMs: false, connectMs: false },
-  })
-  verifyDb = db
   const scopes = accessCatalog.resources.flatMap((resource) =>
     resource.actions.map((action) => `${resource.resource}:${action.action}`),
   )
@@ -372,7 +374,7 @@ function buildJourneys(RUN_MARK: string): CapabilityJourney[] {
       verify: `select 1 from products where name ilike '%capability eval tour ${RUN_MARK}%'`,
     },
     {
-      // A product is not sellable until it has an option and a priced unit. This is
+      // A product is not sellable until it has an option, a bookable unit, and a price. This is
       // the setup an agent must infer from a booking refusal today — see the
       // booking-create note. Covering it explicitly is what makes the commercial
       // chain reachable end to end rather than blocked at the last step.
@@ -397,14 +399,15 @@ function buildJourneys(RUN_MARK: string): CapabilityJourney[] {
       // in the order given, so measuring it measured the ordering. Publication
       // now has its own journey after the departure exists, which is both the
       // real dependency and the order a person would work in.
-      task: `Make the product 'Capability Eval Tour ${RUN_MARK}' sellable: it needs a priced bookable unit (1 adult seat at 500 EUR) on its option, and a sell price on the product. Reuse the option it already has rather than creating another. Confirm what you changed.`,
+      task: `Finish authoring 'Capability Eval Tour ${RUN_MARK}': add 1 adult bookable seat to its existing option, then set the product's flat sell price to 500 EUR. Do not publish it yet because its required departure is created in the next step. Confirm what you changed.`,
       expect: "option",
       maxCalls: 26,
       // Verify the UNIT, not the option. Checking for a product_options row made
       // this journey unfalsifiable: create_product seeds a default option, so the
       // row exists before the journey runs and the check passed while the agent got
       // stuck in the approval loop and created no unit at all. The thing that makes
-      // a product sellable is a priced unit, so that is what has to be asserted.
+      // a product structurally bookable is a unit, so that is what has to be asserted here;
+      // product-reprice below asserts the separate flat sell price.
       // Asserts BOTH halves of the task, because checking only the unit made this
       // journey report 3/3 while the product stayed in `draft` — every one of the
       // nine products this harness has ever created is still draft, so the
@@ -418,26 +421,22 @@ function buildJourneys(RUN_MARK: string): CapabilityJourney[] {
              join products p on p.id = o.product_id
              where p.name ilike '%capability eval tour ${RUN_MARK}%'`,
       // Promoted from intermittent after the 2026-08-07 Terra measurement wrote
-      // the priced unit in all five isolated attempts (16-22 calls, no exhaustion).
+      // the unit and flat product price in all five isolated attempts (16-22 calls, no exhaustion).
       // The durable row remains the score; confident model prose is not evidence.
     },
     {
-      // Exercises configure_option_units, the tool that replaced the preview/apply
-      // pair. Added because its absence was the whole problem: the pair was removed
-      // from the agent surface and the replacement was never once called across ten
-      // runs, so nobody noticed it could not work at all — it was
-      // confirmation-gated generically, which refuses the unconfirmed call before
-      // the handler can return the plan that the confirmed call then requires. A
-      // capability with no journey is a capability nobody is checking.
-      id: "option-unit-reprice",
+      // The simple product uses a flat package price. Keep this journey aligned
+      // with the public Tool contract instead of asking update_option_unit for a
+      // price field it does not expose and then falsely passing on unit existence.
+      id: "product-reprice",
       domain: "products",
-      task: `The adult seat on 'Capability Eval Tour ${RUN_MARK}' should now cost 650 EUR instead of 500. Change it, reviewing the before/after before you commit.`,
+      task: `Change the flat sell price of 'Capability Eval Tour ${RUN_MARK}' from 500 EUR to 650 EUR and confirm the updated price.`,
       expect: "650",
       maxCalls: 22,
-      verify: `select 1 from option_units u
-             join product_options o on o.id = u.option_id
-             join products p on p.id = o.product_id
-             where p.name ilike '%capability eval tour ${RUN_MARK}%'`,
+      verify: `select 1 from products
+             where name ilike '%capability eval tour ${RUN_MARK}%'
+               and sell_amount_cents = 65000
+               and sell_currency = 'EUR'`,
     },
     {
       // Ops write: a dated departure for the product just created. First journey

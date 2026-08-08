@@ -250,6 +250,10 @@ requireFragments(OPERATOR_README, operatorReadme, [
 ])
 requireFragments(ACCEPTANCE_LIB, acceptanceLib, [
   ["node run-generated-migrations.mjs", "image acceptance must run embedded migrations"],
+  [
+    "POSTGRES_SEARCH_CURSOR_SIGNING_KEY",
+    "image acceptance must configure the selected Postgres search provider",
+  ],
   ["/healthz", "image acceptance must check liveness"],
   ["/api/openapi.json", "image acceptance must dispatch the API"],
   ["operator_image_boot_api_only_and_assert", "image acceptance must boot the API-only profile"],
