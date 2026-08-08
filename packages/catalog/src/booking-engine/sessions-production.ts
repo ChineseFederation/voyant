@@ -336,7 +336,16 @@ async function commitSourcedBooking(
     repository: createDrizzleSupplierOperationRepository(deps.db),
     registry,
   })
-  const parameters = sourcedParameters(input.session.statePayload, sourced)
+  const parameters = {
+    ...sourcedParameters(input.session.statePayload, sourced),
+    // Server-owned commit evidence. Adapters that perform a provider-side hold
+    // can compare the held total to the immutable Session Quote immediately
+    // before commitment. This is never accepted from a browser selection.
+    bookingQuote: {
+      currency: input.quote.pricing.currency,
+      totalAmountMinor: input.quote.pricing.total,
+    },
+  }
   const request = {
     entity_module: sourced.entityModule,
     entity_id: sourced.entityId,

@@ -178,7 +178,32 @@ export function mergedFlightOfferToCandidate(o: MergedFlightOffer): Availability
 1. **Criteria-schema governance** — how `criteriaVersion` is versioned/deprecated across many adapters.
 2. **Candidate persistence depth** — persist (resume/re-rank/audit) vs cache-only. Lean: persist + reaper.
 3. **Sourced `releaseHold`** — sourced adapters only expose `cancel`; compensation falls back to cancel/staff-remediation until a release primitive lands (owned rows already have one).
+
 4. **Atomicity promise** — best-effort + staff remediation vs all-or-nothing. Lean: best-effort with strong compensation.
+
+### 6.1 Managed Storefront package-offer commitment
+
+Voyant Connect dynamic packages use the existing sourced Catalog Item path;
+they do not introduce a package booking engine. At Commit, Catalog adds the
+immutable Booking Session Quote total to the server-owned supplier request.
+The Connect adapter then re-resolves the exact package selection, rejects price
+or availability drift, creates a Connect hold, validates the held snapshot, and
+confirms it with Catalog's stable supplier-operation idempotency key. A changed
+hold is released. An ambiguous confirm is not released or blindly retried:
+Catalog retains the Supplier Operation in doubt for reconciliation. Confirmed
+bookings continue through the existing Booking, Allocation, snapshot, Trip
+component, cancellation, and compensation spine.
+
+The remaining Storefront integration gap is deliberately narrow: the managed
+opaque-reference store added by Storefront PR #4459 currently has an issuer but
+no owner/scope-bound consumer. Until that consumer exists, Storefront cannot
+turn a browser-held `package-offer` capability into the stable Catalog Item and
+public Booking Session selection (`departureDate`, pax, room/rate/board) that
+this adapter accepts. The consumer must validate purpose, storefront, channel,
+owner, scope, expiry, and single-use redemption; it must return only the stable
+selection and must never return or accept a connection/provider id on the
+browser boundary. No fallback may decode the capability in the browser or let
+the caller choose an adapter.
 
 ## 7. Success criteria
 

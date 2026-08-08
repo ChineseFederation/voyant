@@ -19,6 +19,7 @@ export {
   type GeoNameResolver,
   type GeoNameResolverOptions,
 } from "./geo-resolver.js"
+export { withConnectPackageBookingLifecycle } from "./package-booking.js"
 export {
   type ConnectProductPackageSourceAdapterOptions,
   createConnectProductPackageSourceAdapter,

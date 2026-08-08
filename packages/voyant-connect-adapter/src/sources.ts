@@ -16,6 +16,7 @@ import {
   type DestinationNameResolver,
   type GeoNameResolver,
 } from "./geo-resolver.js"
+import { withConnectPackageBookingLifecycle } from "./package-booking.js"
 import { createConnectProductPackageSourceAdapter } from "./package-products.js"
 import { positiveInteger, recordValue, stringValue } from "./utils.js"
 
@@ -115,13 +116,16 @@ function createDefaultSources(
   return [
     {
       role: "generic",
-      adapter: createVoyantConnectSourceAdapter({
-        client: options.client,
-        operatorId: options.operatorId,
-        market: options.market,
-        discoverLimit: options.discoverLimit,
-        mapDocument: skipCruiseConnectDocuments,
-      }),
+      adapter: withConnectPackageBookingLifecycle(
+        createVoyantConnectSourceAdapter({
+          client: options.client,
+          operatorId: options.operatorId,
+          market: options.market,
+          discoverLimit: options.discoverLimit,
+          mapDocument: skipCruiseConnectDocuments,
+        }),
+        options.client,
+      ),
     },
     {
       role: "cruises",
@@ -153,15 +157,18 @@ function createConnectionScopedSources(
       connectionId: connection.id,
       role: "generic",
       sourceProvider,
-      adapter: createVoyantConnectSourceAdapter({
-        client: options.client,
-        operatorId: options.operatorId,
-        sourceProvider,
-        connectionIds: [connection.id],
-        market: options.market,
-        discoverLimit: options.discoverLimit,
-        mapDocument: skipCruiseConnectDocuments,
-      }),
+      adapter: withConnectPackageBookingLifecycle(
+        createVoyantConnectSourceAdapter({
+          client: options.client,
+          operatorId: options.operatorId,
+          sourceProvider,
+          connectionIds: [connection.id],
+          market: options.market,
+          discoverLimit: options.discoverLimit,
+          mapDocument: skipCruiseConnectDocuments,
+        }),
+        options.client,
+      ),
     },
     {
       connectionId: `${connection.id}:cruises`,

@@ -17,6 +17,9 @@ export function engineParametersFromSelection(
   const selection = asRecord(selectionPayload)
   const configure = asRecord(selection?.configure)
   const departureSlotId = stringValue(configure?.departureSlotId)
+  const departureDate = stringValue(configure?.departureDate)
+  const departureAirportCode = stringValue(configure?.departureAirportCode)
+  const nights = positiveInteger(configure?.nights)
   const paxCount = sumPax(configure?.pax)
   const next: Record<string, unknown> = {
     ...(parameters ?? {}),
@@ -28,6 +31,11 @@ export function engineParametersFromSelection(
     if (next.departure_id == null) next.departure_id = departureSlotId
     if (next.slotId == null) next.slotId = departureSlotId
   }
+  if (departureDate && next.departureDate == null) next.departureDate = departureDate
+  if (departureAirportCode && next.departureAirportCode == null) {
+    next.departureAirportCode = departureAirportCode
+  }
+  if (nights && next.nights == null) next.nights = nights
   if (paxCount > 0 && next.paxCount == null) next.paxCount = paxCount
   for (const key of ["roomTypeId", "ratePlanId", "board"] as const) {
     const value = stringValue(configure?.[key])
@@ -184,6 +192,10 @@ function asRecord(value: unknown): Record<string, unknown> | undefined {
 
 function stringValue(value: unknown): string | null {
   return typeof value === "string" && value.length > 0 ? value : null
+}
+
+function positiveInteger(value: unknown): number | null {
+  return typeof value === "number" && Number.isInteger(value) && value > 0 ? value : null
 }
 
 function sumPax(value: unknown): number {

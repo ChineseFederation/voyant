@@ -105,6 +105,10 @@ export const bookingSelectionPublicV1 = z.object({
     .object({
       departureSlotId: z.string().optional(),
       departureDate: z.string().optional(), // ISO yyyy-MM-dd
+      /** Package origin pin. This is travel intent, never an adapter selector. */
+      departureAirportCode: z.string().length(3).optional(),
+      /** Exact package duration selected from the live offer. */
+      nights: z.number().int().positive().optional(),
       departureTime: z.string().optional(), // ISO HH:mm
       // Pax counts keyed by band code — `paxBandCodeSchema` lists the
       // canonical codes but the wizard learns the active bands off the
