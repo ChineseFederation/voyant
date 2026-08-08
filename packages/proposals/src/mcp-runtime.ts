@@ -15,10 +15,8 @@ import {
   proposalsPresentationRuntimePort,
 } from "./runtime-port.js"
 import { proposalsService } from "./service/index.js"
-import {
-  acceptProposalAndPrepareBooking,
-  ProposalAcceptanceError,
-} from "./service/proposal-acceptance.js"
+import { ProposalAcceptanceError } from "./service/proposal-acceptance.js"
+import { executeAcceptProposalForBookingCommand } from "./service/proposal-booking-acceptance-command.js"
 import { executeSnapshotAndSendProposalCommand } from "./service/proposal-delivery.js"
 import { executeAcceptProposalVersionCommand } from "./service/proposal-version-acceptance-command.js"
 
@@ -123,7 +121,10 @@ export const voyantToolContextContribution = defineToolContextContribution({
         },
       },
       proposalAcceptance: {
-        async acceptProposalForBooking(proposalVersionId: string) {
+        async acceptProposalForBooking(
+          proposalVersionId: string,
+          admitted: ToolHandlerActionPolicyContext,
+        ) {
           const proposal = await Promise.resolve(
             requireService(
               resources[proposalsPresentationRuntimePort.id] as
@@ -134,12 +135,15 @@ export const voyantToolContextContribution = defineToolContextContribution({
             ),
           )
           try {
-            return await acceptProposalAndPrepareBooking(
+            const result = await executeAcceptProposalForBookingCommand({
               db,
+              context: actionLedgerContext(c),
+              admitted,
               proposalVersionId,
-              (transactionalDb, input) =>
+              seedBookingSession: (transactionalDb, input) =>
                 proposal.seedAcceptedProposalBookingSession(transactionalDb, input, c),
-            )
+            })
+            return result.value
           } catch (error) {
             if (error instanceof ProposalAcceptanceError) {
               const code = error.code === "not_found" ? "NOT_FOUND" : "INVALID_INPUT"

@@ -271,6 +271,7 @@ describe("proposals deployment manifests", () => {
           version: "v1",
           commandTargetField: "proposalVersionId",
           targetLifecycle: "existing",
+          existingTarget: { durability: "handler-command-result-v1" },
           effectBoundary: "local",
           ledger: "required",
           approval: "required",

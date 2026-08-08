@@ -75,7 +75,10 @@ export interface ProposalDeliveryToolServices {
 }
 
 export interface ProposalAcceptanceToolServices {
-  acceptProposalForBooking(proposalVersionId: string): Promise<unknown>
+  acceptProposalForBooking(
+    proposalVersionId: string,
+    admitted: ToolHandlerActionPolicyContext,
+  ): Promise<unknown>
 }
 
 export type ProposalsToolContext = ToolContext & {
@@ -165,6 +168,26 @@ export const ACCEPT_PROPOSAL_VERSION_HANDLER_POLICY = {
   actionPolicy: {
     id: `${OWNER}#action.accept-proposal-version`,
     capabilityId: `${OWNER}#action.accept-proposal-version`,
+    version: VERSION,
+    kind: "execute",
+    targetType: "proposal-version",
+    commandTargetField: "proposalVersionId",
+    targetLifecycle: "existing",
+    existingTarget: { durability: "handler-command-result-v1" },
+    risk: "high",
+    ledger: "required",
+    approval: "required",
+    reversible: false,
+  },
+} as const satisfies HandlerActionPolicyExpectation
+
+export const ACCEPT_PROPOSAL_FOR_BOOKING_HANDLER_POLICY = {
+  capabilityId: `${OWNER}#presentation-extension.tool.accept-proposal-for-booking`,
+  capabilityVersion: VERSION,
+  canonicalName: "accept_proposal_for_booking",
+  actionPolicy: {
+    id: `${OWNER}#presentation-extension.action.accept-proposal-for-booking`,
+    capabilityId: `${OWNER}#presentation-extension.action.accept-proposal-for-booking`,
     version: VERSION,
     kind: "execute",
     targetType: "proposal-version",
@@ -424,9 +447,12 @@ export const acceptProposalForBookingTool = defineTool({
   audience: STAFF_AUDIENCE,
   tier: "destructive",
   riskPolicy: proposalWriteRisk,
+  annotations: { idempotentHint: true },
+  actionPolicyEnforcement: "handler",
   async handler({ proposalVersionId }, ctx: ProposalsToolContext) {
+    const admitted = admitHandlerActionPolicy(ctx, ACCEPT_PROPOSAL_FOR_BOOKING_HANDLER_POLICY)
     return acceptProposalForBookingOutputSchema.parse(
-      await proposalAcceptance(ctx).acceptProposalForBooking(proposalVersionId),
+      await proposalAcceptance(ctx).acceptProposalForBooking(proposalVersionId, admitted),
     )
   },
 })

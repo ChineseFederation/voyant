@@ -11,9 +11,12 @@ import {
   proposalsHandlerActionPolicyExpectation,
 } from "../src/created-target-policy.js"
 import {
+  ACCEPT_PROPOSAL_FOR_BOOKING_HANDLER_POLICY,
   ACCEPT_PROPOSAL_VERSION_HANDLER_POLICY,
+  acceptProposalForBookingTool,
   acceptProposalVersionTool,
   createProposalTool,
+  type ProposalAcceptanceToolServices,
   type ProposalDeliveryToolServices,
   type ProposalsToolServices,
   proposalsTools,
@@ -26,9 +29,11 @@ function ctx(
   actor: ToolContext["actor"] = "staff",
   delivery?: ProposalDeliveryToolServices,
   handlerActionPolicy: ToolHandlerActionPolicyContext = snapshotSendActionPolicy(),
+  acceptance?: ProposalAcceptanceToolServices,
 ): ToolContext & {
   proposals?: ProposalsToolServices
   proposalDelivery?: ProposalDeliveryToolServices
+  proposalAcceptance?: ProposalAcceptanceToolServices
 } {
   return {
     db: {},
@@ -39,6 +44,7 @@ function ctx(
     handlerActionPolicy,
     proposals: services as ProposalsToolServices | undefined,
     proposalDelivery: delivery,
+    proposalAcceptance: acceptance,
   }
 }
 
@@ -118,6 +124,29 @@ function acceptProposalActionPolicy(): ToolHandlerActionPolicyContext {
   }
 }
 
+function acceptProposalForBookingActionPolicy(): ToolHandlerActionPolicyContext {
+  return {
+    capabilityId: ACCEPT_PROPOSAL_FOR_BOOKING_HANDLER_POLICY.capabilityId,
+    capabilityVersion: ACCEPT_PROPOSAL_FOR_BOOKING_HANDLER_POLICY.capabilityVersion,
+    canonicalName: ACCEPT_PROPOSAL_FOR_BOOKING_HANDLER_POLICY.canonicalName,
+    actionPolicy: {
+      ...ACCEPT_PROPOSAL_FOR_BOOKING_HANDLER_POLICY.actionPolicy,
+      enforcement: "handler",
+      invocation: {
+        controlField: "_voyant",
+        requiredFields: ["idempotencyKey", "approvalId", "idempotencyFingerprint"],
+        optionalFields: ["reasonCode", "approvalId", "idempotencyFingerprint"],
+        fingerprintAlgorithm: "action-ledger-command-v1",
+      },
+    },
+    invocation: {
+      idempotencyKey: "proposal-booking-accept-1",
+      approvalId: "approval_1",
+      idempotencyFingerprint: "sha256:test",
+    },
+  }
+}
+
 function registry() {
   const registry = createToolRegistry()
   for (const tool of proposalsTools) {
@@ -128,6 +157,10 @@ function registry() {
     } else if (tool === acceptProposalVersionTool) {
       registry.register(tool, {
         actionPolicy: ACCEPT_PROPOSAL_VERSION_HANDLER_POLICY.actionPolicy,
+      })
+    } else if (tool === acceptProposalForBookingTool) {
+      registry.register(tool, {
+        actionPolicy: ACCEPT_PROPOSAL_FOR_BOOKING_HANDLER_POLICY.actionPolicy,
       })
     } else if (tool === createProposalTool) {
       registry.register(tool, {
@@ -281,6 +314,35 @@ describe("proposals Tools", () => {
     expect(result).toMatchObject({
       proposalUrl: `/proposal/${version.id}`,
       delivery: { id: "ndel_1", status: "pending" },
+    })
+  })
+
+  it("accepts a proposal for booking through one admitted durable command", async () => {
+    const acceptance: ProposalAcceptanceToolServices = {
+      async acceptProposalForBooking(proposalVersionId, admitted) {
+        expect(proposalVersionId).toBe(version.id)
+        expect(admitted.invocation.idempotencyKey).toBe("proposal-booking-accept-1")
+        return {
+          status: "accepted",
+          currency: "EUR",
+          totalAmountCents: 120_000,
+          bookingSession: {
+            id: "session_1",
+            state: "draft",
+            revision: 1,
+            expiresAt: "2026-09-01T00:00:00.000Z",
+          },
+        }
+      },
+    }
+    const result = await registry().dispatch(
+      "accept_proposal_for_booking",
+      { proposalVersionId: version.id },
+      ctx(undefined, "staff", undefined, acceptProposalForBookingActionPolicy(), acceptance),
+    )
+    expect(result).toMatchObject({
+      status: "accepted",
+      bookingSession: { id: "session_1" },
     })
   })
 

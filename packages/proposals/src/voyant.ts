@@ -502,6 +502,7 @@ export const proposalsPresentationVoyantExtension = defineExtension({
       targetType: "proposal-version",
       commandTargetField: "proposalVersionId",
       targetLifecycle: "existing",
+      existingTarget: { durability: "handler-command-result-v1" },
       effectBoundary: "local",
       resource: "proposals",
       action: "write",
