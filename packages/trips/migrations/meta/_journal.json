@@ -29,6 +29,13 @@
       "when": 1784970000000,
       "tag": "0003_durable_trip_actions",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1786178101086,
+      "tag": "0004_storefront_trip_access",
+      "breakpoints": true
     }
   ]
 }

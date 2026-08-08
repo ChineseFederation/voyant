@@ -68,6 +68,20 @@ export type {
   TripsRoutesOptionsProvider,
 } from "./routes.js"
 export { createTripsRoutes } from "./routes.js"
+export {
+  type CreateStorefrontTripInput,
+  createStorefrontTrip,
+  createStorefrontTripCapability,
+  resolveStorefrontTripAccess,
+  STOREFRONT_TRIP_CAPABILITY_HEADER,
+  STOREFRONT_TRIP_CAPABILITY_TTL_MS,
+  type StorefrontTripAccessOptions,
+  type StorefrontTripAccessResolution,
+  type StorefrontTripContext,
+  type StorefrontTripHandle,
+  type StorefrontTripScope,
+  storefrontTripScopeSchema,
+} from "./storefront-access.js"
 
 export const tripsModule: Module = {
   name: "trips",

@@ -1,3 +1,4 @@
+// agent-quality: file-size exception -- owner: trips; the package schema remains one Drizzle graph so migrations, foreign keys, and exported relations are generated from one source.
 import { typeId, typeIdRef } from "@voyant-travel/db/lib/typeid-column"
 import { relations } from "drizzle-orm"
 import {
@@ -236,6 +237,40 @@ export const tripEnvelopes = pgTable(
     index("idx_trip_envelopes_payment_session").on(table.paymentSessionId),
     index("idx_trip_envelopes_reserve_idempotency").on(table.reserveIdempotencyKey),
     index("idx_trip_envelopes_checkout_idempotency").on(table.checkoutIdempotencyKey),
+  ],
+)
+
+/**
+ * Storefront ownership for a customer-authored Trip.
+ *
+ * The browser carries a random capability while the database stores only its
+ * SHA-256 digest. Storefront/channel and shopping scope come from trusted
+ * runtime context, never request selectors, so capabilities cannot cross
+ * storefront boundaries.
+ */
+export const tripStorefrontAccess = pgTable(
+  "trip_storefront_access",
+  {
+    envelopeId: typeIdRef("envelope_id")
+      .primaryKey()
+      .references(() => tripEnvelopes.id, { onDelete: "cascade" }),
+    capabilityDigest: text("capability_digest").notNull().unique(),
+    storefrontId: text("storefront_id").notNull(),
+    channelId: text("channel_id").notNull(),
+    marketId: text("market_id").notNull(),
+    locale: text("locale").notNull(),
+    currency: text("currency").notNull(),
+    ownerUserId: text("owner_user_id"),
+    ownerBuyerAccountId: text("owner_buyer_account_id"),
+    revision: integer("revision").notNull().default(1),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("idx_trip_storefront_access_scope").on(table.storefrontId, table.channelId),
+    index("idx_trip_storefront_access_owner").on(table.ownerUserId, table.updatedAt),
+    index("idx_trip_storefront_access_expiry").on(table.expiresAt),
   ],
 )
 
@@ -593,6 +628,13 @@ export const tripEnvelopeRelations = relations(tripEnvelopes, ({ many }) => ({
   requirements: many(tripRequirements),
 }))
 
+export const tripStorefrontAccessRelations = relations(tripStorefrontAccess, ({ one }) => ({
+  envelope: one(tripEnvelopes, {
+    fields: [tripStorefrontAccess.envelopeId],
+    references: [tripEnvelopes.id],
+  }),
+}))
+
 export const tripComponentRelations = relations(tripComponents, ({ one, many }) => ({
   envelope: one(tripEnvelopes, {
     fields: [tripComponents.envelopeId],
@@ -661,6 +703,8 @@ export const tripRequirementSourcingOperationRelations = relations(
 
 export type TripEnvelope = typeof tripEnvelopes.$inferSelect
 export type NewTripEnvelope = typeof tripEnvelopes.$inferInsert
+export type TripStorefrontAccess = typeof tripStorefrontAccess.$inferSelect
+export type NewTripStorefrontAccess = typeof tripStorefrontAccess.$inferInsert
 export type TripComponent = typeof tripComponents.$inferSelect
 export type NewTripComponent = typeof tripComponents.$inferInsert
 export type TripComponentEvent = typeof tripComponentEvents.$inferSelect
