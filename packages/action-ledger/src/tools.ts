@@ -428,7 +428,7 @@ export const getActionDelegationTool = defineTool({
 export const requestActionApprovalTool = defineTool({
   name: "request_action_approval",
   description:
-    "Request approval for an exact write Tool action admitted by the selected graph with approval=required. Action identity, canonical Tool capability, risk, target type, and policy are derived server-side; conditional and absent policies fail closed.",
+    "Request approval only when the original domain Tool explicitly directs you here. Call the domain Tool first: handler-owned Tools issue their own approval bound to the exact command, and an independently requested approval cannot authorize them. For generic approval-required actions, identity, canonical capability, risk, target type, and policy are derived server-side; conditional and absent policies fail closed.",
   inputSchema: requestApprovalInputSchema,
   outputSchema: z.object({
     requestedAction: actionLedgerEntryDtoSchema,

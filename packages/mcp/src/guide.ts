@@ -417,7 +417,11 @@ function confirmationSection(scope: GuideScope): string {
     "- requestId — a UUID identifying the request, required by generic guarded " +
     "actions.\n" +
     "- approvalId — an approval identifier some ledgered actions require before they " +
-    "will dispatch; supply it when the Tool's policy lists it.\n" +
+    "will dispatch. Call the domain Tool first with its other required controls. " +
+    "Handler-owned Tools create a server-issued approval bound to that exact command; " +
+    "approve the returned id and retry exactly as instructed. Do NOT call " +
+    "request_action_approval first unless the domain Tool explicitly tells you to — " +
+    "an independently requested approval will not authorize a handler-owned command.\n" +
     "- reasonCode — an optional human-meaningful reason recorded on the ledger.\n" +
     "- idempotencyKey — for handler-owned/created-target actions, the key that makes " +
     "a retry safe (the same key returns the same result rather than acting twice).\n\n" +

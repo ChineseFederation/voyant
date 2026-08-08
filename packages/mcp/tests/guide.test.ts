@@ -221,6 +221,8 @@ describe("MCP guide layer", () => {
     expect(confirmation).toContain("_voyant")
     expect(confirmation).toMatch(/confirmed/)
     expect(confirmation).toMatch(/approvalId/)
+    expect(confirmation).toMatch(/call the domain Tool first/i)
+    expect(confirmation).toMatch(/do NOT call request_action_approval first/i)
   })
 
   it("filters the glossary by term", async () => {

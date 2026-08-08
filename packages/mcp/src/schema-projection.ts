@@ -58,7 +58,7 @@ const actionInvocationFields = {
     .trim()
     .min(1)
     .describe(
-      "Approval authorising this exact command. Get one with request_action_approval, then approve_action_approval — a pending approval is rejected.",
+      "Approval authorising this exact command. Call the domain Tool first: handler-owned Tools issue their own bound approval and tell you which id to approve. Use request_action_approval only when that Tool explicitly instructs you to; an unrelated approval is rejected.",
     ),
   reasonCode: z.string().trim().min(1).describe("Optional reason recorded with the action."),
   // Compatibility fields used by handler-owned policies and generic actions
