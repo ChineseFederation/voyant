@@ -182,6 +182,7 @@ describe("inventory deployment manifests", () => {
           risk: "high",
           ledger: "required",
           approval: "required",
+          policy: "@voyant-travel/inventory#action.publish-product",
           allowedActorTypes: ["staff"],
           existingTarget: { durability: "handler-command-result-v1" },
         }),

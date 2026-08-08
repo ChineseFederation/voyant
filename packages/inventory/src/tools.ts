@@ -692,6 +692,7 @@ function productLifecycleHandlerPolicy(input: { capabilityId: string; name: stri
       risk: "high",
       ledger: "required",
       approval: "required",
+      policy: input.capabilityId.replace("#tool.", "#action."),
       reversible: true,
       allowedActorTypes: ["staff"],
     },
