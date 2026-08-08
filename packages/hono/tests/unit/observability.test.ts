@@ -288,7 +288,7 @@ describe("non-HTTP catch points route to the reporter (RFC #1553)", () => {
     })
 
     // `ready()` fires the lazy bootstrap without needing a request.
-    await app.ready({})
+    await expect(app.ready({})).rejects.toThrow(/module:flaky/)
 
     const bootEvent = events.find((e) => e.context?.surface === "bootstrap")
     expect(bootEvent).toBeDefined()

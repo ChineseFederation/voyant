@@ -125,7 +125,8 @@ export interface VoyantAppExtensions<TBindings = unknown> {
   services: import("@voyant-travel/core").ModuleContainer
   /**
    * Resolves once the lazy bootstrap completes. Idempotent — multiple
-   * calls share the same promise. Use from tests + node sibling
+   * calls share the same promise. Rejects after every selected bootstrap has
+   * had a chance to run when any bootstrap failed. Use from tests + node sibling
    * processes where no request will arrive to trigger boot. See
    * architecture doc §18 + §18.1.
    *
@@ -402,6 +403,8 @@ export function mountApp<TBindings extends VoyantBindings>(
   }
 
   let bootstrapPromise: Promise<void> | null = null
+  let readinessPromise: Promise<void> | null = null
+  const bootstrapFailures: Array<{ label: string; error: unknown }> = []
   function ensureRuntimeBootstrapped(bindings: TBindings) {
     if (!bootstrapPromise) {
       bootstrapPromise = (async () => {
@@ -414,6 +417,7 @@ export function mountApp<TBindings extends VoyantBindings>(
           try {
             await fn(ctx)
           } catch (error) {
+            bootstrapFailures.push({ label, error })
             const message = error instanceof Error ? error.message : String(error)
             console.error(`[voyant] bootstrap failed for ${label}: ${message}`)
             // Bootstrap failures are startup-critical but silent today — surface
@@ -448,6 +452,19 @@ export function mountApp<TBindings extends VoyantBindings>(
     }
 
     return bootstrapPromise
+  }
+
+  function ensureRuntimeReady(bindings: TBindings): Promise<void> {
+    if (!readinessPromise) {
+      readinessPromise = ensureRuntimeBootstrapped(bindings).then(() => {
+        if (bootstrapFailures.length === 0) return
+        throw new AggregateError(
+          bootstrapFailures.map(({ error }) => error),
+          `Voyant app bootstrap failed for ${bootstrapFailures.map(({ label }) => label).join(", ")}`,
+        )
+      })
+    }
+    return readinessPromise
   }
 
   // Request ID header
@@ -856,19 +873,17 @@ export function mountApp<TBindings extends VoyantBindings>(
 
   // Attach `ready()` directly to the Hono instance. Fires the lazy
   // bootstrap with the supplied bindings (or `{}` for back-compat with
-  // node / InMemory drivers that ignore them). Production code never
-  // calls `ready()` — the first request triggers the same boot via
-  // `ensureRuntimeBootstrapped(c.env)`. Tests + node sibling processes
-  // use this so the time wheel + manifest registration happen without
-  // traffic. Binding-dependent drivers that want eager boot must pass
-  // the real `env`.
+  // node / InMemory drivers that ignore them). The Node host calls `ready()`
+  // before exposing a loaded runtime; request-driven/Worker hosts retain the
+  // same lazy boot via `ensureRuntimeBootstrapped(c.env)`. Tests + node sibling
+  // processes also use this so the time wheel + manifest registration happen
+  // without traffic. Binding-dependent drivers must pass the real `env`.
   const augmented = app as Hono<MountEnv<TBindings>> & VoyantAppExtensions<TBindings>
   augmented.services = container
   augmented.eventBus = eventBus
   augmented.lazyMounts = lazyMounts
   augmented.moduleMounts = moduleMounts
-  augmented.ready = (bindings?: TBindings) =>
-    ensureRuntimeBootstrapped(bindings ?? ({} as TBindings))
+  augmented.ready = (bindings?: TBindings) => ensureRuntimeReady(bindings ?? ({} as TBindings))
   return augmented
 }
 

@@ -442,6 +442,14 @@ export async function loadVoyantNodeRuntime(
     ),
   })
 
+  // A Node runtime is not loadable until every selected app bootstrap has
+  // completed. Managed Cloud warms this boundary before binding its listener,
+  // while self-hosted and cell callers receive the same no-first-request-work
+  // guarantee. Explicit readiness rejects on bootstrap failure, so a broken
+  // runtime fails startup/admission instead of leaking the failure and latency
+  // into the first authenticated request.
+  await app.ready(env)
+
   // A package asks for a wake on the request path that wrote the work — a
   // checkout placing a hold, say. `wakeAt` rejects a job the graph did not
   // select or declare wakeable, which is a real manifest bug, but failing the

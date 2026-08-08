@@ -362,6 +362,29 @@ describe("mountApp with plugins", () => {
     expect(calls).toEqual(["plugin", "module", "extension"])
   })
 
+  it("keeps concurrent first requests off the bootstrap path after explicit readiness", async () => {
+    const bootstrap = vi.fn(async () => undefined)
+    const mod: ApiModule = {
+      module: { name: "ready", bootstrap },
+      adminRoutes: new Hono().get("/ping", (c) => c.json({ ok: true })),
+    }
+    const app = mountApp({
+      // biome-ignore lint/suspicious/noExplicitAny: test doesn't use db -- owner: hono; existing suppression is intentional pending typed cleanup.
+      db: () => ({}) as any,
+      modules: [mod],
+      auth: { resolve: () => ({ userId: "u1", actor: "staff", realm: "admin" }) },
+    })
+
+    await app.ready(TEST_ENV)
+    const responses = await Promise.all([
+      app.request("/v1/admin/ready/ping", {}, TEST_ENV, TEST_CTX),
+      app.request("/v1/admin/ready/ping", {}, TEST_ENV, TEST_CTX),
+    ])
+
+    expect(responses.map(({ status }) => status)).toEqual([200, 200])
+    expect(bootstrap).toHaveBeenCalledTimes(1)
+  })
+
   it("isolates bootstrap failures — a throwing plugin must not break unrelated routes", async () => {
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined)
     const goodModule: ApiModule = {

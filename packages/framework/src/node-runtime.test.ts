@@ -1,5 +1,5 @@
 import type { EventEnvelope } from "@voyant-travel/core"
-import { definePort } from "@voyant-travel/core/project"
+import { defineGraphRuntimeFactory, definePort } from "@voyant-travel/core/project"
 import type { LazyRedisClient } from "@voyant-travel/utils/redis-client"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import type { VoyantDeploymentProviders } from "./deployment-types.js"
@@ -187,6 +187,58 @@ function emptyGraphRuntime(providers: VoyantDeploymentProviders) {
     graphHash: "sha256:0000000000000000000000000000000000000000000000000000000000000000",
     entries: {},
     modules: [],
+    plugins: [],
+    providerSelections: { ...providers },
+  })
+}
+
+function bootstrapGraphRuntime(
+  providers: VoyantDeploymentProviders,
+  bootstrap: () => Promise<void> | void,
+) {
+  const unitId = "@acme/bootstrap"
+  const entry = `${unitId}/runtime`
+  const referenceId = `${unitId}#api.admin:runtime`
+  const routeId = `${unitId}#api.admin`
+  return createVoyantGraphRuntime({
+    graphHash: "sha256:node-eager-readiness",
+    entries: {
+      [entry]: async () => ({
+        runtime: defineGraphRuntimeFactory(() => ({
+          module: { name: "bootstrap", bootstrap },
+        })),
+      }),
+    },
+    modules: [
+      {
+        id: unitId,
+        kind: "module",
+        packageName: unitId,
+        order: 0,
+        references: [
+          {
+            id: referenceId,
+            unitId,
+            facet: "api",
+            entityId: routeId,
+            runtime: { entry, export: "runtime" },
+            importEntry: entry,
+          },
+        ],
+        selectedIds: { routes: [routeId], tools: [], events: [], webhooks: [] },
+        routes: [
+          {
+            route: {
+              id: routeId,
+              surface: "admin",
+              runtime: { entry, export: "runtime" },
+            },
+            importEntry: entry,
+            referenceId,
+          },
+        ],
+      },
+    ],
     plugins: [],
     providerSelections: { ...providers },
   })
@@ -399,7 +451,59 @@ describe("createVoyantNodeEnv Redis namespace", () => {
   })
 })
 
-describe("loadVoyantNodeRuntime Redis URL validation", () => {
+describe("loadVoyantNodeRuntime", () => {
+  it("does not resolve until selected application bootstraps are ready", async () => {
+    let releaseBootstrap!: () => void
+    const bootstrapGate = new Promise<void>((resolve) => {
+      releaseBootstrap = resolve
+    })
+    const bootstrap = vi.fn(() => bootstrapGate)
+    let loaded = false
+
+    const loading = loadVoyantNodeRuntime({
+      graphRuntime: bootstrapGraphRuntime(BASE_PROVIDERS, bootstrap),
+      jobs: [],
+      deployment: {
+        mode: "managed-cloud",
+        providers: BASE_PROVIDERS,
+        redis: DEDICATED_TRUSTED_REDIS,
+      },
+      deploymentRequirements: { resources: [] },
+    }).then((runtime) => {
+      loaded = true
+      return runtime
+    })
+
+    await vi.waitFor(() => expect(bootstrap).toHaveBeenCalledTimes(1))
+    expect(loaded).toBe(false)
+    releaseBootstrap()
+    const runtime = await loading
+
+    await Promise.all([runtime.app.ready(runtime.env), runtime.app.ready(runtime.env)])
+    expect(bootstrap).toHaveBeenCalledTimes(1)
+  })
+
+  it("rejects runtime loading when an application bootstrap fails", async () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined)
+    const failure = new Error("bootstrap dependency unavailable")
+
+    await expect(
+      loadVoyantNodeRuntime({
+        graphRuntime: bootstrapGraphRuntime(BASE_PROVIDERS, () => {
+          throw failure
+        }),
+        jobs: [],
+        deployment: {
+          mode: "managed-cloud",
+          providers: BASE_PROVIDERS,
+          redis: DEDICATED_TRUSTED_REDIS,
+        },
+        deploymentRequirements: { resources: [] },
+      }),
+    ).rejects.toThrow(/module:bootstrap/)
+    errorSpy.mockRestore()
+  })
+
   it("delivers outbox events through the composed internal subscriber bus", async () => {
     const originalDeliver = vi.fn(async (_envelope: EventEnvelope) => ({
       attempted: 0,
