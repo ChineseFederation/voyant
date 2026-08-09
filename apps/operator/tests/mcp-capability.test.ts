@@ -502,7 +502,7 @@ function buildJourneys(RUN_MARK: string): CapabilityJourney[] {
       // Depends on booking-create, so it inherits whatever blocks that.
       id: "invoice-issue",
       domain: "invoices",
-      task: `Issue a proforma invoice for the booking belonging to Ioana Marinescu${RUN_MARK}. Confirm the document number.`,
+      task: `Issue a proforma invoice dated 2026-08-09 and due 2026-09-15 for the booking belonging to Ioana Marinescu${RUN_MARK}. Confirm the document number.`,
       expect: "proforma",
       maxCalls: 24,
       verify: `select 1 from invoices i join bookings b on b.id = i.booking_id
@@ -523,14 +523,18 @@ function buildJourneys(RUN_MARK: string): CapabilityJourney[] {
       domain: "bookings",
       task: `Cancel the booking belonging to Ioana Marinescu${RUN_MARK} according to the cancellation terms agreed when it was booked. Complete any required approval, use a cash refund when the agreed terms permit it, and confirm the cancellation and refund entitlement.`,
       expect: "cancel",
-      maxCalls: 30,
+      maxCalls: 36,
       verify: `select 1 from bookings b
              join people pe on pe.id = b.person_id
              join booking_activity_log a on a.booking_id = b.id
              where pe.last_name ilike '%marinescu${RUN_MARK}%'
                and b.status = 'cancelled'
                and a.metadata->'cancellationPolicyEntitlement'->>'status' = 'evaluated'
-               and (a.metadata->'cancellationPolicyEntitlement'->>'refundCents')::int > 0`,
+               and (a.metadata->'cancellationPolicyEntitlement'->>'refundCents')::int > 0
+               and exists (
+                 select 1 from refund_settlements rs
+                 where rs.booking_id = b.id and rs.method = 'cash'
+               )`,
     },
     {
       id: "contracts-read",
@@ -936,8 +940,13 @@ describe.skipIf(!enabled)("MCP capability — a travel agent's job", () => {
               // template-strings array and only its first character is sent.
               sqlRaw.raw(journey.verify),
             )
-            passed = rowCount(rows) > 0
-            verified.set(journey.id, passed)
+            const databaseVerified = rowCount(rows) > 0
+            verified.set(journey.id, databaseVerified)
+            passed =
+              databaseVerified &&
+              run.calls.length > 0 &&
+              !run.exhausted &&
+              run.calls.length <= journey.maxCalls
           } else {
             passed = journeyPassed(journey, run)
           }
