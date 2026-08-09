@@ -148,6 +148,21 @@ const productSchema = z.object({
   updatedAt: isoTimestamp,
 })
 
+const productSummarySchema = productSchema.pick({
+  id: true,
+  name: true,
+  status: true,
+  bookingMode: true,
+  sellCurrency: true,
+  sellAmountCents: true,
+  productTypeId: true,
+  productSubtypeCode: true,
+  durationMinutes: true,
+  productTypeName: true,
+  nextDeparture: true,
+  classification: true,
+})
+
 /** `GET /{id}` hydrates the `productType` relation onto the base product row. */
 const productWithTypeSchema = productSchema.extend({
   productType: z.object({ id: z.string(), name: z.string(), code: z.string() }).nullable(),
@@ -192,6 +207,18 @@ const listProductsRoute = createRoute({
     200: {
       description: "Paginated list of products",
       content: { "application/json": { schema: listResponseSchema(productSchema) } },
+    },
+  },
+})
+
+const listProductSummariesRoute = createRoute({
+  method: "get",
+  path: "/summaries",
+  request: { query: validation.productListQuerySchema },
+  responses: {
+    200: {
+      description: "Paginated compact product rows for lists and selectors",
+      content: { "application/json": { schema: listResponseSchema(productSummarySchema) } },
     },
   },
 })
@@ -339,6 +366,10 @@ export const productCoreRoutes = new OpenAPIHono<Env>({ defaultHook: openApiVali
   // GET / — List products
   .openapi(listProductsRoute, async (c) =>
     c.json(await productsService.listProducts(c.get("db"), c.req.valid("query")), 200),
+  )
+  // GET /summaries — compact list rows, registered before /{id}.
+  .openapi(listProductSummariesRoute, async (c) =>
+    c.json(await productsService.listProductSummaries(c.get("db"), c.req.valid("query")), 200),
   )
   // POST / — Create product
   .openapi(createProductRoute, async (c) => {

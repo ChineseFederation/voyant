@@ -107,6 +107,29 @@ export const productRecordSchema = z.object({
 
 export type ProductRecord = z.infer<typeof productRecordSchema>
 
+/**
+ * Compact row returned by the list-summary endpoint. It intentionally omits
+ * authored HTML, policies, tags, and editor-only fields so list pages and
+ * comboboxes do not transfer complete product documents before a product is
+ * opened.
+ */
+export const productSummaryRecordSchema = productRecordSchema.pick({
+  id: true,
+  name: true,
+  status: true,
+  bookingMode: true,
+  sellCurrency: true,
+  sellAmountCents: true,
+  productTypeId: true,
+  productSubtypeCode: true,
+  durationMinutes: true,
+  productTypeName: true,
+  nextDeparture: true,
+  classification: true,
+})
+
+export type ProductSummaryRecord = z.infer<typeof productSummaryRecordSchema>
+
 export const productTranslationRecordSchema = z.object({
   id: z.string(),
   productId: z.string(),
@@ -368,6 +391,7 @@ export const productMediaRecordSchema = z.object({
 export type ProductMediaRecord = z.infer<typeof productMediaRecordSchema>
 
 export const productListResponse = paginatedEnvelope(productRecordSchema)
+export const productSummaryListResponse = paginatedEnvelope(productSummaryRecordSchema)
 export const productSingleResponse = singleEnvelope(productRecordSchema)
 export const productTranslationListResponse = paginatedEnvelope(productTranslationRecordSchema)
 export const productTranslationSingleResponse = singleEnvelope(productTranslationRecordSchema)

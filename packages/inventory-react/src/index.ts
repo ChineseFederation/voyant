@@ -37,6 +37,7 @@ export {
   getProductOptionQueryOptions,
   getProductOptionsQueryOptions,
   getProductQueryOptions,
+  getProductSummariesQueryOptions,
   getProductsQueryOptions,
   getProductTagsQueryOptions,
   getProductTypeQueryOptions,

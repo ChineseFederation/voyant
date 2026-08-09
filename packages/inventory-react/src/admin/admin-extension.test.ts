@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest"
 import { inventoryVoyantModule } from "../../../inventory/src/voyant.js"
 import {
   DEFAULT_PRODUCTS_LIST_FILTERS,
-  getProductsQueryOptions,
+  getProductSummariesQueryOptions,
   getProductTypesQueryOptions,
 } from "../query-options.js"
 import {
@@ -149,7 +149,10 @@ describe("createInventoryAdminExtension", () => {
     })
     await Promise.all([
       queryClient.fetchQuery(
-        getProductsQueryOptions({ baseUrl: "/api", fetcher }, DEFAULT_PRODUCTS_LIST_FILTERS),
+        getProductSummariesQueryOptions(
+          { baseUrl: "/api", fetcher },
+          DEFAULT_PRODUCTS_LIST_FILTERS,
+        ),
       ),
       queryClient.fetchQuery(
         getProductTypesQueryOptions({ baseUrl: "/api", fetcher }, { limit: 100 }),
@@ -164,7 +167,7 @@ describe("createInventoryAdminExtension", () => {
     )
     expect(fetcher).toHaveBeenNthCalledWith(
       2,
-      "/api/v1/admin/products?sortBy=createdAt&sortDir=desc&limit=25&offset=0",
+      "/api/v1/admin/products/summaries?sortBy=createdAt&sortDir=desc&limit=25&offset=0",
       expect.any(Object),
     )
   })

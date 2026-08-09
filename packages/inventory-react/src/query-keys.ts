@@ -117,6 +117,8 @@ export const productsQueryKeys = {
   products: () => [...productsQueryKeys.all, "products"] as const,
   productsList: (filters: ProductsListFilters) =>
     [...productsQueryKeys.products(), "list", filters] as const,
+  productSummariesList: (filters: ProductsListFilters) =>
+    [...productsQueryKeys.products(), "summary-list", filters] as const,
   product: (id: string) => [...productsQueryKeys.products(), "detail", id] as const,
   productTranslationsRoot: (productId: string) =>
     [...productsQueryKeys.product(productId), "translations"] as const,

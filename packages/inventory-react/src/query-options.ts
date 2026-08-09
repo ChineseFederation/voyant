@@ -32,6 +32,7 @@ import {
   productOptionSingleResponse,
   productReadinessResponse,
   productSingleResponse,
+  productSummaryListResponse,
   productTagListResponse,
   productTypeListResponse,
   productTypeSingleResponse,
@@ -50,6 +51,35 @@ export const DEFAULT_PRODUCTS_LIST_FILTERS = {
   offset: 0,
 } as const satisfies ProductsListFilters
 
+function productListSearch(filters: ProductsListFilters): string {
+  const params = new URLSearchParams()
+  if (filters.status) params.set("status", filters.status)
+  if (filters.bookingMode) params.set("bookingMode", filters.bookingMode)
+  if (filters.visibility) params.set("visibility", filters.visibility)
+  if (filters.activated !== undefined) params.set("activated", String(filters.activated))
+  if (filters.facilityId) params.set("facilityId", filters.facilityId)
+  if (filters.productTypeId) params.set("productTypeId", filters.productTypeId)
+  if (filters.categoryId) params.set("categoryId", filters.categoryId)
+  if (filters.tag) params.set("tag", filters.tag)
+  if (filters.search) params.set("search", filters.search)
+  if (filters.dateFrom) params.set("dateFrom", filters.dateFrom)
+  if (filters.dateTo) params.set("dateTo", filters.dateTo)
+  if (filters.departureFrom) params.set("departureFrom", filters.departureFrom)
+  if (filters.departureTo) params.set("departureTo", filters.departureTo)
+  if (filters.paxMin !== undefined) params.set("paxMin", String(filters.paxMin))
+  if (filters.paxMax !== undefined) params.set("paxMax", String(filters.paxMax))
+  if (filters.sellAmountMin !== undefined)
+    params.set("sellAmountMin", String(filters.sellAmountMin))
+  if (filters.sellAmountMax !== undefined)
+    params.set("sellAmountMax", String(filters.sellAmountMax))
+  if (filters.sortBy) params.set("sortBy", filters.sortBy)
+  if (filters.sortDir) params.set("sortDir", filters.sortDir)
+  if (filters.limit !== undefined) params.set("limit", String(filters.limit))
+  if (filters.offset !== undefined) params.set("offset", String(filters.offset))
+  const query = params.toString()
+  return query ? `?${query}` : ""
+}
+
 export function getProductsQueryOptions(
   client: FetchWithValidationOptions,
   options: UseProductsOptions = {},
@@ -58,39 +88,29 @@ export function getProductsQueryOptions(
 
   return queryOptions({
     queryKey: productsQueryKeys.productsList(filters),
-    queryFn: () => {
-      const params = new URLSearchParams()
-      if (filters.status) params.set("status", filters.status)
-      if (filters.bookingMode) params.set("bookingMode", filters.bookingMode)
-      if (filters.visibility) params.set("visibility", filters.visibility)
-      if (filters.activated !== undefined) params.set("activated", String(filters.activated))
-      if (filters.facilityId) params.set("facilityId", filters.facilityId)
-      if (filters.productTypeId) params.set("productTypeId", filters.productTypeId)
-      if (filters.categoryId) params.set("categoryId", filters.categoryId)
-      if (filters.tag) params.set("tag", filters.tag)
-      if (filters.search) params.set("search", filters.search)
-      if (filters.dateFrom) params.set("dateFrom", filters.dateFrom)
-      if (filters.dateTo) params.set("dateTo", filters.dateTo)
-      if (filters.departureFrom) params.set("departureFrom", filters.departureFrom)
-      if (filters.departureTo) params.set("departureTo", filters.departureTo)
-      if (filters.paxMin !== undefined) params.set("paxMin", String(filters.paxMin))
-      if (filters.paxMax !== undefined) params.set("paxMax", String(filters.paxMax))
-      if (filters.sellAmountMin !== undefined)
-        params.set("sellAmountMin", String(filters.sellAmountMin))
-      if (filters.sellAmountMax !== undefined)
-        params.set("sellAmountMax", String(filters.sellAmountMax))
-      if (filters.sortBy) params.set("sortBy", filters.sortBy)
-      if (filters.sortDir) params.set("sortDir", filters.sortDir)
-      if (filters.limit !== undefined) params.set("limit", String(filters.limit))
-      if (filters.offset !== undefined) params.set("offset", String(filters.offset))
-      const qs = params.toString()
-
-      return fetchWithValidation(
-        `/v1/admin/products${qs ? `?${qs}` : ""}`,
+    queryFn: () =>
+      fetchWithValidation(
+        `/v1/admin/products${productListSearch(filters)}`,
         productListResponse,
         client,
-      )
-    },
+      ),
+  })
+}
+
+export function getProductSummariesQueryOptions(
+  client: FetchWithValidationOptions,
+  options: UseProductsOptions = {},
+) {
+  const { enabled: _enabled = true, ...filters } = options
+
+  return queryOptions({
+    queryKey: productsQueryKeys.productSummariesList(filters),
+    queryFn: () =>
+      fetchWithValidation(
+        `/v1/admin/products/summaries${productListSearch(filters)}`,
+        productSummaryListResponse,
+        client,
+      ),
   })
 }
 

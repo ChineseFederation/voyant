@@ -130,7 +130,7 @@ export function createInventoryAdminExtension(
         loader: async ({ queryClient, runtime }: AdminRouteLoaderContext) => {
           const {
             DEFAULT_PRODUCTS_LIST_FILTERS,
-            getProductsQueryOptions,
+            getProductSummariesQueryOptions,
             getProductTypesQueryOptions,
           } = await import("../query-options.js")
           const client = loaderClient(runtime)
@@ -140,7 +140,7 @@ export function createInventoryAdminExtension(
           // let the mounted query consume the fresh cache entry when ready.
           void queryClient.prefetchQuery(getProductTypesQueryOptions(client, { limit: 100 }))
           return queryClient.ensureQueryData(
-            getProductsQueryOptions(client, DEFAULT_PRODUCTS_LIST_FILTERS),
+            getProductSummariesQueryOptions(client, DEFAULT_PRODUCTS_LIST_FILTERS),
           )
         },
         pendingComponent: ProductsListSkeleton,

@@ -3,7 +3,7 @@
 import { AsyncCombobox } from "@voyant-travel/ui/components/async-combobox"
 import * as React from "react"
 import { useProductsUiMessagesOrDefault } from "../i18n/provider.js"
-import { type ProductRecord, useProduct, useProducts } from "../index.js"
+import { type ProductSummaryRecord, useProduct, useProductSummaries } from "../index.js"
 
 export interface ProductComboboxProps {
   value: string | null | undefined
@@ -23,7 +23,7 @@ function compact(parts: Array<string | null | undefined>) {
   return parts.map((part) => part?.trim()).filter(Boolean) as string[]
 }
 
-function formatProductSecondary(product: ProductRecord) {
+function formatProductSecondary(product: ProductSummaryRecord) {
   return compact([product.status, product.bookingMode, product.sellCurrency]).join(" - ")
 }
 
@@ -41,11 +41,11 @@ export function ProductCombobox({
   const messages = useProductsUiMessagesOrDefault()
   const comboboxMessages = messages.comboboxes.product
   const [search, setSearch] = React.useState("")
-  const listQuery = useProducts({ search: search || undefined, limit })
+  const listQuery = useProductSummaries({ search: search || undefined, limit })
   const selectedQuery = useProduct(value ?? undefined, { enabled: Boolean(value) })
 
   return (
-    <AsyncCombobox<ProductRecord>
+    <AsyncCombobox<ProductSummaryRecord>
       value={value ?? null}
       onChange={onChange}
       items={listQuery.data?.data ?? []}

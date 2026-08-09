@@ -1,6 +1,10 @@
 "use client"
 
-import { type ProductRecord, useProduct, useProducts } from "@voyant-travel/inventory-react"
+import {
+  type ProductSummaryRecord,
+  useProduct,
+  useProductSummaries,
+} from "@voyant-travel/inventory-react"
 import {
   Combobox,
   ComboboxCollection,
@@ -26,11 +30,11 @@ const PAGE_SIZE = 25
 export function ProductCombobox({ value, onChange, placeholder, disabled }: Props) {
   const messages = useExtrasUiMessagesOrDefault()
   const [search, setSearch] = React.useState("")
-  const listQuery = useProducts({ search: search || undefined, limit: PAGE_SIZE })
+  const listQuery = useProductSummaries({ search: search || undefined, limit: PAGE_SIZE })
   const selectedQuery = useProduct(value ?? undefined, { enabled: !!value })
 
   const items = React.useMemo(() => {
-    const map = new Map<string, ProductRecord>()
+    const map = new Map<string, ProductSummaryRecord>()
     for (const item of listQuery.data?.data ?? []) map.set(item.id, item)
     if (selectedQuery.data) map.set(selectedQuery.data.id, selectedQuery.data)
     return Array.from(map.values())

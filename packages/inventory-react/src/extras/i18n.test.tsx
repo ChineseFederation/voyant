@@ -41,7 +41,7 @@ const product = {
 } satisfies ProductRecord
 
 vi.mock("@voyant-travel/inventory-react", () => ({
-  useProducts: () => ({
+  useProductSummaries: () => ({
     data: { data: [product] },
     isPending: false,
   }),

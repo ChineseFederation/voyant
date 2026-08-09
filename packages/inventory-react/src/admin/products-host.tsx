@@ -17,8 +17,6 @@ export function ProductsHost() {
   const navigateTo = useAdminNavigate()
 
   return (
-    <ProductsPage
-      onProductOpen={(product) => navigateTo("product.detail", { productId: product.id })}
-    />
+    <ProductsPage onProductOpenId={(productId) => navigateTo("product.detail", { productId })} />
   )
 }

@@ -160,160 +160,214 @@ async function ensureDefaultOption(db: PostgresJsDatabase, productId: string) {
   return row
 }
 
-export const coreProductsService = {
-  async listProducts(db: PostgresJsDatabase, query: ProductListQuery) {
-    const conditions = []
+type ProductListEnvelope<T> = {
+  data: T[]
+  total: number
+  limit: number
+  offset: number
+}
 
-    if (query.status) {
-      conditions.push(eq(products.status, query.status))
-    }
+type FullProductListRow = typeof products.$inferSelect & {
+  productTypeName: string | null
+  familyCode: string | null
+  itineraryDurationDays: number | null
+  nextDeparture: Date | null
+  supplyModel: ReturnType<typeof deriveProductSupplyModel>
+  classification: ReturnType<typeof resolveProductClassification>
+}
 
-    if (query.bookingMode) {
-      conditions.push(eq(products.bookingMode, query.bookingMode))
-    }
+type ProductSummaryListRow = Pick<
+  FullProductListRow,
+  | "id"
+  | "name"
+  | "status"
+  | "bookingMode"
+  | "sellCurrency"
+  | "sellAmountCents"
+  | "productTypeId"
+  | "productSubtypeCode"
+  | "durationMinutes"
+  | "productTypeName"
+  | "nextDeparture"
+  | "classification"
+>
 
-    if (query.visibility) {
-      conditions.push(eq(products.visibility, query.visibility))
-    }
+function listProducts(
+  db: PostgresJsDatabase,
+  query: ProductListQuery,
+  projection: "full",
+): Promise<ProductListEnvelope<FullProductListRow>>
+function listProducts(
+  db: PostgresJsDatabase,
+  query: ProductListQuery,
+  projection: "summary",
+): Promise<ProductListEnvelope<ProductSummaryListRow>>
+async function listProducts(
+  db: PostgresJsDatabase,
+  query: ProductListQuery,
+  projection: "full" | "summary",
+): Promise<ProductListEnvelope<FullProductListRow | ProductSummaryListRow>> {
+  const conditions = []
 
-    if (query.activated !== undefined) {
-      conditions.push(eq(products.activated, query.activated))
-    }
+  if (query.status) {
+    conditions.push(eq(products.status, query.status))
+  }
 
-    if (query.facilityId) {
-      conditions.push(eq(products.facilityId, query.facilityId))
-    }
+  if (query.bookingMode) {
+    conditions.push(eq(products.bookingMode, query.bookingMode))
+  }
 
-    if (query.supplierId) {
-      conditions.push(eq(products.supplierId, query.supplierId))
-    }
+  if (query.visibility) {
+    conditions.push(eq(products.visibility, query.visibility))
+  }
 
-    if (query.productTypeId) {
-      conditions.push(eq(products.productTypeId, query.productTypeId))
-    }
+  if (query.activated !== undefined) {
+    conditions.push(eq(products.activated, query.activated))
+  }
 
-    if (query.familyCode) {
-      // Facet on the resolved family stable code — join through product_types.
-      // agent-quality: raw-sql reviewed -- owner: inventory; parameter-bound.
-      conditions.push(
-        sql`exists (select 1 from ${productTypes}
+  if (query.facilityId) {
+    conditions.push(eq(products.facilityId, query.facilityId))
+  }
+
+  if (query.supplierId) {
+    conditions.push(eq(products.supplierId, query.supplierId))
+  }
+
+  if (query.productTypeId) {
+    conditions.push(eq(products.productTypeId, query.productTypeId))
+  }
+
+  if (query.familyCode) {
+    // Facet on the resolved family stable code — join through product_types.
+    // agent-quality: raw-sql reviewed -- owner: inventory; parameter-bound.
+    conditions.push(
+      sql`exists (select 1 from ${productTypes}
           where ${productTypes.id} = ${products.productTypeId}
           and ${productTypes.code} = ${query.familyCode})`,
-      )
-    }
+    )
+  }
 
-    if (query.productSubtypeCode) {
-      conditions.push(eq(products.productSubtypeCode, query.productSubtypeCode))
-    }
+  if (query.productSubtypeCode) {
+    conditions.push(eq(products.productSubtypeCode, query.productSubtypeCode))
+  }
 
-    if (query.classificationReview) {
-      // Operator review queue: surface rows with an unresolved family and/or
-      // duration using the SAME semantics `resolveProductClassification` derives
-      // the review badge from, so the queue and the badge never disagree.
-      conditions.push(classificationReviewPredicate(query.classificationReview))
-    }
+  if (query.classificationReview) {
+    // Operator review queue: surface rows with an unresolved family and/or
+    // duration using the SAME semantics `resolveProductClassification` derives
+    // the review badge from, so the queue and the badge never disagree.
+    conditions.push(classificationReviewPredicate(query.classificationReview))
+  }
 
-    if (query.contractTemplateId) {
-      conditions.push(eq(products.contractTemplateId, query.contractTemplateId))
-    }
+  if (query.contractTemplateId) {
+    conditions.push(eq(products.contractTemplateId, query.contractTemplateId))
+  }
 
-    if (query.categoryId) {
-      conditions.push(
-        // agent-quality: raw-sql reviewed -- owner: inventory; dynamic SQL interpolation uses Drizzle parameter binding or vetted SQL identifiers.
-        sql`exists (select 1 from ${productCategoryProducts}
+  if (query.categoryId) {
+    conditions.push(
+      // agent-quality: raw-sql reviewed -- owner: inventory; dynamic SQL interpolation uses Drizzle parameter binding or vetted SQL identifiers.
+      sql`exists (select 1 from ${productCategoryProducts}
           where ${productCategoryProducts.productId} = ${products.id}
           and ${productCategoryProducts.categoryId} = ${query.categoryId})`,
-      )
+    )
+  }
+
+  if (query.tag) {
+    // Postgres jsonb `@>` containment: does the array include this string?
+    // Mirrors the pattern used in @voyant-travel/charters and @voyant-travel/cruises.
+    // agent-quality: raw-sql reviewed -- owner: inventory; dynamic SQL interpolation uses Drizzle parameter binding or vetted SQL identifiers.
+    conditions.push(sql`${products.tags} @> ${JSON.stringify([query.tag])}::jsonb`)
+  }
+
+  if (query.search) {
+    const term = `%${query.search}%`
+    conditions.push(or(ilike(products.name, term), ilike(products.description, term)))
+  }
+
+  if (query.dateFrom) {
+    conditions.push(gte(products.startDate, query.dateFrom))
+  }
+
+  if (query.dateTo) {
+    conditions.push(lte(products.startDate, query.dateTo))
+  }
+
+  if (query.departureFrom || query.departureTo) {
+    // Match products with at least one upcoming open departure whose date
+    // falls in the requested window. Mirrors the `nextDeparture` subquery.
+    conditions.push(upcomingDepartureExists(query.departureFrom, query.departureTo))
+  }
+
+  if (query.paxMin !== undefined) {
+    conditions.push(gte(products.pax, query.paxMin))
+  }
+
+  if (query.paxMax !== undefined) {
+    conditions.push(lte(products.pax, query.paxMax))
+  }
+
+  if (query.sellAmountMin !== undefined) {
+    conditions.push(gte(products.sellAmountCents, query.sellAmountMin))
+  }
+
+  if (query.sellAmountMax !== undefined) {
+    conditions.push(lte(products.sellAmountCents, query.sellAmountMax))
+  }
+
+  const where = conditions.length > 0 ? and(...conditions) : undefined
+
+  const sortColumn = (() => {
+    switch (query.sortBy) {
+      case "name":
+        return products.name
+      case "status":
+        return products.status
+      case "sellAmount":
+        return products.sellAmountCents
+      case "pax":
+        return products.pax
+      case "startDate":
+        return products.startDate
+      case "endDate":
+        return products.endDate
+      default:
+        return products.createdAt
     }
+  })()
+  const sortFn = query.sortDir === "asc" ? asc : desc
 
-    if (query.tag) {
-      // Postgres jsonb `@>` containment: does the array include this string?
-      // Mirrors the pattern used in @voyant-travel/charters and @voyant-travel/cruises.
-      // agent-quality: raw-sql reviewed -- owner: inventory; dynamic SQL interpolation uses Drizzle parameter binding or vetted SQL identifiers.
-      conditions.push(sql`${products.tags} @> ${JSON.stringify([query.tag])}::jsonb`)
-    }
-
-    if (query.search) {
-      const term = `%${query.search}%`
-      conditions.push(or(ilike(products.name, term), ilike(products.description, term)))
-    }
-
-    if (query.dateFrom) {
-      conditions.push(gte(products.startDate, query.dateFrom))
-    }
-
-    if (query.dateTo) {
-      conditions.push(lte(products.startDate, query.dateTo))
-    }
-
-    if (query.departureFrom || query.departureTo) {
-      // Match products with at least one upcoming open departure whose date
-      // falls in the requested window. Mirrors the `nextDeparture` subquery.
-      conditions.push(upcomingDepartureExists(query.departureFrom, query.departureTo))
-    }
-
-    if (query.paxMin !== undefined) {
-      conditions.push(gte(products.pax, query.paxMin))
-    }
-
-    if (query.paxMax !== undefined) {
-      conditions.push(lte(products.pax, query.paxMax))
-    }
-
-    if (query.sellAmountMin !== undefined) {
-      conditions.push(gte(products.sellAmountCents, query.sellAmountMin))
-    }
-
-    if (query.sellAmountMax !== undefined) {
-      conditions.push(lte(products.sellAmountCents, query.sellAmountMax))
-    }
-
-    const where = conditions.length > 0 ? and(...conditions) : undefined
-
-    const sortColumn = (() => {
-      switch (query.sortBy) {
-        case "name":
-          return products.name
-        case "status":
-          return products.status
-        case "sellAmount":
-          return products.sellAmountCents
-        case "pax":
-          return products.pax
-        case "startDate":
-          return products.startDate
-        case "endDate":
-          return products.endDate
-        default:
-          return products.createdAt
-      }
-    })()
-    const sortFn = query.sortDir === "asc" ? asc : desc
-
+  const derivedListFields = {
+    productTypeName: productTypes.name,
+    familyCode: productTypes.code,
+    // Legacy itinerary-derived duration (default itinerary, else first)
+    // — identical to detail and catalog projection semantics.
+    itineraryDurationDays: sql<number | null>`(
+        select max(pd.day_number)
+        from product_days pd
+        where pd.itinerary_id = (
+          select pi.id
+          from product_itineraries pi
+          where pi.product_id = ${products.id}
+          order by pi.is_default desc, pi.sort_order asc
+          limit 1
+        )
+      )`,
+    nextDeparture: nextDepartureAt(),
+  }
+  const count = () => db.select({ count: sql<number>`count(*)::int` }).from(products).where(where)
+  if (projection === "summary") {
     const [rows, countResult] = await Promise.all([
       db
         .select({
-          ...getTableColumns(products),
-          // Readable product-type name for the list view; `productTypeId`
-          // still rides on the row via the spread above.
-          productTypeName: productTypes.name,
-          // Family stable code, resolved from product_types.
-          familyCode: productTypes.code,
-          // Legacy itinerary-derived duration (default itinerary, else first)
-          // — identical to detail and catalog projection semantics.
-          itineraryDurationDays: sql<number | null>`(
-            select max(pd.day_number)
-            from product_days pd
-            where pd.itinerary_id = (
-              select pi.id
-              from product_itineraries pi
-              where pi.product_id = ${products.id}
-              order by pi.is_default desc, pi.sort_order asc
-              limit 1
-            )
-          )`,
-          // Earliest upcoming open departure (null when none is scheduled).
-          nextDeparture: nextDepartureAt(),
+          id: products.id,
+          name: products.name,
+          status: products.status,
+          bookingMode: products.bookingMode,
+          sellCurrency: products.sellCurrency,
+          sellAmountCents: products.sellAmountCents,
+          productTypeId: products.productTypeId,
+          productSubtypeCode: products.productSubtypeCode,
+          durationMinutes: products.durationMinutes,
+          ...derivedListFields,
         })
         .from(products)
         .leftJoin(productTypes, eq(productTypes.id, products.productTypeId))
@@ -321,16 +375,21 @@ export const coreProductsService = {
         .limit(query.limit)
         .offset(query.offset)
         .orderBy(sortFn(sortColumn), desc(products.createdAt)),
-      db.select({ count: sql<number>`count(*)::int` }).from(products).where(where),
+      count(),
     ])
-
     return {
-      // Attach the resolved classification (family / subtype / duration /
-      // review) using the shared resolver — identical semantics to the
-      // catalog-plane projection and the legacy Catalog search document.
       data: rows.map((row) => ({
-        ...row,
-        supplyModel: deriveProductSupplyModel(row.bookingMode),
+        id: row.id,
+        name: row.name,
+        status: row.status,
+        bookingMode: row.bookingMode,
+        sellCurrency: row.sellCurrency,
+        sellAmountCents: row.sellAmountCents,
+        productTypeId: row.productTypeId,
+        productSubtypeCode: row.productSubtypeCode,
+        durationMinutes: row.durationMinutes,
+        productTypeName: row.productTypeName,
+        nextDeparture: row.nextDeparture,
         classification: resolveProductClassification({
           family: row.familyCode ? { code: row.familyCode, name: row.productTypeName ?? "" } : null,
           subtypeCode: row.productSubtypeCode,
@@ -342,6 +401,44 @@ export const coreProductsService = {
       limit: query.limit,
       offset: query.offset,
     }
+  }
+
+  const [rows, countResult] = await Promise.all([
+    db
+      .select({ ...getTableColumns(products), ...derivedListFields })
+      .from(products)
+      .leftJoin(productTypes, eq(productTypes.id, products.productTypeId))
+      .where(where)
+      .limit(query.limit)
+      .offset(query.offset)
+      .orderBy(sortFn(sortColumn), desc(products.createdAt)),
+    count(),
+  ])
+
+  return {
+    data: rows.map((row) => ({
+      ...row,
+      supplyModel: deriveProductSupplyModel(row.bookingMode),
+      classification: resolveProductClassification({
+        family: row.familyCode ? { code: row.familyCode, name: row.productTypeName ?? "" } : null,
+        subtypeCode: row.productSubtypeCode,
+        durationMinutes: row.durationMinutes,
+        itineraryDurationDays: row.itineraryDurationDays,
+      }),
+    })),
+    total: countResult[0]?.count ?? 0,
+    limit: query.limit,
+    offset: query.offset,
+  }
+}
+
+export const coreProductsService = {
+  listProducts(db: PostgresJsDatabase, query: ProductListQuery) {
+    return listProducts(db, query, "full")
+  },
+
+  listProductSummaries(db: PostgresJsDatabase, query: ProductListQuery) {
+    return listProducts(db, query, "summary")
   },
 
   async getProductById(db: PostgresJsDatabase, id: string) {

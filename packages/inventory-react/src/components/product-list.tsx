@@ -30,9 +30,11 @@ import { toast } from "sonner"
 import { useProductsUiI18nOrDefault } from "../i18n/index.js"
 import {
   type ProductRecord,
+  type ProductSummaryRecord,
   type ProductsListSortDir,
   type ProductsListSortField,
   useProductMutation,
+  useProductSummaries,
   useProducts,
   useProductTypes,
 } from "../index.js"
@@ -45,6 +47,11 @@ import type { ProductQuickStart } from "./product-quick-starts.js"
 export interface ProductListProps {
   pageSize?: number
   onSelectProduct?: (product: ProductRecord) => void
+  /**
+   * ID-only navigation lets the list use the compact summary endpoint. The
+   * existing full-record callback remains available for standalone editors.
+   */
+  onSelectProductId?: (productId: string) => void
 }
 
 const STATUS_ALL = "__all__"
@@ -112,7 +119,7 @@ function formatDepartureDate(
  * mode.
  */
 function formatListDuration(
-  product: ProductRecord,
+  product: ProductSummaryRecord,
   messages: ReturnType<typeof useProductsUiI18nOrDefault>["messages"]["productList"],
 ): string {
   const c = product.classification
@@ -131,6 +138,7 @@ function formatListDuration(
 export function ProductList({
   pageSize = DEFAULT_PRODUCTS_LIST_FILTERS.limit,
   onSelectProduct,
+  onSelectProductId,
 }: ProductListProps = {}) {
   const { locale, messages } = useProductsUiI18nOrDefault()
   const productMessages = messages.productList
@@ -174,7 +182,7 @@ export function ProductList({
   const { data: productTypesData, isPending: productTypesPending } = useProductTypes({ limit: 100 })
   const productTypes = productTypesData?.data ?? []
 
-  const { data, isPending, isFetching, isError } = useProducts({
+  const filters = {
     search: search || undefined,
     status: status === STATUS_ALL ? undefined : status,
     productTypeId: productTypeId === FILTER_ALL ? undefined : productTypeId,
@@ -192,7 +200,12 @@ export function ProductList({
     sortDir,
     limit: pageSize,
     offset,
-  })
+  }
+  const useCompactRows = Boolean(onSelectProductId)
+  const fullQuery = useProducts({ ...filters, enabled: !useCompactRows })
+  const summaryQuery = useProductSummaries({ ...filters, enabled: useCompactRows })
+  const activeQuery = useCompactRows ? summaryQuery : fullQuery
+  const { data, isPending, isFetching, isError } = activeQuery
 
   const products = data?.data ?? []
   const total = data?.total ?? 0
@@ -243,12 +256,18 @@ export function ProductList({
     resetOffset()
   }
 
-  const handleEdit = (product: ProductRecord) => {
-    if (onSelectProduct) {
-      onSelectProduct(product)
+  const handleEdit = (product: ProductSummaryRecord) => {
+    if (onSelectProductId) {
+      onSelectProductId(product.id)
       return
     }
-    setEditing(product)
+    const fullProduct = fullQuery.data?.data.find((candidate) => candidate.id === product.id)
+    if (!fullProduct) return
+    if (onSelectProduct) {
+      onSelectProduct(fullProduct)
+      return
+    }
+    setEditing(fullProduct)
     setDialogOpen(true)
   }
 
