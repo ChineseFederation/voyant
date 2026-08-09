@@ -5,6 +5,7 @@
  * Refunds are issued through the credit-note service after action approval.
  */
 import { bookingToolDetailSchema } from "@voyant-travel/bookings"
+// agent-quality: file-size exception -- owner: finance; the package-owned Tool catalog remains centralized while intent workflows replace its advanced command surface incrementally.
 import {
   admitHandlerActionPolicy,
   defineTool,
@@ -462,7 +463,22 @@ export const invoiceBookingToolInputSchema = z.strictObject({
 
 export const invoiceBookingToolOutputSchema = z.union([
   pendingFinanceApprovalSchema.extend({ preview: unsyncedProformaApprovalSnapshotSchema }),
-  z.object({ status: z.literal("issued"), invoice: invoiceSchema, replayed: z.boolean() }),
+  z.object({
+    status: z.literal("issued"),
+    invoiceId: z.string().min(1),
+    invoiceNumber: z.string().min(1),
+    bookingId: z.string().min(1),
+    currency: z.string().min(1),
+    totalCents: z.number().int(),
+    replayed: z.boolean(),
+    committedChanges: z.tuple([z.literal("invoice_issued")]),
+    nextActions: z.tuple([
+      z.object({
+        tool: z.literal("get_invoice"),
+        input: z.object({ id: z.string().min(1) }),
+      }),
+    ]),
+  }),
 ])
 
 export const invoiceBookingTool = defineTool<

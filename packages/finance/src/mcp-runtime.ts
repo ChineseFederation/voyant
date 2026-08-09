@@ -1,3 +1,4 @@
+// agent-quality: file-size exception -- owner: finance; selected Tool runtime wiring and approval-aware invoice/refund execution remain co-located until a dedicated split preserves lifecycle behavior.
 import {
   buildActionLedgerApprovedExecutionFields,
   executeAdmittedExistingTargetCommand,
@@ -31,6 +32,7 @@ import {
   FINANCE_REFUND_ROUTE_OR_TOOL_NAME,
   type FinanceRefundSettlementAuthorizationResult,
 } from "./refund-authorization.js"
+import { invoiceSchema } from "./routes-invoice-schemas.js"
 import { getFinanceRouteRuntime } from "./routes-runtime.js"
 import type { Env } from "./routes-shared.js"
 import { type CreateInvoiceFromBookingInput, financeService } from "./service.js"
@@ -314,16 +316,28 @@ export const voyantToolContextContribution = defineToolContextContribution({
             ),
             approvalId: input.approvalId,
           })
-          return result.status === "approval_required"
-            ? {
-                ...result,
-                preview,
-                nextSteps: [
-                  `1. Call approve_action_approval with approvalId "${result.approval.id}". This approval is already pending; do not request another one.`,
-                  `2. Call invoice_booking again with the identical bookingId, issueDate, and dueDate plus the nested control object "_voyant": {"approvalId": "${result.approval.id}"}. The server will rebuild the financial snapshot and refuse if it changed.`,
-                ],
-              }
-            : result
+          if (result.status === "approval_required") {
+            return {
+              ...result,
+              preview,
+              nextSteps: [
+                `1. Call approve_action_approval with approvalId "${result.approval.id}". This approval is already pending; do not request another one.`,
+                `2. Call invoice_booking again with the identical bookingId, issueDate, and dueDate plus the nested control object "_voyant": {"approvalId": "${result.approval.id}"}. The server will rebuild the financial snapshot and refuse if it changed.`,
+              ],
+            }
+          }
+          const invoice = invoiceSchema.parse(result.invoice)
+          return {
+            status: "issued" as const,
+            invoiceId: invoice.id,
+            invoiceNumber: invoice.invoiceNumber,
+            bookingId: invoice.bookingId,
+            currency: invoice.currency,
+            totalCents: invoice.totalCents,
+            replayed: result.replayed,
+            committedChanges: ["invoice_issued"] as const,
+            nextActions: [{ tool: "get_invoice" as const, input: { id: invoice.id } }] as const,
+          }
         },
         async issueUnsyncedProformaFromBooking(input: {
           bookingId: string
