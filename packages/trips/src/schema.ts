@@ -1,4 +1,6 @@
 // agent-quality: file-size exception -- owner: trips; the package schema remains one Drizzle graph so migrations, foreign keys, and exported relations are generated from one source.
+
+import type { BookingSessionOutcomeV1 } from "@voyant-travel/catalog-contracts/booking-engine/session-contracts"
 import { typeId, typeIdRef } from "@voyant-travel/db/lib/typeid-column"
 import { relations } from "drizzle-orm"
 import {
@@ -313,6 +315,26 @@ export const tripShoppingReferences = pgTable(
       table.expiresAt,
     ),
   ],
+)
+
+/** Durable, digest-only idempotency authority for Storefront Trip conversion. */
+export const tripStorefrontBookingOperations = pgTable(
+  "trip_storefront_booking_operations",
+  {
+    operationDigest: text("operation_digest").primaryKey(),
+    envelopeId: typeIdRef("envelope_id")
+      .notNull()
+      .references(() => tripEnvelopes.id, { onDelete: "cascade" }),
+    requestFingerprint: text("request_fingerprint").notNull(),
+    snapshotId: typeIdRef("snapshot_id").references(() => tripSnapshots.id, {
+      onDelete: "restrict",
+    }),
+    bookingSessionId: text("booking_session_id"),
+    outcome: jsonb("outcome").$type<BookingSessionOutcomeV1>(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index("idx_trip_storefront_booking_operations_envelope").on(table.envelopeId)],
 )
 
 export const tripComponents = pgTable(
@@ -748,6 +770,7 @@ export type TripStorefrontAccess = typeof tripStorefrontAccess.$inferSelect
 export type NewTripStorefrontAccess = typeof tripStorefrontAccess.$inferInsert
 export type TripShoppingReference = typeof tripShoppingReferences.$inferSelect
 export type NewTripShoppingReference = typeof tripShoppingReferences.$inferInsert
+export type TripStorefrontBookingOperation = typeof tripStorefrontBookingOperations.$inferSelect
 export type TripComponent = typeof tripComponents.$inferSelect
 export type NewTripComponent = typeof tripComponents.$inferInsert
 export type TripComponentEvent = typeof tripComponentEvents.$inferSelect

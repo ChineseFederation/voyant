@@ -5,10 +5,13 @@ import type {
 } from "./runtime-port.js"
 import {
   type StorefrontShoppingResult,
+  type StorefrontTripBooking,
   type StorefrontTripSelection,
   storefrontResolvedScopeSchema,
   storefrontShoppingRequestSchema,
   storefrontShoppingResultSchema,
+  storefrontTripBookingCreateSchema,
+  storefrontTripBookingSchema,
   storefrontTripSelectionCreateSchema,
   storefrontTripSelectionSchema,
   storefrontTripSelectionUpdateSchema,
@@ -55,6 +58,10 @@ export interface StorefrontShoppingGateway {
     context: StorefrontShoppingContext,
     request: unknown,
   ): Promise<StorefrontTripSelection>
+  bookTripSelection(
+    context: StorefrontShoppingContext,
+    request: unknown,
+  ): Promise<StorefrontTripBooking>
 }
 
 /**
@@ -107,6 +114,13 @@ export function createStorefrontShoppingGateway(options: {
       if (!tripSelections) throw new StorefrontShoppingUnavailableError("trip-selections")
       const request = storefrontTripSelectionUpdateSchema.parse(rawRequest)
       return storefrontTripSelectionSchema.parse(await tripSelections.update(context, request))
+    },
+
+    async bookTripSelection(context, rawRequest) {
+      const tripSelections = options.tripSelections
+      if (!tripSelections) throw new StorefrontShoppingUnavailableError("trip-selections")
+      const request = storefrontTripBookingCreateSchema.parse(rawRequest)
+      return storefrontTripBookingSchema.parse(await tripSelections.book(context, request))
     },
   }
 }

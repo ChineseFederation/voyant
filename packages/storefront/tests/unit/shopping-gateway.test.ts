@@ -184,7 +184,13 @@ describe("storefront shopping gateway", () => {
     }))
     const gateway = createStorefrontShoppingGateway({
       shopping: { resolveScope: async () => scope, search: vi.fn() },
-      tripSelections: { create, update },
+      tripSelections: {
+        create,
+        update,
+        book: async () => {
+          throw new Error("not used")
+        },
+      },
     })
 
     const created = await gateway.createTripSelection(context, {

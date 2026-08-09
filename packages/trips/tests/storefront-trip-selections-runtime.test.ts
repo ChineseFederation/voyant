@@ -6,14 +6,19 @@ import { describe, expect, it, vi } from "vitest"
 import {
   type TripComponent,
   type TripEnvelope,
+  type TripSnapshot,
   type TripStorefrontAccess,
+  type TripStorefrontBookingOperation,
   tripComponents,
   tripEnvelopes,
+  tripSnapshots,
   tripStorefrontAccess,
+  tripStorefrontBookingOperations,
 } from "../src/schema.js"
 import type { StorefrontTripOfferResolutionInput } from "../src/storefront-trip-offer-resolver-port.js"
 import {
   createStorefrontTripSelectionsRuntime,
+  StorefrontTripBookingError,
   StorefrontTripSelectionAccessError,
   StorefrontTripSelectionConflictError,
   StorefrontTripSelectionUnavailableError,
@@ -316,6 +321,7 @@ describe("Storefront Trip selections runtime", () => {
     }
     const runtime = createStorefrontTripSelectionsRuntime({
       withTransaction: (operation) => operation(createDb(state)),
+      compositeBookingSessions: { createValidatedTripSnapshotSession: vi.fn() },
       now: () => NOW,
     })
 
@@ -326,6 +332,163 @@ describe("Storefront Trip selections runtime", () => {
         mutation: { kind: "remove", itemRef: ITEM_ONE },
       }),
     ).rejects.toBeInstanceOf(StorefrontTripSelectionAccessError)
+    await expect(
+      runtime.book(CONTEXT, {
+        selectionRef: CAPABILITY,
+        expectedRevision: 1,
+        idempotencyKey: "book_scope_drift",
+      }),
+    ).rejects.toBeInstanceOf(StorefrontTripSelectionAccessError)
+  })
+
+  it("fails before Catalog conversion when the exact revision is stale or unpriced", async () => {
+    const state = await seededState()
+    const createValidatedTripSnapshotSession = vi.fn()
+    const runtime = createStorefrontTripSelectionsRuntime({
+      withTransaction: (operation) => operation(createDb(state)),
+      compositeBookingSessions: { createValidatedTripSnapshotSession },
+      now: () => NOW,
+    })
+
+    await expect(
+      runtime.book(CONTEXT, {
+        selectionRef: CAPABILITY,
+        expectedRevision: 0,
+        idempotencyKey: "book_stale_revision",
+      }),
+    ).rejects.toBeInstanceOf(StorefrontTripSelectionConflictError)
+    await expect(
+      runtime.book(CONTEXT, {
+        selectionRef: CAPABILITY,
+        expectedRevision: 1,
+        idempotencyKey: "book_missing_price",
+      }),
+    ).rejects.toEqual(new StorefrontTripBookingError("storefront_trip_booking_pricing_unavailable"))
+    expect(createValidatedTripSnapshotSession).not.toHaveBeenCalled()
+    expect(state.snapshots).toHaveLength(0)
+    expect(state.bookingOperations).toHaveLength(0)
+  })
+
+  it.each([
+    { context: { ...CONTEXT, storefrontId: "storefront_other" }, boundary: "storefront" },
+    { context: { ...CONTEXT, channelId: "channel_other" }, boundary: "channel" },
+    { context: { ...CONTEXT, userId: "customer_other" }, boundary: "owner" },
+  ])("rejects Trip booking replay across a different $boundary", async ({ context }) => {
+    const state = await pricedState()
+    state.access = {
+      ...(state.access as TripStorefrontAccess),
+      ownerUserId: CONTEXT.userId,
+      ownerBuyerAccountId: CONTEXT.buyerAccountId,
+    }
+    const createValidatedTripSnapshotSession = vi.fn()
+    const runtime = createStorefrontTripSelectionsRuntime({
+      withTransaction: transactional(state),
+      compositeBookingSessions: { createValidatedTripSnapshotSession },
+      now: () => NOW,
+    })
+
+    await expect(
+      runtime.book(context, {
+        selectionRef: CAPABILITY,
+        expectedRevision: 1,
+        idempotencyKey: "book_wrong_boundary",
+      }),
+    ).rejects.toBeInstanceOf(StorefrontTripSelectionAccessError)
+    expect(createValidatedTripSnapshotSession).not.toHaveBeenCalled()
+    expect(state.snapshots).toHaveLength(0)
+  })
+
+  it("atomically freezes once and returns the same opaque Session on an idempotent retry", async () => {
+    const state = await pricedState()
+    const createValidatedTripSnapshotSession = vi.fn(async () => ({
+      kind: "session_created" as const,
+      session: bookingSessionRecord(),
+    }))
+    const runtime = createStorefrontTripSelectionsRuntime({
+      withTransaction: transactional(state),
+      compositeBookingSessions: { createValidatedTripSnapshotSession },
+      now: () => NOW,
+    })
+    const request = {
+      selectionRef: CAPABILITY,
+      expectedRevision: 1,
+      idempotencyKey: "book_trip_retry",
+    }
+
+    const first = await runtime.book({ ...CONTEXT, userId: null, buyerAccountId: null }, request)
+    const replay = await runtime.book({ ...CONTEXT, userId: null, buyerAccountId: null }, request)
+
+    expect(replay).toEqual(first)
+    expect(first).toMatchObject({
+      bookingSessionCapability: expect.stringMatching(/^bcap_[A-Za-z0-9_-]{43}$/),
+      outcome: {
+        kind: "session_created",
+        session: { target: { kind: "managed_itinerary" } },
+      },
+    })
+    expect(JSON.stringify(first)).not.toMatch(/trip_storefront_1|trip_component_internal/)
+    expect(createValidatedTripSnapshotSession).toHaveBeenCalledOnce()
+    expect(state.snapshots).toHaveLength(1)
+    expect(state.bookingOperations).toHaveLength(1)
+  })
+
+  it("conflicts on a reused key with a different exact Trip revision", async () => {
+    const state = await pricedState()
+    const createValidatedTripSnapshotSession = vi.fn(async () => ({
+      kind: "session_created" as const,
+      session: bookingSessionRecord(),
+    }))
+    const runtime = createStorefrontTripSelectionsRuntime({
+      withTransaction: transactional(state),
+      compositeBookingSessions: { createValidatedTripSnapshotSession },
+      now: () => NOW,
+    })
+    await runtime.book(CONTEXT, {
+      selectionRef: CAPABILITY,
+      expectedRevision: 1,
+      idempotencyKey: "book_trip_conflict",
+    })
+    state.access = { ...(state.access as TripStorefrontAccess), revision: 2 }
+
+    await expect(
+      runtime.book(CONTEXT, {
+        selectionRef: CAPABILITY,
+        expectedRevision: 2,
+        idempotencyKey: "book_trip_conflict",
+      }),
+    ).rejects.toEqual(
+      new StorefrontTripBookingError("storefront_trip_booking_idempotency_conflict"),
+    )
+    expect(createValidatedTripSnapshotSession).toHaveBeenCalledOnce()
+    expect(state.snapshots).toHaveLength(1)
+  })
+
+  it("rolls back the snapshot and idempotency claim when Catalog rejects creation", async () => {
+    const state = await pricedState()
+    const runtime = createStorefrontTripSelectionsRuntime({
+      withTransaction: transactional(state),
+      compositeBookingSessions: {
+        createValidatedTripSnapshotSession: vi.fn(async () => ({
+          kind: "rejected" as const,
+          error: {
+            kind: "quote_unavailable" as const,
+            reason: "price_unavailable" as const,
+            nextAction: "select_alternative_inventory" as const,
+          },
+        })),
+      },
+      now: () => NOW,
+    })
+
+    await expect(
+      runtime.book(CONTEXT, {
+        selectionRef: CAPABILITY,
+        expectedRevision: 1,
+        idempotencyKey: "book_trip_rejected",
+      }),
+    ).rejects.toEqual(new StorefrontTripBookingError("storefront_trip_booking_pricing_unavailable"))
+    expect(state.snapshots).toHaveLength(0)
+    expect(state.bookingOperations).toHaveLength(0)
   })
 })
 
@@ -335,10 +498,12 @@ interface State {
   components: TripComponent[]
   nextComponent: number
   forceCasConflictRevision?: number
+  snapshots: TripSnapshot[]
+  bookingOperations: TripStorefrontBookingOperation[]
 }
 
 function emptyState(): State {
-  return { components: [], nextComponent: 1 }
+  return { components: [], nextComponent: 1, snapshots: [], bookingOperations: [] }
 }
 
 async function seededState(): Promise<State> {
@@ -373,15 +538,37 @@ async function seededState(): Promise<State> {
       }),
     ],
     nextComponent: 2,
+    snapshots: [],
+    bookingOperations: [],
   }
+}
+
+async function pricedState(): Promise<State> {
+  const state = await seededState()
+  state.access = {
+    ...(state.access as TripStorefrontAccess),
+    ownerUserId: null,
+    ownerBuyerAccountId: null,
+  }
+  state.components[0] = componentRow({
+    ...state.components[0],
+    status: "priced",
+    pricingSnapshot: {
+      currency: "EUR",
+      subtotalAmountCents: 10_000,
+      taxAmountCents: 1_900,
+      totalAmountCents: 11_900,
+    },
+  })
+  return state
 }
 
 function createDb(state: State): AnyDrizzleDb {
   const db = {
     transaction: async (operation: (transaction: unknown) => unknown) => operation(db),
     insert: (table: unknown) => ({
-      values: (values: Record<string, unknown>) => ({
-        returning: async () => {
+      values: (values: Record<string, unknown>) => {
+        const returning = async () => {
           if (table === tripEnvelopes) {
             state.envelope = { ...envelopeRow(), ...(values as Partial<TripEnvelope>) }
             return [state.envelope]
@@ -413,9 +600,38 @@ function createDb(state: State): AnyDrizzleDb {
             state.components.push(component)
             return [component]
           }
+          if (table === tripSnapshots) {
+            const snapshot = {
+              id: `trip_snapshots_${state.snapshots.length + 1}`,
+              createdAt: NOW,
+              ...values,
+            } as TripSnapshot
+            state.snapshots.push(snapshot)
+            return [snapshot]
+          }
+          if (table === tripStorefrontBookingOperations) {
+            const existing = state.bookingOperations.find(
+              (operation) => operation.operationDigest === values.operationDigest,
+            )
+            if (existing) return []
+            const operation = {
+              snapshotId: null,
+              bookingSessionId: null,
+              outcome: null,
+              createdAt: NOW,
+              updatedAt: NOW,
+              ...values,
+            } as TripStorefrontBookingOperation
+            state.bookingOperations.push(operation)
+            return [operation]
+          }
           return []
-        },
-      }),
+        }
+        return {
+          returning,
+          onConflictDoNothing: () => ({ returning }),
+        }
+      },
     }),
     select: () => ({
       from: (table: unknown) => ({
@@ -431,13 +647,18 @@ function createDb(state: State): AnyDrizzleDb {
                   : []
                 : table === tripComponents
                   ? state.components
-                  : []
+                  : table === tripStorefrontBookingOperations
+                    ? state.bookingOperations
+                    : []
           return Object.assign(Promise.resolve(rows), {
             limit: async () => {
               if (table === tripStorefrontAccess) return state.access ? [state.access] : []
               if (table === tripEnvelopes) return state.envelope ? [state.envelope] : []
               if (table === tripComponents) {
                 return state.components.length > 0 ? [state.components[0]] : []
+              }
+              if (table === tripStorefrontBookingOperations) {
+                return state.bookingOperations.length > 0 ? [state.bookingOperations[0]] : []
               }
               return []
             },
@@ -479,6 +700,12 @@ function createDb(state: State): AnyDrizzleDb {
               state.envelope = { ...state.envelope, ...(values as Partial<TripEnvelope>) }
               return [state.envelope]
             }
+            if (table === tripStorefrontBookingOperations) {
+              const operation = state.bookingOperations[0]
+              if (!operation) return []
+              Object.assign(operation, values)
+              return [operation]
+            }
             return []
           },
         }),
@@ -486,6 +713,32 @@ function createDb(state: State): AnyDrizzleDb {
     }),
   }
   return db as AnyDrizzleDb
+}
+
+function transactional(state: State) {
+  return async <T>(operation: (db: AnyDrizzleDb) => Promise<T>): Promise<T> => {
+    const before = structuredClone(state)
+    try {
+      return await operation(createDb(state))
+    } catch (error) {
+      Object.assign(state, before)
+      throw error
+    }
+  }
+}
+
+function bookingSessionRecord() {
+  return {
+    id: "booking_sessions_public_1",
+    target: { kind: "managed_itinerary" as const },
+    actorKind: "anonymous" as const,
+    state: "active" as const,
+    revision: 1,
+    scope: { locale: "ro-RO", market: "market_ro", currency: "EUR" },
+    expiresAt: "2026-08-08T10:30:00.000Z",
+    createdAt: NOW.toISOString(),
+    updatedAt: NOW.toISOString(),
+  }
 }
 
 function envelopeRow(): TripEnvelope {

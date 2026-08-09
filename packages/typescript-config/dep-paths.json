@@ -515,6 +515,9 @@
         "../catalog/dist/booking-snapshot-subscriber-runtime.d.ts"
       ],
       "@voyant-travel/catalog/catalog-runtime": ["../catalog/dist/runtime/catalog-runtime.d.ts"],
+      "@voyant-travel/catalog/composite-booking-session-runtime-port": [
+        "../catalog/dist/composite-booking-session-runtime-port.d.ts"
+      ],
       "@voyant-travel/catalog/contract": ["../catalog/dist/contract.d.ts"],
       "@voyant-travel/catalog/drift/events": ["../catalog/dist/drift/events.d.ts"],
       "@voyant-travel/catalog/embeddings/contract": ["../catalog/dist/embeddings/contract.d.ts"],

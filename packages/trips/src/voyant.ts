@@ -14,6 +14,9 @@ import { tripsSourcingJobRuntimePort } from "./sourcing-job-runtime-port.js"
 import { storefrontTripOfferResolverPort } from "./storefront-trip-offer-resolver-port.js"
 
 const catalogRuntimeServicesPortReference = { id: "catalog.runtime-services" } as const
+const catalogCompositeBookingSessionRuntimePortReference = {
+  id: "catalog.composite-booking-session.runtime",
+} as const
 const catalogCheckoutApiRuntimePortReference = { id: "commerce.checkout-api-options" } as const
 const flightsRuntimePortReference = { id: "flights.runtime" } as const
 const paymentAdapterRuntimePortReference = { id: "payments.adapter.runtime" } as const
@@ -128,6 +131,7 @@ export const tripsVoyantModule = defineModule({
     requirePort(durableTripActionRuntimePort, { optional: true }),
     { ...paymentAdapterRuntimePortReference, optional: true },
     catalogRuntimeServicesPortReference,
+    catalogCompositeBookingSessionRuntimePortReference,
     catalogCheckoutApiRuntimePortReference,
     { ...flightsRuntimePortReference, optional: true },
   ],

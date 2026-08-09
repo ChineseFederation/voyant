@@ -37,6 +37,32 @@ export const bookingSessionTargetV1 = z.discriminatedUnion("kind", [
 ])
 export type BookingSessionTargetV1 = z.infer<typeof bookingSessionTargetV1>
 
+/**
+ * Public projection of a Session target. Composite Trip identifiers stay on
+ * the server: a storefront needs to know only that the Session is managed as
+ * one composite itinerary.
+ */
+export const bookingSessionPublicTargetV1 = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("product"), productId: z.string().min(1) }).strict(),
+  z.object({ kind: z.literal("catalog_item"), catalogItemId: z.string().min(1) }).strict(),
+  z
+    .object({
+      kind: z.literal("owned_entity"),
+      entityModule: z.string().min(1),
+      entityId: z.string().min(1),
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal("trip_snapshot"),
+      tripSnapshotId: z.string().min(1),
+      tripEnvelopeId: z.string().min(1),
+    })
+    .strict(),
+  z.object({ kind: z.literal("managed_itinerary") }).strict(),
+])
+export type BookingSessionPublicTargetV1 = z.infer<typeof bookingSessionPublicTargetV1>
+
 /** Server-owned provenance. Public Session-create callers cannot supply this. */
 export const bookingSessionOriginV1 = z.discriminatedUnion("kind", [
   z.object({
@@ -116,7 +142,7 @@ export type BookingSessionCapabilityActionV1 = z.infer<typeof bookingSessionCapa
 
 export const bookingSessionRecordV1 = z.object({
   id: z.string().min(1),
-  target: bookingSessionTargetV1,
+  target: bookingSessionPublicTargetV1,
   origin: bookingSessionOriginV1.optional(),
   actorKind: bookingSessionActorKindV1,
   state: bookingSessionStateV1,
@@ -262,7 +288,7 @@ export const bookingHoldRecordV1 = z.object({
   id: z.string().min(1),
   sessionId: z.string().min(1),
   quoteId: z.string().min(1),
-  target: bookingSessionTargetV1,
+  target: bookingSessionPublicTargetV1,
   quantity: z.number().int().positive(),
   state: bookingHoldStateV1,
   expiresAt: z.string().datetime(),

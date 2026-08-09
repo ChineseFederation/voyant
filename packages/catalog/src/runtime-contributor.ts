@@ -59,6 +59,10 @@ import {
   catalogBookingSessionSettlementRuntimePort,
 } from "./booking-session-settlement-runtime-port.js"
 import {
+  type CatalogCompositeBookingSessionRuntime,
+  catalogCompositeBookingSessionRuntimePort,
+} from "./composite-booking-session-runtime-port.js"
+import {
   type CatalogReindexCheckpoint,
   type CatalogReindexClaim,
   catalogReindexJobRuntimePort,
@@ -208,8 +212,8 @@ export function createCatalogRuntimePortContribution(
       return services.ensureSourceRegistry(host.primitives.env(bindings))
     },
   }
-  const resolveBookingSessionModule = async () => {
-    const db = host.primitives.database.resolve(undefined) as PostgresJsDatabase
+  const resolveBookingSessionModule = async (dbOverride?: AnyDrizzleDb) => {
+    const db = (dbOverride ?? host.primitives.database.resolve(undefined)) as PostgresJsDatabase
     const runtime = await contribution
     const services = await runtime.services
     const [, , , distribution, , inventory, , , settings] = await dependencies
@@ -248,6 +252,33 @@ export function createCatalogRuntimePortContribution(
         return (await resolveBookingSessionModule()).commitPaidSession(input)
       },
     } satisfies CatalogBookingSessionSettlementRuntime,
+    [catalogCompositeBookingSessionRuntimePort.id]: {
+      async createValidatedTripSnapshotSession(input) {
+        const module = await resolveBookingSessionModule(input.db)
+        return module.createCompositeSession(
+          {
+            idempotencyKey: input.idempotencyKey,
+            target: {
+              kind: "trip_snapshot",
+              tripSnapshotId: input.tripSnapshotId,
+              tripEnvelopeId: input.tripEnvelopeId,
+            },
+            scope: input.scope,
+          },
+          input.ownerUserId
+            ? {
+                actorKind: "customer",
+                principalId: input.ownerUserId,
+                storefront: input.storefront,
+              }
+            : {
+                actorKind: "anonymous",
+                capability: input.capability,
+                storefront: input.storefront,
+              },
+        )
+      },
+    } satisfies CatalogCompositeBookingSessionRuntime,
     [catalogRuntimeServicesPort.id]: contribution.then((runtime) => runtime.services),
     [bookingsSupplierAmendmentRuntimePort.id]: createCatalogBookingAmendmentRuntime({
       async resolveRegistry() {

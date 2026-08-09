@@ -574,6 +574,17 @@ export class BookingSessionCommitRejectedError extends Error {
 }
 
 export interface BookingSessionModule {
+  /** Server-only composite create; public callers can never submit internal Trip identifiers. */
+  createCompositeSession(
+    input: {
+      idempotencyKey: string
+      target: Extract<BookingSessionTargetV1, { kind: "trip_snapshot" }>
+      selection?: Record<string, unknown>
+      scope?: BookingSessionScopeV1
+      capabilityScopes?: BookingSessionCapabilityActionV1[]
+    },
+    access: BookingSessionAccessContext,
+  ): Promise<BookingSessionOutcomeV1>
   createAcceptedProposalSession(
     input: CreateAcceptedProposalBookingSessionV1,
     access: BookingSessionAccessContext,
@@ -701,6 +712,7 @@ export function createBookingSessionModule(
     },
     access: BookingSessionAccessContext,
     origin?: BookingSessionOriginV1,
+    validateCompositePricing = false,
   ): Promise<BookingSessionOutcomeV1> {
     const at = now()
     if (access.actorKind !== "anonymous" && !access.principalId?.trim()) {
@@ -742,7 +754,7 @@ export function createBookingSessionModule(
       }
       return {
         kind: "session_created",
-        session: serializeSession(existing, await sessionRequirements(existing, at)),
+        session: serializeSession(existing, await sessionRequirements(existing, at), access),
       }
     }
     let statePayload: Record<string, unknown>
@@ -778,6 +790,10 @@ export function createBookingSessionModule(
       createdAt: at,
       updatedAt: at,
     }
+    if (validateCompositePricing) {
+      const priced = await options.ports.composeQuote({ session, now: at, tx: undefined })
+      if (priced.status === "unavailable") return quoteUnavailable(priced)
+    }
     const created = await repository.createSession(session)
     if (created.id !== session.id) {
       if (created.createRequestFingerprint !== createRequestFingerprint) {
@@ -785,16 +801,19 @@ export function createBookingSessionModule(
       }
       return {
         kind: "session_created",
-        session: serializeSession(created, await sessionRequirements(created, at)),
+        session: serializeSession(created, await sessionRequirements(created, at), access),
       }
     }
     return {
       kind: "session_created",
-      session: serializeSession(session, await sessionRequirements(session, at)),
+      session: serializeSession(session, await sessionRequirements(session, at), access),
     }
   }
 
   const bookingSessionModule: BookingSessionModule = {
+    createCompositeSession(input, access) {
+      return createSessionRecord(input, access, undefined, true)
+    },
     createSession(input, access) {
       return createSessionRecord(input, access)
     },
@@ -965,7 +984,7 @@ export function createBookingSessionModule(
         })
         const outcome: BookingSessionOutcomeV1 = {
           kind: "session_renewed",
-          session: serializeSession(session),
+          session: serializeSession(session, undefined, access),
         }
         await repository.completeOperation({ id: claim.id, outcome })
         return outcome
@@ -1015,7 +1034,7 @@ export function createBookingSessionModule(
         await appendSessionAudit(repository, session, "update", access, at)
         const outcome: BookingSessionOutcomeV1 = {
           kind: "session_updated",
-          session: serializeSession(session, await sessionRequirements(session, at, tx)),
+          session: serializeSession(session, await sessionRequirements(session, at, tx), access),
         }
         await repository.completeOperation({ id: claim.id, outcome })
         return outcome
@@ -1078,7 +1097,7 @@ export function createBookingSessionModule(
           kind: "quote_created",
           // The compose call already derived requirements for this target;
           // publish those rather than re-deriving them for the record.
-          session: serializeSession(session, requirements),
+          session: serializeSession(session, requirements, access),
           quote: serializeQuote(quote),
         }
         await repository.completeOperation({ id: claim.id, outcome })
@@ -1176,8 +1195,8 @@ export function createBookingSessionModule(
         })
         const outcome: BookingSessionOutcomeV1 = {
           kind: "hold_created",
-          session: serializeSession(session),
-          hold: serializeHold(hold),
+          session: serializeSession(session, undefined, access),
+          hold: serializeHold(hold, access),
         }
         await repository.completeOperation({ id: claim.id, outcome })
         return outcome
@@ -1236,7 +1255,7 @@ export function createBookingSessionModule(
         await appendSessionAudit(repository, session, "abandon", access, at)
         const outcome: BookingSessionOutcomeV1 = {
           kind: "session_abandoned",
-          session: serializeSession(session),
+          session: serializeSession(session, undefined, access),
         }
         await repository.completeOperation({ id: claim.id, outcome })
         return outcome
@@ -2521,11 +2540,13 @@ function resolveSessionScope(scope: BookingSessionScopeV1 | undefined): BookingS
 function serializeSession(
   session: BookingSessionInternalRecord,
   requirements?: BookingRequirementsV1,
+  access?: BookingSessionAccessContext,
 ): BookingSessionRecordV1 {
+  const redactComposite = session.target.kind === "trip_snapshot" && access?.actorKind !== "staff"
   return {
     id: session.id,
-    target: session.target,
-    ...(session.origin ? { origin: session.origin } : {}),
+    target: redactComposite ? { kind: "managed_itinerary" } : session.target,
+    ...(session.origin && !redactComposite ? { origin: session.origin } : {}),
     actorKind: session.actorKind,
     state: session.state,
     revision: session.revision,
@@ -2542,7 +2563,7 @@ function serializeSessionView(
   access: BookingSessionAccessContext,
   requirements?: BookingRequirementsV1,
 ): BookingSessionViewV1 {
-  const record = serializeSession(session, requirements)
+  const record = serializeSession(session, requirements, access)
   if (access.actorKind === "staff") {
     return { ...record, redaction: "selection_omitted" }
   }
@@ -2563,12 +2584,18 @@ function serializeQuote(quote: BookingQuoteInternalRecord): BookingQuoteRecordV1
   }
 }
 
-function serializeHold(hold: BookingHoldInternalRecord): BookingHoldRecordV1 {
+function serializeHold(
+  hold: BookingHoldInternalRecord,
+  access: BookingSessionAccessContext,
+): BookingHoldRecordV1 {
   return {
     id: hold.id,
     sessionId: hold.sessionId,
     quoteId: hold.quoteId,
-    target: hold.target,
+    target:
+      hold.target.kind === "trip_snapshot" && access.actorKind !== "staff"
+        ? { kind: "managed_itinerary" }
+        : hold.target,
     quantity: hold.quantity,
     state: hold.state,
     expiresAt: hold.expiresAt.toISOString(),

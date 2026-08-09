@@ -53,6 +53,7 @@ describe("trips deployment manifest", () => {
         { id: "trips.durable-action-runtime", optional: true },
         { id: "payments.adapter.runtime", optional: true },
         { id: "catalog.runtime-services" },
+        { id: "catalog.composite-booking-session.runtime" },
         { id: "commerce.checkout-api-options" },
         { id: "flights.runtime", optional: true },
       ],
@@ -165,6 +166,9 @@ describe("trips deployment manifest", () => {
     const registerCompositeBookingSessionHandler = vi.fn()
     const getRuntimePort = vi.fn((port: { id: string }) => {
       if (port.id === "catalog.runtime-services") return { registerCompositeBookingSessionHandler }
+      if (port.id === "catalog.composite-booking-session.runtime") {
+        return { createValidatedTripSnapshotSession: vi.fn() }
+      }
       if (port.id === "commerce.checkout-api-options") return () => ({})
       throw new Error(`unexpected runtime port ${port.id}`)
     })
@@ -457,6 +461,9 @@ function publicOperationApiIds(document: unknown): unknown[] {
 function stubRequiredRuntimePortResolver(paymentAdapter?: PaymentAdapter) {
   return vi.fn((port: { id: string }) => {
     if (port.id === "catalog.runtime-services") return {}
+    if (port.id === "catalog.composite-booking-session.runtime") {
+      return { createValidatedTripSnapshotSession: vi.fn() }
+    }
     if (port.id === "commerce.checkout-api-options") return () => ({})
     if (port.id === paymentAdapterRuntimePort.id && paymentAdapter) return paymentAdapter
     throw new Error(`unexpected runtime port ${port.id}`)

@@ -562,7 +562,7 @@ describe("Booking Session v1 owned tracer", () => {
     expect(harness.repository.sessions.size).toBe(1)
   })
 
-  it("seeds exactly one Trip Snapshot Session with accepted Proposal Version provenance", async () => {
+  it("seeds exactly one Trip Snapshot Session without exposing its internal target publicly", async () => {
     const harness = createHarness()
     const input = {
       idempotencyKey: "proposal_session_seed",
@@ -579,20 +579,39 @@ describe("Booking Session v1 owned tracer", () => {
     expect(first).toMatchObject({
       kind: "session_created",
       session: {
+        target: { kind: "managed_itinerary" },
+      },
+    })
+    expect(JSON.stringify(first)).not.toMatch(/trsn_frozen|trip_composed|prps_accepted/)
+    expect(harness.repository.sessions.values().next().value).toMatchObject({
+      target: {
+        kind: "trip_snapshot",
+        tripSnapshotId: "trsn_frozen",
+        tripEnvelopeId: "trip_composed",
+      },
+    })
+    expect(replay).toEqual(first)
+    expect(harness.repository.sessions.size).toBe(1)
+  })
+
+  it("prices a server-owned composite target before creating its Session", async () => {
+    const harness = createHarness()
+    const outcome = await harness.module.createCompositeSession(
+      {
+        idempotencyKey: "managed_trip_create",
         target: {
           kind: "trip_snapshot",
           tripSnapshotId: "trsn_frozen",
           tripEnvelopeId: "trip_composed",
         },
-        origin: {
-          kind: "accepted_proposal_version",
-          proposalId: "prps_accepted",
-          proposalVersionId: "prvr_accepted",
-          tripSnapshotId: "trsn_frozen",
-        },
       },
+      ANONYMOUS_ACCESS,
+    )
+
+    expect(outcome).toMatchObject({
+      kind: "session_created",
+      session: { target: { kind: "managed_itinerary" } },
     })
-    expect(replay).toEqual(first)
     expect(harness.repository.sessions.size).toBe(1)
   })
 

@@ -20,6 +20,8 @@ import type {
 import {
   storefrontShoppingRequestSchema,
   storefrontShoppingResultSchema,
+  storefrontTripBookingCreateSchema,
+  storefrontTripBookingSchema,
   storefrontTripSelectionCreateSchema,
   storefrontTripSelectionSchema,
   storefrontTripSelectionUpdateSchema,
@@ -42,6 +44,7 @@ const tooLargeResponseSchema = errorResponseSchema
   .strict()
 const shoppingEnvelopeSchema = z.object({ data: storefrontShoppingResultSchema }).strict()
 const tripSelectionEnvelopeSchema = z.object({ data: storefrontTripSelectionSchema }).strict()
+const tripBookingEnvelopeSchema = z.object({ data: storefrontTripBookingSchema }).strict()
 
 function jsonBody<T extends z.ZodType>(schema: T) {
   return { required: true, content: { "application/json": { schema } } }
@@ -130,6 +133,38 @@ const updateTripSelectionRoute = createRoute({
     },
     503: {
       description: "No Trip-selection runtime is bound",
+      content: { "application/json": { schema: errorResponseSchema } },
+    },
+  },
+})
+
+const bookTripSelectionRoute = createRoute({
+  method: "post",
+  path: "/trip-selections/book",
+  request: { body: jsonBody(storefrontTripBookingCreateSchema) },
+  responses: {
+    200: {
+      description: "A managed composite Booking Session for the exact Trip revision",
+      content: { "application/json": { schema: tripBookingEnvelopeSchema } },
+    },
+    400: {
+      description: "The Trip could not be frozen and priced",
+      content: { "application/json": { schema: errorResponseSchema } },
+    },
+    403: {
+      description: "The Trip capability, owner, channel, or same-origin proof is invalid",
+      content: { "application/json": { schema: errorResponseSchema } },
+    },
+    409: {
+      description: "The Trip revision or idempotent request conflicts",
+      content: { "application/json": { schema: errorResponseSchema } },
+    },
+    413: {
+      description: "The request body exceeded 64 KiB",
+      content: { "application/json": { schema: tooLargeResponseSchema } },
+    },
+    503: {
+      description: "The managed Trip booking runtime is unavailable",
       content: { "application/json": { schema: errorResponseSchema } },
     },
   },
@@ -376,4 +411,42 @@ export function createStorefrontShoppingPublicRoutes(
         throw cause
       }
     })
+    .openapi(bookTripSelectionRoute, async (c) => {
+      const context = activeShoppingContext(c)
+      if (!context) {
+        return c.json({ error: "active_storefront_channel_required", requestId: requestId(c) }, 403)
+      }
+      if (!requireSameOriginMutation(c)) {
+        return c.json({ error: "same_origin_required", requestId: requestId(c) }, 403)
+      }
+      try {
+        const result = await gateway.bookTripSelection(context, c.req.valid("json"))
+        setPrivateNoStore(c)
+        return c.json({ data: result }, 200)
+      } catch (cause) {
+        if (cause instanceof StorefrontShoppingUnavailableError) {
+          return c.json({ error: "storefront_shopping_unavailable", requestId: requestId(c) }, 503)
+        }
+        if (isRevisionConflict(cause)) {
+          return c.json({ error: "trip_selection_revision_conflict", requestId: requestId(c) }, 409)
+        }
+        const code = errorCode(cause)
+        if (code === "storefront_trip_selection_not_found") {
+          return c.json({ error: code, requestId: requestId(c) }, 403)
+        }
+        if (code === "storefront_trip_booking_idempotency_conflict") {
+          return c.json({ error: code, requestId: requestId(c) }, 409)
+        }
+        if (code?.startsWith("storefront_trip_booking_")) {
+          return c.json({ error: code, requestId: requestId(c) }, 400)
+        }
+        throw cause
+      }
+    })
+}
+
+function errorCode(value: unknown): string | undefined {
+  if (!value || typeof value !== "object") return undefined
+  const code = (value as { code?: unknown }).code
+  return typeof code === "string" ? code : undefined
 }

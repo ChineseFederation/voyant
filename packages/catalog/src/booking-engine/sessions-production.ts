@@ -105,7 +105,13 @@ export function createProductionBookingSessionModule(
         if (session.target.kind === "trip_snapshot") {
           const handler = await deps.resolveCompositeHandler?.()
           return (
-            (handler ? await handler.composeRequirements({ ...input, leaf }) : undefined) ?? {
+            (handler
+              ? await handler.composeRequirements({
+                  ...input,
+                  tx: input.tx ?? deps.db,
+                  leaf,
+                })
+              : undefined) ?? {
               status: "unavailable",
               reason: "target_not_bookable",
               nextAction: "contact_operator",
@@ -119,7 +125,9 @@ export function createProductionBookingSessionModule(
         if (session.target.kind === "trip_snapshot") {
           const handler = await deps.resolveCompositeHandler?.()
           return (
-            (handler ? await handler.composeQuote({ ...input, leaf }) : undefined) ?? {
+            (handler
+              ? await handler.composeQuote({ ...input, tx: input.tx ?? deps.db, leaf })
+              : undefined) ?? {
               status: "unavailable",
               reason: "target_not_bookable",
               nextAction: "contact_operator",
@@ -133,7 +141,7 @@ export function createProductionBookingSessionModule(
         if (session.target.kind === "trip_snapshot") {
           const handler = await deps.resolveCompositeHandler?.()
           if (!handler) return "unavailable"
-          return handler.placeCapacityHold({ ...input, leaf })
+          return handler.placeCapacityHold({ ...input, tx: input.tx ?? deps.db, leaf })
         }
         return leaf.placeCapacityHold(input)
       },
@@ -141,7 +149,7 @@ export function createProductionBookingSessionModule(
         const { session } = input
         if (session.target.kind === "trip_snapshot") {
           const handler = await deps.resolveCompositeHandler?.()
-          await handler?.releaseCapacityHold({ ...input, leaf })
+          await handler?.releaseCapacityHold({ ...input, tx: input.tx ?? deps.db, leaf })
           return
         }
         await leaf.releaseCapacityHold(input)

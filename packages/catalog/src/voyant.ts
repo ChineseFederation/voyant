@@ -23,6 +23,7 @@ import {
 import { catalogBookingSessionMaintenanceJobRuntimePort } from "./booking-session-maintenance-job-runtime-port.js"
 import { catalogBookingSessionSettlementRuntimePort } from "./booking-session-settlement-runtime-port.js"
 import { catalogBookingSnapshotSubscriberDeclaration } from "./booking-snapshot-subscriber-declaration.js"
+import { catalogCompositeBookingSessionRuntimePort } from "./composite-booking-session-runtime-port.js"
 import { catalogContentRuntimePort } from "./content-runtime-port.js"
 import { catalogIndexSubscriberDeclarations } from "./index-subscriber-declarations.js"
 import { catalogIndexerProviderPort } from "./indexer/provider.js"
@@ -101,6 +102,7 @@ export const catalogVoyantModule = defineModule({
       providePort(catalogBookingSnapshotRuntimePort),
       providePort(catalogBookingSessionMaintenanceJobRuntimePort),
       providePort(catalogBookingSessionSettlementRuntimePort),
+      providePort(catalogCompositeBookingSessionRuntimePort),
       providePort(catalogRuntimeServicesPort),
       providePort(catalogReindexJobRuntimePort),
       providePort(catalogSourcesSyncJobRuntimePort),
@@ -115,6 +117,7 @@ export const catalogVoyantModule = defineModule({
     requirePort(catalogBookingSnapshotRuntimePort),
     requirePort(catalogBookingSessionMaintenanceJobRuntimePort),
     requirePort(catalogBookingSessionSettlementRuntimePort),
+    requirePort(catalogCompositeBookingSessionRuntimePort),
     requirePort(catalogReindexJobRuntimePort),
     requirePort(catalogSourcesSyncJobRuntimePort),
   ],

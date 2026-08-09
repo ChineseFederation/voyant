@@ -5,6 +5,8 @@ import type {
   StorefrontResolvedScope,
   StorefrontShoppingIntent,
   StorefrontShoppingResult,
+  StorefrontTripBooking,
+  StorefrontTripBookingCreate,
   StorefrontTripSelection,
   StorefrontTripSelectionCreate,
   StorefrontTripSelectionUpdate,
@@ -79,6 +81,10 @@ export interface StorefrontTripSelectionsRuntime {
     context: StorefrontShoppingContext,
     input: StorefrontTripSelectionUpdate,
   ): Promise<StorefrontTripSelection>
+  book(
+    context: StorefrontShoppingContext,
+    input: StorefrontTripBookingCreate,
+  ): Promise<StorefrontTripBooking>
 }
 
 function requireMethods(id: string, provider: object, methods: readonly string[]): void {
@@ -121,6 +127,6 @@ export const storefrontTripSelectionsRuntimePort = definePort<StorefrontTripSele
     if (provider === null || typeof provider !== "object") {
       throw new Error("storefront.trip-selections.runtime provider must be an options object.")
     }
-    requireMethods("storefront.trip-selections.runtime", provider, ["create", "update"])
+    requireMethods("storefront.trip-selections.runtime", provider, ["create", "update", "book"])
   },
 })

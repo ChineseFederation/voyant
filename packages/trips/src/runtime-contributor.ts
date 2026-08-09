@@ -1,4 +1,8 @@
 import {
+  type CatalogCompositeBookingSessionRuntime,
+  catalogCompositeBookingSessionRuntimePort,
+} from "@voyant-travel/catalog/composite-booking-session-runtime-port"
+import {
   type CatalogRuntimeServices,
   catalogRuntimeServicesPort,
 } from "@voyant-travel/catalog/runtime-contracts"
@@ -124,6 +128,9 @@ export function createTripsRuntimePortContribution(
           operation(database as AnyDrizzleDb),
         ),
       offerResolver: shoppingReferences.offerResolver,
+      compositeBookingSessions: host.getRuntimePort<CatalogCompositeBookingSessionRuntime>(
+        catalogCompositeBookingSessionRuntimePort,
+      ),
     }),
     [tripsSourcingJobRuntimePort.id]: {
       resolveDb: (bindings: unknown) =>

@@ -1,3 +1,4 @@
+import { bookingSessionOutcomeV1 } from "@voyant-travel/catalog-contracts/booking-engine/session-contracts"
 import {
   type CatalogMoney,
   catalogMoneySchema,
@@ -412,6 +413,24 @@ export const storefrontTripSelectionSchema = z
   })
   .strict()
 
+export const storefrontTripBookingCreateSchema = z
+  .object({
+    selectionRef: opaqueRefSchema,
+    expectedRevision: z.number().int().min(0),
+    idempotencyKey: z.string().min(8).max(128),
+  })
+  .strict()
+
+export const storefrontTripBookingSchema = z
+  .object({
+    bookingSessionCapability: z
+      .string()
+      .regex(/^bcap_[A-Za-z0-9_-]{43,}$/)
+      .optional(),
+    outcome: bookingSessionOutcomeV1,
+  })
+  .strict()
+
 export type StorefrontRequestedScope = z.infer<typeof storefrontRequestedScopeSchema>
 export type StorefrontResolvedScope = z.infer<typeof storefrontResolvedScopeSchema>
 export type StorefrontShoppingIntent = z.infer<typeof storefrontShoppingIntentSchema>
@@ -420,3 +439,5 @@ export type StorefrontShoppingResult = z.infer<typeof storefrontShoppingResultSc
 export type StorefrontTripSelectionCreate = z.infer<typeof storefrontTripSelectionCreateSchema>
 export type StorefrontTripSelectionUpdate = z.infer<typeof storefrontTripSelectionUpdateSchema>
 export type StorefrontTripSelection = z.infer<typeof storefrontTripSelectionSchema>
+export type StorefrontTripBookingCreate = z.infer<typeof storefrontTripBookingCreateSchema>
+export type StorefrontTripBooking = z.infer<typeof storefrontTripBookingSchema>

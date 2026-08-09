@@ -1,8 +1,11 @@
+import type { CatalogCompositeBookingSessionRuntime } from "@voyant-travel/catalog/composite-booking-session-runtime-port"
 import type { AnyDrizzleDb } from "@voyant-travel/db"
-import { randomBytesHex } from "@voyant-travel/hono"
+import { randomBytesHex, sha256Hex } from "@voyant-travel/hono"
 import {
   type StorefrontResolvedScope,
   type StorefrontShoppingContext,
+  type StorefrontTripBooking,
+  type StorefrontTripBookingCreate,
   type StorefrontTripSelection,
   type StorefrontTripSelectionCreate,
   type StorefrontTripSelectionsRuntime,
@@ -13,7 +16,12 @@ import { and, eq, isNull } from "drizzle-orm"
 import { z } from "zod"
 
 import type { TripComponent, TripStorefrontAccess } from "./schema.js"
-import { tripStorefrontAccess } from "./schema.js"
+import {
+  type TripStorefrontBookingOperation,
+  tripStorefrontAccess,
+  tripStorefrontBookingOperations,
+} from "./schema.js"
+import { freezeTripSnapshot } from "./service-snapshots.js"
 import {
   addComponent,
   getTrip,
@@ -82,12 +90,27 @@ export class StorefrontTripSelectionMutationError extends Error {
   }
 }
 
+export class StorefrontTripBookingError extends Error {
+  constructor(
+    readonly code:
+      | "storefront_trip_booking_idempotency_conflict"
+      | "storefront_trip_booking_pricing_unavailable"
+      | "storefront_trip_booking_session_rejected",
+  ) {
+    super(code)
+    this.name = "StorefrontTripBookingError"
+  }
+}
+
 export interface StorefrontTripSelectionsRuntimeOptions {
   withTransaction<T>(operation: (db: AnyDrizzleDb) => Promise<T>): Promise<T>
   offerResolver?: StorefrontTripOfferResolver
   now?: () => Date
   createSelectionRef?: () => string
   createItemRef?: () => string
+  compositeBookingSessions?:
+    | CatalogCompositeBookingSessionRuntime
+    | Promise<CatalogCompositeBookingSessionRuntime>
 }
 
 /** Trips-owned provider for the Storefront gateway's stateful selection port. */
@@ -209,7 +232,167 @@ export function createStorefrontTripSelectionsRuntime(
         )
       })
     },
+
+    async book(context, input) {
+      if (!options.compositeBookingSessions) {
+        throw new StorefrontTripBookingError("storefront_trip_booking_session_rejected")
+      }
+      const catalog = await options.compositeBookingSessions
+      return options.withTransaction(async (db) =>
+        bookAuthorizedSelection(db, catalog, context, input, options.now),
+      )
+    },
   }
+}
+
+async function bookAuthorizedSelection(
+  db: AnyDrizzleDb,
+  catalog: CatalogCompositeBookingSessionRuntime,
+  context: StorefrontShoppingContext,
+  input: StorefrontTripBookingCreate,
+  now: (() => Date) | undefined,
+): Promise<StorefrontTripBooking> {
+  const resolved = await resolveAuthorizedSelection(db, input.selectionRef, context, now)
+  if (resolved.access.revision !== input.expectedRevision) {
+    throw new StorefrontTripSelectionConflictError(input.expectedRevision, resolved.access.revision)
+  }
+  const components = selectionComponents(resolved.trip)
+  if (components.length === 0 || components.some((component) => !component.pricingSnapshot)) {
+    throw new StorefrontTripBookingError("storefront_trip_booking_pricing_unavailable")
+  }
+
+  const operationDigest = await sha256Hex(
+    ["storefront-trip-booking-v1", resolved.access.capabilityDigest, input.idempotencyKey].join(
+      ":",
+    ),
+  )
+  const requestFingerprint = await sha256Hex(
+    JSON.stringify({
+      version: 1,
+      capabilityDigest: resolved.access.capabilityDigest,
+      revision: input.expectedRevision,
+      storefrontId: resolved.access.storefrontId,
+      channelId: resolved.access.channelId,
+      ownerUserId: resolved.access.ownerUserId,
+      ownerBuyerAccountId: resolved.access.ownerBuyerAccountId,
+      scope: accessScope(resolved.access),
+    }),
+  )
+  const operation = await claimBookingOperation(db, {
+    operationDigest,
+    envelopeId: resolved.access.envelopeId,
+    requestFingerprint,
+  })
+  if (!operation.claimed) {
+    if (operation.record.requestFingerprint !== requestFingerprint) {
+      throw new StorefrontTripBookingError("storefront_trip_booking_idempotency_conflict")
+    }
+    if (!operation.record.outcome) {
+      throw new StorefrontTripBookingError("storefront_trip_booking_session_rejected")
+    }
+    return bookingResult(input.selectionRef, resolved.access.ownerUserId, operation.record.outcome)
+  }
+
+  const snapshot = await freezeTripSnapshot(db, {
+    envelopeId: resolved.access.envelopeId,
+    createdBy: resolved.access.ownerUserId ?? undefined,
+  })
+  const capability = await deriveBookingCapability(input.selectionRef)
+  const outcome = await catalog.createValidatedTripSnapshotSession({
+    db,
+    idempotencyKey: input.idempotencyKey,
+    tripSnapshotId: snapshot.id,
+    tripEnvelopeId: resolved.access.envelopeId,
+    capability,
+    ownerUserId: resolved.access.ownerUserId,
+    storefront: {
+      storefrontId: resolved.access.storefrontId,
+      channelId: resolved.access.channelId,
+    },
+    scope: {
+      locale: resolved.access.locale,
+      market: resolved.access.marketId,
+      currency: resolved.access.currency,
+    },
+  })
+  if (outcome.kind !== "session_created") {
+    throw new StorefrontTripBookingError(
+      outcome.kind === "rejected" && outcome.error.kind === "quote_unavailable"
+        ? "storefront_trip_booking_pricing_unavailable"
+        : "storefront_trip_booking_session_rejected",
+    )
+  }
+  const [completed] = (await db
+    .update(tripStorefrontBookingOperations)
+    .set({
+      snapshotId: snapshot.id,
+      bookingSessionId: outcome.session.id,
+      outcome,
+      updatedAt: now?.() ?? new Date(),
+    })
+    .where(eq(tripStorefrontBookingOperations.operationDigest, operationDigest))
+    .returning()) as TripStorefrontBookingOperation[]
+  if (!completed) {
+    throw new StorefrontTripBookingError("storefront_trip_booking_session_rejected")
+  }
+  return bookingResult(input.selectionRef, resolved.access.ownerUserId, outcome)
+}
+
+async function claimBookingOperation(
+  db: AnyDrizzleDb,
+  input: { operationDigest: string; envelopeId: string; requestFingerprint: string },
+): Promise<
+  | { claimed: true; record: TripStorefrontBookingOperation }
+  | { claimed: false; record: TripStorefrontBookingOperation }
+> {
+  const [claimed] = (await db
+    .insert(tripStorefrontBookingOperations)
+    .values(input)
+    .onConflictDoNothing()
+    .returning()) as TripStorefrontBookingOperation[]
+  if (claimed) return { claimed: true, record: claimed }
+  const [existing] = (await db
+    .select()
+    .from(tripStorefrontBookingOperations)
+    .where(eq(tripStorefrontBookingOperations.operationDigest, input.operationDigest))
+    .limit(1)) as TripStorefrontBookingOperation[]
+  if (!existing) throw new StorefrontTripBookingError("storefront_trip_booking_session_rejected")
+  return { claimed: false, record: existing }
+}
+
+async function bookingResult(
+  selectionRef: string,
+  ownerUserId: string | null,
+  outcome: StorefrontTripBooking["outcome"],
+): Promise<StorefrontTripBooking> {
+  return {
+    ...(!ownerUserId
+      ? { bookingSessionCapability: await deriveBookingCapability(selectionRef) }
+      : {}),
+    outcome,
+  }
+}
+
+async function deriveBookingCapability(selectionRef: string): Promise<string> {
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(selectionRef),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  )
+  const digest = new Uint8Array(
+    await crypto.subtle.sign(
+      "HMAC",
+      key,
+      new TextEncoder().encode("voyant:storefront:trip-booking-capability:v1"),
+    ),
+  )
+  const encoded = btoa(String.fromCharCode(...digest))
+    .replaceAll("+", "-")
+    .replaceAll("/", "_")
+    .replace(/=+$/, "")
+  return `bcap_${encoded}`
 }
 
 async function resolveOffers(
