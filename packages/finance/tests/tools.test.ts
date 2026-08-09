@@ -587,7 +587,8 @@ describe("finance tools", () => {
           bookingId: "booking_1",
           bookingNumber: "B-1",
           replayed: false,
-          booking: bookingDetail(),
+          committedChanges: ["booking_created"] as const,
+          nextActions: [{ tool: "get_booking" as const, input: { id: "booking_1" } }] as const,
         }
       },
     }
@@ -618,11 +619,15 @@ describe("finance tools", () => {
       }),
     )
 
-    expect(result).toMatchObject({
+    expect(result).toEqual({
       status: "created",
       bookingId: "booking_1",
       bookingNumber: "B-1",
+      replayed: false,
+      committedChanges: ["booking_created"],
+      nextActions: [{ tool: "get_booking", input: { id: "booking_1" } }],
     })
+    expect(Buffer.byteLength(JSON.stringify(result))).toBeLessThan(500)
     expect(receivedInput).toMatchObject({ productId: "product_1", personId: "person_1" })
   })
 

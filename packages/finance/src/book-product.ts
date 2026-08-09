@@ -18,7 +18,6 @@
  * work (reference allocation, the durable command) lives in `mcp-runtime.ts`,
  * which holds the request-scoped services.
  */
-import { bookingToolDetailSchema } from "@voyant-travel/bookings"
 import { z } from "zod"
 
 import { type BookingCreateInput, bookingCreateSchema } from "./service-booking-create.js"
@@ -187,7 +186,13 @@ export const bookProductToolOutputSchema = z.discriminatedUnion("status", [
     bookingId: z.string(),
     bookingNumber: z.string(),
     replayed: z.boolean(),
-    booking: bookingToolDetailSchema,
+    committedChanges: z.tuple([z.literal("booking_created")]),
+    nextActions: z.tuple([
+      z.object({
+        tool: z.literal("get_booking"),
+        input: z.object({ id: z.string() }),
+      }),
+    ]),
   }),
   z.object({
     status: z.literal("invalid"),

@@ -115,18 +115,27 @@ export function financeBookingToolServices(
             : {}),
         },
       })
-      const detail = await readBookingCreateResult(db, c, result.value.bookingId, result.replayed)
+      const booking = await readBookingReference(db, result.value.bookingId)
       return {
         status: "created",
-        bookingId: detail.bookingId,
+        bookingId: booking.id,
         // The persisted reference — on an idempotent replay this is the ORIGINAL
         // booking's number, not the one just allocated and discarded.
-        bookingNumber: detail.booking.bookingNumber,
-        replayed: detail.replayed,
-        booking: detail.booking,
+        bookingNumber: booking.bookingNumber,
+        replayed: result.replayed,
+        committedChanges: ["booking_created"],
+        nextActions: [{ tool: "get_booking", input: { id: booking.id } }],
       }
     },
   }
+}
+
+async function readBookingReference(db: BookingRuntimeDb, bookingId: string) {
+  const booking = await bookingsService.getBookingById(db, bookingId)
+  if (!booking) {
+    throw new ToolError("The created booking could not be read back.", "NOT_FOUND", { bookingId })
+  }
+  return { id: booking.id, bookingNumber: booking.bookingNumber }
 }
 
 /**
