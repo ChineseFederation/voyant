@@ -2,7 +2,11 @@ import { QueryClient } from "@tanstack/react-query"
 import { describe, expect, it, vi } from "vitest"
 
 import { inventoryVoyantModule } from "../../../inventory/src/voyant.js"
-import { DEFAULT_PRODUCTS_LIST_FILTERS, getProductsQueryOptions } from "../query-options.js"
+import {
+  DEFAULT_PRODUCTS_LIST_FILTERS,
+  getProductsQueryOptions,
+  getProductTypesQueryOptions,
+} from "../query-options.js"
 import {
   createInventoryAdminExtension,
   createSelectedInventoryAdminExtension,
@@ -129,7 +133,7 @@ describe("createInventoryAdminExtension", () => {
     }
   })
 
-  it("loads the exact first-page query that the products page mounts", async () => {
+  it("loads the exact first-page query and prefetches the mounted type filter", async () => {
     const fetcher = vi.fn(async () => Response.json({ data: [], total: 0, limit: 25, offset: 0 }))
     const queryClient = new QueryClient({
       defaultOptions: { queries: { staleTime: 30_000, retry: false } },
@@ -143,14 +147,53 @@ describe("createInventoryAdminExtension", () => {
       runtime: { baseUrl: "/api", fetcher },
       params: {},
     })
-    await queryClient.fetchQuery(
-      getProductsQueryOptions({ baseUrl: "/api", fetcher }, DEFAULT_PRODUCTS_LIST_FILTERS),
-    )
+    await Promise.all([
+      queryClient.fetchQuery(
+        getProductsQueryOptions({ baseUrl: "/api", fetcher }, DEFAULT_PRODUCTS_LIST_FILTERS),
+      ),
+      queryClient.fetchQuery(
+        getProductTypesQueryOptions({ baseUrl: "/api", fetcher }, { limit: 100 }),
+      ),
+    ])
 
-    expect(fetcher).toHaveBeenCalledTimes(1)
-    expect(fetcher).toHaveBeenCalledWith(
+    expect(fetcher).toHaveBeenCalledTimes(2)
+    expect(fetcher).toHaveBeenNthCalledWith(
+      1,
+      "/api/v1/admin/products/product-types?limit=100",
+      expect.any(Object),
+    )
+    expect(fetcher).toHaveBeenNthCalledWith(
+      2,
       "/api/v1/admin/products?sortBy=createdAt&sortDir=desc&limit=25&offset=0",
       expect.any(Object),
+    )
+  })
+
+  it("does not fail route admission when the type-filter prefetch fails", async () => {
+    const fetcher = vi.fn(async (url: string) => {
+      if (url.includes("/product-types")) throw new Error("type filters unavailable")
+      return Response.json({ data: [], total: 0, limit: 25, offset: 0 })
+    })
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { staleTime: 30_000, retry: false } },
+    })
+    const route = createInventoryAdminExtension().routes?.find(
+      (candidate) => candidate.id === "products-index",
+    )
+
+    await expect(
+      route?.loader?.({
+        queryClient,
+        runtime: { baseUrl: "/api", fetcher },
+        params: {},
+      }),
+    ).resolves.toMatchObject({ data: [] })
+    await vi.waitFor(() =>
+      expect(
+        queryClient.getQueryState(
+          getProductTypesQueryOptions({ baseUrl: "/api", fetcher }, { limit: 100 }).queryKey,
+        )?.status,
+      ).toBe("error"),
     )
   })
 

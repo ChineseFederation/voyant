@@ -128,11 +128,19 @@ export function createInventoryAdminExtension(
         // would pin it into the workspace-chrome chunk that evaluates this
         // factory.
         loader: async ({ queryClient, runtime }: AdminRouteLoaderContext) => {
-          const { DEFAULT_PRODUCTS_LIST_FILTERS, getProductsQueryOptions } = await import(
-            "../query-options.js"
-          )
+          const {
+            DEFAULT_PRODUCTS_LIST_FILTERS,
+            getProductsQueryOptions,
+            getProductTypesQueryOptions,
+          } = await import("../query-options.js")
+          const client = loaderClient(runtime)
+          // The product-type filter is useful as soon as the page mounts, but
+          // it must not delay the route or make the list unavailable when the
+          // secondary request fails. Start it alongside the critical list and
+          // let the mounted query consume the fresh cache entry when ready.
+          void queryClient.prefetchQuery(getProductTypesQueryOptions(client, { limit: 100 }))
           return queryClient.ensureQueryData(
-            getProductsQueryOptions(loaderClient(runtime), DEFAULT_PRODUCTS_LIST_FILTERS),
+            getProductsQueryOptions(client, DEFAULT_PRODUCTS_LIST_FILTERS),
           )
         },
         pendingComponent: ProductsListSkeleton,
