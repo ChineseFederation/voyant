@@ -1,5 +1,17 @@
 # @voyant-travel/inventory
 
+## 0.40.12
+
+### Patch Changes
+
+- 99823d5: Add a compact product-summary list endpoint and use it for the managed Products page and product selectors, avoiding editor-only HTML and policy fields until a product is opened.
+- Updated dependencies [6e2c539]
+- Updated dependencies [de549da]
+- Updated dependencies [aecc8ce]
+  - @voyant-travel/bookings@0.240.10
+  - @voyant-travel/operations@0.22.14
+  - @voyant-travel/finance@0.245.8
+
 ## 0.40.11
 
 ### Patch Changes

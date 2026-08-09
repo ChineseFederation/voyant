@@ -1,5 +1,11 @@
 # @voyant-travel/bookings
 
+## 0.240.10
+
+### Patch Changes
+
+- 6e2c539: Return a compact, actionable cancellation outcome instead of embedding the full booking graph.
+
 ## 0.240.9
 
 ### Patch Changes

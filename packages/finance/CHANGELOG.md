@@ -1,5 +1,13 @@
 # @voyant-travel/finance
 
+## 0.245.8
+
+### Patch Changes
+
+- aecc8ce: Return a compact `book_product` outcome with the committed booking reference and an executable `get_booking` follow-up instead of echoing the entire booking graph.
+- Updated dependencies [6e2c539]
+  - @voyant-travel/bookings@0.240.10
+
 ## 0.245.7
 
 ### Patch Changes

@@ -1,5 +1,24 @@
 # @voyant-travel/operator-standard
 
+## 0.21.14
+
+### Patch Changes
+
+- Updated dependencies [6e2c539]
+- Updated dependencies [99823d5]
+- Updated dependencies [5ddfcbd]
+- Updated dependencies [de549da]
+- Updated dependencies [aecc8ce]
+- Updated dependencies [edfcdc4]
+  - @voyant-travel/bookings@0.240.10
+  - @voyant-travel/inventory@0.40.12
+  - @voyant-travel/inventory-react@0.157.1
+  - @voyant-travel/admin@0.136.3
+  - @voyant-travel/operations-react@0.156.1
+  - @voyant-travel/operations@0.22.14
+  - @voyant-travel/finance@0.245.8
+  - @voyant-travel/mcp@0.21.6
+
 ## 0.21.13
 
 ### Patch Changes

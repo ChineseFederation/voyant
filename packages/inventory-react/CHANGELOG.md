@@ -1,5 +1,13 @@
 # @voyant-travel/inventory-react
 
+## 0.157.1
+
+### Patch Changes
+
+- 99823d5: Add a compact product-summary list endpoint and use it for the managed Products page and product selectors, avoiding editor-only HTML and policy fields until a product is opened.
+- 5ddfcbd: Start product-type filter data alongside the first products request without delaying route admission.
+- edfcdc4: Reuse the products route-loader query when the initial products page mounts, and keep all product-list filters in the shared request serializer.
+
 ## 0.157.0
 
 ### Patch Changes

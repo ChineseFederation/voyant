@@ -1,5 +1,15 @@
 # @voyant-travel/framework
 
+## 0.80.6
+
+### Patch Changes
+
+- de549da: Allow graph-selected admin modules to expose an import-cheap shell descriptor
+  while their route loaders and page implementations remain dynamically loaded,
+  and apply the seam to the Operations admin surface.
+- 2dbc4cb: Require every available approval-required executable Tool action to declare a stable created or existing target lifecycle, closing the legacy path into generic non-atomic approved dispatch.
+  - @voyant-travel/operator-standard@0.21.14
+
 ## 0.80.5
 
 ### Patch Changes

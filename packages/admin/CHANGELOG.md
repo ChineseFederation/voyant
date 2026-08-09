@@ -1,5 +1,13 @@
 # @voyant-travel/admin
 
+## 0.136.3
+
+### Patch Changes
+
+- de549da: Allow graph-selected admin modules to expose an import-cheap shell descriptor
+  while their route loaders and page implementations remain dynamically loaded,
+  and apply the seam to the Operations admin surface.
+
 ## 0.136.2
 
 ### Patch Changes

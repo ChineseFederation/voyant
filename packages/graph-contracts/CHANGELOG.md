@@ -1,5 +1,13 @@
 # @voyant-travel/graph-contracts
 
+## 0.5.1
+
+### Patch Changes
+
+- de549da: Allow graph-selected admin modules to expose an import-cheap shell descriptor
+  while their route loaders and page implementations remain dynamically loaded,
+  and apply the seam to the Operations admin surface.
+
 ## 0.5.0
 
 ### Minor Changes
