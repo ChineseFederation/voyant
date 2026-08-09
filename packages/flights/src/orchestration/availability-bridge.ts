@@ -21,7 +21,7 @@ export const FLIGHTS_ENTITY_MODULE = "flights" as const
  *
  * The candidate's `selection` carries what the flights booking path needs to
  * re-resolve and price the exact offer at reserve time (offer id + source +
- * the connections that returned it). The per-search `offerId` is not
+ * its exact owning connection). The per-search `offerId` is not
  * replay-safe, so callers re-price before booking — same rule as the generic
  * `AvailabilityCandidate.candidateRef`.
  */
@@ -35,7 +35,7 @@ export function mergedFlightOfferToCandidate(merged: MergedFlightOffer): Availab
       offerId: offer.offerId,
       source: offer.source,
       itineraryFingerprint: merged.itineraryFingerprint,
-      sourceConnectionIds: merged.sourceConnectionIds,
+      connectionId: merged.cheapestSourceConnectionId,
     },
     price: { amount: offer.totalPrice.amount, currency: offer.totalPrice.currency },
     expiresAt: offer.expiresAt ? new Date(offer.expiresAt) : undefined,

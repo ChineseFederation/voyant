@@ -23,7 +23,10 @@ function merged(overrides: Partial<MergedFlightOffer> = {}): MergedFlightOffer {
   return {
     itineraryFingerprint: overrides.itineraryFingerprint ?? "fp_lhr_jfk",
     cheapest: overrides.cheapest ?? offer(),
+    cheapestSourceConnectionId:
+      overrides.cheapestSourceConnectionId ?? overrides.sourceConnectionIds?.[0] ?? "conn_amadeus",
     alternates: overrides.alternates ?? [],
+    alternateSourceConnectionIds: overrides.alternateSourceConnectionIds ?? [],
     sourceConnectionIds: overrides.sourceConnectionIds ?? ["conn_amadeus"],
   }
 }
@@ -38,6 +41,8 @@ describe("mergedFlightOfferToCandidate", () => {
           providerData: { fareKey: "abc" },
         }),
         alternates: [offer({ offerId: "ofr_alt" })],
+        cheapestSourceConnectionId: "conn_amadeus",
+        alternateSourceConnectionIds: ["conn_sabre"],
         sourceConnectionIds: ["conn_amadeus", "conn_sabre"],
       }),
     )
@@ -48,7 +53,7 @@ describe("mergedFlightOfferToCandidate", () => {
     expect(candidate.price).toEqual({ amount: "600", currency: "USD" })
     expect(candidate.selection).toMatchObject({
       offerId: "ofr_99",
-      sourceConnectionIds: ["conn_amadeus", "conn_sabre"],
+      connectionId: "conn_amadeus",
     })
     expect(candidate.expiresAt).toEqual(new Date("2026-10-15T10:00:00Z"))
     expect(candidate.providerData).toMatchObject({ fareKey: "abc", alternateCount: 1 })

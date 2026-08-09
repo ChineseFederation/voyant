@@ -10,6 +10,9 @@ export function createFlightsRuntime(primitives: VoyantRuntimeHostPrimitives): F
         "Flight connector is not configured. Provide a flights.runtime port from project customization or an installed connector integration.",
       )
     },
+    async listAdmittedShoppingSources() {
+      return []
+    },
     async startCardPayment() {
       return
     },

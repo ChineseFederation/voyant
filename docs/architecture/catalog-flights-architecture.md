@@ -103,25 +103,18 @@ Default if omitted: `{ type: "hold" }`. Consumers declare their intent; the syst
 
 ## 4. Multi-connection fan-out and itinerary fingerprinting
 
-The flight orchestration layer fans out across all of an operator's flight connections in a single search call:
+The flight orchestration layer fans out across all admitted flight connections in a single search call. Admin composition may choose an operator-scoped connection set, but the public Storefront request never carries connection or provider selectors. Storefront passes only its server-resolved storefront, channel, market, locale, and currency to `FlightsRuntime.listAdmittedShoppingSources`; an empty enumeration is unavailable rather than a fallback to the admin adapter.
 
 ```
-POST /v1/{admin,public}/flights/search
-{
-  connectionIds?: string[],   // optional — defaults to all flight connections owned by the actor
-  slices: [...],
-  passengers: {...},
-  cabin: "...",
-  searchOptions: { directOnly?, maxStops?, includeCarriers?, excludeCarriers? },
-  limit?: number,
-  cursor?: string,
-  tier?: "browse" | "booking"
-}
+trusted Storefront context
+  -> listAdmittedShoppingSources({ storefrontId, channelId, marketId, locale, currency })
+  -> fanOutFlightSearch({ adapters: admittedSources, request: publicFlightIntent })
+  -> opaque single-use offer ref containing exact offer/connection ownership
 ```
 
 The orchestration layer:
 
-- **Filters connections to the actor's operator scope.** Cross-tenant connection ids are reported as `not_found` (true from the caller's perspective; reveals nothing about other operators).
+- **Filters connections inside the trusted runtime.** Public callers cannot probe cross-tenant connection ids because they cannot submit one.
 - **Parallel fan-out** with per-provider timeout (default 5s) and per-provider circuit breaker. One slow/failing provider doesn't tank the whole search.
 - **Partial success is the default.** Whatever providers responded come back; the rest are flagged in a `perConnection` status map.
 - **Deduplicates by itinerary fingerprint** — a deterministic key derived from segments (carrier codes + flight numbers + departure/arrival airports + times + cabin). Two providers selling the same flight produce identical fingerprints and merge into one `MergedFlightOffer` with a `cheapest` plus `alternates[]` and `sourceConnectionIds[]`.
@@ -239,7 +232,7 @@ Flight adapters (Hisky, Amadeus, Duffel, Sabre, Travelport NDC, an operator-buil
 - **`FlightConnectorAdapter`** — the provider-agnostic adapter interface for flight integrations, borrowed verbatim from voyant-cloud's `connect-flight-contract`. Five core methods plus capability-gated extras.
 - **Slice** — a single leg of a flight search request (`{ origin, destination, departureDate }`). One slice = one-way; two = round-trip; three or more = multi-city.
 - **Itinerary fingerprint** — deterministic hash derived from a `FlightOffer`'s segments (carrier codes + flight numbers + airports + times + cabin), used to deduplicate when the same flight is sold by multiple connections. Two providers selling the same flight produce identical fingerprints.
-- **`MergedFlightOffer`** — the deduplicated result of multi-connection fan-out: one `cheapest` offer plus `alternates[]` from other connections selling the same itinerary, with `sourceConnectionIds[]` for traceability.
+- **`MergedFlightOffer`** — the deduplicated result of multi-connection fan-out: one `cheapest` offer plus `alternates[]` from other connections selling the same itinerary, with aggregate `sourceConnectionIds[]` for traceability and exact aligned ownership (`cheapestSourceConnectionId` / `alternateSourceConnectionIds`) for opaque downstream offer resolution.
 - **`paymentIntent`** — discriminated union on `bookFlight` requests: `hold` / `card` / `ticket_on_credit`. Determines whether the booking returns held or ticketed.
 - **`ReferenceDataProvider`** — the swappable contract for global reference data (airlines, airports, aircraft, currencies, countries). Implementable at any layer, including the simplest case of plain Postgres tables in the operator's own Voyant database with no external dependency. Voyant Data is the hosted default; in-deployment local tables, static bundles, internal data lakes, third-party services (OAG, Cirium), and GDS-bundled implementations are all first-class alternatives. No implementer is privileged.
 

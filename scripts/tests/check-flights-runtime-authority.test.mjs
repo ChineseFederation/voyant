@@ -28,11 +28,12 @@ async function createFixture(overrides = {}) {
       'runtimePorts: [\nrequirePort(flightsRuntimePort),\nrequirePort(durableFlightActionRuntimePort, { optional: true }),\n]\nrequires: { capabilities: ["finance.payment-sessions"] }\nexport: "createFlightsVoyantRuntime"\n',
     "flights/src/api-runtime.ts":
       'defineGraphRuntimeFactory(({ getPort }) => getPort(flightsRuntimePort))\ncreateOrderPaymentSessions({ targetType: "flight_order" })\n',
-    "flights/src/runtime-port.ts": '["resolveAdapter", "startCardPayment"]\n',
+    "flights/src/runtime-port.ts":
+      '["resolveAdapter", "listAdmittedShoppingSources", "startCardPayment"]\n',
     "flights/src/runtime-contributor.ts":
       "primitives: VoyantRuntimeHostPrimitives\ncreateFlightsRuntime(host.primitives)\n",
     "flights/src/runtime.ts":
-      'resolveAdapter() {}\nstartCardPayment() {}\nthrow new Error("Flight connector is not configured")\n',
+      'resolveAdapter() {}\nlistAdmittedShoppingSources() {}\nstartCardPayment() {}\nthrow new Error("Flight connector is not configured")\n',
     "runtime/src/deployment-resources.ts":
       "function createDeploymentPortResources() { return options.createRuntimePorts({ primitives }) }\n",
     ...overrides,

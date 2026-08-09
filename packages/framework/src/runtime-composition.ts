@@ -159,6 +159,7 @@ function runtimePortStub(id: string): unknown {
     resolveDynamicHotelIds: unavailableAsync,
     resolveAirportLabels: unavailableAsync,
     resolveAdapter: unavailable,
+    listAdmittedShoppingSources: () => [],
     startCardPayment: unavailableAsync,
     resolveStorage: unavailable,
     resolvePrinter: unavailable,

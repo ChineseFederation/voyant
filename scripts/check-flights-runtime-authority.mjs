@@ -53,7 +53,7 @@ if (
 ) {
   violations.push("Flights must assemble routes and payment sessions inside its graph factory")
 }
-for (const method of ["resolveAdapter", "startCardPayment"]) {
+for (const method of ["resolveAdapter", "listAdmittedShoppingSources", "startCardPayment"]) {
   if (!runtimePort.includes(`"${method}"`)) {
     violations.push(`flights.runtime conformance must require ${method}()`)
   }
@@ -82,6 +82,7 @@ if (
 }
 for (const token of [
   "resolveAdapter()",
+  "listAdmittedShoppingSources",
   "startCardPayment",
   "Flight connector is not configured",
 ]) {

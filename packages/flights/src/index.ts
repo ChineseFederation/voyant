@@ -3,11 +3,13 @@
 // Flight admin HTTP routes (module-owned; the deployment supplies connector +
 // payment options).
 export {
+  type AdmittedFlightShoppingSource,
   createFlightAdminRoutes,
   createFlightsApiModule,
   createFlightsVoyantRuntime,
   type FlightOrderPaymentSummary,
   type FlightPaymentIntegration,
+  type FlightStorefrontShoppingContext,
   type FlightsApiModuleOptions,
   type FlightsRouteOptions,
   type FlightsRuntime,

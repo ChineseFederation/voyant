@@ -235,29 +235,39 @@ function sourceScope(scope: StorefrontResolvedScope): AvailabilitySearchRequest[
 }
 
 function mapMergedFlightOffers(merged: MergedFlightOffer) {
-  return [merged.cheapest, ...merged.alternates].map((offer) => ({
-    nativePrice: offer.totalPrice,
-    itineraries: offer.itineraries.map((itinerary) => ({
-      segments: itinerary.segments.map((segment) => ({
-        origin: { code: segment.departure.iataCode, at: segment.departure.at },
-        destination: { code: segment.arrival.iataCode, at: segment.arrival.at },
-        marketingCarrier: segment.carrierCode,
-        flightNumber: segment.flightNumber,
-      })),
-      ...(itinerary.duration ? { duration: itinerary.duration } : {}),
+  const ownedOffers = [
+    { offer: merged.cheapest, connectionId: merged.cheapestSourceConnectionId },
+    ...merged.alternates.map((offer, index) => ({
+      offer,
+      connectionId: merged.alternateSourceConnectionIds[index],
     })),
-    selection: {
-      offerId: offer.offerId,
-      source: offer.source,
-      itineraryFingerprint: merged.itineraryFingerprint,
-      sourceConnectionIds: merged.sourceConnectionIds,
-    },
-    providerData: {
-      sourceConnectionIds: merged.sourceConnectionIds,
-      ...(offer.providerData ?? {}),
-    },
-    ...(offer.expiresAt ? { expiresAt: offer.expiresAt } : {}),
-  }))
+  ]
+  return ownedOffers.flatMap(({ offer, connectionId }) =>
+    connectionId
+      ? [
+          {
+            nativePrice: offer.totalPrice,
+            itineraries: offer.itineraries.map((itinerary) => ({
+              segments: itinerary.segments.map((segment) => ({
+                origin: { code: segment.departure.iataCode, at: segment.departure.at },
+                destination: { code: segment.arrival.iataCode, at: segment.arrival.at },
+                marketingCarrier: segment.carrierCode,
+                flightNumber: segment.flightNumber,
+              })),
+              ...(itinerary.duration ? { duration: itinerary.duration } : {}),
+            })),
+            selection: {
+              offerId: offer.offerId,
+              source: offer.source,
+              itineraryFingerprint: merged.itineraryFingerprint,
+              connectionId,
+            },
+            ...(offer.providerData ? { providerData: offer.providerData } : {}),
+            ...(offer.expiresAt ? { expiresAt: offer.expiresAt } : {}),
+          },
+        ]
+      : [],
+  )
 }
 
 function mapStay(

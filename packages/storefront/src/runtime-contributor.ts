@@ -11,6 +11,7 @@ import type { PresentationFxQuoter } from "@voyant-travel/catalog-contracts/pres
 import { createCommerceStorefrontOfferResolvers } from "@voyant-travel/commerce"
 import type { VoyantRuntimeHostPrimitives } from "@voyant-travel/core"
 import type { VoyantPort } from "@voyant-travel/core/project"
+import { type FlightsRuntime, flightsRuntimePort } from "@voyant-travel/flights"
 import { createStorefrontCustomerBusinessOnboardingRuntime } from "./customer-business-onboarding-runtime.js"
 import { storefrontCustomerPortalRuntimePort, storefrontOffersRuntimePort } from "./runtime-port.js"
 import { createClosedStorefrontShoppingLiveProvider } from "./shopping/closed-live-provider.js"
@@ -70,6 +71,9 @@ export function createStorefrontRuntimePortContribution(
                   storefrontDynamicPackageSourceProviderPort,
                 )
               : undefined,
+            host.hasRuntimePort?.(flightsRuntimePort)
+              ? getRuntimePort?.<FlightsRuntime>(flightsRuntimePort)
+              : undefined,
             getRuntimePort?.<StorefrontOpaqueReferenceIssuer>(storefrontOpaqueReferenceIssuerPort),
             host.hasRuntimePort?.(storefrontPresentationFxProviderPort)
               ? getRuntimePort?.<PresentationFxQuoter>(storefrontPresentationFxProviderPort)
@@ -80,6 +84,7 @@ export function createStorefrontRuntimePortContribution(
               catalogServices,
               configuredLive,
               packageSources,
+              flights,
               references,
               quoteFx,
             ]) => {
@@ -94,6 +99,7 @@ export function createStorefrontRuntimePortContribution(
                   primitives: host.primitives,
                   catalogServices: catalogServices as CatalogRuntimeServices,
                   markets: adapters.markets,
+                  ...(flights ? { flights: flights as FlightsRuntime } : {}),
                   ...(packageSources
                     ? { packages: packageSources as StorefrontDynamicPackageSourceProvider }
                     : {}),

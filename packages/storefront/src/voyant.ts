@@ -9,6 +9,7 @@ import { defineModule, providePort, requirePort } from "@voyant-travel/core/proj
 // Search route contracts are intentionally not imported into this import-cheap
 // manifest; the runtime contributor resolves the real typed port.
 const catalogSearchRuntimePortReference = { id: "catalog.search-runtime" } as const
+const flightsRuntimePortReference = { id: "flights.runtime" } as const
 
 // Lightweight reference (id only) so the deployment-graph manifest stays
 // import-cheap — importing the real port from @voyant-travel/payments would
@@ -442,6 +443,7 @@ export const storefrontShoppingProviderVoyantModule = defineModule({
   runtimePorts: [
     catalogSearchRuntimePortReference,
     requirePort(catalogRuntimeServicesPort),
+    { ...flightsRuntimePortReference, optional: true },
     requirePort(storefrontShoppingLiveProviderPort, { optional: true }),
     requirePort(storefrontDynamicPackageSourceProviderPort, { optional: true }),
     requirePort(storefrontOpaqueReferenceIssuerPort),

@@ -204,6 +204,7 @@ describe("flights deployment manifest", () => {
     }
     const provider = {
       resolveAdapter: vi.fn(() => adapter),
+      listAdmittedShoppingSources: vi.fn(async () => []),
       startCardPayment: vi.fn(async () => {}),
     }
 

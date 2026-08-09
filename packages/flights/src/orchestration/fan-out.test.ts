@@ -110,6 +110,8 @@ describe("fanOutFlightSearch", () => {
     expect(result.offers[0]?.cheapest.source).toBe("hisky")
     expect(result.offers[0]?.alternates).toHaveLength(1)
     expect(result.offers[0]?.alternates[0]?.source).toBe("amadeus")
+    expect(result.offers[0]?.cheapestSourceConnectionId).toBe("conn_hisky")
+    expect(result.offers[0]?.alternateSourceConnectionIds).toEqual(["conn_amadeus"])
     expect(result.offers[0]?.sourceConnectionIds.sort()).toEqual(["conn_amadeus", "conn_hisky"])
   })
 
@@ -296,6 +298,25 @@ describe("fanOutFlightSearch", () => {
       environment: "sandbox",
     })
     expect(captured[0]?.signal).toBe(controller.signal)
+  })
+
+  it("keeps the admitted source identity authoritative over adapter context", async () => {
+    const captured: FlightAdapterContext[] = []
+
+    await fanOutFlightSearch({
+      adapters: [
+        {
+          connectionId: "conn_admitted",
+          adapter: makeAdapter("a", {
+            captureContext: (ctx) => captured.push(ctx),
+          }),
+          context: { connectionId: "conn_injected" } as never,
+        },
+      ],
+      request: oneSliceRequest,
+    })
+
+    expect(captured[0]?.connectionId).toBe("conn_admitted")
   })
 
   it("does not choose a fake cheapest offer across unconverted currencies", async () => {

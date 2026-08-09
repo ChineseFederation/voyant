@@ -1,5 +1,6 @@
 import type { CatalogRuntimeServices } from "@voyant-travel/catalog/runtime-contracts"
 import type { VoyantRuntimeHostPrimitives } from "@voyant-travel/core"
+import type { FlightsRuntime } from "@voyant-travel/flights"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 
 import { createStorefrontShoppingLiveProvider } from "./live-provider.js"
@@ -16,22 +17,42 @@ export interface ClosedStorefrontShoppingLiveProviderOptions {
   primitives: VoyantRuntimeHostPrimitives
   catalogServices: CatalogRuntimeServices
   markets: StorefrontShoppingMarketProvider
+  flights?: Pick<FlightsRuntime, "listAdmittedShoppingSources">
   packages?: StorefrontDynamicPackageSourceProvider
   loadStayPresentation?: CatalogRuntimeServices["presentAvailabilityCandidate"]
 }
 
 /**
  * Production live-shopping composition over the graph-admitted Catalog
- * runtime. Flights deliberately remain absent: Flights currently exposes a
- * request-bound single adapter, not an admitted multi-adapter discovery seam.
+ * runtime. Flight supply is enumerated only through the graph-admitted Flights
+ * runtime and only after the trusted storefront/channel/scope is revalidated.
  */
 export function createClosedStorefrontShoppingLiveProvider(
   options: ClosedStorefrontShoppingLiveProviderOptions,
 ): StorefrontShoppingLiveProvider {
   const present =
     options.loadStayPresentation ?? options.catalogServices.presentAvailabilityCandidate
+  const flights = options.flights
 
   return createStorefrontShoppingLiveProvider({
+    ...(flights
+      ? {
+          flights: {
+            async resolve(input) {
+              await assertActiveScope(options.markets, input.context, input.scope)
+              return {
+                adapters: await flights.listAdmittedShoppingSources({
+                  storefrontId: input.context.storefrontId,
+                  channelId: input.context.channelId,
+                  marketId: input.scope.marketId,
+                  locale: input.scope.locale,
+                  currency: input.scope.currency,
+                }),
+              }
+            },
+          },
+        }
+      : {}),
     stays: {
       async resolve(input) {
         await assertActiveScope(options.markets, input.context, input.scope)

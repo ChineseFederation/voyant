@@ -39,10 +39,14 @@ export interface MergedFlightOffer {
    * when FX is unavailable. The property name is retained for compatibility.
    */
   cheapest: FlightOffer
+  /** Exact server-only owner of `cheapest`; keep behind an opaque public ref. */
+  cheapestSourceConnectionId: string
   /** Native + shopper-selected money for `cheapest`, when presentation succeeded. */
   cheapestPresentationPrice?: PresentationMoney
   /** Other offers, price-sorted only when `priceRanking` is ranked. */
   alternates: FlightOffer[]
+  /** Exact owners aligned by index with `alternates`. */
+  alternateSourceConnectionIds: string[]
   /** Presentation prices aligned by index with `alternates`. */
   alternatePresentationPrices?: Array<PresentationMoney | undefined>
   /** Connection ids that returned an offer for this itinerary. */
@@ -69,7 +73,7 @@ export interface FanOutFlightSearchOptions {
     connectionId: string
     adapter: FlightConnectorAdapter
     /** Optional override for the adapter context per connection. */
-    context?: Partial<FlightAdapterContext>
+    context?: Omit<Partial<FlightAdapterContext>, "connectionId">
   }>
   request: FlightSearchRequest
   /**
@@ -124,7 +128,9 @@ export async function fanOutFlightSearch(
           }
         }
 
-        const ctx: FlightAdapterContext = { connectionId, ...context }
+        // The admitted source owns its identity. Adapter context can enrich a
+        // call but can never replace the enumerated connection id.
+        const ctx: FlightAdapterContext = { ...context, connectionId }
         const response = await withTimeout(
           adapter.searchFlights(ctx, options.request),
           timeoutMs,
@@ -240,8 +246,10 @@ function mergeByFingerprint(
     merged.push({
       itineraryFingerprint: fingerprint,
       cheapest: cheapestEntry.offer,
+      cheapestSourceConnectionId: cheapestEntry.connectionId,
       cheapestPresentationPrice: presentedByOffer.get(cheapestEntry.offer),
       alternates: alternateEntries.map((entry) => entry.offer),
+      alternateSourceConnectionIds: alternateEntries.map((entry) => entry.connectionId),
       alternatePresentationPrices: alternateEntries.map((entry) =>
         presentedByOffer.get(entry.offer),
       ),

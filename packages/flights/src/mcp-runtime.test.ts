@@ -16,6 +16,7 @@ describe("Flights MCP runtime", () => {
     }))
     const runtime = {
       resolveAdapter,
+      listAdmittedShoppingSources: vi.fn(async () => []),
       startCardPayment: vi.fn(),
     }
     const request = {
