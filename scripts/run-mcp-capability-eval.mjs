@@ -140,8 +140,26 @@ function startTemporaryPostgres() {
   }
 }
 
+export function cleanupResult(name, result) {
+  const exitCode = result.status ?? 1
+  return {
+    database: "temporary-docker",
+    container: name,
+    attempted: true,
+    succeeded: exitCode === 0,
+    exitCode,
+    error: exitCode === 0 ? null : String(result.stderr ?? "").trim() || "docker stop failed",
+  }
+}
+
 function stopTemporaryPostgres(name) {
-  spawnSync("docker", ["stop", name], { cwd: repoRoot, stdio: "inherit" })
+  const result = spawnSync("docker", ["stop", name], {
+    cwd: repoRoot,
+    encoding: "utf8",
+  })
+  if (result.stdout) process.stdout.write(result.stdout)
+  if (result.stderr) process.stderr.write(result.stderr)
+  return cleanupResult(name, result)
 }
 
 async function main() {
@@ -232,7 +250,18 @@ async function main() {
     process.stdout.write(`MCP capability artifacts: ${artifactDir}\n`)
     process.exitCode = status
   } finally {
-    if (temporaryDatabase) stopTemporaryPostgres(temporaryDatabase.name)
+    const cleanup = temporaryDatabase
+      ? stopTemporaryPostgres(temporaryDatabase.name)
+      : {
+          database: "provided",
+          container: null,
+          attempted: false,
+          succeeded: null,
+          exitCode: null,
+          error: null,
+        }
+    writeFileSync(path.join(artifactDir, "cleanup.json"), `${JSON.stringify(cleanup, null, 2)}\n`)
+    if (cleanup.attempted && !cleanup.succeeded) process.exitCode = 1
   }
 }
 

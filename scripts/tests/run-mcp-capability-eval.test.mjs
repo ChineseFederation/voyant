@@ -1,7 +1,7 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 
-import { parseArgs, usage } from "../run-mcp-capability-eval.mjs"
+import { cleanupResult, parseArgs, usage } from "../run-mcp-capability-eval.mjs"
 
 test("defaults to a one-run smoke evaluation", () => {
   const options = parseArgs([])
@@ -27,4 +27,23 @@ test("accepts the measurement lane and artifact destination", () => {
 test("rejects unknown modes and documents the destructive database requirement", () => {
   assert.throws(() => parseArgs(["--mode", "fast"]), /smoke or measure/)
   assert.match(usage(), /database is mutated/i)
+})
+
+test("records whether disposable database cleanup succeeded", () => {
+  assert.deepEqual(cleanupResult("voyant-eval-1", { status: 0, stderr: "" }), {
+    database: "temporary-docker",
+    container: "voyant-eval-1",
+    attempted: true,
+    succeeded: true,
+    exitCode: 0,
+    error: null,
+  })
+  assert.deepEqual(cleanupResult("voyant-eval-2", { status: 1, stderr: "daemon failed\n" }), {
+    database: "temporary-docker",
+    container: "voyant-eval-2",
+    attempted: true,
+    succeeded: false,
+    exitCode: 1,
+    error: "daemon failed",
+  })
 })

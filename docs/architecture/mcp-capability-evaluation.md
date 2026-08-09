@@ -45,7 +45,11 @@ to `none`.
 Artifacts are written under `.agent-runs/mcp-capability/<timestamp>/` unless
 `--artifacts` selects another directory. `report.json` records the model, run count,
 per-journey pass rate, calls, error state, bounded traces, and token usage. Logs and
-the final exit code are stored beside it. Never point the runner at production data.
+the final exit code are stored beside it. Each call records its serialized response
+size, and `largestResponses` identifies the ten largest live results across the run.
+`cleanup.json` records whether temporary-container cleanup was attempted and whether
+it succeeded; a caller-provided database is explicitly recorded as not cleaned up.
+Never point the runner at production data.
 
 ## Remote lane
 

@@ -1,3 +1,4 @@
+// agent-quality: file-size exception -- owner: operator; the opt-in real-model harness keeps its chained journey fixtures, grading, transport trace, and machine report in one auditable evaluation artifact.
 /**
  * MCP capability eval — can an agent do a travel agent's job? (voyant#3921)
  *
@@ -162,6 +163,7 @@ interface ToolCallRecord {
   name: string
   args: Record<string, unknown>
   isError: boolean
+  responseBytes: number
   snippet: string
 }
 interface JourneyRun {
@@ -260,15 +262,16 @@ async function runJourney(input: {
       const result = rpcBody.result as
         | { isError?: boolean; content?: Array<{ text?: string }>; structuredContent?: unknown }
         | undefined
-      const text = (
+      const fullText =
         result?.structuredContent !== undefined
           ? JSON.stringify(result.structuredContent)
           : (result?.content?.[0]?.text ?? JSON.stringify(rpcBody))
-      ).slice(0, 12_000)
+      const text = fullText.slice(0, 12_000)
       calls.push({
         name: call.name,
         args,
         isError: result?.isError === true,
+        responseBytes: Buffer.byteLength(fullText, "utf8"),
         snippet: text.slice(0, 300),
       })
       functionOutputs.push({ type: "function_call_output", call_id: call.call_id, output: text })
@@ -774,11 +777,13 @@ function writeMachineReport(): void {
         passed: outcomes[index] ?? false,
         calls: attempt.calls.length,
         errors: attempt.calls.filter((call) => call.isError).length,
+        responseBytes: attempt.calls.reduce((sum, call) => sum + call.responseBytes, 0),
         tokens: attempt.tokens,
         exhausted: attempt.exhausted,
         trace: attempt.calls.map((call) => ({
           name: call.name,
           isError: call.isError,
+          responseBytes: call.responseBytes,
           args: JSON.stringify(call.args).slice(0, 1_000),
           result: call.snippet.slice(0, 1_000),
         })),
@@ -786,13 +791,19 @@ function writeMachineReport(): void {
       })),
     }
   })
+  const largestResponses = [...attempts.values()]
+    .flat()
+    .flatMap((attempt) => attempt.calls)
+    .sort((left, right) => right.responseBytes - left.responseBytes)
+    .slice(0, 10)
+    .map((call) => ({ name: call.name, responseBytes: call.responseBytes, isError: call.isError }))
 
   mkdirSync(dirname(destination), { recursive: true })
   writeFileSync(
     destination,
     `${JSON.stringify(
       {
-        schemaVersion: 1,
+        schemaVersion: 2,
         generatedAt: new Date().toISOString(),
         model: MODEL,
         reasoningEffort: MODEL.startsWith("gpt-5") ? REASONING_EFFORT : null,
@@ -808,12 +819,18 @@ function writeMachineReport(): void {
               total + journey.attempts.reduce((sum, attempt) => sum + attempt.calls, 0),
             0,
           ),
+          responseBytes: journeys.reduce(
+            (total, journey) =>
+              total + journey.attempts.reduce((sum, attempt) => sum + attempt.responseBytes, 0),
+            0,
+          ),
           tokens: journeys.reduce(
             (total, journey) =>
               total + journey.attempts.reduce((sum, attempt) => sum + attempt.tokens, 0),
             0,
           ),
         },
+        largestResponses,
       },
       null,
       2,
