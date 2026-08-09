@@ -30,6 +30,21 @@ function isNodeModulePackage(id: string, packageName: string): boolean {
 
 export function voyantVendorChunk(id: string): string | undefined {
   const normalizedId = id.replaceAll("\\", "/")
+
+  // The editor imports Tiptap, but Rolldown can place modules shared by that
+  // vendor graph into the editor's automatic chunk. Keep the two editor entry
+  // modules with Tiptap so Rolldown cannot emit a circular
+  // tiptap <-> rich-text-editor chunk pair. Match both workspace sources and
+  // the installed package layout used by portable starters.
+  if (
+    (normalizedId.includes("/packages/ui/") ||
+      normalizedId.includes("/node_modules/@voyant-travel/ui/")) &&
+    (normalizedId.endsWith("/src/components/rich-text-editor.tsx") ||
+      normalizedId.endsWith("/src/components/rich-text-variable-extension.ts"))
+  ) {
+    return "tiptap"
+  }
+
   if (!normalizedId.includes("node_modules")) return undefined
 
   if (

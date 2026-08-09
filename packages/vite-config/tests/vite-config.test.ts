@@ -29,6 +29,14 @@ describe("voyantVendorChunk", () => {
   it("isolates the heavy editor, chart, and pdf vendors", () => {
     expect(voyantVendorChunk("/repo/node_modules/@tiptap/core/index.js")).toBe("tiptap")
     expect(voyantVendorChunk("/repo/node_modules/prosemirror-state/index.js")).toBe("tiptap")
+    expect(voyantVendorChunk("/repo/packages/ui/src/components/rich-text-editor.tsx")).toBe(
+      "tiptap",
+    )
+    expect(
+      voyantVendorChunk(
+        "/repo/node_modules/@voyant-travel/ui/src/components/rich-text-variable-extension.ts",
+      ),
+    ).toBe("tiptap")
     expect(voyantVendorChunk("/repo/node_modules/recharts/es6/index.js")).toBe("recharts")
     expect(voyantVendorChunk("/repo/node_modules/pdf-lib/cjs/index.js")).toBe("pdf-lib")
     expect(voyantVendorChunk("/repo/node_modules/@pdf-lib/fontkit/index.js")).toBe("pdf-lib")
