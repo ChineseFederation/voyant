@@ -11,6 +11,7 @@
     "./durable-action-runtime-port": "./src/durable-action-runtime-port.ts",
     "./orchestration/fingerprint": "./src/orchestration/fingerprint.ts",
     "./orchestration/fan-out": "./src/orchestration/fan-out.ts",
+    "./storefront-booking-lifecycle": "./src/storefront-booking-lifecycle.ts",
     "./snapshot": "./src/snapshot.ts",
     "./reference/contract": "./src/reference/contract.ts",
     "./reference/fixtures": "./src/reference/fixtures.ts",
@@ -101,6 +102,11 @@
         "types": "./dist/orchestration/fan-out.d.ts",
         "import": "./dist/orchestration/fan-out.js",
         "default": "./dist/orchestration/fan-out.js"
+      },
+      "./storefront-booking-lifecycle": {
+        "types": "./dist/storefront-booking-lifecycle.d.ts",
+        "import": "./dist/storefront-booking-lifecycle.js",
+        "default": "./dist/storefront-booking-lifecycle.js"
       },
       "./snapshot": {
         "types": "./dist/snapshot.d.ts",

@@ -98,7 +98,7 @@ export function createStorefrontShoppingLiveProvider(
           : {}),
       })
       return {
-        items: result.offers.flatMap(mapMergedFlightOffers),
+        items: result.offers.flatMap((offer) => mapMergedFlightOffers(offer, input)),
         sources: result.perConnection.map(({ status, count }) => ({
           status: mapFlightStatus(status, count),
         })),
@@ -234,7 +234,10 @@ function sourceScope(scope: StorefrontResolvedScope): AvailabilitySearchRequest[
   }
 }
 
-function mapMergedFlightOffers(merged: MergedFlightOffer) {
+function mapMergedFlightOffers(
+  merged: MergedFlightOffer,
+  input: Omit<TrustedShoppingInput<FlightIntent>, "intent">,
+) {
   const ownedOffers = [
     { offer: merged.cheapest, connectionId: merged.cheapestSourceConnectionId },
     ...merged.alternates.map((offer, index) => ({
@@ -261,6 +264,15 @@ function mapMergedFlightOffers(merged: MergedFlightOffer) {
               source: offer.source,
               itineraryFingerprint: merged.itineraryFingerprint,
               connectionId,
+              authority: {
+                storefrontId: input.context.storefrontId,
+                channelId: input.context.channelId,
+                marketId: input.scope.marketId,
+                locale: input.scope.locale,
+                currency: input.scope.currency,
+              },
+              offer,
+              revision: 0,
             },
             ...(offer.providerData ? { providerData: offer.providerData } : {}),
             ...(offer.expiresAt ? { expiresAt: offer.expiresAt } : {}),

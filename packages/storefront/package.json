@@ -20,6 +20,7 @@
     "./shopping": "./src/shopping/index.ts",
     "./shopping/live-provider": "./src/shopping/live-provider.ts",
     "./shopping/managed-runtime": "./src/shopping/managed-runtime.ts",
+    "./shopping/ports": "./src/shopping/provider-ports.ts",
     "./shopping/provider-ports": "./src/shopping/provider-ports.ts",
     "./shopping/runtime-port": "./src/shopping/runtime-port.ts",
     "./service": "./src/service.ts",
@@ -209,6 +210,11 @@
         "types": "./dist/shopping/managed-runtime.d.ts",
         "import": "./dist/shopping/managed-runtime.js",
         "default": "./dist/shopping/managed-runtime.js"
+      },
+      "./shopping/ports": {
+        "types": "./dist/shopping/provider-ports.d.ts",
+        "import": "./dist/shopping/provider-ports.js",
+        "default": "./dist/shopping/provider-ports.js"
       },
       "./shopping/provider-ports": {
         "types": "./dist/shopping/provider-ports.d.ts",

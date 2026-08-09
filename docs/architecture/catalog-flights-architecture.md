@@ -109,7 +109,8 @@ The flight orchestration layer fans out across all admitted flight connections i
 trusted Storefront context
   -> listAdmittedShoppingSources({ storefrontId, channelId, marketId, locale, currency })
   -> fanOutFlightSearch({ adapters: admittedSources, request: publicFlightIntent })
-  -> opaque single-use offer ref containing exact offer/connection ownership
+  -> opaque single-use offer ref containing exact offer/connection/scope ownership
+  -> server-side requote -> provider hold -> idempotent ticket commit
 ```
 
 The orchestration layer:
@@ -119,6 +120,38 @@ The orchestration layer:
 - **Partial success is the default.** Whatever providers responded come back; the rest are flagged in a `perConnection` status map.
 - **Deduplicates by itinerary fingerprint** — a deterministic key derived from segments (carrier codes + flight numbers + departure/arrival airports + times + cabin). Two providers selling the same flight produce identical fingerprints and merge into one `MergedFlightOffer` with a `cheapest` plus `alternates[]` and `sourceConnectionIds[]`.
 - **KV-cached at the `(sortedConnectionIds, requestHash)` level** with the `tier` parameter controlling cache participation: `"browse"` (default, ~15 min TTL — forgiving for browse pages) vs `"booking"` (skip cache, fresh prices before `priceOffer` / `bookFlight`).
+
+### 4.1 Storefront booking lifecycle boundary
+
+`createProviderFirstFlightBookingLifecycle` is the closed consumer of the
+server-only payload sealed into the opaque offer reference. It requires the
+deployment to revalidate the active storefront/channel and resolved market,
+locale, and currency, then re-enumerates admitted sources before requote, hold,
+and commit; a disabled channel, changed scope, disconnected connection, or
+out-of-scope connection therefore fails closed. The browser never submits a
+provider, connection, account, engine, or payment selector.
+
+The lifecycle requires a durable operation store to claim an idempotency key
+and request fingerprint before either supplier mutation. Reuse with changed
+passengers, offer, revision, or order is rejected. A price lock and hold each
+advance an optimistic revision and carry bounded expiry. Hold always sends the
+existing provider contract's `{ type: "hold" }` intent; commit only promotes
+that exact held order through `ticketOrder`. It does not introduce another
+payment session, checkout route, or booking engine.
+
+Flights whose provider does not declare `flight/holds` and implement
+`ticketOrder` are deliberately not bookable through this seam. An invalid
+provider hold is cancelled as compensation. Ambiguous supplier failures,
+failed compensation, and loss of durable settlement after a supplier effect
+are reported as `in_doubt` for operator reconciliation rather than guessed
+successful or retried against another connection.
+
+Catalog Booking Sessions remain the general quote/hold/commit and payment
+commitment authority. Trip remains the composite coordinator. A deployment
+integrating this seam must resolve the Trips-owned opaque reference on the
+server and persist lifecycle outcomes through those existing authorities; the
+standalone Flights admin `/price`, `/book`, and `/orders` routes are not a
+public Storefront bridge.
 
 This is the missing piece that makes "one API, many providers" true at the call level rather than just at the contract level. An agency wired to Hisky + Amadeus + a charter consolidator gets one merged result set without writing fan-out, dedupe, or partial-failure handling themselves.
 
@@ -226,6 +259,8 @@ Flight adapters (Hisky, Amadeus, Duffel, Sabre, Travelport NDC, an operator-buil
 2. **Whether an `IndexerAdapter` capability flag should advertise that flights are not indexed at all** (`supportsVerticals: string[]` excluding `"flights"`), or whether the `flights` vertical itself is structurally absent from any indexer-side code path. Lean toward the latter — flights bypass the indexer entirely; no flag is needed.
 3. **Pricing-cache TTL semantics under heavy regulatory variance.** The `tier: "browse"` 15-min TTL is borrowed from Connect's defaults. Markets with rapid currency or fare-rule shifts (e.g. competitive long-haul) may need shorter TTLs. Defer to deployment configuration.
 4. **First-party shipped `ReferenceDataProvider` implementations.** v1 of Phase 3 ships at minimum the in-deployment local-Postgres provider, the static-bundle provider, and the Voyant Data provider. Whether to ship a Cirium / OAG provider as first-party depends on whether operators commonly use those services; defer until concrete deployments demand it.
+5. **Provider hold coverage.** The public-safe lifecycle currently requires a real supplier hold and ticket promotion. Providers that only support immediate ticketing remain unavailable until an existing Booking Session payment policy can authorize that operation without allowing the browser to choose a payment or ticketing path.
+6. **Provider reconciliation evidence.** `getOrder` can confirm an ambiguously acknowledged ticket, but providers without idempotent booking/ticket semantics or a queryable order cannot automatically resolve every in-doubt operation. Their durable operation-store implementation must retain the claim for staff reconciliation; the lifecycle never falls back to another provider.
 
 ## 9. Glossary (Phase 3-specific)
 

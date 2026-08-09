@@ -1193,6 +1193,9 @@
       ],
       "@voyant-travel/flights/runtime-contributor": ["../flights/dist/runtime-contributor.d.ts"],
       "@voyant-travel/flights/snapshot": ["../flights/dist/snapshot.d.ts"],
+      "@voyant-travel/flights/storefront-booking-lifecycle": [
+        "../flights/dist/storefront-booking-lifecycle.d.ts"
+      ],
       "@voyant-travel/flights/tools": ["../flights/dist/mcp-runtime.d.ts"],
       "@voyant-travel/flights/voyant": ["../flights/dist/voyant.d.ts"],
       "@voyant-travel/framework": ["../framework/dist/index.d.ts"],
@@ -1991,6 +1994,9 @@
       ],
       "@voyant-travel/storefront/shopping/managed-runtime": [
         "../storefront/dist/shopping/managed-runtime.d.ts"
+      ],
+      "@voyant-travel/storefront/shopping/ports": [
+        "../storefront/dist/shopping/provider-ports.d.ts"
       ],
       "@voyant-travel/storefront/shopping/provider-ports": [
         "../storefront/dist/shopping/provider-ports.d.ts"
