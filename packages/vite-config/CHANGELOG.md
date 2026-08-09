@@ -1,5 +1,11 @@
 # @voyant-travel/vite-config
 
+## 0.5.2
+
+### Patch Changes
+
+- 3c86fb1: Co-locate the rich-text editor with its Tiptap vendor graph so portable admin-shell documents cannot observe uninitialized circular imports without increasing the initial preload closure.
+
 ## 0.5.1
 
 ### Patch Changes

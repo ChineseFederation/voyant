@@ -1,5 +1,12 @@
 # @voyant-travel/operator-standard
 
+## 0.21.16
+
+### Patch Changes
+
+- Updated dependencies [3c86fb1]
+  - @voyant-travel/vite-config@0.5.2
+
 ## 0.21.15
 
 ### Patch Changes
