@@ -1,5 +1,11 @@
 # @voyant-travel/inventory
 
+## 0.40.13
+
+### Patch Changes
+
+- dae11ff: Keep product lifecycle idempotency identity server-owned in MCP action metadata.
+
 ## 0.40.12
 
 ### Patch Changes

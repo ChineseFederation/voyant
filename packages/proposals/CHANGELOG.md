@@ -1,5 +1,11 @@
 # @voyant-travel/proposals
 
+## 0.138.3
+
+### Patch Changes
+
+- 46c88ca: Resolve proposal-to-booking acceptance idempotency identity behind the Tool boundary.
+
 ## 0.138.2
 
 ### Patch Changes
