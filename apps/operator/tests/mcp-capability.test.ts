@@ -521,20 +521,16 @@ function buildJourneys(RUN_MARK: string): CapabilityJourney[] {
       // approves, applies, and audits those exact terms rather than today's policy.
       id: "booking-cancel",
       domain: "bookings",
-      task: `Cancel the booking belonging to Ioana Marinescu${RUN_MARK} according to the cancellation terms agreed when it was booked. Complete any required approval, use a cash refund when the agreed terms permit it, and confirm the cancellation and refund entitlement.`,
+      task: `Cancel the booking belonging to Ioana Marinescu${RUN_MARK} according to the cancellation terms agreed when it was booked. Complete any required approval and confirm the cancellation and refund entitlement. Inspect the related invoice before taking any finance action; do not record money as paid back when no customer payment was received.`,
       expect: "cancel",
-      maxCalls: 36,
+      maxCalls: 30,
       verify: `select 1 from bookings b
              join people pe on pe.id = b.person_id
              join booking_activity_log a on a.booking_id = b.id
              where pe.last_name ilike '%marinescu${RUN_MARK}%'
                and b.status = 'cancelled'
                and a.metadata->'cancellationPolicyEntitlement'->>'status' = 'evaluated'
-               and (a.metadata->'cancellationPolicyEntitlement'->>'refundCents')::int > 0
-               and exists (
-                 select 1 from refund_settlements rs
-                 where rs.booking_id = b.id and rs.method = 'cash'
-               )`,
+               and (a.metadata->'cancellationPolicyEntitlement'->>'refundCents')::int > 0`,
     },
     {
       id: "contracts-read",
