@@ -1,5 +1,13 @@
 # @voyant-travel/operator-standard
 
+## 0.21.19
+
+### Patch Changes
+
+- Updated dependencies [4013d52]
+  - @voyant-travel/webhook-delivery@0.6.1
+  - @voyant-travel/apps@0.14.15
+
 ## 0.21.18
 
 ### Patch Changes

@@ -1,5 +1,13 @@
 # @voyant-travel/apps
 
+## 0.14.15
+
+### Patch Changes
+
+- 4013d52: Serialize durable webhook payloads canonically so PostgreSQL jsonb key reordering cannot invalidate their persisted integrity hash before delivery.
+- Updated dependencies [4013d52]
+  - @voyant-travel/webhook-delivery@0.6.1
+
 ## 0.14.14
 
 ### Patch Changes
