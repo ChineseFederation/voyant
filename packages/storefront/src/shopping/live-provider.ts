@@ -323,7 +323,10 @@ async function runPackageSource(
   try {
     const result = await withTimeout(source.search(request), timeoutMs)
     return {
-      offers: result.offers,
+      offers: result.offers.map((offer) => ({
+        ...offer,
+        selection: { ...offer.selection },
+      })),
       status: result.status ?? (result.offers.length > 0 ? "ok" : "empty"),
     }
   } catch (error) {

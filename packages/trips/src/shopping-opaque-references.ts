@@ -9,8 +9,10 @@ import { z } from "zod"
 
 import type { TripShoppingReference } from "./schema.js"
 import { tripShoppingReferences } from "./schema.js"
-import type { StorefrontTripOfferResolver } from "./storefront-trip-offer-resolver-port.js"
-import type { CreateTripComponentBodyInput } from "./validation.js"
+import type {
+  StorefrontTripOfferComponent,
+  StorefrontTripOfferResolver,
+} from "./storefront-trip-offer-resolver-port.js"
 
 const MAX_REFERENCE_TTL_SECONDS = 24 * 60 * 60
 const referenceSchema = z.string().regex(/^sref_[a-f0-9]{64}$/)
@@ -24,6 +26,36 @@ const scopeSchema = z
   })
   .strict()
 const payloadSchema = z.record(z.string(), z.unknown())
+const packageSelectionSchema = z
+  .object({
+    target: z
+      .object({
+        entityModule: z.literal("products"),
+        entityId: z.string().min(1),
+        sourceKind: z.string().min(1),
+        sourceConnectionId: z.string().min(1),
+        sourceRef: z.string().min(1),
+      })
+      .strict(),
+    configure: z
+      .object({
+        departureDate: z.iso.date(),
+        departureAirportCode: z.string().regex(/^[A-Z]{3}$/),
+        nights: z.number().int().positive(),
+        pax: z.record(z.string(), z.number().int().nonnegative()),
+        roomTypeId: z.string().min(1).optional(),
+        ratePlanId: z.string().min(1).optional(),
+        board: z.string().min(1).optional(),
+      })
+      .strict()
+      .refine(
+        (value) => Boolean(value.roomTypeId || value.ratePlanId || value.board),
+        "package rate pin required",
+      )
+      .refine((value) => (value.pax.adult ?? 0) > 0, "package adult pax required"),
+    offerExpiresAt: z.string().datetime({ offset: true }),
+  })
+  .strict()
 
 export type ShoppingReferencePurpose = z.infer<typeof purposeSchema>
 
@@ -84,17 +116,12 @@ export function createTripShoppingReferenceRuntime(
     },
     offerResolver: {
       async resolve(context, input) {
-        const purpose = purposeForSelectionKind(input.kind)
-        const resolution = await options.withTransaction((db) =>
-          redeemShoppingReference(postgresShoppingReferenceStore(db), input.offerRef, {
-            purpose,
-            context,
-            scope: input.scope,
-            now,
-          }),
+        return options.withTransaction((db) =>
+          resolveShoppingReference(postgresShoppingReferenceStore(db), context, input, now),
         )
-        if (!resolution.ok) return null
-        return resolvedComponent(resolution.reference)
+      },
+      async resolveInTransaction(db, context, input) {
+        return resolveShoppingReference(postgresShoppingReferenceStore(db), context, input, now)
       },
     },
   }
@@ -116,13 +143,7 @@ export function createTripShoppingReferenceRuntimeWithStore(
     },
     offerResolver: {
       async resolve(context, input) {
-        const resolution = await redeemShoppingReference(store, input.offerRef, {
-          purpose: purposeForSelectionKind(input.kind),
-          context,
-          scope: input.scope,
-          now,
-        })
-        return resolution.ok ? resolvedComponent(resolution.reference) : null
+        return resolveShoppingReference(store, context, input, now)
       },
     },
   }
@@ -298,7 +319,26 @@ function postgresShoppingReferenceStore(db: AnyDrizzleDb): TripShoppingReference
   }
 }
 
-function componentFromReference(reference: TripShoppingReference): CreateTripComponentBodyInput {
+async function resolveShoppingReference(
+  store: TripShoppingReferenceStore,
+  context: StorefrontShoppingContext,
+  input: Parameters<StorefrontTripOfferResolver["resolve"]>[1],
+  now: () => Date,
+): Promise<{ component: StorefrontTripOfferComponent } | null> {
+  const resolvedAt = now()
+  const resolution = await redeemShoppingReference(store, input.offerRef, {
+    purpose: purposeForSelectionKind(input.kind),
+    context,
+    scope: input.scope,
+    now: () => resolvedAt,
+  })
+  return resolution.ok ? resolvedComponent(resolution.reference, resolvedAt) : null
+}
+
+function componentFromReference(
+  reference: TripShoppingReference,
+  now: Date,
+): StorefrontTripOfferComponent {
   const payload = payloadSchema.parse(reference.payload)
   if (reference.purpose === "catalog-item") {
     const catalog = z
@@ -306,8 +346,6 @@ function componentFromReference(reference: TripShoppingReference): CreateTripCom
       .passthrough()
       .parse(payload)
     return {
-      // The selection runtime replaces this placeholder with the final ordered position.
-      sequence: 0,
       kind: "catalog_booking",
       catalogRef: {
         entityModule: catalog.entityModule,
@@ -315,6 +353,33 @@ function componentFromReference(reference: TripShoppingReference): CreateTripCom
         sourceKind: "owned",
       },
       metadata: {},
+    }
+  }
+
+  if (reference.purpose === "package-offer") {
+    const payload = z
+      .object({ selection: packageSelectionSchema, providerData: z.never().optional() })
+      .strict()
+      .parse(reference.payload)
+    if (Date.parse(payload.selection.offerExpiresAt) <= now.getTime()) {
+      throw new Error("package_offer_expired")
+    }
+    const { target, configure } = payload.selection
+    return {
+      kind: "catalog_booking",
+      catalogRef: target,
+      metadata: {
+        bookingDraftV1: {
+          entity: {
+            module: target.entityModule,
+            id: target.entityId,
+            sourceKind: target.sourceKind,
+            sourceConnectionId: target.sourceConnectionId,
+            sourceRef: target.sourceRef,
+          },
+          configure,
+        },
+      },
     }
   }
 
@@ -333,8 +398,6 @@ function componentFromReference(reference: TripShoppingReference): CreateTripCom
   }
   return reference.purpose === "flight-offer"
     ? {
-        // The selection runtime replaces this placeholder with the final ordered position.
-        sequence: 0,
         kind: "flight_placeholder",
         metadata: {
           flightDraft: { selectedOffer: offer.selection },
@@ -342,8 +405,6 @@ function componentFromReference(reference: TripShoppingReference): CreateTripCom
         },
       }
     : {
-        // The selection runtime replaces this placeholder with the final ordered position.
-        sequence: 0,
         kind: "catalog_booking",
         metadata: { storefrontShopping: durableSelection },
       }
@@ -351,9 +412,10 @@ function componentFromReference(reference: TripShoppingReference): CreateTripCom
 
 function resolvedComponent(
   reference: TripShoppingReference,
-): { component: CreateTripComponentBodyInput } | null {
+  now: Date,
+): { component: StorefrontTripOfferComponent } | null {
   try {
-    return { component: componentFromReference(reference) }
+    return { component: componentFromReference(reference, now) }
   } catch {
     // Persisted provider/source payload is never attached to a thrown parse
     // error that could cross into request logging.

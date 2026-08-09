@@ -24,6 +24,7 @@ export class StorefrontShoppingUnavailableError extends Error {
       | "active storefront channel"
       | "trusted storefront channel context"
       | "active market scope"
+      | "active live-shopping scope"
       | "catalog field policy"
       | "catalog indexer"
       | "customer catalog title"

@@ -5,6 +5,7 @@ import type {
   SourceAdapterContext,
 } from "@voyant-travel/catalog-contracts/adapter/contract"
 import { ReservationDispatchError } from "@voyant-travel/catalog-contracts/adapter/contract"
+import { paxBandBaseCode } from "@voyant-travel/catalog-contracts/booking-engine/requirements-defaults"
 import type {
   PackageConfirmInput,
   PackageHold,
@@ -162,14 +163,12 @@ async function liveResolvePackage(
   const parameters = request.parameters ?? {}
   const departureDate = stringValue(parameters.departureDate)
   if (!departureDate) return { values: {}, failed: missing(request.ids) }
-  const pax = recordValue(recordValue(parameters.draft)?.configure)?.pax
-  const paxRecord = recordValue(pax)
-  const adults = integer(paxRecord?.adults) ?? integer(parameters.paxCount) ?? 2
-  const children = integer(paxRecord?.children)
+  const occupancy = packageOccupancy(parameters)
   const nights = integer(parameters.nights)
   const departureAirportCode = stringValue(parameters.departureAirportCode)
   if (
     !departureAirportCode ||
+    !occupancy ||
     nights === undefined ||
     (!stringValue(parameters.roomTypeId) &&
       !stringValue(parameters.ratePlanId) &&
@@ -179,10 +178,12 @@ async function liveResolvePackage(
   }
   const query: PackageSearchQuery = {
     departure: { airportCodes: [departureAirportCode] },
-    accommodationIds: [...new Set(request.ids.map((id) => id.replace(/^[^:]+:/, "")))],
+    accommodationIds: [
+      ...new Set(request.ids.map((id) => request.source_refs?.[id] ?? id.replace(/^[^:]+:/, ""))),
+    ],
     departureDateFrom: departureDate,
     departureDateTo: departureDate,
-    occupancy: { adults, ...(children !== undefined ? { children } : {}) },
+    occupancy,
     nights: { min: nights, max: nights },
     ...(request.scope.locale ? { locale: request.scope.locale } : {}),
     limit: 100,
@@ -191,11 +192,15 @@ async function liveResolvePackage(
   const chosen = new Map<string, PackageOffer>()
   for (const offer of response.offers) {
     const id = offer.productRef.entityId
-    if (!request.ids.includes(id) || offer.connectionId !== connectionId) continue
-    const current = chosen.get(id)
-    if (!current || (matchesPin(offer, parameters) && !matchesPin(current, parameters))) {
-      chosen.set(id, offer)
+    if (
+      !request.ids.includes(id) ||
+      offer.connectionId !== connectionId ||
+      !matchesPin(offer, parameters)
+    ) {
+      continue
     }
+    const current = chosen.get(id)
+    if (!current) chosen.set(id, offer)
   }
   const values: Record<string, Record<string, unknown>> = {}
   for (const [id, offer] of chosen) {
@@ -224,12 +229,42 @@ function matchesPin(offer: PackageOffer, parameters: Record<string, unknown>): b
   )
 }
 
+function packageOccupancy(
+  parameters: Record<string, unknown>,
+): PackageSearchQuery["occupancy"] | null {
+  const pax = recordValue(recordValue(recordValue(parameters.draft)?.configure)?.pax)
+  if (!pax) return { adults: positiveInteger(parameters.paxCount) ?? 2 }
+
+  let adults = 0
+  let children = 0
+  let infants = 0
+  for (const [band, value] of Object.entries(pax)) {
+    const count = integer(value)
+    if (count === undefined) return null
+    const category = paxBandBaseCode(band)
+    if (category === "adult" || category === "senior") adults += count
+    else if (category === "child") children += count
+    else if (category === "infant") infants += count
+  }
+  if (adults < 1) return null
+  return {
+    adults,
+    ...(children > 0 ? { children } : {}),
+    ...(infants > 0 ? { infants } : {}),
+  }
+}
+
 function missing(ids: readonly string[]): Record<string, "not_found"> {
   return Object.fromEntries(ids.map((id) => [id, "not_found"]))
 }
 
 function integer(value: unknown): number | undefined {
   return typeof value === "number" && Number.isInteger(value) && value >= 0 ? value : undefined
+}
+
+function positiveInteger(value: unknown): number | undefined {
+  const parsed = integer(value)
+  return parsed !== undefined && parsed > 0 ? parsed : undefined
 }
 
 function packageConfirmInput(request: ReserveRequest, holdId: string): PackageConfirmInput | null {
@@ -299,7 +334,10 @@ function samePackageSelection(left: PackageOffer, right: PackageOffer): boolean 
     left.stay.ratePlanId === right.stay.ratePlanId &&
     left.stay.board === right.stay.board &&
     left.stay.checkIn === right.stay.checkIn &&
-    left.stay.checkOut === right.stay.checkOut
+    left.stay.checkOut === right.stay.checkOut &&
+    left.stay.nights === right.stay.nights &&
+    JSON.stringify(left.stay.occupancy) === JSON.stringify(right.stay.occupancy) &&
+    JSON.stringify(left.flights) === JSON.stringify(right.flights)
   )
 }
 

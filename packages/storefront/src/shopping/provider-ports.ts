@@ -76,8 +76,29 @@ export interface StorefrontDynamicPackageSourceOffer {
   boardName?: string
   image?: { url: string; alt?: string }
   expiresAt?: string
-  selection: Readonly<Record<string, unknown>>
+  /** Server-only stable booking target and pins persisted behind the opaque ref. */
+  selection: StorefrontDynamicPackageBookingSelection
   providerData?: Readonly<Record<string, unknown>>
+}
+
+export interface StorefrontDynamicPackageBookingSelection {
+  target: {
+    entityModule: string
+    entityId: string
+    sourceKind: string
+    sourceConnectionId: string
+    sourceRef: string
+  }
+  configure: {
+    departureDate: string
+    departureAirportCode: string
+    nights: number
+    pax: Readonly<Record<string, number>>
+    roomTypeId?: string
+    ratePlanId?: string
+    board?: string
+  }
+  offerExpiresAt: string
 }
 
 export interface StorefrontDynamicPackageSource {

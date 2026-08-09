@@ -108,7 +108,25 @@ describe("Voyant Connect Storefront package sources", () => {
     })
     expect(JSON.stringify(result)).not.toContain("credential_secret")
     expect(result?.offers[0]).not.toHaveProperty("providerData")
-    expect(result?.offers[0]?.selection).toMatchObject({ connectionId: "connection_secret" })
+    expect(result?.offers[0]?.selection).toEqual({
+      target: {
+        entityModule: "products",
+        entityId: "product_secret",
+        sourceKind: "voyant-connect",
+        sourceConnectionId: "connection_secret",
+        sourceRef: "hotel_secret",
+      },
+      configure: {
+        departureDate: "2026-09-10",
+        departureAirportCode: "OTP",
+        nights: 5,
+        pax: { adult: 2 },
+        board: "AI",
+      },
+      offerExpiresAt: "2026-08-08T10:05:00.000Z",
+    })
+    expect(JSON.stringify(result?.offers[0]?.selection)).not.toContain("offer_secret")
+    expect(JSON.stringify(result?.offers[0]?.selection)).not.toContain("supplier_secret")
   })
 
   it("fails closed when Connect cannot enforce the requested package filter", async () => {

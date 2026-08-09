@@ -109,9 +109,32 @@ function packageOffer(
     accommodationName,
     boardName: offer.stay.board,
     expiresAt: offer.expiresAt,
-    // This payload is issued only into the server-side opaque reference store.
-    // The public result receives the resulting capability ref, never this offer.
-    selection: { connectionId: offer.connectionId, offer },
+    // Persist only stable re-resolution pins behind the opaque capability. The
+    // broad short-lived provider offer never becomes Trip state.
+    selection: {
+      target: {
+        entityModule: offer.productRef.entityModule,
+        entityId: offer.productRef.entityId,
+        sourceKind: "voyant-connect",
+        sourceConnectionId: offer.connectionId,
+        sourceRef: offer.stay.ref.entityId,
+      },
+      configure: {
+        departureDate: firstFlight.departureAt?.slice(0, 10) ?? offer.stay.checkIn,
+        departureAirportCode: firstFlight.origin,
+        nights: offer.stay.nights,
+        pax: {
+          adult: offer.stay.occupancy.adults,
+          ...(offer.stay.occupancy.children !== undefined
+            ? { child: offer.stay.occupancy.children }
+            : {}),
+        },
+        ...(offer.stay.roomTypeId ? { roomTypeId: offer.stay.roomTypeId } : {}),
+        ...(offer.stay.ratePlanId ? { ratePlanId: offer.stay.ratePlanId } : {}),
+        ...(offer.stay.board ? { board: offer.stay.board } : {}),
+      },
+      offerExpiresAt: offer.expiresAt,
+    },
   }
 }
 

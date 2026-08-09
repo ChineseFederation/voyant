@@ -194,16 +194,15 @@ Catalog retains the Supplier Operation in doubt for reconciliation. Confirmed
 bookings continue through the existing Booking, Allocation, snapshot, Trip
 component, cancellation, and compensation spine.
 
-The remaining Storefront integration gap is deliberately narrow: the managed
-opaque-reference store added by Storefront PR #4459 currently has an issuer but
-no owner/scope-bound consumer. Until that consumer exists, Storefront cannot
-turn a browser-held `package-offer` capability into the stable Catalog Item and
-public Booking Session selection (`departureDate`, pax, room/rate/board) that
-this adapter accepts. The consumer must validate purpose, storefront, channel,
-owner, scope, expiry, and single-use redemption; it must return only the stable
-selection and must never return or accept a connection/provider id on the
-browser boundary. No fallback may decode the capability in the browser or let
-the caller choose an adapter.
+The Storefront integration closes through Trips' durable opaque-reference
+consumer. It validates purpose, storefront, channel, owner, scope, reference
+expiry, and the supplier offer's own expiry, then atomically redeems the
+single-use capability inside the Trip-selection mutation. The resulting Trip
+component contains only the stable Catalog Item and Booking Session pins
+(`departureDate`, pax, room/rate/board). Connection identity remains
+server-derived behind the capability and is never returned or accepted on the
+browser boundary; no fallback decodes the capability or lets the caller choose
+an adapter.
 
 ## 7. Success criteria
 

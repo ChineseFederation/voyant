@@ -126,6 +126,147 @@ describe("accepted Proposal Version Booking Session composite", () => {
     expect(consumeSources).toHaveBeenCalledTimes(2)
   })
 
+  it("quotes and commits a redeemed package through the sourced supplier-operation leaf", async () => {
+    const selectedPackage = component({
+      sourceKind: "voyant-connect",
+      sourceConnectionId: "connection_server",
+      sourceRef: "product_1",
+      metadata: {
+        bookingDraftV1: {
+          entity: {
+            module: "products",
+            id: "prod_1",
+            sourceKind: "voyant-connect",
+            sourceConnectionId: "connection_server",
+            sourceRef: "product_1",
+          },
+          configure: {
+            departureDate: "2026-09-10",
+            departureAirportCode: "OTP",
+            nights: 5,
+            pax: { adult: 2 },
+            roomTypeId: "room_1",
+            ratePlanId: "rate_1:AI",
+            board: "AI",
+          },
+        },
+      },
+    })
+    const state = harness([selectedPackage])
+    const commitSourced = vi.fn(async (input) => {
+      expect(input.session.target).toEqual({ kind: "catalog_item", catalogItemId: "prod_1" })
+      expect(input.session.statePayload).toMatchObject({
+        configure: {
+          departureDate: "2026-09-10",
+          departureAirportCode: "OTP",
+          roomTypeId: "room_1",
+          ratePlanId: "rate_1:AI",
+          board: "AI",
+        },
+      })
+      await input.consumeSources(state.db, "book_package", ["ball_package"], "suop_package")
+      return {
+        kind: "committed" as const,
+        bookingId: "book_package",
+        allocationIds: ["ball_package"],
+        supplierOperationId: "suop_package",
+      }
+    })
+    const leaf = leafRuntime({ commitSourced })
+    const handler = createTripBookingSessionCompositeHandler(state.persistence)
+    const quote = await createQuote(handler, state.session, leaf, state.db)
+
+    await expect(
+      handler.placeCapacityHold({
+        session: state.session,
+        quote,
+        holdId: "bshd_package",
+        capacityKey: "trip_snapshot:trsn_1",
+        quantity: 1,
+        expiresAt: new Date("2026-08-02T10:15:00.000Z"),
+        access: ACCESS,
+        now: NOW,
+        tx: state.db,
+        leaf,
+      }),
+    ).resolves.toBe("held")
+
+    await expect(
+      handler.commit({
+        session: state.session,
+        quote,
+        idempotencyKey: "commit_package",
+        requestFingerprint: "fp_package",
+        access: ACCESS,
+        now: NOW,
+        consumeSources: async () => {},
+        leaf,
+        db: state.db,
+      }),
+    ).resolves.toEqual({
+      kind: "committed",
+      bookings: [
+        {
+          componentId: selectedPackage.id,
+          bookingId: "book_package",
+          allocationIds: ["ball_package"],
+          supplierOperationId: "suop_package",
+        },
+      ],
+    })
+    expect(commitSourced).toHaveBeenCalledWith(
+      expect.objectContaining({
+        supplierOperationScope: selectedPackage.id,
+        idempotencyKey: `commit_package:${selectedPackage.id}`,
+      }),
+    )
+  })
+
+  it("keeps an ambiguous package confirmation in doubt without materializing a booking", async () => {
+    const selectedPackage = component({
+      sourceKind: "voyant-connect",
+      sourceConnectionId: "connection_server",
+      sourceRef: "product_1",
+    })
+    const state = harness([selectedPackage])
+    const consumeSources = vi.fn(async () => {})
+    const handler = createTripBookingSessionCompositeHandler(state.persistence)
+    const leaf = leafRuntime({
+      commitSourced: vi.fn(async () => ({
+        kind: "supplier_in_doubt" as const,
+        nextAction: "reconcile_supplier_operation" as const,
+        supplierOperationId: "suop_package",
+        operatorBackedRiskAccepted: false,
+      })),
+    })
+    const quote = await createQuote(handler, state.session, leaf, state.db)
+
+    await expect(
+      handler.commit({
+        session: state.session,
+        quote,
+        idempotencyKey: "commit_package",
+        requestFingerprint: "fp_package",
+        access: ACCESS,
+        now: NOW,
+        consumeSources,
+        leaf,
+        db: state.db,
+      }),
+    ).resolves.toEqual({
+      kind: "component_commit_pending",
+      nextAction: "continue_component_commit",
+      components: [
+        {
+          componentId: selectedPackage.id,
+          state: "supplier_in_doubt",
+          supplierOperationId: "suop_package",
+        },
+      ],
+    })
+    expect(consumeSources).not.toHaveBeenCalled()
+  })
+
   it("keeps manual placeholders honest and leaves the aggregate pending", async () => {
     const live = component({ id: "tcmp_cruise", entityId: "crus_1", sourceKind: "direct:cruise" })
     const manual = component({

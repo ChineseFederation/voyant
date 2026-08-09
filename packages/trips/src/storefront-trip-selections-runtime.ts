@@ -98,12 +98,17 @@ export function createStorefrontTripSelectionsRuntime(
 
   return {
     async create(context, input) {
-      const offers = await resolveOffers(options.offerResolver, context, input.scope, input.offers)
-      const itemRefs = offers.map(() =>
-        storefrontSelectionItemMetadataSchema.shape.itemRef.parse(createItemRef()),
-      )
-
       return options.withTransaction(async (db) => {
+        const offers = await resolveOffers(
+          options.offerResolver,
+          db,
+          context,
+          input.scope,
+          input.offers,
+        )
+        const itemRefs = offers.map(() =>
+          storefrontSelectionItemMetadataSchema.shape.itemRef.parse(createItemRef()),
+        )
         const handle = await createStorefrontTripInTransaction(
           db,
           { scope: coreScope(input.scope) },
@@ -156,6 +161,7 @@ export function createStorefrontTripSelectionsRuntime(
 
         const mutation = await prepareMutation(
           options.offerResolver,
+          db,
           context,
           accessScope(resolved.access),
           input,
@@ -208,25 +214,30 @@ export function createStorefrontTripSelectionsRuntime(
 
 async function resolveOffers(
   resolver: StorefrontTripOfferResolver | undefined,
+  db: AnyDrizzleDb,
   context: StorefrontShoppingContext,
   scope: StorefrontResolvedScope,
   offers: StorefrontTripSelectionCreate["offers"],
 ): Promise<Array<{ component: CreateTripComponentBodyInput }>> {
   const resolved: Array<{ component: CreateTripComponentBodyInput }> = []
   for (const offer of offers) {
-    resolved.push(await resolveOffer(resolver, context, coreScope(scope), offer))
+    resolved.push(await resolveOffer(resolver, db, context, coreScope(scope), offer))
   }
   return resolved
 }
 
 async function resolveOffer(
   resolver: StorefrontTripOfferResolver | undefined,
+  db: AnyDrizzleDb,
   context: StorefrontShoppingContext,
   scope: StorefrontTripScope,
   offer: StorefrontOfferSelection,
 ): Promise<{ component: CreateTripComponentBodyInput }> {
   if (!resolver) throw new StorefrontTripSelectionUnavailableError()
-  const resolution = await resolver.resolve(context, { ...offer, scope })
+  const input = { ...offer, scope }
+  const resolution = resolver.resolveInTransaction
+    ? await resolver.resolveInTransaction(db, context, input)
+    : await resolver.resolve(context, input)
   if (!resolution) throw new StorefrontTripSelectionUnavailableError("offer_unavailable")
   return { component: createTripComponentBodySchema.parse(resolution.component) }
 }
@@ -279,6 +290,7 @@ type PreparedMutation =
 
 async function prepareMutation(
   resolver: StorefrontTripOfferResolver | undefined,
+  db: AnyDrizzleDb,
   context: StorefrontShoppingContext,
   scope: StorefrontTripScope,
   input: StorefrontTripSelectionUpdate,
@@ -290,7 +302,7 @@ async function prepareMutation(
     components.map((component) => [selectionItem(component).itemRef, component]),
   )
   if (input.mutation.kind === "add") {
-    const resolved = await resolveOffer(resolver, context, scope, input.mutation.offer)
+    const resolved = await resolveOffer(resolver, db, context, scope, input.mutation.offer)
     return {
       kind: "add",
       offer: input.mutation.offer,

@@ -19,6 +19,7 @@ const CONTEXT = {
 const SCOPE = { marketId: "market_ro", locale: "ro-RO", currency: "EUR" }
 const FLIGHT_REF = `sref_${"a".repeat(64)}`
 const CATALOG_REF = `sref_${"b".repeat(64)}`
+const PACKAGE_REF = `sref_${"c".repeat(64)}`
 
 describe("durable shopping opaque references", () => {
   it("issues a 256-bit capability while persisting only its digest and bounded payload", async () => {
@@ -125,6 +126,70 @@ describe("durable shopping opaque references", () => {
     expect(resolutions.filter((value) => value !== null)).toHaveLength(1)
   })
 
+  it("turns one live package capability into stable Catalog booking pins exactly once", async () => {
+    const store = new MemoryReferenceStore()
+    const runtime = createTripShoppingReferenceRuntimeWithStore(store, {
+      now: () => NOW,
+      createReference: () => PACKAGE_REF,
+    })
+    await runtime.issuer.issue(packageInput())
+    const input = { kind: "package" as const, offerRef: PACKAGE_REF, scope: SCOPE }
+
+    await expect(runtime.offerResolver.resolve(CONTEXT, input)).resolves.toEqual({
+      component: {
+        kind: "catalog_booking",
+        catalogRef: {
+          entityModule: "products",
+          entityId: "product_1",
+          sourceKind: "voyant-connect",
+          sourceConnectionId: "connection_server",
+          sourceRef: "product_1",
+        },
+        metadata: {
+          bookingDraftV1: {
+            entity: {
+              module: "products",
+              id: "product_1",
+              sourceKind: "voyant-connect",
+              sourceConnectionId: "connection_server",
+              sourceRef: "product_1",
+            },
+            configure: {
+              departureDate: "2026-09-10",
+              departureAirportCode: "OTP",
+              nights: 5,
+              pax: { adult: 2 },
+              roomTypeId: "room_1",
+              ratePlanId: "rate_1:AI",
+              board: "AI",
+            },
+          },
+        },
+      },
+    })
+    await expect(runtime.offerResolver.resolve(CONTEXT, input)).resolves.toBeNull()
+  })
+
+  it("rejects and consumes a package capability after its supplier offer expires", async () => {
+    const store = new MemoryReferenceStore()
+    const runtime = createTripShoppingReferenceRuntimeWithStore(store, {
+      now: () => new Date("2026-08-08T12:06:00.000Z"),
+      createReference: () => PACKAGE_REF,
+    })
+    await runtime.issuer.issue(packageInput("2026-08-08T12:05:00.000Z"))
+
+    await expect(
+      runtime.offerResolver.resolve(CONTEXT, {
+        kind: "package",
+        offerRef: PACKAGE_REF,
+        scope: SCOPE,
+      }),
+    ).resolves.toBeNull()
+    expect([...store.references.values()][0]?.consumedAt).toEqual(
+      new Date("2026-08-08T12:06:00.000Z"),
+    )
+  })
+
   it("sanitizes persistence and payload-shape failures before they can reach request logs", async () => {
     const failing = createTripShoppingReferenceRuntimeWithStore(
       {
@@ -185,6 +250,41 @@ function catalogInput(): Parameters<StorefrontOpaqueReferenceIssuer["issue"]>[0]
     payload: { entityModule: "products", entityId: "product_1" },
     ttlSeconds: 15 * 60,
     replay: "multi-use",
+  }
+}
+
+function packageInput(
+  offerExpiresAt = "2026-08-08T12:10:00.000Z",
+): Parameters<StorefrontOpaqueReferenceIssuer["issue"]>[0] {
+  return {
+    purpose: "package-offer",
+    storefrontId: CONTEXT.storefrontId,
+    channelId: CONTEXT.channelId,
+    owner: { userId: CONTEXT.userId, buyerAccountId: CONTEXT.buyerAccountId },
+    scope: SCOPE,
+    payload: {
+      selection: {
+        target: {
+          entityModule: "products",
+          entityId: "product_1",
+          sourceKind: "voyant-connect",
+          sourceConnectionId: "connection_server",
+          sourceRef: "product_1",
+        },
+        configure: {
+          departureDate: "2026-09-10",
+          departureAirportCode: "OTP",
+          nights: 5,
+          pax: { adult: 2 },
+          roomTypeId: "room_1",
+          ratePlanId: "rate_1:AI",
+          board: "AI",
+        },
+        offerExpiresAt,
+      },
+    },
+    ttlSeconds: 15 * 60,
+    replay: "single-use",
   }
 }
 

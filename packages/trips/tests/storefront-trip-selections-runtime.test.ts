@@ -63,6 +63,47 @@ describe("Storefront Trip selections runtime", () => {
     ).rejects.toBeInstanceOf(StorefrontTripSelectionAccessError)
   })
 
+  it("redeems one-time offers inside the same transaction that creates the selection", async () => {
+    const state = emptyState()
+    const db = createDb(state)
+    const resolve = vi.fn(async () => {
+      throw new Error("standalone redemption must not run")
+    })
+    const resolveInTransaction = vi.fn(async () => ({
+      component: {
+        kind: "catalog_booking" as const,
+        catalogRef: {
+          entityModule: "products",
+          entityId: "product_1",
+          sourceKind: "voyant-connect",
+          sourceConnectionId: "connection_server",
+          sourceRef: "product_1",
+        },
+        metadata: {},
+      },
+    }))
+    const runtime = createStorefrontTripSelectionsRuntime({
+      withTransaction: (operation) => operation(db),
+      offerResolver: { resolve, resolveInTransaction },
+      now: () => NOW,
+      createSelectionRef: () => CAPABILITY,
+      createItemRef: () => ITEM_ONE,
+    })
+
+    await expect(
+      runtime.create(CONTEXT, {
+        scope: SCOPE,
+        offers: [{ kind: "package", offerRef: "package-offer-ref-001" }],
+      }),
+    ).resolves.toMatchObject({ revision: 1, items: [{ kind: "package" }] })
+    expect(resolve).not.toHaveBeenCalled()
+    expect(resolveInTransaction).toHaveBeenCalledWith(
+      db,
+      CONTEXT,
+      expect.objectContaining({ kind: "package", offerRef: "package-offer-ref-001" }),
+    )
+  })
+
   it("creates and mutates only through opaque references with deterministic ordering", async () => {
     const state = emptyState()
     const resolver = {

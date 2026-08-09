@@ -1,4 +1,5 @@
 import { definePort } from "@voyant-travel/core/project"
+import type { AnyDrizzleDb } from "@voyant-travel/db"
 import type {
   StorefrontShoppingContext,
   StorefrontTripSelectionCreate,
@@ -13,6 +14,9 @@ export interface StorefrontTripOfferResolutionInput extends StorefrontOfferSelec
   scope: StorefrontTripScope
 }
 
+/** Sequence is owned by the Trip selection mutation, never by an offer payload. */
+export type StorefrontTripOfferComponent = Omit<CreateTripComponentBodyInput, "sequence">
+
 /**
  * Closed trust-plane seam from a gateway-issued offerRef to a Trips component.
  * Deployments may resolve only the opaque offerRef plus trusted context/scope;
@@ -22,7 +26,13 @@ export interface StorefrontTripOfferResolver {
   resolve(
     context: StorefrontShoppingContext,
     input: StorefrontTripOfferResolutionInput,
-  ): Promise<{ component: CreateTripComponentBodyInput } | null>
+  ): Promise<{ component: StorefrontTripOfferComponent } | null>
+  /** Keep one-time redemption inside the selection mutation transaction. */
+  resolveInTransaction?(
+    db: AnyDrizzleDb,
+    context: StorefrontShoppingContext,
+    input: StorefrontTripOfferResolutionInput,
+  ): Promise<{ component: StorefrontTripOfferComponent } | null>
 }
 
 export const storefrontTripOfferResolverPort = definePort<StorefrontTripOfferResolver>({

@@ -27,6 +27,7 @@ describe("Voyant Connect package booking lifecycle", () => {
       "conn_server",
       expect.objectContaining({
         departure: { airportCodes: ["OTP"] },
+        accommodationIds: ["hotel_1"],
         departureDateFrom: "2026-09-10",
         departureDateTo: "2026-09-10",
         nights: { min: 5, max: 5 },
@@ -38,6 +39,34 @@ describe("Voyant Connect package booking lifecycle", () => {
       { idempotencyKey: "bses_1:commit_1:reserve" },
     )
     expect(client.packages.lock).not.toHaveBeenCalledWith("conn_browser", expect.anything())
+  })
+
+  it("revalidates canonical traveler bands without widening children into adults", async () => {
+    const { adapter, client } = fixture(offer())
+    const mixedParty = request()
+    mixedParty.parameters.draft = {
+      configure: { pax: { adult: 2, "child:pricing_1": 1, infant: 1 } },
+    }
+
+    await adapter.reserve?.({ connection_id: "conn_server" }, mixedParty)
+
+    expect(client.packages.search).toHaveBeenCalledWith(
+      "conn_server",
+      expect.objectContaining({ occupancy: { adults: 2, children: 1, infants: 1 } }),
+    )
+  })
+
+  it("fails closed before hold when no offer matches the stable rate pins", async () => {
+    const { adapter, client } = fixture(
+      offer({ stay: { ...offer().stay, ratePlanId: "rate_changed" } }),
+    )
+
+    await expect(adapter.reserve?.({ connection_id: "conn_server" }, request())).resolves.toEqual({
+      upstream_ref: "package-offer:product_1",
+      status: "failed",
+      upstream_payload: { reason: "package_offer_unavailable" },
+    })
+    expect(client.packages.lock).not.toHaveBeenCalled()
   })
 
   it("fails before hold when the provider price moved from the immutable Session Quote", async () => {
@@ -151,7 +180,7 @@ function request(): ReserveRequest {
   return {
     entity_module: "products",
     entity_id: "product_1",
-    source_ref: "product_1",
+    source_ref: "hotel_1",
     scope: { locale: "ro-RO", market: "market_ro", audience: "customer", currency: "EUR" },
     parameters: {
       connectRoute: "packages",
