@@ -396,6 +396,7 @@ export {
 
 // ---------- catalog SourceAdapter shim ----------
 
+export { encodeSourceRef } from "../lib/key.js"
 export {
   type CompatibilityMappingResult,
   type ConnectCabinRoomType,
@@ -409,7 +410,6 @@ export {
   mapConnectInclusionKind,
   mapConnectPriceComponentKind,
 } from "./connect-compat.js"
-
 export {
   type CruiseSourceAdapterShim,
   type CruiseSourceAdapterShimOptions,

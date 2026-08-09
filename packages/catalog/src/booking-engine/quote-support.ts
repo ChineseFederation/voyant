@@ -49,6 +49,7 @@ export function engineParametersFromSelection(
     "passengerComposition",
     "fareCode",
     "fareVariant",
+    "bookingTerms",
   ] as const) {
     if (configure?.[key] != null && next[key] == null) next[key] = configure[key]
   }

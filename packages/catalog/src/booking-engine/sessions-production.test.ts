@@ -110,6 +110,30 @@ async function createAnonymousSession(
 }
 
 describe("normalizeProductSelection", () => {
+  it("normalizes sourced cruise choices while preserving passenger ages and terms", () => {
+    const normalized = normalizeProductSelection(PRODUCT_TARGET, {
+      configure: {
+        sailingId: " encoded_sailing_ref ",
+        cabinCategoryId: " encoded_cabin_ref ",
+        occupancy: 3,
+        passengerComposition: { adults: 2, children: 1, childAges: [9] },
+        fareCode: " FLEX ",
+        fareVariant: "cruise_only",
+        bookingTerms: { refundable: true },
+      },
+    })
+
+    expect(normalized.configure).toEqual({
+      sailingId: "encoded_sailing_ref",
+      cabinCategoryId: "encoded_cabin_ref",
+      occupancy: 3,
+      passengerComposition: { adults: 2, children: 1, childAges: [9] },
+      fareCode: "FLEX",
+      fareVariant: "cruise_only",
+      bookingTerms: { refundable: true },
+    })
+  })
+
   it("projects product selections to the server-owned booking session shape", () => {
     const normalized = normalizeProductSelection(PRODUCT_TARGET, {
       configure: {

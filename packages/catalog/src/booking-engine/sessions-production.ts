@@ -1027,12 +1027,15 @@ export function normalizeBookingSelection(
       cabinCategoryId: stringValue(configure?.cabinCategoryId),
       cabinCategoryRef: normalizeSourceRef(configure?.cabinCategoryRef),
       occupancy: positiveInteger(configure?.occupancy),
-      passengerComposition: normalizeStringNumberMap(asRecord(configure?.passengerComposition)),
+      passengerComposition: normalizePassengerComposition(
+        asRecord(configure?.passengerComposition),
+      ),
       fareCode: stringValue(configure?.fareCode),
       fareVariant:
         configure?.fareVariant === "cruise_only" || configure?.fareVariant === "air_inclusive"
           ? configure.fareVariant
           : undefined,
+      bookingTerms: asRecord(configure?.bookingTerms),
     }),
     billing: pruneEmpty({
       buyerType:
@@ -1268,6 +1271,19 @@ function normalizeStringNumberMap(record: Record<string, unknown> | undefined) {
   )
 }
 
+function normalizePassengerComposition(record: Record<string, unknown> | undefined) {
+  if (!record) return undefined
+  return pruneEmpty({
+    adults: nonnegativeInteger(record.adults),
+    children: nonnegativeInteger(record.children),
+    childAges: arrayValue(record.childAges)
+      ?.map(nonnegativeInteger)
+      .filter((value): value is number => value != null),
+    infants: nonnegativeInteger(record.infants),
+    seniors: nonnegativeInteger(record.seniors),
+  })
+}
+
 function normalizeStringMap(record: Record<string, unknown> | undefined) {
   if (!record) return undefined
   return pruneEmpty(
@@ -1306,6 +1322,10 @@ function stringValue(value: unknown): string | undefined {
 
 function positiveInteger(value: unknown): number | undefined {
   return typeof value === "number" && Number.isInteger(value) && value > 0 ? value : undefined
+}
+
+function nonnegativeInteger(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isInteger(value) && value >= 0 ? value : undefined
 }
 
 function numberValue(value: unknown): number | undefined {

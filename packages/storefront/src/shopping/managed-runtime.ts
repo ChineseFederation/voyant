@@ -79,6 +79,8 @@ export function createManagedStorefrontShoppingRuntime(
           return searchStays(options, context, input.scope, input.intent, now)
         case "package":
           return searchPackages(options, context, input.scope, input.intent, now)
+        case "cruise":
+          return searchCruises(options, context, input.scope, input.intent, now)
       }
     },
   }
@@ -231,6 +233,7 @@ function publicCatalogItem(
 type FlightIntent = Extract<StorefrontShoppingIntent, { kind: "flight" }>
 type StayIntent = Extract<StorefrontShoppingIntent, { kind: "stay" }>
 type PackageIntent = Extract<StorefrontShoppingIntent, { kind: "package" }>
+type CruiseIntent = Extract<StorefrontShoppingIntent, { kind: "cruise" }>
 
 async function searchFlights(
   options: ManagedStorefrontShoppingRuntimeOptions,
@@ -541,6 +544,46 @@ function scopeBinding(scope: StorefrontResolvedScope) {
   return { marketId: scope.marketId, locale: scope.locale, currency: scope.currency }
 }
 
+async function searchCruises(
+  options: ManagedStorefrontShoppingRuntimeOptions,
+  context: StorefrontShoppingContext,
+  scope: StorefrontResolvedScope,
+  intent: CruiseIntent,
+  now: () => Date,
+): Promise<StorefrontShoppingResult> {
+  const page = await options.live.searchCruises({ context, scope, intent })
+  const normalized = await normalizeLive(page, scope.currency, options.quoteFx)
+  const offers = await Promise.all(
+    normalized.items.map(async ({ item, price }) => {
+      const issued = await issueBoundedReference(options.references, now, {
+        purpose: "cruise-offer",
+        context,
+        scope,
+        payload: { selection: item.selection, providerData: item.providerData },
+        replay: "single-use",
+      })
+      return {
+        offerRef: issued.ref,
+        title: item.title,
+        cruiseType: item.cruiseType,
+        lineName: item.lineName,
+        shipName: item.shipName,
+        departureDate: item.departureDate,
+        returnDate: item.returnDate,
+        nights: item.nights,
+        ...(item.embarkPortName ? { embarkPortName: item.embarkPortName } : {}),
+        ...(item.disembarkPortName ? { disembarkPortName: item.disembarkPortName } : {}),
+        cabinName: item.cabinName,
+        availability: item.availability,
+        ...(item.image ? { image: item.image } : {}),
+        price,
+        expiresAt: earlierExpiry(issued.expiresAt, item.expiresAt),
+      }
+    }),
+  )
+  return { kind: "cruise", scope, offers, coverage: coverage(page, normalized.dropped) }
+}
+
 async function normalizeLive<T extends { nativePrice: { amount: string; currency: string } }>(
   page: StorefrontLiveSearchPage<T>,
   currency: string,
@@ -588,7 +631,7 @@ async function issueBoundedReference(
   issuer: StorefrontOpaqueReferenceIssuer,
   now: () => Date,
   input: {
-    purpose: "catalog-item" | "flight-offer" | "stay-offer" | "package-offer"
+    purpose: "catalog-item" | "flight-offer" | "stay-offer" | "package-offer" | "cruise-offer"
     context: StorefrontShoppingContext
     scope: StorefrontResolvedScope
     payload: Readonly<Record<string, unknown>>

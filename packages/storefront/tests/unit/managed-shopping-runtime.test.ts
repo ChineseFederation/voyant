@@ -39,6 +39,7 @@ function dependencies(overrides: Record<string, unknown> = {}) {
       searchFlights: vi.fn(async () => ({ items: [], sources: [] })),
       searchStays: vi.fn(async () => ({ items: [], sources: [] })),
       searchPackages: vi.fn(async () => ({ items: [], sources: [] })),
+      searchCruises: vi.fn(async () => ({ items: [], sources: [] })),
     },
     references: {
       redeem: vi.fn(async () => null),
@@ -194,6 +195,7 @@ describe("managed live shopping", () => {
         })),
         searchStays: vi.fn(),
         searchPackages: vi.fn(),
+        searchCruises: vi.fn(),
       },
       quoteFx: vi.fn(async () => ({
         rate: "5",
@@ -242,6 +244,7 @@ describe("managed live shopping", () => {
         })),
         searchStays: vi.fn(),
         searchPackages: vi.fn(),
+        searchCruises: vi.fn(),
       },
     })
     const runtime = createManagedStorefrontShoppingRuntime(deps)
@@ -338,6 +341,7 @@ describe("managed live shopping", () => {
         searchFlights: vi.fn(async () => ({ items: [flight("450", "RON", "450")], sources: [] })),
         searchStays: vi.fn(),
         searchPackages: vi.fn(),
+        searchCruises: vi.fn(),
       },
     })
     const runtime = createManagedStorefrontShoppingRuntime(deps)
@@ -366,6 +370,7 @@ describe("managed live shopping", () => {
         searchFlights: vi.fn(async () => ({ items: [flight("450", "RON", "450")], sources: [] })),
         searchStays: vi.fn(),
         searchPackages: vi.fn(),
+        searchCruises: vi.fn(),
       },
     })
     const runtime = createManagedStorefrontShoppingRuntime(deps)

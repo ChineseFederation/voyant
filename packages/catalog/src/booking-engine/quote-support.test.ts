@@ -3,6 +3,32 @@ import { describe, expect, it } from "vitest"
 import { engineParametersFromSelection } from "./quote-support.js"
 
 describe("Connect package Booking Session parameters", () => {
+  it("forwards exact cruise choices and terms without source authority", () => {
+    const parameters = engineParametersFromSelection(undefined, {
+      configure: {
+        sailingId: "sailing_ref",
+        cabinCategoryId: "cabin_ref",
+        occupancy: 2,
+        passengerComposition: { adults: 2 },
+        fareCode: "FLEX",
+        fareVariant: "cruise_only",
+        bookingTerms: { refundable: true },
+      },
+    })
+
+    expect(parameters).toMatchObject({
+      sailingId: "sailing_ref",
+      cabinCategoryId: "cabin_ref",
+      occupancy: 2,
+      passengerComposition: { adults: 2 },
+      fareCode: "FLEX",
+      fareVariant: "cruise_only",
+      bookingTerms: { refundable: true },
+    })
+    expect(parameters).not.toHaveProperty("connectionId")
+    expect(parameters).not.toHaveProperty("providerId")
+  })
+
   it("projects stable package pins without accepting a provider selector", () => {
     const parameters = engineParametersFromSelection(
       undefined,

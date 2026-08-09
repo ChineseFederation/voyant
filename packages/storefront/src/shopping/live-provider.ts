@@ -10,8 +10,11 @@ import {
   type MergedFlightOffer,
 } from "@voyant-travel/flights"
 import type {
+  StorefrontCruiseSource,
+  StorefrontCruiseSourceProvider,
   StorefrontDynamicPackageSource,
   StorefrontDynamicPackageSourceProvider,
+  StorefrontInternalCruiseOffer,
   StorefrontInternalPackageOffer,
   StorefrontInternalStayOffer,
   StorefrontLiveContinuation,
@@ -75,6 +78,7 @@ export interface CreateStorefrontShoppingLiveProviderOptions {
   flights?: StorefrontLiveFlightFanOutResolver
   stays?: StorefrontLiveStayFanOutResolver
   packages?: StorefrontDynamicPackageSourceProvider
+  cruises?: StorefrontCruiseSourceProvider
   perSourceTimeoutMs?: number
 }
 
@@ -245,6 +249,47 @@ export function createStorefrontShoppingLiveProvider(
               : [],
           ),
         ),
+      }
+    },
+
+    async searchCruises(input) {
+      if (!options.cruises) return unavailablePage()
+      const sources = await options.cruises.resolveSources({
+        context: input.context,
+        scope: input.scope,
+      })
+      const admitted = sources.filter(
+        ({ commitPolicy }) => commitPolicy === "reserve_with_idempotent_reconciliation",
+      )
+      if (admitted.length === 0) return unavailablePage()
+      const pages = await Promise.all(
+        admitted.map((source) =>
+          runCruiseSource(
+            source,
+            {
+              ...(input.intent.query ? { query: input.intent.query } : {}),
+              ...(input.intent.departureDateFrom
+                ? { departureDateFrom: input.intent.departureDateFrom }
+                : {}),
+              ...(input.intent.departureDateTo
+                ? { departureDateTo: input.intent.departureDateTo }
+                : {}),
+              travelers: input.intent.travelers,
+              ...(input.intent.cruiseTypes ? { cruiseTypes: input.intent.cruiseTypes } : {}),
+              limit: input.intent.limit ?? 20,
+              scope: {
+                marketId: input.scope.marketId,
+                locale: input.scope.locale,
+                currency: input.scope.currency,
+              },
+            },
+            options.perSourceTimeoutMs ?? 5_000,
+          ),
+        ),
+      )
+      return {
+        items: pages.flatMap(({ offers }) => offers),
+        sources: pages.map(({ status }) => ({ status })),
       }
     },
   }
@@ -476,6 +521,25 @@ function stayOwnedKey(entityModule: string): string {
 
 function packageKey(sourceKey: string): string {
   return `package:${sourceKey}`
+}
+
+async function runCruiseSource(
+  source: StorefrontCruiseSource,
+  request: Parameters<StorefrontCruiseSource["search"]>[0],
+  timeoutMs: number,
+): Promise<{
+  offers: readonly StorefrontInternalCruiseOffer[]
+  status: StorefrontLiveSourceStatus
+}> {
+  try {
+    const result = await withTimeout(source.search(request), timeoutMs)
+    return {
+      offers: result.offers.map((offer) => ({ ...offer })),
+      status: result.status ?? (result.offers.length > 0 ? "ok" : "empty"),
+    }
+  } catch (error) {
+    return { offers: [], status: error instanceof SourceTimeoutError ? "timeout" : "error" }
+  }
 }
 
 class SourceTimeoutError extends Error {}

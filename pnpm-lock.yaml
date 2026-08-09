@@ -5554,6 +5554,9 @@ importers:
       '@voyant-travel/core':
         specifier: workspace:^
         version: link:../core
+      '@voyant-travel/cruises':
+        specifier: workspace:^
+        version: link:../cruises
       '@voyant-travel/data-sdk':
         specifier: ^0.8.0
         version: 0.8.0

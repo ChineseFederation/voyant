@@ -33,7 +33,13 @@ export interface StorefrontOpaqueReferenceIssuer {
    * managed shopping runtime never resolves or commits an offer itself.
    */
   issue(input: {
-    purpose: "catalog-item" | "flight-offer" | "stay-offer" | "package-offer" | "live-continuation"
+    purpose:
+      | "catalog-item"
+      | "flight-offer"
+      | "stay-offer"
+      | "package-offer"
+      | "cruise-offer"
+      | "live-continuation"
     storefrontId: string
     channelId: string
     /** Trusted capability owner binding. Anonymous owners are explicitly null. */

@@ -64,6 +64,7 @@ export interface StorefrontShoppingCatalogProvider {
 type FlightIntent = Extract<StorefrontShoppingIntent, { kind: "flight" }>
 type StayIntent = Extract<StorefrontShoppingIntent, { kind: "stay" }>
 type PackageIntent = Extract<StorefrontShoppingIntent, { kind: "package" }>
+type CruiseIntent = Extract<StorefrontShoppingIntent, { kind: "cruise" }>
 
 export interface StorefrontDynamicPackageSourceOffer {
   nativePrice: { amount: string; currency: string }
@@ -134,6 +135,49 @@ export interface StorefrontDynamicPackageSourceProvider {
   }): Promise<readonly StorefrontDynamicPackageSource[]>
 }
 
+export interface StorefrontCruiseSourceOffer {
+  nativePrice: CatalogMoney
+  title: string
+  cruiseType: "ocean" | "river" | "expedition" | "coastal"
+  lineName: string
+  shipName: string
+  departureDate: string
+  returnDate: string
+  nights: number
+  embarkPortName?: string
+  disembarkPortName?: string
+  cabinName: string
+  availability: "available" | "limited"
+  image?: { url: string; alt?: string }
+  /** Exact admitted source ownership and booking configuration; opaque outside the server. */
+  selection: Readonly<Record<string, unknown>>
+}
+
+export interface StorefrontCruiseSource {
+  /** Only sources with this exact commit/reconciliation policy may be admitted. */
+  commitPolicy: "reserve_with_idempotent_reconciliation"
+  search(input: {
+    query?: string
+    departureDateFrom?: string
+    departureDateTo?: string
+    travelers: CruiseIntent["travelers"]
+    cruiseTypes?: CruiseIntent["cruiseTypes"]
+    limit: number
+    scope: Pick<StorefrontResolvedScope, "marketId" | "locale" | "currency">
+  }): Promise<{
+    offers: readonly StorefrontCruiseSourceOffer[]
+    status?: "ok" | "partial" | "empty"
+  }>
+}
+
+/** Closed resolver over Catalog-admitted cruise connections and credentials. */
+export interface StorefrontCruiseSourceProvider {
+  resolveSources(input: {
+    context: StorefrontShoppingContext
+    scope: StorefrontResolvedScope
+  }): Promise<readonly StorefrontCruiseSource[]>
+}
+
 export type StorefrontLiveSourceStatus =
   | "ok"
   | "partial"
@@ -197,6 +241,21 @@ export interface StorefrontInternalPackageOffer extends InternalOffer {
   image?: { url: string; alt?: string }
 }
 
+export interface StorefrontInternalCruiseOffer extends InternalOffer {
+  title: string
+  cruiseType: "ocean" | "river" | "expedition" | "coastal"
+  lineName: string
+  shipName: string
+  departureDate: string
+  returnDate: string
+  nights: number
+  embarkPortName?: string
+  disembarkPortName?: string
+  cabinName: string
+  availability: "available" | "limited"
+  image?: { url: string; alt?: string }
+}
+
 /**
  * Closed live-search adapter. Implementations call the owned/sourced flight and
  * availability fan-outs directly and map their internal results here.
@@ -220,6 +279,11 @@ export interface StorefrontShoppingLiveProvider {
     intent: PackageIntent
     continuation?: StorefrontLiveContinuation
   }): Promise<StorefrontLiveSearchPage<StorefrontInternalPackageOffer>>
+  searchCruises(input: {
+    context: StorefrontShoppingContext
+    scope: StorefrontResolvedScope
+    intent: CruiseIntent
+  }): Promise<StorefrontLiveSearchPage<StorefrontInternalCruiseOffer>>
 }
 
 function methodsPort<T>(id: string, methods: readonly string[]) {
@@ -248,7 +312,7 @@ export const storefrontShoppingCatalogProviderPort = methodsPort<StorefrontShopp
 )
 export const storefrontShoppingLiveProviderPort = methodsPort<StorefrontShoppingLiveProvider>(
   "storefront.shopping.live-provider",
-  ["searchFlights", "searchStays", "searchPackages"],
+  ["searchFlights", "searchStays", "searchPackages", "searchCruises"],
 )
 export const storefrontDynamicPackageSourceProviderPort =
   methodsPort<StorefrontDynamicPackageSourceProvider>(

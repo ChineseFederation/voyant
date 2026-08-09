@@ -21,6 +21,7 @@ const FLIGHT_REF = `sref_${"a".repeat(64)}`
 const CATALOG_REF = `sref_${"b".repeat(64)}`
 const PACKAGE_REF = `sref_${"c".repeat(64)}`
 const CONTINUATION_REF = `sref_${"d".repeat(64)}`
+const CRUISE_REF = `sref_${"e".repeat(64)}`
 
 describe("durable shopping opaque references", () => {
   it("issues a 256-bit capability while persisting only its digest and bounded payload", async () => {
@@ -249,6 +250,59 @@ describe("durable shopping opaque references", () => {
     )
   })
 
+  it("redeems a cruise offer only for its exact managed owner and shopping scope", async () => {
+    const store = new MemoryReferenceStore()
+    const runtime = createTripShoppingReferenceRuntimeWithStore(store, {
+      now: () => NOW,
+      createReference: () => CRUISE_REF,
+    })
+    await runtime.issuer.issue(cruiseInput())
+
+    await expect(
+      runtime.offerResolver.resolve(CONTEXT, {
+        kind: "cruise",
+        offerRef: CRUISE_REF,
+        scope: { ...SCOPE, currency: "USD" },
+      }),
+    ).resolves.toBeNull()
+    await expect(
+      runtime.offerResolver.resolve(CONTEXT, {
+        kind: "cruise",
+        offerRef: CRUISE_REF,
+        scope: SCOPE,
+      }),
+    ).resolves.toMatchObject({
+      component: {
+        kind: "catalog_booking",
+        catalogRef: {
+          entityModule: "cruises",
+          entityId: "cruise_secret",
+          sourceKind: "cruise:provider",
+          sourceConnectionId: "connection_secret",
+          sourceRef: "source_ref_secret",
+        },
+        metadata: {
+          bookingDraftV1: {
+            configure: {
+              sailingId: "sailing_secret",
+              cabinCategoryId: "cabin_secret",
+              occupancy: 2,
+            },
+          },
+          storefrontShopping: {
+            purpose: "cruise-offer",
+            selection: {
+              target: {
+                entityModule: "cruises",
+                sourceConnectionId: "connection_secret",
+              },
+            },
+          },
+        },
+      },
+    })
+  })
+
   it("sanitizes persistence and payload-shape failures before they can reach request logs", async () => {
     const failing = createTripShoppingReferenceRuntimeWithStore(
       {
@@ -359,6 +413,38 @@ function packageInput(
           board: "AI",
         },
         offerExpiresAt,
+      },
+    },
+    ttlSeconds: 15 * 60,
+    replay: "single-use",
+  }
+}
+
+function cruiseInput(): Parameters<StorefrontOpaqueReferenceIssuer["issue"]>[0] {
+  return {
+    purpose: "cruise-offer",
+    storefrontId: CONTEXT.storefrontId,
+    channelId: CONTEXT.channelId,
+    owner: { userId: CONTEXT.userId, buyerAccountId: CONTEXT.buyerAccountId },
+    scope: SCOPE,
+    payload: {
+      selection: {
+        target: {
+          entityModule: "cruises",
+          entityId: "cruise_secret",
+          sourceKind: "cruise:provider",
+          sourceConnectionId: "connection_secret",
+          sourceRef: "source_ref_secret",
+        },
+        configure: {
+          sailingId: "sailing_secret",
+          cabinCategoryId: "cabin_secret",
+          occupancy: 2,
+          passengerComposition: { adults: 2 },
+          fareCode: null,
+          fareVariant: "cruise_only",
+          bookingTerms: null,
+        },
       },
     },
     ttlSeconds: 15 * 60,

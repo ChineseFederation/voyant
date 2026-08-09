@@ -22,6 +22,7 @@ const purposeSchema = z.enum([
   "stay-offer",
   "package-offer",
   "live-continuation",
+  "cruise-offer",
 ])
 const replaySchema = z.enum(["multi-use", "single-use"])
 const scopeSchema = z
@@ -60,6 +61,39 @@ const packageSelectionSchema = z
       )
       .refine((value) => (value.pax.adult ?? 0) > 0, "package adult pax required"),
     offerExpiresAt: z.string().datetime({ offset: true }),
+  })
+  .strict()
+
+const cruiseSelectionSchema = z
+  .object({
+    target: z
+      .object({
+        entityModule: z.literal("cruises"),
+        entityId: z.string().min(1),
+        sourceKind: z.string().min(1),
+        sourceConnectionId: z.string().min(1),
+        sourceRef: z.string().min(1),
+      })
+      .strict(),
+    configure: z
+      .object({
+        sailingId: z.string().min(1),
+        cabinCategoryId: z.string().min(1),
+        occupancy: z.number().int().positive(),
+        passengerComposition: z
+          .object({
+            adults: z.number().int().nonnegative(),
+            children: z.number().int().nonnegative().optional(),
+            childAges: z.array(z.number().int().nonnegative()).optional(),
+            infants: z.number().int().nonnegative().optional(),
+            seniors: z.number().int().nonnegative().optional(),
+          })
+          .strict(),
+        fareCode: z.string().min(1).nullable(),
+        fareVariant: z.enum(["cruise_only", "air_inclusive"]),
+        bookingTerms: z.record(z.string(), z.unknown()).nullable(),
+      })
+      .strict(),
   })
   .strict()
 
@@ -444,6 +478,35 @@ function componentFromReference(
     }
   }
 
+  if (reference.purpose === "cruise-offer") {
+    const payload = z
+      .object({ selection: cruiseSelectionSchema, providerData: z.never().optional() })
+      .strict()
+      .parse(reference.payload)
+    const { target, configure } = payload.selection
+    return {
+      kind: "catalog_booking",
+      catalogRef: target,
+      metadata: {
+        bookingDraftV1: {
+          entity: {
+            module: target.entityModule,
+            id: target.entityId,
+            sourceKind: target.sourceKind,
+            sourceConnectionId: target.sourceConnectionId,
+            sourceRef: target.sourceRef,
+          },
+          configure,
+        },
+        storefrontShopping: {
+          version: 1,
+          purpose: reference.purpose,
+          selection: payload.selection,
+        },
+      },
+    }
+  }
+
   const offer = z
     .object({
       selection: z.record(z.string(), z.unknown()),
@@ -484,12 +547,13 @@ function resolvedComponent(
   }
 }
 
-function purposeForSelectionKind(kind: "product" | "flight" | "stay" | "package") {
+function purposeForSelectionKind(kind: "product" | "flight" | "stay" | "package" | "cruise") {
   const purposes = {
     product: "catalog-item",
     flight: "flight-offer",
     stay: "stay-offer",
     package: "package-offer",
+    cruise: "cruise-offer",
   } as const
   return purposes[kind]
 }

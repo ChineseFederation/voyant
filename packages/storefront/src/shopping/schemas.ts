@@ -220,11 +220,40 @@ export const storefrontPackageSearchIntentSchema = z
     }
   })
 
+export const storefrontCruiseSearchIntentSchema = z
+  .object({
+    kind: z.literal("cruise"),
+    query: z.string().min(1).max(300).optional(),
+    departureDateFrom: isoDateSchema.optional(),
+    departureDateTo: isoDateSchema.optional(),
+    travelers: travelersSchema.extend({ seniors: z.number().int().min(0).max(20).optional() }),
+    cruiseTypes: z
+      .array(z.enum(["ocean", "river", "expedition", "coastal"]))
+      .max(4)
+      .optional(),
+    limit: z.number().int().min(1).max(50).optional(),
+  })
+  .strict()
+  .superRefine((intent, ctx) => {
+    if (
+      intent.departureDateFrom !== undefined &&
+      intent.departureDateTo !== undefined &&
+      intent.departureDateTo < intent.departureDateFrom
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["departureDateTo"],
+        message: "departureDateTo must not be before departureDateFrom",
+      })
+    }
+  })
+
 export const storefrontShoppingIntentSchema = z.discriminatedUnion("kind", [
   storefrontIndexedInspirationIntentSchema,
   storefrontFlightSearchIntentSchema,
   storefrontStaySearchIntentSchema,
   storefrontPackageSearchIntentSchema,
+  storefrontCruiseSearchIntentSchema,
 ])
 
 /** Complete browser request. `.strict()` at every object boundary rejects trust-plane selectors. */
@@ -358,16 +387,46 @@ export const storefrontPackageSearchResultSchema = z
   })
   .strict()
 
+const cruiseOfferSchema = z
+  .object({
+    offerRef: opaqueRefSchema,
+    title: z.string().min(1),
+    cruiseType: z.enum(["ocean", "river", "expedition", "coastal"]),
+    lineName: z.string().min(1),
+    shipName: z.string().min(1),
+    departureDate: isoDateSchema,
+    returnDate: isoDateSchema,
+    nights: z.number().int().min(1),
+    embarkPortName: z.string().optional(),
+    disembarkPortName: z.string().optional(),
+    cabinName: z.string().min(1),
+    availability: z.enum(["available", "limited"]),
+    image: imageSchema.optional(),
+    price: storefrontPresentationMoneySchema,
+    expiresAt: z.string().datetime({ offset: true }),
+  })
+  .strict()
+
+export const storefrontCruiseSearchResultSchema = z
+  .object({
+    kind: z.literal("cruise"),
+    scope: storefrontResolvedScopeSchema,
+    offers: z.array(cruiseOfferSchema),
+    coverage: coverageSchema,
+  })
+  .strict()
+
 export const storefrontShoppingResultSchema = z.discriminatedUnion("kind", [
   storefrontIndexedInspirationResultSchema,
   storefrontFlightSearchResultSchema,
   storefrontStaySearchResultSchema,
   storefrontPackageSearchResultSchema,
+  storefrontCruiseSearchResultSchema,
 ])
 
 const tripOfferSelectionSchema = z
   .object({
-    kind: z.enum(["product", "flight", "stay", "package"]),
+    kind: z.enum(["product", "flight", "stay", "package", "cruise"]),
     offerRef: opaqueRefSchema,
     quantity: z.number().int().min(1).max(99).optional(),
   })
@@ -399,7 +458,7 @@ export const storefrontTripSelectionUpdateSchema = z
 const tripSelectionItemSchema = z
   .object({
     itemRef: opaqueRefSchema,
-    kind: z.enum(["product", "flight", "stay", "package"]),
+    kind: z.enum(["product", "flight", "stay", "package", "cruise"]),
     quantity: z.number().int().min(1),
   })
   .strict()

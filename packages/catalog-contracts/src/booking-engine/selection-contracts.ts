@@ -128,6 +128,24 @@ export const bookingSelectionPublicV1 = z.object({
         )
         .optional(),
       cabinCategoryId: z.string().optional(),
+      /** Opaque cruise sailing choice. The target's server-owned source
+       * connection remains authoritative; this value cannot select a provider. */
+      sailingId: z.string().optional(),
+      /** Exact occupancy and passenger mix used to revalidate a sourced cruise fare. */
+      occupancy: z.number().int().positive().optional(),
+      passengerComposition: z
+        .object({
+          adults: z.number().int().nonnegative(),
+          children: z.number().int().nonnegative().optional(),
+          childAges: z.array(z.number().int().nonnegative()).optional(),
+          infants: z.number().int().nonnegative().optional(),
+          seniors: z.number().int().nonnegative().optional(),
+        })
+        .optional(),
+      fareCode: z.string().optional().nullable(),
+      fareVariant: z.enum(["cruise_only", "air_inclusive"]).optional().nullable(),
+      /** Supplier terms captured with the opaque offer and revalidated at commit. */
+      bookingTerms: z.record(z.string(), z.unknown()).optional().nullable(),
       cabinNumberId: z.string().optional(),
       // Sourced stays/package rate pin. The chosen room + rate plan (and its
       // `board` suffix) so the connect adapter re-resolves the EXACT offer the

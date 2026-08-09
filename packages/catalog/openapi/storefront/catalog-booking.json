@@ -14501,6 +14501,53 @@
                           "cabinCategoryId": {
                             "type": "string"
                           },
+                          "sailingId": {
+                            "type": "string"
+                          },
+                          "occupancy": {
+                            "type": "integer",
+                            "exclusiveMinimum": 0
+                          },
+                          "passengerComposition": {
+                            "type": "object",
+                            "properties": {
+                              "adults": {
+                                "type": "integer",
+                                "minimum": 0
+                              },
+                              "children": {
+                                "type": "integer",
+                                "minimum": 0
+                              },
+                              "childAges": {
+                                "type": "array",
+                                "items": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                }
+                              },
+                              "infants": {
+                                "type": "integer",
+                                "minimum": 0
+                              },
+                              "seniors": {
+                                "type": "integer",
+                                "minimum": 0
+                              }
+                            },
+                            "required": ["adults"]
+                          },
+                          "fareCode": {
+                            "type": ["string", "null"]
+                          },
+                          "fareVariant": {
+                            "type": ["string", "null"],
+                            "enum": ["cruise_only", "air_inclusive", null]
+                          },
+                          "bookingTerms": {
+                            "type": ["object", "null"],
+                            "additionalProperties": {}
+                          },
                           "cabinNumberId": {
                             "type": "string"
                           },

@@ -12,6 +12,38 @@ const ENTITY = {
 const CONTACT = { firstName: "Test", lastName: "Traveler", email: "test@example.com" }
 
 describe("booking selection contracts", () => {
+  it("preserves sourced cruise merchandise choices without provider authority", () => {
+    const parsed = bookingSelectionV1.parse({
+      entity: {
+        module: "cruises",
+        id: "cruise_1",
+        sourceKind: "cruise:provider",
+        sourceConnectionId: "server_connection",
+        sourceRef: "cruise_ref",
+      },
+      configure: {
+        pax: { adult: 2 },
+        sailingId: "encoded_sailing_ref",
+        cabinCategoryId: "encoded_cabin_ref",
+        occupancy: 2,
+        passengerComposition: { adults: 2 },
+        fareCode: "FLEX",
+        fareVariant: "cruise_only",
+        bookingTerms: { refundable: true },
+      },
+    })
+
+    expect(parsed.configure).toMatchObject({
+      sailingId: "encoded_sailing_ref",
+      cabinCategoryId: "encoded_cabin_ref",
+      occupancy: 2,
+      passengerComposition: { adults: 2 },
+      fareCode: "FLEX",
+      fareVariant: "cruise_only",
+      bookingTerms: { refundable: true },
+    })
+  })
+
   it("rejects malformed billing contact emails", () => {
     const parsed = bookingSelectionV1.safeParse({
       entity: ENTITY,

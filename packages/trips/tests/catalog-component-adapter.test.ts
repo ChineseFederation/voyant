@@ -103,6 +103,48 @@ describe("catalog component adapter", () => {
     expect(draft.configure.pax).toEqual({ adult: 2 })
   })
 
+  it("preserves server-pinned cruise choices for composite booking sessions", () => {
+    const draft = bookingDraftFromComponent(
+      component({
+        entityModule: "cruises",
+        entityId: "cruise_1",
+        sourceKind: "cruise:provider",
+        sourceConnectionId: "connection_server",
+        sourceRef: "cruise_ref",
+        metadata: {
+          bookingDraftV1: {
+            entity: {
+              module: "cruises",
+              id: "cruise_1",
+              sourceKind: "cruise:provider",
+              sourceConnectionId: "connection_server",
+              sourceRef: "cruise_ref",
+            },
+            configure: {
+              sailingId: "sailing_ref",
+              cabinCategoryId: "cabin_ref",
+              occupancy: 2,
+              passengerComposition: { adults: 2 },
+              fareCode: "FLEX",
+              fareVariant: "cruise_only",
+              bookingTerms: { refundable: true },
+            },
+          },
+        },
+      }),
+    )
+
+    expect(draft.configure).toMatchObject({
+      sailingId: "sailing_ref",
+      cabinCategoryId: "cabin_ref",
+      occupancy: 2,
+      passengerComposition: { adults: 2 },
+      fareCode: "FLEX",
+      fareVariant: "cruise_only",
+      bookingTerms: { refundable: true },
+    })
+  })
+
   it("requires accommodation catalog components to carry a valid stay date range", () => {
     expect(() =>
       assertCatalogComponentBookingDraftReady(
