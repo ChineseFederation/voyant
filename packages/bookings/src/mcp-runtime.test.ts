@@ -22,7 +22,7 @@ afterEach(() => {
 })
 
 describe("bookings MCP runtime lifecycle detail", () => {
-  it("normalizes Date-shaped cancellation detail to the booking Tool wire format", async () => {
+  it("returns a compact cancellation outcome with an executable detail follow-up", async () => {
     const detail = bookingDetailWithDates("booking_1")
     vi.spyOn(bookingsService, "getBookingById").mockResolvedValue(detail.booking as never)
     vi.spyOn(bookingsService, "listItems").mockResolvedValue([detail.item] as never)
@@ -51,29 +51,15 @@ describe("bookings MCP runtime lifecycle detail", () => {
       invocation: {},
     } as ToolHandlerActionPolicyContext)
 
-    expect(result).toMatchObject({
+    expect(result).toEqual({
       status: "cancelled",
       replayed: false,
-      booking: {
-        id: "booking_1",
-        createdAt: "2026-07-28T10:00:00.000Z",
-        updatedAt: "2026-07-28T10:30:00.000Z",
-        items: [
-          {
-            id: "item_1",
-            createdAt: "2026-07-28T10:01:00.000Z",
-            updatedAt: "2026-07-28T10:31:00.000Z",
-          },
-        ],
-        travelers: [
-          {
-            id: "traveler_1",
-            createdAt: "2026-07-28T10:02:00.000Z",
-            updatedAt: "2026-07-28T10:32:00.000Z",
-          },
-        ],
-      },
+      bookingId: "booking_1",
+      bookingNumber: "BK-1",
+      committedChanges: ["booking_cancelled"],
+      nextActions: [{ tool: "get_booking", input: { id: "booking_1" } }],
     })
+    expect(JSON.stringify(result).length).toBeLessThan(500)
   })
 
   it("links an approved cancellation to the claim action", async () => {
@@ -83,6 +69,8 @@ describe("bookings MCP runtime lifecycle detail", () => {
     vi.spyOn(bookingsService, "listItems").mockResolvedValue([detail.item] as never)
     vi.spyOn(bookingsService, "listItemParticipants").mockResolvedValue([] as never)
     vi.spyOn(bookingsService, "listAllocations").mockResolvedValue([] as never)
+    vi.spyOn(bookingsService, "listTravelers").mockResolvedValue([detail.traveler] as never)
+    vi.spyOn(bookingsService, "listFulfillments").mockResolvedValue([] as never)
     const statusMutation = vi
       .spyOn(bookingsService, "cancelBooking")
       .mockResolvedValue({ status: "ok", booking: detail.booking } as never)
@@ -92,7 +80,7 @@ describe("bookings MCP runtime lifecycle detail", () => {
         { causation: { claimActionId: "action_claim_1" } },
         input.commandInput,
       )
-      return { replayed: false, value: detail.booking }
+      return { replayed: false, value: await handlers.execute() }
     })
 
     const contribution = await voyantToolContextContribution.contribute({
@@ -146,6 +134,8 @@ describe("bookings MCP runtime lifecycle detail", () => {
     vi.spyOn(bookingsService, "listItems").mockResolvedValue([detail.item] as never)
     vi.spyOn(bookingsService, "listItemParticipants").mockResolvedValue([] as never)
     vi.spyOn(bookingsService, "listAllocations").mockResolvedValue([] as never)
+    vi.spyOn(bookingsService, "listTravelers").mockResolvedValue([detail.traveler] as never)
+    vi.spyOn(bookingsService, "listFulfillments").mockResolvedValue([] as never)
     const cancelBooking = vi
       .spyOn(bookingsService, "cancelBooking")
       .mockResolvedValue({ status: "ok", booking: detail.booking } as never)
@@ -155,7 +145,7 @@ describe("bookings MCP runtime lifecycle detail", () => {
         { causation: { claimActionId: "action_claim_cancel" } },
         input.commandInput,
       )
-      return { replayed: false, value: detail.booking }
+      return { replayed: false, value: await handlers.execute() }
     })
 
     const contribution = await voyantToolContextContribution.contribute({

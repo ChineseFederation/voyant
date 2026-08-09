@@ -412,10 +412,14 @@ async function executeBookingStatusToolCommand(input: {
       await eventBus?.emit(event.event, event.data, event.metadata as never, event.options as never)
     }
   }
+  const booking = bookingToolDetailSchema.parse(result.value)
   return {
     status: "cancelled" as const,
-    booking: result.value,
+    bookingId: booking.id,
+    bookingNumber: booking.bookingNumber,
     replayed: result.replayed,
+    committedChanges: ["booking_cancelled"] as const,
+    nextActions: [{ tool: "get_booking" as const, input: { id: booking.id } }] as const,
   }
 }
 
@@ -638,18 +642,18 @@ function policyEntitlementAsOf(preview: Record<string, unknown>): Date {
   return parsed
 }
 
-function cancellationPolicyEntitlement(
-  preview: Record<string, unknown>,
-): BookingCancellationConsequences {
+function cancellationPolicyEntitlement(preview: {
+  policyEntitlement: BookingCancellationConsequences | { status: "manual_review" }
+}): BookingCancellationConsequences {
   const entitlement = preview.policyEntitlement
-  if (!isRecord(entitlement) || entitlement.status !== "evaluated") {
+  if (entitlement.status !== "evaluated") {
     throw new ToolError(
       "Cancellation policy entitlement requires manual review; no cancellation was written.",
       "INVALID_INPUT",
       { reason: "policy_manual_review_required" },
     )
   }
-  return entitlement as unknown as BookingCancellationConsequences
+  return entitlement
 }
 
 async function loadFinanceConsequenceTables(

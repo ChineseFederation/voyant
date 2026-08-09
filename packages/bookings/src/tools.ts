@@ -189,8 +189,16 @@ export const cancelBookingToolInputSchema = z.object({
 
 const completedCancelledBookingActionSchema = z.object({
   status: z.literal("cancelled"),
-  booking: bookingToolDetailSchema,
+  bookingId: z.string().min(1),
+  bookingNumber: z.string().min(1),
   replayed: z.boolean(),
+  committedChanges: z.tuple([z.literal("booking_cancelled")]),
+  nextActions: z.tuple([
+    z.object({
+      tool: z.literal("get_booking"),
+      input: z.object({ id: z.string().min(1) }),
+    }),
+  ]),
 })
 
 export const cancelBookingToolOutputSchema = completedCancelledBookingActionSchema

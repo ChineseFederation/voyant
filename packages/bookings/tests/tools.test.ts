@@ -197,8 +197,11 @@ describe("bookings tools", () => {
             expect(admitted.invocation.idempotencyFingerprint).toBe("sha256:reserved")
             return {
               status: "cancelled",
-              booking: bookingDetail("bk_1", "cancelled"),
+              bookingId: "bk_1",
+              bookingNumber: "B-1001",
               replayed: false,
+              committedChanges: ["booking_cancelled"],
+              nextActions: [{ tool: "get_booking", input: { id: "bk_1" } }],
             }
           },
         },
@@ -222,7 +225,15 @@ describe("bookings tools", () => {
         },
       ),
     )
-    expect(result).toMatchObject({ status: "cancelled", booking: { id: "bk_1" } })
+    expect(result).toEqual({
+      status: "cancelled",
+      bookingId: "bk_1",
+      bookingNumber: "B-1001",
+      replayed: false,
+      committedChanges: ["booking_cancelled"],
+      nextActions: [{ tool: "get_booking", input: { id: "bk_1" } }],
+    })
+    expect(JSON.stringify(result).length).toBeLessThan(500)
   })
 
   it("dispatches through the injected service", async () => {
