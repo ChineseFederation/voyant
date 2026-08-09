@@ -245,6 +245,9 @@ async function runJourney(input: {
       output: string
     }> = []
     for (const call of toolCalls) {
+      if (calls.length >= input.maxCalls) {
+        return { calls, answer: "", tokens, exhausted: true }
+      }
       let args: Record<string, unknown> = {}
       try {
         args = JSON.parse(call.arguments || "{}") as Record<string, unknown>
@@ -520,7 +523,7 @@ function buildJourneys(RUN_MARK: string): CapabilityJourney[] {
       domain: "bookings",
       task: `Cancel the booking belonging to Ioana Marinescu${RUN_MARK} according to the cancellation terms agreed when it was booked. Complete any required approval, use a cash refund when the agreed terms permit it, and confirm the cancellation and refund entitlement.`,
       expect: "cancel",
-      maxCalls: 28,
+      maxCalls: 30,
       verify: `select 1 from bookings b
              join people pe on pe.id = b.person_id
              join booking_activity_log a on a.booking_id = b.id
@@ -658,7 +661,7 @@ async function seedCancellationPolicy(mark: string): Promise<void> {
 
 /** Exactly the conditions `it.each` asserts, so the report can never disagree. */
 function journeyPassed(journey: CapabilityJourney, run: JourneyRun): boolean {
-  if (run.calls.length === 0) return false
+  if (run.calls.length === 0 || run.exhausted || run.calls.length > journey.maxCalls) return false
   if (journey.verify) return verified.get(journey.id) === true
   if (journey.requiresDispatch) {
     const dispatched = run.calls.filter(
@@ -780,6 +783,7 @@ function writeMachineReport(): void {
         responseBytes: attempt.calls.reduce((sum, call) => sum + call.responseBytes, 0),
         tokens: attempt.tokens,
         exhausted: attempt.exhausted,
+        withinCallBudget: attempt.calls.length <= journey.maxCalls,
         trace: attempt.calls.map((call) => ({
           name: call.name,
           isError: call.isError,

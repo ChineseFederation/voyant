@@ -68,6 +68,9 @@ product harness and its artifact contract.
 Journeys are chained. Diagnose the first link below 5/5; downstream failures are
 usually consequences. A refusal is useful only if the model-visible payload explains
 and enables the repair. A model answer without a data dispatch is not a read success.
+Call budgets count dispatched Tool calls, not model turns. A model may finish its
+answer after the last allowed Tool call, but another attempted dispatch marks the
+journey exhausted and fails a gated attempt.
 
 Use smoke mode for wiring checks only. Claims about a write-path improvement require
 five-attempt measurement evidence, because a single model-driven run cannot separate
