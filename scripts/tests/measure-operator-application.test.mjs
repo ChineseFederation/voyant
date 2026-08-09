@@ -24,6 +24,16 @@ test("measures a built Operator application without starting a listener", () => 
     }
     write(root, "apps/operator/dist/server/server.js", "export default { fetch() {} }\n")
     write(root, "apps/operator/dist/client/assets/admin-page.js", "export const page = true\n")
+    write(
+      root,
+      "apps/operator/dist/admin-shell/client/assets/index.js",
+      "export const shell = true\n",
+    )
+    write(
+      root,
+      "apps/operator/dist/admin-shell/client/index.html",
+      '<link rel="modulepreload" href="/assets/index.js">\n',
+    )
 
     const output = execFileSync(
       process.execPath,
@@ -37,6 +47,11 @@ test("measures a built Operator application without starting a listener", () => 
     assert.equal(report.metadata.generated.files, 4)
     assert.equal(report.server.files, 1)
     assert.equal(report.admin.files, 1)
+    assert.equal(report.portableShell.initialPreloads.files, 1)
+    assert.equal(
+      report.portableShell.initialPreloads.paths[0],
+      "dist/admin-shell/client/assets/index.js",
+    )
     assert.equal(report.boot.ok, true)
     assert.ok(report.boot.milliseconds >= 0)
   } finally {

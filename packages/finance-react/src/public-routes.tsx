@@ -1,17 +1,30 @@
 "use client"
 
 import { Navigate, useParams, useSearch } from "@tanstack/react-router"
-import type { ComponentType, ReactNode } from "react"
+import { type ComponentType, lazy, type ReactNode, Suspense } from "react"
 import { z } from "zod"
-import { AccountantPortal } from "./components/accountant-portal.js"
-import {
-  type PaymentLinkResolverMessages,
-  PaymentLinkResolverPage,
-} from "./storefront/payment-link-resolver-page.js"
-import {
-  PublicPaymentLinkPage,
-  type PublicPaymentLinkPageMessages,
-} from "./storefront/public-payment-link-page.js"
+import type { PaymentLinkResolverMessages } from "./storefront/payment-link-resolver-page.js"
+import type { PublicPaymentLinkPageMessages } from "./storefront/public-payment-link-page.js"
+
+const AccountantPortal = lazy(() =>
+  import("./components/accountant-portal.js").then((module) => ({
+    default: module.AccountantPortal,
+  })),
+)
+const PaymentLinkResolverPage = lazy(() =>
+  import("./storefront/payment-link-resolver-page.js").then((module) => ({
+    default: module.PaymentLinkResolverPage,
+  })),
+)
+const PublicPaymentLinkPage = lazy(() =>
+  import("./storefront/public-payment-link-page.js").then((module) => ({
+    default: module.PublicPaymentLinkPage,
+  })),
+)
+
+function PublicFinanceRouteFallback() {
+  return <div className="min-h-screen bg-background" />
+}
 
 const paymentSearchSchema = z.object({
   orderID: z.string().optional(),
@@ -30,7 +43,9 @@ export function createFinancePublicRouteContribution(runtime: FinancePublicRoute
   function PayRoute() {
     return (
       <runtime.StorefrontMessagesProvider>
-        <PayRouteContent />
+        <Suspense fallback={<PublicFinanceRouteFallback />}>
+          <PayRouteContent />
+        </Suspense>
       </runtime.StorefrontMessagesProvider>
     )
   }
@@ -53,7 +68,9 @@ export function createFinancePublicRouteContribution(runtime: FinancePublicRoute
   function PaymentLinkRoute() {
     return (
       <runtime.StorefrontMessagesProvider>
-        <PaymentLinkRouteContent />
+        <Suspense fallback={<PublicFinanceRouteFallback />}>
+          <PaymentLinkRouteContent />
+        </Suspense>
       </runtime.StorefrontMessagesProvider>
     )
   }
@@ -75,7 +92,9 @@ export function createFinancePublicRouteContribution(runtime: FinancePublicRoute
     const { token } = useParams({ strict: false }) as { token: string }
     return (
       <div className="min-h-screen bg-background">
-        <AccountantPortal token={token} apiBaseUrl={runtime.getApiUrl()} />
+        <Suspense fallback={<PublicFinanceRouteFallback />}>
+          <AccountantPortal token={token} apiBaseUrl={runtime.getApiUrl()} />
+        </Suspense>
       </div>
     )
   }

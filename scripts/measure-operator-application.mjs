@@ -15,6 +15,7 @@ const requireBuild = process.argv.includes("--require-build") || process.argv.in
 const check = process.argv.includes("--check")
 const serverEntry = join(operatorRoot, "dist/server/server.js")
 const clientRoot = join(operatorRoot, "dist/client")
+const portableShellEntry = join(operatorRoot, "dist/admin-shell/client/index.html")
 
 if (requireBuild && (!existsSync(serverEntry) || !existsSync(clientRoot))) {
   console.error(
@@ -70,6 +71,7 @@ const report = {
   server: summarize(serverFiles),
   admin: summarize(adminChunks),
   client: summarize(clientFiles),
+  portableShell: existsSync(portableShellEntry) ? summarizePortableShell(portableShellEntry) : null,
   boot: existsSync(serverEntry) ? measureBoot(serverEntry) : null,
 }
 
@@ -90,6 +92,15 @@ if (check) {
   if (report.admin.gzipBytes > 15 * 1024 * 1024) failures.push("admin gzip chunks exceed 15 MiB")
   if (report.admin.largestGzipBytes > 2 * 1024 * 1024) {
     failures.push("largest admin gzip chunk exceeds 2 MiB")
+  }
+  if (!report.portableShell) failures.push("portable admin shell is missing")
+  if ((report.portableShell?.initialPreloads.gzipBytes ?? 0) > 640 * 1024) {
+    failures.push("portable admin shell initial preloads exceed 640 KiB gzip")
+  }
+  if (
+    report.portableShell?.initialPreloads.paths.some((path) => /\/recharts-[^/]+\.js$/.test(path))
+  ) {
+    failures.push("portable admin shell eagerly preloads Recharts")
   }
   if (!report.boot?.ok || report.boot.milliseconds > 5_000) {
     failures.push("cold Node module boot exceeds 5000 ms or failed")
@@ -129,6 +140,24 @@ function summarize(files) {
     bytes: entries.reduce((total, entry) => total + entry.bytes, 0),
     gzipBytes: entries.reduce((total, entry) => total + entry.gzipBytes, 0),
     largestGzipBytes: Math.max(0, ...entries.map((entry) => entry.gzipBytes)),
+  }
+}
+
+function summarizePortableShell(entryDocument) {
+  const document = readFileSync(entryDocument, "utf8")
+  const hrefs = [...document.matchAll(/<link[^>]+rel="modulepreload"[^>]+href="([^"]+\.js)"/g)].map(
+    (match) => match[1],
+  )
+  const files = hrefs.map((href) => {
+    const file = join(dirname(entryDocument), href.startsWith("/") ? href.slice(1) : href)
+    if (!existsSync(file)) throw new Error(`portable shell preload is missing: ${href}`)
+    return file
+  })
+  return {
+    initialPreloads: {
+      ...summarize(files),
+      paths: files.map((file) => relative(operatorRoot, file)).sort(),
+    },
   }
 }
 

@@ -12,27 +12,8 @@ import {
   CardTitle,
   SegmentedControl,
 } from "@voyant-travel/ui/components"
-import {
-  ChartContainer,
-  ChartLegend,
-  ChartLegendContent,
-  ChartTooltip,
-  ChartTooltipContent,
-} from "@voyant-travel/ui/components/chart"
 import { CalendarCheck, DollarSign, Package, Users } from "lucide-react"
-import { useState } from "react"
-import {
-  Area,
-  AreaChart,
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Cell,
-  Pie,
-  PieChart,
-  XAxis,
-  YAxis,
-} from "recharts"
+import { lazy, Suspense, useState } from "react"
 
 import { AdminWidgetSlotRenderer } from "../components/admin-widget-slot.js"
 import { formatMessage } from "../lib/i18n.js"
@@ -70,6 +51,22 @@ import {
   DashboardPieChartSkeleton,
   DashboardUpcomingListSkeleton,
 } from "./dashboard-skeleton.js"
+
+const RevenueTrendChart = lazy(() =>
+  import("./dashboard-charts.js").then((module) => ({
+    default: module.RevenueTrendChart,
+  })),
+)
+const BookingStatusChart = lazy(() =>
+  import("./dashboard-charts.js").then((module) => ({
+    default: module.BookingStatusChart,
+  })),
+)
+const MonthlyBookingsChart = lazy(() =>
+  import("./dashboard-charts.js").then((module) => ({
+    default: module.MonthlyBookingsChart,
+  })),
+)
 
 export type {
   DashboardEmptyAction,
@@ -319,48 +316,14 @@ export function DashboardPage({ emptyStates = {} }: DashboardPageProps = {}) {
                 emptyState={resolvedEmptyStates.revenueTrend}
               />
             ) : (
-              <ChartContainer
-                config={revenueChartConfig}
-                className={`${DASHBOARD_CHART_TALL} w-full`}
-              >
-                <AreaChart
+              <Suspense fallback={<DashboardAreaChartSkeleton />}>
+                <RevenueTrendChart
+                  config={revenueChartConfig}
+                  currency={defaultCurrency}
                   data={monthlyRevenue}
-                  margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
-                >
-                  <defs>
-                    <linearGradient id="fillRevenue" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="var(--chart-1)" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="var(--chart-1)" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid vertical={false} />
-                  <XAxis dataKey="month" tickLine={false} axisLine={false} tickMargin={8} />
-                  <YAxis
-                    tickLine={false}
-                    axisLine={false}
-                    tickMargin={8}
-                    tickFormatter={(value: number) => `$${(value / 1000).toFixed(0)}k`}
-                  />
-                  <ChartTooltip
-                    content={
-                      <ChartTooltipContent
-                        formatter={(value) =>
-                          typeof value === "number"
-                            ? formatCurrency(value * 100, defaultCurrency)
-                            : String(value)
-                        }
-                      />
-                    }
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="revenue"
-                    stroke="var(--chart-1)"
-                    fill="url(#fillRevenue)"
-                    strokeWidth={2}
-                  />
-                </AreaChart>
-              </ChartContainer>
+                  className={`${DASHBOARD_CHART_TALL} w-full`}
+                />
+              </Suspense>
             )}
           </CardContent>
         </Card>
@@ -378,29 +341,13 @@ export function DashboardPage({ emptyStates = {} }: DashboardPageProps = {}) {
                 emptyState={resolvedEmptyStates.bookingStatus}
               />
             ) : (
-              <ChartContainer
-                config={bookingStatusConfig}
-                className={`mx-auto ${DASHBOARD_CHART_TALL} w-full`}
-              >
-                <PieChart>
-                  <ChartTooltip content={<ChartTooltipContent nameKey="status" hideLabel />} />
-                  <Pie
-                    data={localizedStatusBreakdown}
-                    dataKey="count"
-                    nameKey="status"
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={100}
-                    paddingAngle={2}
-                  >
-                    {localizedStatusBreakdown.map((entry) => (
-                      <Cell key={entry.status} fill={entry.fill} />
-                    ))}
-                  </Pie>
-                  <ChartLegend content={<ChartLegendContent nameKey="status" />} />
-                </PieChart>
-              </ChartContainer>
+              <Suspense fallback={<DashboardPieChartSkeleton />}>
+                <BookingStatusChart
+                  config={bookingStatusConfig}
+                  data={localizedStatusBreakdown}
+                  className={`mx-auto ${DASHBOARD_CHART_TALL} w-full`}
+                />
+              </Suspense>
             )}
           </CardContent>
         </Card>
@@ -422,21 +369,13 @@ export function DashboardPage({ emptyStates = {} }: DashboardPageProps = {}) {
                 compact
               />
             ) : (
-              <ChartContainer
-                config={monthlyBookingsConfig}
-                className={`${DASHBOARD_CHART_SHORT} w-full`}
-              >
-                <BarChart
+              <Suspense fallback={<DashboardBarChartSkeleton />}>
+                <MonthlyBookingsChart
+                  config={monthlyBookingsConfig}
                   data={monthlyBookings}
-                  margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
-                >
-                  <CartesianGrid vertical={false} />
-                  <XAxis dataKey="month" tickLine={false} axisLine={false} tickMargin={8} />
-                  <YAxis tickLine={false} axisLine={false} tickMargin={8} allowDecimals={false} />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <Bar dataKey="count" fill="var(--chart-1)" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ChartContainer>
+                  className={`${DASHBOARD_CHART_SHORT} w-full`}
+                />
+              </Suspense>
             )}
           </CardContent>
         </Card>

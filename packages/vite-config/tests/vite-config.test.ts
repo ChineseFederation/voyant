@@ -7,6 +7,7 @@ import { describe, expect, it } from "vitest"
 import {
   VOYANT_ROUTE_FILE_IGNORE_PATTERN,
   VOYANT_SSR_OPTIMIZE_DEPS,
+  voyantChunkOutput,
   voyantGeneratedRoutes,
   voyantStartViteConfig,
   voyantVendorChunk,
@@ -63,6 +64,23 @@ describe("voyantVendorChunk", () => {
     expect(
       voyantVendorChunk("/repo/node_modules/@better-auth/utils/dist/client/react/error-codes.js"),
     ).toBeUndefined()
+  })
+})
+
+describe("voyantChunkOutput", () => {
+  it("uses explicit Rolldown dependency boundaries on Vite 8", () => {
+    const output = voyantChunkOutput(8)
+    expect("codeSplitting" in output && output.codeSplitting.includeDependenciesRecursively).toBe(
+      false,
+    )
+  })
+
+  it("uses Rollup's explicit manual chunks on Vite 6 and 7", () => {
+    const output = voyantChunkOutput(7)
+    expect("onlyExplicitManualChunks" in output && output.onlyExplicitManualChunks).toBe(true)
+    expect(
+      "manualChunks" in output && output.manualChunks("/repo/node_modules/react/index.js"),
+    ).toBe("react")
   })
 })
 
@@ -188,13 +206,17 @@ describe("voyantStartViteConfig", () => {
       extraManualChunks: (id) => (id.includes("/lodash/") ? "lodash" : undefined),
     })
     const output = config.build?.rollupOptions?.output
-    const manualChunks = (Array.isArray(output) ? output[0] : output)?.manualChunks as (
-      id: string,
-    ) => string | undefined
+    const codeSplitting = (Array.isArray(output) ? output[0] : output)?.codeSplitting
+    expect(codeSplitting).not.toBe(false)
+    expect(codeSplitting).not.toBe(true)
+    if (!codeSplitting || typeof codeSplitting !== "object") throw new Error("missing chunk config")
+    expect(codeSplitting.includeDependenciesRecursively).toBe(false)
+    const chunkName = codeSplitting.groups?.[0]?.name
+    if (typeof chunkName !== "function") throw new Error("missing chunk name function")
 
-    expect(manualChunks("/repo/node_modules/react/index.js")).toBe("react")
-    expect(manualChunks("/repo/node_modules/lodash/index.js")).toBe("lodash")
-    expect(manualChunks("/repo/node_modules/zod/index.js")).toBeUndefined()
+    expect(chunkName("/repo/node_modules/react/index.js", {} as never)).toBe("react")
+    expect(chunkName("/repo/node_modules/lodash/index.js", {} as never)).toBe("lodash")
+    expect(chunkName("/repo/node_modules/zod/index.js", {} as never)).toBeNull()
   })
 
   it("appends app-specific SSR optimizeDeps to the Voyant set", () => {

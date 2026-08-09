@@ -11,7 +11,7 @@ import {
 import { createRequire } from "node:module"
 import { dirname, join, resolve } from "node:path"
 import { fileURLToPath, URL } from "node:url"
-import type { Plugin, PluginOption, UserConfig } from "vite"
+import { type Plugin, type PluginOption, type UserConfig, version as viteVersion } from "vite"
 
 /**
  * Force heavy vendor libs into their own chunks so they're only downloaded
@@ -54,6 +54,28 @@ export function voyantVendorChunk(id: string): string | undefined {
     return "pdf-lib"
   }
   return undefined
+}
+
+type ExtraManualChunks = (id: string) => string | undefined
+
+export function voyantChunkOutput(viteMajor: number, extraManualChunks?: ExtraManualChunks) {
+  const chunkName = (id: string) => voyantVendorChunk(id) ?? extraManualChunks?.(id)
+  if (viteMajor >= 8) {
+    return {
+      codeSplitting: {
+        // Keep named vendor chunks from absorbing their transitive dependencies.
+        // In particular, Recharts shares small helpers with workspace chrome;
+        // absorbing those helpers made every route import the full chart bundle.
+        includeDependenciesRecursively: false,
+        groups: [{ name: (id: string) => chunkName(id) ?? null }],
+      },
+    }
+  }
+  return {
+    // Rollup 4's equivalent. Vite 6 and 7 use Rollup rather than Rolldown.
+    onlyExplicitManualChunks: true,
+    manualChunks: chunkName,
+  }
 }
 
 /**
@@ -329,10 +351,11 @@ export function voyantStartViteConfig(options: VoyantStartViteConfigOptions): Us
     build: {
       rollupOptions: {
         output: {
-          manualChunks(id: string) {
-            return voyantVendorChunk(id) ?? extraManualChunks?.(id)
-          },
-        },
+          ...voyantChunkOutput(
+            Number.parseInt(viteVersion.split(".")[0] ?? "0", 10),
+            extraManualChunks,
+          ),
+        } as never,
       },
     },
     resolve: {
