@@ -24,6 +24,7 @@ import {
 import {
   assertOutboundWebhookEndpointUrl,
   hashWebhookPayload,
+  serializeWebhookPayload,
   webhookBodyExcerpt,
 } from "./security.js"
 import { generateWebhookTestPayload } from "./test-payload.js"
@@ -327,7 +328,7 @@ function deliveryInput(input: {
 }): EnqueueWebhookAttemptInput {
   const id = newId("webhook_deliveries")
   const idempotencyKey = `${input.idempotencyPrefix}:${id}`
-  const body = JSON.stringify(input.event)
+  const body = serializeWebhookPayload(input.event)
   return {
     id,
     sourceModule: "operator-webhooks",

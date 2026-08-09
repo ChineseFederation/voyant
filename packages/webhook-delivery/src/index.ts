@@ -39,6 +39,7 @@ export {
   assertOutboundWebhookEndpointUrl,
   hashWebhookPayload,
   redactWebhookHeaders,
+  serializeWebhookPayload,
   signWebhookPayload,
   verifyWebhookPayloadSignature,
   webhookBodyExcerpt,

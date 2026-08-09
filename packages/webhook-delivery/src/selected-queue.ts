@@ -4,7 +4,7 @@ import { newId } from "@voyant-travel/db/lib/typeid"
 
 import { createAppWebhookDeliveryEnvelope } from "./app-envelope.js"
 import { type ExternalWebhookEventContract, prepareExternalWebhookEvent } from "./contracts.js"
-import { hashWebhookPayload, webhookBodyExcerpt } from "./security.js"
+import { hashWebhookPayload, serializeWebhookPayload, webhookBodyExcerpt } from "./security.js"
 import type {
   SelectedExternalWebhookQueue,
   WebhookDeliveryStore,
@@ -55,7 +55,7 @@ export function createSelectedExternalWebhookQueue(
                   idempotencyKey,
                 })
               : event
-            const body = JSON.stringify(payload)
+            const body = serializeWebhookPayload(payload)
             const enqueued = await options.store.enqueueAttempt({
               id: deliveryId,
               sourceModule:

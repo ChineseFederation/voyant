@@ -21,6 +21,7 @@ import {
   assertOutboundWebhookEndpointUrl,
   hashWebhookPayload,
   redactWebhookHeaders,
+  serializeWebhookPayload,
   signWebhookPayload,
   webhookBodyExcerpt,
 } from "./security.js"
@@ -92,7 +93,7 @@ export function createWebhookDeliveryWorker(
       return abandon(delivery, startedAt, "webhook subscription is unavailable or inactive")
     }
 
-    const body = JSON.stringify(hydrated.payload)
+    const body = serializeWebhookPayload(hydrated.payload)
     if (hashWebhookPayload(body) !== delivery.requestBodyHash) {
       return abandon(delivery, startedAt, "persisted webhook payload hash does not match")
     }
@@ -424,7 +425,7 @@ function retryInput(
         parentDeliveryId: delivery.id,
       })
     : payload
-  const body = JSON.stringify(retryPayload)
+  const body = serializeWebhookPayload(retryPayload)
   return {
     id: deliveryId,
     sourceModule: delivery.sourceModule,

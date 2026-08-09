@@ -104,6 +104,27 @@ describe("durable external webhook delivery", () => {
     )
   })
 
+  it("keeps the payload hash stable when jsonb reorders object keys", async () => {
+    const store = new MemoryWebhookDeliveryStore([APP_SUBSCRIPTION])
+    await createSelectedExternalWebhookQueue({ contracts: [CONTRACT], store }).enqueue(EVENT)
+    const queued = store.records[0]
+    if (!queued) throw new Error("Expected a queued webhook delivery")
+
+    // PostgreSQL jsonb normalizes object keys instead of preserving the
+    // insertion order used by the enqueueing process. Model that round trip
+    // without changing the payload's JSON value.
+    queued.requestPayload = reorderObjectKeys(queued.requestPayload)
+
+    const fetch = vi.fn(async () => new Response(null, { status: 204 }))
+    const worker = createWebhookDeliveryWorker({
+      store,
+      fetch: fetch as typeof globalThis.fetch,
+    })
+
+    await expect(worker.runNext()).resolves.toMatchObject({ status: "succeeded" })
+    expect(fetch).toHaveBeenCalledOnce()
+  })
+
   it("delivers installed app subscriptions with the RFC envelope and signing key id", async () => {
     const store = new MemoryWebhookDeliveryStore([APP_SUBSCRIPTION])
     await createSelectedExternalWebhookQueue({ contracts: [CONTRACT], store }).enqueue(EVENT)
@@ -284,6 +305,16 @@ describe("durable external webhook delivery", () => {
     expect(fetch).not.toHaveBeenCalled()
   })
 })
+
+function reorderObjectKeys(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(reorderObjectKeys)
+  if (value === null || typeof value !== "object") return value
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>)
+      .reverse()
+      .map(([key, nested]) => [key, reorderObjectKeys(nested)]),
+  )
+}
 
 async function queuedStore(): Promise<MemoryWebhookDeliveryStore> {
   const store = new MemoryWebhookDeliveryStore([SUBSCRIPTION])

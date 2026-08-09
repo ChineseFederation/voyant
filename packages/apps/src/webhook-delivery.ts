@@ -15,6 +15,7 @@ import {
   type ExternalWebhookEventContract,
   hashWebhookPayload,
   isAppWebhookDeliveryEnvelope,
+  serializeWebhookPayload,
   type WebhookDeliveryStore,
   type WebhookDeliveryWorker,
   type WebhookEnqueueOutcome,
@@ -444,7 +445,7 @@ function replayInput(
     idempotencyKey: `app-webhook-replay:${original.id}:${deliveryId}`,
     originalDeliveryId: original.id,
   })
-  const body = JSON.stringify(replay)
+  const body = serializeWebhookPayload(replay)
   return {
     id: deliveryId,
     sourceModule: "apps",
