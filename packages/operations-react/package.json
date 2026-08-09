@@ -12,6 +12,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./admin": "./src/admin.ts",
+    "./admin-shell": "./src/admin-shell.tsx",
     "./styles.css": "./src/styles.css",
     "./availability": "./src/availability/index.ts",
     "./availability/provider": "./src/availability/provider.tsx",
@@ -151,6 +152,11 @@
         "types": "./dist/admin.d.ts",
         "import": "./dist/admin.js",
         "default": "./dist/admin.js"
+      },
+      "./admin-shell": {
+        "types": "./dist/admin-shell.d.ts",
+        "import": "./dist/admin-shell.js",
+        "default": "./dist/admin-shell.js"
       },
       "./styles.css": {
         "default": "./src/styles.css"

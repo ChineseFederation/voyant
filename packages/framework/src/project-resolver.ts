@@ -564,6 +564,7 @@ function runtimePackageReferences(
     for (const secret of unit.secrets ?? []) add(unit, secret.validator)
     for (const provider of unit.providers ?? []) add(unit, provider.runtime)
     add(unit, unit.admin?.runtime)
+    add(unit, unit.admin?.shellRuntime)
     for (const copy of unit.admin?.copy ?? []) add(unit, copy.runtime)
     for (const route of unit.admin?.routes ?? []) add(unit, route.runtime)
     for (const contribution of unit.admin?.contributions ?? []) add(unit, contribution.runtime)

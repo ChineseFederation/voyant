@@ -146,6 +146,9 @@ export {
   type AdminSetupStepActionProps,
   type AdminSetupStepContribution,
   type AdminSetupStepMessages,
+  type AdminShellExtension,
+  type AdminShellRouteContribution,
+  type AdminShellSettingsPageContribution,
   type AdminUiRouteContribution,
   type AdminWidgetContribution,
   type AdminWidgetSlot,
@@ -170,6 +173,7 @@ export {
   resolveAdminWidgets,
   type SelectedAdminExtensionFactory,
   type SelectedAdminExtensionFactoryContext,
+  type SelectedAdminShellFactory,
   storeAdminSetupPrefill,
 } from "./extensions.js"
 export {

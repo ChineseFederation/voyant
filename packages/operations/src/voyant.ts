@@ -715,6 +715,11 @@ export const operationsVoyantModule = defineModule({
   ],
   admin: {
     compositionOrder: 10,
+    loading: "lazy-routes",
+    shellRuntime: {
+      entry: "@voyant-travel/operations-react/admin-shell",
+      export: "createSelectedOperationsAdminShellExtension",
+    },
     runtime: {
       entry: "@voyant-travel/operations-react/admin",
       export: "createSelectedOperationsAdminExtension",

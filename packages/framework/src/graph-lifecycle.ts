@@ -28,6 +28,7 @@ export type VoyantGraphLifecycleFacet =
   | "access-resource"
   | "access-role"
   | "admin-runtime"
+  | "admin-shell-runtime"
   | "admin-copy"
   | "admin-route"
   | "admin-nav"
@@ -503,6 +504,9 @@ function unitFacetEntities(
   add("access-role", unit.access?.roles)
   if (unit.admin?.runtime) {
     entities.push({ facet: "admin-runtime", entityId: `${unit.id}#admin.runtime` })
+  }
+  if (unit.admin?.shellRuntime) {
+    entities.push({ facet: "admin-shell-runtime", entityId: `${unit.id}#admin.shellRuntime` })
   }
   add("admin-copy", unit.admin?.copy)
   add("admin-route", unit.admin?.routes)

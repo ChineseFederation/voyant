@@ -1,8 +1,39 @@
 import { describe, expect, it } from "vitest"
 
 import { createSelectedOperationsAdminExtension } from "./admin.js"
+import { createSelectedOperationsAdminShellExtension } from "./admin-shell.js"
 
 describe("createSelectedOperationsAdminExtension", () => {
+  it("keeps the import-cheap shell contract aligned with the full extension", () => {
+    const context = { navMessages: { availability: "Disponibilitate", resources: "Resurse" } }
+    const shell = createSelectedOperationsAdminShellExtension(context)
+    const extension = createSelectedOperationsAdminExtension(context)
+
+    expect(shell.navigation).toEqual(extension.navigation)
+    expect(shell.widgets?.map(({ id, slot }) => ({ id, slot }))).toEqual(
+      extension.widgets?.map(({ id, slot }) => ({ id, slot })),
+    )
+    expect(
+      shell.routes?.map(({ id, path, title, destination, destinationParams, ssr }) => ({
+        id,
+        path,
+        title,
+        destination,
+        destinationParams,
+        ssr,
+      })),
+    ).toEqual(
+      extension.routes?.map(({ id, path, title, destination, destinationParams, ssr }) => ({
+        id,
+        path,
+        title,
+        destination,
+        destinationParams,
+        ssr,
+      })),
+    )
+  })
+
   it("preserves the standard Availability and Resources navigation slots", () => {
     const extension = createSelectedOperationsAdminExtension({
       navMessages: { availability: "Disponibilitate", resources: "Resurse" },

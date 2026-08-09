@@ -137,6 +137,11 @@ export interface VoyantGraphAdminDeclaration {
   /** Import-cheap factory for this unit's complete nav/route/page extension. */
   runtime?: VoyantGraphRuntimeReference
   /**
+   * Import-cheap factory for shell-critical contributions (navigation, setup,
+   * runtime hooks, and widgets) when the complete route implementation is lazy.
+   */
+  shellRuntime?: VoyantGraphRuntimeReference
+  /**
    * Keep a route-only implementation behind a dynamic import. Use only when
    * every shell-critical contribution is represented by lightweight graph
    * metadata; setup flows, widgets, slots, and runtime nav remain eager.

@@ -17,6 +17,31 @@ export type SelectedAdminExtensionFactory = (
   context: SelectedAdminExtensionFactoryContext,
 ) => AdminExtension
 
+/** Route metadata required by the shell before its implementation is downloaded. */
+export type AdminShellRouteContribution = Omit<
+  AdminUiRouteContribution,
+  "children" | "component" | "loader" | "page"
+> & {
+  children?: ReadonlyArray<AdminShellRouteContribution>
+}
+
+/** Settings metadata required by the shell before its implementation is downloaded. */
+export type AdminShellSettingsPageContribution = Omit<
+  AdminSettingsPageContribution,
+  "loader" | "page"
+>
+
+/** Shell-critical half of a selected admin extension; route implementations stay separate. */
+export type AdminShellExtension = Omit<AdminExtension, "routes" | "settingsPages"> & {
+  routes?: ReadonlyArray<AdminShellRouteContribution>
+  settingsPages?: ReadonlyArray<AdminShellSettingsPageContribution>
+}
+
+/** Import-cheap factory used alongside a dynamically loaded route implementation. */
+export type SelectedAdminShellFactory = (
+  context: SelectedAdminExtensionFactoryContext,
+) => AdminShellExtension
+
 /**
  * App-supplied runtime handed to route loaders: where the API lives and how
  * to reach it (the host's cookie-forwarding fetcher in SSR setups).

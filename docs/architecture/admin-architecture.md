@@ -190,14 +190,19 @@ the first successful resolution.
 
 This is an explicit graph policy, not a heuristic. A package that owns setup,
 widgets, runtime navigation, or slots stays eager until those contributions have
-their own complete lightweight descriptors. Moving such a package behind the
-route-only boundary would silently remove shell behavior and is rejected by the
-artifact generator.
+their own complete lightweight descriptors. A lazy package may declare an
+import-cheap `admin.shellRuntime`; that factory must preserve every graph route's
+shell contract (redirects, search validation, destinations, SSR policy, copy),
+plus its navigation, setup, hooks, and widgets. The complete implementation
+factory remains dynamically imported for route loaders and pages. Shell/graph
+route drift fails during shell composition instead of silently changing behavior.
 
 Rule:
 
 Use `admin.loading: "lazy-routes"` only for descriptor-complete route/settings
-extensions. Never infer laziness from a filename or package category.
+extensions. Add `admin.shellRuntime` when the Module has shell-critical
+contributions, and keep that Interface import-cheap. Never infer laziness from a
+filename or package category.
 
 ## UI Layering
 

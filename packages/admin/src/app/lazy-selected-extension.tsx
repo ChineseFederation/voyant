@@ -5,9 +5,13 @@ import type {
   AdminRouteLoaderContext,
   AdminRoutePageModule,
   AdminSettingsPageContribution,
+  AdminShellExtension,
+  AdminShellRouteContribution,
+  AdminShellSettingsPageContribution,
   AdminUiRouteContribution,
   SelectedAdminExtensionFactory,
   SelectedAdminExtensionFactoryContext,
+  SelectedAdminShellFactory,
 } from "../extensions.js"
 import { adminRoutePageModule } from "../extensions.js"
 import { useOperatorAdminMessages } from "../providers/operator-admin-messages.js"
@@ -24,6 +28,7 @@ export interface LazySelectedAdminExtensionDescriptor {
   id: string
   moduleId: string
   load: () => Promise<SelectedAdminExtensionFactory>
+  shell?: SelectedAdminShellFactory
   routes: readonly LazySelectedAdminRouteDescriptor[]
 }
 
@@ -43,6 +48,8 @@ export function createLazySelectedAdminExtension(
   descriptor: LazySelectedAdminExtensionDescriptor,
   context: SelectedAdminExtensionFactoryContext,
 ): AdminExtension {
+  const shell: AdminShellExtension | undefined = descriptor.shell?.(context)
+  if (shell) assertShellRouteCoverage(descriptor, shell)
   let loaded: Promise<AdminExtension> | undefined
   const load = () =>
     (loaded ??= descriptor.load().then((factory) => {
@@ -56,34 +63,67 @@ export function createLazySelectedAdminExtension(
   const settingsPages: AdminSettingsPageContribution[] = []
   for (const route of descriptor.routes) {
     if (route.path.startsWith("/settings/")) {
-      settingsPages.push(lazySettingsPage(descriptor, route, load))
+      const relativePath = route.path.slice("/settings".length)
+      const shellPage = shell?.settingsPages?.find((candidate) => candidate.path === relativePath)
+      settingsPages.push(lazySettingsPage(descriptor, route, load, shellPage))
     } else {
-      routes.push(lazyRoute(descriptor, route, load))
+      const shellRoute = findShellRouteByPath(shell?.routes ?? [], route.path)
+      routes.push(lazyRoute(descriptor, route, load, shellRoute))
     }
   }
 
   return {
-    id: descriptor.id,
-    ...(routes.length ? { routes } : {}),
-    ...(settingsPages.length ? { settingsPages } : {}),
+    ...shell,
+    id: shell?.id ?? descriptor.id,
+    ...(routes.length ? { routes } : { routes: undefined }),
+    ...(settingsPages.length ? { settingsPages } : { settingsPages: undefined }),
   }
+}
+
+function assertShellRouteCoverage(
+  descriptor: LazySelectedAdminExtensionDescriptor,
+  shell: AdminShellExtension,
+): void {
+  const expected = new Set(descriptor.routes.map((route) => route.path))
+  const actual = new Set([
+    ...flattenShellRoutes(shell.routes ?? []).map((route) => route.path),
+    ...(shell.settingsPages ?? []).map((page) => `/settings${page.path}`),
+  ])
+  const missing = [...expected].filter((path) => !actual.has(path))
+  const extra = [...actual].filter((path) => !expected.has(path))
+  if (missing.length || extra.length) {
+    throw new Error(
+      `Admin shell routes for "${descriptor.id}" do not match its graph routes` +
+        `${missing.length ? `; missing: ${missing.join(", ")}` : ""}` +
+        `${extra.length ? `; extra: ${extra.join(", ")}` : ""}.`,
+    )
+  }
+}
+
+function flattenShellRoutes(
+  routes: readonly AdminShellRouteContribution[],
+): AdminShellRouteContribution[] {
+  return routes.flatMap((route) => [route, ...flattenShellRoutes(route.children ?? [])])
 }
 
 function lazyRoute(
   descriptor: LazySelectedAdminExtensionDescriptor,
   route: LazySelectedAdminRouteDescriptor,
   load: () => Promise<AdminExtension>,
+  shellRoute?: AdminShellRouteContribution,
 ): AdminUiRouteContribution {
+  if (shellRoute?.redirectTo) return { ...shellRoute, id: route.id, path: route.path }
   return {
+    ...shellRoute,
     id: route.id,
     path: route.path,
-    title: route.title,
+    title: shellRoute?.title ?? route.title,
     page: () => loadRoutePage(load, route.path),
     loader: (loaderContext) => loadRouteData(descriptor, load, route.path, loaderContext),
-    pendingComponent: LazyAdminExtensionPending,
-    errorComponent: LazyAdminExtensionError,
-    preload: "intent",
-    ssr: "data-only",
+    pendingComponent: shellRoute?.pendingComponent ?? LazyAdminExtensionPending,
+    errorComponent: shellRoute?.errorComponent ?? LazyAdminExtensionError,
+    preload: shellRoute?.preload ?? "intent",
+    ssr: shellRoute?.ssr ?? "data-only",
   }
 }
 
@@ -91,16 +131,30 @@ function lazySettingsPage(
   descriptor: LazySelectedAdminExtensionDescriptor,
   route: LazySelectedAdminRouteDescriptor,
   load: () => Promise<AdminExtension>,
+  shellPage?: AdminShellSettingsPageContribution,
 ): AdminSettingsPageContribution {
   return {
+    ...shellPage,
     id: route.id,
     path: route.path.slice("/settings".length),
-    title: route.title,
-    label: route.title,
+    title: shellPage?.title ?? route.title,
+    label: shellPage?.label ?? route.title,
     page: () => loadRoutePage(load, route.path),
     loader: (loaderContext) => loadRouteData(descriptor, load, route.path, loaderContext),
     ssr: "data-only",
   }
+}
+
+function findShellRouteByPath(
+  routes: readonly AdminShellRouteContribution[],
+  path: string,
+): AdminShellRouteContribution | undefined {
+  for (const route of routes) {
+    if (route.path === path) return route
+    const child = findShellRouteByPath(route.children ?? [], path)
+    if (child) return child
+  }
+  return undefined
 }
 
 async function loadRouteData(

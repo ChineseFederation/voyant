@@ -224,6 +224,7 @@ export function buildGraphAdminBundleModule(input: BuildGraphAdminBundleModuleIn
   const units = selectedGraphAdminUnits(input.graph)
   const eagerUnits = units.filter((unit) => unit.admin?.loading !== "lazy-routes")
   const lazyUnits = units.filter((unit) => unit.admin?.loading === "lazy-routes")
+  const lazyShellUnits = lazyUnits.filter((unit) => unit.admin?.shellRuntime)
   for (const unit of lazyUnits) assertLazyAdminUnit(unit)
   const command = input.command ?? "voyant project resolve"
   const imports = eagerUnits.map((unit, index) => {
@@ -238,6 +239,17 @@ export function buildGraphAdminBundleModule(input: BuildGraphAdminBundleModuleIn
   const factories = eagerUnits.map(
     (unit, index) => `  ${quote(unit.id)}: selectedAdminFactory${index},`,
   )
+  const shellImports = lazyShellUnits.map((unit, index) => {
+    const runtime = unit.admin?.shellRuntime
+    if (!runtime?.export) {
+      throw new Error(
+        `buildGraphAdminBundleModule: ${unit.id} admin.shellRuntime requires an export.`,
+      )
+    }
+    const entry = lowerAdminRuntimeEntry(unit, runtime.entry)
+    const importEntry = input.runtimeEntryOverrides?.[entry] ?? entry
+    return `import { ${runtime.export} as selectedAdminShellFactory${index} } from ${quote(importEntry)}`
+  })
   const lazyDescriptors = lazyUnits.map((unit) => {
     const runtime = unit.admin?.runtime
     if (!runtime?.export) {
@@ -251,10 +263,11 @@ export function buildGraphAdminBundleModule(input: BuildGraphAdminBundleModuleIn
       title: adminRouteTitle(route.path),
       ...(route.requiredScopes?.length ? { requiredScopes: route.requiredScopes } : {}),
     }))
+    const shellIndex = lazyShellUnits.indexOf(unit)
     return `  ${quote(unit.id)}: {
     id: ${quote(unit.id)},
     moduleId: ${quote(unit.localId ?? unit.id)},
-    routes: ${formatGeneratedValue(routes, 4)},
+    ${shellIndex >= 0 ? `shell: selectedAdminShellFactory${shellIndex},\n    ` : ""}routes: ${formatGeneratedValue(routes, 4)},
     load: () => import(${quote(importEntry)}).then((module) => module[${quote(runtime.export)}]),
   },`
   })
@@ -267,7 +280,7 @@ export function buildGraphAdminBundleModule(input: BuildGraphAdminBundleModuleIn
 // Contains only graph-selected, import-cheap admin factories. Page bodies stay lazy in package UI exports.
 
 ${lazyUnits.length > 0 ? 'import { createLazySelectedAdminExtension } from "@voyant-travel/admin/app"\n' : ""}
-${imports.join("\n")}${imports.length > 0 ? "\n" : ""}
+${[...imports, ...shellImports].join("\n")}${imports.length + shellImports.length > 0 ? "\n" : ""}
 export const GENERATED_SELECTED_GRAPH_ADMIN_HASH = ${quote(input.graph.contentHash)}
 export const GENERATED_SELECTED_GRAPH_ADMIN_UNIT_IDS = ${formatGeneratedValue(
     units.map((unit) => unit.id),
@@ -339,9 +352,14 @@ function assertLazyAdminUnit(unit: ResolvedVoyantGraphUnit): void {
     admin.slots?.length ? "slots" : undefined,
     admin.nav?.length ? "nav" : undefined,
   ].filter(Boolean)
-  if (unsafe.length) {
+  if (unsafe.length && !admin.shellRuntime) {
     throw new Error(
       `buildGraphAdminBundleModule: ${unit.id} lazy-routes cannot carry ${unsafe.join(", ")}.`,
+    )
+  }
+  if (admin.shellRuntime && !admin.shellRuntime.export) {
+    throw new Error(
+      `buildGraphAdminBundleModule: ${unit.id} admin.shellRuntime requires an export.`,
     )
   }
 }

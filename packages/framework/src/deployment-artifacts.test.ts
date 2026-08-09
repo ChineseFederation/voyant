@@ -426,6 +426,43 @@ describe("deployment graph artifacts", () => {
     expect(() => buildGraphAdminBundleModule({ graph })).toThrow("lazy-routes cannot carry nav")
   })
 
+  it("statically lowers an explicit shell while keeping its routes dynamic", async () => {
+    const graph = await graphWithSelectedUnits([
+      defineModule({
+        id: "@acme/catalog",
+        localId: "catalog",
+        admin: {
+          loading: "lazy-routes",
+          runtime: { entry: "./admin", export: "createCatalogAdminExtension" },
+          shellRuntime: { entry: "./admin-shell", export: "createCatalogAdminShell" },
+          routes: [
+            {
+              id: "@acme/catalog#admin.route.index",
+              path: "/catalog",
+              runtime: { entry: "./admin", export: "createCatalogAdminExtension" },
+            },
+          ],
+          nav: [
+            {
+              id: "@acme/catalog#admin.nav.index",
+              routeId: "@acme/catalog#admin.route.index",
+              label: { namespace: "catalog", key: "title" },
+            },
+          ],
+        },
+      }),
+    ])
+
+    const source = buildGraphAdminBundleModule({ graph })
+
+    expect(source).toContain(
+      'import { createCatalogAdminShell as selectedAdminShellFactory0 } from "@acme/catalog/admin-shell"',
+    )
+    expect(source).toContain("shell: selectedAdminShellFactory0")
+    expect(source).toContain('load: () => import("@acme/catalog/admin")')
+    expect(source).not.toContain("import { createCatalogAdminExtension")
+  })
+
   it("lowers only selected presentation factories in deterministic id order", async () => {
     const graph = await graphWithSelectedUnits([
       defineModule({

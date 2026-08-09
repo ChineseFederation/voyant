@@ -1549,6 +1549,7 @@
       "@voyant-travel/operations": ["../operations/dist/index.d.ts"],
       "@voyant-travel/operations-react": ["../operations-react/dist/index.d.ts"],
       "@voyant-travel/operations-react/admin": ["../operations-react/dist/admin.d.ts"],
+      "@voyant-travel/operations-react/admin-shell": ["../operations-react/dist/admin-shell.d.ts"],
       "@voyant-travel/operations-react/availability": [
         "../operations-react/dist/availability/index.d.ts"
       ],

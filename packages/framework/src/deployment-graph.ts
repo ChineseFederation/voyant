@@ -1395,6 +1395,7 @@ function resolveUnit(
       ? {
           admin: {
             ...(unit.admin.runtime ? { runtime: unit.admin.runtime } : {}),
+            ...(unit.admin.shellRuntime ? { shellRuntime: unit.admin.shellRuntime } : {}),
             ...(unit.admin.loading ? { loading: unit.admin.loading } : {}),
             ...(unit.admin.compositionOrder !== undefined
               ? { compositionOrder: unit.admin.compositionOrder }
@@ -2599,6 +2600,9 @@ function validateAdminFacet(
   }
   if (value.runtime !== undefined) {
     validateRuntimeReference(value.runtime, "admin.runtime", source, diagnostics)
+  }
+  if (value.shellRuntime !== undefined) {
+    validateRuntimeReference(value.shellRuntime, "admin.shellRuntime", source, diagnostics)
   }
   if (value.loading !== undefined && value.loading !== "lazy-routes") {
     invalidFacet(
@@ -4627,6 +4631,7 @@ function validateRuntimeReferenceAdmission(
       add(`providers.runtime.${provider.id}.entry`, provider.runtime)
     }
     add("admin.runtime.entry", unit.admin?.runtime)
+    add("admin.shellRuntime.entry", unit.admin?.shellRuntime)
     for (const copy of unit.admin?.copy ?? []) {
       add(`admin.copy.runtime.${copy.id}.entry`, copy.runtime)
     }
