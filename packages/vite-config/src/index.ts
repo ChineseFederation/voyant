@@ -45,6 +45,19 @@ export function voyantVendorChunk(id: string): string | undefined {
     return "tiptap"
   }
 
+  // ChartContainer imports Recharts while Recharts imports D3 helpers that
+  // Rolldown can otherwise place beside this first-party module. That creates
+  // a recharts <-> chart chunk cycle and leaves dashboard components undefined
+  // during browser evaluation. Keep only the UI bridge with the vendor; its D3
+  // dependencies can remain in their automatic, one-way dependency chunk.
+  if (
+    (normalizedId.includes("/packages/ui/") ||
+      normalizedId.includes("/node_modules/@voyant-travel/ui/")) &&
+    normalizedId.endsWith("/src/components/chart.tsx")
+  ) {
+    return "recharts"
+  }
+
   if (!normalizedId.includes("node_modules")) return undefined
 
   if (

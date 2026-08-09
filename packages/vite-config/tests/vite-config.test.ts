@@ -37,6 +37,10 @@ describe("voyantVendorChunk", () => {
         "/repo/node_modules/@voyant-travel/ui/src/components/rich-text-variable-extension.ts",
       ),
     ).toBe("tiptap")
+    expect(voyantVendorChunk("/repo/packages/ui/src/components/chart.tsx")).toBe("recharts")
+    expect(voyantVendorChunk("/repo/node_modules/@voyant-travel/ui/src/components/chart.tsx")).toBe(
+      "recharts",
+    )
     expect(voyantVendorChunk("/repo/node_modules/recharts/es6/index.js")).toBe("recharts")
     expect(voyantVendorChunk("/repo/node_modules/pdf-lib/cjs/index.js")).toBe("pdf-lib")
     expect(voyantVendorChunk("/repo/node_modules/@pdf-lib/fontkit/index.js")).toBe("pdf-lib")
