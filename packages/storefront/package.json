@@ -18,6 +18,7 @@
     "./runtime-contributor": "./src/runtime-contributor.ts",
     "./runtime-port": "./src/runtime-port.ts",
     "./shopping": "./src/shopping/index.ts",
+    "./shopping/live-provider": "./src/shopping/live-provider.ts",
     "./shopping/managed-runtime": "./src/shopping/managed-runtime.ts",
     "./shopping/provider-ports": "./src/shopping/provider-ports.ts",
     "./shopping/runtime-port": "./src/shopping/runtime-port.ts",
@@ -83,6 +84,7 @@
     "@voyant-travel/db": "workspace:^",
     "@voyant-travel/data-sdk": "^0.8.0",
     "@voyant-travel/finance": "workspace:^",
+    "@voyant-travel/flights": "workspace:^",
     "@voyant-travel/hono": "workspace:^",
     "@voyant-travel/relationships-contracts": "workspace:^",
     "@voyant-travel/tools": "workspace:^",
@@ -197,6 +199,11 @@
         "types": "./dist/shopping/index.d.ts",
         "import": "./dist/shopping/index.js",
         "default": "./dist/shopping/index.js"
+      },
+      "./shopping/live-provider": {
+        "types": "./dist/shopping/live-provider.d.ts",
+        "import": "./dist/shopping/live-provider.js",
+        "default": "./dist/shopping/live-provider.js"
       },
       "./shopping/managed-runtime": {
         "types": "./dist/shopping/managed-runtime.d.ts",

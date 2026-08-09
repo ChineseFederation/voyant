@@ -5563,6 +5563,9 @@ importers:
       '@voyant-travel/finance':
         specifier: workspace:^
         version: link:../finance
+      '@voyant-travel/flights':
+        specifier: workspace:^
+        version: link:../flights
       '@voyant-travel/hono':
         specifier: workspace:^
         version: link:../hono

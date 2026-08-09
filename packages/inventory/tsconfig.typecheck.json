@@ -1919,6 +1919,9 @@
       "@voyant-travel/storefront/runtime-port": ["../storefront/dist/runtime-port.d.ts"],
       "@voyant-travel/storefront/service": ["../storefront/dist/service.d.ts"],
       "@voyant-travel/storefront/shopping": ["../storefront/dist/shopping/index.d.ts"],
+      "@voyant-travel/storefront/shopping/live-provider": [
+        "../storefront/dist/shopping/live-provider.d.ts"
+      ],
       "@voyant-travel/storefront/shopping/managed-runtime": [
         "../storefront/dist/shopping/managed-runtime.d.ts"
       ],
