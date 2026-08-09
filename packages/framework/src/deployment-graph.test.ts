@@ -1228,6 +1228,12 @@ describe("deployment graph v1", () => {
       ]),
     )
     expect(validateGraphUnitManifest(manifest({}))).toEqual([])
+    expect(validateGraphUnitManifest(manifest({ approval: "required" }))).toContainEqual(
+      expect.objectContaining({
+        facet: "actions[0].targetLifecycle",
+        message: expect.stringContaining("stable target anchor"),
+      }),
+    )
     expect(
       validateGraphUnitManifest(
         manifest({

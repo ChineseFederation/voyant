@@ -2105,7 +2105,7 @@ function validatePromotedFacets(
     const toolBound = isRecord(entry.from) && Array.isArray(entry.from.tools)
     if (
       effectivelyAvailable &&
-      safetyContractSelected &&
+      (safetyContractSelected || entry.approval === "required") &&
       entry.kind === "execute" &&
       toolBound &&
       entry.targetLifecycle === undefined
