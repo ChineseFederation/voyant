@@ -159,6 +159,12 @@ describe("inventory tools", () => {
       confirmationRequired: true,
       reversible: true,
     })
+    expect(
+      manifest.find(({ name }) => name === "publish_product")?.actionPolicy?.invocation,
+    ).toMatchObject({
+      requiredFields: ["confirmed", "approvalId"],
+      optionalFields: ["reasonCode", "approvalId"],
+    })
   })
 
   it("sets or clears the explicit product Open Graph image", async () => {

@@ -100,6 +100,23 @@ interface SerializedTool {
   name: string
 }
 
+const INTENT_TOOL_NAMES = [
+  "create_person",
+  "create_product",
+  "create_option_unit",
+  "create_departure",
+  "publish_product",
+  "book_product",
+  "invoice_booking",
+  "cancel_booking",
+] as const
+
+const CALLER_INVENTED_ACTION_FIELDS = [
+  "targetId",
+  "idempotencyKey",
+  "idempotencyFingerprint",
+] as const
+
 function rpc(method: string, params: unknown) {
   return {
     method: "POST",
@@ -205,6 +222,41 @@ describe("selected-graph MCP tool surface cost", () => {
     expect(manifest.tools.length).toBeGreaterThan(200)
     const unnamed = manifest.tools.filter(({ name }) => !name || name.length === 0)
     expect(unnamed).toEqual([])
+  })
+
+  it("does not make intent tools expose caller-invented action-ledger identity", async () => {
+    const { app } = await mountSelectedGraphMcp()
+    const manifest = (await (await app.request("/manifest", {}, TEST_ENV, TEST_CTX)).json()) as {
+      tools: Array<{
+        name?: string
+        actionPolicy?: {
+          invocation?: {
+            requiredFields?: readonly string[]
+            optionalFields?: readonly string[]
+          }
+        }
+      }>
+    }
+    const byName = new Map(manifest.tools.map((tool) => [tool.name, tool]))
+
+    for (const name of INTENT_TOOL_NAMES) {
+      const tool = byName.get(name)
+      expect(tool, `${name} was missing from the selected MCP manifest`).toBeDefined()
+      expect(tool?.actionPolicy, `${name} did not publish its action policy`).toBeDefined()
+
+      const invocation = tool?.actionPolicy?.invocation
+      const exposed = [...(invocation?.requiredFields ?? []), ...(invocation?.optionalFields ?? [])]
+      expect(
+        exposed.filter((field) =>
+          CALLER_INVENTED_ACTION_FIELDS.includes(
+            field as (typeof CALLER_INVENTED_ACTION_FIELDS)[number],
+          ),
+        ),
+        `${name} leaks action-ledger identity into the MCP protocol. Intent tools may ask ` +
+          "for confirmation and may carry a server-issued approvalId, but target and " +
+          "idempotency identity must be resolved behind the tool boundary.",
+      ).toEqual([])
+    }
   })
 
   it("registers every staff-audience tool the selected graph declares", async () => {

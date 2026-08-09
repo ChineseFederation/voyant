@@ -651,6 +651,10 @@ function productLifecycleToolDefinition(input: {
     riskPolicy: PRODUCT_LIFECYCLE_RISK,
     annotations: { idempotentHint: true },
     actionPolicyEnforcement: "handler",
+    // `updateProductLifecycle` derives a stable key from the product id and
+    // requested lifecycle patch before executing the admitted command. Keep
+    // that server-owned identity out of the caller-facing MCP protocol.
+    resolvesIdempotencyKeyServerSide: true,
     async handler({ id }: z.infer<typeof productIdArgs>, ctx: InventoryToolContext) {
       try {
         const admitted = admitHandlerActionPolicy(ctx, input.handlerPolicy)
