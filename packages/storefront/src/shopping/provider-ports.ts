@@ -8,6 +8,11 @@ import { definePort } from "@voyant-travel/core/project"
 import type { StorefrontShoppingContext } from "./runtime-port.js"
 import type { StorefrontResolvedScope, StorefrontShoppingIntent } from "./schemas.js"
 
+export {
+  type StorefrontOpaqueReferenceIssuer,
+  storefrontOpaqueReferenceIssuerPort,
+} from "./runtime-port.js"
+
 export interface StorefrontActiveMarket {
   id: string
   defaultLocale: string
@@ -138,25 +143,6 @@ export interface StorefrontShoppingLiveProvider {
   }): Promise<StorefrontLiveSearchPage<StorefrontInternalPackageOffer>>
 }
 
-export interface StorefrontOpaqueReferenceIssuer {
-  /**
-   * The backing issuer MUST authenticate the same storefront/channel/scope and
-   * owner tuple when resolving the ref, and reject cross-owner replay. The
-   * managed shopping runtime never resolves or commits an offer itself.
-   */
-  issue(input: {
-    purpose: "catalog-item" | "flight-offer" | "stay-offer" | "package-offer"
-    storefrontId: string
-    channelId: string
-    /** Trusted capability owner binding. Anonymous owners are explicitly null. */
-    owner: { userId: string | null; buyerAccountId: string | null }
-    scope: Pick<StorefrontResolvedScope, "marketId" | "locale" | "currency">
-    payload: Readonly<Record<string, unknown>>
-    ttlSeconds: number
-    replay: "multi-use" | "single-use"
-  }): Promise<{ ref: string; expiresAt: string }>
-}
-
 function methodsPort<T>(id: string, methods: readonly string[]) {
   return definePort<T>({
     id,
@@ -184,10 +170,6 @@ export const storefrontShoppingCatalogProviderPort = methodsPort<StorefrontShopp
 export const storefrontShoppingLiveProviderPort = methodsPort<StorefrontShoppingLiveProvider>(
   "storefront.shopping.live-provider",
   ["searchFlights", "searchStays", "searchPackages"],
-)
-export const storefrontOpaqueReferenceIssuerPort = methodsPort<StorefrontOpaqueReferenceIssuer>(
-  "storefront.shopping.opaque-reference-issuer",
-  ["issue"],
 )
 export const storefrontPresentationFxProviderPort = definePort<PresentationFxQuoter>({
   id: "storefront.shopping.presentation-fx",

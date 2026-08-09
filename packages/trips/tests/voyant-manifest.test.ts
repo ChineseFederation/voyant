@@ -8,7 +8,10 @@ import {
   type PaymentAdapter,
   paymentAdapterRuntimePort,
 } from "@voyant-travel/payments"
-import { storefrontTripSelectionsRuntimePort } from "@voyant-travel/storefront/shopping"
+import {
+  storefrontOpaqueReferenceIssuerPort,
+  storefrontTripSelectionsRuntimePort,
+} from "@voyant-travel/storefront/shopping"
 import { describe, expect, it, vi } from "vitest"
 
 import {
@@ -34,6 +37,8 @@ describe("trips deployment manifest", () => {
           { id: "commerce.card-payment.runtime" },
           { id: "storefront.payment-link.runtime" },
           { id: "storefront.payment-reconciliation-job.runtime" },
+          { id: "storefront.shopping.opaque-reference-issuer" },
+          { id: "trips.storefront-offer-resolver.runtime" },
           { id: "storefront.trip-selections.runtime" },
           { id: "trips.routes-runtime" },
           { id: "trips.database-runtime" },
@@ -46,7 +51,6 @@ describe("trips deployment manifest", () => {
         { id: "trips.database-runtime" },
         { id: "trips.sourcing-job-runtime" },
         { id: "trips.durable-action-runtime", optional: true },
-        { id: "trips.storefront-offer-resolver.runtime", optional: true },
         { id: "payments.adapter.runtime", optional: true },
         { id: "catalog.runtime-services" },
         { id: "commerce.checkout-api-options" },
@@ -144,17 +148,15 @@ describe("trips deployment manifest", () => {
     expect(withAdapter).toHaveProperty(commerceCardPaymentRuntimePort.id)
   })
 
-  it("publishes the Storefront Trip selection runtime and resolves offers only through its port", async () => {
-    const resolve = vi.fn(async () => null)
+  it("publishes the durable shopping issuer, resolver, and Trip selection runtime", () => {
     const contribution = createTripsRuntimePortContribution({
       primitives: { database: { transaction: vi.fn() } } as never,
-      hasRuntimePort: (port) => port.id === storefrontTripOfferResolverPort.id,
-      getRuntimePort: ((port: { id: string }) => {
-        if (port.id === storefrontTripOfferResolverPort.id) return { resolve }
-        return stubRequiredRuntimePortResolver()(port as never)
-      }) as never,
+      hasRuntimePort: () => false,
+      getRuntimePort: stubRequiredRuntimePortResolver(),
     })
 
+    expect(contribution).toHaveProperty(storefrontOpaqueReferenceIssuerPort.id)
+    expect(contribution).toHaveProperty(storefrontTripOfferResolverPort.id)
     expect(contribution).toHaveProperty(storefrontTripSelectionsRuntimePort.id)
     expect(() => storefrontTripOfferResolverPort.test({} as never)).toThrow(/resolve/)
   })
@@ -168,8 +170,7 @@ describe("trips deployment manifest", () => {
     })
     const contribution = createTripsRuntimePortContribution({
       primitives: { database: { transaction: vi.fn() } } as never,
-      hasRuntimePort: (port) =>
-        port.id !== "flights.runtime" && port.id !== storefrontTripOfferResolverPort.id,
+      hasRuntimePort: (port) => port.id !== "flights.runtime",
       getRuntimePort: getRuntimePort as never,
     })
 

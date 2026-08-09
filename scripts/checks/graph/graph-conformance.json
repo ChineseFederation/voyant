@@ -17,6 +17,7 @@
       "portIds": [
         "trips.routes-runtime",
         "trips.database-runtime",
+        "storefront.shopping.opaque-reference-issuer",
         "storefront.trip-selections.runtime",
         "trips.storefront-offer-resolver.runtime",
         "catalog.runtime-services",

@@ -69,6 +69,18 @@ export type {
 } from "./routes.js"
 export { createTripsRoutes } from "./routes.js"
 export {
+  createTripShoppingReferenceRuntime,
+  createTripShoppingReferenceRuntimeWithStore,
+  issueTripShoppingReference,
+  redeemTripShoppingReference,
+  type ShoppingReferenceBoundary,
+  type ShoppingReferencePurpose,
+  type ShoppingReferenceResolution,
+  type TripShoppingReferenceRuntime,
+  type TripShoppingReferenceRuntimeOptions,
+  type TripShoppingReferenceStore,
+} from "./shopping-opaque-references.js"
+export {
   type CreateStorefrontTripInput,
   createStorefrontTrip,
   createStorefrontTripCapability,

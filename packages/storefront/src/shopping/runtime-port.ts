@@ -20,6 +20,25 @@ export interface StorefrontShoppingContext {
   buyerAccountId?: string | null
 }
 
+export interface StorefrontOpaqueReferenceIssuer {
+  /**
+   * The backing issuer MUST authenticate the same storefront/channel/scope and
+   * owner tuple when resolving the ref, and reject cross-owner replay. The
+   * managed shopping runtime never resolves or commits an offer itself.
+   */
+  issue(input: {
+    purpose: "catalog-item" | "flight-offer" | "stay-offer" | "package-offer"
+    storefrontId: string
+    channelId: string
+    /** Trusted capability owner binding. Anonymous owners are explicitly null. */
+    owner: { userId: string | null; buyerAccountId: string | null }
+    scope: Pick<StorefrontResolvedScope, "marketId" | "locale" | "currency">
+    payload: Readonly<Record<string, unknown>>
+    ttlSeconds: number
+    replay: "multi-use" | "single-use"
+  }): Promise<{ ref: string; expiresAt: string }>
+}
+
 export interface StorefrontShoppingRuntime {
   resolveScope(
     context: StorefrontShoppingContext,
@@ -58,6 +77,21 @@ export const storefrontShoppingRuntimePort = definePort<StorefrontShoppingRuntim
       throw new Error("storefront.shopping.runtime provider must be an options object.")
     }
     requireMethods("storefront.shopping.runtime", provider, ["resolveScope", "search"])
+  },
+})
+
+export const storefrontOpaqueReferenceIssuerPort = definePort<StorefrontOpaqueReferenceIssuer>({
+  id: "storefront.shopping.opaque-reference-issuer",
+  test(provider) {
+    if (
+      provider === null ||
+      typeof provider !== "object" ||
+      typeof (provider as { issue?: unknown }).issue !== "function"
+    ) {
+      throw new Error(
+        "storefront.shopping.opaque-reference-issuer provider must implement issue().",
+      )
+    }
   },
 })
 

@@ -274,6 +274,47 @@ export const tripStorefrontAccess = pgTable(
   ],
 )
 
+/**
+ * Server-only shopping capabilities issued to public Storefront clients.
+ *
+ * The raw 256-bit capability is never persisted. `referenceDigest` is its
+ * SHA-256 digest and `payload` is intentionally absent from every public Trip
+ * projection. Exact trust and shopping-scope columns make redemption a single
+ * fail-closed database predicate rather than an application-side comparison.
+ */
+export const tripShoppingReferences = pgTable(
+  "trip_shopping_references",
+  {
+    referenceDigest: text("reference_digest").primaryKey(),
+    purpose: text("purpose").notNull(),
+    storefrontId: text("storefront_id").notNull(),
+    channelId: text("channel_id").notNull(),
+    ownerUserId: text("owner_user_id"),
+    ownerBuyerAccountId: text("owner_buyer_account_id"),
+    marketId: text("market_id").notNull(),
+    locale: text("locale").notNull(),
+    currency: text("currency").notNull(),
+    replay: text("replay").notNull(),
+    payload: jsonb("payload").$type<Readonly<Record<string, unknown>>>().notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    consumedAt: timestamp("consumed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("idx_trip_shopping_references_expiry").on(table.expiresAt),
+    index("idx_trip_shopping_references_scope").on(
+      table.storefrontId,
+      table.channelId,
+      table.marketId,
+    ),
+    index("idx_trip_shopping_references_owner").on(
+      table.ownerUserId,
+      table.ownerBuyerAccountId,
+      table.expiresAt,
+    ),
+  ],
+)
+
 export const tripComponents = pgTable(
   "trip_components",
   {
@@ -705,6 +746,8 @@ export type TripEnvelope = typeof tripEnvelopes.$inferSelect
 export type NewTripEnvelope = typeof tripEnvelopes.$inferInsert
 export type TripStorefrontAccess = typeof tripStorefrontAccess.$inferSelect
 export type NewTripStorefrontAccess = typeof tripStorefrontAccess.$inferInsert
+export type TripShoppingReference = typeof tripShoppingReferences.$inferSelect
+export type NewTripShoppingReference = typeof tripShoppingReferences.$inferInsert
 export type TripComponent = typeof tripComponents.$inferSelect
 export type NewTripComponent = typeof tripComponents.$inferInsert
 export type TripComponentEvent = typeof tripComponentEvents.$inferSelect
