@@ -1119,6 +1119,20 @@ describe("deployment graph v1", () => {
         message: expect.stringContaining("do not support conditional approval"),
       }),
     )
+    expect(
+      validateGraphUnitManifest(
+        manifest({
+          approval: "required",
+          availability: { status: "available" },
+          existingTarget: undefined,
+        }),
+      ),
+    ).toContainEqual(
+      expect.objectContaining({
+        facet: "actions[0].existingTarget",
+        message: expect.stringContaining("handler-owned durable result"),
+      }),
+    )
   })
 
   it("validates an action command target field binding", () => {

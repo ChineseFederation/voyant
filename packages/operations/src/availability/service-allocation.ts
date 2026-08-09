@@ -79,6 +79,7 @@ export type UpdateSharingGroupLabelInput = z.infer<typeof updateSharingGroupLabe
 
 export interface AllocationMutationOptions {
   actorId?: string | null
+  commandClaimActionId?: string
 }
 
 export interface AllocationManifestTraveler {

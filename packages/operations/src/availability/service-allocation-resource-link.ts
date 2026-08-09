@@ -346,8 +346,12 @@ export async function detachDepartureResource(
       actorId: options.actorId ?? null,
       resourceId: link.id,
       before: {
+        ...(options.commandClaimActionId
+          ? { commandClaimActionId: options.commandClaimActionId }
+          : {}),
         fleetResourceId: resourceId,
         assignmentId,
+        removedResourceIds,
         kind: link.kind,
         capacity: link.capacity,
         label: link.label,

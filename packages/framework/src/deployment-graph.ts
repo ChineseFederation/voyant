@@ -2138,6 +2138,20 @@ function validatePromotedFacets(
         "Read and low-risk actions cannot declare write durability; classify data-writing actions as execute with non-low risk.",
       )
     }
+    if (
+      effectivelyAvailable &&
+      entry.kind === "execute" &&
+      entry.approval === "required" &&
+      entry.targetLifecycle === "existing" &&
+      entry.existingTarget === undefined
+    ) {
+      invalidFacet(
+        `${facet}.existingTarget`,
+        source,
+        diagnostics,
+        "Available approval-required existing-target actions must declare a handler-owned durable result contract.",
+      )
+    }
     if (entry.targetLifecycle === "existing" && entry.existingTarget !== undefined) {
       if (entry.kind !== "execute" || entry.ledger !== "required") {
         invalidFacet(

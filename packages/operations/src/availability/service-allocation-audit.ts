@@ -3,6 +3,7 @@ import { desc, eq, sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import { allocationAuditLog } from "./schema.js"
 import type { SqlExecutor } from "./service-allocation-sql.js"
+import { executeRows } from "./service-allocation-sql.js"
 
 export interface AllocationAuditLogEntry {
   id: string
@@ -65,4 +66,23 @@ export async function recordAllocationAudit(
       ${JSON.stringify(input.after ?? null)}::jsonb
     )
   `)
+}
+
+export async function findAllocationAuditByCommandClaim(
+  db: SqlExecutor,
+  input: { slotId: string; action: string; commandClaimActionId: string },
+): Promise<Record<string, unknown> | null> {
+  const rows = await executeRows<{ before: Record<string, unknown> | null }>(
+    db,
+    sql`
+      SELECT before
+      FROM allocation_audit_log
+      WHERE slot_id = ${input.slotId}
+        AND action = ${input.action}
+        AND before ->> 'commandClaimActionId' = ${input.commandClaimActionId}
+      ORDER BY created_at DESC
+      LIMIT 1
+    `,
+  )
+  return rows[0]?.before ?? null
 }

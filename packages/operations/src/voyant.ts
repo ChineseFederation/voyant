@@ -536,6 +536,7 @@ export const operationsVoyantModule = defineModule({
       availability: { status: "available" },
       effectBoundary: "local",
       targetLifecycle: "existing",
+      existingTarget: { durability: "handler-command-result-v1" },
       from: { tools: ["@voyant-travel/operations#tool.update-departure"] },
     },
     {
@@ -555,6 +556,7 @@ export const operationsVoyantModule = defineModule({
       availability: { status: "available" },
       effectBoundary: "local",
       targetLifecycle: "existing",
+      existingTarget: { durability: "handler-command-result-v1" },
       from: { tools: ["@voyant-travel/operations#tool.attach-departure-fleet-resource"] },
     },
     {
@@ -574,6 +576,7 @@ export const operationsVoyantModule = defineModule({
       availability: { status: "available" },
       effectBoundary: "local",
       targetLifecycle: "existing",
+      existingTarget: { durability: "handler-command-result-v1" },
       from: { tools: ["@voyant-travel/operations#tool.detach-departure-fleet-resource"] },
     },
     {
@@ -603,6 +606,7 @@ export const operationsVoyantModule = defineModule({
       availability: { status: "available" },
       effectBoundary: "local",
       targetLifecycle: "existing",
+      existingTarget: { durability: "handler-command-result-v1" },
       from: { tools: ["@voyant-travel/operations#tool.set-departure-traveler-assignments"] },
     },
     {
@@ -622,6 +626,7 @@ export const operationsVoyantModule = defineModule({
       availability: { status: "available" },
       effectBoundary: "local",
       targetLifecycle: "existing",
+      existingTarget: { durability: "handler-command-result-v1" },
       from: { tools: ["@voyant-travel/operations#tool.materialize-departure-room-block"] },
     },
     {
@@ -641,6 +646,7 @@ export const operationsVoyantModule = defineModule({
       availability: { status: "available" },
       effectBoundary: "local",
       targetLifecycle: "existing",
+      existingTarget: { durability: "handler-command-result-v1" },
       from: { tools: ["@voyant-travel/operations#tool.release-departure-room-block"] },
     },
     {
@@ -660,6 +666,7 @@ export const operationsVoyantModule = defineModule({
       availability: { status: "available" },
       effectBoundary: "local",
       targetLifecycle: "existing",
+      existingTarget: { durability: "handler-command-result-v1" },
       from: {
         tools: ["@voyant-travel/operations#tool.set-departure-traveler-rooming-preferences"],
       },
@@ -677,7 +684,10 @@ export const operationsVoyantModule = defineModule({
       approval: "required",
       reversible: false,
       allowedActorTypes: ["staff"],
-      availability: { status: "available" },
+      availability: {
+        status: "unavailable",
+        reasonCode: "unsafe-nontransactional-effect",
+      },
       effectBoundary: "local",
       targetLifecycle: "existing",
       from: { tools: ["@voyant-travel/operations#tool.rebuild-booking-actions"] },

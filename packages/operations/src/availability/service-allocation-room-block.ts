@@ -241,6 +241,50 @@ export async function materializeDepartureRoomsFromBlock(
   })
 }
 
+export async function getDepartureRoomBlockMaterializationResult(
+  db: PostgresJsDatabase,
+  slotId: string,
+  input: MaterializeFromRoomBlockInput,
+): Promise<RoomBlockMaterializationResult> {
+  const resources = await executeRows<AllocationResource>(
+    db,
+    sql`
+      SELECT
+        id, slot_id AS "slotId", kind, ref_type AS "refType", ref_id AS "refId", label,
+        capacity, occupancy_min AS "occupancyMin", room_type_id AS "roomTypeId",
+        bed_configuration AS "bedConfiguration", accessible, min_age AS "minAge",
+        max_age AS "maxAge", flags, parent_id AS "parentId", sort_order AS "sortOrder",
+        created_at AS "createdAt", updated_at AS "updatedAt"
+      FROM allocation_resources
+      WHERE slot_id = ${slotId}
+        AND kind = ${input.kind}
+        AND ref_type = 'room_block'
+        AND ref_id = ${input.blockId}
+      ORDER BY sort_order, created_at
+    `,
+  )
+  if (resources.length === 0) {
+    throw new AllocationServiceError("This departure holds no rooms from that block", 404, {
+      blockId: input.blockId,
+      kind: input.kind,
+    })
+  }
+  const pickupId = resources.find(
+    (resource) => typeof resource.flags?.roomBlockPickupId === "string",
+  )?.flags?.roomBlockPickupId
+  const nights = await lockDepartureNights(db, slotId)
+  return {
+    blockId: input.blockId,
+    kind: input.kind,
+    created: 0,
+    skippedExisting: resources.length,
+    roomsPickedUp: 0,
+    pickupId: typeof pickupId === "string" ? pickupId : null,
+    remainingAfter: await tightestRemaining(db, input.blockId, nights),
+    resources,
+  }
+}
+
 export interface RoomBlockReleaseResult {
   blockId: string
   kind: string
@@ -309,7 +353,15 @@ export async function releaseDepartureRoomBlock(
       slotId,
       action: "resources.release.room-block",
       actorId: options.actorId ?? null,
-      before: { kind, blockId, removed: removedRows.length, roomsReleased },
+      before: {
+        ...(options.commandClaimActionId
+          ? { commandClaimActionId: options.commandClaimActionId }
+          : {}),
+        kind,
+        blockId,
+        removed: removedRows.length,
+        roomsReleased,
+      },
     })
 
     return { blockId, kind, removed: removedRows.length, roomsReleased }

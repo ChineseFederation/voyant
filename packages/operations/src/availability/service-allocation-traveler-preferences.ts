@@ -35,6 +35,15 @@ export interface TravelerRoomingPreferences {
   roomTypeId: string | null
 }
 
+export async function getTravelerRoomingPreferences(
+  db: PostgresJsDatabase,
+  slotId: string,
+  travelerId: string,
+): Promise<TravelerRoomingPreferences> {
+  await assertTravelerBelongsToSlot(db, slotId, travelerId)
+  return { travelerId, ...(await readPreferences(db, travelerId)) }
+}
+
 export async function updateTravelerRoomingPreferences(
   db: PostgresJsDatabase,
   slotId: string,

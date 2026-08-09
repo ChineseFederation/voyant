@@ -230,6 +230,37 @@ export async function assignTravelerAllocationsBatch(
   })
 }
 
+export async function getTravelerAllocationsBatchResult(
+  db: PostgresJsDatabase,
+  slotId: string,
+  input: AssignTravelerAllocationsBatchInput,
+): Promise<AssignTravelerAllocationsBatchResult> {
+  const travelerIds = input.assignments.map((assignment) => assignment.travelerId)
+  await assertTravelersBelongToSlot(db, slotId, travelerIds)
+  const current = await loadCurrentAllocations(db, travelerIds, input.kind)
+  const resourceIds = travelerIds.flatMap((travelerId) => {
+    const resourceId = current.get(travelerId)
+    return resourceId ? [resourceId] : []
+  })
+  const violations = await evaluateBatchConstraints(
+    db,
+    slotId,
+    input.kind,
+    resourceIds,
+    new Set(travelerIds),
+  )
+  return {
+    kind: input.kind,
+    assigned: resourceIds.length,
+    unassigned: travelerIds.length - resourceIds.length,
+    unchanged: input.assignments.filter(
+      (assignment) => (current.get(assignment.travelerId) ?? null) === assignment.resourceId,
+    ).length,
+    travelerIds,
+    violations,
+  }
+}
+
 /**
  * Every room constraint the committed batch leaves behind, evaluated over each
  * touched resource's post-write occupant set.

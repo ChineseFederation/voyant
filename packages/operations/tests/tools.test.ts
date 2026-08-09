@@ -2,20 +2,27 @@ import { createToolRegistry, type ToolContext } from "@voyant-travel/tools"
 import { describe, expect, it } from "vitest"
 
 import {
+  ATTACH_DEPARTURE_FLEET_RESOURCE_HANDLER_POLICY,
   attachDepartureFleetResourceTool,
   CREATE_DEPARTURE_HANDLER_POLICY,
   createDepartureTool,
+  DETACH_DEPARTURE_FLEET_RESOURCE_HANDLER_POLICY,
   detachDepartureFleetResourceTool,
   getOperatorDashboardSummaryTool,
+  MATERIALIZE_DEPARTURE_ROOM_BLOCK_HANDLER_POLICY,
   materializeDepartureRoomBlockTool,
   type OperationsToolServices,
   type OperatorDashboardToolContext,
   operationsTools,
+  RELEASE_DEPARTURE_ROOM_BLOCK_HANDLER_POLICY,
   rebuildBookingActionsTool,
   releaseDepartureRoomBlockTool,
   resolveOperatorDashboardWindow,
+  SET_DEPARTURE_TRAVELER_ASSIGNMENTS_HANDLER_POLICY,
+  SET_DEPARTURE_TRAVELER_ROOMING_PREFERENCES_HANDLER_POLICY,
   setDepartureTravelerAssignmentsTool,
   setDepartureTravelerRoomingPreferencesTool,
+  UPDATE_DEPARTURE_HANDLER_POLICY,
   updateDepartureTool,
 } from "../src/tools.js"
 
@@ -163,7 +170,9 @@ describe("Operations tools", () => {
 
   it("accepts a full read-modify-write snapshot and forwards compatibility fields", async () => {
     const writeRegistry = createToolRegistry()
-    writeRegistry.register(updateDepartureTool)
+    writeRegistry.register(updateDepartureTool, {
+      actionPolicy: UPDATE_DEPARTURE_HANDLER_POLICY.actionPolicy,
+    })
     const snapshot = {
       id: "avsl_1",
       productId: "prod_1",
@@ -196,19 +205,21 @@ describe("Operations tools", () => {
     const result = await writeRegistry.dispatch(
       "update_departure",
       { ...snapshot, notes: "Meet at the station - platform 2" },
-      contextWith({
-        async updateDeparture(_id, patch) {
-          forwarded = patch
-          return {
-            ...snapshot,
-            ...patch,
-            startsAt: new Date(snapshot.startsAt),
-            endsAt: new Date(snapshot.endsAt),
-            createdAt: new Date(snapshot.createdAt),
-            updatedAt: new Date(snapshot.updatedAt),
-          }
-        },
-      }),
+      admittedUpdateContext(
+        contextWith({
+          async updateDeparture(_id, patch) {
+            forwarded = patch
+            return {
+              ...snapshot,
+              ...patch,
+              startsAt: new Date(snapshot.startsAt),
+              endsAt: new Date(snapshot.endsAt),
+              createdAt: new Date(snapshot.createdAt),
+              updatedAt: new Date(snapshot.updatedAt),
+            }
+          },
+        }),
+      ),
     )
 
     expect(forwarded).toMatchObject({
@@ -235,36 +246,40 @@ describe("Operations tools", () => {
 
   it("attaches a fleet resource with the departure lifted out of the flat argument object", async () => {
     const writeRegistry = createToolRegistry()
-    writeRegistry.register(attachDepartureFleetResourceTool)
+    writeRegistry.register(attachDepartureFleetResourceTool, {
+      actionPolicy: ATTACH_DEPARTURE_FLEET_RESOURCE_HANDLER_POLICY.actionPolicy,
+    })
     let forwarded: unknown
     let forwardedDepartureId: string | undefined
     const result = await writeRegistry.dispatch(
       "attach_departure_fleet_resource",
       { departureId: "avsl_1", resourceId: "res_coach_1", capacity: 48 },
-      contextWith({
-        async attachDepartureFleetResource(departureId, input) {
-          forwardedDepartureId = departureId
-          forwarded = input
-          return {
-            resource: {
-              id: "alrs_1",
-              slotId: departureId,
-              kind: "vehicle",
-              refType: "resource",
-              refId: "res_coach_1",
-              label: "Coach 1 (C1)",
-              capacity: 48,
-              flags: { resourceAssignmentId: "resa_1" },
-              parentId: null,
-              sortOrder: 0,
-              createdAt: new Date("2026-07-28T12:00:00.000Z"),
-              updatedAt: new Date("2026-07-28T12:00:00.000Z"),
-            },
-            assignmentId: "resa_1",
-            created: true,
-          }
-        },
-      }),
+      admittedAttachContext(
+        contextWith({
+          async attachDepartureFleetResource(departureId, input) {
+            forwardedDepartureId = departureId
+            forwarded = input
+            return {
+              resource: {
+                id: "alrs_1",
+                slotId: departureId,
+                kind: "vehicle",
+                refType: "resource",
+                refId: "res_coach_1",
+                label: "Coach 1 (C1)",
+                capacity: 48,
+                flags: { resourceAssignmentId: "resa_1" },
+                parentId: null,
+                sortOrder: 0,
+                createdAt: new Date("2026-07-28T12:00:00.000Z"),
+                updatedAt: new Date("2026-07-28T12:00:00.000Z"),
+              },
+              assignmentId: "resa_1",
+              created: true,
+            }
+          },
+        }),
+      ),
     )
 
     expect(forwardedDepartureId).toBe("avsl_1")
@@ -279,17 +294,21 @@ describe("Operations tools", () => {
 
   it("detaches a fleet resource by its fleet id, taking cascade as a real boolean", async () => {
     const writeRegistry = createToolRegistry()
-    writeRegistry.register(detachDepartureFleetResourceTool)
+    writeRegistry.register(detachDepartureFleetResourceTool, {
+      actionPolicy: DETACH_DEPARTURE_FLEET_RESOURCE_HANDLER_POLICY.actionPolicy,
+    })
     let forwarded: unknown
     const result = await writeRegistry.dispatch(
       "detach_departure_fleet_resource",
       { departureId: "avsl_1", fleetResourceId: "res_coach_1", cascade: true },
-      contextWith({
-        async detachDepartureFleetResource(_departureId, _fleetResourceId, options) {
-          forwarded = options
-          return { removedResourceIds: ["alrs_seat_1", "alrs_1"], assignmentId: "resa_1" }
-        },
-      }),
+      admittedDetachContext(
+        contextWith({
+          async detachDepartureFleetResource(_departureId, _fleetResourceId, options) {
+            forwarded = options
+            return { removedResourceIds: ["alrs_seat_1", "alrs_1"], assignmentId: "resa_1" }
+          },
+        }),
+      ),
     )
 
     expect(forwarded).toEqual({ cascade: true })
@@ -324,7 +343,9 @@ describe("Operations tools", () => {
 
   it("places a whole set of travelers in one call", async () => {
     const writeRegistry = createToolRegistry()
-    writeRegistry.register(setDepartureTravelerAssignmentsTool)
+    writeRegistry.register(setDepartureTravelerAssignmentsTool, {
+      actionPolicy: SET_DEPARTURE_TRAVELER_ASSIGNMENTS_HANDLER_POLICY.actionPolicy,
+    })
     let forwarded: unknown
     const result = await writeRegistry.dispatch(
       "set_departure_traveler_assignments",
@@ -336,18 +357,20 @@ describe("Operations tools", () => {
           { travelerId: "bkpt_2", resourceId: null },
         ],
       },
-      contextWith({
-        async setDepartureTravelerAssignments(_departureId, input) {
-          forwarded = input
-          return {
-            kind: input.kind,
-            assigned: 1,
-            unassigned: 1,
-            unchanged: 0,
-            travelerIds: ["bkpt_1", "bkpt_2"],
-          }
-        },
-      }),
+      admittedAssignmentsContext(
+        contextWith({
+          async setDepartureTravelerAssignments(_departureId, input) {
+            forwarded = input
+            return {
+              kind: input.kind,
+              assigned: 1,
+              unassigned: 1,
+              unchanged: 0,
+              travelerIds: ["bkpt_1", "bkpt_2"],
+            }
+          },
+        }),
+      ),
     )
 
     expect(forwarded).not.toHaveProperty("departureId")
@@ -362,50 +385,54 @@ describe("Operations tools", () => {
 
   it("draws a departure's rooms from a contracted block and reports the hold it took", async () => {
     const writeRegistry = createToolRegistry()
-    writeRegistry.register(materializeDepartureRoomBlockTool)
+    writeRegistry.register(materializeDepartureRoomBlockTool, {
+      actionPolicy: MATERIALIZE_DEPARTURE_ROOM_BLOCK_HANDLER_POLICY.actionPolicy,
+    })
     let forwarded: unknown
     let forwardedDepartureId: string | undefined
     const materializedAt = new Date("2026-07-28T12:00:00.000Z")
     const result = await writeRegistry.dispatch<{ resources: Array<Record<string, unknown>> }>(
       "materialize_departure_room_block",
       { departureId: "avsl_1", blockId: "rmbk_1", rooms: 2 },
-      contextWith({
-        async materializeDepartureRoomBlock(departureId, input) {
-          forwardedDepartureId = departureId
-          forwarded = input
-          return {
-            blockId: input.blockId,
-            kind: input.kind,
-            created: 2,
-            skippedExisting: 0,
-            roomsPickedUp: 2,
-            pickupId: "rbpu_1",
-            remainingAfter: 18,
-            resources: [
-              {
-                id: "alrs_room_1",
-                slotId: departureId,
-                kind: input.kind,
-                refType: "room_block",
-                refId: input.blockId,
-                label: "Room 1",
-                capacity: 2,
-                occupancyMin: 1,
-                roomTypeId: "rmty_double",
-                bedConfiguration: "twin",
-                accessible: false,
-                minAge: null,
-                maxAge: null,
-                flags: { roomBlockPickupId: "rbpu_1" },
-                parentId: null,
-                sortOrder: 0,
-                createdAt: materializedAt,
-                updatedAt: materializedAt,
-              },
-            ],
-          }
-        },
-      }),
+      admittedMaterializeContext(
+        contextWith({
+          async materializeDepartureRoomBlock(departureId, input) {
+            forwardedDepartureId = departureId
+            forwarded = input
+            return {
+              blockId: input.blockId,
+              kind: input.kind,
+              created: 2,
+              skippedExisting: 0,
+              roomsPickedUp: 2,
+              pickupId: "rbpu_1",
+              remainingAfter: 18,
+              resources: [
+                {
+                  id: "alrs_room_1",
+                  slotId: departureId,
+                  kind: input.kind,
+                  refType: "room_block",
+                  refId: input.blockId,
+                  label: "Room 1",
+                  capacity: 2,
+                  occupancyMin: 1,
+                  roomTypeId: "rmty_double",
+                  bedConfiguration: "twin",
+                  accessible: false,
+                  minAge: null,
+                  maxAge: null,
+                  flags: { roomBlockPickupId: "rbpu_1" },
+                  parentId: null,
+                  sortOrder: 0,
+                  createdAt: materializedAt,
+                  updatedAt: materializedAt,
+                },
+              ],
+            }
+          },
+        }),
+      ),
     )
 
     expect(forwardedDepartureId).toBe("avsl_1")
@@ -436,17 +463,21 @@ describe("Operations tools", () => {
 
   it("releases a block by its own id, defaulting the kind the positions were created under", async () => {
     const writeRegistry = createToolRegistry()
-    writeRegistry.register(releaseDepartureRoomBlockTool)
+    writeRegistry.register(releaseDepartureRoomBlockTool, {
+      actionPolicy: RELEASE_DEPARTURE_ROOM_BLOCK_HANDLER_POLICY.actionPolicy,
+    })
     const forwarded: unknown[] = []
     const result = await writeRegistry.dispatch(
       "release_departure_room_block",
       { departureId: "avsl_1", blockId: "rmbk_1" },
-      contextWith({
-        async releaseDepartureRoomBlock(departureId, blockId, options) {
-          forwarded.push(departureId, blockId, options)
-          return { blockId, kind: options.kind ?? "room", removed: 2, roomsReleased: 2 }
-        },
-      }),
+      admittedReleaseContext(
+        contextWith({
+          async releaseDepartureRoomBlock(departureId, blockId, options) {
+            forwarded.push(departureId, blockId, options)
+            return { blockId, kind: options.kind ?? "room", removed: 2, roomsReleased: 2 }
+          },
+        }),
+      ),
     )
 
     expect(forwarded).toEqual(["avsl_1", "rmbk_1", { kind: "room" }])
@@ -474,19 +505,23 @@ describe("Operations tools", () => {
 
   it("clears one rooming preference while leaving the other stored value alone", async () => {
     const writeRegistry = createToolRegistry()
-    writeRegistry.register(setDepartureTravelerRoomingPreferencesTool)
+    writeRegistry.register(setDepartureTravelerRoomingPreferencesTool, {
+      actionPolicy: SET_DEPARTURE_TRAVELER_ROOMING_PREFERENCES_HANDLER_POLICY.actionPolicy,
+    })
     let forwarded: unknown
     let forwardedTravelerId: string | undefined
     const result = await writeRegistry.dispatch(
       "set_departure_traveler_rooming_preferences",
       { departureId: "avsl_1", travelerId: "bkpt_1", roomTypeId: null },
-      contextWith({
-        async setDepartureTravelerRoomingPreferences(_departureId, travelerId, input) {
-          forwardedTravelerId = travelerId
-          forwarded = input
-          return { travelerId, bedPreference: "twin", roomTypeId: null }
-        },
-      }),
+      admittedRoomingPreferencesContext(
+        contextWith({
+          async setDepartureTravelerRoomingPreferences(_departureId, travelerId, input) {
+            forwardedTravelerId = travelerId
+            forwarded = input
+            return { travelerId, bedPreference: "twin", roomTypeId: null }
+          },
+        }),
+      ),
     )
 
     expect(forwardedTravelerId).toBe("bkpt_1")
@@ -517,18 +552,22 @@ describe("Operations tools", () => {
 
   it("accepts the compatibility productId field but surfaces a rejected ownership move", async () => {
     const writeRegistry = createToolRegistry()
-    writeRegistry.register(updateDepartureTool)
+    writeRegistry.register(updateDepartureTool, {
+      actionPolicy: UPDATE_DEPARTURE_HANDLER_POLICY.actionPolicy,
+    })
     let called = false
     await expect(
       writeRegistry.dispatch(
         "update_departure",
         { id: "avsl_1", productId: "prod_other" },
-        contextWith({
-          async updateDeparture() {
-            called = true
-            throw new Error("Availability slot product ownership is immutable")
-          },
-        }),
+        admittedUpdateContext(
+          contextWith({
+            async updateDeparture() {
+              called = true
+              throw new Error("Availability slot product ownership is immutable")
+            },
+          }),
+        ),
       ),
     ).rejects.toThrow("product ownership is immutable")
     expect(called).toBe(true)
@@ -700,6 +739,169 @@ describe("Operations tools", () => {
     expect(result).toMatchObject({ total: 3, upcomingSlots: 2, upcomingPax: 31 })
   })
 })
+
+function admittedUpdateContext<T extends ToolContext>(context: T): T {
+  return {
+    ...context,
+    handlerActionPolicy: {
+      capabilityId: UPDATE_DEPARTURE_HANDLER_POLICY.capabilityId,
+      capabilityVersion: UPDATE_DEPARTURE_HANDLER_POLICY.capabilityVersion,
+      canonicalName: UPDATE_DEPARTURE_HANDLER_POLICY.canonicalName,
+      actionPolicy: {
+        ...UPDATE_DEPARTURE_HANDLER_POLICY.actionPolicy,
+        enforcement: "handler",
+        invocation: {
+          controlField: "_voyant",
+          requiredFields: ["approvalId", "idempotencyFingerprint"],
+          optionalFields: ["reasonCode", "approvalId", "idempotencyFingerprint"],
+          fingerprintAlgorithm: "action-ledger-command-v1",
+        },
+      },
+      invocation: { approvalId: "appr_update", idempotencyFingerprint: "fp_update" },
+    } as never,
+  }
+}
+
+function admittedAttachContext<T extends ToolContext>(context: T): T {
+  return {
+    ...context,
+    handlerActionPolicy: {
+      capabilityId: ATTACH_DEPARTURE_FLEET_RESOURCE_HANDLER_POLICY.capabilityId,
+      capabilityVersion: ATTACH_DEPARTURE_FLEET_RESOURCE_HANDLER_POLICY.capabilityVersion,
+      canonicalName: ATTACH_DEPARTURE_FLEET_RESOURCE_HANDLER_POLICY.canonicalName,
+      actionPolicy: {
+        ...ATTACH_DEPARTURE_FLEET_RESOURCE_HANDLER_POLICY.actionPolicy,
+        enforcement: "handler",
+        invocation: {
+          controlField: "_voyant",
+          requiredFields: ["approvalId", "idempotencyFingerprint"],
+          optionalFields: ["reasonCode", "approvalId", "idempotencyFingerprint"],
+          fingerprintAlgorithm: "action-ledger-command-v1",
+        },
+      },
+      invocation: { approvalId: "appr_attach", idempotencyFingerprint: "fp_attach" },
+    } as never,
+  }
+}
+
+function admittedRoomingPreferencesContext<T extends ToolContext>(context: T): T {
+  const policy = SET_DEPARTURE_TRAVELER_ROOMING_PREFERENCES_HANDLER_POLICY
+  return {
+    ...context,
+    handlerActionPolicy: {
+      capabilityId: policy.capabilityId,
+      capabilityVersion: policy.capabilityVersion,
+      canonicalName: policy.canonicalName,
+      actionPolicy: {
+        ...policy.actionPolicy,
+        enforcement: "handler",
+        invocation: {
+          controlField: "_voyant",
+          requiredFields: ["approvalId", "idempotencyFingerprint"],
+          optionalFields: ["reasonCode", "approvalId", "idempotencyFingerprint"],
+          fingerprintAlgorithm: "action-ledger-command-v1",
+        },
+      },
+      invocation: { approvalId: "appr_rooming", idempotencyFingerprint: "fp_rooming" },
+    } as never,
+  }
+}
+
+function admittedAssignmentsContext<T extends ToolContext>(context: T): T {
+  const policy = SET_DEPARTURE_TRAVELER_ASSIGNMENTS_HANDLER_POLICY
+  return {
+    ...context,
+    handlerActionPolicy: {
+      capabilityId: policy.capabilityId,
+      capabilityVersion: policy.capabilityVersion,
+      canonicalName: policy.canonicalName,
+      actionPolicy: {
+        ...policy.actionPolicy,
+        enforcement: "handler",
+        invocation: {
+          controlField: "_voyant",
+          requiredFields: ["approvalId", "idempotencyFingerprint"],
+          optionalFields: ["reasonCode", "approvalId", "idempotencyFingerprint"],
+          fingerprintAlgorithm: "action-ledger-command-v1",
+        },
+      },
+      invocation: { approvalId: "appr_assign", idempotencyFingerprint: "fp_assign" },
+    } as never,
+  }
+}
+
+function admittedMaterializeContext<T extends ToolContext>(context: T): T {
+  const policy = MATERIALIZE_DEPARTURE_ROOM_BLOCK_HANDLER_POLICY
+  return {
+    ...context,
+    handlerActionPolicy: {
+      capabilityId: policy.capabilityId,
+      capabilityVersion: policy.capabilityVersion,
+      canonicalName: policy.canonicalName,
+      actionPolicy: {
+        ...policy.actionPolicy,
+        enforcement: "handler",
+        invocation: {
+          controlField: "_voyant",
+          requiredFields: ["approvalId", "idempotencyFingerprint"],
+          optionalFields: ["reasonCode", "approvalId", "idempotencyFingerprint"],
+          fingerprintAlgorithm: "action-ledger-command-v1",
+        },
+      },
+      invocation: { approvalId: "appr_materialize", idempotencyFingerprint: "fp_materialize" },
+    } as never,
+  }
+}
+
+function admittedDetachContext<T extends ToolContext>(context: T): T {
+  return admittedOperationsPolicyContext(
+    context,
+    DETACH_DEPARTURE_FLEET_RESOURCE_HANDLER_POLICY,
+    "detach",
+  )
+}
+
+function admittedReleaseContext<T extends ToolContext>(context: T): T {
+  return admittedOperationsPolicyContext(
+    context,
+    RELEASE_DEPARTURE_ROOM_BLOCK_HANDLER_POLICY,
+    "release",
+  )
+}
+
+function admittedOperationsPolicyContext<T extends ToolContext>(
+  context: T,
+  policy: {
+    capabilityId: string
+    capabilityVersion: string
+    canonicalName: string
+    actionPolicy: Record<string, unknown>
+  },
+  suffix: string,
+): T {
+  return {
+    ...context,
+    handlerActionPolicy: {
+      capabilityId: policy.capabilityId,
+      capabilityVersion: policy.capabilityVersion,
+      canonicalName: policy.canonicalName,
+      actionPolicy: {
+        ...policy.actionPolicy,
+        enforcement: "handler",
+        invocation: {
+          controlField: "_voyant",
+          requiredFields: ["approvalId", "idempotencyFingerprint"],
+          optionalFields: ["reasonCode", "approvalId", "idempotencyFingerprint"],
+          fingerprintAlgorithm: "action-ledger-command-v1",
+        },
+      },
+      invocation: {
+        approvalId: `appr_${suffix}`,
+        idempotencyFingerprint: `fp_${suffix}`,
+      },
+    } as never,
+  }
+}
 
 describe("Operations dashboard Tool", () => {
   it("publishes a structural, staff-only composed read", () => {

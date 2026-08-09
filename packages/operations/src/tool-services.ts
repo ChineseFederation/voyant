@@ -26,6 +26,7 @@ export interface OperationsToolServices {
   updateDeparture(
     id: string,
     patch: Partial<z.infer<typeof availabilitySlotCoreSchema>> & { updatedAt?: string },
+    admitted: ToolHandlerActionPolicyContext,
   ): Promise<unknown>
   /**
    * Departure-planning writes. Each mirrors one leg of
@@ -35,6 +36,7 @@ export interface OperationsToolServices {
   attachDepartureFleetResource(
     departureId: string,
     input: z.infer<typeof attachDepartureResourceSchema>,
+    admitted: ToolHandlerActionPolicyContext,
   ): Promise<unknown>
   detachDepartureFleetResource(
     departureId: string,
@@ -42,11 +44,13 @@ export interface OperationsToolServices {
     options: Omit<z.infer<typeof detachDepartureResourceQuerySchema>, "cascade"> & {
       cascade?: boolean
     },
+    admitted: ToolHandlerActionPolicyContext,
   ): Promise<unknown>
   listDepartureFleetResources(departureId: string): Promise<unknown>
   setDepartureTravelerAssignments(
     departureId: string,
     input: z.infer<typeof batchAssignTravelerAllocationsSchema>,
+    admitted: ToolHandlerActionPolicyContext,
   ): Promise<unknown>
   /**
    * Room inventory drawn from a contracted accommodation block. Both legs go
@@ -56,16 +60,19 @@ export interface OperationsToolServices {
   materializeDepartureRoomBlock(
     departureId: string,
     input: z.infer<typeof materializeFromRoomBlockSchema>,
+    admitted: ToolHandlerActionPolicyContext,
   ): Promise<unknown>
   releaseDepartureRoomBlock(
     departureId: string,
     blockId: string,
     options: { kind?: string },
+    admitted: ToolHandlerActionPolicyContext,
   ): Promise<unknown>
   setDepartureTravelerRoomingPreferences(
     departureId: string,
     travelerId: string,
     input: z.infer<typeof updateTravelerRoomingPreferencesSchema>,
+    admitted: ToolHandlerActionPolicyContext,
   ): Promise<unknown>
   rebuildBookingActions(): Promise<BookingActionSyncSummary>
   getAvailabilityOverview(query: z.infer<typeof availabilityOverviewQuerySchema>): Promise<unknown>
