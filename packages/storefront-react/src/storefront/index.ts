@@ -1,5 +1,5 @@
 export { AccommodationDetailPage } from "./accommodation-detail-page.js"
-export { StorefrontBrowsePage, shopSearchSchema } from "./browse-page.js"
+export { StorefrontBrowsePage } from "./browse-page.js"
 export {
   type BuyerAccountContextValue,
   type BuyerAccountPolicy,
@@ -78,3 +78,4 @@ export {
   useStorefrontScope,
 } from "./scope.js"
 export { StorefrontShell } from "./shell.js"
+export { shopSearchSchema } from "./shop-search.js"

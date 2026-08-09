@@ -124,10 +124,10 @@ const requiredTokens = new Map([
   [
     "packages/operator-standard/src/standard-frontend.tsx",
     [
-      'from "@voyant-travel/cruises-react/storefront"',
-      'from "@voyant-travel/inventory-react/storefront"',
-      'from "@voyant-travel/storefront-react/storefront"',
-      'from "@voyant-travel/trips-react/storefront"',
+      '"@voyant-travel/cruises-react/storefront"',
+      '"@voyant-travel/inventory-react/storefront"',
+      '"@voyant-travel/storefront-react/storefront"',
+      '"@voyant-travel/trips-react/storefront"',
       "presentationFactories",
       '"@voyant-travel/storefront#presentation.customer"',
       "createFinancePublicRouteContribution",

@@ -2,22 +2,15 @@
 
 import { Outlet, useNavigate, useParams, useSearch } from "@tanstack/react-router"
 import { Card, CardContent, CardHeader, CardTitle } from "@voyant-travel/ui/components/card"
-import type { ComponentType, ReactNode } from "react"
+import { type ComponentType, lazy, type ReactNode, Suspense } from "react"
 import { z } from "zod"
 import type { VoyantFetcher } from "../customer-portal/client.js"
 import { getStorefrontCustomerProductDetailRoute } from "../routing.js"
-import { StorefrontBrowsePage, shopSearchSchema } from "./browse-page.js"
-import { type StorefrontConfirmationKind, StorefrontConfirmationPage } from "./confirmation-page.js"
+import type { StorefrontConfirmationKind } from "./confirmation-page.js"
 import { type StorefrontUiNavigation, StorefrontUiProvider } from "./context.js"
-import { CustomerAccountPage } from "./customer-account-page.js"
 import { CustomerAccountProvider } from "./customer-account-provider.js"
 import { useCustomerAuthConfig } from "./customer-auth-config.js"
-import {
-  CustomerSignInPage,
-  CustomerSignUpPage,
-  type CustomerSocialAuthProvider,
-  CustomerVerifyEmailPage,
-} from "./customer-auth-pages.js"
+import type { CustomerSocialAuthProvider } from "./customer-auth-pages.js"
 import {
   type StorefrontMessages,
   StorefrontMessagesProvider,
@@ -25,6 +18,36 @@ import {
 } from "./messages.js"
 import { StorefrontScopeProvider, useStorefrontScope } from "./scope.js"
 import { StorefrontShell } from "./shell.js"
+import { shopSearchSchema } from "./shop-search.js"
+
+const StorefrontBrowsePage = lazy(() =>
+  import("./browse-page.js").then((module) => ({ default: module.StorefrontBrowsePage })),
+)
+const StorefrontConfirmationPage = lazy(() =>
+  import("./confirmation-page.js").then((module) => ({
+    default: module.StorefrontConfirmationPage,
+  })),
+)
+const CustomerAccountPage = lazy(() =>
+  import("./customer-account-page.js").then((module) => ({
+    default: module.CustomerAccountPage,
+  })),
+)
+const CustomerSignInPage = lazy(() =>
+  import("./customer-auth-pages.js").then((module) => ({ default: module.CustomerSignInPage })),
+)
+const CustomerSignUpPage = lazy(() =>
+  import("./customer-auth-pages.js").then((module) => ({ default: module.CustomerSignUpPage })),
+)
+const CustomerVerifyEmailPage = lazy(() =>
+  import("./customer-auth-pages.js").then((module) => ({
+    default: module.CustomerVerifyEmailPage,
+  })),
+)
+
+function StorefrontRouteFallback() {
+  return <div className="min-h-48" />
+}
 
 const accountSignInSearchSchema = z.object({
   next: z.string().optional(),
@@ -132,7 +155,9 @@ export function createStorefrontPresentationContribution(
           navigate: (navigation: StorefrontUiNavigation) => void navigate(navigation as never),
         }}
       >
-        <StorefrontBrowsePage search={search} />
+        <Suspense fallback={<StorefrontRouteFallback />}>
+          <StorefrontBrowsePage search={search} />
+        </Suspense>
       </StorefrontUiProvider>
     )
   }
@@ -152,15 +177,17 @@ export function createStorefrontPresentationContribution(
     }
     if (authConfig.error || !authConfig.config) return <CustomerAuthUnavailable />
     return (
-      <CustomerSignInPage
-        methods={authConfig.config.methods}
-        redirectTo={redirectTo}
-        verified={Boolean(verify)}
-        requestEmailCode={runtime.requestEmailCode}
-        signInWithEmailCode={runtime.signInWithEmailCode}
-        signInWithSocial={runtime.signInWithSocial}
-        onNavigate={(to) => void navigate({ to })}
-      />
+      <Suspense fallback={<StorefrontRouteFallback />}>
+        <CustomerSignInPage
+          methods={authConfig.config.methods}
+          redirectTo={redirectTo}
+          verified={Boolean(verify)}
+          requestEmailCode={runtime.requestEmailCode}
+          signInWithEmailCode={runtime.signInWithEmailCode}
+          signInWithSocial={runtime.signInWithSocial}
+          onNavigate={(to) => void navigate({ to })}
+        />
+      </Suspense>
     )
   }
 
@@ -181,17 +208,19 @@ export function createStorefrontPresentationContribution(
       return null
     }
     return (
-      <CustomerSignUpPage
-        methods={authConfig.config.methods}
-        redirectTo={redirectTo}
-        signInWithSocial={runtime.signInWithSocial}
-        onNavigateToVerify={(email) =>
-          void navigate({
-            to: "/shop/account/verify-email",
-            search: { email, next: redirectTo },
-          })
-        }
-      />
+      <Suspense fallback={<StorefrontRouteFallback />}>
+        <CustomerSignUpPage
+          methods={authConfig.config.methods}
+          redirectTo={redirectTo}
+          signInWithSocial={runtime.signInWithSocial}
+          onNavigateToVerify={(email) =>
+            void navigate({
+              to: "/shop/account/verify-email",
+              search: { email, next: redirectTo },
+            })
+          }
+        />
+      </Suspense>
     )
   }
 
@@ -219,12 +248,14 @@ export function createStorefrontPresentationContribution(
       return null
     }
     return (
-      <CustomerAccountPage
-        onSignOut={async () => {
-          await runtime.signOut()
-          void navigate({ to: "/shop" })
-        }}
-      />
+      <Suspense fallback={<StorefrontRouteFallback />}>
+        <CustomerAccountPage
+          onSignOut={async () => {
+            await runtime.signOut()
+            void navigate({ to: "/shop" })
+          }}
+        />
+      </Suspense>
     )
   }
 
@@ -235,22 +266,24 @@ export function createStorefrontPresentationContribution(
     >
     const redirectTo = next || "/shop/account"
     return (
-      <CustomerVerifyEmailPage
-        email={email}
-        redirectTo={redirectTo}
-        onCompleted={async () => {
-          await runtime.signOut()
-        }}
-        onResendVerification={async (verificationEmail) => {
-          await runtime.resendVerification(verificationEmail)
-        }}
-        onNavigateToSignIn={() =>
-          void navigate({
-            to: "/shop/account/sign-in",
-            search: { next: redirectTo, verify: "1" },
-          })
-        }
-      />
+      <Suspense fallback={<StorefrontRouteFallback />}>
+        <CustomerVerifyEmailPage
+          email={email}
+          redirectTo={redirectTo}
+          onCompleted={async () => {
+            await runtime.signOut()
+          }}
+          onResendVerification={async (verificationEmail) => {
+            await runtime.resendVerification(verificationEmail)
+          }}
+          onNavigateToSignIn={() =>
+            void navigate({
+              to: "/shop/account/sign-in",
+              search: { next: redirectTo, verify: "1" },
+            })
+          }
+        />
+      </Suspense>
     )
   }
 
@@ -271,12 +304,14 @@ export function createStorefrontPresentationContribution(
     const { bookingId } = useParams({ strict: false }) as { bookingId: string }
     const search = useSearch({ strict: false }) as z.infer<typeof confirmationSearchSchema>
     return (
-      <StorefrontConfirmationPage
-        apiUrl={runtime.getApiUrl()}
-        bookingId={bookingId}
-        kind={search.kind as StorefrontConfirmationKind | undefined}
-        paymentRef={search.session ?? search.orderId ?? search.ref}
-      />
+      <Suspense fallback={<StorefrontRouteFallback />}>
+        <StorefrontConfirmationPage
+          apiUrl={runtime.getApiUrl()}
+          bookingId={bookingId}
+          kind={search.kind as StorefrontConfirmationKind | undefined}
+          paymentRef={search.session ?? search.orderId ?? search.ref}
+        />
+      </Suspense>
     )
   }
 

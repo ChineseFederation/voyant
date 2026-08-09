@@ -36,12 +36,10 @@ import type { McpConsentRouteContribution } from "@voyant-travel/auth-react/mcp-
 import type { RedeemInvitationStatus } from "@voyant-travel/auth-react/ui"
 import { RealtimeChannel } from "@voyant-travel/cloud-sdk"
 import type { VoyantGraphJsonValue } from "@voyant-travel/core/project"
-import { CruiseDetailPage } from "@voyant-travel/cruises-react/storefront"
 import type {
   createFinancePublicRouteContribution,
   FinancePublicRouteRuntime,
 } from "@voyant-travel/finance-react/public-routes"
-import { ProductDetailPageProducts } from "@voyant-travel/inventory-react/storefront"
 import { navigationPreferencesQueryKey } from "@voyant-travel/navigation-preferences-react"
 import type {
   createProposalsPublicRouteContribution,
@@ -49,22 +47,45 @@ import type {
 } from "@voyant-travel/proposals-react/public-routes"
 import { AdminWorkspaceRealtimeProvider } from "@voyant-travel/realtime-react"
 import {
-  AccommodationDetailPage,
   createStorefrontMessagesProvider,
   type StorefrontComposerRouteProps,
   type StorefrontPresentationContribution,
   type StorefrontPresentationRuntime,
   useStorefrontMessages,
 } from "@voyant-travel/storefront-react/storefront"
-import { StorefrontComposerPage } from "@voyant-travel/trips-react/storefront"
 import type { AccessCatalog } from "@voyant-travel/types/api-keys"
 import { ConfirmDialogHost, PromptDialogHost } from "@voyant-travel/ui/components"
 import { TooltipProvider } from "@voyant-travel/ui/components/tooltip"
 import { emailOTPClient, organizationClient } from "better-auth/client/plugins"
 import { createAuthClient } from "better-auth/react"
 import type { ComponentType, ReactNode } from "react"
-import { useMemo } from "react"
+import { lazy, Suspense, useMemo } from "react"
 import { createApiDocsRouteOptions, type OpenApiSpecLoaders } from "./standard-api-docs.js"
+
+const AccommodationDetailPage = lazy(() =>
+  import("@voyant-travel/storefront-react/storefront").then((module) => ({
+    default: module.AccommodationDetailPage,
+  })),
+)
+const CruiseDetailPage = lazy(() =>
+  import("@voyant-travel/cruises-react/storefront").then((module) => ({
+    default: module.CruiseDetailPage,
+  })),
+)
+const ProductDetailPageProducts = lazy(() =>
+  import("@voyant-travel/inventory-react/storefront").then((module) => ({
+    default: module.ProductDetailPageProducts,
+  })),
+)
+const StorefrontComposerPage = lazy(() =>
+  import("@voyant-travel/trips-react/storefront").then((module) => ({
+    default: module.StorefrontComposerPage,
+  })),
+)
+
+function StorefrontPageFallback() {
+  return <div className="min-h-48" />
+}
 
 export {
   AdminRootErrorBoundary,
@@ -328,11 +349,17 @@ function createPresentationRuntime(
     ComposerPage: StandardStorefrontComposerPage,
     getApiUrl: getAdminApiUrl,
     projectFetcher: adminFetcher,
-    renderProductDetail: (entityModule, entityId) => {
-      if (entityModule === "accommodations") return <AccommodationDetailPage entityId={entityId} />
-      if (entityModule === "cruises") return <CruiseDetailPage entityId={entityId} />
-      return <ProductDetailPageProducts entityModule={entityModule} entityId={entityId} />
-    },
+    renderProductDetail: (entityModule, entityId) => (
+      <Suspense fallback={<StorefrontPageFallback />}>
+        {entityModule === "accommodations" ? (
+          <AccommodationDetailPage entityId={entityId} />
+        ) : entityModule === "cruises" ? (
+          <CruiseDetailPage entityId={entityId} />
+        ) : (
+          <ProductDetailPageProducts entityModule={entityModule} entityId={entityId} />
+        )}
+      </Suspense>
+    ),
     requestEmailCode: async (email) => {
       const result = await customerAuthClient.emailOtp.sendVerificationOtp({
         email,
@@ -527,9 +554,11 @@ type ProposalsPublicPresentationFactory = (
 
 function StandardStorefrontComposerPage(props: StorefrontComposerRouteProps) {
   return (
-    <StorefrontComposerPage
-      {...props}
-      messages={useOperatorAdminMessages().trips.storefrontComposer}
-    />
+    <Suspense fallback={<StorefrontPageFallback />}>
+      <StorefrontComposerPage
+        {...props}
+        messages={useOperatorAdminMessages().trips.storefrontComposer}
+      />
+    </Suspense>
   )
 }

@@ -51,7 +51,7 @@
     "verify:relationships-runtime-authority": "node --test scripts/tests/check-relationships-runtime-authority.test.mjs && node scripts/check-relationships-runtime-authority.mjs",
     "verify:flights-runtime-authority": "node --test scripts/tests/check-flights-runtime-authority.test.mjs && node scripts/check-flights-runtime-authority.mjs",
     "verify:distribution-channel-push-runtime-authority": "node --test scripts/tests/check-distribution-channel-push-runtime-authority.test.mjs && node scripts/check-distribution-channel-push-runtime-authority.mjs",
-    "verify:operator-product-ui-authority": "node scripts/check-operator-product-ui-authority.mjs",
+    "verify:operator-product-ui-authority": "node --test scripts/tests/check-operator-product-ui-authority.test.mjs && node scripts/check-operator-product-ui-authority.mjs",
     "verify:operator-frontend-shell-authority": "node --test scripts/tests/check-operator-frontend-shell-authority.test.mjs && node scripts/check-operator-frontend-shell-authority.mjs",
     "verify:operator-admin-presentation-authority": "node scripts/check-operator-admin-presentation-authority.mjs",
     "verify:admin-presentation-fallback-authority": "node --test scripts/tests/check-admin-presentation-fallback-authority.test.mjs && node scripts/check-admin-presentation-fallback-authority.mjs",

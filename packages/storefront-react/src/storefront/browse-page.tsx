@@ -5,13 +5,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@voyant-travel/ui/comp
 import { Input } from "@voyant-travel/ui/components/input"
 import { Skeleton } from "@voyant-travel/ui/components/skeleton"
 import { useState } from "react"
-import { z } from "zod"
+import type { z } from "zod"
 
-import {
-  getStorefrontCustomerProductDetailRoute,
-  storefrontCustomerBookableProductVerticals,
-} from "../routing.js"
+import { getStorefrontCustomerProductDetailRoute } from "../routing.js"
 import { StorefrontLink, useStorefrontUi } from "./context.js"
+import type { shopSearchSchema } from "./shop-search.js"
+
+export { shopSearchSchema } from "./shop-search.js"
 
 /**
  * Storefront landing — real catalog browser backed by
@@ -28,11 +28,6 @@ import { StorefrontLink, useStorefrontUi } from "./context.js"
  * detail pages, and `.catch(undefined)` gracefully drops any stale/crafted
  * unsupported vertical URL back to the default vertical instead of erroring.
  */
-export const shopSearchSchema = z.object({
-  q: z.string().optional(),
-  vertical: z.enum(storefrontCustomerBookableProductVerticals).optional().catch(undefined),
-})
-
 export function StorefrontBrowsePage({
   search,
 }: {
