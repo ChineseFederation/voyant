@@ -4,7 +4,7 @@
  * by intersection so this module stays deployment-agnostic.
  * Refunds are issued through the credit-note service after action approval.
  */
-import { bookingToolDetailSchema } from "@voyant-travel/bookings"
+import type { bookingToolDetailSchema } from "@voyant-travel/bookings"
 // agent-quality: file-size exception -- owner: finance; the package-owned Tool catalog remains centralized while intent workflows replace its advanced command surface incrementally.
 import {
   admitHandlerActionPolicy,
@@ -294,8 +294,15 @@ export const createBookingToolInputSchema = z.object({
 const durableBookingCreateResultSchema = z.object({
   status: z.literal("created"),
   bookingId: z.string().min(1),
+  bookingNumber: z.string().min(1),
   replayed: z.boolean(),
-  booking: bookingToolDetailSchema,
+  committedChanges: z.tuple([z.literal("booking_created")]),
+  nextActions: z.tuple([
+    z.object({
+      tool: z.literal("get_booking"),
+      input: z.object({ id: z.string().min(1) }),
+    }),
+  ]),
 })
 
 export const createBookingTool = defineTool({
@@ -324,8 +331,10 @@ export const createBookingTool = defineTool({
     return {
       status: "created",
       bookingId: result.bookingId,
+      bookingNumber: result.booking.bookingNumber,
       replayed: result.replayed,
-      booking: result.booking,
+      committedChanges: ["booking_created"],
+      nextActions: [{ tool: "get_booking", input: { id: result.bookingId } }],
     }
   },
 })

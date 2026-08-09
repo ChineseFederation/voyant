@@ -1,3 +1,4 @@
+// agent-quality: file-size exception -- owner: finance; this registry-level suite keeps the package Tool catalog, injected service contracts, and action-policy projection assertions together.
 import {
   createToolRegistry,
   type ToolContext,
@@ -700,11 +701,15 @@ describe("finance tools", () => {
         invocation: { confirmed: true, idempotencyKey: "booking-create-1" },
       }),
     )
-    expect(result).toMatchObject({
+    expect(result).toEqual({
       status: "created",
       bookingId: "booking_1",
+      bookingNumber: "B-1",
       replayed: false,
+      committedChanges: ["booking_created"],
+      nextActions: [{ tool: "get_booking", input: { id: "booking_1" } }],
     })
+    expect(Buffer.byteLength(JSON.stringify(result))).toBeLessThan(500)
   })
 
   it("throws MISSING_SERVICE when unwired", async () => {
