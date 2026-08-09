@@ -653,6 +653,7 @@ export const storefrontPaymentLinkVoyantModule = defineModule({
       ledger: "required",
       approval: "required",
       reversible: true,
+      existingTarget: { durability: "handler-command-result-v1" },
       allowedActorTypes: ["staff"],
       availability: { status: "available" },
       effectBoundary: "local",

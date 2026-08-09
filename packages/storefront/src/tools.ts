@@ -1,5 +1,7 @@
 import {
+  admitHandlerActionPolicy,
   defineTool,
+  type HandlerActionPolicyExpectation,
   READ_ONLY_RISK,
   requireService,
   type ToolContext,
@@ -139,6 +141,7 @@ export interface StorefrontCustomerPortalToolServices {
 export interface StorefrontPaymentLinkToolServices {
   createFromInvoice(
     input: z.infer<typeof createInvoicePaymentLinkInputSchema>,
+    admitted: import("@voyant-travel/tools").ToolHandlerActionPolicyContext,
   ): Promise<z.infer<typeof paymentLinkSchema>>
   get(sessionId: string): Promise<z.infer<typeof paymentLinkSchema>>
 }
@@ -361,6 +364,27 @@ export const getPaymentLinkTool = defineTool({
   outputSchema: paymentLinkSchema,
   handler: ({ sessionId }, ctx: StorefrontToolContext) => paymentLink(ctx).get(sessionId),
 })
+export const CREATE_INVOICE_PAYMENT_LINK_HANDLER_POLICY = {
+  capabilityId: `${OWNER}#tool.create-invoice-payment-link`,
+  capabilityVersion: VERSION,
+  canonicalName: "create_invoice_payment_link",
+  actionPolicy: {
+    id: `${OWNER}#action.create-invoice-payment-link`,
+    capabilityId: `${OWNER}#action.create-invoice-payment-link`,
+    version: VERSION,
+    kind: "execute",
+    targetType: "invoice",
+    commandTargetField: "invoiceId",
+    targetLifecycle: "existing",
+    existingTarget: { durability: "handler-command-result-v1" },
+    risk: "high",
+    ledger: "required",
+    approval: "required",
+    reversible: true,
+    allowedActorTypes: ["staff"],
+  },
+} as const satisfies HandlerActionPolicyExpectation
+
 export const createInvoicePaymentLinkTool = defineTool({
   owner: PAYMENT_LINK_OWNER,
   capabilityVersion: VERSION,
@@ -380,7 +404,13 @@ export const createInvoicePaymentLinkTool = defineTool({
     confirmationRequired: true,
     sideEffects: ["data-write"],
   },
-  handler: (input, ctx: StorefrontToolContext) => paymentLink(ctx).createFromInvoice(input),
+  actionPolicyEnforcement: "handler",
+  annotations: { idempotentHint: true },
+  handler: (input, ctx: StorefrontToolContext) =>
+    paymentLink(ctx).createFromInvoice(
+      input,
+      admitHandlerActionPolicy(ctx, CREATE_INVOICE_PAYMENT_LINK_HANDLER_POLICY),
+    ),
 })
 
 const verificationReadWrite = {

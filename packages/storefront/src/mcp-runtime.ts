@@ -1,3 +1,5 @@
+import { executeAdmittedExistingTargetCommand } from "@voyant-travel/action-ledger"
+import type { ActionLedgerRequestContextValues } from "@voyant-travel/action-ledger/request-context"
 import { buildPaymentLinkUrl, financeService } from "@voyant-travel/finance"
 import {
   type CustomerBuyerContext,
@@ -5,7 +7,12 @@ import {
   requireCustomerBuyerContext,
   requireCustomerIdentityContext,
 } from "@voyant-travel/hono"
-import { defineToolContextContribution, requireService, ToolError } from "@voyant-travel/tools"
+import {
+  defineToolContextContribution,
+  requireService,
+  ToolError,
+  type ToolHandlerActionPolicyContext,
+} from "@voyant-travel/tools"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import type { Context } from "hono"
 
@@ -324,15 +331,70 @@ export function createPaymentLinkToolServices(input: {
   }
 
   return {
-    async createFromInvoice({ invoiceId, ...command }) {
-      const row = await financeService.createPaymentSessionFromInvoice(input.db, invoiceId, command)
-      if (!row)
-        throw new ToolError(`Invoice "${invoiceId}" was not found.`, "NOT_FOUND", { invoiceId })
-      return toDto(row)
+    async createFromInvoice({ invoiceId, ...command }, admitted) {
+      let created: Awaited<ReturnType<typeof financeService.createPaymentSessionFromInvoice>>
+      const result = await executeAdmittedExistingTargetCommand(
+        {
+          db: input.db,
+          context: actionLedgerContext(input.request),
+          admitted: admitted as ToolHandlerActionPolicyContext,
+          commandInput: { invoiceId, ...command },
+          evaluatedRisk: "high",
+        },
+        {
+          async prepare(tx) {
+            created = await financeService.createPaymentSessionFromInvoice(
+              tx as PostgresJsDatabase,
+              invoiceId,
+              command,
+            )
+            if (!created) {
+              throw new ToolError(`Invoice "${invoiceId}" was not found.`, "NOT_FOUND", {
+                invoiceId,
+              })
+            }
+          },
+          execute() {
+            if (!created) throw new Error("Payment link creation produced no session")
+            return Promise.resolve(toDto(created))
+          },
+          async replay() {
+            const page = await financeService.listPaymentSessions(input.db, {
+              invoiceId,
+              idempotencyKey: command.idempotencyKey,
+              limit: 2,
+              offset: 0,
+            })
+            const row = page.data[0]
+            if (!row) throw new ToolError("Payment link was not found.", "NOT_FOUND")
+            return toDto(row)
+          },
+        },
+      )
+      return result.value
     },
     async get(sessionId) {
       return toDto(await financeService.getPaymentSessionById(input.db, sessionId))
     },
+  }
+}
+
+function actionLedgerContext(c: Context): ActionLedgerRequestContextValues {
+  const vars = c.var as Record<string, unknown>
+  return {
+    userId: (vars.userId as string | undefined) ?? null,
+    agentId: (vars.agentId as string | undefined) ?? null,
+    workflowPrincipalId: (vars.workflowPrincipalId as string | undefined) ?? null,
+    principalSubtype: (vars.principalSubtype as string | undefined) ?? null,
+    sessionId: (vars.sessionId as string | undefined) ?? null,
+    apiTokenId: ((vars.apiTokenId ?? vars.apiKeyId) as string | undefined) ?? null,
+    callerType: (vars.callerType as ActionLedgerRequestContextValues["callerType"]) ?? null,
+    actor: (vars.actor as ActionLedgerRequestContextValues["actor"]) ?? null,
+    isInternalRequest: (vars.isInternalRequest as boolean | undefined) ?? false,
+    organizationId: (vars.organizationId as string | undefined) ?? null,
+    workflowRunId: (vars.workflowRunId as string | undefined) ?? null,
+    workflowStepId: (vars.workflowStepId as string | undefined) ?? null,
+    correlationId: c.req.header("x-correlation-id") ?? c.req.header("x-request-id") ?? null,
   }
 }
 

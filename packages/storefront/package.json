@@ -75,6 +75,7 @@
     "db:generate": "drizzle-kit generate --config=drizzle.migrations.config.ts --name=storefront_baseline && node ../../scripts/migrations/guard-create-type.mjs ./migrations && node ../../scripts/migrations/ensure-extensions.mjs ./migrations"
   },
   "dependencies": {
+    "@voyant-travel/action-ledger": "workspace:^",
     "@voyant-travel/auth": "workspace:^",
     "@hono/zod-openapi": "catalog:",
     "@voyant-travel/bookings": "workspace:^",
