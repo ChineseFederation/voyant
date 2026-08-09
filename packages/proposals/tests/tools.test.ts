@@ -321,7 +321,7 @@ describe("proposals Tools", () => {
     const acceptance: ProposalAcceptanceToolServices = {
       async acceptProposalForBooking(proposalVersionId, admitted) {
         expect(proposalVersionId).toBe(version.id)
-        expect(admitted.invocation.idempotencyKey).toBe("proposal-booking-accept-1")
+        expect(admitted.invocation.idempotencyKey).toMatch(/^accept-proposal-for-booking:v1:/)
         return {
           status: "accepted",
           currency: "EUR",

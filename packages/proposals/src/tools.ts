@@ -1,12 +1,14 @@
 import {
   admitHandlerActionPolicy,
   defineTool,
+  deriveCommandIdempotencyKey,
   type HandlerActionPolicyExpectation,
   READ_ONLY_RISK,
   requireService,
   type ToolContext,
   ToolError,
   type ToolHandlerActionPolicyContext,
+  withServerResolvedIdempotencyKey,
 } from "@voyant-travel/tools"
 import { listResponseSchema } from "@voyant-travel/types"
 import { z } from "zod"
@@ -449,8 +451,15 @@ export const acceptProposalForBookingTool = defineTool({
   riskPolicy: proposalWriteRisk,
   annotations: { idempotentHint: true },
   actionPolicyEnforcement: "handler",
+  resolvesIdempotencyKeyServerSide: true,
   async handler({ proposalVersionId }, ctx: ProposalsToolContext) {
-    const admitted = admitHandlerActionPolicy(ctx, ACCEPT_PROPOSAL_FOR_BOOKING_HANDLER_POLICY)
+    const idempotencyKey = await deriveCommandIdempotencyKey("accept-proposal-for-booking", {
+      proposalVersionId,
+    })
+    const admitted = withServerResolvedIdempotencyKey(
+      admitHandlerActionPolicy(ctx, ACCEPT_PROPOSAL_FOR_BOOKING_HANDLER_POLICY),
+      idempotencyKey,
+    )
     return acceptProposalForBookingOutputSchema.parse(
       await proposalAcceptance(ctx).acceptProposalForBooking(proposalVersionId, admitted),
     )

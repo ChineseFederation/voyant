@@ -109,6 +109,7 @@ const INTENT_TOOL_NAMES = [
   "book_product",
   "invoice_booking",
   "cancel_booking",
+  "accept_proposal_for_booking",
 ] as const
 
 const CALLER_INVENTED_ACTION_FIELDS = [
