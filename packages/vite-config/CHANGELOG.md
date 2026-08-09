@@ -1,5 +1,11 @@
 # @voyant-travel/vite-config
 
+## 0.5.3
+
+### Patch Changes
+
+- f772fe7: Co-locate the UI chart bridge with Recharts so portable admin dashboards cannot render an undefined chart component from a circular client-chunk import.
+
 ## 0.5.2
 
 ### Patch Changes
