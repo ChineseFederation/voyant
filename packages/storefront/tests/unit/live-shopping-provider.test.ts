@@ -246,6 +246,7 @@ describe("storefront live shopping provider", () => {
       catalog: { searchSlice: async () => ({ items: [], total: 0 }) },
       live: provider,
       references: {
+        redeem: async () => null,
         issue: async (input) => {
           issued.push(input as unknown as Record<string, unknown>)
           return {
@@ -256,7 +257,10 @@ describe("storefront live shopping provider", () => {
       },
       now: () => new Date("2026-08-08T10:00:00.000Z"),
     })
-    const publicResult = await runtime.search(context, { scope, intent })
+    const publicResult = await runtime.search(context, {
+      scope,
+      intent: { ...intent, pagination: { limit: 15 } },
+    })
     const serialized = JSON.stringify(publicResult)
     expect(serialized).not.toContain("connection_secret")
     expect(serialized).not.toContain("accommodation_secret")
@@ -290,8 +294,9 @@ describe("storefront live shopping provider", () => {
           expect(trustedContext).toBe(context)
           expect(trustedScope).toBe(scope)
           return [
-            { search },
+            { continuationKey: "packages-primary", search },
             {
+              continuationKey: "packages-failing",
               search: async () => {
                 throw new Error("second source failed")
               },
@@ -354,6 +359,7 @@ describe("storefront live shopping provider", () => {
       packages: {
         resolveSources: async () => [
           {
+            continuationKey: "packages-slow",
             search: async () => {
               await new Promise((resolve) => setTimeout(resolve, 20))
               return { offers: [] }

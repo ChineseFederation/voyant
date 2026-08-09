@@ -52,7 +52,7 @@ describe("storefront customer business onboarding runtime contribution", () => {
     const providers = new Map<string, unknown>([
       [catalogSearchRuntimePort.id, { resolveRuntime: vi.fn() }],
       [catalogRuntimeServicesPort.id, { fieldPolicyRegistries: vi.fn() }],
-      [storefrontOpaqueReferenceIssuerPort.id, { issue: vi.fn() }],
+      [storefrontOpaqueReferenceIssuerPort.id, { issue: vi.fn(), redeem: vi.fn() }],
     ])
     const ports = createStorefrontRuntimePortContribution({
       primitives: primitives(),

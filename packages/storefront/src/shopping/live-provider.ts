@@ -14,6 +14,7 @@ import type {
   StorefrontDynamicPackageSourceProvider,
   StorefrontInternalPackageOffer,
   StorefrontInternalStayOffer,
+  StorefrontLiveContinuation,
   StorefrontLiveSearchPage,
   StorefrontLiveSourceStatus,
   StorefrontShoppingLiveProvider,
@@ -89,10 +90,25 @@ export function createStorefrontShoppingLiveProvider(
     async searchFlights(input) {
       if (!options.flights) return unavailablePage()
       const resolved = await options.flights.resolve(input)
-      if (resolved.adapters.length === 0) return unavailablePage()
+      const continued = continuationMap(input.continuation)
+      const adapters = input.continuation
+        ? resolved.adapters.filter(({ connectionId }) => continued.has(flightKey(connectionId)))
+        : resolved.adapters
+      if (adapters.length === 0) return unavailablePage()
       const result = await fanOutFlightSearch({
         ...resolved,
+        adapters,
         request: flightRequest(input.intent),
+        ...(input.continuation
+          ? {
+              continuationCursors: Object.fromEntries(
+                adapters.flatMap(({ connectionId }) => {
+                  const cursor = continued.get(flightKey(connectionId))
+                  return cursor ? [[connectionId, cursor]] : []
+                }),
+              ),
+            }
+          : {}),
         ...(options.perSourceTimeoutMs !== undefined
           ? { perConnectionTimeoutMs: options.perSourceTimeoutMs }
           : {}),
@@ -102,6 +118,13 @@ export function createStorefrontShoppingLiveProvider(
         sources: result.perConnection.map(({ status, count }) => ({
           status: mapFlightStatus(status, count),
         })),
+        ...continuationResult(
+          result.perConnection.flatMap(({ connectionId, status, nextCursor }) =>
+            status === "ok" && nextCursor
+              ? [{ key: flightKey(connectionId), cursor: nextCursor }]
+              : [],
+          ),
+        ),
       }
     },
 
@@ -109,12 +132,39 @@ export function createStorefrontShoppingLiveProvider(
       if (!options.stays) return unavailablePage()
       const stays = options.stays
       const resolved = await stays.resolve(input)
-      if ((resolved.adapters?.length ?? 0) + (resolved.ownedHandlers?.length ?? 0) === 0) {
+      const continued = continuationMap(input.continuation)
+      const adapters = (resolved.adapters ?? []).filter(
+        ({ connectionId }) => !input.continuation || continued.has(staySourcedKey(connectionId)),
+      )
+      const ownedHandlers = (resolved.ownedHandlers ?? []).filter(
+        ({ handler }) => !input.continuation || continued.has(stayOwnedKey(handler.entityModule)),
+      )
+      if (adapters.length + ownedHandlers.length === 0) {
         return unavailablePage()
       }
       const result = await fanOutAvailabilitySearch({
         ...resolved,
+        adapters,
+        ownedHandlers,
         request: stayRequest(input.scope, input.intent),
+        ...(input.continuation
+          ? {
+              continuationCursors: {
+                sourced: Object.fromEntries(
+                  adapters.flatMap(({ connectionId }) => {
+                    const cursor = continued.get(staySourcedKey(connectionId))
+                    return cursor ? [[connectionId, cursor]] : []
+                  }),
+                ),
+                owned: Object.fromEntries(
+                  ownedHandlers.flatMap(({ handler }) => {
+                    const cursor = continued.get(stayOwnedKey(handler.entityModule))
+                    return cursor ? [[handler.entityModule, cursor]] : []
+                  }),
+                ),
+              },
+            }
+          : {}),
         ...(options.perSourceTimeoutMs !== undefined
           ? { perConnectionTimeoutMs: options.perSourceTimeoutMs }
           : {}),
@@ -145,6 +195,18 @@ export function createStorefrontShoppingLiveProvider(
             status: dropped > 0 && (mapped === "ok" || mapped === "empty") ? "partial" : mapped,
           }
         }),
+        ...continuationResult(
+          result.perConnection.flatMap(({ source, kind, status, nextCursor }) =>
+            (status === "ok" || status === "partial" || status === "empty") && nextCursor
+              ? [
+                  {
+                    key: kind === "sourced" ? staySourcedKey(source) : stayOwnedKey(source),
+                    cursor: nextCursor,
+                  },
+                ]
+              : [],
+          ),
+        ),
       }
     },
 
@@ -155,12 +217,20 @@ export function createStorefrontShoppingLiveProvider(
         scope: input.scope,
         destination: input.intent.destination,
       })
-      if (sources.length === 0) return unavailablePage()
+      const continued = continuationMap(input.continuation)
+      const admittedSources = input.continuation
+        ? sources.filter(({ continuationKey }) => continued.has(packageKey(continuationKey)))
+        : sources
+      if (admittedSources.length === 0) return unavailablePage()
       const pages = await Promise.all(
-        sources.map((source) =>
+        admittedSources.map((source) =>
           runPackageSource(
             source,
-            packageRequest(input.scope, input.intent),
+            packageRequest(
+              input.scope,
+              input.intent,
+              continued.get(packageKey(source.continuationKey)),
+            ),
             options.perSourceTimeoutMs ?? 5_000,
           ),
         ),
@@ -168,6 +238,13 @@ export function createStorefrontShoppingLiveProvider(
       return {
         items: pages.flatMap(({ offers }) => offers),
         sources: pages.map(({ status }) => ({ status })),
+        ...continuationResult(
+          pages.flatMap(({ key, status, nextCursor }) =>
+            (status === "ok" || status === "partial" || status === "empty") && nextCursor
+              ? [{ key: packageKey(key), cursor: nextCursor }]
+              : [],
+          ),
+        ),
       }
     },
   }
@@ -310,7 +387,11 @@ function mapStay(
   }
 }
 
-function packageRequest(scope: StorefrontResolvedScope, intent: PackageIntent) {
+function packageRequest(
+  scope: StorefrontResolvedScope,
+  intent: PackageIntent,
+  continuationCursor?: string,
+) {
   return {
     origin: intent.origin,
     destination: intent.destination,
@@ -329,7 +410,14 @@ function packageRequest(scope: StorefrontResolvedScope, intent: PackageIntent) {
     },
     ...(intent.boards ? { boards: intent.boards } : {}),
     ...(intent.minStars !== undefined ? { minStars: intent.minStars } : {}),
-    ...(intent.pagination ? { pagination: intent.pagination } : {}),
+    ...(intent.pagination || continuationCursor
+      ? {
+          pagination: {
+            ...intent.pagination,
+            ...(continuationCursor ? { cursor: continuationCursor } : {}),
+          },
+        }
+      : {}),
     scope: { marketId: scope.marketId, locale: scope.locale, currency: scope.currency },
   }
 }
@@ -339,24 +427,55 @@ async function runPackageSource(
   request: Parameters<StorefrontDynamicPackageSource["search"]>[0],
   timeoutMs: number,
 ): Promise<{
+  key: string
   offers: readonly StorefrontInternalPackageOffer[]
   status: StorefrontLiveSourceStatus
+  nextCursor?: string
 }> {
   try {
     const result = await withTimeout(source.search(request), timeoutMs)
     return {
+      key: source.continuationKey,
       offers: result.offers.map((offer) => ({
         ...offer,
         selection: { ...offer.selection },
       })),
       status: result.status ?? (result.offers.length > 0 ? "ok" : "empty"),
+      ...(result.nextCursor ? { nextCursor: result.nextCursor } : {}),
     }
   } catch (error) {
     return {
+      key: source.continuationKey,
       offers: [],
       status: error instanceof SourceTimeoutError ? "timeout" : "error",
     }
   }
+}
+
+function continuationMap(
+  continuation: StorefrontLiveContinuation | undefined,
+): Map<string, string> {
+  return new Map(continuation?.sources.map(({ key, cursor }) => [key, cursor]) ?? [])
+}
+
+function continuationResult(sources: Array<{ key: string; cursor: string }>) {
+  return sources.length > 0 ? { continuation: { sources } } : {}
+}
+
+function flightKey(connectionId: string): string {
+  return `flight:${connectionId}`
+}
+
+function staySourcedKey(connectionId: string): string {
+  return `stay:sourced:${connectionId}`
+}
+
+function stayOwnedKey(entityModule: string): string {
+  return `stay:owned:${entityModule}`
+}
+
+function packageKey(sourceKey: string): string {
+  return `package:${sourceKey}`
 }
 
 class SourceTimeoutError extends Error {}

@@ -30,6 +30,7 @@ export function createVoyantConnectStorefrontPackageSourceProvider(
       })
       return [
         {
+          continuationKey: "voyant-connect-packages",
           async search(input) {
             const query = packageQuery(input)
             const response = await client.packages.searchAcrossProviders(query, {
@@ -45,12 +46,24 @@ export function createVoyantConnectStorefrontPackageSourceProvider(
             return {
               offers: mapped,
               status: degraded ? "partial" : mapped.length > 0 ? "ok" : "empty",
+              ...connectContinuation(response),
             }
           },
         },
       ]
     },
   }
+}
+
+function connectContinuation(response: unknown): { nextCursor?: string } {
+  if (!response || typeof response !== "object") return {}
+  const value = response as {
+    nextCursor?: unknown
+    next_cursor?: unknown
+    pagination?: { cursor?: unknown }
+  }
+  const cursor = value.nextCursor ?? value.next_cursor ?? value.pagination?.cursor
+  return typeof cursor === "string" && cursor.length > 0 ? { nextCursor: cursor } : {}
 }
 
 type PackageSourceInput = Parameters<

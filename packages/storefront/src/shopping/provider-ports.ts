@@ -103,6 +103,7 @@ export interface StorefrontDynamicPackageBookingSelection {
 
 export interface StorefrontDynamicPackageSource {
   /** The source is a closure over its admitted connection(s) and credentials. */
+  continuationKey: string
   search(input: {
     origin: string
     destination: PackageIntent["destination"]
@@ -117,6 +118,7 @@ export interface StorefrontDynamicPackageSource {
   }): Promise<{
     offers: readonly StorefrontDynamicPackageSourceOffer[]
     status?: "ok" | "partial" | "empty"
+    nextCursor?: string
   }>
 }
 
@@ -145,6 +147,13 @@ export interface StorefrontLiveSearchPage<T> {
   items: readonly T[]
   /** Deliberately contains no provider or connection identifiers. */
   sources: readonly { status: StorefrontLiveSourceStatus }[]
+  /** Closed continuation state persisted by the opaque-reference authority. */
+  continuation?: StorefrontLiveContinuation
+}
+
+export interface StorefrontLiveContinuation {
+  /** Stable server-only source key. Never serialized into the public result. */
+  sources: readonly { key: string; cursor: string }[]
 }
 
 interface InternalOffer {
@@ -197,16 +206,19 @@ export interface StorefrontShoppingLiveProvider {
     context: StorefrontShoppingContext
     scope: StorefrontResolvedScope
     intent: FlightIntent
+    continuation?: StorefrontLiveContinuation
   }): Promise<StorefrontLiveSearchPage<StorefrontInternalFlightOffer>>
   searchStays(input: {
     context: StorefrontShoppingContext
     scope: StorefrontResolvedScope
     intent: StayIntent
+    continuation?: StorefrontLiveContinuation
   }): Promise<StorefrontLiveSearchPage<StorefrontInternalStayOffer>>
   searchPackages(input: {
     context: StorefrontShoppingContext
     scope: StorefrontResolvedScope
     intent: PackageIntent
+    continuation?: StorefrontLiveContinuation
   }): Promise<StorefrontLiveSearchPage<StorefrontInternalPackageOffer>>
 }
 

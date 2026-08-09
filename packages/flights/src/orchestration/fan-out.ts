@@ -65,6 +65,7 @@ export interface ConnectionResult {
   count: number
   latencyMs: number
   errorMessage?: string
+  nextCursor?: string
 }
 
 export interface FanOutFlightSearchOptions {
@@ -89,6 +90,8 @@ export interface FanOutFlightSearchOptions {
   limit?: number
   /** Server-side display FX configuration. Credentials stay behind `quoteFx`. */
   presentation?: NormalizePresentationMoneyOptions
+  /** Server-only cursor keyed by admitted connection id. */
+  continuationCursors?: Readonly<Record<string, string>>
 }
 
 export interface FanOutFlightSearchResult {
@@ -131,8 +134,15 @@ export async function fanOutFlightSearch(
         // The admitted source owns its identity. Adapter context can enrich a
         // call but can never replace the enumerated connection id.
         const ctx: FlightAdapterContext = { ...context, connectionId }
+        const continuationCursor = options.continuationCursors?.[connectionId]
+        const request = continuationCursor
+          ? {
+              ...options.request,
+              pagination: { ...options.request.pagination, cursor: continuationCursor },
+            }
+          : options.request
         const response = await withTimeout(
-          adapter.searchFlights(ctx, options.request),
+          adapter.searchFlights(ctx, request),
           timeoutMs,
           `connection ${connectionId} timed out after ${timeoutMs}ms`,
         )
@@ -140,6 +150,7 @@ export async function fanOutFlightSearch(
           connectionId,
           status: "ok" as const,
           offers: response.offers,
+          nextCursor: response.pagination?.cursor,
           latencyMs: Date.now() - start,
         }
       } catch (err) {
@@ -163,6 +174,7 @@ export async function fanOutFlightSearch(
     count: r.offers.length,
     latencyMs: r.latencyMs,
     errorMessage: r.errorMessage,
+    nextCursor: "nextCursor" in r ? r.nextCursor : undefined,
   }))
 
   const flatOffers = settled.flatMap((result) => result.offers)

@@ -4,9 +4,11 @@ import {
 } from "@voyant-travel/catalog/search/presentation-money"
 import type { SearchFilter } from "@voyant-travel/catalog-contracts/indexer/contract"
 import type { PresentationFxQuoter } from "@voyant-travel/catalog-contracts/presentation-money"
+import { sha256Hex } from "@voyant-travel/hono"
 
 import type {
   StorefrontCatalogSliceItem,
+  StorefrontLiveContinuation,
   StorefrontLiveSearchPage,
   StorefrontOpaqueReferenceIssuer,
   StorefrontShoppingCatalogProvider,
@@ -23,6 +25,11 @@ import type {
 
 const OFFER_TTL_SECONDS = 15 * 60
 const ITEM_TTL_SECONDS = 15 * 60
+const CONTINUATION_TTL_SECONDS = 5 * 60
+const MAX_CONTINUATION_PAGE = 100
+const MAX_CONTINUATION_SOURCES = 64
+const MAX_SOURCE_KEY_LENGTH = 256
+const MAX_SOURCE_CURSOR_LENGTH = 8_192
 
 export class StorefrontShoppingScopeError extends Error {
   readonly code = "storefront_shopping_scope_unsupported"
@@ -32,6 +39,14 @@ export class StorefrontShoppingScopeError extends Error {
   ) {
     super(`Unsupported storefront shopping ${selector}${requested ? `: ${requested}` : "."}`)
     this.name = "StorefrontShoppingScopeError"
+  }
+}
+
+export class StorefrontShoppingContinuationError extends Error {
+  readonly code = "storefront_shopping_continuation_unavailable"
+  constructor() {
+    super("Storefront shopping continuation is invalid, expired, consumed, or stale.")
+    this.name = "StorefrontShoppingContinuationError"
   }
 }
 
@@ -224,7 +239,13 @@ async function searchFlights(
   intent: FlightIntent,
   now: () => Date,
 ): Promise<StorefrontShoppingResult> {
-  const page = await options.live.searchFlights({ context, scope, intent })
+  const continuation = await resolveLiveContinuation(options.references, context, scope, intent)
+  const page = await options.live.searchFlights({
+    context,
+    scope,
+    intent: withoutLiveCursor(intent),
+    ...(continuation ? { continuation: continuation.state } : {}),
+  })
   const normalized = await normalizeLive(page, scope.currency, options.quoteFx)
   const offers = await Promise.all(
     normalized.items.map(async ({ item, price }) => {
@@ -243,7 +264,22 @@ async function searchFlights(
       }
     }),
   )
-  return { kind: "flight", scope, offers, coverage: coverage(page, normalized.dropped) }
+  const nextCursor = await issueLiveContinuation(
+    options.references,
+    now,
+    context,
+    scope,
+    intent,
+    page.continuation,
+    continuation?.page ?? 0,
+  )
+  return {
+    kind: "flight",
+    scope,
+    offers,
+    coverage: coverage(page, normalized.dropped),
+    ...(nextCursor ? { nextCursor } : {}),
+  }
 }
 
 async function searchStays(
@@ -253,7 +289,13 @@ async function searchStays(
   intent: StayIntent,
   now: () => Date,
 ): Promise<StorefrontShoppingResult> {
-  const page = await options.live.searchStays({ context, scope, intent })
+  const continuation = await resolveLiveContinuation(options.references, context, scope, intent)
+  const page = await options.live.searchStays({
+    context,
+    scope,
+    intent: withoutLiveCursor(intent),
+    ...(continuation ? { continuation: continuation.state } : {}),
+  })
   const normalized = await normalizeLive(page, scope.currency, options.quoteFx)
   const offers = await Promise.all(
     normalized.items.map(async ({ item, price }) => {
@@ -287,7 +329,22 @@ async function searchStays(
       }
     }),
   )
-  return { kind: "stay", scope, offers, coverage: coverage(page, normalized.dropped) }
+  const nextCursor = await issueLiveContinuation(
+    options.references,
+    now,
+    context,
+    scope,
+    intent,
+    page.continuation,
+    continuation?.page ?? 0,
+  )
+  return {
+    kind: "stay",
+    scope,
+    offers,
+    coverage: coverage(page, normalized.dropped),
+    ...(nextCursor ? { nextCursor } : {}),
+  }
 }
 
 async function searchPackages(
@@ -297,7 +354,13 @@ async function searchPackages(
   intent: PackageIntent,
   now: () => Date,
 ): Promise<StorefrontShoppingResult> {
-  const page = await options.live.searchPackages({ context, scope, intent })
+  const continuation = await resolveLiveContinuation(options.references, context, scope, intent)
+  const page = await options.live.searchPackages({
+    context,
+    scope,
+    intent: withoutLiveCursor(intent),
+    ...(continuation ? { continuation: continuation.state } : {}),
+  })
   const normalized = await normalizeLive(page, scope.currency, options.quoteFx)
   const offers = await Promise.all(
     normalized.items.map(async ({ item, price }) => {
@@ -323,7 +386,159 @@ async function searchPackages(
       }
     }),
   )
-  return { kind: "package", scope, offers, coverage: coverage(page, normalized.dropped) }
+  const nextCursor = await issueLiveContinuation(
+    options.references,
+    now,
+    context,
+    scope,
+    intent,
+    page.continuation,
+    continuation?.page ?? 0,
+  )
+  return {
+    kind: "package",
+    scope,
+    offers,
+    coverage: coverage(page, normalized.dropped),
+    ...(nextCursor ? { nextCursor } : {}),
+  }
+}
+
+type LiveIntent = FlightIntent | StayIntent | PackageIntent
+
+async function resolveLiveContinuation(
+  authority: StorefrontOpaqueReferenceIssuer,
+  context: StorefrontShoppingContext,
+  scope: StorefrontResolvedScope,
+  intent: LiveIntent,
+): Promise<{ state: StorefrontLiveContinuation; page: number } | undefined> {
+  const ref = intent.pagination?.cursor
+  if (!ref) return undefined
+  const expectedFingerprint = await liveIntentFingerprint(intent)
+  const resolved = await authority.redeem({
+    ref,
+    purpose: "live-continuation",
+    storefrontId: context.storefrontId,
+    channelId: context.channelId,
+    owner: owner(context),
+    scope: scopeBinding(scope),
+    kind: intent.kind,
+    intentFingerprint: expectedFingerprint,
+  })
+  if (!resolved) throw new StorefrontShoppingContinuationError()
+  const payload = resolved.payload
+  if (
+    payload.version !== 1 ||
+    payload.kind !== intent.kind ||
+    payload.intentFingerprint !== expectedFingerprint ||
+    typeof payload.page !== "number" ||
+    !Number.isInteger(payload.page) ||
+    (payload.page as number) < 1 ||
+    (payload.page as number) >= MAX_CONTINUATION_PAGE ||
+    !Array.isArray(payload.sources)
+  ) {
+    throw new StorefrontShoppingContinuationError()
+  }
+  const sources = payload.sources.flatMap((entry) => {
+    if (
+      entry === null ||
+      typeof entry !== "object" ||
+      typeof (entry as { key?: unknown }).key !== "string" ||
+      typeof (entry as { cursor?: unknown }).cursor !== "string"
+    ) {
+      return []
+    }
+    return [{ key: (entry as { key: string }).key, cursor: (entry as { cursor: string }).cursor }]
+  })
+  if (sources.length !== payload.sources.length || !validContinuationSources(sources)) {
+    throw new StorefrontShoppingContinuationError()
+  }
+  return { state: { sources }, page: payload.page as number }
+}
+
+async function issueLiveContinuation(
+  authority: StorefrontOpaqueReferenceIssuer,
+  now: () => Date,
+  context: StorefrontShoppingContext,
+  scope: StorefrontResolvedScope,
+  intent: LiveIntent,
+  continuation: StorefrontLiveContinuation | undefined,
+  currentPage: number,
+): Promise<string | undefined> {
+  if (!continuation || continuation.sources.length === 0) return undefined
+  if (!validContinuationSources(continuation.sources)) {
+    throw new StorefrontShoppingContinuationError()
+  }
+  const page = currentPage + 1
+  if (page >= MAX_CONTINUATION_PAGE) return undefined
+  const issuedAt = now().getTime()
+  const issued = await authority.issue({
+    purpose: "live-continuation",
+    storefrontId: context.storefrontId,
+    channelId: context.channelId,
+    owner: owner(context),
+    scope: scopeBinding(scope),
+    payload: {
+      version: 1,
+      kind: intent.kind,
+      intentFingerprint: await liveIntentFingerprint(intent),
+      page,
+      sources: continuation.sources,
+    },
+    ttlSeconds: CONTINUATION_TTL_SECONDS,
+    replay: "single-use",
+  })
+  validateIssuedReference(issued, issuedAt, CONTINUATION_TTL_SECONDS)
+  return issued.ref
+}
+
+function withoutLiveCursor<T extends LiveIntent>(intent: T): T {
+  if (!intent.pagination?.cursor) return intent
+  const { cursor: _cursor, ...pagination } = intent.pagination
+  return {
+    ...intent,
+    ...(Object.keys(pagination).length > 0 ? { pagination } : { pagination: undefined }),
+  } as T
+}
+
+async function liveIntentFingerprint(intent: LiveIntent): Promise<string> {
+  return sha256Hex(canonicalJson(withoutLiveCursor(intent)))
+}
+
+function canonicalJson(value: unknown): string {
+  if (value === null || typeof value !== "object") return JSON.stringify(value) ?? "null"
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`
+  const record = value as Record<string, unknown>
+  return `{${Object.keys(record)
+    .filter((key) => record[key] !== undefined)
+    .sort()
+    .map((key) => `${JSON.stringify(key)}:${canonicalJson(record[key])}`)
+    .join(",")}}`
+}
+
+function validContinuationSources(sources: readonly { key: string; cursor: string }[]): boolean {
+  return (
+    sources.length <= MAX_CONTINUATION_SOURCES &&
+    new Set(sources.map(({ key }) => key)).size === sources.length &&
+    sources.every(
+      ({ key, cursor }) =>
+        key.length > 0 &&
+        key.length <= MAX_SOURCE_KEY_LENGTH &&
+        cursor.length > 0 &&
+        cursor.length <= MAX_SOURCE_CURSOR_LENGTH,
+    )
+  )
+}
+
+function owner(context: StorefrontShoppingContext) {
+  return {
+    userId: context.userId ?? null,
+    buyerAccountId: context.buyerAccountId ?? null,
+  }
+}
+
+function scopeBinding(scope: StorefrontResolvedScope) {
+  return { marketId: scope.marketId, locale: scope.locale, currency: scope.currency }
 }
 
 async function normalizeLive<T extends { nativePrice: { amount: string; currency: string } }>(
@@ -398,14 +613,25 @@ async function issueBoundedReference(
     ttlSeconds: input.purpose === "catalog-item" ? ITEM_TTL_SECONDS : OFFER_TTL_SECONDS,
     replay: input.replay,
   })
+  validateIssuedReference(
+    issued,
+    issuedAt,
+    input.purpose === "catalog-item" ? ITEM_TTL_SECONDS : OFFER_TTL_SECONDS,
+  )
+  return issued
+}
+
+function validateIssuedReference(
+  issued: { ref: string; expiresAt: string },
+  issuedAt: number,
+  ttlSeconds: number,
+): void {
   if (issued.ref.length < 16 || issued.ref.length > 512) throw new Error("opaque_reference_invalid")
   const expiry = Date.parse(issued.expiresAt)
-  const max =
-    issuedAt + (input.purpose === "catalog-item" ? ITEM_TTL_SECONDS : OFFER_TTL_SECONDS) * 1000
+  const max = issuedAt + ttlSeconds * 1000
   if (!Number.isFinite(expiry) || expiry <= issuedAt || expiry > max) {
     throw new Error("opaque_reference_expiry_invalid")
   }
-  return issued
 }
 
 function destinationFilters(

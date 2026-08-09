@@ -31,7 +31,7 @@ export interface StorefrontOpaqueReferenceIssuer {
    * managed shopping runtime never resolves or commits an offer itself.
    */
   issue(input: {
-    purpose: "catalog-item" | "flight-offer" | "stay-offer" | "package-offer"
+    purpose: "catalog-item" | "flight-offer" | "stay-offer" | "package-offer" | "live-continuation"
     storefrontId: string
     channelId: string
     /** Trusted capability owner binding. Anonymous owners are explicitly null. */
@@ -41,6 +41,21 @@ export interface StorefrontOpaqueReferenceIssuer {
     ttlSeconds: number
     replay: "multi-use" | "single-use"
   }): Promise<{ ref: string; expiresAt: string }>
+  /**
+   * Atomically redeems a server-stored capability against the complete trust
+   * boundary. Implementations return only its closed payload. Single-use
+   * references MUST be claimed with compare-and-set before returning it.
+   */
+  redeem(input: {
+    ref: string
+    purpose: "live-continuation"
+    storefrontId: string
+    channelId: string
+    owner: { userId: string | null; buyerAccountId: string | null }
+    scope: Pick<StorefrontResolvedScope, "marketId" | "locale" | "currency">
+    kind: "flight" | "stay" | "package"
+    intentFingerprint: string
+  }): Promise<{ payload: Readonly<Record<string, unknown>> } | null>
 }
 
 export interface StorefrontShoppingRuntime {
@@ -90,10 +105,11 @@ export const storefrontOpaqueReferenceIssuerPort = definePort<StorefrontOpaqueRe
     if (
       provider === null ||
       typeof provider !== "object" ||
-      typeof (provider as { issue?: unknown }).issue !== "function"
+      typeof (provider as { issue?: unknown }).issue !== "function" ||
+      typeof (provider as { redeem?: unknown }).redeem !== "function"
     ) {
       throw new Error(
-        "storefront.shopping.opaque-reference-issuer provider must implement issue().",
+        "storefront.shopping.opaque-reference-issuer provider must implement issue() and redeem().",
       )
     }
   },

@@ -44,6 +44,8 @@ function makeAdapter(
     delayMs?: number
     maxSlices?: number
     captureContext?: (ctx: FlightAdapterContext) => void
+    captureRequest?: (request: FlightSearchRequest) => void
+    nextCursor?: string
   } = {},
 ): FlightConnectorAdapter {
   return {
@@ -52,13 +54,25 @@ function makeAdapter(
       declared: [],
       maxSlicesPerSearch: behaviour.maxSlices,
     },
-    async searchFlights(ctx) {
+    async searchFlights(ctx, request) {
       behaviour.captureContext?.(ctx)
+      behaviour.captureRequest?.(request)
       if (behaviour.delayMs) {
         await new Promise((r) => setTimeout(r, behaviour.delayMs))
       }
       if (behaviour.throws) throw behaviour.throws
-      return { offers: behaviour.offers ?? [] }
+      return {
+        offers: behaviour.offers ?? [],
+        ...(behaviour.nextCursor
+          ? {
+              pagination: {
+                total: behaviour.offers?.length ?? 0,
+                hasMore: true,
+                cursor: behaviour.nextCursor,
+              },
+            }
+          : {}),
+      }
     },
     async priceOffer() {
       throw new Error("not implemented in test")
@@ -82,6 +96,36 @@ const oneSliceRequest: FlightSearchRequest = {
 }
 
 describe("fanOutFlightSearch", () => {
+  it("routes independent server-only continuations and returns aligned next cursors", async () => {
+    const requests: FlightSearchRequest[] = []
+    const result = await fanOutFlightSearch({
+      adapters: [
+        {
+          connectionId: "conn_a",
+          adapter: makeAdapter("a", {
+            captureRequest: (request) => requests.push(request),
+            nextCursor: "provider-a-page-3",
+          }),
+        },
+        {
+          connectionId: "conn_b",
+          adapter: makeAdapter("b", { captureRequest: (request) => requests.push(request) }),
+        },
+      ],
+      request: { ...oneSliceRequest, pagination: { limit: 10 } },
+      continuationCursors: { conn_a: "provider-a-page-2", conn_b: "provider-b-page-4" },
+    })
+
+    expect(requests.map(({ pagination }) => pagination?.cursor)).toEqual([
+      "provider-a-page-2",
+      "provider-b-page-4",
+    ])
+    expect(result.perConnection.map(({ nextCursor }) => nextCursor)).toEqual([
+      "provider-a-page-3",
+      undefined,
+    ])
+  })
+
   it("merges identical itineraries from multiple providers, keeping cheapest as primary", async () => {
     const result = await fanOutFlightSearch({
       adapters: [

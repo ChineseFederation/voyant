@@ -246,6 +246,9 @@ describe("closed Storefront live provider", () => {
       catalog: { searchSlice: async () => ({ items: [], total: 0 }) },
       live,
       references: {
+        async redeem() {
+          return null
+        },
         async issue(input) {
           issued.push(input as unknown as Record<string, unknown>)
           sequence += 1

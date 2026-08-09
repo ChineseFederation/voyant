@@ -20,6 +20,7 @@ const SCOPE = { marketId: "market_ro", locale: "ro-RO", currency: "EUR" }
 const FLIGHT_REF = `sref_${"a".repeat(64)}`
 const CATALOG_REF = `sref_${"b".repeat(64)}`
 const PACKAGE_REF = `sref_${"c".repeat(64)}`
+const CONTINUATION_REF = `sref_${"d".repeat(64)}`
 
 describe("durable shopping opaque references", () => {
   it("issues a 256-bit capability while persisting only its digest and bounded payload", async () => {
@@ -124,6 +125,64 @@ describe("durable shopping opaque references", () => {
     )
 
     expect(resolutions.filter((value) => value !== null)).toHaveLength(1)
+  })
+
+  it("atomically redeems a continuation payload without exposing its source cursor", async () => {
+    const store = new MemoryReferenceStore()
+    const runtime = createTripShoppingReferenceRuntimeWithStore(store, {
+      now: () => NOW,
+      createReference: () => CONTINUATION_REF,
+    })
+    await runtime.issuer.issue(continuationInput())
+
+    const input = {
+      ref: CONTINUATION_REF,
+      purpose: "live-continuation" as const,
+      storefrontId: CONTEXT.storefrontId,
+      channelId: CONTEXT.channelId,
+      owner: { userId: CONTEXT.userId, buyerAccountId: CONTEXT.buyerAccountId },
+      scope: SCOPE,
+      kind: "flight" as const,
+      intentFingerprint: "fingerprint",
+    }
+    const resolutions = await Promise.all(
+      Array.from({ length: 8 }, () => runtime.issuer.redeem(input)),
+    )
+
+    expect(resolutions.filter(Boolean)).toEqual([
+      {
+        payload: expect.objectContaining({
+          intentFingerprint: "fingerprint",
+          sources: [{ key: "flight:connection_secret", cursor: "provider-secret-cursor" }],
+        }),
+      },
+    ])
+    expect(JSON.stringify({ ref: CONTINUATION_REF })).not.toContain("provider-secret-cursor")
+  })
+
+  it("does not consume a continuation when its intent fingerprint does not match", async () => {
+    const store = new MemoryReferenceStore()
+    const runtime = createTripShoppingReferenceRuntimeWithStore(store, {
+      now: () => NOW,
+      createReference: () => CONTINUATION_REF,
+    })
+    await runtime.issuer.issue(continuationInput())
+    const boundary = {
+      ref: CONTINUATION_REF,
+      purpose: "live-continuation" as const,
+      storefrontId: CONTEXT.storefrontId,
+      channelId: CONTEXT.channelId,
+      owner: { userId: CONTEXT.userId, buyerAccountId: CONTEXT.buyerAccountId },
+      scope: SCOPE,
+      kind: "flight" as const,
+    }
+
+    await expect(
+      runtime.issuer.redeem({ ...boundary, intentFingerprint: "wrong-fingerprint" }),
+    ).resolves.toBeNull()
+    await expect(
+      runtime.issuer.redeem({ ...boundary, intentFingerprint: "fingerprint" }),
+    ).resolves.not.toBeNull()
   })
 
   it("turns one live package capability into stable Catalog booking pins exactly once", async () => {
@@ -253,6 +312,25 @@ function catalogInput(): Parameters<StorefrontOpaqueReferenceIssuer["issue"]>[0]
   }
 }
 
+function continuationInput(): Parameters<StorefrontOpaqueReferenceIssuer["issue"]>[0] {
+  return {
+    purpose: "live-continuation",
+    storefrontId: CONTEXT.storefrontId,
+    channelId: CONTEXT.channelId,
+    owner: { userId: CONTEXT.userId, buyerAccountId: CONTEXT.buyerAccountId },
+    scope: SCOPE,
+    payload: {
+      version: 1,
+      kind: "flight",
+      intentFingerprint: "fingerprint",
+      page: 1,
+      sources: [{ key: "flight:connection_secret", cursor: "provider-secret-cursor" }],
+    },
+    ttlSeconds: 5 * 60,
+    replay: "single-use",
+  }
+}
+
 function packageInput(
   offerExpiresAt = "2026-08-08T12:10:00.000Z",
 ): Parameters<StorefrontOpaqueReferenceIssuer["issue"]>[0] {
@@ -336,6 +414,11 @@ function matchesBoundary(
     reference.marketId === boundary.marketId &&
     reference.locale === boundary.locale &&
     reference.currency === boundary.currency &&
+    (boundary.liveKind === undefined ||
+      (reference.payload as { kind?: unknown }).kind === boundary.liveKind) &&
+    (boundary.intentFingerprint === undefined ||
+      (reference.payload as { intentFingerprint?: unknown }).intentFingerprint ===
+        boundary.intentFingerprint) &&
     reference.expiresAt > boundary.now
   )
 }

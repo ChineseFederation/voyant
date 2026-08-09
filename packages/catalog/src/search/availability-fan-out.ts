@@ -94,6 +94,11 @@ export interface FanOutAvailabilitySearchOptions {
   limit?: number
   /** Server-side display FX configuration. Credentials stay behind `quoteFx`. */
   presentation?: NormalizePresentationMoneyOptions
+  /** Server-only cursors keyed independently for sourced and owned supply. */
+  continuationCursors?: {
+    sourced?: Readonly<Record<string, string>>
+    owned?: Readonly<Record<string, string>>
+  }
 }
 
 interface SourceOutcome {
@@ -133,7 +138,11 @@ export async function fanOutAvailabilitySearch(
         return { status: "capability_missing" as const, candidates: [] }
       }
       const ctx: SourceAdapterContext = { connection_id: connectionId, ...context }
-      const result = await adapter.searchAvailability(ctx, request)
+      const cursor = options.continuationCursors?.sourced?.[connectionId]
+      const result = await adapter.searchAvailability(
+        ctx,
+        cursor ? { ...request, cursor } : request,
+      )
       // Stamp the dispatching connection as origin, unless the adapter already
       // set a more specific one (e.g. a cross-provider search per candidate).
       const candidates = result.candidates.map((c) =>
@@ -150,7 +159,11 @@ export async function fanOutAvailabilitySearch(
       if (handler.entityModule !== request.vertical) {
         return { status: "vertical_skipped" as const, candidates: [] }
       }
-      const result = await handler.searchAvailability(context, request)
+      const cursor = options.continuationCursors?.owned?.[handler.entityModule]
+      const result = await handler.searchAvailability(
+        context,
+        cursor ? { ...request, cursor } : request,
+      )
       const candidates = result.candidates.map((c) =>
         c.source ? c : { ...c, source: { kind: "owned" as const, module: handler.entityModule } },
       )

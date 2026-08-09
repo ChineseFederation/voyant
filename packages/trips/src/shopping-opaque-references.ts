@@ -4,7 +4,7 @@ import type {
   StorefrontOpaqueReferenceIssuer,
   StorefrontShoppingContext,
 } from "@voyant-travel/storefront/shopping"
-import { and, eq, gt, isNull } from "drizzle-orm"
+import { and, eq, gt, isNull, sql } from "drizzle-orm"
 import { z } from "zod"
 
 import type { TripShoppingReference } from "./schema.js"
@@ -16,7 +16,13 @@ import type {
 
 const MAX_REFERENCE_TTL_SECONDS = 24 * 60 * 60
 const referenceSchema = z.string().regex(/^sref_[a-f0-9]{64}$/)
-const purposeSchema = z.enum(["catalog-item", "flight-offer", "stay-offer", "package-offer"])
+const purposeSchema = z.enum([
+  "catalog-item",
+  "flight-offer",
+  "stay-offer",
+  "package-offer",
+  "live-continuation",
+])
 const replaySchema = z.enum(["multi-use", "single-use"])
 const scopeSchema = z
   .object({
@@ -79,6 +85,8 @@ export interface ShoppingReferenceBoundary {
   marketId: string
   locale: string
   currency: string
+  liveKind?: "flight" | "stay" | "package"
+  intentFingerprint?: string
   now: Date
 }
 
@@ -113,6 +121,10 @@ export function createTripShoppingReferenceRuntime(
             ...(options.createReference ? { createReference: options.createReference } : {}),
           }),
         ),
+      redeem: (input) =>
+        options.withTransaction((db) =>
+          redeemContinuation(postgresShoppingReferenceStore(db), input, now),
+        ),
     },
     offerResolver: {
       async resolve(context, input) {
@@ -140,12 +152,41 @@ export function createTripShoppingReferenceRuntimeWithStore(
           now,
           ...(options.createReference ? { createReference: options.createReference } : {}),
         }),
+      redeem: (input) => redeemContinuation(store, input, now),
     },
     offerResolver: {
       async resolve(context, input) {
         return resolveShoppingReference(store, context, input, now)
       },
     },
+  }
+}
+
+async function redeemContinuation(
+  store: TripShoppingReferenceStore,
+  input: Parameters<StorefrontOpaqueReferenceIssuer["redeem"]>[0],
+  now: () => Date,
+): Promise<{ payload: Readonly<Record<string, unknown>> } | null> {
+  const resolution = await redeemShoppingReference(store, input.ref, {
+    purpose: "live-continuation",
+    context: {
+      storefrontId: input.storefrontId,
+      channelId: input.channelId,
+      userId: input.owner.userId,
+      buyerAccountId: input.owner.buyerAccountId,
+    },
+    scope: input.scope,
+    continuationBinding: {
+      kind: input.kind,
+      intentFingerprint: input.intentFingerprint,
+    },
+    now,
+  })
+  if (!resolution.ok) return null
+  try {
+    return { payload: payloadSchema.parse(resolution.reference.payload) }
+  } catch {
+    return null
   }
 }
 
@@ -221,6 +262,10 @@ export async function redeemTripShoppingReference(
     purpose: ShoppingReferencePurpose
     context: StorefrontShoppingContext
     scope: { marketId: string; locale: string; currency: string }
+    continuationBinding?: {
+      kind: "flight" | "stay" | "package"
+      intentFingerprint: string
+    }
     now?: () => Date
   },
 ): Promise<ShoppingReferenceResolution> {
@@ -234,6 +279,10 @@ async function redeemShoppingReference(
     purpose: ShoppingReferencePurpose
     context: StorefrontShoppingContext
     scope: { marketId: string; locale: string; currency: string }
+    continuationBinding?: {
+      kind: "flight" | "stay" | "package"
+      intentFingerprint: string
+    }
     now?: () => Date
   },
 ): Promise<ShoppingReferenceResolution> {
@@ -256,6 +305,12 @@ async function redeemShoppingReference(
     marketId: scope.marketId,
     locale: scope.locale,
     currency: scope.currency,
+    ...(input.continuationBinding
+      ? {
+          liveKind: input.continuationBinding.kind,
+          intentFingerprint: input.continuationBinding.intentFingerprint,
+        }
+      : {}),
     now,
   }
 
@@ -281,6 +336,12 @@ function postgresShoppingReferenceStore(db: AnyDrizzleDb): TripShoppingReference
       eq(tripShoppingReferences.marketId, boundary.marketId),
       eq(tripShoppingReferences.locale, boundary.locale),
       eq(tripShoppingReferences.currency, boundary.currency),
+      boundary.liveKind
+        ? sql`${tripShoppingReferences.payload}->>'kind' = ${boundary.liveKind}`
+        : undefined,
+      boundary.intentFingerprint
+        ? sql`${tripShoppingReferences.payload}->>'intentFingerprint' = ${boundary.intentFingerprint}`
+        : undefined,
       gt(tripShoppingReferences.expiresAt, boundary.now),
     )
 

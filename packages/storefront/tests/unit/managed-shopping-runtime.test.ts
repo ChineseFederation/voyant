@@ -41,6 +41,7 @@ function dependencies(overrides: Record<string, unknown> = {}) {
       searchPackages: vi.fn(async () => ({ items: [], sources: [] })),
     },
     references: {
+      redeem: vi.fn(async () => null),
       issue: vi.fn(async () => ({
         ref: `opaque-reference-${String(++sequence).padStart(6, "0")}`,
         expiresAt: "2026-08-08T10:10:00.000Z",
@@ -266,6 +267,71 @@ describe("managed live shopping", () => {
     expect(serialized).toContain("channel_web")
   })
 
+  it("seals per-source live cursors and redeems them only for the bound intent", async () => {
+    let continuationPayload: Readonly<Record<string, unknown>> | undefined
+    const redeem = vi.fn(async () =>
+      continuationPayload ? { payload: continuationPayload } : null,
+    )
+    const issue = vi.fn(async (input) => {
+      if (input.purpose === "live-continuation") continuationPayload = input.payload
+      return {
+        ref: "opaque-live-continuation-0001",
+        expiresAt: "2026-08-08T10:04:00.000Z",
+      }
+    })
+    const searchFlights = vi
+      .fn()
+      .mockResolvedValueOnce({
+        items: [],
+        sources: [{ status: "partial" }],
+        continuation: { sources: [{ key: "flight:connection_secret", cursor: "raw-page-2" }] },
+      })
+      .mockResolvedValueOnce({ items: [], sources: [{ status: "empty" }] })
+    const runtime = createManagedStorefrontShoppingRuntime(
+      dependencies({
+        references: { issue, redeem },
+        live: { searchFlights, searchStays: vi.fn(), searchPackages: vi.fn() },
+      }),
+    )
+    const scope = await runtime.resolveScope(context, {})
+    const first = await runtime.search(context, { scope, intent: flightIntent })
+    expect(first).toMatchObject({ nextCursor: "opaque-live-continuation-0001" })
+    expect(JSON.stringify(first)).not.toContain("connection_secret")
+    expect(JSON.stringify(first)).not.toContain("raw-page-2")
+
+    await runtime.search(context, {
+      scope,
+      intent: { ...flightIntent, pagination: { cursor: "opaque-live-continuation-0001" } },
+    })
+    expect(redeem).toHaveBeenCalledWith(
+      expect.objectContaining({
+        purpose: "live-continuation",
+        storefrontId: "storefront_public",
+        channelId: "channel_web",
+        owner: { userId: "user_private", buyerAccountId: "buyer_private" },
+        scope: { marketId: "market_ro", locale: "ro-RO", currency: "RON" },
+      }),
+    )
+    expect(searchFlights.mock.calls[1]?.[0]).toMatchObject({
+      intent: flightIntent,
+      continuation: {
+        sources: [{ key: "flight:connection_secret", cursor: "raw-page-2" }],
+      },
+    })
+    expect(searchFlights.mock.calls[1]?.[0].intent.pagination).toBeUndefined()
+
+    await expect(
+      runtime.search(context, {
+        scope,
+        intent: {
+          ...flightIntent,
+          slices: [{ origin: "OTP", destination: "CDG", departureDate: "2026-09-10" }],
+          pagination: { cursor: "opaque-live-continuation-0001" },
+        },
+      }),
+    ).rejects.toThrow("Storefront shopping continuation is invalid")
+  })
+
   it("binds references to different trusted account owners", async () => {
     const deps = dependencies({
       live: {
@@ -290,6 +356,7 @@ describe("managed live shopping", () => {
   it("rejects opaque references whose issuer exceeds the bounded TTL", async () => {
     const deps = dependencies({
       references: {
+        redeem: vi.fn(async () => null),
         issue: vi.fn(async () => ({
           ref: "opaque-reference-too-long-ttl",
           expiresAt: "2026-08-08T11:00:00.000Z",
