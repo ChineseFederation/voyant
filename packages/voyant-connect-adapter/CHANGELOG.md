@@ -1,5 +1,31 @@
 # @voyant-travel/plugin-voyant-connect
 
+## 0.27.0
+
+### Minor Changes
+
+- de6e62a: Wire admitted Voyant Connect dynamic-package search into the managed Storefront
+  shopping provider without exposing connection or credential selectors.
+
+### Patch Changes
+
+- d359373: Redeem bound Storefront package capabilities into stable sourced Catalog booking selections.
+- 4c2b4ce: Add bound opaque continuations for managed multi-source flight, stay, and package shopping.
+- Updated dependencies [b95e995]
+- Updated dependencies [5602eff]
+- Updated dependencies [231acfa]
+- Updated dependencies [e363b1b]
+- Updated dependencies [6945d07]
+- Updated dependencies [e06888c]
+- Updated dependencies [b760ac6]
+- Updated dependencies [d359373]
+- Updated dependencies [4c2b4ce]
+- Updated dependencies [de6e62a]
+- Updated dependencies [27140ec]
+  - @voyant-travel/catalog-contracts@0.131.0
+  - @voyant-travel/catalog@0.253.0
+  - @voyant-travel/storefront@0.255.0
+
 ## 0.26.0
 
 ### Patch Changes

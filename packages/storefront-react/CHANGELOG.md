@@ -1,5 +1,24 @@
 # @voyant-travel/storefront-react
 
+## 0.277.0
+
+### Patch Changes
+
+- a1d5c93: Load storefront page bodies and product renderers only when a customer route visits them, keeping the admin shell entry focused on workspace chrome.
+- Updated dependencies [b95e995]
+- Updated dependencies [5602eff]
+- Updated dependencies [231acfa]
+- Updated dependencies [e363b1b]
+- Updated dependencies [6945d07]
+- Updated dependencies [e06888c]
+- Updated dependencies [b760ac6]
+- Updated dependencies [d359373]
+- Updated dependencies [4c2b4ce]
+  - @voyant-travel/catalog-contracts@0.131.0
+  - @voyant-travel/storefront@0.255.0
+  - @voyant-travel/catalog-react@0.273.0
+  - @voyant-travel/storefront-sdk@0.266.0
+
 ## 0.276.0
 
 ### Patch Changes

@@ -1,5 +1,41 @@
 # @voyant-travel/storefront
 
+## 0.255.0
+
+### Minor Changes
+
+- b95e995: Convert an exact opaque Storefront Trip selection revision into a server-priced
+  composite Catalog Booking Session without exposing Trip or supplier authority
+  identifiers to browser clients.
+- e06888c: Add the managed Storefront live-shopping adapter over flight and accommodation
+  fan-outs plus a closed dynamic-package Connect source port.
+- b760ac6: Add a closed provider-first live cruise shopping seam with exact admitted-source ownership, managed presentation FX, opaque offer references, and Catalog Booking Session reservation/reconciliation payloads.
+- 4c2b4ce: Add bound opaque continuations for managed multi-source flight, stay, and package shopping.
+
+### Patch Changes
+
+- 5602eff: Claim approved invoice payment-link commands in the handler transaction and reload the idempotent session on exact replay.
+- 231acfa: Add a closed provider-first flight requote, hold, and idempotent commit lifecycle over exact Storefront offer/connection bindings.
+- e363b1b: Expose graph-admitted multi-connection flight shopping to the managed Storefront
+  without accepting or returning provider and connection selectors.
+- 6945d07: Compose storefront market discovery and indexed inspiration directly from the
+  active Commerce market configuration and customer-scoped Catalog runtime.
+- d359373: Redeem bound Storefront package capabilities into stable sourced Catalog booking selections.
+- Updated dependencies [b95e995]
+- Updated dependencies [231acfa]
+- Updated dependencies [e363b1b]
+- Updated dependencies [8f2f1fc]
+- Updated dependencies [b760ac6]
+- Updated dependencies [4c2b4ce]
+- Updated dependencies [de6e62a]
+- Updated dependencies [27140ec]
+  - @voyant-travel/catalog-contracts@0.131.0
+  - @voyant-travel/catalog@0.253.0
+  - @voyant-travel/flights@0.237.0
+  - @voyant-travel/finance@0.245.7
+  - @voyant-travel/cruises@0.238.18
+  - @voyant-travel/commerce@0.49.2
+
 ## 0.254.0
 
 ### Minor Changes

@@ -1,5 +1,41 @@
 # @voyant-travel/trips
 
+## 0.234.0
+
+### Minor Changes
+
+- b95e995: Convert an exact opaque Storefront Trip selection revision into a server-priced
+  composite Catalog Booking Session without exposing Trip or supplier authority
+  identifiers to browser clients.
+- 133c737: Add a durable, digest-only Storefront shopping reference issuer and Trips redemption adapter with scope, owner, expiry, and atomic replay enforcement.
+
+### Patch Changes
+
+- b760ac6: Add a closed provider-first live cruise shopping seam with exact admitted-source ownership, managed presentation FX, opaque offer references, and Catalog Booking Session reservation/reconciliation payloads.
+- d359373: Redeem bound Storefront package capabilities into stable sourced Catalog booking selections.
+- 4c2b4ce: Add bound opaque continuations for managed multi-source flight, stay, and package shopping.
+- Updated dependencies [b95e995]
+- Updated dependencies [5602eff]
+- Updated dependencies [231acfa]
+- Updated dependencies [e363b1b]
+- Updated dependencies [6945d07]
+- Updated dependencies [e06888c]
+- Updated dependencies [8f2f1fc]
+- Updated dependencies [b760ac6]
+- Updated dependencies [2feabd0]
+- Updated dependencies [d359373]
+- Updated dependencies [4c2b4ce]
+- Updated dependencies [de6e62a]
+- Updated dependencies [27140ec]
+  - @voyant-travel/catalog-contracts@0.131.0
+  - @voyant-travel/catalog@0.253.0
+  - @voyant-travel/storefront@0.255.0
+  - @voyant-travel/flights@0.237.0
+  - @voyant-travel/finance@0.245.7
+  - @voyant-travel/operator-settings@0.17.29
+  - @voyant-travel/commerce@0.49.2
+  - @voyant-travel/inventory@0.40.11
+
 ## 0.233.0
 
 ### Minor Changes

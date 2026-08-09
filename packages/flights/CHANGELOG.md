@@ -1,5 +1,27 @@
 # @voyant-travel/flights
 
+## 0.237.0
+
+### Minor Changes
+
+- 231acfa: Add a closed provider-first flight requote, hold, and idempotent commit lifecycle over exact Storefront offer/connection bindings.
+- e363b1b: Expose graph-admitted multi-connection flight shopping to the managed Storefront
+  without accepting or returning provider and connection selectors.
+
+### Patch Changes
+
+- 4c2b4ce: Add bound opaque continuations for managed multi-source flight, stay, and package shopping.
+- Updated dependencies [b95e995]
+- Updated dependencies [8f2f1fc]
+- Updated dependencies [b760ac6]
+- Updated dependencies [4c2b4ce]
+- Updated dependencies [de6e62a]
+- Updated dependencies [27140ec]
+  - @voyant-travel/catalog-contracts@0.131.0
+  - @voyant-travel/catalog@0.253.0
+  - @voyant-travel/finance@0.245.7
+  - @voyant-travel/flights-contracts@0.104.31
+
 ## 0.236.28
 
 ### Patch Changes

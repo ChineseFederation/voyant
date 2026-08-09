@@ -1,5 +1,11 @@
 # @voyant-travel/navigation-preferences
 
+## 0.24.8
+
+### Patch Changes
+
+- 546f91a: Make approved organization navigation preferences use durable singleton command replay.
+
 ## 0.24.7
 
 ### Patch Changes

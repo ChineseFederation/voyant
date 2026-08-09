@@ -1,5 +1,14 @@
 # @voyant-travel/operator-settings
 
+## 0.17.29
+
+### Patch Changes
+
+- 2feabd0: Make approved operator settings updates use durable singleton command replay.
+- Updated dependencies [8f2f1fc]
+  - @voyant-travel/finance@0.245.7
+  - @voyant-travel/commerce@0.49.2
+
 ## 0.17.28
 
 ### Patch Changes

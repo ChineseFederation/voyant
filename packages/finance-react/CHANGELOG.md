@@ -1,5 +1,15 @@
 # @voyant-travel/finance-react
 
+## 0.275.0
+
+### Patch Changes
+
+- af3996b: Load dashboard charts after aggregate data arrives, defer public finance page bodies until their route is visited, and keep vendor chunks from absorbing shared dependencies so workspace chrome does not wait on Recharts or payment UI.
+  - @voyant-travel/bookings-react@0.275.0
+  - @voyant-travel/inventory-react@0.157.0
+  - @voyant-travel/distribution-react@0.265.0
+  - @voyant-travel/operations-react@0.156.0
+
 ## 0.274.0
 
 ### Patch Changes

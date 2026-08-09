@@ -1,5 +1,26 @@
 # @voyant-travel/catalog
 
+## 0.253.0
+
+### Minor Changes
+
+- b95e995: Convert an exact opaque Storefront Trip selection revision into a server-priced
+  composite Catalog Booking Session without exposing Trip or supplier authority
+  identifiers to browser clients.
+
+### Patch Changes
+
+- b760ac6: Add a closed provider-first live cruise shopping seam with exact admitted-source ownership, managed presentation FX, opaque offer references, and Catalog Booking Session reservation/reconciliation payloads.
+- 4c2b4ce: Add bound opaque continuations for managed multi-source flight, stay, and package shopping.
+- de6e62a: Wire admitted Voyant Connect dynamic-package search into the managed Storefront
+  shopping provider without exposing connection or credential selectors.
+- 27140ec: Reduce booking-session mutation database round trips by reusing the transaction-locked Session and superseding active Quotes with one set-based write.
+- Updated dependencies [b95e995]
+- Updated dependencies [8f2f1fc]
+- Updated dependencies [b760ac6]
+  - @voyant-travel/catalog-contracts@0.131.0
+  - @voyant-travel/finance@0.245.7
+
 ## 0.252.3
 
 ### Patch Changes

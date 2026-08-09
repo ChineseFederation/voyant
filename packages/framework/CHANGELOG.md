@@ -1,5 +1,19 @@
 # @voyant-travel/framework
 
+## 0.80.5
+
+### Patch Changes
+
+- ed455e6: Reject available approval-required existing-target actions that omit the handler-owned durable result contract, so deployment graphs cannot expose mutations that the generic action gate must refuse or unsafely redispatch.
+- Updated dependencies [a1d5c93]
+- Updated dependencies [b760ac6]
+- Updated dependencies [d359373]
+- Updated dependencies [4c2b4ce]
+- Updated dependencies [de6e62a]
+  - @voyant-travel/operator-standard@0.21.13
+  - @voyant-travel/cruises@0.238.18
+  - @voyant-travel/voyant-connect-adapter@0.27.0
+
 ## 0.80.4
 
 ### Patch Changes

@@ -1,5 +1,13 @@
 # @voyant-travel/finance
 
+## 0.245.7
+
+### Patch Changes
+
+- 8f2f1fc: Allow a booking to persist a name-only billing person when the Storefront makes
+  email and phone optional, while continuing to reject placeholder email values.
+  - @voyant-travel/products-contracts@0.111.2
+
 ## 0.245.6
 
 ### Patch Changes

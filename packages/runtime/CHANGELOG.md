@@ -1,5 +1,15 @@
 # @voyant-travel/runtime
 
+## 0.22.6
+
+### Patch Changes
+
+- Updated dependencies [af3996b]
+- Updated dependencies [ed455e6]
+  - @voyant-travel/vite-config@0.5.1
+  - @voyant-travel/framework@0.80.5
+  - @voyant-travel/admin-host@0.126.0
+
 ## 0.22.5
 
 ### Patch Changes

@@ -1,5 +1,14 @@
 # @voyant-travel/catalog-contracts
 
+## 0.131.0
+
+### Minor Changes
+
+- b95e995: Convert an exact opaque Storefront Trip selection revision into a server-priced
+  composite Catalog Booking Session without exposing Trip or supplier authority
+  identifiers to browser clients.
+- b760ac6: Add a closed provider-first live cruise shopping seam with exact admitted-source ownership, managed presentation FX, opaque offer references, and Catalog Booking Session reservation/reconciliation payloads.
+
 ## 0.130.0
 
 ### Minor Changes

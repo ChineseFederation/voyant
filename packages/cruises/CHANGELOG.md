@@ -1,5 +1,20 @@
 # @voyant-travel/cruises
 
+## 0.238.18
+
+### Patch Changes
+
+- b760ac6: Add a closed provider-first live cruise shopping seam with exact admitted-source ownership, managed presentation FX, opaque offer references, and Catalog Booking Session reservation/reconciliation payloads.
+- Updated dependencies [b95e995]
+- Updated dependencies [8f2f1fc]
+- Updated dependencies [b760ac6]
+- Updated dependencies [4c2b4ce]
+- Updated dependencies [de6e62a]
+- Updated dependencies [27140ec]
+  - @voyant-travel/catalog@0.253.0
+  - @voyant-travel/finance@0.245.7
+  - @voyant-travel/cruises-contracts@0.105.30
+
 ## 0.238.17
 
 ### Patch Changes

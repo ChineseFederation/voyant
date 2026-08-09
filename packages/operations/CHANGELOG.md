@@ -1,5 +1,18 @@
 # @voyant-travel/operations
 
+## 0.22.13
+
+### Patch Changes
+
+- ed455e6: Claim every supported approved departure-planning mutation inside its handler transaction and replay the authoritative or audited command result instead of redispatching. Explicitly withhold projection rebuilds until they have a transaction-aware durable implementation.
+- Updated dependencies [b95e995]
+- Updated dependencies [b760ac6]
+- Updated dependencies [4c2b4ce]
+- Updated dependencies [de6e62a]
+- Updated dependencies [27140ec]
+  - @voyant-travel/catalog@0.253.0
+  - @voyant-travel/products-contracts@0.111.2
+
 ## 0.22.12
 
 ### Patch Changes

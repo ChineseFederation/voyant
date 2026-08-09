@@ -1,5 +1,24 @@
 # @voyant-travel/accommodations
 
+## 0.205.1
+
+### Patch Changes
+
+- 4b6142a: Make approved room-block pickup reversal use durable existing-target command replay.
+- de6e62a: Wire admitted Voyant Connect dynamic-package search into the managed Storefront
+  shopping provider without exposing connection or credential selectors.
+- Updated dependencies [b95e995]
+- Updated dependencies [8f2f1fc]
+- Updated dependencies [b760ac6]
+- Updated dependencies [4c2b4ce]
+- Updated dependencies [de6e62a]
+- Updated dependencies [27140ec]
+- Updated dependencies [ed455e6]
+  - @voyant-travel/catalog@0.253.0
+  - @voyant-travel/finance@0.245.7
+  - @voyant-travel/operations@0.22.13
+  - @voyant-travel/accommodations-contracts@0.105.28
+
 ## 0.205.0
 
 ### Patch Changes
