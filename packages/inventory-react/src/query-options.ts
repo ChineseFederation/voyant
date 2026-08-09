@@ -18,7 +18,7 @@ import type { UseProductTagsOptions } from "./hooks/use-product-tags.js"
 import type { UseProductTypesOptions } from "./hooks/use-product-types.js"
 import type { UseProductVersionsOptions } from "./hooks/use-product-versions.js"
 import type { UseProductsOptions } from "./hooks/use-products.js"
-import { productsQueryKeys } from "./query-keys.js"
+import { type ProductsListFilters, productsQueryKeys } from "./query-keys.js"
 import {
   optionUnitListResponse,
   optionUnitSingleResponse,
@@ -37,6 +37,18 @@ import {
   productTypeSingleResponse,
   productVersionsResponse,
 } from "./schemas.js"
+
+/**
+ * Canonical first-page state shared by the products route loader and page.
+ * Keeping one value is important: TanStack Query can only reuse the loader
+ * result when the mounted page asks for the exact same query key.
+ */
+export const DEFAULT_PRODUCTS_LIST_FILTERS = {
+  sortBy: "createdAt",
+  sortDir: "desc",
+  limit: 25,
+  offset: 0,
+} as const satisfies ProductsListFilters
 
 export function getProductsQueryOptions(
   client: FetchWithValidationOptions,

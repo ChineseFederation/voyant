@@ -36,6 +36,7 @@ import {
   useProducts,
   useProductTypes,
 } from "../index.js"
+import { DEFAULT_PRODUCTS_LIST_FILTERS } from "../query-options.js"
 import { formatProductSubtype } from "./product-detail/product-detail-shared.js"
 import { ProductDialog } from "./product-dialog.js"
 import { ProductQuickStartDialog } from "./product-quick-start-dialog.js"
@@ -127,7 +128,10 @@ function formatListDuration(
   return messages.durationUnset
 }
 
-export function ProductList({ pageSize = 25, onSelectProduct }: ProductListProps = {}) {
+export function ProductList({
+  pageSize = DEFAULT_PRODUCTS_LIST_FILTERS.limit,
+  onSelectProduct,
+}: ProductListProps = {}) {
   const { locale, messages } = useProductsUiI18nOrDefault()
   const productMessages = messages.productList
   const { create } = useProductMutation()
@@ -148,9 +152,13 @@ export function ProductList({ pageSize = 25, onSelectProduct }: ProductListProps
   const [paxMax, setPaxMax] = React.useState<string>("")
   const [sellAmountMin, setSellAmountMin] = React.useState<string>("")
   const [sellAmountMax, setSellAmountMax] = React.useState<string>("")
-  const [sortBy, setSortBy] = React.useState<ProductsListSortField>("createdAt")
-  const [sortDir, setSortDir] = React.useState<ProductsListSortDir>("desc")
-  const [offset, setOffset] = React.useState(0)
+  const [sortBy, setSortBy] = React.useState<ProductsListSortField>(
+    DEFAULT_PRODUCTS_LIST_FILTERS.sortBy,
+  )
+  const [sortDir, setSortDir] = React.useState<ProductsListSortDir>(
+    DEFAULT_PRODUCTS_LIST_FILTERS.sortDir,
+  )
+  const [offset, setOffset] = React.useState<number>(DEFAULT_PRODUCTS_LIST_FILTERS.offset)
   const [filterPopoverOpen, setFilterPopoverOpen] = React.useState(false)
   const [dialogOpen, setDialogOpen] = React.useState(false)
   const [editing, setEditing] = React.useState<ProductRecord | undefined>(undefined)

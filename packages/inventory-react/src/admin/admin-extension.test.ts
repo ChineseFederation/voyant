@@ -1,6 +1,8 @@
-import { describe, expect, it } from "vitest"
+import { QueryClient } from "@tanstack/react-query"
+import { describe, expect, it, vi } from "vitest"
 
 import { inventoryVoyantModule } from "../../../inventory/src/voyant.js"
+import { DEFAULT_PRODUCTS_LIST_FILTERS, getProductsQueryOptions } from "../query-options.js"
 import {
   createInventoryAdminExtension,
   createSelectedInventoryAdminExtension,
@@ -125,6 +127,31 @@ describe("createInventoryAdminExtension", () => {
       expect(typeof route.loader).toBe("function")
       expect(route.ssr).toBe("data-only")
     }
+  })
+
+  it("loads the exact first-page query that the products page mounts", async () => {
+    const fetcher = vi.fn(async () => Response.json({ data: [], total: 0, limit: 25, offset: 0 }))
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { staleTime: 30_000, retry: false } },
+    })
+    const route = createInventoryAdminExtension().routes?.find(
+      (candidate) => candidate.id === "products-index",
+    )
+
+    await route?.loader?.({
+      queryClient,
+      runtime: { baseUrl: "/api", fetcher },
+      params: {},
+    })
+    await queryClient.fetchQuery(
+      getProductsQueryOptions({ baseUrl: "/api", fetcher }, DEFAULT_PRODUCTS_LIST_FILTERS),
+    )
+
+    expect(fetcher).toHaveBeenCalledTimes(1)
+    expect(fetcher).toHaveBeenCalledWith(
+      "/api/v1/admin/products?sortBy=createdAt&sortDir=desc&limit=25&offset=0",
+      expect.any(Object),
+    )
   })
 
   it("annotates the route-backed destinations", () => {

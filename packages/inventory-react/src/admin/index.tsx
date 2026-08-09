@@ -128,9 +128,11 @@ export function createInventoryAdminExtension(
         // would pin it into the workspace-chrome chunk that evaluates this
         // factory.
         loader: async ({ queryClient, runtime }: AdminRouteLoaderContext) => {
-          const { getProductsQueryOptions } = await import("../query-options.js")
+          const { DEFAULT_PRODUCTS_LIST_FILTERS, getProductsQueryOptions } = await import(
+            "../query-options.js"
+          )
           return queryClient.ensureQueryData(
-            getProductsQueryOptions(loaderClient(runtime), { limit: 25, offset: 0 }),
+            getProductsQueryOptions(loaderClient(runtime), DEFAULT_PRODUCTS_LIST_FILTERS),
           )
         },
         pendingComponent: ProductsListSkeleton,
