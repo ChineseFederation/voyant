@@ -336,6 +336,39 @@ describe("selected-graph MCP tool surface cost", () => {
     ).toBeLessThanOrEqual(AGGREGATE_CEILING_BYTES)
   })
 
+  it("keeps a zero-hit fallback inside a recognized domain", async () => {
+    const { app } = await mountSelectedGraphMcp()
+    const searched = await readRpc(
+      await app.request(
+        "/",
+        rpc("tools/call", {
+          name: "search_tools",
+          arguments: {
+            query: "cash refund booking entitlement phrase with no exact tool match",
+            domain: "finance",
+            limit: 50,
+          },
+        }),
+        TEST_ENV,
+        TEST_CTX,
+      ),
+    )
+    const result = (
+      searched.result as {
+        structuredContent?: {
+          returned?: number
+          tools?: Array<{ name: string; domain: string }>
+        }
+      }
+    ).structuredContent
+    const tools = result?.tools ?? []
+
+    expect(tools.length).toBeGreaterThan(0)
+    expect(result?.returned).toBe(tools.length)
+    expect(new Set(tools.map(({ domain }) => domain))).toEqual(new Set(["finance"]))
+    expect(tools.map(({ name }) => name)).toContain("finance_query")
+  })
+
   it("still bounds EVERY selected tool's schema, writes included", async () => {
     // The query-tool bound above covers the collapsed READ surface only. Writes
     // are deliberately not collapsed (voyant#3921: per-action risk, confirmation,

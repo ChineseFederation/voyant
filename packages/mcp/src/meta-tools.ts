@@ -1,3 +1,4 @@
+// agent-quality: file-size exception -- owner: mcp; remove when discovery, descriptor projection, and lazy dispatch are split without duplicating the shared authorized-surface rules.
 /**
  * Progressive disclosure (voyant#3927): the eager MCP surface is a small tier-0
  * of meta-tools; the long tail of domain tools is discovered and dispatched on
@@ -294,12 +295,17 @@ function searchTools(
   // back to the query tools, which is the answer to "where do I look for a
   // record" in the only vocabulary the caller is already using.
   const fellBack = matches.length === 0
-  const fallback = fellBack ? queryToolCandidates(projection) : []
+  const allFallbacks = fellBack ? queryToolCandidates(projection) : []
+  const domainFallbacks = domain
+    ? allFallbacks.filter((candidate) => candidate.domain.toLowerCase() === domain)
+    : []
+  const fallbackPool = domainFallbacks.length > 0 ? domainFallbacks : allFallbacks
+  const fallback = fallbackPool.slice(0, limit)
 
   const payload = {
     total: matches.length,
-    returned: returned.length,
-    truncated: matches.length > returned.length,
+    returned: fellBack ? fallback.length : returned.length,
+    truncated: fellBack ? fallbackPool.length > fallback.length : matches.length > returned.length,
     tools: fellBack ? fallback : returned.map(({ score: _score, ...tool }) => tool),
     ...(ignoredDomain ? { ignoredDomain: args.domain } : {}),
     ...(fellBack ? { howToFindARecord: recordLookupGuidance() } : {}),
