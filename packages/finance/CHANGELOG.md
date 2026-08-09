@@ -1,5 +1,12 @@
 # @voyant-travel/finance
 
+## 0.245.9
+
+### Patch Changes
+
+- b0348e3: Return a compact outcome from the advanced booking command instead of embedding the full booking graph.
+- 1bf14e0: Return a compact, actionable invoice-booking outcome instead of embedding the full invoice graph.
+
 ## 0.245.8
 
 ### Patch Changes
