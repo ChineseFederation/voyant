@@ -1,4 +1,12 @@
-import { defineTool, READ_ONLY_RISK, requireService, type ToolContext } from "@voyant-travel/tools"
+import {
+  admitHandlerActionPolicy,
+  defineTool,
+  type HandlerActionPolicyExpectation,
+  READ_ONLY_RISK,
+  requireService,
+  type ToolContext,
+  type ToolHandlerActionPolicyContext,
+} from "@voyant-travel/tools"
 import { z } from "zod"
 
 import {
@@ -11,9 +19,35 @@ import {
 
 const visibilityResultSchema = z.object({ visibility: navigationVisibilityMapSchema })
 
+export const SET_ORGANIZATION_NAVIGATION_PREFERENCES_HANDLER_POLICY = {
+  capabilityId:
+    "@voyant-travel/navigation-preferences#tool.set-organization-navigation-preferences",
+  capabilityVersion: "v1",
+  canonicalName: "set_organization_navigation_preferences",
+  actionPolicy: {
+    id: "@voyant-travel/navigation-preferences#action.set-organization-navigation-preferences",
+    capabilityId:
+      "@voyant-travel/navigation-preferences#action.set-organization-navigation-preferences",
+    version: "v1",
+    kind: "execute",
+    targetType: "organization-navigation-preferences",
+    commandTargetField: "preferencesId",
+    targetLifecycle: "existing",
+    existingTarget: { durability: "handler-command-result-v1" },
+    risk: "high",
+    ledger: "required",
+    approval: "required",
+    reversible: true,
+    allowedActorTypes: ["staff"],
+  },
+} as const satisfies HandlerActionPolicyExpectation
+
 export interface NavigationPreferencesToolServices {
   get(): Promise<NavigationPreferencesSnapshot>
-  setOrganization(visibility: NavigationVisibilityMap): Promise<NavigationVisibilityMap>
+  setOrganization(
+    visibility: NavigationVisibilityMap,
+    admitted: ToolHandlerActionPolicyContext,
+  ): Promise<NavigationVisibilityMap>
   setMember(visibility: NavigationVisibilityMap): Promise<NavigationVisibilityMap>
 }
 
@@ -66,8 +100,16 @@ export const setOrganizationNavigationPreferencesTool = defineTool<
     confirmationRequired: true,
     sideEffects: ["data-write"],
   },
+  annotations: { idempotentHint: true },
+  actionPolicyEnforcement: "handler",
   async handler({ visibility }, context) {
-    return { visibility: await navigationPreferences(context).setOrganization(visibility) }
+    const admitted = admitHandlerActionPolicy(
+      context,
+      SET_ORGANIZATION_NAVIGATION_PREFERENCES_HANDLER_POLICY,
+    )
+    return {
+      visibility: await navigationPreferences(context).setOrganization(visibility, admitted),
+    }
   },
 })
 

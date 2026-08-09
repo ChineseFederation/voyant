@@ -119,9 +119,12 @@ export const navigationPreferencesVoyantModule = defineModule({
     },
     {
       id: "@voyant-travel/navigation-preferences#action.set-organization-navigation-preferences",
+      capabilityId:
+        "@voyant-travel/navigation-preferences#action.set-organization-navigation-preferences",
       version: "v1",
       kind: "execute",
       targetType: "organization-navigation-preferences",
+      commandTargetField: "preferencesId",
       resource: "admin-navigation",
       action: "write",
       requiredScopes: ["admin-navigation:write"],
@@ -133,6 +136,7 @@ export const navigationPreferencesVoyantModule = defineModule({
       availability: { status: "available" },
       effectBoundary: "local",
       targetLifecycle: "existing",
+      existingTarget: { durability: "handler-command-result-v1" },
       from: {
         tools: [
           "@voyant-travel/navigation-preferences#tool.set-organization-navigation-preferences",

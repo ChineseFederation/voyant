@@ -26,6 +26,7 @@
   },
   "dependencies": {
     "@hono/zod-openapi": "catalog:",
+    "@voyant-travel/action-ledger": "workspace:^",
     "@voyant-travel/core": "workspace:^",
     "@voyant-travel/db": "workspace:^",
     "@voyant-travel/hono": "workspace:^",

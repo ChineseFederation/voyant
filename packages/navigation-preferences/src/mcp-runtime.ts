@@ -1,6 +1,17 @@
-import { defineToolContextContribution, ToolError } from "@voyant-travel/tools"
+import {
+  type ActionLedgerRequestContextValues,
+  executeAdmittedExistingTargetCommand,
+} from "@voyant-travel/action-ledger"
+import {
+  defineToolContextContribution,
+  ToolError,
+  type ToolHandlerActionPolicyContext,
+} from "@voyant-travel/tools"
 import { hasApiKeyPermission, permissionStringsToPermissions } from "@voyant-travel/types/api-keys"
+import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
+import type { Context } from "hono"
 
+import type { NavigationVisibilityMap } from "./contracts.js"
 import {
   getNavigationPreferences,
   setMemberNavigationPreferences,
@@ -13,7 +24,8 @@ export * from "./tools.js"
 export function createNavigationPreferencesToolServices(
   db: Parameters<typeof getNavigationPreferences>[0],
   memberId: string,
-  scopes: readonly string[] = [],
+  scopes: readonly string[],
+  request: Context,
 ): NavigationPreferencesToolServices {
   return {
     async get() {
@@ -26,7 +38,37 @@ export function createNavigationPreferencesToolServices(
         ),
       }
     },
-    setOrganization: (visibility) => setOrganizationNavigationPreferences(db, visibility),
+    async setOrganization(visibility, admitted: ToolHandlerActionPolicyContext) {
+      let updated: NavigationVisibilityMap | undefined
+      const result = await executeAdmittedExistingTargetCommand(
+        {
+          db,
+          context: actionLedgerContext(request),
+          admitted,
+          commandInput: {
+            preferencesId: "organization-navigation-preferences",
+            visibility,
+          },
+          evaluatedRisk: "high",
+        },
+        {
+          async prepare(tx) {
+            updated = await setOrganizationNavigationPreferences(
+              tx as PostgresJsDatabase,
+              visibility,
+            )
+          },
+          execute() {
+            if (!updated) throw new Error("Navigation preference update produced no result")
+            return Promise.resolve(updated)
+          },
+          async replay() {
+            return (await getNavigationPreferences(db, memberId)).organization
+          },
+        },
+      )
+      return result.value
+    },
     setMember: (visibility) => setMemberNavigationPreferences(db, memberId, visibility),
   }
 }
@@ -53,10 +95,30 @@ export const voyantToolContextContribution = defineToolContextContribution({
         context.db as Parameters<typeof getNavigationPreferences>[0],
         memberId,
         scopes,
+        request as Context,
       ),
     }
   },
 })
+
+function actionLedgerContext(c: Context): ActionLedgerRequestContextValues {
+  const vars = c.var as Record<string, unknown>
+  return {
+    userId: (vars.userId as string | undefined) ?? null,
+    agentId: (vars.agentId as string | undefined) ?? null,
+    workflowPrincipalId: (vars.workflowPrincipalId as string | undefined) ?? null,
+    principalSubtype: (vars.principalSubtype as string | undefined) ?? null,
+    sessionId: (vars.sessionId as string | undefined) ?? null,
+    apiTokenId: ((vars.apiTokenId ?? vars.apiKeyId) as string | undefined) ?? null,
+    callerType: (vars.callerType as ActionLedgerRequestContextValues["callerType"]) ?? null,
+    actor: (vars.actor as ActionLedgerRequestContextValues["actor"]) ?? null,
+    isInternalRequest: (vars.isInternalRequest as boolean | undefined) ?? false,
+    organizationId: (vars.organizationId as string | undefined) ?? null,
+    workflowRunId: (vars.workflowRunId as string | undefined) ?? null,
+    workflowStepId: (vars.workflowStepId as string | undefined) ?? null,
+    correlationId: c.req.header("x-correlation-id") ?? c.req.header("x-request-id") ?? null,
+  }
+}
 
 function actingMemberRequiredNavigationPreferences(): NavigationPreferencesToolServices {
   const deny = async (): Promise<never> => {

@@ -1,4 +1,8 @@
-import { createToolRegistry, type ToolContext } from "@voyant-travel/tools"
+import {
+  createToolRegistry,
+  type ToolContext,
+  type ToolHandlerActionPolicyContext,
+} from "@voyant-travel/tools"
 import { describe, expect, it, vi } from "vitest"
 
 import { voyantToolContextContribution } from "../../src/mcp-runtime.js"
@@ -7,6 +11,7 @@ import {
   type NavigationPreferencesToolContext,
   type NavigationPreferencesToolServices,
   navigationPreferencesTools,
+  SET_ORGANIZATION_NAVIGATION_PREFERENCES_HANDLER_POLICY,
   setMyNavigationPreferencesTool,
   setOrganizationNavigationPreferencesTool,
 } from "../../src/tools.js"
@@ -26,6 +31,7 @@ describe("navigation preference Tools", () => {
     expect(getNavigationPreferencesTool.audience?.allowed).toEqual(["staff"])
     expect(setOrganizationNavigationPreferencesTool.tier).toBe("sensitive")
     expect(setOrganizationNavigationPreferencesTool.riskPolicy.confirmationRequired).toBe(true)
+    expect(setOrganizationNavigationPreferencesTool.actionPolicyEnforcement).toBe("handler")
     expect(setMyNavigationPreferencesTool.tier).toBe("write")
   })
 
@@ -47,8 +53,36 @@ describe("navigation preference Tools", () => {
     }
 
     await expect(getNavigationPreferencesTool.handler({}, context)).resolves.toEqual(snapshot)
+    const registry = createToolRegistry()
+    registry.register(setOrganizationNavigationPreferencesTool, {
+      capabilityId: SET_ORGANIZATION_NAVIGATION_PREFERENCES_HANDLER_POLICY.capabilityId,
+      owner: "@voyant-travel/navigation-preferences",
+      capabilityVersion: SET_ORGANIZATION_NAVIGATION_PREFERENCES_HANDLER_POLICY.capabilityVersion,
+      name: SET_ORGANIZATION_NAVIGATION_PREFERENCES_HANDLER_POLICY.canonicalName,
+      requiredScopes: ["admin-navigation:write"],
+      deploymentRisk: "high",
+      actionPolicy: SET_ORGANIZATION_NAVIGATION_PREFERENCES_HANDLER_POLICY.actionPolicy,
+    })
+    const actionPolicy = registry.list()[0]?.actionPolicy
+    if (!actionPolicy) throw new Error("organization navigation action is missing")
     await expect(
-      setOrganizationNavigationPreferencesTool.handler({ visibility: { finance: false } }, context),
+      registry.dispatch(
+        "set_organization_navigation_preferences",
+        { visibility: { finance: false } },
+        {
+          ...context,
+          handlerActionPolicy: {
+            ...SET_ORGANIZATION_NAVIGATION_PREFERENCES_HANDLER_POLICY,
+            actionPolicy,
+            invocation: {
+              confirmed: true,
+              idempotencyKey: "navigation-update-1",
+              approvalId: "approval-1",
+              idempotencyFingerprint: "sha256:test",
+            },
+          } as ToolHandlerActionPolicyContext,
+        },
+      ),
     ).resolves.toEqual({ visibility: { finance: false } })
     await expect(
       setMyNavigationPreferencesTool.handler({ visibility: { finance: true } }, context),

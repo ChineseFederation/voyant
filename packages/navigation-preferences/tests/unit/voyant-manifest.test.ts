@@ -41,5 +41,8 @@ describe("navigation preferences manifest", () => {
       ["@voyant-travel/navigation-preferences#tool.set-organization-navigation-preferences"],
       ["@voyant-travel/navigation-preferences#tool.set-my-navigation-preferences"],
     ])
+    expect(navigationPreferencesVoyantModule.actions?.[1]).toMatchObject({
+      existingTarget: { durability: "handler-command-result-v1" },
+    })
   })
 })
