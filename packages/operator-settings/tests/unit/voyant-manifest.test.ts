@@ -70,6 +70,7 @@ describe("operator-settings deployment manifest", () => {
           action: "write",
           ledger: "required",
           approval: "required",
+          existingTarget: { durability: "handler-command-result-v1" },
           from: { tools: ["@voyant-travel/operator-settings#tool.update-operator-settings"] },
         },
       ],

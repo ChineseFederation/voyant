@@ -148,9 +148,11 @@ export const operatorSettingsVoyantModule = defineModule({
   actions: [
     {
       id: "@voyant-travel/operator-settings#action.update-operator-settings",
+      capabilityId: "@voyant-travel/operator-settings#action.update-operator-settings",
       version: "v1",
       kind: "execute",
       targetType: "operator-settings",
+      commandTargetField: "settingsId",
       resource: "settings",
       action: "write",
       requiredScopes: ["settings:write"],
@@ -161,6 +163,7 @@ export const operatorSettingsVoyantModule = defineModule({
       availability: { status: "available" },
       effectBoundary: "local",
       targetLifecycle: "existing",
+      existingTarget: { durability: "handler-command-result-v1" },
       from: { tools: ["@voyant-travel/operator-settings#tool.update-operator-settings"] },
     },
   ],

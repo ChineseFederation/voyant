@@ -5,7 +5,15 @@
  * not the underlying storage tables. A deployment injects the service through
  * the Tool context so this surface stays transport-neutral.
  */
-import { defineTool, READ_ONLY_RISK, requireService, type ToolContext } from "@voyant-travel/tools"
+import {
+  admitHandlerActionPolicy,
+  defineTool,
+  type HandlerActionPolicyExpectation,
+  READ_ONLY_RISK,
+  requireService,
+  type ToolContext,
+  type ToolHandlerActionPolicyContext,
+} from "@voyant-travel/tools"
 import { z } from "zod"
 
 import { paymentPolicySchema, updateOperatorSettingsSchema } from "./service.js"
@@ -40,13 +48,36 @@ export const operatorSettingsValueSchema = z.object({
 export type OperatorSettingsValue = z.infer<typeof operatorSettingsValueSchema>
 export type UpdateOperatorSettingsToolInput = z.infer<typeof updateOperatorSettingsSchema>
 
+export const UPDATE_OPERATOR_SETTINGS_HANDLER_POLICY = {
+  capabilityId: "@voyant-travel/operator-settings#tool.update-operator-settings",
+  capabilityVersion: "v1",
+  canonicalName: "update_operator_settings",
+  actionPolicy: {
+    id: "@voyant-travel/operator-settings#action.update-operator-settings",
+    capabilityId: "@voyant-travel/operator-settings#action.update-operator-settings",
+    version: "v1",
+    kind: "execute",
+    targetType: "operator-settings",
+    commandTargetField: "settingsId",
+    targetLifecycle: "existing",
+    existingTarget: { durability: "handler-command-result-v1" },
+    risk: "high",
+    ledger: "required",
+    approval: "required",
+    reversible: true,
+  },
+} as const satisfies HandlerActionPolicyExpectation
+
 const operatorSettingsResultSchema = z.object({
   settings: operatorSettingsValueSchema.nullable(),
 })
 
 export interface OperatorSettingsToolServices {
   getSettings(): Promise<OperatorSettingsValue | null>
-  updateSettings(input: UpdateOperatorSettingsToolInput): Promise<OperatorSettingsValue | null>
+  updateSettings(
+    input: UpdateOperatorSettingsToolInput,
+    admitted: ToolHandlerActionPolicyContext,
+  ): Promise<OperatorSettingsValue | null>
 }
 
 export type OperatorSettingsToolContext = ToolContext & {
@@ -94,8 +125,11 @@ export const updateOperatorSettingsTool = defineTool<
     confirmationRequired: true,
     sideEffects: ["data-write"],
   },
+  annotations: { idempotentHint: true },
+  actionPolicyEnforcement: "handler",
   async handler(input, ctx) {
-    return { settings: await operatorSettings(ctx).updateSettings(input) }
+    const admitted = admitHandlerActionPolicy(ctx, UPDATE_OPERATOR_SETTINGS_HANDLER_POLICY)
+    return { settings: await operatorSettings(ctx).updateSettings(input, admitted) }
   },
 })
 

@@ -1,4 +1,13 @@
-import { defineToolContextContribution } from "@voyant-travel/tools"
+import {
+  type ActionLedgerRequestContextValues,
+  executeAdmittedExistingTargetCommand,
+} from "@voyant-travel/action-ledger"
+import {
+  defineToolContextContribution,
+  type ToolHandlerActionPolicyContext,
+} from "@voyant-travel/tools"
+import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
+import type { Context } from "hono"
 
 import { getOperatorSettings, upsertOperatorSettings } from "./service.js"
 import type { OperatorSettingsValue } from "./tools.js"
@@ -7,20 +16,63 @@ export * from "./tools.js"
 
 export const voyantToolContextContribution = defineToolContextContribution({
   context: ["operatorSettings"],
-  contribute: ({ context }) => {
+  contribute: ({ context, request }) => {
     const db = context.db as Parameters<typeof getOperatorSettings>[0]
     return {
       operatorSettings: {
         async getSettings() {
           return serializeSettings(await getOperatorSettings(db))
         },
-        async updateSettings(input: Parameters<typeof upsertOperatorSettings>[1]) {
-          return serializeSettings(await upsertOperatorSettings(db, input))
+        async updateSettings(
+          input: Parameters<typeof upsertOperatorSettings>[1],
+          admitted: ToolHandlerActionPolicyContext,
+        ) {
+          let settings: Awaited<ReturnType<typeof upsertOperatorSettings>> | undefined
+          const result = await executeAdmittedExistingTargetCommand(
+            {
+              db,
+              context: actionLedgerContext(request as Context),
+              admitted,
+              commandInput: { settingsId: "operator-settings", patch: input },
+              evaluatedRisk: "high",
+            },
+            {
+              async prepare(tx) {
+                settings = await upsertOperatorSettings(tx as PostgresJsDatabase, input)
+              },
+              execute() {
+                return Promise.resolve(serializeSettings(settings ?? null))
+              },
+              async replay() {
+                return serializeSettings(await getOperatorSettings(db))
+              },
+            },
+          )
+          return result.value
         },
       },
     }
   },
 })
+
+function actionLedgerContext(c: Context): ActionLedgerRequestContextValues {
+  const vars = c.var as Record<string, unknown>
+  return {
+    userId: (vars.userId as string | undefined) ?? null,
+    agentId: (vars.agentId as string | undefined) ?? null,
+    workflowPrincipalId: (vars.workflowPrincipalId as string | undefined) ?? null,
+    principalSubtype: (vars.principalSubtype as string | undefined) ?? null,
+    sessionId: (vars.sessionId as string | undefined) ?? null,
+    apiTokenId: ((vars.apiTokenId ?? vars.apiKeyId) as string | undefined) ?? null,
+    callerType: (vars.callerType as ActionLedgerRequestContextValues["callerType"]) ?? null,
+    actor: (vars.actor as ActionLedgerRequestContextValues["actor"]) ?? null,
+    isInternalRequest: (vars.isInternalRequest as boolean | undefined) ?? false,
+    organizationId: (vars.organizationId as string | undefined) ?? null,
+    workflowRunId: (vars.workflowRunId as string | undefined) ?? null,
+    workflowStepId: (vars.workflowStepId as string | undefined) ?? null,
+    correlationId: c.req.header("x-correlation-id") ?? c.req.header("x-request-id") ?? null,
+  }
+}
 
 function serializeSettings(
   settings: Awaited<ReturnType<typeof getOperatorSettings>>,

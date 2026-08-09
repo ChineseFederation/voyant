@@ -1,7 +1,12 @@
+import { createToolRegistry, type ToolHandlerActionPolicyContext } from "@voyant-travel/tools"
 import { describe, expect, it, vi } from "vitest"
 
 import type { OperatorSettingsToolContext } from "./tools.js"
-import { getOperatorSettingsTool, updateOperatorSettingsTool } from "./tools.js"
+import {
+  getOperatorSettingsTool,
+  UPDATE_OPERATOR_SETTINGS_HANDLER_POLICY,
+  updateOperatorSettingsTool,
+} from "./tools.js"
 
 const settings = {
   name: "Voyant Travel",
@@ -46,12 +51,40 @@ describe("operator settings tools", () => {
 
   it("updates settings through the injected service", async () => {
     const updateSettings = vi.fn(async () => settings)
-    const ctx = context({ updateSettings })
+    const registry = createToolRegistry()
+    registry.register(updateOperatorSettingsTool, {
+      capabilityId: UPDATE_OPERATOR_SETTINGS_HANDLER_POLICY.capabilityId,
+      owner: "@voyant-travel/operator-settings",
+      capabilityVersion: UPDATE_OPERATOR_SETTINGS_HANDLER_POLICY.capabilityVersion,
+      name: UPDATE_OPERATOR_SETTINGS_HANDLER_POLICY.canonicalName,
+      requiredScopes: ["settings:write"],
+      deploymentRisk: "high",
+      actionPolicy: UPDATE_OPERATOR_SETTINGS_HANDLER_POLICY.actionPolicy,
+    })
+    const actionPolicy = registry.list()[0]?.actionPolicy
+    if (!actionPolicy) throw new Error("registered operator settings action is missing")
+    const handlerActionPolicy = {
+      ...UPDATE_OPERATOR_SETTINGS_HANDLER_POLICY,
+      actionPolicy,
+      invocation: {
+        confirmed: true,
+        idempotencyKey: "settings-update-1",
+        approvalId: "approval-1",
+        idempotencyFingerprint: "sha256:test",
+      },
+    } as ToolHandlerActionPolicyContext
 
     await expect(
-      updateOperatorSettingsTool.handler({ name: "Voyant Travel" }, ctx),
+      registry.dispatch(
+        "update_operator_settings",
+        { name: "Voyant Travel" },
+        {
+          ...context({ updateSettings }),
+          handlerActionPolicy,
+        },
+      ),
     ).resolves.toEqual({ settings })
-    expect(updateSettings).toHaveBeenCalledWith({ name: "Voyant Travel" })
+    expect(updateSettings).toHaveBeenCalledWith({ name: "Voyant Travel" }, expect.any(Object))
   })
 
   it("publishes typed schemas and guarded write risk", () => {
@@ -65,5 +98,6 @@ describe("operator settings tools", () => {
       reversible: true,
       sideEffects: ["data-write"],
     })
+    expect(updateOperatorSettingsTool.actionPolicyEnforcement).toBe("handler")
   })
 })
