@@ -34,7 +34,8 @@ export async function createProposalsRuntime(
           return { kind: "rejected", code: "booking_session_runtime_unavailable" }
         }
         const module = bookingSessions.resolveModule(context, db)
-        const access = bookingSessions.resolveAccess?.(context, "anonymous") ?? {
+        const actorKind = resolveBookingSessionActorKind(context)
+        const access = bookingSessions.resolveAccess?.(context, actorKind) ?? {
           actorKind: "anonymous" as const,
           capability: context.req.header("Voyant-Booking-Session-Capability")?.trim(),
         }
@@ -96,6 +97,11 @@ export async function createProposalsRuntime(
       },
     },
   }
+}
+
+/** Preserve operator authority while public proposal acceptance stays capability-based. */
+export function resolveBookingSessionActorKind(context: Context): "anonymous" | "staff" {
+  return context.get("actor") === "staff" ? "staff" : "anonymous"
 }
 
 function resolvePublicBaseUrl(env: Readonly<Record<string, unknown>>): string | null {

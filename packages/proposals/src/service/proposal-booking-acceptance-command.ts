@@ -16,6 +16,7 @@ export interface ExecuteAcceptProposalForBookingCommandInput {
   db: AnyDrizzleDb
   context: ActionLedgerRequestContextValues
   admitted: ToolHandlerActionPolicyContext
+  proposalId: string
   proposalVersionId: string
   seedBookingSession: (
     db: PostgresJsDatabase,
@@ -31,7 +32,10 @@ export interface ExecuteAcceptProposalForBookingCommandInput {
 export async function executeAcceptProposalForBookingCommand(
   input: ExecuteAcceptProposalForBookingCommandInput,
 ) {
-  const commandInput = { proposalVersionId: input.proposalVersionId }
+  const commandInput = {
+    proposalId: input.proposalId,
+    proposalVersionId: input.proposalVersionId,
+  }
   let preparedValue: Awaited<ReturnType<typeof acceptProposalAndPrepareBooking>> | undefined
   const executeWorkflow = (db: PostgresJsDatabase) =>
     acceptProposalAndPrepareBooking(db, input.proposalVersionId, input.seedBookingSession)

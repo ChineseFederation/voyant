@@ -9,6 +9,7 @@ import {
   PROPOSAL_PROPOSAL_OPENAPI_API_IDS,
   PROPOSAL_VERSION_SNAPSHOT_OPENAPI_API_ID,
 } from "../../src/proposal-routes.js"
+import { ACCEPT_PROPOSAL_FOR_BOOKING_HANDLER_POLICY } from "../../src/tools.js"
 import {
   proposalsBookingVoyantPlugin,
   proposalsPresentationVoyantExtension,
@@ -269,12 +270,13 @@ describe("proposals deployment manifests", () => {
         {
           id: "@voyant-travel/proposals#presentation-extension.action.accept-proposal-for-booking",
           version: "v1",
-          commandTargetField: "proposalVersionId",
+          targetType: "proposal",
+          commandTargetField: "proposalId",
           targetLifecycle: "existing",
           existingTarget: { durability: "handler-command-result-v1" },
           effectBoundary: "local",
           ledger: "required",
-          approval: "required",
+          approval: "never",
           reversible: false,
           allowedActorTypes: ["staff"],
         },
@@ -306,6 +308,12 @@ describe("proposals deployment manifests", () => {
         },
       ],
     })
+    const selected = proposalsPresentationVoyantExtension.actions?.find(
+      ({ id }) => id === ACCEPT_PROPOSAL_FOR_BOOKING_HANDLER_POLICY.actionPolicy.id,
+    )
+    const { capabilityId: _capabilityId, ...handlerActionIdentity } =
+      ACCEPT_PROPOSAL_FOR_BOOKING_HANDLER_POLICY.actionPolicy
+    expect(selected).toMatchObject(handlerActionIdentity)
   })
 })
 

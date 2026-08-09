@@ -78,7 +78,7 @@ export interface ProposalDeliveryToolServices {
 
 export interface ProposalAcceptanceToolServices {
   acceptProposalForBooking(
-    proposalVersionId: string,
+    proposalId: string,
     admitted: ToolHandlerActionPolicyContext,
   ): Promise<unknown>
 }
@@ -192,14 +192,15 @@ export const ACCEPT_PROPOSAL_FOR_BOOKING_HANDLER_POLICY = {
     capabilityId: `${OWNER}#presentation-extension.action.accept-proposal-for-booking`,
     version: VERSION,
     kind: "execute",
-    targetType: "proposal-version",
-    commandTargetField: "proposalVersionId",
+    targetType: "proposal",
+    commandTargetField: "proposalId",
     targetLifecycle: "existing",
     existingTarget: { durability: "handler-command-result-v1" },
     risk: "high",
     ledger: "required",
-    approval: "required",
+    approval: "never",
     reversible: false,
+    allowedActorTypes: ["staff"],
   },
 } as const satisfies HandlerActionPolicyExpectation
 
@@ -442,8 +443,8 @@ export const acceptProposalForBookingTool = defineTool({
   name: "accept_proposal_for_booking",
   description:
     "Accept a sent, snapshot-backed proposal and atomically prepare its Booking Session. " +
-    "The server validates the frozen Trip snapshot and resolves the reservation handoff.",
-  inputSchema: z.object({ proposalVersionId: proposalVersionIdSchema }),
+    "Pass the Proposal id; the server resolves its one current sent version, validates the frozen Trip snapshot, and prepares the reservation handoff.",
+  inputSchema: z.object({ proposalId: proposalIdSchema }),
   outputSchema: acceptProposalForBookingOutputSchema,
   requiredScopes: WRITE_SCOPES,
   audience: STAFF_AUDIENCE,
@@ -452,16 +453,16 @@ export const acceptProposalForBookingTool = defineTool({
   annotations: { idempotentHint: true },
   actionPolicyEnforcement: "handler",
   resolvesIdempotencyKeyServerSide: true,
-  async handler({ proposalVersionId }, ctx: ProposalsToolContext) {
+  async handler({ proposalId }, ctx: ProposalsToolContext) {
     const idempotencyKey = await deriveCommandIdempotencyKey("accept-proposal-for-booking", {
-      proposalVersionId,
+      proposalId,
     })
     const admitted = withServerResolvedIdempotencyKey(
       admitHandlerActionPolicy(ctx, ACCEPT_PROPOSAL_FOR_BOOKING_HANDLER_POLICY),
       idempotencyKey,
     )
     return acceptProposalForBookingOutputSchema.parse(
-      await proposalAcceptance(ctx).acceptProposalForBooking(proposalVersionId, admitted),
+      await proposalAcceptance(ctx).acceptProposalForBooking(proposalId, admitted),
     )
   },
 })

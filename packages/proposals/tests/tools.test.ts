@@ -319,8 +319,8 @@ describe("proposals Tools", () => {
 
   it("accepts a proposal for booking through one admitted durable command", async () => {
     const acceptance: ProposalAcceptanceToolServices = {
-      async acceptProposalForBooking(proposalVersionId, admitted) {
-        expect(proposalVersionId).toBe(version.id)
+      async acceptProposalForBooking(proposalId, admitted) {
+        expect(proposalId).toBe(proposal.id)
         expect(admitted.invocation.idempotencyKey).toMatch(/^accept-proposal-for-booking:v1:/)
         return {
           status: "accepted",
@@ -337,7 +337,7 @@ describe("proposals Tools", () => {
     }
     const result = await registry().dispatch(
       "accept_proposal_for_booking",
-      { proposalVersionId: version.id },
+      { proposalId: proposal.id },
       ctx(undefined, "staff", undefined, acceptProposalForBookingActionPolicy(), acceptance),
     )
     expect(result).toMatchObject({

@@ -12,6 +12,7 @@ vi.mock("../../src/service/proposal-booking-acceptance-command.js", () => ({
 }))
 
 import { voyantToolContextContribution } from "../../src/mcp-runtime.js"
+import { proposalsService } from "../../src/service/index.js"
 
 afterEach(() => {
   executeAcceptProposalVersionCommand.mockReset()
@@ -72,6 +73,12 @@ describe("proposals MCP runtime", () => {
     } as ToolHandlerActionPolicyContext
     const accepted = { status: "accepted", bookingSession: { id: "session_1" } }
     executeAcceptProposalForBookingCommand.mockResolvedValue({ replayed: false, value: accepted })
+    vi.spyOn(proposalsService, "listProposalVersions").mockResolvedValue({
+      data: [{ id: "version_1" }],
+      total: 1,
+      limit: 2,
+      offset: 0,
+    } as never)
     const presentation = {
       resolvePublicProposalBaseUrl: vi.fn(),
       seedAcceptedProposalBookingSession: vi.fn(),
@@ -85,13 +92,20 @@ describe("proposals MCP runtime", () => {
       acceptProposalForBooking(id: string, policy: ToolHandlerActionPolicyContext): Promise<unknown>
     }
 
-    await expect(acceptance.acceptProposalForBooking("version_1", admitted)).resolves.toEqual(
+    await expect(acceptance.acceptProposalForBooking("proposal_1", admitted)).resolves.toEqual(
       accepted,
     )
+    expect(proposalsService.listProposalVersions).toHaveBeenCalledWith(db, {
+      proposalId: "proposal_1",
+      status: "sent",
+      limit: 2,
+      offset: 0,
+    })
     expect(executeAcceptProposalForBookingCommand).toHaveBeenCalledWith({
       db,
       context: expect.objectContaining({ organizationId: "org_1" }),
       admitted,
+      proposalId: "proposal_1",
       proposalVersionId: "version_1",
       seedBookingSession: expect.any(Function),
     })

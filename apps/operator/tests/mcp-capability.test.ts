@@ -55,6 +55,8 @@ import { dbClientDispose } from "@voyant-travel/db/transaction-capability"
 import { financeService } from "@voyant-travel/finance"
 import { composeVoyantGraphRuntime } from "@voyant-travel/framework"
 import { policiesService } from "@voyant-travel/legal"
+import { proposalsService, tripSnapshotToProposalVersionApply } from "@voyant-travel/proposals"
+import { tripsService } from "@voyant-travel/trips"
 import { sql as sqlRaw } from "drizzle-orm"
 import { Hono } from "hono"
 import { afterAll, beforeAll, describe, expect, it } from "vitest"
@@ -533,6 +535,20 @@ function buildJourneys(RUN_MARK: string): CapabilityJourney[] {
                and (a.metadata->'cancellationPolicyEntitlement'->>'refundCents')::int > 0`,
     },
     {
+      id: "proposal-accept",
+      domain: "proposals",
+      task: `Accept the sent proposal 'Capability Eval Proposal ${RUN_MARK}' for booking and prepare its reservation handoff. Complete any required approval and confirm the Booking Session id.`,
+      expect: "session",
+      maxCalls: 18,
+      verify: `select 1 from proposals p
+             join proposal_versions v on v.id = p.accepted_version_id
+             join booking_sessions s on s.proposal_version_id = v.id
+             where p.title = 'Capability Eval Proposal ${RUN_MARK}'
+               and p.status = 'won'
+               and v.status = 'accepted'
+               and s.proposal_id = p.id`,
+    },
+    {
       id: "contracts-read",
       domain: "contracts",
       task: "What contract templates exist? If there are none, say so explicitly.",
@@ -577,9 +593,18 @@ function buildJourneys(RUN_MARK: string): CapabilityJourney[] {
  * change to the write path — that is the only setting whose numbers mean anything.
  */
 const RUNS = Math.max(1, Number(process.env.VOYANT_EVAL_RUNS ?? "1"))
+const JOURNEY_FILTER = process.env.VOYANT_EVAL_JOURNEY?.trim()
+
+function selectedJourneys(mark: string): CapabilityJourney[] {
+  const journeys = buildJourneys(mark)
+  if (!JOURNEY_FILTER) return journeys
+  const selected = journeys.filter(({ id }) => id === JOURNEY_FILTER)
+  if (selected.length === 0) throw new Error(`Unknown MCP capability journey: ${JOURNEY_FILTER}`)
+  return selected
+}
 
 /** Shape only — used to drive `it.each`. Outcomes live in `passes`. */
-const JOURNEYS = buildJourneys(RUN_MARK)
+const JOURNEYS = selectedJourneys(RUN_MARK)
 
 /** Every attempt, in order, per journey. */
 const attempts = new Map<string, JourneyRun[]>()
@@ -657,6 +682,98 @@ async function seedCancellationPolicy(mark: string): Promise<void> {
   }
   const snapshot = await policiesService.captureCancellationPolicySnapshot(verifyDb, policy.id)
   if (!snapshot) throw new Error("Seeded cancellation policy cannot be captured")
+}
+
+/**
+ * A sent, snapshot-backed Proposal is the sale artifact this journey starts
+ * from. Build it through Trips and Proposals services so acceptance exercises
+ * the same frozen-line and total checks as production; raw fixture rows would
+ * bypass the invariant the intent Tool exists to protect.
+ */
+async function seedProposalAcceptance(mark: string): Promise<void> {
+  if (!verifyDb) throw new Error("Capability eval database is not mounted")
+
+  const pipeline = await proposalsService.createPipeline(verifyDb, {
+    entityType: "proposal",
+    name: `Capability Eval Pipeline ${mark}`,
+    isDefault: false,
+    sortOrder: 0,
+  })
+  if (!pipeline) throw new Error("Cannot seed proposal pipeline")
+  const stage = await proposalsService.createStage(verifyDb, {
+    pipelineId: pipeline.id,
+    name: "Sent",
+    sortOrder: 0,
+    isClosed: false,
+    isWon: false,
+    isLost: false,
+  })
+  if (!stage) throw new Error("Cannot seed proposal stage")
+
+  const trip = await tripsService.createTrip(verifyDb, {
+    title: `Capability Eval Trip ${mark}`,
+    travelerParty: {
+      billing: {
+        contact: {
+          firstName: "Ioana",
+          lastName: `Proposal${mark}`,
+          email: `proposal.${mark}@example.com`,
+        },
+      },
+      travelers: [
+        {
+          firstName: "Ioana",
+          lastName: `Proposal${mark}`,
+          email: `proposal.${mark}@example.com`,
+        },
+        { firstName: "Andrei", lastName: `Proposal${mark}` },
+      ],
+    },
+    constraints: {},
+  })
+  await tripsService.addComponent(verifyDb, {
+    envelopeId: trip.envelope.id,
+    sequence: 0,
+    kind: "flight_placeholder",
+    description: "Return flights and private touring",
+    estimatedPricing: {
+      currency: "EUR",
+      subtotalAmountCents: 180_000,
+      taxAmountCents: 0,
+      totalAmountCents: 180_000,
+      warnings: [],
+    },
+    metadata: {},
+  })
+  const snapshot = await tripsService.freezeTripSnapshot(verifyDb, {
+    envelopeId: trip.envelope.id,
+  })
+
+  const proposal = await proposalsService.createProposal(verifyDb, {
+    title: `Capability Eval Proposal ${mark}`,
+    pipelineId: pipeline.id,
+    stageId: stage.id,
+    status: "open",
+    valueAmountCents: 180_000,
+    valueCurrency: "EUR",
+    paxCount: 2,
+    source: "capability_eval",
+    sourceRef: mark,
+    tags: [],
+  })
+  if (!proposal) throw new Error("Cannot seed proposal")
+  const version = await proposalsService.createVersionSnapshotFromProposal(verifyDb, proposal.id)
+  if (!version) throw new Error("Cannot seed proposal version")
+  const applied = await proposalsService.applyTripSnapshotToProposalVersion(
+    verifyDb,
+    version.id,
+    tripSnapshotToProposalVersionApply(snapshot),
+  )
+  if (!applied) throw new Error("Cannot apply Trip snapshot to proposal version")
+  const sent = await proposalsService.sendProposalVersion(verifyDb, version.id, {
+    validUntil: "2026-12-31",
+  })
+  if (sent?.status !== "sent") throw new Error("Cannot send proposal version")
 }
 
 /** Exactly the conditions `it.each` asserts, so the report can never disagree. */
@@ -903,9 +1020,10 @@ describe.skipIf(!enabled)("MCP capability — a travel agent's job", () => {
         // A fresh mark per attempt: distinct records, no collisions, nothing to
         // delete afterwards.
         const mark = RUNS === 1 ? RUN_MARK : `${RUN_MARK}${attempt}`
-        const journeys = buildJourneys(mark)
+        const journeys = selectedJourneys(mark)
 
         for (const journey of journeys) {
+          if (journey.id === "proposal-accept") await seedProposalAcceptance(mark)
           let run: JourneyRun
           try {
             run = await runJourney({

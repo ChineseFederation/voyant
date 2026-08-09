@@ -13,6 +13,7 @@ export function parseArgs(argv) {
     databaseUrl: process.env.TEST_DATABASE_URL?.trim() || null,
     mode: "smoke",
     model: "gpt-5.6-terra",
+    journey: null,
   }
   const values = [...argv]
   while (values.length > 0) {
@@ -24,6 +25,10 @@ export function parseArgs(argv) {
     }
     if (value === "--model") {
       options.model = requiredValue(value, values.shift())
+      continue
+    }
+    if (value === "--journey") {
+      options.journey = requiredValue(value, values.shift())
       continue
     }
     if (value === "--artifacts") {
@@ -52,6 +57,7 @@ export function usage() {
 Options:
   --mode smoke|measure     One run for smoke, five runs for measurement (default: smoke)
   --model <model>          OpenAI model name (default: gpt-5.6-terra)
+  --journey <id>           Run one independently seeded journey instead of the full chain
   --artifacts <directory>  Result directory (default: .agent-runs/mcp-capability/<timestamp>)
   --database-url <url>     Existing disposable database; otherwise start a temporary Docker Postgres
   --help                   Show this help
@@ -193,6 +199,7 @@ async function main() {
       VOYANT_EVAL_MODEL: options.model,
       VOYANT_EVAL_REPORT_FILE: path.join(artifactDir, "report.json"),
       VOYANT_EVAL_RUNS: options.mode === "measure" ? "5" : "1",
+      ...(options.journey ? { VOYANT_EVAL_JOURNEY: options.journey } : {}),
     }
     writeFileSync(
       path.join(artifactDir, "run.json"),
@@ -203,6 +210,7 @@ async function main() {
           mode: options.mode,
           model: options.model,
           runs: Number(env.VOYANT_EVAL_RUNS),
+          journey: options.journey,
           database: temporaryDatabase ? "temporary-docker" : "provided",
         },
         null,

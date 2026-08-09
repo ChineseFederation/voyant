@@ -16,11 +16,14 @@ test("accepts the measurement lane and artifact destination", () => {
     "measure",
     "--model",
     "gpt-test",
+    "--journey",
+    "proposal-accept",
     "--artifacts",
     "tmp/eval",
   ])
   assert.equal(options.mode, "measure")
   assert.equal(options.model, "gpt-test")
+  assert.equal(options.journey, "proposal-accept")
   assert.match(options.artifactDir, /tmp\/eval$/)
 })
 

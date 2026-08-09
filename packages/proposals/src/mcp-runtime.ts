@@ -122,7 +122,7 @@ export const voyantToolContextContribution = defineToolContextContribution({
       },
       proposalAcceptance: {
         async acceptProposalForBooking(
-          proposalVersionId: string,
+          proposalId: string,
           admitted: ToolHandlerActionPolicyContext,
         ) {
           const proposal = await Promise.resolve(
@@ -135,11 +135,32 @@ export const voyantToolContextContribution = defineToolContextContribution({
             ),
           )
           try {
+            const current = await proposalsService.listProposalVersions(db, {
+              proposalId,
+              status: "sent",
+              limit: 2,
+              offset: 0,
+            })
+            if (current.total !== 1 || !current.data[0]) {
+              throw new ToolError(
+                current.total === 0
+                  ? "The Proposal has no current sent version to accept."
+                  : "The Proposal has multiple sent versions and cannot be accepted unambiguously.",
+                "INVALID_INPUT",
+                {
+                  proposalId,
+                  nextSteps: [
+                    "Send exactly one snapshot-backed Proposal Version, then retry with the same Proposal id.",
+                  ],
+                },
+              )
+            }
             const result = await executeAcceptProposalForBookingCommand({
               db,
               context: actionLedgerContext(c),
               admitted,
-              proposalVersionId,
+              proposalId,
+              proposalVersionId: current.data[0].id,
               seedBookingSession: (transactionalDb, input) =>
                 proposal.seedAcceptedProposalBookingSession(transactionalDb, input, c),
             })
