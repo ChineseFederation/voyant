@@ -213,6 +213,26 @@ export const createRoomBlockToolInputSchema = createRoomBlockSchema.extend({
 })
 const createRoomBlockResultSchema = z.object({ roomBlockId: z.string() })
 
+export const REVERSE_ROOM_BLOCK_PICKUP_HANDLER_POLICY = {
+  capabilityId: `${OWNER}#tool.reverse-room-block-pickup`,
+  capabilityVersion: VERSION,
+  canonicalName: "reverse_room_block_pickup",
+  actionPolicy: {
+    id: `${OWNER}#action.reverse-room-block-pickup`,
+    capabilityId: `${OWNER}#action.reverse-room-block-pickup`,
+    version: VERSION,
+    kind: "execute",
+    targetType: "room-block",
+    commandTargetField: "blockId",
+    targetLifecycle: "existing",
+    existingTarget: { durability: "handler-command-result-v1" },
+    risk: "high",
+    ledger: "required",
+    approval: "required",
+    reversible: true,
+  },
+} as const satisfies HandlerActionPolicyExpectation
+
 /** Provider-neutral package services injected for the selected deployment. */
 export interface AccommodationsToolServices {
   searchOwned(input: SearchInput): Promise<unknown>
@@ -225,7 +245,10 @@ export interface AccommodationsToolServices {
   ): Promise<unknown>
   setRoomBlockNights(input: SetNightsInput): Promise<unknown>
   pickupRoomBlock(input: PickupInput): Promise<unknown>
-  reverseRoomBlockPickup(input: ReversalInput): Promise<unknown>
+  reverseRoomBlockPickup(
+    input: ReversalInput,
+    admitted: ToolHandlerActionPolicyContext,
+  ): Promise<unknown>
 }
 
 export type AccommodationsToolContext = ToolContext & {
@@ -429,10 +452,12 @@ export const reverseRoomBlockPickupTool = defineTool<
   inputSchema: reversePickupInputSchema,
   outputSchema: reversalOutcomeSchema,
   annotations: { idempotentHint: true },
+  actionPolicyEnforcement: "handler",
   async handler(input, ctx) {
+    const admitted = admitHandlerActionPolicy(ctx, REVERSE_ROOM_BLOCK_PICKUP_HANDLER_POLICY)
     return parseJsonResult(
       reversalOutcomeSchema,
-      await accommodations(ctx).reverseRoomBlockPickup(input),
+      await accommodations(ctx).reverseRoomBlockPickup(input, admitted),
     )
   },
 })

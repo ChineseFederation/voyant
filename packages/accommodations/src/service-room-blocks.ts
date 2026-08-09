@@ -281,6 +281,21 @@ export async function reverseRoomBlockPickup(
   })
 }
 
+export async function getRoomBlockPickupReversalOutcome(
+  db: PostgresJsDatabase,
+  input: RoomBlockReversalInput,
+): Promise<RoomBlockReversalOutcome> {
+  if (!input.pickupId && !input.stayBookingItemId) return { status: "pickup_not_found" }
+  const condition = input.pickupId
+    ? eq(roomBlockPickups.id, input.pickupId)
+    : eq(roomBlockPickups.stayBookingItemId, input.stayBookingItemId as string)
+  const [pickup] = await db.select().from(roomBlockPickups).where(condition).limit(1)
+  if (!pickup || pickup.blockId !== input.blockId || pickup.status !== "reversed") {
+    return { status: "pickup_not_found" }
+  }
+  return { status: "ok", pickup }
+}
+
 export interface RoomBlockCutoffInput {
   blockId: string
 }

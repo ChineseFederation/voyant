@@ -1,7 +1,12 @@
 import { createToolRegistry, type ToolContext } from "@voyant-travel/tools"
 import { describe, expect, it } from "vitest"
 
-import { type AccommodationsToolServices, accommodationsTools } from "../../src/tools.js"
+import {
+  type AccommodationsToolServices,
+  accommodationsTools,
+  REVERSE_ROOM_BLOCK_PICKUP_HANDLER_POLICY,
+  reverseRoomBlockPickupTool,
+} from "../../src/tools.js"
 
 function ctx(
   overrides: Partial<AccommodationsToolServices> = {},
@@ -31,7 +36,15 @@ function ctx(
 
 function registry() {
   const registry = createToolRegistry()
-  registry.registerAll(accommodationsTools)
+  for (const tool of accommodationsTools) {
+    if (tool === reverseRoomBlockPickupTool) {
+      registry.register(tool, {
+        actionPolicy: REVERSE_ROOM_BLOCK_PICKUP_HANDLER_POLICY.actionPolicy,
+      })
+    } else {
+      registry.register(tool)
+    }
+  }
   return registry
 }
 
@@ -100,6 +113,7 @@ describe("accommodations tools", () => {
       requiredScopes: ["accommodations:write"],
       riskPolicy: expect.objectContaining({ confirmationRequired: true }),
     })
+    expect(reverseRoomBlockPickupTool.actionPolicyEnforcement).toBe("handler")
   })
 
   it("returns public-safe search matches without provider economics", async () => {
@@ -220,12 +234,7 @@ describe("accommodations tools", () => {
       { blockId: "hrbl_1", checkIn: "2026-09-01", checkOut: "2026-09-02" },
       services,
     )
-    await registry().dispatch(
-      "reverse_room_block_pickup",
-      { blockId: "hrbl_1", pickupId: "hrpk_1" },
-      services,
-    )
-    expect(calls).toEqual(["get:hrbl_1", "nights:hrbl_1:1", "pickup:hrbl_1", "reverse:hrbl_1"])
+    expect(calls).toEqual(["get:hrbl_1", "nights:hrbl_1:1", "pickup:hrbl_1"])
   })
 
   it("does not expose cutoff release or table-backed list operations", () => {

@@ -1,3 +1,4 @@
+import { executeAdmittedExistingTargetCommand } from "@voyant-travel/action-ledger"
 import { executeAdmittedCreatedTargetCommand } from "@voyant-travel/action-ledger/created-command"
 import {
   type ActionLedgerRequestContextValues,
@@ -21,6 +22,7 @@ import { eachStayNight, quoteOwnedStay, searchOwnedStays } from "./service-owned
 import {
   createRoomBlock,
   getRoomBlock,
+  getRoomBlockPickupReversalOutcome,
   pickupRoomBlock,
   RoomBlockRoomTypeNotFoundError,
   reverseRoomBlockPickup,
@@ -167,8 +169,32 @@ export const voyantToolContextContribution = defineToolContextContribution({
         },
         pickupRoomBlock: (input: Parameters<typeof pickupRoomBlock>[1]) =>
           pickupRoomBlock(transactionalDb, input),
-        reverseRoomBlockPickup: (input: Parameters<typeof reverseRoomBlockPickup>[1]) =>
-          reverseRoomBlockPickup(transactionalDb, input),
+        reverseRoomBlockPickup: async (
+          input: Parameters<typeof reverseRoomBlockPickup>[1],
+          admitted: ToolHandlerActionPolicyContext,
+        ) => {
+          let outcome: Awaited<ReturnType<typeof reverseRoomBlockPickup>> | undefined
+          const result = await executeAdmittedExistingTargetCommand(
+            {
+              db,
+              context: actionLedgerContext(request as Context),
+              admitted,
+              commandInput: input,
+              evaluatedRisk: "high",
+            },
+            {
+              async prepare(tx) {
+                outcome = await reverseRoomBlockPickup(tx as PostgresJsDatabase, input)
+              },
+              execute() {
+                if (!outcome) throw new Error("Room-block pickup reversal produced no result")
+                return Promise.resolve(outcome)
+              },
+              replay: () => getRoomBlockPickupReversalOutcome(transactionalDb, input),
+            },
+          )
+          return result
+        },
       },
     }
   },

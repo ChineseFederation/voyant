@@ -126,6 +126,11 @@ describe("accommodations deployment manifest", () => {
         expect(action).toMatchObject({ approval: "required", risk: "high" })
       }
     }
+    expect(
+      accommodationsVoyantModule.actions?.find(
+        (action) => action.id === "@voyant-travel/accommodations#action.reverse-room-block-pickup",
+      ),
+    ).toMatchObject({ existingTarget: { durability: "handler-command-result-v1" } })
     expect(accommodationsContentVoyantPlugin.tools).toEqual([
       expect.objectContaining({
         id: "@voyant-travel/accommodations#tool.get-accommodation-content",
