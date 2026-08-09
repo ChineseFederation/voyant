@@ -580,6 +580,38 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
     }
   }
 
+  it("creates a booking for a name-only billing person", async () => {
+    const { productId } = await seedProduct({ pax: null })
+
+    const outcome = await createBooking(db, {
+      productId,
+      bookingNumber: nextBookingNumber(),
+      ...bookingParty(),
+      contactEmail: null,
+      contactPhone: null,
+    })
+
+    expect(outcome.status).toBe("ok")
+    if (outcome.status !== "ok") return
+    const [booking] = await db
+      .select({
+        personId: bookings.personId,
+        contactFirstName: bookings.contactFirstName,
+        contactLastName: bookings.contactLastName,
+        contactEmail: bookings.contactEmail,
+        contactPhone: bookings.contactPhone,
+      })
+      .from(bookings)
+      .where(eq(bookings.id, outcome.result.booking.id))
+    expect(booking).toEqual({
+      personId: "pers_booking_create",
+      contactFirstName: "Alice",
+      contactLastName: "Lead",
+      contactEmail: null,
+      contactPhone: null,
+    })
+  })
+
   it("derives booking pax from travelers when pax is omitted", async () => {
     const { productId } = await seedProduct({ pax: null })
 

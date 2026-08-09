@@ -268,26 +268,40 @@ export function mapBookProductIntentToCommand(
 export function collectBookProductIssues(
   input: BookProductInput,
 ): z.infer<typeof bookProductIssueSchema>[] | null {
+  const toolIssues: z.infer<typeof bookProductIssueSchema>[] = []
+  if (
+    input.personId &&
+    !input.billingContact?.email?.trim() &&
+    !input.billingContact?.phone?.trim()
+  ) {
+    toolIssues.push({
+      path: "billingContact.email",
+      message: "Set billingContact.email to a real address, or set billingContact.phone.",
+    })
+  }
+
   const candidate = mapBookProductIntentToCommand(input, "BK-PENDING-000000")
   const parsed = bookingCreateSchema.safeParse(candidate)
-  if (parsed.success) return null
-  return parsed.error.issues
-    .filter((issue) => !(issue.path.length === 1 && issue.path[0] === "bookingNumber"))
-    .map((issue) => {
-      const rawPath = issue.path.map((segment) => String(segment)).join(".")
-      const path = rawPath.startsWith("contact")
-        ? `billingContact.${rawPath.slice("contact".length, "contact".length + 1).toLowerCase()}${rawPath.slice("contact".length + 1)}`
-        : rawPath
-      const message =
-        rawPath === "personId"
-          ? "Set the TOP-LEVEL personId for a private client (or top-level organizationId for a company). Do not send a billingParty object."
-          : rawPath === "contactFirstName" || rawPath === "contactLastName"
-            ? "Set billingContact.firstName and billingContact.lastName for the private billing party."
-            : rawPath === "contactEmail"
-              ? "Set billingContact.email to a real address, or set billingContact.phone."
-              : issue.message
-      return { path, message }
-    })
+  if (parsed.success) return toolIssues.length > 0 ? toolIssues : null
+  return toolIssues.concat(
+    parsed.error.issues
+      .filter((issue) => !(issue.path.length === 1 && issue.path[0] === "bookingNumber"))
+      .map((issue) => {
+        const rawPath = issue.path.map((segment) => String(segment)).join(".")
+        const path = rawPath.startsWith("contact")
+          ? `billingContact.${rawPath.slice("contact".length, "contact".length + 1).toLowerCase()}${rawPath.slice("contact".length + 1)}`
+          : rawPath
+        const message =
+          rawPath === "personId"
+            ? "Set the TOP-LEVEL personId for a private client (or top-level organizationId for a company). Do not send a billingParty object."
+            : rawPath === "contactFirstName" || rawPath === "contactLastName"
+              ? "Set billingContact.firstName and billingContact.lastName for the private billing party."
+              : rawPath === "contactEmail"
+                ? "Set billingContact.email to a real address, or set billingContact.phone."
+                : issue.message
+        return { path, message }
+      }),
+  )
 }
 
 /**

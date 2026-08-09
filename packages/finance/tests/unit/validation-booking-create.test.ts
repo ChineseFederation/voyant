@@ -128,14 +128,16 @@ describe("bookingCreateSchema", () => {
     expect(result.contactEmail).toBeNull()
   })
 
-  it("requires billing person email or phone", () => {
-    expect(() =>
-      bookingCreateSchema.parse({
-        ...valid,
-        contactEmail: null,
-        contactPhone: "   ",
-      }),
-    ).toThrow("Billing person requires an email or phone number")
+  it("accepts a name-only billing person when contact details are optional", () => {
+    const result = bookingCreateSchema.parse({
+      ...valid,
+      contactEmail: null,
+      contactPhone: null,
+    })
+
+    expect(result.personId).toBe("pers_123")
+    expect(result.contactEmail).toBeNull()
+    expect(result.contactPhone).toBeNull()
   })
 
   it("rejects placeholder billing emails", () => {

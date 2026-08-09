@@ -293,20 +293,12 @@ function requireCompleteBookingParty(
       })
     }
     const hasRealEmail = isRealEmail(value.contactEmail)
-    const hasPhone = Boolean(value.contactPhone?.trim())
 
     if (value.contactEmail && !hasRealEmail) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["contactEmail"],
         message: "Billing email cannot be a placeholder address",
-      })
-    }
-    if (!hasRealEmail && !hasPhone) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["contactEmail"],
-        message: "Billing person requires an email or phone number",
       })
     }
   } else if (value.contactEmail && !isRealEmail(value.contactEmail)) {
