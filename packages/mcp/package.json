@@ -1,6 +1,6 @@
 {
   "name": "@voyant-travel/mcp",
-  "version": "0.21.6",
+  "version": "0.21.7",
   "license": "Apache-2.0",
   "type": "module",
   "exports": {

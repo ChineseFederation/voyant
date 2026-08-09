@@ -1,5 +1,11 @@
 # @voyant-travel/mcp
 
+## 0.21.7
+
+### Patch Changes
+
+- 98e6336: Keep zero-hit Tool discovery fallbacks inside a recognized domain and report the fallback count accurately.
+
 ## 0.21.6
 
 ### Patch Changes
