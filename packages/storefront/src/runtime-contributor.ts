@@ -13,11 +13,14 @@ import type { VoyantRuntimeHostPrimitives } from "@voyant-travel/core"
 import type { VoyantPort } from "@voyant-travel/core/project"
 import { createStorefrontCustomerBusinessOnboardingRuntime } from "./customer-business-onboarding-runtime.js"
 import { storefrontCustomerPortalRuntimePort, storefrontOffersRuntimePort } from "./runtime-port.js"
+import { createClosedStorefrontShoppingLiveProvider } from "./shopping/closed-live-provider.js"
 import { createClosedStorefrontShoppingAdapters } from "./shopping/closed-provider-adapters.js"
 import { createManagedStorefrontShoppingRuntime } from "./shopping/managed-runtime.js"
 import {
+  type StorefrontDynamicPackageSourceProvider,
   type StorefrontOpaqueReferenceIssuer,
   type StorefrontShoppingLiveProvider,
+  storefrontDynamicPackageSourceProviderPort,
   storefrontOpaqueReferenceIssuerPort,
   storefrontPresentationFxProviderPort,
   storefrontShoppingLiveProviderPort,
@@ -37,7 +40,6 @@ export function createStorefrontRuntimePortContribution(
   const managedShoppingDependencies = [
     catalogSearchRuntimePort,
     catalogRuntimeServicesPort,
-    storefrontShoppingLiveProviderPort,
     storefrontOpaqueReferenceIssuerPort,
   ] as const
   const canProvideManagedShopping =
@@ -60,24 +62,50 @@ export function createStorefrontRuntimePortContribution(
           [storefrontShoppingRuntimePort.id]: Promise.all([
             getRuntimePort?.<CatalogSearchRuntimeOptions>(catalogSearchRuntimePort),
             getRuntimePort?.<CatalogRuntimeServices>(catalogRuntimeServicesPort),
-            getRuntimePort?.<StorefrontShoppingLiveProvider>(storefrontShoppingLiveProviderPort),
+            host.hasRuntimePort?.(storefrontShoppingLiveProviderPort)
+              ? getRuntimePort?.<StorefrontShoppingLiveProvider>(storefrontShoppingLiveProviderPort)
+              : undefined,
+            host.hasRuntimePort?.(storefrontDynamicPackageSourceProviderPort)
+              ? getRuntimePort?.<StorefrontDynamicPackageSourceProvider>(
+                  storefrontDynamicPackageSourceProviderPort,
+                )
+              : undefined,
             getRuntimePort?.<StorefrontOpaqueReferenceIssuer>(storefrontOpaqueReferenceIssuerPort),
             host.hasRuntimePort?.(storefrontPresentationFxProviderPort)
               ? getRuntimePort?.<PresentationFxQuoter>(storefrontPresentationFxProviderPort)
               : undefined,
-          ]).then(([catalogSearch, catalogServices, live, references, quoteFx]) => {
-            const adapters = createClosedStorefrontShoppingAdapters({
-              primitives: host.primitives,
-              catalogSearch: catalogSearch as CatalogSearchRuntimeOptions,
-              catalogServices: catalogServices as CatalogRuntimeServices,
-            })
-            return createManagedStorefrontShoppingRuntime({
-              ...adapters,
-              live: live as StorefrontShoppingLiveProvider,
-              references: references as StorefrontOpaqueReferenceIssuer,
-              ...(quoteFx ? { quoteFx } : {}),
-            })
-          }),
+          ]).then(
+            ([
+              catalogSearch,
+              catalogServices,
+              configuredLive,
+              packageSources,
+              references,
+              quoteFx,
+            ]) => {
+              const adapters = createClosedStorefrontShoppingAdapters({
+                primitives: host.primitives,
+                catalogSearch: catalogSearch as CatalogSearchRuntimeOptions,
+                catalogServices: catalogServices as CatalogRuntimeServices,
+              })
+              const live =
+                configuredLive ??
+                createClosedStorefrontShoppingLiveProvider({
+                  primitives: host.primitives,
+                  catalogServices: catalogServices as CatalogRuntimeServices,
+                  markets: adapters.markets,
+                  ...(packageSources
+                    ? { packages: packageSources as StorefrontDynamicPackageSourceProvider }
+                    : {}),
+                })
+              return createManagedStorefrontShoppingRuntime({
+                ...adapters,
+                live,
+                references: references as StorefrontOpaqueReferenceIssuer,
+                ...(quoteFx ? { quoteFx } : {}),
+              })
+            },
+          ),
         }
       : {}),
   }

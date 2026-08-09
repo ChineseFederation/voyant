@@ -38,8 +38,10 @@
     "@voyant-travel/connect-adapter": "^0.5.0",
     "@voyant-travel/connect-cruises": "^0.6.2",
     "@voyant-travel/connect-sdk": "^0.10.0",
+    "@voyant-travel/core": "workspace:^",
     "@voyant-travel/data-sdk": "^0.8.0",
-    "@voyant-travel/graph-contracts": "workspace:^"
+    "@voyant-travel/graph-contracts": "workspace:^",
+    "@voyant-travel/storefront": "workspace:^"
   },
   "peerDependencies": {
     "@voyant-travel/catalog": "workspace:^",

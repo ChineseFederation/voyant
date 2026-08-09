@@ -65,6 +65,52 @@ type FlightIntent = Extract<StorefrontShoppingIntent, { kind: "flight" }>
 type StayIntent = Extract<StorefrontShoppingIntent, { kind: "stay" }>
 type PackageIntent = Extract<StorefrontShoppingIntent, { kind: "package" }>
 
+export interface StorefrontDynamicPackageSourceOffer {
+  nativePrice: { amount: string; currency: string }
+  title: string
+  origin: string
+  destination: string
+  departureDate: string
+  nights: number
+  accommodationName: string
+  boardName?: string
+  image?: { url: string; alt?: string }
+  expiresAt?: string
+  selection: Readonly<Record<string, unknown>>
+  providerData?: Readonly<Record<string, unknown>>
+}
+
+export interface StorefrontDynamicPackageSource {
+  /** The source is a closure over its admitted connection(s) and credentials. */
+  search(input: {
+    origin: string
+    destination: PackageIntent["destination"]
+    departureDateFrom: string
+    departureDateTo: string
+    nights: { min: number; max: number }
+    occupancy: { adults: number; children?: number; childrenAges?: number[]; infants?: number }
+    boards?: string[]
+    minStars?: number
+    pagination?: { cursor?: string; limit?: number }
+    scope: Pick<StorefrontResolvedScope, "marketId" | "locale" | "currency">
+  }): Promise<{
+    offers: readonly StorefrontDynamicPackageSourceOffer[]
+    status?: "ok" | "partial" | "empty"
+  }>
+}
+
+/**
+ * Closed deployment source resolver. Implementations derive their operator,
+ * connection admission, and credentials from server-owned configuration.
+ */
+export interface StorefrontDynamicPackageSourceProvider {
+  resolveSources(input: {
+    context: StorefrontShoppingContext
+    scope: StorefrontResolvedScope
+    destination: PackageIntent["destination"]
+  }): Promise<readonly StorefrontDynamicPackageSource[]>
+}
+
 export type StorefrontLiveSourceStatus =
   | "ok"
   | "partial"
@@ -171,6 +217,11 @@ export const storefrontShoppingLiveProviderPort = methodsPort<StorefrontShopping
   "storefront.shopping.live-provider",
   ["searchFlights", "searchStays", "searchPackages"],
 )
+export const storefrontDynamicPackageSourceProviderPort =
+  methodsPort<StorefrontDynamicPackageSourceProvider>(
+    "storefront.shopping.dynamic-package-source-provider",
+    ["resolveSources"],
+  )
 export const storefrontPresentationFxProviderPort = definePort<PresentationFxQuoter>({
   id: "storefront.shopping.presentation-fx",
   test(provider) {

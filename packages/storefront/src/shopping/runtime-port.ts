@@ -10,6 +10,10 @@ import type {
   StorefrontTripSelectionUpdate,
 } from "./schemas.js"
 
+// Package manifests consume graph-safe provider contracts through this
+// dedicated runtime-port surface rather than the runtime-heavy provider module.
+export { storefrontDynamicPackageSourceProviderPort } from "./provider-ports.js"
+
 /** Server-derived authority. It must never be accepted from a browser body. */
 export interface StorefrontShoppingContext {
   storefrontId: string

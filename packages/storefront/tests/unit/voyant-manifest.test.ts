@@ -13,6 +13,7 @@ import {
   storefrontPaymentReconciliationJobRuntimePort,
 } from "../../src/runtime-port.js"
 import {
+  storefrontDynamicPackageSourceProviderPort,
   storefrontOpaqueReferenceIssuerPort,
   storefrontPresentationFxProviderPort,
   storefrontShoppingLiveProviderPort,
@@ -46,7 +47,8 @@ describe("storefront deployment manifest", () => {
       runtimePorts: [
         { id: "catalog.search-runtime" },
         { id: catalogRuntimeServicesPort.id },
-        { id: storefrontShoppingLiveProviderPort.id },
+        { id: storefrontShoppingLiveProviderPort.id, optional: true },
+        { id: storefrontDynamicPackageSourceProviderPort.id, optional: true },
         { id: storefrontOpaqueReferenceIssuerPort.id },
         { id: storefrontPresentationFxProviderPort.id, optional: true },
       ],

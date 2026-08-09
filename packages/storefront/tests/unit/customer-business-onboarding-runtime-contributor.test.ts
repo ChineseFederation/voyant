@@ -4,10 +4,7 @@ import { catalogRuntimeServicesPort } from "@voyant-travel/catalog/runtime-contr
 import { describe, expect, it, vi } from "vitest"
 
 import { createStorefrontRuntimePortContribution } from "../../src/runtime-contributor.js"
-import {
-  storefrontOpaqueReferenceIssuerPort,
-  storefrontShoppingLiveProviderPort,
-} from "../../src/shopping/provider-ports.js"
+import { storefrontOpaqueReferenceIssuerPort } from "../../src/shopping/provider-ports.js"
 import { storefrontShoppingRuntimePort } from "../../src/shopping/runtime-port.js"
 
 function primitives() {
@@ -51,14 +48,10 @@ describe("storefront customer business onboarding runtime contribution", () => {
     expect(ports).not.toHaveProperty(storefrontShoppingRuntimePort.id)
   })
 
-  it("contributes managed shopping after every closed dependency is configured", async () => {
+  it("contributes the closed live provider without a browser-selected provider port", async () => {
     const providers = new Map<string, unknown>([
       [catalogSearchRuntimePort.id, { resolveRuntime: vi.fn() }],
       [catalogRuntimeServicesPort.id, { fieldPolicyRegistries: vi.fn() }],
-      [
-        storefrontShoppingLiveProviderPort.id,
-        { searchFlights: vi.fn(), searchStays: vi.fn(), searchPackages: vi.fn() },
-      ],
       [storefrontOpaqueReferenceIssuerPort.id, { issue: vi.fn() }],
     ])
     const ports = createStorefrontRuntimePortContribution({

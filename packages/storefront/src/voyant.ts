@@ -26,6 +26,7 @@ import {
   storefrontVerificationRuntimePort,
 } from "./runtime-port.js"
 import {
+  storefrontDynamicPackageSourceProviderPort,
   storefrontOpaqueReferenceIssuerPort,
   storefrontPresentationFxProviderPort,
   storefrontShoppingLiveProviderPort,
@@ -441,7 +442,8 @@ export const storefrontShoppingProviderVoyantModule = defineModule({
   runtimePorts: [
     catalogSearchRuntimePortReference,
     requirePort(catalogRuntimeServicesPort),
-    requirePort(storefrontShoppingLiveProviderPort),
+    requirePort(storefrontShoppingLiveProviderPort, { optional: true }),
+    requirePort(storefrontDynamicPackageSourceProviderPort, { optional: true }),
     requirePort(storefrontOpaqueReferenceIssuerPort),
     requirePort(storefrontPresentationFxProviderPort, { optional: true }),
   ],

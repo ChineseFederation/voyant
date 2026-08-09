@@ -6144,12 +6144,18 @@ importers:
       '@voyant-travel/connect-sdk':
         specifier: ^0.10.0
         version: 0.10.0
+      '@voyant-travel/core':
+        specifier: workspace:^
+        version: link:../core
       '@voyant-travel/data-sdk':
         specifier: ^0.8.0
         version: 0.8.0
       '@voyant-travel/graph-contracts':
         specifier: workspace:^
         version: link:../graph-contracts
+      '@voyant-travel/storefront':
+        specifier: workspace:^
+        version: link:../storefront
     devDependencies:
       '@voyant-travel/catalog':
         specifier: workspace:^

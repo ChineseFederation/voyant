@@ -10,6 +10,8 @@ import {
   type MergedFlightOffer,
 } from "@voyant-travel/flights"
 import type {
+  StorefrontDynamicPackageSource,
+  StorefrontDynamicPackageSourceProvider,
   StorefrontInternalPackageOffer,
   StorefrontInternalStayOffer,
   StorefrontLiveSearchPage,
@@ -18,6 +20,12 @@ import type {
 } from "./provider-ports.js"
 import type { StorefrontShoppingContext } from "./runtime-port.js"
 import type { StorefrontResolvedScope, StorefrontShoppingIntent } from "./schemas.js"
+
+export type {
+  StorefrontDynamicPackageSource,
+  StorefrontDynamicPackageSourceOffer,
+  StorefrontDynamicPackageSourceProvider,
+} from "./provider-ports.js"
 
 type FlightIntent = Extract<StorefrontShoppingIntent, { kind: "flight" }>
 type StayIntent = Extract<StorefrontShoppingIntent, { kind: "stay" }>
@@ -59,56 +67,13 @@ export interface StorefrontLiveStayFanOutResolver {
   ): Promise<StorefrontStayPresentation | undefined>
 }
 
-export interface StorefrontDynamicPackageSourceOffer {
-  nativePrice: { amount: string; currency: string }
-  title: string
-  origin: string
-  destination: string
-  departureDate: string
-  nights: number
-  accommodationName: string
-  boardName?: string
-  image?: { url: string; alt?: string }
-  expiresAt?: string
-  selection: Readonly<Record<string, unknown>>
-  providerData?: Readonly<Record<string, unknown>>
-}
-
-export interface StorefrontDynamicPackageSource {
-  /** The source is a closure over its Connect connection and credentials. */
-  search(input: {
-    origin: string
-    destination: PackageIntent["destination"]
-    departureDateFrom: string
-    departureDateTo: string
-    nights: { min: number; max: number }
-    occupancy: { adults: number; children?: number; childrenAges?: number[]; infants?: number }
-    boards?: string[]
-    minStars?: number
-    pagination?: { cursor?: string; limit?: number }
-    scope: Pick<StorefrontResolvedScope, "marketId" | "locale" | "currency">
-  }): Promise<{
-    offers: readonly StorefrontDynamicPackageSourceOffer[]
-    status?: "ok" | "partial" | "empty"
-  }>
-}
-
-/**
- * Closed Connect source resolver. No connection, provider, operator, or vendor
- * selector is accepted from the shopping intent.
- */
-export interface StorefrontDynamicPackageConnectPort {
-  resolveSources(
-    input: Omit<TrustedShoppingInput<PackageIntent>, "intent"> & {
-      destination: PackageIntent["destination"]
-    },
-  ): Promise<readonly StorefrontDynamicPackageSource[]>
-}
+/** @deprecated Use the provider-neutral source-provider name. */
+export type StorefrontDynamicPackageConnectPort = StorefrontDynamicPackageSourceProvider
 
 export interface CreateStorefrontShoppingLiveProviderOptions {
   flights?: StorefrontLiveFlightFanOutResolver
   stays?: StorefrontLiveStayFanOutResolver
-  packages?: StorefrontDynamicPackageConnectPort
+  packages?: StorefrontDynamicPackageSourceProvider
   perSourceTimeoutMs?: number
 }
 

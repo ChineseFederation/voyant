@@ -98,6 +98,7 @@ export function createCatalogRuntime(
     resolvePaymentAdapter: options.resolvePaymentAdapter,
     ...(options.analytics ? { analytics: options.analytics } : {}),
   })
+  const presentAvailabilityCandidate = extensions.accommodations.presentAvailabilityCandidate
   const services: CatalogRuntimeServices = {
     defaultSlices: DEFAULT_SLICES,
     ensureSourceRegistry: (env) => ensureBookingEngineRegistry(env as never),
@@ -107,6 +108,11 @@ export function createCatalogRuntime(
     getOwnedHandlersFromContext: (context) =>
       getOwnedBookingHandlerRegistryFromContext(context as never),
     getOwnedAvailabilitySearchHandlers: () => ownedAvailabilitySearchHandlers,
+    ...(presentAvailabilityCandidate
+      ? {
+          presentAvailabilityCandidate: (input) => presentAvailabilityCandidate(input),
+        }
+      : {}),
     registerCompositeBookingSessionHandler(handler) {
       if (compositeBookingSessionHandler && compositeBookingSessionHandler !== handler) {
         throw new Error("A composite Booking Session handler is already registered")

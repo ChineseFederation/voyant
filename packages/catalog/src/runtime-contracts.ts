@@ -1,3 +1,4 @@
+import type { AvailabilityCandidate } from "@voyant-travel/catalog-contracts/adapter/contract"
 import type {
   OfferPreviewOutcomeV1,
   OfferPreviewRequestV1,
@@ -73,6 +74,22 @@ export interface CatalogAccommodationsRuntimeExtension extends CatalogPolicyRunt
     host: CatalogOwnedBookingHandlerHost,
   ): void
   registerOwnedAvailabilitySearchHandler(registry: OwnedAvailabilitySearchHandlerRegistry): void
+  presentAvailabilityCandidate?(input: {
+    db: AnyDrizzleDb
+    registry: SourceAdapterRegistry
+    candidate: AvailabilityCandidate
+    locale: string
+    market: string
+    currency: string
+  }): Promise<
+    | {
+        title: string
+        roomName?: string
+        boardName?: string
+        image?: { url: string; alt?: string }
+      }
+    | undefined
+  >
 }
 
 export interface CatalogChartersRuntimeExtension extends CatalogPolicyRuntimeExtension {}
@@ -327,6 +344,22 @@ export interface CatalogRuntimeServices {
   getOwnedHandlers(env: Readonly<Record<string, unknown>>): OwnedBookingHandlerRegistry
   getOwnedHandlersFromContext(context: unknown): OwnedBookingHandlerRegistry
   getOwnedAvailabilitySearchHandlers(): OwnedAvailabilitySearchHandlerRegistry
+  presentAvailabilityCandidate?(input: {
+    db: AnyDrizzleDb
+    registry: SourceAdapterRegistry
+    candidate: AvailabilityCandidate
+    locale: string
+    market: string
+    currency: string
+  }): Promise<
+    | {
+        title: string
+        roomName?: string
+        boardName?: string
+        image?: { url: string; alt?: string }
+      }
+    | undefined
+  >
   registerCompositeBookingSessionHandler?(handler: BookingSessionCompositeHandler): void
   getCompositeBookingSessionHandler?(): BookingSessionCompositeHandler | undefined
   buildEmbeddingProvider(env: Readonly<Record<string, unknown>>): EmbeddingProvider | undefined

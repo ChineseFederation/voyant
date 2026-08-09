@@ -32,3 +32,4 @@ export {
   type VoyantConnectSourceRegistration,
   type VoyantConnectSourcesOptions,
 } from "./sources.js"
+export { createVoyantConnectStorefrontPackageSourceProvider } from "./storefront-package-sources.js"
