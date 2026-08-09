@@ -182,6 +182,7 @@ export interface BookingSessionRepository {
   }): Promise<BookingSessionInternalRecord[]>
   purgeSessionArtifacts(sessionId: string): Promise<void>
   listActiveQuotes(sessionId: string): Promise<BookingQuoteInternalRecord[]>
+  supersedeActiveQuotes?(sessionId: string): Promise<void>
   getQuote(quoteId: string): Promise<BookingQuoteInternalRecord | null>
   saveQuote(record: BookingQuoteInternalRecord): Promise<void>
   getHold(holdId: string): Promise<BookingHoldInternalRecord | null>
@@ -213,7 +214,10 @@ export interface BookingSessionRepository {
     now: Date
   }): Promise<void>
   withTransactionContext<T>(tx: unknown, operation: () => Promise<T>): Promise<T>
-  withSessionTransaction<T>(sessionId: string, operation: (tx: unknown) => Promise<T>): Promise<T>
+  withSessionTransaction<T>(
+    sessionId: string,
+    operation: (tx: unknown, session?: BookingSessionInternalRecord | null) => Promise<T>,
+  ): Promise<T>
 }
 
 export interface ComposeBookingQuoteInput {
@@ -831,8 +835,8 @@ export function createBookingSessionModule(
     },
 
     async resumeSession(sessionId, access) {
-      return repository.withSessionTransaction(sessionId, async (tx) => {
-        const session = await loadSession(sessionId)
+      return repository.withSessionTransaction(sessionId, async (tx, lockedSession) => {
+        const session = lockedSession === undefined ? await loadSession(sessionId) : lockedSession
         if (!session) return { kind: "rejected", error: { kind: "session_expired" } }
         const authorized = await authorizeSessionAccess(session, access, "read")
         if (authorized) return authorized
@@ -915,8 +919,8 @@ export function createBookingSessionModule(
     },
 
     async renewSession(sessionId, input, access) {
-      return repository.withSessionTransaction(sessionId, async (tx) => {
-        const session = await loadSession(sessionId)
+      return repository.withSessionTransaction(sessionId, async (tx, lockedSession) => {
+        const session = lockedSession === undefined ? await loadSession(sessionId) : lockedSession
         if (!session) return { kind: "rejected", error: { kind: "session_expired" } }
         const authorized = await authorizeSessionAccess(session, access, "renew")
         if (authorized) return authorized
@@ -951,10 +955,7 @@ export function createBookingSessionModule(
         }
 
         await releaseLiveHolds(repository, options.ports, session, access, at, tx)
-        for (const quote of await repository.listActiveQuotes(session.id)) {
-          quote.state = "superseded"
-          await repository.saveQuote(quote)
-        }
+        await supersedeActiveQuotes(repository, session.id)
         session.expiresAt = renewedExpiry
         session.revision += 1
         session.updatedAt = at
@@ -972,8 +973,8 @@ export function createBookingSessionModule(
     },
 
     async updateSession(sessionId, input, access) {
-      return repository.withSessionTransaction(sessionId, async (tx) => {
-        const session = await loadSession(sessionId)
+      return repository.withSessionTransaction(sessionId, async (tx, lockedSession) => {
+        const session = lockedSession === undefined ? await loadSession(sessionId) : lockedSession
         if (!session) return { kind: "rejected", error: { kind: "session_expired" } }
         const authorized = await authorizeSessionAccess(session, access, "update")
         if (authorized) return authorized
@@ -1009,10 +1010,7 @@ export function createBookingSessionModule(
         session.statePayload = statePayload
         session.revision += 1
         session.updatedAt = at
-        for (const quote of await repository.listActiveQuotes(session.id)) {
-          quote.state = "superseded"
-          await repository.saveQuote(quote)
-        }
+        await supersedeActiveQuotes(repository, session.id)
         await repository.saveSession(session)
         await appendSessionAudit(repository, session, "update", access, at)
         const outcome: BookingSessionOutcomeV1 = {
@@ -1025,8 +1023,8 @@ export function createBookingSessionModule(
     },
 
     async quoteSession(sessionId, input, access) {
-      return repository.withSessionTransaction(sessionId, async (tx) => {
-        const session = await loadSession(sessionId)
+      return repository.withSessionTransaction(sessionId, async (tx, lockedSession) => {
+        const session = lockedSession === undefined ? await loadSession(sessionId) : lockedSession
         if (!session) return { kind: "rejected", error: { kind: "session_expired" } }
         const authorized = await authorizeSessionAccess(session, access, "quote")
         if (authorized) return authorized
@@ -1046,10 +1044,7 @@ export function createBookingSessionModule(
         if (revisionRejected) return completeAndReturn(repository, claim.id, revisionRejected)
 
         await releaseLiveHolds(repository, options.ports, session, access, at, tx)
-        for (const quote of await repository.listActiveQuotes(session.id)) {
-          quote.state = "superseded"
-          await repository.saveQuote(quote)
-        }
+        await supersedeActiveQuotes(repository, session.id)
 
         const composed = await options.ports.composeQuote({ session, now: at, tx })
         if (composed.status === "unavailable") {
@@ -2214,6 +2209,20 @@ function commitRejectionNextAction(
       return "request_fresh_quote"
     case "incomplete_draft":
       return "update_selection"
+  }
+}
+
+async function supersedeActiveQuotes(
+  repository: BookingSessionRepository,
+  sessionId: string,
+): Promise<void> {
+  if (repository.supersedeActiveQuotes) {
+    await repository.supersedeActiveQuotes(sessionId)
+    return
+  }
+  for (const quote of await repository.listActiveQuotes(sessionId)) {
+    quote.state = "superseded"
+    await repository.saveQuote(quote)
   }
 }
 

@@ -217,6 +217,17 @@ export function createDrizzleBookingSessionRepository(
         )
       return rows.map(mapQuote)
     },
+    async supersedeActiveQuotes(sessionId) {
+      await resolveDb()
+        .update(bookingSessionQuotesTable)
+        .set({ state: "superseded" })
+        .where(
+          and(
+            eq(bookingSessionQuotesTable.sessionId, sessionId),
+            eq(bookingSessionQuotesTable.state, "active"),
+          ),
+        )
+    },
     async getQuote(quoteId) {
       const [row] = await resolveDb()
         .select()
@@ -443,10 +454,13 @@ export function createDrizzleBookingSessionRepository(
       }
       return db.transaction(async (tx) =>
         txStore.run(tx as PostgresJsDatabase, async () => {
-          await resolveDb().execute(
-            sql`select id from booking_sessions where id = ${sessionId} for update`,
-          )
-          return operation(tx)
+          const [row] = await resolveDb()
+            .select()
+            .from(bookingSessionsTable)
+            .where(eq(bookingSessionsTable.id, sessionId))
+            .for("update")
+            .limit(1)
+          return operation(tx, row ? mapSession(row) : null)
         }),
       )
     },

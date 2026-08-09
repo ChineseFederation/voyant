@@ -91,6 +91,13 @@ export function createInMemoryBookingSessionRepository(): InMemoryBookingSession
         .filter((quote) => quote.sessionId === sessionId && quote.state === "active")
         .map(cloneQuote)
     },
+    async supersedeActiveQuotes(sessionId) {
+      for (const [id, quote] of repository.quotes) {
+        if (quote.sessionId === sessionId && quote.state === "active") {
+          repository.quotes.set(id, { ...cloneQuote(quote), state: "superseded" })
+        }
+      }
+    },
     async getQuote(quoteId) {
       const quote = repository.quotes.get(quoteId)
       return quote ? cloneQuote(quote) : null
@@ -217,7 +224,8 @@ export function createInMemoryBookingSessionRepository(): InMemoryBookingSession
         auditEvents: cloneMap(repository.auditEvents, cloneAudit),
       }
       try {
-        return await operation(undefined)
+        const session = repository.sessions.get(sessionId)
+        return await operation(undefined, session ? cloneSession(session) : null)
       } catch (error) {
         repository.sessions = snapshot.sessions
         repository.quotes = snapshot.quotes

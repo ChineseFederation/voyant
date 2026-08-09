@@ -848,6 +848,40 @@ describe("Booking Session v1 owned tracer", () => {
     expect(harness.inventory.bookingIds).toEqual([])
   })
 
+  it("reuses the transaction-locked Session and supersedes Quotes in one repository operation", async () => {
+    const { harness, session, capability, quote } = await createQuoteAndHold()
+    let getSessionCalls = 0
+    let supersedeCalls = 0
+    const getSession = harness.repository.getSession.bind(harness.repository)
+    const supersedeActiveQuotes = harness.repository.supersedeActiveQuotes!.bind(harness.repository)
+    harness.repository.getSession = async (sessionId) => {
+      getSessionCalls += 1
+      return getSession(sessionId)
+    }
+    harness.repository.supersedeActiveQuotes = async (sessionId) => {
+      supersedeCalls += 1
+      return supersedeActiveQuotes(sessionId)
+    }
+    harness.repository.listActiveQuotes = async () => {
+      throw new Error("update should not load Quotes before superseding them")
+    }
+
+    const updated = await harness.module.updateSession(
+      session.id,
+      {
+        idempotencyKey: "update_bulk_supersede",
+        expectedRevision: session.revision,
+        selection: { departureSlotId: "slot_later" },
+      },
+      { ...ANONYMOUS_ACCESS, capability },
+    )
+
+    expect(updated).toMatchObject({ kind: "session_updated", session: { revision: 2 } })
+    expect(getSessionCalls).toBe(0)
+    expect(supersedeCalls).toBe(1)
+    expect(harness.repository.quotes.get(quote.id)?.state).toBe("superseded")
+  })
+
   it("checks Hold expiry synchronously at Commit", async () => {
     const { harness, session, capability, quote, hold } = await createQuoteAndHold()
     harness.advance(61_000)
