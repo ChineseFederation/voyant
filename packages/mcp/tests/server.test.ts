@@ -955,7 +955,8 @@ describe("createMcpApiRoutes", () => {
       | undefined
     const invocationSchema = listedTool?.inputSchema.properties?._voyant
     expect(invocationSchema?.properties).toHaveProperty("reasonCode")
-    expect(invocationSchema?.properties).not.toHaveProperty("confirmed")
+    expect(invocationSchema?.properties).toHaveProperty("confirmed")
+    expect(invocationSchema?.required ?? []).not.toContain("confirmed")
     expect(invocationSchema?.properties).not.toHaveProperty("targetId")
     expect(invocationSchema?.required ?? []).not.toContain("targetId")
     expect(listedTool?._meta).toMatchObject({
@@ -1642,7 +1643,7 @@ describe("createMcpApiRoutes", () => {
           targetType: "notification",
           risk: "critical",
           ledger: "required",
-          approval: "required",
+          approval: "never",
         },
       },
     )
@@ -1685,7 +1686,7 @@ describe("createMcpApiRoutes", () => {
             invocation: {
               controlField: "_voyant",
               requiredFields: ["confirmed"],
-              optionalFields: ["reasonCode", "approvalId"],
+              optionalFields: ["reasonCode"],
               targetResolution: "package-resolver",
             },
           },
@@ -1702,7 +1703,6 @@ describe("createMcpApiRoutes", () => {
             message: "hello",
             _voyant: {
               confirmed: true,
-              approvalId: "approval_1",
             },
           },
         }),
@@ -1718,7 +1718,6 @@ describe("createMcpApiRoutes", () => {
         resolvedTargetId: "notification:hello",
         invocation: {
           confirmed: true,
-          approvalId: "approval_1",
         },
       }),
     ])

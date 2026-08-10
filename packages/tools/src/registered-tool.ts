@@ -71,6 +71,11 @@ function deriveActionPolicy(
   action: ToolActionPolicyBinding,
 ): ToolActionPolicyManifest {
   const enforcement = tool.actionPolicyEnforcement ?? "generic"
+  if (action.kind === "execute" && action.approval === "required" && enforcement !== "handler") {
+    throw new Error(
+      `Tool "${tool.name}" action "${action.id}" approval-required execution requires handler-owned durable command enforcement`,
+    )
+  }
   if (action.targetLifecycle === "existing" && action.existingTarget) {
     if (action.kind !== "execute" || action.ledger !== "required") {
       throw new Error(
@@ -174,20 +179,23 @@ function deriveActionPolicy(
       }
     }
   }
+  const optionalApprovalFields =
+    action.approval === "never"
+      ? []
+      : tool.resolvesIdempotencyKeyServerSide || serverOwnedGenericTarget
+        ? (["approvalId"] as const)
+        : (["approvalId", "idempotencyFingerprint"] as const)
+  const optionalConfirmationFields =
+    action.kind === "execute" && !requiredFields.includes("confirmed")
+      ? (["confirmed"] as const)
+      : []
   return {
     ...action,
     enforcement,
     invocation: {
       controlField: TOOL_ACTION_INVOCATION_FIELD,
       requiredFields,
-      optionalFields:
-        enforcement === "generic"
-          ? serverOwnedGenericTarget
-            ? ["reasonCode", "approvalId"]
-            : ["reasonCode", "approvalId", "idempotencyFingerprint"]
-          : tool.resolvesIdempotencyKeyServerSide
-            ? ["reasonCode", "approvalId"]
-            : ["reasonCode", "approvalId", "idempotencyFingerprint"],
+      optionalFields: ["reasonCode", ...optionalConfirmationFields, ...optionalApprovalFields],
       fingerprintAlgorithm: "action-ledger-command-v1",
       ...targetResolution,
     },

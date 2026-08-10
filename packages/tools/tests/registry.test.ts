@@ -475,7 +475,10 @@ describe("createToolRegistry", () => {
       commandTargetField: "recordId",
       existingTarget: { durability: "handler-command-result-v1" },
       enforcement: "handler",
-      invocation: { requiredFields: ["idempotencyKey"] },
+      invocation: {
+        requiredFields: ["idempotencyKey"],
+        optionalFields: ["reasonCode", "confirmed"],
+      },
     })
     expect(registry.list()[0]?.actionPolicy?.invocation.requiredFields).not.toContain("targetId")
 
@@ -495,6 +498,44 @@ describe("createToolRegistry", () => {
         actionPolicy: { ...action, approval: "conditional" },
       }),
     ).toThrow(/conditional approval is unsupported/)
+  })
+
+  it("rejects approval-required generic execution because dispatch cannot be durably fenced", () => {
+    const definition = defineTool({
+      name: "publish_record",
+      description: "Publish a record.",
+      inputSchema: z.object({ recordId: z.string() }),
+      outputSchema: z.object({ id: z.string() }),
+      requiredScopes: ["records:write"],
+      tier: "write",
+      riskPolicy: {
+        destructive: false,
+        reversible: true,
+        dryRunSupported: false,
+        confirmationRequired: true,
+        sideEffects: ["data-write"],
+      },
+      async handler({ recordId }) {
+        return { id: recordId }
+      },
+    })
+
+    expect(() =>
+      createToolRegistry().register(definition, {
+        actionPolicy: {
+          id: "action.publish-record",
+          capabilityId: "@voyant-travel/test#action.publish-record",
+          version: "v1",
+          kind: "execute",
+          targetType: "record",
+          commandTargetField: "recordId",
+          targetLifecycle: "existing",
+          risk: "medium",
+          ledger: "required",
+          approval: "required",
+        },
+      }),
+    ).toThrow(/approval-required execution requires handler-owned durable command enforcement/)
   })
 
   it("advertises package target resolution without exposing client-owned target metadata", async () => {

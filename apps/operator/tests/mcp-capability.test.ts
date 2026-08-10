@@ -782,6 +782,11 @@ function selectedJourneys(mark: string): CapabilityJourney[] {
         : `Unknown MCP capability group: ${GROUP_FILTER}`,
     )
   }
+  if (JOURNEY_FILTER && selected[0]?.group === "commercial") {
+    throw new Error(
+      `Commercial journey ${JOURNEY_FILTER} depends on the preceding chain; run the commercial group instead of an isolated journey.`,
+    )
+  }
   return selected
 }
 

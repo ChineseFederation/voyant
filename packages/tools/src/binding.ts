@@ -105,6 +105,7 @@ export interface ToolActionInvocationPolicy {
   )[]
   optionalFields: readonly (
     | "reasonCode"
+    | "confirmed"
     | "approvalId"
     | "targetId"
     | "idempotencyKey"
