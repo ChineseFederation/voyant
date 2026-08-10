@@ -73,6 +73,7 @@ import {
 } from "./api/generated-project-runtime.js"
 import { measureResponseFormats } from "./support/mcp-response-format-metrics.js"
 import { fetchWithTransientRetry } from "./support/openai-response-retry.js"
+import { createProcessInactivityTimeout } from "./support/process-inactivity-timeout.js"
 
 const TEST_DATABASE_URL = process.env.TEST_DATABASE_URL
 
@@ -93,8 +94,8 @@ const REASONING_EFFORT = "medium"
 const REPORT_FILE = process.env.VOYANT_EVAL_REPORT_FILE?.trim()
 const enabled = Boolean(TEST_DATABASE_URL && (EVAL_PROVIDER === "codex" || apiKey))
 
-/** A live model turn plus a real dispatch is slow; the default would time out on latency. */
-const JOURNEY_TIMEOUT_MS = 180_000
+/** Kill a genuinely wedged model process, not a healthy multi-turn journey. */
+const JOURNEY_INACTIVITY_TIMEOUT_MS = 180_000
 
 const TEST_ENV = {
   DATABASE_URL: TEST_DATABASE_URL ?? "",
@@ -450,8 +451,10 @@ async function runCodexJourney(input: {
             fatal: {
               source: "model_transport" as const,
               status: null,
-              code: "codex_exec_failed",
-              message: result.stderr.slice(0, 300),
+              code: result.timedOut ? "codex_exec_inactivity_timeout" : "codex_exec_failed",
+              message: result.timedOut
+                ? `Codex produced no output for ${JOURNEY_INACTIVITY_TIMEOUT_MS}ms. ${result.stderr.slice(0, 220)}`
+                : result.stderr.slice(0, 300),
             },
           }),
     }
@@ -461,7 +464,9 @@ async function runCodexJourney(input: {
   }
 }
 
-function spawnCodex(args: string[]): Promise<{ exitCode: number; stdout: string; stderr: string }> {
+function spawnCodex(
+  args: string[],
+): Promise<{ exitCode: number; stdout: string; stderr: string; timedOut: boolean }> {
   return new Promise((resolvePromise, reject) => {
     const env = { ...process.env }
     for (const key of [
@@ -475,16 +480,30 @@ function spawnCodex(args: string[]): Promise<{ exitCode: number; stdout: string;
     const child = spawn("codex", args, { env, stdio: ["ignore", "pipe", "pipe"] })
     const stdout: Buffer[] = []
     const stderr: Buffer[] = []
-    child.stdout.on("data", (chunk) => stdout.push(chunk))
-    child.stderr.on("data", (chunk) => stderr.push(chunk))
-    child.once("error", reject)
-    const timeout = setTimeout(() => child.kill("SIGTERM"), JOURNEY_TIMEOUT_MS)
+    let timedOut = false
+    const inactivity = createProcessInactivityTimeout(JOURNEY_INACTIVITY_TIMEOUT_MS, () => {
+      timedOut = true
+      child.kill("SIGTERM")
+    })
+    child.stdout.on("data", (chunk) => {
+      stdout.push(chunk)
+      inactivity.touch()
+    })
+    child.stderr.on("data", (chunk) => {
+      stderr.push(chunk)
+      inactivity.touch()
+    })
+    child.once("error", (error) => {
+      inactivity.clear()
+      reject(error)
+    })
     child.once("close", (exitCode) => {
-      clearTimeout(timeout)
+      inactivity.clear()
       resolvePromise({
         exitCode: exitCode ?? 1,
         stdout: Buffer.concat(stdout).toString("utf8"),
         stderr: Buffer.concat(stderr).toString("utf8"),
+        timedOut,
       })
     })
   })
@@ -1689,7 +1708,7 @@ describe.skipIf(!enabled)("MCP capability — a travel agent's job", () => {
       process.stdout.write(`\n${report()}\n\n`)
       writeMachineReport()
     },
-    JOURNEY_TIMEOUT_MS * JOURNEYS.length * RUNS,
+    JOURNEY_INACTIVITY_TIMEOUT_MS * JOURNEYS.length * RUNS,
   )
 
   afterAll(async () => {
