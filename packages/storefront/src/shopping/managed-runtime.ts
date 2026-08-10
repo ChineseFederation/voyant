@@ -262,7 +262,13 @@ async function searchInspiration(
             purpose: "catalog-item",
             context,
             scope,
-            payload: { entityModule: mapping.vertical, entityId: item.entityId },
+            payload: {
+              entityModule: mapping.vertical,
+              entityId: item.entityId,
+              ...(item.nativePrice
+                ? { estimatedPricing: tripPricingEstimate(item.nativePrice) }
+                : {}),
+            },
             replay: "multi-use",
           })
           return publicCatalogItem(item, issued.ref, priceFrom)
@@ -320,7 +326,11 @@ async function searchFlights(
         purpose: "flight-offer",
         context,
         scope,
-        payload: { selection: item.selection, providerData: item.providerData },
+        payload: {
+          selection: item.selection,
+          providerData: item.providerData,
+          estimatedPricing: tripPricingEstimate(item.nativePrice, item.expiresAt),
+        },
         replay: "single-use",
       })
       return {
@@ -371,7 +381,10 @@ async function searchStays(
           purpose: "stay-offer",
           context,
           scope,
-          payload: { selection: item.selection },
+          payload: {
+            selection: item.selection,
+            estimatedPricing: tripPricingEstimate(item.nativePrice, item.expiresAt),
+          },
           replay: "single-use",
         }),
         issueBoundedReference(options.references, now, {
@@ -435,7 +448,11 @@ async function searchPackages(
         purpose: "package-offer",
         context,
         scope,
-        payload: { selection: item.selection, providerData: item.providerData },
+        payload: {
+          selection: item.selection,
+          providerData: item.providerData,
+          estimatedPricing: tripPricingEstimate(item.nativePrice, item.expiresAt),
+        },
         replay: "single-use",
       })
       return {
@@ -622,7 +639,11 @@ async function searchCruises(
         purpose: "cruise-offer",
         context,
         scope,
-        payload: { selection: item.selection, providerData: item.providerData },
+        payload: {
+          selection: item.selection,
+          providerData: item.providerData,
+          estimatedPricing: tripPricingEstimate(item.nativePrice, item.expiresAt),
+        },
         replay: "single-use",
       })
       return {
@@ -667,6 +688,32 @@ async function normalizeLive<T extends { nativePrice: { amount: string; currency
     items.sort((left, right) => comparePresentationMoney(left.price, right.price))
   }
   return { items, dropped: page.items.length - items.length }
+}
+
+/**
+ * Preserve the provider-native, non-binding search estimate behind the opaque
+ * reference. Trips needs an accepted estimate to freeze an itinerary before
+ * Catalog immediately revalidates every component for the Booking Session.
+ * Presentation/FX money is deliberately never accepted here.
+ */
+function tripPricingEstimate(money: { amount: string; currency: string }, priceExpiresAt?: string) {
+  const fractionDigits =
+    new Intl.NumberFormat("en", {
+      style: "currency",
+      currency: money.currency,
+    }).resolvedOptions().maximumFractionDigits ?? 2
+  const [whole = "0", fraction = ""] = money.amount.split(".")
+  if (fraction.length > fractionDigits) throw new Error("native_price_precision_unsupported")
+  const amountMinor = Number(BigInt(`${whole}${fraction.padEnd(fractionDigits, "0") || "0"}`))
+  if (!Number.isSafeInteger(amountMinor)) throw new Error("native_price_amount_unsupported")
+  return {
+    currency: money.currency,
+    subtotalAmountCents: amountMinor,
+    taxAmountCents: 0,
+    totalAmountCents: amountMinor,
+    ...(priceExpiresAt ? { priceExpiresAt } : {}),
+    warnings: ["non_binding_storefront_estimate"],
+  }
 }
 
 function coverage(page: StorefrontLiveSearchPage<unknown>, dropped: number) {

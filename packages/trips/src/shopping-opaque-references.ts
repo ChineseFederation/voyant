@@ -13,6 +13,7 @@ import type {
   StorefrontTripOfferComponent,
   StorefrontTripOfferResolver,
 } from "./storefront-trip-offer-resolver-port.js"
+import { tripComponentPricingSnapshotSchema } from "./validation.js"
 
 const MAX_REFERENCE_TTL_SECONDS = 24 * 60 * 60
 const referenceSchema = z.string().regex(/^sref_[a-f0-9]{64}$/)
@@ -483,7 +484,11 @@ function componentFromReference(
   const payload = payloadSchema.parse(reference.payload)
   if (reference.purpose === "catalog-item") {
     const catalog = z
-      .object({ entityModule: z.string().min(1), entityId: z.string().min(1) })
+      .object({
+        entityModule: z.string().min(1),
+        entityId: z.string().min(1),
+        estimatedPricing: tripComponentPricingSnapshotSchema.optional(),
+      })
       .passthrough()
       .parse(payload)
     return {
@@ -493,13 +498,18 @@ function componentFromReference(
         entityId: catalog.entityId,
         sourceKind: "owned",
       },
+      ...(catalog.estimatedPricing ? { estimatedPricing: catalog.estimatedPricing } : {}),
       metadata: {},
     }
   }
 
   if (reference.purpose === "package-offer") {
     const payload = z
-      .object({ selection: packageSelectionSchema, providerData: z.never().optional() })
+      .object({
+        selection: packageSelectionSchema,
+        providerData: z.never().optional(),
+        estimatedPricing: tripComponentPricingSnapshotSchema.optional(),
+      })
       .strict()
       .parse(reference.payload)
     if (Date.parse(payload.selection.offerExpiresAt) <= now.getTime()) {
@@ -509,6 +519,7 @@ function componentFromReference(
     return {
       kind: "catalog_booking",
       catalogRef: target,
+      ...(payload.estimatedPricing ? { estimatedPricing: payload.estimatedPricing } : {}),
       metadata: {
         bookingDraftV1: {
           entity: {
@@ -526,13 +537,18 @@ function componentFromReference(
 
   if (reference.purpose === "stay-offer") {
     const payload = z
-      .object({ selection: staySelectionSchema, providerData: z.never().optional() })
+      .object({
+        selection: staySelectionSchema,
+        providerData: z.never().optional(),
+        estimatedPricing: tripComponentPricingSnapshotSchema.optional(),
+      })
       .strict()
       .parse(reference.payload)
     const { target, configure, rooms } = payload.selection
     return {
       kind: "catalog_booking",
       catalogRef: target,
+      ...(payload.estimatedPricing ? { estimatedPricing: payload.estimatedPricing } : {}),
       metadata: {
         bookingDraftV1: {
           entity: {
@@ -559,13 +575,18 @@ function componentFromReference(
 
   if (reference.purpose === "cruise-offer") {
     const payload = z
-      .object({ selection: cruiseSelectionSchema, providerData: z.never().optional() })
+      .object({
+        selection: cruiseSelectionSchema,
+        providerData: z.never().optional(),
+        estimatedPricing: tripComponentPricingSnapshotSchema.optional(),
+      })
       .strict()
       .parse(reference.payload)
     const { target, configure } = payload.selection
     return {
       kind: "catalog_booking",
       catalogRef: target,
+      ...(payload.estimatedPricing ? { estimatedPricing: payload.estimatedPricing } : {}),
       metadata: {
         bookingDraftV1: {
           entity: {
@@ -590,6 +611,7 @@ function componentFromReference(
     .object({
       selection: z.record(z.string(), z.unknown()),
       providerData: z.record(z.string(), z.unknown()).optional(),
+      estimatedPricing: tripComponentPricingSnapshotSchema.optional(),
     })
     .strict()
     .parse(payload)
@@ -602,6 +624,7 @@ function componentFromReference(
   return reference.purpose === "flight-offer"
     ? {
         kind: "flight_placeholder",
+        ...(offer.estimatedPricing ? { estimatedPricing: offer.estimatedPricing } : {}),
         metadata: {
           flightDraft: { selectedOffer: offer.selection },
           storefrontShopping: durableSelection,
@@ -609,6 +632,7 @@ function componentFromReference(
       }
     : {
         kind: "catalog_booking",
+        ...(offer.estimatedPricing ? { estimatedPricing: offer.estimatedPricing } : {}),
         metadata: { storefrontShopping: durableSelection },
       }
 }

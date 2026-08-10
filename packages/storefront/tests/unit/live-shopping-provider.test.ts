@@ -287,14 +287,14 @@ describe("storefront live shopping provider", () => {
       expect.arrayContaining([
         expect.objectContaining({
           purpose: "stay-offer",
-          payload: {
+          payload: expect.objectContaining({
             selection: expect.objectContaining({
               target: expect.objectContaining({ entityId: "accommodation_canonical" }),
               configure: expect.objectContaining({
                 dateRange: { checkIn: "2026-09-10", checkOut: "2026-09-15" },
               }),
             }),
-          },
+          }),
         }),
       ]),
     )

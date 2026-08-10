@@ -199,6 +199,14 @@ describe("durable shopping opaque references", () => {
     await expect(runtime.offerResolver.resolve(CONTEXT, input)).resolves.toEqual({
       component: {
         kind: "catalog_booking",
+        estimatedPricing: {
+          currency: "EUR",
+          subtotalAmountCents: 100_000,
+          taxAmountCents: 0,
+          totalAmountCents: 100_000,
+          priceExpiresAt: "2026-08-08T12:10:00.000Z",
+          warnings: ["non_binding_storefront_estimate"],
+        },
         catalogRef: {
           entityModule: "products",
           entityId: "product_1",
@@ -452,6 +460,14 @@ function packageInput(
     owner: { userId: CONTEXT.userId, buyerAccountId: CONTEXT.buyerAccountId },
     scope: SCOPE,
     payload: {
+      estimatedPricing: {
+        currency: "EUR",
+        subtotalAmountCents: 100_000,
+        taxAmountCents: 0,
+        totalAmountCents: 100_000,
+        priceExpiresAt: offerExpiresAt,
+        warnings: ["non_binding_storefront_estimate"],
+      },
       selection: {
         target: {
           entityModule: "products",

@@ -5,6 +5,7 @@ import {
   createManagedStorefrontShoppingRuntime,
   inspirationCatalogSlice,
   type StorefrontInternalFlightOffer,
+  type StorefrontInternalPackageOffer,
   type StorefrontShoppingContext,
   StorefrontShoppingScopeError,
 } from "../../src/shopping/index.js"
@@ -466,5 +467,84 @@ describe("managed live shopping", () => {
       kind: "flight",
       offers: [{ offerRef: "opaque-reference-after-persistence" }],
     })
+  })
+
+  it("seals provider-native package pricing for Trip freeze without trusting presentation FX", async () => {
+    const packageOffer = {
+      nativePrice: { amount: "1000.00", currency: "RON" },
+      title: "Rome escape",
+      origin: "OTP",
+      destination: "Rome",
+      departureDate: "2026-09-10",
+      nights: 5,
+      accommodationName: "Hotel Roma",
+      expiresAt: "2026-08-08T10:08:00.000Z",
+      selection: {
+        target: {
+          entityModule: "products",
+          entityId: "product_package_1",
+          sourceKind: "voyant-connect",
+          sourceConnectionId: "connection_server_only",
+          sourceRef: "source_package_1",
+        },
+        configure: {
+          departureDate: "2026-09-10",
+          departureAirportCode: "OTP",
+          nights: 5,
+          pax: { adult: 2 },
+          ratePlanId: "rate_1",
+        },
+        offerExpiresAt: "2026-08-08T10:08:00.000Z",
+      },
+    } satisfies StorefrontInternalPackageOffer
+    const issue = vi.fn(async () => ({
+      ref: "opaque-package-reference-0001",
+      expiresAt: "2026-08-08T10:10:00.000Z",
+    }))
+    const runtime = createManagedStorefrontShoppingRuntime(
+      dependencies({
+        references: { redeem: vi.fn(async () => null), issue },
+        live: {
+          searchFlights: vi.fn(),
+          searchStays: vi.fn(),
+          searchPackages: vi.fn(async () => ({
+            items: [packageOffer],
+            sources: [{ status: "ok" }],
+          })),
+          searchCruises: vi.fn(),
+        },
+      }),
+    )
+    const scope = await runtime.resolveScope(context, {})
+
+    await runtime.search(context, {
+      scope,
+      intent: {
+        kind: "package",
+        origin: "OTP",
+        destination: { city: "Rome" },
+        departureDateFrom: "2026-09-01",
+        departureDateTo: "2026-09-30",
+        nights: { min: 5, max: 7 },
+        travelers: { adults: 2 },
+      },
+    })
+
+    expect(issue).toHaveBeenCalledWith(
+      expect.objectContaining({
+        purpose: "package-offer",
+        payload: expect.objectContaining({
+          estimatedPricing: {
+            currency: "RON",
+            subtotalAmountCents: 100_000,
+            taxAmountCents: 0,
+            totalAmountCents: 100_000,
+            priceExpiresAt: "2026-08-08T10:08:00.000Z",
+            warnings: ["non_binding_storefront_estimate"],
+          },
+        }),
+      }),
+    )
+    expect(JSON.stringify(issue.mock.calls)).not.toContain("presentation")
   })
 })
