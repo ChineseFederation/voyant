@@ -13,14 +13,34 @@ import { createGuardedTeamManagementProvider } from "./team-management-policy.js
 import { teamManagementRuntimePort } from "./team-management-runtime-port.js"
 
 interface InvitationNotificationProvider {
+  readonly name: string
   readonly channels: ReadonlyArray<string>
-  send(payload: {
-    channel: "email"
-    to: string
-    template: string
-    subject: string
-    html: string
-  }): Promise<unknown>
+  readonly durableDelivery: {
+    readonly protocol: "notification-provider-idempotency-v1"
+    send(
+      payload: {
+        channel: "email"
+        to: string
+        template: string
+        subject: string
+        html: string
+      },
+      context: { idempotencyKey: string },
+    ): Promise<unknown>
+  }
+}
+
+async function invitationDeliveryIdempotencyKey(input: {
+  acceptUrl: string
+  expiresInHours: number
+  to: string
+}): Promise<string> {
+  const canonical = JSON.stringify([input.to, input.acceptUrl, input.expiresInHours])
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(canonical))
+  const hex = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join(
+    "",
+  )
+  return `auth-invitation:${hex}`
 }
 
 export interface AuthRuntimeContributorHost {
@@ -70,13 +90,25 @@ export function createAuthRuntimePortContribution(
       const provider = providers.find((candidate) => candidate.channels.includes("email"))
       if (!provider) return false
       try {
-        await provider.send({
-          channel: "email",
-          to: message.to,
-          template: "auth.invitation",
-          subject: "You've been invited to Voyant",
-          html: `<p>You've been invited to join a Voyant workspace.</p><p><a href="${message.acceptUrl}">Accept invitation</a></p><p>The link expires in ${message.expiresInHours} hours.</p>`,
-        })
+        const capability = provider.durableDelivery
+        if (
+          capability?.protocol !== "notification-provider-idempotency-v1" ||
+          typeof capability.send !== "function"
+        ) {
+          throw new Error(
+            `Notification provider "${provider.name}" does not expose durable delivery for Auth invitations.`,
+          )
+        }
+        await capability.send(
+          {
+            channel: "email",
+            to: message.to,
+            template: "auth.invitation",
+            subject: "You've been invited to Voyant",
+            html: `<p>You've been invited to join a Voyant workspace.</p><p><a href="${message.acceptUrl}">Accept invitation</a></p><p>The link expires in ${message.expiresInHours} hours.</p>`,
+          },
+          { idempotencyKey: await invitationDeliveryIdempotencyKey(message) },
+        )
         return true
       } catch (error) {
         console.error("[invitations] email send failed:", error)
