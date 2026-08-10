@@ -445,7 +445,7 @@ export async function executeAdmittedCreatedTargetCommand<TValue, TReferenceType
     selected.targetType !== input.canonicalTargetType ||
     createdTarget.resultReferenceType !== input.resultReferenceType ||
     selected.risk !== input.evaluatedRisk ||
-    selected.approval !== "never" ||
+    (selected.approval !== "never" && selected.approval !== "required") ||
     !idempotencyKey ||
     !commandTargetId?.trim() ||
     !routeOrToolName.trim() ||
@@ -454,6 +454,14 @@ export async function executeAdmittedCreatedTargetCommand<TValue, TReferenceType
     throw new ActionLedgerCreatedCommandProtocolError("admitted_policy_mismatch")
   }
   assertCreatedTargetParentAnchor(createdTarget.parentAnchor, input.commandInput)
+  const approvalPolicy: ActionLedgerCapabilityApprovalPolicy =
+    selected.approval === "required" ? "required" : "none"
+  const approvalId = input.admitted.invocation.approvalId?.trim()
+  const approvalReasonCode =
+    input.admitted.invocation.reasonCode ??
+    (approvalId && !input.admitted.invocation.idempotencyFingerprint
+      ? ((await actionLedgerService.getApproval(input.db, approvalId))?.approval.reasonCode ?? null)
+      : null)
   const command = {
     actionName: selected.id,
     actionVersion: selected.version,
@@ -465,8 +473,9 @@ export async function executeAdmittedCreatedTargetCommand<TValue, TReferenceType
     capabilityId: selected.capabilityId,
     capabilityVersion: selected.version,
     evaluatedRisk: selected.risk,
-    approvalPolicy: "none" as const,
-    approvalReasonCode: null,
+    approvalPolicy,
+    approvalPolicyName: selected.policy ?? null,
+    approvalReasonCode,
   }
   const fingerprint = await buildCreatedTargetCommandFingerprint(command)
   const scope = await buildCreatedTargetIdempotencyScope({
@@ -476,6 +485,40 @@ export async function executeAdmittedCreatedTargetCommand<TValue, TReferenceType
     principalId: principal.principalId,
     organizationId: principal.organizationId,
   })
+  if (
+    selected.approval === "never" &&
+    (input.admitted.invocation.approvalId || input.admitted.invocation.idempotencyFingerprint)
+  ) {
+    throw new ActionLedgerCreatedCommandProtocolError("forged_approval_linkage")
+  }
+  if (selected.approval === "required" && !approvalId) {
+    await throwHandlerApprovalRequired({
+      db: input.db,
+      context: input.context,
+      principal,
+      actionName: selected.id,
+      actionVersion: selected.version,
+      evaluatedRisk: selected.risk,
+      policyName: selected.policy,
+      targetType: createdTarget.commandTargetType,
+      targetId: commandTargetId,
+      capabilityId: selected.capabilityId,
+      routeOrToolName,
+      idempotencyKey,
+      fingerprint,
+      reasonCode: approvalReasonCode,
+    })
+  }
+  const approvalControls =
+    selected.approval === "required"
+      ? {
+          approvalId: approvalId ?? "",
+          idempotencyKey,
+          idempotencyFingerprint:
+            input.admitted.invocation.idempotencyFingerprint?.trim() || fingerprint,
+          reasonCode: approvalReasonCode,
+        }
+      : undefined
   return executeCreatedTargetCommand(
     input.db,
     {
@@ -485,6 +528,7 @@ export async function executeAdmittedCreatedTargetCommand<TValue, TReferenceType
       routeOrToolName,
       authorizationSource: createdTargetAuthorizationSource(input.admitted),
       idempotency: { scope, key: idempotencyKey, fingerprint },
+      ...(approvalControls ? { approvalControls } : {}),
     },
     handlers,
   )

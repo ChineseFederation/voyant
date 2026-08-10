@@ -778,6 +778,19 @@ describe("created-target command protocol", () => {
       organizationId: "org_1",
     })
 
+    const requestApproval = vi.spyOn(actionLedgerService, "requestApproval").mockResolvedValue({
+      requestedAction: { id: "requested_created" },
+      approval: { id: "approval_created", status: "pending" },
+      replayed: false,
+    } as never)
+    const approvalRequiredAdmission = await mintAdmission({
+      ...admitted,
+      actionPolicy: {
+        ...admitted.actionPolicy,
+        approval: "required" as const,
+        policy: "inventory-create-extra-policy",
+      },
+    })
     await expect(
       executeAdmittedCreatedTargetCommand(
         {
@@ -788,10 +801,7 @@ describe("created-target command protocol", () => {
             actor: "staff",
             callerType: "session",
           },
-          admitted: {
-            ...admitted,
-            actionPolicy: { ...admitted.actionPolicy, approval: "required" as const },
-          },
+          admitted: approvalRequiredAdmission,
           idempotencyKey: "key_1",
           commandTargetType: "product-extra-create-command",
           canonicalTargetType: "product_extra",
@@ -806,7 +816,20 @@ describe("created-target command protocol", () => {
           },
         },
       ),
-    ).rejects.toMatchObject({ code: "ACTION_POLICY_REQUIRED" })
+    ).rejects.toMatchObject({
+      code: "APPROVAL_REQUIRED",
+      meta: { approvalId: "approval_created", requestedActionId: "requested_created" },
+    })
+    expect(requestApproval).toHaveBeenCalledWith(
+      harness.db,
+      expect.objectContaining({
+        requestedAction: expect.objectContaining({
+          targetType: "product-extra-create-command",
+          targetId: "key_1",
+          capabilityId: actionName,
+        }),
+      }),
+    )
     expect(create).toHaveBeenCalledTimes(1)
   })
 
