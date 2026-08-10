@@ -53,6 +53,7 @@ import { dirname, join, resolve } from "node:path"
 import { bookingActivityLog, bookings } from "@voyant-travel/bookings/schema"
 import { createDbClient } from "@voyant-travel/db"
 import { dbClientDispose } from "@voyant-travel/db/transaction-capability"
+import { supplierDirectoryProjections, suppliers } from "@voyant-travel/distribution/schema"
 import { financeService } from "@voyant-travel/finance"
 import { invoices } from "@voyant-travel/finance/schema"
 import { composeVoyantGraphRuntime } from "@voyant-travel/framework"
@@ -335,6 +336,7 @@ const RUN_MARK = process.env.VOYANT_EVAL_MARK ?? String(Date.now()).slice(-6)
 
 interface CapabilityJourney {
   id: string
+  group: "commercial" | "supplier"
   domain: string
   task: string
   expect: string
@@ -376,6 +378,7 @@ function buildJourneys(RUN_MARK: string): CapabilityJourney[] {
   return [
     {
       id: "people-create",
+      group: "commercial",
       domain: "people",
       task: `Add a new private client named Ioana Marinescu${RUN_MARK} with email ioana.${RUN_MARK}@example.com. Confirm her id.`,
       expect: "ioana",
@@ -384,6 +387,7 @@ function buildJourneys(RUN_MARK: string): CapabilityJourney[] {
     },
     {
       id: "people-find",
+      group: "commercial",
       domain: "people",
       task: `Find the client Ioana Marinescu${RUN_MARK} and tell me her email address.`,
       expect: `ioana.${RUN_MARK}@example.com`,
@@ -392,6 +396,7 @@ function buildJourneys(RUN_MARK: string): CapabilityJourney[] {
     },
     {
       id: "product-create",
+      group: "commercial",
       domain: "products",
       task: `Create a product called 'Capability Eval Tour ${RUN_MARK}', a guided road tour sold by date in EUR. Confirm its id.`,
       expect: `capability eval tour ${RUN_MARK}`,
@@ -404,6 +409,7 @@ function buildJourneys(RUN_MARK: string): CapabilityJourney[] {
       // booking-create note. Covering it explicitly is what makes the commercial
       // chain reachable end to end rather than blocked at the last step.
       id: "product-option-create",
+      group: "commercial",
       domain: "products",
       // Publication is part of making a product sellable, and the booking refusal
       // only said so once its error stopped collapsing three causes into one
@@ -454,6 +460,7 @@ function buildJourneys(RUN_MARK: string): CapabilityJourney[] {
       // with the public Tool contract instead of asking update_option_unit for a
       // price field it does not expose and then falsely passing on unit existence.
       id: "product-reprice",
+      group: "commercial",
       domain: "products",
       task: `Change the flat sell price of 'Capability Eval Tour ${RUN_MARK}' from 500 EUR to 650 EUR and confirm the updated price.`,
       expect: "650",
@@ -467,6 +474,7 @@ function buildJourneys(RUN_MARK: string): CapabilityJourney[] {
       // Ops write: a dated departure for the product just created. First journey
       // to depend on another journey's output rather than seeded data.
       id: "ops-departure-create",
+      group: "commercial",
       domain: "ops",
       task: `Create a departure for the product 'Capability Eval Tour ${RUN_MARK}' on 2026-09-15 at 09:00 +03:00 in Europe/Bucharest with 20 seats available. Confirm the departure id.`,
       expect: "2026-09-15",
@@ -486,6 +494,7 @@ function buildJourneys(RUN_MARK: string): CapabilityJourney[] {
       // terminal and detail-free; it now names each blocking issue and what to do
       // about it, which is what let this ordering bug be diagnosed at all.
       id: "product-publish",
+      group: "commercial",
       domain: "products",
       task: `Publish the product 'Capability Eval Tour ${RUN_MARK}' so it can be sold. If it is refused, read the reason, fix what it names, and try again. Confirm the final status.`,
       expect: "publish",
@@ -498,6 +507,7 @@ function buildJourneys(RUN_MARK: string): CapabilityJourney[] {
       // confirmation/approval protocol. Depends on the person, the product AND the
       // departure — the multi-call orchestration #3921 Finding 2 is about.
       id: "booking-create",
+      group: "commercial",
       domain: "bookings",
       // The task used to say "for 2 adults" and name nobody. The agent found the
       // client, called book_product, and then correctly stopped to ask who the two
@@ -520,6 +530,7 @@ function buildJourneys(RUN_MARK: string): CapabilityJourney[] {
       // untested" was true in the most literal sense: the journey did not exist.
       // Depends on booking-create, so it inherits whatever blocks that.
       id: "invoice-issue",
+      group: "commercial",
       domain: "invoices",
       task: `Issue a proforma invoice dated 2026-08-09 and due 2026-09-15 for the booking belonging to Ioana Marinescu${RUN_MARK}. Confirm the document number.`,
       expect: "proforma",
@@ -539,6 +550,7 @@ function buildJourneys(RUN_MARK: string): CapabilityJourney[] {
       // product quote captured immutable terms and that cancellation evaluates,
       // approves, applies, and audits those exact terms rather than today's policy.
       id: "booking-cancel",
+      group: "commercial",
       domain: "bookings",
       task: `Cancel the booking belonging to Ioana Marinescu${RUN_MARK} according to the cancellation terms agreed when it was booked. Complete any required approval and confirm the cancellation and refund entitlement. Do not pay the refund yet; that is a separate operator step.`,
       expect: "cancel",
@@ -553,6 +565,7 @@ function buildJourneys(RUN_MARK: string): CapabilityJourney[] {
     },
     {
       id: "paid-refund",
+      group: "commercial",
       domain: "invoices",
       task: `Pay the contractual refund for cancelled booking 'BK-REFUND-${RUN_MARK}' by bank transfer with reference 'SEPA-${RUN_MARK}'. Complete the required approval and confirm the exact amount paid and the original payment it reversed.`,
       expect: "refund",
@@ -574,6 +587,7 @@ function buildJourneys(RUN_MARK: string): CapabilityJourney[] {
     },
     {
       id: "proposal-accept",
+      group: "commercial",
       domain: "proposals",
       task: `Accept the sent proposal 'Capability Eval Proposal ${RUN_MARK}' for booking and prepare its reservation handoff. Complete any required approval and confirm the Booking Session id.`,
       expect: "session",
@@ -588,6 +602,7 @@ function buildJourneys(RUN_MARK: string): CapabilityJourney[] {
     },
     {
       id: "contracts-read",
+      group: "commercial",
       domain: "contracts",
       task: "What contract templates exist? If there are none, say so explicitly.",
       expect: "template",
@@ -596,6 +611,7 @@ function buildJourneys(RUN_MARK: string): CapabilityJourney[] {
     },
     {
       id: "invoices-read",
+      group: "commercial",
       domain: "invoices",
       task: "How many invoices exist, and what is the most recent one? If there are none, say so explicitly.",
       expect: "invoice",
@@ -604,6 +620,7 @@ function buildJourneys(RUN_MARK: string): CapabilityJourney[] {
     },
     {
       id: "ops-departures",
+      group: "commercial",
       domain: "ops",
       task: "List the departures scheduled for the catalog. If there are none, say so explicitly.",
       expect: "departure",
@@ -614,6 +631,45 @@ function buildJourneys(RUN_MARK: string): CapabilityJourney[] {
       // dispatching — a business claim from a discovery miss. Fixed by having the
       // harness read the server `instructions` on `initialize` like a real MCP
       // client, which is what the guide layer (voyant#3931) is for.
+    },
+    {
+      id: "supplier-create",
+      group: "supplier",
+      domain: "suppliers",
+      task: `Add 'Carpathian Transfers ${RUN_MARK}' to the supplier directory as an active transfer supplier. Their operational email is ops.${RUN_MARK}@carpathian.example, their default currency is EUR, and we pay them on 30-day terms. Confirm the supplier id and the recorded operating details.`,
+      expect: "carpathian",
+      maxCalls: 16,
+      verify: `select 1 from suppliers s
+             join supplier_directory_projections d on d.supplier_id = s.id
+             where s.name = 'Carpathian Transfers ${RUN_MARK}'
+               and s.type = 'transfer'
+               and s.status = 'active'
+               and s.default_currency = 'EUR'
+               and s.payment_terms_days = 30
+               and d.email = 'ops.${RUN_MARK}@carpathian.example'`,
+    },
+    {
+      id: "supplier-find",
+      group: "supplier",
+      domain: "suppliers",
+      task: `Find the supplier 'Danube Guides ${RUN_MARK}' and report their status, default currency, and operational email address.`,
+      expect: `guides.${RUN_MARK}@danube.example`,
+      maxCalls: 12,
+      requiresDispatch: true,
+    },
+    {
+      id: "supplier-deactivate",
+      group: "supplier",
+      domain: "suppliers",
+      task: `Deactivate the supplier 'Dormant Experiences ${RUN_MARK}' without changing its other directory details. Confirm its final lifecycle status.`,
+      expect: "inactive",
+      // The write itself completed by call 13 in the slowest measured trace; two
+      // calls remain for the model's ordinary authoritative post-write read and
+      // final answer. This is still a bounded basic lifecycle job, not an intent
+      // sequence whose server-side orchestration would replace three writes.
+      maxCalls: 16,
+      verify: `select 1 from suppliers
+             where name = 'Dormant Experiences ${RUN_MARK}' and status = 'inactive'`,
     },
   ]
 }
@@ -632,12 +688,26 @@ function buildJourneys(RUN_MARK: string): CapabilityJourney[] {
  */
 const RUNS = Math.max(1, Number(process.env.VOYANT_EVAL_RUNS ?? "1"))
 const JOURNEY_FILTER = process.env.VOYANT_EVAL_JOURNEY?.trim()
+const GROUP_FILTER = process.env.VOYANT_EVAL_GROUP?.trim()
 
 function selectedJourneys(mark: string): CapabilityJourney[] {
   const journeys = buildJourneys(mark)
-  if (!JOURNEY_FILTER) return journeys
-  const selected = journeys.filter(({ id }) => id === JOURNEY_FILTER)
-  if (selected.length === 0) throw new Error(`Unknown MCP capability journey: ${JOURNEY_FILTER}`)
+  if (JOURNEY_FILTER && GROUP_FILTER) {
+    throw new Error("VOYANT_EVAL_JOURNEY and VOYANT_EVAL_GROUP are mutually exclusive")
+  }
+  if (!JOURNEY_FILTER && !GROUP_FILTER) {
+    return journeys.filter(({ group }) => group === "commercial")
+  }
+  const selected = JOURNEY_FILTER
+    ? journeys.filter(({ id }) => id === JOURNEY_FILTER)
+    : journeys.filter(({ group }) => group === GROUP_FILTER)
+  if (selected.length === 0) {
+    throw new Error(
+      JOURNEY_FILTER
+        ? `Unknown MCP capability journey: ${JOURNEY_FILTER}`
+        : `Unknown MCP capability group: ${GROUP_FILTER}`,
+    )
+  }
   return selected
 }
 
@@ -661,6 +731,54 @@ function firstRow(rows: unknown): Record<string, unknown> | undefined {
   if (Array.isArray(rows)) return rows[0] as Record<string, unknown> | undefined
   const resultRows = (rows as { rows?: unknown[] } | null)?.rows
   return resultRows?.[0] as Record<string, unknown> | undefined
+}
+
+/**
+ * Supplier-group fixtures are owned per journey. They deliberately do not depend
+ * on the commercial chain: a failed product or booking attempt cannot hide a
+ * supplier directory regression.
+ */
+async function seedSupplierJourney(journeyId: string, mark: string): Promise<void> {
+  if (!verifyDb) throw new Error("Capability eval database is not mounted")
+  if (journeyId === "supplier-create") return
+
+  const fixture =
+    journeyId === "supplier-find"
+      ? {
+          name: `Danube Guides ${mark}`,
+          type: "guide" as const,
+          status: "active" as const,
+          defaultCurrency: "EUR",
+          paymentTermsDays: 14,
+          email: `guides.${mark}@danube.example`,
+        }
+      : journeyId === "supplier-deactivate"
+        ? {
+            name: `Dormant Experiences ${mark}`,
+            type: "experience" as const,
+            status: "active" as const,
+            defaultCurrency: "RON",
+            paymentTermsDays: 21,
+            email: `ops.${mark}@dormant.example`,
+          }
+        : null
+  if (!fixture) return
+
+  const [supplier] = await verifyDb
+    .insert(suppliers)
+    .values({
+      name: fixture.name,
+      type: fixture.type,
+      status: fixture.status,
+      defaultCurrency: fixture.defaultCurrency,
+      paymentTermsDays: fixture.paymentTermsDays,
+    })
+    .returning({ id: suppliers.id })
+  if (!supplier) throw new Error(`Cannot seed ${journeyId}`)
+  await verifyDb.insert(supplierDirectoryProjections).values({
+    supplierId: supplier.id,
+    email: fixture.email,
+  })
 }
 
 /**
@@ -1135,6 +1253,7 @@ describe.skipIf(!enabled)("MCP capability — a travel agent's job", () => {
         const journeys = selectedJourneys(mark)
 
         for (const journey of journeys) {
+          if (journey.group === "supplier") await seedSupplierJourney(journey.id, mark)
           if (journey.id === "proposal-accept") await seedProposalAcceptance(mark)
           if (journey.id === "paid-refund") await seedPaidCancellationRefund(mark)
           let run: JourneyRun

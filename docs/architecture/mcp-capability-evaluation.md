@@ -23,6 +23,16 @@ Measure a Tool-surface change across five attempts:
 pnpm eval:mcp-capability -- --mode measure --model gpt-5.6-terra
 ```
 
+Run one independently seeded operator-job group:
+
+```sh
+pnpm eval:mcp-capability -- --mode smoke --group supplier
+```
+
+`--group` keeps each journey's fixture boundary local to that group, so an unrelated
+commercial-chain failure cannot cap its result. Use `--journey <id>` for a single
+independently seeded diagnostic. The two selectors are mutually exclusive.
+
 The runner requires `OPENAI_API_KEY` or the existing
 `~/.config/agent-run/openai-token`. When `TEST_DATABASE_URL` is absent it starts a
 temporary PostgreSQL 16 Docker container on a random localhost port, migrates it,
@@ -65,9 +75,11 @@ product harness and its artifact contract.
 
 ## Reading results
 
-Journeys are chained. Diagnose the first link below 5/5; downstream failures are
-usually consequences. A refusal is useful only if the model-visible payload explains
-and enables the repair. A model answer without a data dispatch is not a read success.
+The default commercial journeys are chained. Diagnose the first link below 5/5;
+downstream failures are usually consequences. Operator-job groups selected with
+`--group` are independently seeded and must be read as their own capability rates.
+A refusal is useful only if the model-visible payload explains and enables the repair.
+A model answer without a data dispatch is not a read success.
 Call budgets count dispatched Tool calls, not model turns. A model may finish its
 answer after the last allowed Tool call, but another attempted dispatch marks the
 journey exhausted and fails a gated attempt.

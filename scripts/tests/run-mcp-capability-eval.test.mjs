@@ -27,6 +27,20 @@ test("accepts the measurement lane and artifact destination", () => {
   assert.match(options.artifactDir, /tmp\/eval$/)
 })
 
+test("accepts an independently seeded operator-job group", () => {
+  const options = parseArgs(["--group", "supplier"])
+  assert.equal(options.group, "supplier")
+  assert.equal(options.journey, null)
+  assert.match(usage(), /--group <id>/)
+})
+
+test("rejects selecting both a journey and a group", () => {
+  assert.throws(
+    () => parseArgs(["--journey", "proposal-accept", "--group", "supplier"]),
+    /mutually exclusive/,
+  )
+})
+
 test("rejects unknown modes and documents the destructive database requirement", () => {
   assert.throws(() => parseArgs(["--mode", "fast"]), /smoke or measure/)
   assert.match(usage(), /database is mutated/i)

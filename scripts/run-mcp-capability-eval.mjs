@@ -14,6 +14,7 @@ export function parseArgs(argv) {
     mode: "smoke",
     model: "gpt-5.6-terra",
     journey: null,
+    group: null,
   }
   const values = [...argv]
   while (values.length > 0) {
@@ -29,6 +30,10 @@ export function parseArgs(argv) {
     }
     if (value === "--journey") {
       options.journey = requiredValue(value, values.shift())
+      continue
+    }
+    if (value === "--group") {
+      options.group = requiredValue(value, values.shift())
       continue
     }
     if (value === "--artifacts") {
@@ -48,6 +53,9 @@ export function parseArgs(argv) {
   if (!new Set(["smoke", "measure"]).has(options.mode)) {
     throw new Error(`--mode must be smoke or measure, received ${options.mode}`)
   }
+  if (options.journey && options.group) {
+    throw new Error("--journey and --group are mutually exclusive")
+  }
   return options
 }
 
@@ -58,6 +66,7 @@ Options:
   --mode smoke|measure     One run for smoke, five runs for measurement (default: smoke)
   --model <model>          OpenAI model name (default: gpt-5.6-terra)
   --journey <id>           Run one independently seeded journey instead of the full chain
+  --group <id>             Run one independently seeded operator-job group
   --artifacts <directory>  Result directory (default: .agent-runs/mcp-capability/<timestamp>)
   --database-url <url>     Existing disposable database; otherwise start a temporary Docker Postgres
   --help                   Show this help
@@ -200,6 +209,7 @@ async function main() {
       VOYANT_EVAL_REPORT_FILE: path.join(artifactDir, "report.json"),
       VOYANT_EVAL_RUNS: options.mode === "measure" ? "5" : "1",
       ...(options.journey ? { VOYANT_EVAL_JOURNEY: options.journey } : {}),
+      ...(options.group ? { VOYANT_EVAL_GROUP: options.group } : {}),
     }
     writeFileSync(
       path.join(artifactDir, "run.json"),
@@ -211,6 +221,7 @@ async function main() {
           model: options.model,
           runs: Number(env.VOYANT_EVAL_RUNS),
           journey: options.journey,
+          group: options.group,
           database: temporaryDatabase ? "temporary-docker" : "provided",
         },
         null,

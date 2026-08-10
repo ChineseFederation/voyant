@@ -1395,6 +1395,17 @@ describe("createMcpApiRoutes", () => {
     })
   })
 
+  it("ranks useful partial matches for verbose operator searches", async () => {
+    const app = appWithScopes(["records:write"])
+
+    expect(
+      await searchToolNames(app, {
+        query: "update record lifecycle deactivate",
+        domain: "records",
+      }),
+    ).toContain("update_record")
+  })
+
   it("serves tools/list and tools/call through the selected graph runtime", async () => {
     const routes = await selectedRuntimeRoutes()
     const app = new Hono()

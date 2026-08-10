@@ -521,8 +521,12 @@ function glossary(term?: string): string {
     ],
     ["Payment", "A recorded inbound transfer of money. Distinct from an Invoice."],
     [
+      "Organization",
+      "A company or legal entity representing a buyer, agency, or other CRM counterparty. An operational vendor managed for delivery is a Supplier in the Distribution supplier directory, not merely a CRM Organization.",
+    ],
+    [
       "Supplier",
-      "An operational vendor contracted for delivery. Not 'provider' (tech integrations) and not 'channel'.",
+      "An operational vendor contracted for delivery and managed in the Distribution supplier directory. Not a CRM Organization, 'provider' (tech integrations), or Channel.",
     ],
     [
       "Channel",
@@ -550,11 +554,16 @@ function glossary(term?: string): string {
     ],
   ]
   const needle = term?.toLowerCase().trim()
-  const selected = needle
-    ? entries.filter(
-        ([name, def]) => name.toLowerCase().includes(needle) || def.toLowerCase().includes(needle),
-      )
-    : entries
+  const exact = needle ? entries.filter(([name]) => name.toLowerCase() === needle) : []
+  const selected =
+    exact.length > 0
+      ? exact
+      : needle
+        ? entries.filter(
+            ([name, def]) =>
+              name.toLowerCase().includes(needle) || def.toLowerCase().includes(needle),
+          )
+        : entries
   if (selected.length === 0) {
     return `No glossary entry matches "${term}". Call voyant_glossary with no term for the full list.`
   }
