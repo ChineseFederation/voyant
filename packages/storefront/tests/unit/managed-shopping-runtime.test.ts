@@ -437,4 +437,34 @@ describe("managed live shopping", () => {
       "opaque_reference_expiry_invalid",
     )
   })
+
+  it("accepts the bounded TTL when reference persistence advances the clock", async () => {
+    let currentTime = NOW.getTime()
+    const deps = dependencies({
+      now: () => new Date(currentTime),
+      references: {
+        redeem: vi.fn(async () => null),
+        issue: vi.fn(async (input: { ttlSeconds: number }) => {
+          currentTime += 50
+          return {
+            ref: "opaque-reference-after-persistence",
+            expiresAt: new Date(currentTime + input.ttlSeconds * 1_000).toISOString(),
+          }
+        }),
+      },
+      live: {
+        searchFlights: vi.fn(async () => ({ items: [flight("450", "RON", "450")], sources: [] })),
+        searchStays: vi.fn(),
+        searchPackages: vi.fn(),
+        searchCruises: vi.fn(),
+      },
+    })
+    const runtime = createManagedStorefrontShoppingRuntime(deps)
+    const scope = await runtime.resolveScope(context, {})
+
+    await expect(runtime.search(context, { scope, intent: flightIntent })).resolves.toMatchObject({
+      kind: "flight",
+      offers: [{ offerRef: "opaque-reference-after-persistence" }],
+    })
+  })
 })

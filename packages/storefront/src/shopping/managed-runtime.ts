@@ -538,7 +538,6 @@ async function issueLiveContinuation(
   }
   const page = currentPage + 1
   if (page >= MAX_CONTINUATION_PAGE) return undefined
-  const issuedAt = now().getTime()
   const issued = await authority.issue({
     purpose: "live-continuation",
     storefrontId: context.storefrontId,
@@ -555,7 +554,7 @@ async function issueLiveContinuation(
     ttlSeconds: CONTINUATION_TTL_SECONDS,
     replay: "single-use",
   })
-  validateIssuedReference(issued, issuedAt, CONTINUATION_TTL_SECONDS)
+  validateIssuedReference(issued, now().getTime(), CONTINUATION_TTL_SECONDS)
   return issued.ref
 }
 
@@ -702,7 +701,6 @@ async function issueBoundedReference(
     replay: "multi-use" | "single-use"
   },
 ) {
-  const issuedAt = now().getTime()
   const issued = await issuer.issue({
     purpose: input.purpose,
     storefrontId: input.context.storefrontId,
@@ -722,7 +720,7 @@ async function issueBoundedReference(
   })
   validateIssuedReference(
     issued,
-    issuedAt,
+    now().getTime(),
     input.purpose === "catalog-item" ? ITEM_TTL_SECONDS : OFFER_TTL_SECONDS,
   )
   return issued
