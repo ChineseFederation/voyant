@@ -93,8 +93,6 @@ const optionUnitValueSchema = z.object({
   updatedAt: isoTimestamp,
 })
 
-const idempotencyKeySchema = z.string().trim().min(1).max(255).optional()
-
 export const createProductOptionInputSchema = insertProductOptionSchema.safeExtend({
   productId: z
     .string()
@@ -102,7 +100,6 @@ export const createProductOptionInputSchema = insertProductOptionSchema.safeExte
     .describe(
       "Id of the product this option belongs to. Resolve it with `list_products`, or create the product first with `create_product`.",
     ),
-  idempotencyKey: idempotencyKeySchema,
 })
 
 export const createOptionUnitInputSchema = insertOptionUnitSchema.safeExtend({
@@ -121,7 +118,6 @@ export const createOptionUnitInputSchema = insertOptionUnitSchema.safeExtend({
     .describe(
       "How many travellers one unit sleeps or seats, at minimum. REQUIRED (and ≥ 1) when unitType is `room` or `vehicle` — storefront pricing multiplies occupancy by quantity, so omitting it silently under-charges the booking.",
     ),
-  idempotencyKey: idempotencyKeySchema,
 })
 
 const updateProductOptionToolSchema = updateProductOptionSchema.safeExtend({

@@ -198,13 +198,11 @@ const getProductContentArgs = z.object({
   forceFresh: z.boolean().default(false),
 })
 
-export const createProductToolSchema = z
-  .object(
-    (({ status: _status, visibility: _visibility, activated: _activated, ...shape }) => shape)(
-      insertProductSchema.shape,
-    ),
-  )
-  .extend({ idempotencyKey: z.string().trim().min(1).max(255).optional() })
+export const createProductToolSchema = z.object(
+  (({ status: _status, visibility: _visibility, activated: _activated, ...shape }) => shape)(
+    insertProductSchema.shape,
+  ),
+)
 const updateProductToolSchema = z.object({
   id: z.string().min(1),
   ...updateProductSchema.shape,

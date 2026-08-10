@@ -118,13 +118,6 @@ export const createPersonToolInputSchema = insertPersonSchema
       .describe(
         "Removed compatibility field. Omit it; use list_people before create_person when resolving an existing person.",
       ),
-    idempotencyKey: z
-      .string()
-      .trim()
-      .min(1)
-      .max(255)
-      .optional()
-      .describe("Compatibility copy of the admitted created-command idempotency key."),
   })
 
 export const updatePersonToolInputSchema = updatePersonSchema

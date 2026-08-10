@@ -136,7 +136,7 @@ export const voyantToolContextContribution = defineToolContextContribution({
         return productId ? loadProductById(productId) : null
       },
       getProductAggregates: (query) => productsService.getProductAggregates(db, query),
-      async createProduct({ idempotencyKey: legacyIdempotencyKey, ...input }, admitted) {
+      async createProduct(input, admitted) {
         const draft = insertProductSchema.parse({
           ...input,
           status: "draft",
@@ -148,8 +148,7 @@ export const voyantToolContextContribution = defineToolContextContribution({
         // the model to invent an opaque token made this fail on first attempt with
         // ACTION_POLICY_REQUIRED, on a requirement absent from the input schema —
         // the agent could only discover it by failing and reading the guide.
-        const resolvedIdempotencyKey =
-          legacyIdempotencyKey ?? (await deriveCommandIdempotencyKey("create-product", draft))
+        const resolvedIdempotencyKey = await deriveCommandIdempotencyKey("create-product", draft)
         const result = await executeProductCreateCommand({
           c,
           db: asLedgerDb(db),
@@ -422,15 +421,16 @@ export const voyantToolContextContribution = defineToolContextContribution({
           input: Parameters<InventoryOptionToolServices["createProductOption"]>[0],
           admitted: ToolHandlerActionPolicyContext,
         ) => {
-          const { idempotencyKey, productId, ...data } = input
+          const { productId, ...data } = input
           // voyant#3921: derive server-side, matching create_person/product/
           // departure. Paired with `resolvesIdempotencyKeyServerSide` on the Tool
           // so the caller is never asked for a key it would then misuse across a
           // retry. Both halves are required: deriving without declaring leaves the
           // admission demanding a key, declaring without deriving leaves it absent.
-          const resolvedIdempotencyKey =
-            idempotencyKey ??
-            (await deriveCommandIdempotencyKey("create-product-option", { productId, ...data }))
+          const resolvedIdempotencyKey = await deriveCommandIdempotencyKey(
+            "create-product-option",
+            { productId, ...data },
+          )
           return executeInventoryGeneratedChild({
             c,
             db: asLedgerDb(db),
@@ -486,14 +486,15 @@ export const voyantToolContextContribution = defineToolContextContribution({
           input: Parameters<InventoryOptionToolServices["createOptionUnit"]>[0],
           admitted: ToolHandlerActionPolicyContext,
         ) => {
-          const { idempotencyKey, optionId, ...data } = input
+          const { optionId, ...data } = input
           // voyant#3921: derive server-side, paired with the Tool's
           // `resolvesIdempotencyKeyServerSide` declaration. This is the last write
           // in the product-setup chain, so until it landed a product could not
           // reach a bookable state through MCP at all.
-          const resolvedIdempotencyKey =
-            idempotencyKey ??
-            (await deriveCommandIdempotencyKey("create-option-unit", { optionId, ...data }))
+          const resolvedIdempotencyKey = await deriveCommandIdempotencyKey("create-option-unit", {
+            optionId,
+            ...data,
+          })
           return executeInventoryGeneratedChild({
             c,
             db: asLedgerDb(db),
