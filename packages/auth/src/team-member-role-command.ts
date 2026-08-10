@@ -8,8 +8,7 @@ import {
   type ToolHandlerActionPolicyContext,
   withServerResolvedIdempotencyKey,
 } from "@voyant-travel/tools"
-
-import type { TeamMemberDto } from "./team-management-runtime-port.js"
+import type { TeamInvitationDto, TeamMemberDto } from "./team-management-runtime-port.js"
 
 /**
  * Admit one exact desired-role command before crossing the local/cloud adapter boundary.
@@ -75,4 +74,37 @@ export async function executeSetTeamMemberAccessCommand(input: {
     },
   )
   return result.value
+}
+
+/** Revoke an invitation, reconciling an ambiguous DELETE before redispatch. */
+export async function executeRevokeTeamInvitationCommand(input: {
+  db: AnyDrizzleDb
+  context: ActionLedgerRequestContextValues
+  admitted: ToolHandlerActionPolicyContext
+  invitationId: string
+  list(): Promise<TeamInvitationDto[]>
+  revoke(): Promise<void>
+}) {
+  const commandInput = { invitationId: input.invitationId }
+  const resolvedAdmitted = withServerResolvedIdempotencyKey(
+    input.admitted,
+    await deriveCommandIdempotencyKey("revoke-team-invitation", commandInput),
+  )
+  await executeAdmittedExistingTargetCommand(
+    {
+      db: input.db,
+      context: input.context,
+      admitted: resolvedAdmitted,
+      commandInput,
+      evaluatedRisk: "high",
+    },
+    {
+      prepare: () => Promise.resolve(),
+      execute: input.revoke,
+      async replay() {
+        const stillPresent = (await input.list()).some(({ id }) => id === input.invitationId)
+        if (stillPresent) await input.revoke()
+      },
+    },
+  )
 }

@@ -145,13 +145,35 @@ export const DEACTIVATE_TEAM_MEMBER_HANDLER_POLICY = memberAccessHandlerPolicy({
   reversible: false,
 })
 
+export const REVOKE_TEAM_INVITATION_HANDLER_POLICY = {
+  capabilityId: "@voyant-travel/auth#team.tool.revoke-invitation",
+  capabilityVersion: "v1",
+  canonicalName: "revoke_team_invitation",
+  actionPolicy: {
+    id: "@voyant-travel/auth#team.action.revoke-invitation",
+    capabilityId: "@voyant-travel/auth#team.action.revoke-invitation",
+    version: "v1",
+    kind: "execute",
+    targetType: "team-invitation",
+    commandTargetField: "invitationId",
+    targetLifecycle: "existing",
+    existingTarget: { durability: "handler-command-result-v1" },
+    risk: "high",
+    ledger: "required",
+    approval: "required",
+    policy: "@voyant-travel/auth#team.action.revoke-invitation",
+    reversible: false,
+    allowedActorTypes: ["staff"],
+  },
+} as const satisfies HandlerActionPolicyExpectation
+
 export interface TeamManagementToolServices {
   getCapabilities(): Promise<TeamManagementCapabilitiesDto>
   listMembers(): Promise<TeamMemberDto[]>
   listRoles(): Promise<TeamRoleDto[]>
   listInvitations(): Promise<TeamInvitationDto[]>
   inviteMember(input: InviteTeamMemberInput): Promise<CreatedTeamInvitationDto>
-  revokeInvitation(invitationId: string): Promise<void>
+  revokeInvitation(invitationId: string, admitted: ToolHandlerActionPolicyContext): Promise<void>
   updateMemberRole(
     memberId: string,
     roleId: string,
@@ -289,6 +311,8 @@ export const revokeTeamInvitationTool = defineTool<
   { invitationId: string; revoked: true },
   TeamManagementToolContext
 >({
+  capabilityId: REVOKE_TEAM_INVITATION_HANDLER_POLICY.capabilityId,
+  capabilityVersion: REVOKE_TEAM_INVITATION_HANDLER_POLICY.capabilityVersion,
   name: "revoke_team_invitation",
   description:
     "Revoke a pending team invitation. Invalidates its acceptance path and requires confirmation." +
@@ -297,6 +321,9 @@ export const revokeTeamInvitationTool = defineTool<
   outputSchema: z.object({ invitationId: z.string(), revoked: z.literal(true) }),
   requiredScopes: ["team:delete"],
   tier: "destructive",
+  resolvesIdempotencyKeyServerSide: true,
+  actionPolicyEnforcement: "handler",
+  annotations: { idempotentHint: true },
   riskPolicy: {
     destructive: true,
     reversible: false,
@@ -305,7 +332,8 @@ export const revokeTeamInvitationTool = defineTool<
     sideEffects: ["data-delete"],
   },
   async handler({ invitationId }, ctx) {
-    await teamManagement(ctx).revokeInvitation(invitationId)
+    const admitted = admitHandlerActionPolicy(ctx, REVOKE_TEAM_INVITATION_HANDLER_POLICY)
+    await teamManagement(ctx).revokeInvitation(invitationId, admitted)
     return { invitationId, revoked: true }
   },
 })
