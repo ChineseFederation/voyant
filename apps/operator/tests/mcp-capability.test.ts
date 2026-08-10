@@ -54,17 +54,14 @@ import { dirname, join, resolve } from "node:path"
 import { type ServerType, serve } from "@hono/node-server"
 import { bookingActivityLog, bookings, bookingTravelers } from "@voyant-travel/bookings/schema"
 import { createDbClient } from "@voyant-travel/db"
-import { authAccount, authUser, userProfilesTable } from "@voyant-travel/db/schema/iam"
 import { dbClientDispose } from "@voyant-travel/db/transaction-capability"
 import { supplierDirectoryProjections, suppliers } from "@voyant-travel/distribution/schema"
 import { financeService } from "@voyant-travel/finance"
 import { invoices } from "@voyant-travel/finance/schema"
 import { composeVoyantGraphRuntime } from "@voyant-travel/framework"
 import { contractsService, policiesService } from "@voyant-travel/legal"
-import { operatorProfile } from "@voyant-travel/operator-settings/schema"
 import { proposalsService, tripSnapshotToProposalVersionApply } from "@voyant-travel/proposals"
 import { tripsService } from "@voyant-travel/trips"
-import { scopesForRole } from "@voyant-travel/types/member-roles"
 import { sql as sqlRaw } from "drizzle-orm"
 import { Hono } from "hono"
 import { afterAll, beforeAll, describe, expect, it } from "vitest"
@@ -540,7 +537,7 @@ const RUN_MARK = process.env.VOYANT_EVAL_MARK ?? String(Date.now()).slice(-6)
 
 interface CapabilityJourney {
   id: string
-  group: "commercial" | "proposal" | "amendment" | "supplier" | "contract" | "team-admin"
+  group: "commercial" | "proposal" | "amendment" | "supplier" | "contract"
   domain: string
   task: string
   expect: string
@@ -957,49 +954,6 @@ function buildJourneys(RUN_MARK: string): CapabilityJourney[] {
                and v.version = 2
                and v.body = t.body`,
     },
-    {
-      id: "admin-settings-read",
-      group: "team-admin",
-      domain: "settings",
-      task: "Report the operator's current name, contact email, default locale, and supported locales. If a value is not configured, say so explicitly.",
-      expect: "operator",
-      maxCalls: 10,
-      requiresDispatch: true,
-    },
-    {
-      id: "admin-settings-update",
-      group: "team-admin",
-      domain: "settings",
-      task: `Update the operator profile name to 'Capability Travel ${RUN_MARK}', contact email to 'office.${RUN_MARK}@capability.example', and set both the supported locales and default locale to English. Preserve all other settings. Complete any required approval and confirm the saved values.`,
-      expect: `capability travel ${RUN_MARK}`,
-      maxCalls: 16,
-      verify: `select 1 from operator_profile
-             where name = 'Capability Travel ${RUN_MARK}'
-               and email = 'office.${RUN_MARK}@capability.example'
-               and default_locale = 'en'
-               and supported_locales = '["en"]'::jsonb`,
-    },
-    {
-      id: "team-roster-read",
-      group: "team-admin",
-      domain: "team",
-      task: "List the current staff team roster and report each member's role and access status.",
-      expect: "capability.eval@example.com",
-      maxCalls: 10,
-      requiresDispatch: true,
-    },
-    {
-      id: "team-role-update",
-      group: "team-admin",
-      domain: "team",
-      task: `Change the active team member Role Candidate ${RUN_MARK} (role.candidate.${RUN_MARK}@capability.example) from Editor to Viewer. Complete any required approval and confirm the saved role.`,
-      expect: "viewer",
-      maxCalls: 16,
-      verify: `select 1 from user_profiles
-             where id = 'user_team_role_${RUN_MARK}'
-               and is_super_admin = false
-               and permissions = '["*:read", "*:search"]'::jsonb`,
-    },
   ]
 }
 
@@ -1190,87 +1144,6 @@ async function seedContractJourney(journeyId: string, mark: string): Promise<voi
     active: true,
   })
   if (!template?.currentVersionId) throw new Error(`Cannot seed ${journeyId}`)
-}
-
-/** Staff authority and ordinary operator configuration for isolated admin jobs. */
-async function seedTeamAdminJourney(journeyId: string, mark: string): Promise<void> {
-  if (!verifyDb) throw new Error("Capability eval database is not mounted")
-  const now = new Date()
-  await verifyDb
-    .insert(authUser)
-    .values({
-      id: "user_capability_eval",
-      name: "Capability Evaluator",
-      email: "capability.eval@example.com",
-      emailVerified: true,
-      createdAt: now,
-      updatedAt: now,
-    })
-    .onConflictDoNothing()
-  await verifyDb
-    .insert(userProfilesTable)
-    .values({
-      id: "user_capability_eval",
-      firstName: "Capability",
-      lastName: "Evaluator",
-      isSuperAdmin: true,
-      permissions: ["*"],
-    })
-    .onConflictDoNothing()
-  await verifyDb
-    .insert(authAccount)
-    .values({
-      id: "account_capability_eval",
-      accountId: "user_capability_eval",
-      providerId: "credential",
-      userId: "user_capability_eval",
-      createdAt: now,
-      updatedAt: now,
-    })
-    .onConflictDoNothing()
-  if (journeyId === "admin-settings-read") {
-    await verifyDb.insert(operatorProfile).values({
-      name: "Capability Operator",
-      email: "operator@capability.example",
-      supportedLocales: ["en"],
-      defaultLocale: "en",
-    })
-  }
-  if (journeyId === "team-role-update") {
-    const targetUserId = `user_team_role_${mark}`
-    await verifyDb
-      .insert(authUser)
-      .values({
-        id: targetUserId,
-        name: `Role Candidate ${mark}`,
-        email: `role.candidate.${mark}@capability.example`,
-        emailVerified: true,
-        createdAt: now,
-        updatedAt: now,
-      })
-      .onConflictDoNothing()
-    await verifyDb
-      .insert(userProfilesTable)
-      .values({
-        id: targetUserId,
-        firstName: "Role",
-        lastName: `Candidate ${mark}`,
-        isSuperAdmin: false,
-        permissions: scopesForRole("editor"),
-      })
-      .onConflictDoNothing()
-    await verifyDb
-      .insert(authAccount)
-      .values({
-        id: `account_team_role_${mark}`,
-        accountId: targetUserId,
-        providerId: "credential",
-        userId: targetUserId,
-        createdAt: now,
-        updatedAt: now,
-      })
-      .onConflictDoNothing()
-  }
 }
 
 /**
@@ -1760,7 +1633,6 @@ describe.skipIf(!enabled)("MCP capability — a travel agent's job", () => {
           if (journey.group === "amendment") await seedBookingAmendment(mark)
           if (journey.group === "supplier") await seedSupplierJourney(journey.id, mark)
           if (journey.group === "contract") await seedContractJourney(journey.id, mark)
-          if (journey.group === "team-admin") await seedTeamAdminJourney(journey.id, mark)
           if (journey.id === "proposal-accept") await seedProposalAcceptance(mark)
           if (journey.id === "paid-refund") await seedPaidCancellationRefund(mark)
           let run: JourneyRun

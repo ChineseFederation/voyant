@@ -30,6 +30,31 @@ const BASELINE_PATH = "scripts/agent-write-coverage-baseline.json"
  * never be an agent surface, not for a backlog.
  */
 const ALLOWLIST = new Map<string, { rationale: string }>([
+  ...["team/invitation", "team/member", "team/member/activation", "team/member/role"].map(
+    (resource) =>
+      [
+        `@voyant-travel/auth:${resource}`,
+        {
+          rationale:
+            "Team membership, invitations, roles, and access are security administration performed manually in the dashboard, not through agent Tools.",
+        },
+      ] as const,
+  ),
+  ...[
+    "setting/operator",
+    "setting/operator-payment-default",
+    "setting/operator-payment-instruction",
+    "setting/operator-profile",
+  ].map(
+    (resource) =>
+      [
+        `@voyant-travel/operator-settings:${resource}`,
+        {
+          rationale:
+            "Organization profile and payment configuration are administrative settings managed manually in the dashboard, not through agent Tools.",
+        },
+      ] as const,
+  ),
   [
     "@voyant-travel/catalog:catalog/booking-session/maintenance",
     {

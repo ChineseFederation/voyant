@@ -128,16 +128,6 @@
       "note": "Documented. The Tool description tells the caller to supply either field on its own, which is exactly what the refinement requires: at least one of `bedPreference` or `roomTypeId`. The refinement's own message names both fields too."
     },
     {
-      "id": "@voyant-travel/operator-settings:update_operator_settings:<root>",
-      "documented": true,
-      "note": "Documented. The Tool description states that supportedLocales and defaultLocale must be updated together and that defaultLocale must be included in supportedLocales."
-    },
-    {
-      "id": "@voyant-travel/operator-settings:update_operator_settings:supportedLocales",
-      "documented": true,
-      "note": "Documented. The supportedLocales field description states that the locale list must be unique."
-    },
-    {
       "id": "@voyant-travel/storefront:bootstrap_my_customer_portal:<root>",
       "documented": false,
       "note": "Not stated. The claim-conflict precondition is named in the description but its actual cross-field requirement is not."
