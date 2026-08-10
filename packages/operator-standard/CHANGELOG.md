@@ -1,5 +1,15 @@
 # @voyant-travel/operator-standard
 
+## 0.21.27
+
+### Patch Changes
+
+- Updated dependencies [d01bccc]
+- Updated dependencies [d5037f3]
+  - @voyant-travel/mcp@0.22.2
+  - @voyant-travel/storefront@0.255.6
+  - @voyant-travel/trips@0.234.3
+
 ## 0.21.26
 
 ### Patch Changes

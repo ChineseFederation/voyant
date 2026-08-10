@@ -1,5 +1,13 @@
 # @voyant-travel/trips
 
+## 0.234.3
+
+### Patch Changes
+
+- d5037f3: Carry provider-native, non-binding shopping estimates through opaque offer references so managed Trip selections can freeze before Catalog revalidates every component for booking.
+- Updated dependencies [d5037f3]
+  - @voyant-travel/storefront@0.255.6
+
 ## 0.234.2
 
 ### Patch Changes
