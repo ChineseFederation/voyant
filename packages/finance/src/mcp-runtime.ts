@@ -15,7 +15,7 @@ import {
 } from "@voyant-travel/tools"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import type { Context } from "hono"
-
+import { authorizeBookingCancellationRefund } from "./booking-cancellation-refund-authorization.js"
 import {
   authorizeFinanceInvoiceIssue,
   FINANCE_INVOICE_ISSUE_ACTION_NAME,
@@ -36,6 +36,11 @@ import { invoiceSchema } from "./routes-invoice-schemas.js"
 import { getFinanceRouteRuntime } from "./routes-runtime.js"
 import type { Env } from "./routes-shared.js"
 import { type CreateInvoiceFromBookingInput, financeService } from "./service.js"
+import {
+  executeBookingCancellationRefund,
+  getBookingCancellationRefundByCreditNote,
+  resolveBookingCancellationRefund,
+} from "./service-booking-cancellation-refund.js"
 import {
   buildUnsyncedProformaApprovalSnapshot,
   issueInvoiceFromBookingCommand,
@@ -338,6 +343,116 @@ export const voyantToolContextContribution = defineToolContextContribution({
             committedChanges: ["invoice_issued"] as const,
             nextActions: [{ tool: "get_invoice" as const, input: { id: invoice.id } }] as const,
           }
+        },
+        async refundCancelledBooking(input: {
+          bookingId: string
+          method: "bank_transfer" | "cash" | "cheque" | "other"
+          reference?: string | null
+          approvalId?: string
+        }) {
+          const preview = await resolveBookingCancellationRefund(db, input.bookingId)
+          const commandInput = {
+            ...preview,
+            method: input.method,
+            reference: input.reference ?? null,
+          }
+          const authorization = await authorizeBookingCancellationRefund({
+            db: db as PostgresJsDatabase,
+            commandInput,
+            actor: c.get("actor"),
+            callerType: c.get("callerType"),
+            scopes: c.get("scopes"),
+            isInternalRequest: c.get("isInternalRequest"),
+            requestContext: financeToolActionLedgerContext(c),
+            approvalId: input.approvalId ?? null,
+            idempotencyKey: await deriveCommandIdempotencyKey(
+              "refund-cancelled-booking",
+              commandInput,
+            ),
+          })
+          if (authorization.status === "approval_required") {
+            return {
+              ...pendingApprovalResult(authorization),
+              preview,
+              nextSteps: [
+                `1. Call approve_action_approval with approvalId "${authorization.approval.id}". This approval is already pending; do not request another one.`,
+                `2. Call refund_cancelled_booking again with the identical bookingId, method, and reference plus the nested control object "_voyant": {"approvalId": "${authorization.approval.id}"}. The server will re-resolve the contractual entitlement, invoice, and original payment and refuse if any changed.`,
+              ],
+            }
+          }
+          if (authorization.status === "authorized") {
+            const approved = buildActionLedgerApprovedExecutionFields(authorization.approvedAction)
+            const result = await executeBookingCancellationRefund(
+              db as PostgresJsDatabase,
+              commandInput,
+              {
+                actionLedgerContext: financeToolActionLedgerContext(c),
+                authorizationSource: authorization.access.authorizationSource,
+                causationActionId: approved.causationActionId,
+                approvalId: approved.approvalId,
+                requestedActionId: authorization.approvedAction.requestedActionId,
+                idempotencyScope: approved.idempotencyScope,
+                idempotencyKey: approved.idempotencyKey,
+                idempotencyFingerprint: approved.idempotencyFingerprint,
+              },
+            )
+            return {
+              status: result.settlement.status,
+              bookingId: commandInput.bookingId,
+              invoiceId: commandInput.invoiceId,
+              paymentId: commandInput.paymentId,
+              creditNoteId: result.creditNote.id,
+              settlementId: result.settlement.id,
+              amountCents: commandInput.amountCents,
+              currency: commandInput.currency,
+              replayed: false,
+              committedChanges: ["credit_note_issued", "refund_settlement_recorded"] as const,
+              nextActions: [] as const,
+            }
+          }
+          if (authorization.status === "already_executed") {
+            const existing = await getBookingCancellationRefundByCreditNote(
+              db as PostgresJsDatabase,
+              authorization.creditNoteId,
+            )
+            if (!existing) {
+              throw new ToolError(
+                "The previously recorded booking cancellation refund was not found.",
+                "NOT_FOUND",
+                { creditNoteId: authorization.creditNoteId },
+              )
+            }
+            return {
+              status: existing.settlement.status,
+              bookingId: commandInput.bookingId,
+              invoiceId: commandInput.invoiceId,
+              paymentId: commandInput.paymentId,
+              creditNoteId: existing.creditNote.id,
+              settlementId: existing.settlement.id,
+              amountCents: commandInput.amountCents,
+              currency: commandInput.currency,
+              replayed: true,
+              committedChanges: ["credit_note_issued", "refund_settlement_recorded"] as const,
+              nextActions: [] as const,
+            }
+          }
+          if (authorization.status === "denied") {
+            throw new ToolError(
+              "Booking cancellation refund is not authorized.",
+              "AUTHORIZATION_DENIED",
+              { reason: authorization.access.reason },
+            )
+          }
+          if (authorization.status === "idempotency_conflict") {
+            throw new ToolError(authorization.message, "INVALID_INPUT", {
+              existingActionId: authorization.existingActionId,
+            })
+          }
+          throw new ToolError(
+            "The approval does not authorize this exact booking cancellation refund.",
+            "INVALID_INPUT",
+            { reason: authorization.validation.reason },
+          )
         },
         async issueUnsyncedProformaFromBooking(input: {
           bookingId: string

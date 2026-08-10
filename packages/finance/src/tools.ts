@@ -109,6 +109,12 @@ export interface FinanceToolServices {
       approvalId?: string
     },
   ): Promise<unknown>
+  refundCancelledBooking(input: {
+    bookingId: string
+    method: "bank_transfer" | "cash" | "cheque" | "other"
+    reference?: string | null
+    approvalId?: string
+  }): Promise<unknown>
 }
 
 export type FinanceToolContext = ToolContext & { finance?: FinanceToolServices }
@@ -523,6 +529,82 @@ export const invoiceBookingTool = defineTool<
   },
 })
 
+export const refundCancelledBookingToolInputSchema = z.strictObject({
+  bookingId: z.string().min(1),
+  method: z.enum(["bank_transfer", "cash", "cheque", "other"]),
+  reference: z.string().max(255).optional().nullable(),
+})
+
+const bookingCancellationRefundPreviewSchema = z.object({
+  bookingId: z.string().min(1),
+  bookingNumber: z.string().min(1),
+  cancellationActivityId: z.string().min(1),
+  cancellationAsOf: z.string().datetime(),
+  invoiceId: z.string().min(1),
+  invoiceNumber: z.string().min(1),
+  paymentId: z.string().min(1),
+  amountCents: z.number().int().positive(),
+  currency: z.string().length(3),
+  refundableRemainderCents: z.number().int().nonnegative(),
+  creditNoteNumber: z.string().min(1),
+})
+
+export const refundCancelledBookingToolOutputSchema = z.union([
+  pendingFinanceApprovalSchema.extend({ preview: bookingCancellationRefundPreviewSchema }),
+  z.object({
+    status: z.enum(["pending", "settled", "failed"]),
+    bookingId: z.string().min(1),
+    invoiceId: z.string().min(1),
+    paymentId: z.string().min(1),
+    creditNoteId: z.string().min(1),
+    settlementId: z.string().min(1),
+    amountCents: z.number().int().positive(),
+    currency: z.string().length(3),
+    replayed: z.boolean(),
+    committedChanges: z.tuple([
+      z.literal("credit_note_issued"),
+      z.literal("refund_settlement_recorded"),
+    ]),
+    nextActions: z.tuple([]),
+  }),
+])
+
+export const refundCancelledBookingTool = defineTool<
+  z.infer<typeof refundCancelledBookingToolInputSchema>,
+  z.infer<typeof refundCancelledBookingToolOutputSchema>,
+  FinanceToolContext
+>({
+  owner: "@voyant-travel/finance",
+  capabilityId: "@voyant-travel/finance#tool.refund-cancelled-booking",
+  capabilityVersion: "v1",
+  name: "refund_cancelled_booking",
+  description:
+    "Pay the contractual cash refund for a cancelled booking. The server resolves the durable cancellation entitlement, exact amount, paid invoice, and original payment; the first call returns one approval for both the credit note and settlement, and an approved retry refuses any drift.",
+  inputSchema: refundCancelledBookingToolInputSchema,
+  outputSchema: refundCancelledBookingToolOutputSchema,
+  requiredScopes: ["finance:refund", "bookings:read"],
+  audience: { source: "grant", allowed: ["staff"] },
+  resolvesIdempotencyKeyServerSide: true,
+  actionPolicyEnforcement: "handler",
+  tier: "destructive",
+  riskPolicy: {
+    destructive: true,
+    reversible: false,
+    dryRunSupported: false,
+    confirmationRequired: true,
+    sideEffects: ["refund", "data-write"],
+  },
+  annotations: { idempotentHint: true },
+  async handler(input, ctx) {
+    return refundCancelledBookingToolOutputSchema.parse(
+      await finance(ctx).refundCancelledBooking({
+        ...input,
+        approvalId: handlerApprovalId(ctx),
+      }),
+    )
+  },
+})
+
 export const previewUnsyncedProformaFromBookingTool = defineTool<
   { bookingId: string },
   z.infer<typeof unsyncedProformaApprovalSnapshotSchema>,
@@ -732,6 +814,7 @@ export const financeTools = [
   issueInvoiceRefundTool,
   issueInvoiceFromBookingTool,
   invoiceBookingTool,
+  refundCancelledBookingTool,
   recordPaymentDisputeTool,
   recordRefundSettlementTool,
   previewUnsyncedProformaFromBookingTool,

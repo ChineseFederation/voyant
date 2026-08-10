@@ -50,9 +50,11 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { homedir } from "node:os"
 import { dirname, join, resolve } from "node:path"
+import { bookingActivityLog, bookings } from "@voyant-travel/bookings/schema"
 import { createDbClient } from "@voyant-travel/db"
 import { dbClientDispose } from "@voyant-travel/db/transaction-capability"
 import { financeService } from "@voyant-travel/finance"
+import { invoices } from "@voyant-travel/finance/schema"
 import { composeVoyantGraphRuntime } from "@voyant-travel/framework"
 import { policiesService } from "@voyant-travel/legal"
 import { proposalsService, tripSnapshotToProposalVersionApply } from "@voyant-travel/proposals"
@@ -523,7 +525,7 @@ function buildJourneys(RUN_MARK: string): CapabilityJourney[] {
       // approves, applies, and audits those exact terms rather than today's policy.
       id: "booking-cancel",
       domain: "bookings",
-      task: `Cancel the booking belonging to Ioana Marinescu${RUN_MARK} according to the cancellation terms agreed when it was booked. Complete any required approval and confirm the cancellation and refund entitlement. Inspect the related invoice before taking any finance action; do not record money as paid back when no customer payment was received.`,
+      task: `Cancel the booking belonging to Ioana Marinescu${RUN_MARK} according to the cancellation terms agreed when it was booked. Complete any required approval and confirm the cancellation and refund entitlement. Do not pay the refund yet; that is a separate operator step.`,
       expect: "cancel",
       maxCalls: 30,
       verify: `select 1 from bookings b
@@ -533,6 +535,27 @@ function buildJourneys(RUN_MARK: string): CapabilityJourney[] {
                and b.status = 'cancelled'
                and a.metadata->'cancellationPolicyEntitlement'->>'status' = 'evaluated'
                and (a.metadata->'cancellationPolicyEntitlement'->>'refundCents')::int > 0`,
+    },
+    {
+      id: "paid-refund",
+      domain: "invoices",
+      task: `Pay the contractual refund for cancelled booking 'BK-REFUND-${RUN_MARK}' by bank transfer with reference 'SEPA-${RUN_MARK}'. Complete the required approval and confirm the exact amount paid and the original payment it reversed.`,
+      expect: "refund",
+      maxCalls: 20,
+      verify: `select 1 from refund_settlements rs
+             join payments p on p.id = rs.payment_id
+             join invoices i on i.id = rs.invoice_id
+             join bookings b on b.id = rs.booking_id
+             join credit_notes cn on cn.id = rs.credit_note_id
+             where b.booking_number = 'BK-REFUND-${RUN_MARK}'
+               and rs.status = 'settled'
+               and rs.method = 'bank_transfer'
+               and rs.external_reference = 'SEPA-${RUN_MARK}'
+               and rs.amount_cents = 32500
+               and rs.currency = 'EUR'
+               and rs.payment_id = p.id
+               and p.amount_cents = 65000
+               and cn.amount_cents = 32500`,
     },
     {
       id: "proposal-accept",
@@ -682,6 +705,69 @@ async function seedCancellationPolicy(mark: string): Promise<void> {
   }
   const snapshot = await policiesService.captureCancellationPolicySnapshot(verifyDb, policy.id)
   if (!snapshot) throw new Error("Seeded cancellation policy cannot be captured")
+}
+
+async function seedPaidCancellationRefund(mark: string): Promise<void> {
+  if (!verifyDb) throw new Error("Capability eval database is not mounted")
+  const [booking] = await verifyDb
+    .insert(bookings)
+    .values({
+      bookingNumber: `BK-REFUND-${mark}`,
+      status: "cancelled",
+      sellCurrency: "EUR",
+      sellAmountCents: 65_000,
+    })
+    .returning()
+  if (!booking) throw new Error("Cannot seed paid cancellation booking")
+  await verifyDb.insert(bookingActivityLog).values({
+    bookingId: booking.id,
+    actorId: "user_capability_eval",
+    activityType: "status_change",
+    description: "Booking cancelled with evaluated contractual entitlement.",
+    metadata: {
+      oldStatus: "confirmed",
+      newStatus: "cancelled",
+      cancellationPolicyEntitlement: {
+        status: "evaluated",
+        asOf: "2026-08-10T00:00:00.000Z",
+        currency: "EUR",
+        totalCents: 65_000,
+        refundCents: 32_500,
+        knownRefundCents: 32_500,
+        refundPercent: 50,
+        refundType: "cash_or_credit",
+        reasons: [],
+        items: [],
+      },
+    },
+  })
+  const [invoice] = await verifyDb
+    .insert(invoices)
+    .values({
+      invoiceNumber: `INV-REFUND-${mark}`,
+      bookingId: booking.id,
+      invoiceType: "invoice",
+      status: "issued",
+      currency: "EUR",
+      issueDate: "2026-08-01",
+      dueDate: "2026-08-08",
+      subtotalCents: 65_000,
+      taxCents: 0,
+      totalCents: 65_000,
+      paidCents: 0,
+      balanceDueCents: 65_000,
+    })
+    .returning()
+  if (!invoice) throw new Error("Cannot seed paid cancellation invoice")
+  const payment = await financeService.createPayment(verifyDb, invoice.id, {
+    amountCents: 65_000,
+    currency: "EUR",
+    paymentMethod: "bank_transfer",
+    status: "completed",
+    paymentDate: "2026-08-01",
+    referenceNumber: `PAY-${mark}`,
+  })
+  if (!payment) throw new Error("Cannot seed original payment")
 }
 
 /**
@@ -1024,6 +1110,7 @@ describe.skipIf(!enabled)("MCP capability — a travel agent's job", () => {
 
         for (const journey of journeys) {
           if (journey.id === "proposal-accept") await seedProposalAcceptance(mark)
+          if (journey.id === "paid-refund") await seedPaidCancellationRefund(mark)
           let run: JourneyRun
           try {
             run = await runJourney({
