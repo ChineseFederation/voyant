@@ -49,7 +49,7 @@ function creditAmountInInvoiceCurrency(
   )
 }
 
-async function assertCreditNotesDoNotExceedInvoiceBalance(
+async function assertCreditNotesDoNotExceedInvoiceTotal(
   db: PostgresJsDatabase,
   invoice: typeof invoices.$inferSelect,
   candidate: typeof creditNotes.$inferSelect,
@@ -65,16 +65,20 @@ async function assertCreditNotesDoNotExceedInvoiceBalance(
   const attemptedCreditedCents =
     existingCreditedCents + creditAmountInInvoiceCurrency(invoice, candidate)
 
-  if (attemptedCreditedCents <= invoice.balanceDueCents) return
+  // Payments settle the receivable; they do not reduce the amount that may be
+  // reversed. A fully paid invoice has a zero balance due and is precisely the
+  // ordinary case where a refund credit note is needed. Bound credits by the
+  // invoiced total, less other credit notes, independently of payment state.
+  if (attemptedCreditedCents <= invoice.totalCents) return
 
   throw new InvoiceValidationError(
-    "Credit notes cannot exceed the invoice balance due",
+    "Credit notes cannot exceed the invoice total",
     {
       invoiceId: invoice.id,
       invoiceCurrency: invoice.currency,
-      invoiceBalanceDueCents: invoice.balanceDueCents,
+      invoiceTotalCents: invoice.totalCents,
       attemptedCreditedCents,
-      excessCents: attemptedCreditedCents - invoice.balanceDueCents,
+      excessCents: attemptedCreditedCents - invoice.totalCents,
     },
     { status: 409, code: "invoice_overcredited" },
   )
@@ -142,7 +146,7 @@ export const financeInvoiceCreditNoteService = {
         .returning()
 
       if (row) {
-        await assertCreditNotesDoNotExceedInvoiceBalance(tx, invoice, row)
+        await assertCreditNotesDoNotExceedInvoiceTotal(tx, invoice, row)
       }
 
       if (row && runtime.actionLedgerContext) {
@@ -204,7 +208,7 @@ export const financeInvoiceCreditNoteService = {
         .limit(1)
 
       if (invoice) {
-        await assertCreditNotesDoNotExceedInvoiceBalance(writer, invoice, row)
+        await assertCreditNotesDoNotExceedInvoiceTotal(writer, invoice, row)
       }
 
       return invoice ? { invoice, creditNote: row } : null

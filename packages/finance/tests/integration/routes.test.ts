@@ -2958,15 +2958,43 @@ describe.skipIf(!DB_AVAILABLE)("Finance routes", () => {
       expect(res.status).toBe(404)
     })
 
-    it("rejects credit notes that exceed the invoice balance due", async () => {
-      const booking = await seedBooking()
+    it("allows a credit note on a fully paid invoice", async () => {
+      const booking = await seedBooking({ status: "confirmed" })
+      const inv = await seedInvoice(booking.id, { totalCents: 10000, balanceDueCents: 10000 })
+      const payment = await app.request(`/invoices/${inv.id}/payments`, {
+        method: "POST",
+        ...json({
+          amountCents: 10000,
+          currency: "USD",
+          paymentMethod: "bank_transfer",
+          status: "completed",
+          paymentDate: "2025-06-02",
+        }),
+      })
+      expect(payment.status).toBe(201)
+
+      const res = await app.request(`/invoices/${inv.id}/credit-notes`, {
+        method: "POST",
+        ...json({
+          creditNoteNumber: nextCreditNoteNumber(),
+          amountCents: 5000,
+          currency: "USD",
+          reason: "Paid booking cancellation",
+        }),
+      })
+
+      expect(res.status).toBe(201)
+    })
+
+    it("rejects credit notes that exceed the invoice total", async () => {
+      const booking = await seedBooking({ status: "confirmed" })
       const inv = await seedInvoice(booking.id, { totalCents: 10000, balanceDueCents: 8000 })
 
       const res = await app.request(`/invoices/${inv.id}/credit-notes`, {
         method: "POST",
         ...json({
           creditNoteNumber: nextCreditNoteNumber(),
-          amountCents: 8001,
+          amountCents: 10001,
           currency: "USD",
           reason: "Too much credit",
         }),
@@ -2978,8 +3006,8 @@ describe.skipIf(!DB_AVAILABLE)("Finance routes", () => {
       })
     })
 
-    it("rejects credit note updates that exceed the invoice balance due", async () => {
-      const booking = await seedBooking()
+    it("rejects credit note updates that exceed the invoice total", async () => {
+      const booking = await seedBooking({ status: "confirmed" })
       const inv = await seedInvoice(booking.id, { totalCents: 10000, balanceDueCents: 8000 })
 
       const createRes = await app.request(`/invoices/${inv.id}/credit-notes`, {
@@ -2995,7 +3023,7 @@ describe.skipIf(!DB_AVAILABLE)("Finance routes", () => {
 
       const res = await app.request(`/invoices/${inv.id}/credit-notes/${cn.id}`, {
         method: "PATCH",
-        ...json({ amountCents: 8001 }),
+        ...json({ amountCents: 10001 }),
       })
 
       expect(res.status).toBe(409)
