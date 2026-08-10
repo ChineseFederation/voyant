@@ -94,8 +94,8 @@ if (check) {
     failures.push("largest admin gzip chunk exceeds 2 MiB")
   }
   if (!report.portableShell) failures.push("portable admin shell is missing")
-  if ((report.portableShell?.initialPreloads.gzipBytes ?? 0) > 560 * 1024) {
-    failures.push("portable admin shell initial preloads exceed 560 KiB gzip")
+  if ((report.portableShell?.initialPreloads.gzipBytes ?? 0) > 480 * 1024) {
+    failures.push("portable admin shell initial preloads exceed 480 KiB gzip")
   }
   if (
     report.portableShell?.initialPreloads.paths.some((path) => /\/recharts-[^/]+\.js$/.test(path))

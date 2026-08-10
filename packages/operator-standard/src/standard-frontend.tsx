@@ -46,13 +46,13 @@ import type {
   ProposalsPublicRouteRuntime,
 } from "@voyant-travel/proposals-react/public-routes"
 import { AdminWorkspaceRealtimeProvider } from "@voyant-travel/realtime-react"
+import { useStorefrontMessages } from "@voyant-travel/storefront-react/storefront/messages"
 import {
   createStorefrontMessagesProvider,
   type StorefrontComposerRouteProps,
   type StorefrontPresentationContribution,
   type StorefrontPresentationRuntime,
-  useStorefrontMessages,
-} from "@voyant-travel/storefront-react/storefront"
+} from "@voyant-travel/storefront-react/storefront/presentation-routes"
 import type { AccessCatalog } from "@voyant-travel/types/api-keys"
 import { ConfirmDialogHost, PromptDialogHost } from "@voyant-travel/ui/components"
 import { TooltipProvider } from "@voyant-travel/ui/components/tooltip"

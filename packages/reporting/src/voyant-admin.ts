@@ -10,6 +10,7 @@ const reportingAdminRuntime = {
  */
 export const reportingVoyantAdmin = {
   compositionOrder: 60,
+  loading: "lazy-routes",
   runtime: {
     entry: "@voyant-travel/reporting-react/admin",
     export: "createSelectedReportingAdminExtension",

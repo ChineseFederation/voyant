@@ -17,6 +17,8 @@
     "./query-keys": "./src/query-keys.ts",
     "./styles.css": "./src/styles.css",
     "./storefront": "./src/storefront/index.ts",
+    "./storefront/messages": "./src/storefront/messages.tsx",
+    "./storefront/presentation-routes": "./src/storefront/presentation-routes.tsx",
     "./customer-portal": "./src/customer-portal/index.ts",
     "./customer-portal/client": "./src/customer-portal/client.ts",
     "./customer-portal/hooks": "./src/customer-portal/hooks/index.ts",
@@ -136,6 +138,16 @@
         "types": "./dist/storefront/index.d.ts",
         "import": "./dist/storefront/index.js",
         "default": "./dist/storefront/index.js"
+      },
+      "./storefront/messages": {
+        "types": "./dist/storefront/messages.d.ts",
+        "import": "./dist/storefront/messages.js",
+        "default": "./dist/storefront/messages.js"
+      },
+      "./storefront/presentation-routes": {
+        "types": "./dist/storefront/presentation-routes.d.ts",
+        "import": "./dist/storefront/presentation-routes.js",
+        "default": "./dist/storefront/presentation-routes.js"
       },
       "./customer-portal": {
         "types": "./dist/customer-portal/index.d.ts",

@@ -266,6 +266,10 @@ export function createProjectViteConfig(options: ProjectViteConfigOptions): Inli
     appRootUrl: options.appRootUrl,
     nodeSsr: true,
     bundleWorkspaceSource: options.bundleWorkspaceSource ?? true,
+    // Production applications have hundreds of lazy route modules. Do not
+    // make the entry chunk parse their complete preload map before auth can
+    // begin; the requested route can fetch its edge-cached dependencies.
+    deferDynamicImportPreloads: options.bundleWorkspaceSource === false,
     plugins: [
       createDevelopmentReadinessPlugin(options.developmentReadiness),
       options.generatedRoutes.plugin,

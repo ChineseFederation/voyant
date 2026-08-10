@@ -117,7 +117,7 @@ export function checkStorefrontPresentationAuthority({
   for (const token of [
     "presentations: [",
     'id: "@voyant-travel/storefront#presentation.customer"',
-    'entry: "@voyant-travel/storefront-react/storefront"',
+    'entry: "@voyant-travel/storefront-react/storefront/presentation-routes"',
     'export: "createStorefrontPresentationContribution"',
   ]) {
     if (!graphDeclaration.includes(token)) {

@@ -1921,6 +1921,12 @@
       "@voyant-travel/storefront-react/storefront": [
         "../storefront-react/dist/storefront/index.d.ts"
       ],
+      "@voyant-travel/storefront-react/storefront/messages": [
+        "../storefront-react/dist/storefront/messages.d.ts"
+      ],
+      "@voyant-travel/storefront-react/storefront/presentation-routes": [
+        "../storefront-react/dist/storefront/presentation-routes.d.ts"
+      ],
       "@voyant-travel/storefront-sdk": ["../storefront-sdk/dist/index.d.ts"],
       "@voyant-travel/storefront-sdk/booking-amendments": [
         "../storefront-sdk/dist/booking-amendments.d.ts"

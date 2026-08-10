@@ -212,6 +212,36 @@ describe("voyantStartViteConfig", () => {
     ])
   })
 
+  it("can defer only JavaScript-hosted dynamic import preloads", () => {
+    const config = voyantStartViteConfig({ ...base, deferDynamicImportPreloads: true })
+    const resolveDependencies = config.build?.modulePreload
+    if (
+      !resolveDependencies ||
+      typeof resolveDependencies === "boolean" ||
+      typeof resolveDependencies.resolveDependencies !== "function"
+    ) {
+      throw new Error("missing module preload dependency resolver")
+    }
+
+    const dependencies = ["assets/react.js", "assets/route.js"]
+    expect(
+      resolveDependencies.resolveDependencies("assets/index.js", dependencies, {
+        hostId: "index.html",
+        hostType: "html",
+      }),
+    ).toEqual(dependencies)
+    expect(
+      resolveDependencies.resolveDependencies("assets/route.js", dependencies, {
+        hostId: "assets/index.js",
+        hostType: "js",
+      }),
+    ).toEqual([])
+  })
+
+  it("keeps Vite's default preload behavior unless explicitly enabled", () => {
+    expect(voyantStartViteConfig(base).build?.modulePreload).toBeUndefined()
+  })
+
   it("layers extra manual chunks after the Voyant vendor rules", () => {
     const config = voyantStartViteConfig({
       ...base,

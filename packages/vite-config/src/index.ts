@@ -307,6 +307,13 @@ export interface VoyantStartViteConfigOptions {
   /** Extra SSR optimizeDeps entries appended to the Voyant set. */
   ssrOptimizeDepsInclude?: readonly string[]
   /**
+   * Keep entry HTML preloads, but let lazy imports fetch their own dependency
+   * graph when they are actually requested. Large generated route graphs can
+   * otherwise make Vite embed hundreds of dependency URLs in the entry chunk,
+   * increasing parse and compile time before the application can authenticate.
+   */
+  deferDynamicImportPreloads?: boolean
+  /**
    * Build the SSR/server environment for a Node runtime (voyant#2966: Voyant
    * deployments are Node-only — no `@cloudflare/vite-plugin`). Adds the
    * load-bearing Node-SSR config the app would otherwise hand-merge:
@@ -364,6 +371,7 @@ export function voyantStartViteConfig(options: VoyantStartViteConfigOptions): Us
     extraManualChunks,
     nodeSsr,
     bundleWorkspaceSource = true,
+    deferDynamicImportPreloads = false,
   } = options
   const resolvableSsrDependencies = resolvableAppRootDependencies(
     appRootUrl,
@@ -377,6 +385,17 @@ export function voyantStartViteConfig(options: VoyantStartViteConfigOptions): Us
       allowedHosts,
     },
     build: {
+      ...(deferDynamicImportPreloads
+        ? {
+            modulePreload: {
+              resolveDependencies: (
+                _url: string,
+                dependencies: string[],
+                context: { hostType: "html" | "js" },
+              ) => (context.hostType === "js" ? [] : dependencies),
+            },
+          }
+        : {}),
       rollupOptions: {
         output: {
           ...voyantChunkOutput(

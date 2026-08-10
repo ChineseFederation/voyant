@@ -37,7 +37,7 @@ describe("selected-graph Action Ledger admin composition", () => {
       "finance",
       "flights",
       "legal",
-      "reporting",
+      "@voyant-travel/reporting",
       "notifications",
       "commerce",
       "trips",

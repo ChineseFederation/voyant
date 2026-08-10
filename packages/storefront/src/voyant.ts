@@ -157,7 +157,7 @@ export const storefrontVoyantModule = defineModule({
     {
       id: "@voyant-travel/storefront#presentation.customer",
       runtime: {
-        entry: "@voyant-travel/storefront-react/storefront",
+        entry: "@voyant-travel/storefront-react/storefront/presentation-routes",
         export: "createStorefrontPresentationContribution",
       },
       contribution: "storefront",

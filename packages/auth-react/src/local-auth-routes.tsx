@@ -2,33 +2,56 @@ import { useMutation, useQuery } from "@tanstack/react-query"
 import { Outlet, redirect, useNavigate, useSearch } from "@tanstack/react-router"
 import { formatMessage } from "@voyant-travel/admin/lib/i18n"
 import type { AdminAuthMessages } from "@voyant-travel/i18n"
-import type { ReactNode } from "react"
+import { lazy, type ReactNode, Suspense } from "react"
 import { z } from "zod"
-import { AcceptInvitationPage } from "./components/accept-invitation-page.js"
-import { AuthLayout } from "./components/auth-layout.js"
-import {
-  ForgotPasswordPage,
-  type ForgotPasswordPageMessages,
-  ResetPasswordPage,
-  type ResetPasswordPageMessages,
+import type {
+  ForgotPasswordPageMessages,
+  ResetPasswordPageMessages,
 } from "./components/password-reset-pages.js"
-import {
-  RedeemInvitationPage,
-  type RedeemInvitationStatus,
-} from "./components/redeem-invitation-page.js"
-import {
-  SignInPage,
-  type SignInPageMessages,
-  type SignInSocialProvider,
-} from "./components/sign-in-page.js"
-import {
-  type SignUpEmailSubmitInput,
-  SignUpPage,
-  type SignUpPageMessages,
-  type SignUpSocialProvider,
+import type { RedeemInvitationStatus } from "./components/redeem-invitation-page.js"
+import type { SignInPageMessages, SignInSocialProvider } from "./components/sign-in-page.js"
+import type {
+  SignUpEmailSubmitInput,
+  SignUpPageMessages,
+  SignUpSocialProvider,
 } from "./components/sign-up-page.js"
-import { VerifyEmailPage, type VerifyEmailPageMessages } from "./components/verify-email-page.js"
+import type { VerifyEmailPageMessages } from "./components/verify-email-page.js"
 import { type LocalAuthRoute, resolveLocalAuthRedirect } from "./local-auth-bootstrap.js"
+
+const AcceptInvitationPage = lazy(() =>
+  import("./components/accept-invitation-page.js").then((module) => ({
+    default: module.AcceptInvitationPage,
+  })),
+)
+const AuthLayout = lazy(() =>
+  import("./components/auth-layout.js").then((module) => ({ default: module.AuthLayout })),
+)
+const ForgotPasswordPage = lazy(() =>
+  import("./components/password-reset-pages.js").then((module) => ({
+    default: module.ForgotPasswordPage,
+  })),
+)
+const ResetPasswordPage = lazy(() =>
+  import("./components/password-reset-pages.js").then((module) => ({
+    default: module.ResetPasswordPage,
+  })),
+)
+const RedeemInvitationPage = lazy(() =>
+  import("./components/redeem-invitation-page.js").then((module) => ({
+    default: module.RedeemInvitationPage,
+  })),
+)
+const SignInPage = lazy(() =>
+  import("./components/sign-in-page.js").then((module) => ({ default: module.SignInPage })),
+)
+const SignUpPage = lazy(() =>
+  import("./components/sign-up-page.js").then((module) => ({ default: module.SignUpPage })),
+)
+const VerifyEmailPage = lazy(() =>
+  import("./components/verify-email-page.js").then((module) => ({
+    default: module.VerifyEmailPage,
+  })),
+)
 
 export interface LocalAuthPresentationRuntime<TUser> {
   getCurrentUser: () => Promise<TUser | null>
@@ -389,9 +412,11 @@ export function createLocalAuthRouteContribution<TUser>(
 
 function LocalAuthLayout() {
   return (
-    <AuthLayout>
-      <Outlet />
-    </AuthLayout>
+    <Suspense fallback={<div className="min-h-screen bg-background" />}>
+      <AuthLayout>
+        <Outlet />
+      </AuthLayout>
+    </Suspense>
   )
 }
 

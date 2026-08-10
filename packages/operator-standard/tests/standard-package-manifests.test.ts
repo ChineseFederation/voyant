@@ -90,7 +90,7 @@ describe("standard package manifests", () => {
       {
         id: "@voyant-travel/storefront#presentation.customer",
         runtime: {
-          entry: "@voyant-travel/storefront-react/storefront",
+          entry: "@voyant-travel/storefront-react/storefront/presentation-routes",
           export: "createStorefrontPresentationContribution",
         },
         contribution: "storefront",

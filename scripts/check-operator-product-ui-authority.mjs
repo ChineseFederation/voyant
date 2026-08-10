@@ -126,7 +126,7 @@ const requiredTokens = new Map([
     [
       '"@voyant-travel/cruises-react/storefront"',
       '"@voyant-travel/inventory-react/storefront"',
-      '"@voyant-travel/storefront-react/storefront"',
+      '"@voyant-travel/storefront-react/storefront/presentation-routes"',
       '"@voyant-travel/trips-react/storefront"',
       "presentationFactories",
       '"@voyant-travel/storefront#presentation.customer"',
