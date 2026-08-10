@@ -152,6 +152,25 @@ describe("Storefront shopping public routes", () => {
     expect(response.headers.get("x-request-id")).toBeTruthy()
   })
 
+  it("returns a bounded 400 for an unsupported managed scope", async () => {
+    const shopping = runtime()
+    vi.mocked(shopping.search).mockRejectedValueOnce({
+      code: "storefront_shopping_scope_unsupported",
+      selector: "locale",
+      requested: "en",
+    })
+    const response = await app({ shopping }).request(
+      jsonRequest("/v1/public/shopping/search", searchBody),
+    )
+
+    expect(response.status).toBe(400)
+    expect(await response.json()).toEqual({
+      error: "storefront_shopping_scope_unsupported",
+      requestId: expect.any(String),
+    })
+    expect(response.headers.get("cache-control")).toBe("private, no-store")
+  })
+
   it("bounds JSON bodies with absent or misleading Content-Length before provider invocation", async () => {
     const shopping = runtime()
     const oversizedBody = { ...searchBody, padding: "x".repeat(65 * 1024) }

@@ -7,6 +7,7 @@ import type { PresentationFxQuoter } from "@voyant-travel/catalog-contracts/pres
 import { sha256Hex } from "@voyant-travel/hono"
 
 import type {
+  StorefrontActiveMarket,
   StorefrontCatalogSliceItem,
   StorefrontLiveContinuation,
   StorefrontLiveSearchPage,
@@ -96,24 +97,87 @@ async function resolveActiveScope(
     channelId: context.channelId,
   })
   if (markets.length === 0) throw new StorefrontShoppingScopeError("market")
+  const availableLocales = unique(
+    markets.flatMap((market) => [market.defaultLocale, ...market.locales]),
+  )
+  const availableCurrencies = unique(
+    markets.flatMap((market) => [market.defaultCurrency, ...market.currencies]).map(upperCurrency),
+  )
+  const requestedCurrency = requested.currency ? upperCurrency(requested.currency) : undefined
+  const eligible = markets.filter(
+    (candidate) =>
+      (!requested.locale || resolveSupportedLocale(candidate, requested.locale)) &&
+      (!requestedCurrency || marketCurrencies(candidate).includes(requestedCurrency)),
+  )
   const market = requested.marketId
     ? markets.find((candidate) => candidate.id === requested.marketId)
-    : (markets.find((candidate) => candidate.isDefault) ?? markets[0])
-  if (!market) throw new StorefrontShoppingScopeError("marketId", requested.marketId)
+    : (eligible.find((candidate) => candidate.isDefault) ?? eligible[0])
+  if (!market) {
+    if (requested.marketId) {
+      throw new StorefrontShoppingScopeError("marketId", requested.marketId)
+    }
+    if (requested.locale && !availableLocale(availableLocales, requested.locale)) {
+      throw new StorefrontShoppingScopeError("locale", requested.locale)
+    }
+    if (requestedCurrency && !availableCurrencies.includes(requestedCurrency)) {
+      throw new StorefrontShoppingScopeError("currency", requestedCurrency)
+    }
+    throw new StorefrontShoppingScopeError("market")
+  }
 
-  const locales = unique([market.defaultLocale, ...market.locales])
-  const currencies = unique([market.defaultCurrency, ...market.currencies].map(upperCurrency))
-  const locale = requested.locale ?? market.defaultLocale
-  const currency = upperCurrency(requested.currency ?? market.defaultCurrency)
-  if (!locales.includes(locale)) throw new StorefrontShoppingScopeError("locale", locale)
-  if (!currencies.includes(currency)) throw new StorefrontShoppingScopeError("currency", currency)
+  const locale = requested.locale
+    ? resolveSupportedLocale(market, requested.locale)
+    : market.defaultLocale
+  const currencies = marketCurrencies(market)
+  const currency = requestedCurrency ?? upperCurrency(market.defaultCurrency)
+  if (!locale) throw new StorefrontShoppingScopeError("locale", requested.locale)
+  if (!currencies.includes(currency)) {
+    throw new StorefrontShoppingScopeError("currency", currency)
+  }
 
   return {
     marketId: market.id,
     locale,
     currency,
-    available: { marketIds: markets.map(({ id }) => id), locales, currencies },
+    available: {
+      marketIds: markets.map(({ id }) => id),
+      locales: availableLocales,
+      currencies: availableCurrencies,
+    },
   }
+}
+
+function marketLocales(market: StorefrontActiveMarket): string[] {
+  return unique([market.defaultLocale, ...market.locales])
+}
+
+function marketCurrencies(market: StorefrontActiveMarket): string[] {
+  return unique([market.defaultCurrency, ...market.currencies].map(upperCurrency))
+}
+
+function baseLanguageRange(locale: string): string | null {
+  try {
+    const parsed = new Intl.Locale(locale)
+    return parsed.region || parsed.script ? null : parsed.language
+  } catch {
+    return null
+  }
+}
+
+function availableLocale(locales: readonly string[], requested: string): string | undefined {
+  const exact = locales.find((locale) => locale === requested)
+  if (exact) return exact
+  const language = baseLanguageRange(requested)
+  return language
+    ? locales.find((locale) => new Intl.Locale(locale).language === language)
+    : undefined
+}
+
+function resolveSupportedLocale(
+  market: StorefrontActiveMarket,
+  requested: string,
+): string | undefined {
+  return availableLocale(marketLocales(market), requested)
 }
 
 type InspirationIntent = Extract<StorefrontShoppingIntent, { kind: "indexed-inspiration" }>

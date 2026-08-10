@@ -341,6 +341,14 @@ function isRevisionConflict(value: unknown): boolean {
   )
 }
 
+function isShoppingScopeError(value: unknown): boolean {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    (value as { code?: unknown }).code === "storefront_shopping_scope_unsupported"
+  )
+}
+
 export function createStorefrontShoppingPublicRoutes(
   options: StorefrontShoppingPublicRoutesOptions = {},
 ): OpenAPIHono<Env> {
@@ -364,6 +372,15 @@ export function createStorefrontShoppingPublicRoutes(
         await setSafeIndexedCacheHeaders(c, result, options)
         return c.json({ data: result }, 200)
       } catch (cause) {
+        if (isShoppingScopeError(cause)) {
+          return c.json(
+            {
+              error: "storefront_shopping_scope_unsupported",
+              requestId: requestId(c),
+            },
+            400,
+          )
+        }
         if (cause instanceof StorefrontShoppingUnavailableError) {
           return c.json({ error: "storefront_shopping_unavailable", requestId: requestId(c) }, 503)
         }

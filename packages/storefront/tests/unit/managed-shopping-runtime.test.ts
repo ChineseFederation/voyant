@@ -76,6 +76,64 @@ describe("managed storefront shopping scope", () => {
     expect(JSON.stringify(deps.markets.listActiveMarkets.mock.calls)).not.toContain("buyer_private")
   })
 
+  it("resolves language ranges and currency choices across active markets", async () => {
+    const markets = [
+      {
+        id: "market_eu",
+        defaultLocale: "en-GB",
+        defaultCurrency: "EUR",
+        locales: ["en-GB", "fr-FR", "it-IT"],
+        currencies: ["EUR"],
+        isDefault: true,
+      },
+      {
+        id: "market_ro",
+        defaultLocale: "ro-RO",
+        defaultCurrency: "RON",
+        locales: ["ro-RO", "en-GB"],
+        currencies: ["RON", "EUR"],
+      },
+      {
+        id: "market_uk",
+        defaultLocale: "en-GB",
+        defaultCurrency: "GBP",
+        locales: ["en-GB"],
+        currencies: ["GBP", "EUR"],
+      },
+    ]
+    const runtime = createManagedStorefrontShoppingRuntime(
+      dependencies({ markets: { listActiveMarkets: vi.fn(async () => markets) } }),
+    )
+
+    await expect(runtime.resolveScope(context, { locale: "en" })).resolves.toMatchObject({
+      marketId: "market_eu",
+      locale: "en-GB",
+      currency: "EUR",
+      available: {
+        marketIds: ["market_eu", "market_ro", "market_uk"],
+        locales: ["en-GB", "fr-FR", "it-IT", "ro-RO"],
+        currencies: ["EUR", "RON", "GBP"],
+      },
+    })
+    await expect(runtime.resolveScope(context, { locale: "ro" })).resolves.toMatchObject({
+      marketId: "market_ro",
+      locale: "ro-RO",
+      currency: "RON",
+    })
+    await expect(runtime.resolveScope(context, { currency: "GBP" })).resolves.toMatchObject({
+      marketId: "market_uk",
+      locale: "en-GB",
+      currency: "GBP",
+    })
+    await expect(
+      runtime.resolveScope(context, { locale: "fr-FR", currency: "RON" }),
+    ).rejects.toMatchObject({ code: "storefront_shopping_scope_unsupported" })
+    await expect(runtime.resolveScope(context, { locale: "en-US" })).rejects.toMatchObject({
+      code: "storefront_shopping_scope_unsupported",
+      selector: "locale",
+    })
+  })
+
   it.each([
     ["marketId", { marketId: "market_inactive" }],
     ["locale", { locale: "de-DE" }],
