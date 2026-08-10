@@ -1,7 +1,7 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 
-import { cleanupResult, parseArgs, usage } from "../run-mcp-capability-eval.mjs"
+import { cleanupResult, parseArgs, usage, waitForPostgres } from "../run-mcp-capability-eval.mjs"
 
 test("defaults to a one-run smoke evaluation", () => {
   const options = parseArgs([])
@@ -69,4 +69,20 @@ test("records whether disposable database cleanup succeeded", () => {
     exitCode: 1,
     error: "daemon failed",
   })
+})
+
+test("waits for PostgreSQL itself to remain ready before returning", async () => {
+  const readiness = [true, false, true, true]
+  let probes = 0
+
+  await waitForPostgres("voyant-eval-1", {
+    attempts: readiness.length,
+    delay: async () => {},
+    probe: async () => {
+      probes += 1
+      return readiness.shift()
+    },
+  })
+
+  assert.equal(probes, 4)
 })

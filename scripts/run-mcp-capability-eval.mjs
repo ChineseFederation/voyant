@@ -1,7 +1,6 @@
 import { spawn, spawnSync } from "node:child_process"
 import { randomBytes } from "node:crypto"
 import { mkdirSync, writeFileSync } from "node:fs"
-import net from "node:net"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
 
@@ -115,23 +114,38 @@ function capture(command, args) {
   return result.stdout.trim()
 }
 
-function canConnect(port) {
-  return new Promise((resolvePromise) => {
-    const socket = net.createConnection({ host: "127.0.0.1", port })
-    socket.once("connect", () => {
-      socket.end()
-      resolvePromise(true)
-    })
-    socket.once("error", () => resolvePromise(false))
-  })
+function postgresIsReady(name) {
+  const result = spawnSync(
+    "docker",
+    [
+      "exec",
+      name,
+      "pg_isready",
+      "--host=127.0.0.1",
+      "--username=voyant_eval",
+      "--dbname=voyant_eval",
+      "--quiet",
+    ],
+    { cwd: repoRoot, encoding: "utf8" },
+  )
+  return result.status === 0
 }
 
-async function waitForPostgres(port) {
-  for (let attempt = 0; attempt < 60; attempt += 1) {
-    if (await canConnect(port)) return
-    await new Promise((resolvePromise) => setTimeout(resolvePromise, 500))
+export async function waitForPostgres(
+  name,
+  {
+    attempts = 60,
+    delay = () => new Promise((resolvePromise) => setTimeout(resolvePromise, 500)),
+    probe = postgresIsReady,
+  } = {},
+) {
+  let consecutiveReady = 0
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    consecutiveReady = (await probe(name)) ? consecutiveReady + 1 : 0
+    if (consecutiveReady >= 2) return
+    await delay()
   }
-  throw new Error(`timed out waiting for temporary Postgres on port ${port}`)
+  throw new Error(`timed out waiting for temporary Postgres container ${name}`)
 }
 
 function startTemporaryPostgres() {
@@ -204,7 +218,7 @@ async function main() {
   try {
     if (!databaseUrl) {
       temporaryDatabase = startTemporaryPostgres()
-      await waitForPostgres(temporaryDatabase.port)
+      await waitForPostgres(temporaryDatabase.name)
       databaseUrl = temporaryDatabase.url
     }
 
