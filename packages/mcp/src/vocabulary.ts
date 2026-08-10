@@ -72,6 +72,8 @@ export const VOCABULARY_ALIASES: Readonly<Record<string, readonly string[]>> = {
   cut: ["commission rule"],
   day: ["product day"],
   deal: ["proposal"],
+  deactivate: ["update", "inactive", "status"],
+  deactivation: ["update", "inactive", "status"],
   departure: ["slot"],
   discrepancy: ["reconciliation issue"],
   distributor: ["channel"],

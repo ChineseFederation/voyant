@@ -244,8 +244,30 @@ describe("MCP guide layer", () => {
     expect(text).toMatch(/immutable/i)
   })
 
+  it("returns the exact canonical noun instead of definitions that merely mention it", async () => {
+    const a = app(["catalog:read"])
+    const organization = await glossaryText(a, "Organization")
+    expect(organization).toMatch(/Organization: A company or legal entity/i)
+    expect(organization).not.toMatch(/Proposal:/)
+
+    const supplier = await glossaryText(a, "Supplier")
+    expect(supplier).toMatch(/supplier directory/i)
+    expect(supplier).toMatch(/Distribution/i)
+  })
+
   it("tells a read-only caller the write journeys are out of reach", async () => {
     const journey = await guideText(app(["catalog:read"]), "booking-journey")
     expect(journey).toMatch(/READ-ONLY/i)
   })
 })
+
+async function glossaryText(app: Hono, term: string): Promise<string> {
+  const called = await readRpc(
+    await app.request("/", rpc("tools/call", { name: "voyant_glossary", arguments: { term } })),
+  )
+  return (
+    (called.result as { content?: Array<{ text: string }> } | undefined)?.content
+      ?.map((part) => part.text)
+      .join("\n") ?? ""
+  )
+}

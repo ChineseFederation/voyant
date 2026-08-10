@@ -58,7 +58,7 @@ export const META_TOOL_NAMES: readonly string[] = [
 ]
 
 /** Default and maximum number of hits `search_tools` returns in one call. */
-const DEFAULT_SEARCH_LIMIT = 25
+const DEFAULT_SEARCH_LIMIT = 20
 const MAX_SEARCH_LIMIT = 50
 
 const DISPATCH_ERROR_META_KEY = "voyant.travel/error"
@@ -255,26 +255,34 @@ function searchTools(
   const expanded = terms.map((term) => expandSearchTerm(term))
 
   const candidates = discoverableCandidates(surface, projection)
-  const collectMatches = (domainFilter?: string) => {
-    const collected: Array<SearchCandidate & { score: number }> = []
-    for (const candidate of candidates) {
-      if (domainFilter && candidate.domain.toLowerCase() !== domainFilter) continue
-      const haystack =
-        `${candidate.name} ${candidate.description} ${candidate.domain} ${(candidate.keywords ?? []).join(" ")}`.toLowerCase()
-      if (
-        expanded.length > 0 &&
-        !expanded.every((forms) => forms.some((f) => haystack.includes(f)))
-      ) {
-        continue
-      }
-      collected.push({ ...candidate, score: scoreCandidate(candidate, expanded) })
-    }
-    return collected
-  }
+  const matches: Array<SearchCandidate & { score: number }> = []
+  for (const candidate of candidates) {
+    const haystack =
+      `${candidate.name} ${candidate.description} ${candidate.domain} ${(candidate.keywords ?? []).join(" ")}`.toLowerCase()
+    const matchedGroups = expanded.filter((forms) => forms.some((form) => haystack.includes(form)))
+    const minimumCoverage = expanded.length <= 2 ? 1 : Math.ceil((expanded.length * 2) / 3)
+    if (expanded.length > 0 && matchedGroups.length < minimumCoverage) continue
 
-  let matches = collectMatches(domain)
-  const ignoredDomain = domain !== undefined && matches.length === 0
-  if (ignoredDomain) matches = collectMatches()
+    // Real operator searches are phrases, not boolean expressions. Requiring
+    // every word made "supplier status lifecycle update deactivate" a zero-hit
+    // query even though update_supplier was present. Rank by coverage and match
+    // quality instead: more matched terms win, exact names/resources win within
+    // that coverage, and the optional domain remains a small tie-breaker rather
+    // than a filter that can hide the correct cross-domain Tool.
+    const relevance = matchedGroups.reduce(
+      (total, forms) => total + scoreCandidate(candidate, [forms]),
+      0,
+    )
+    const domainBonus = domain && candidate.domain.toLowerCase() === domain ? 1 : 0
+    matches.push({
+      ...candidate,
+      score: matchedGroups.length * 10 + relevance + domainBonus,
+    })
+  }
+  const ignoredDomain =
+    domain !== undefined &&
+    matches.length > 0 &&
+    !matches.some((candidate) => candidate.domain.toLowerCase() === domain)
 
   matches.sort((a, b) => b.score - a.score || a.name.localeCompare(b.name))
   const returned = matches.slice(0, limit)
