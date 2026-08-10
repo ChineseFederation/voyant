@@ -174,6 +174,7 @@ describe("auth identity/access deployment manifests", () => {
       ),
     ).not.toHaveProperty("availability")
     for (const actionId of [
+      "@voyant-travel/auth#team.action.revoke-invitation",
       "@voyant-travel/auth#team.action.activate-member",
       "@voyant-travel/auth#team.action.deactivate-member",
     ]) {

@@ -8,6 +8,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest"
 import { z } from "zod"
 
 import {
+  executeRevokeTeamInvitationCommand,
   executeSetTeamMemberAccessCommand,
   executeUpdateTeamMemberRoleCommand,
 } from "../../src/team-member-role-command.js"
@@ -15,6 +16,7 @@ import {
   ACTIVATE_TEAM_MEMBER_HANDLER_POLICY,
   DEACTIVATE_TEAM_MEMBER_HANDLER_POLICY,
   UPDATE_TEAM_MEMBER_ROLE_HANDLER_POLICY as POLICY,
+  REVOKE_TEAM_INVITATION_HANDLER_POLICY,
 } from "../../src/tools.js"
 
 const DB_AVAILABLE = Boolean(process.env.TEST_DATABASE_URL)
@@ -162,14 +164,82 @@ describe.skipIf(!DB_AVAILABLE)("durable team member role command", () => {
     ).resolves.toMatchObject({ id: "member_2", status: access })
     expect(dispatches).toBe(2)
   })
+
+  it("reconciles an ambiguous invitation revoke without dispatching DELETE twice", async () => {
+    const command = {
+      db,
+      context: requestContext,
+      invitationId: "invitation_ambiguous",
+    }
+    const initial = await mintAdmission({ confirmed: true }, REVOKE_TEAM_INVITATION_HANDLER_POLICY)
+    const approvalError = await executeRevokeTeamInvitationCommand({
+      ...command,
+      admitted: initial,
+      list: async () => [],
+      revoke: async () => undefined,
+    }).catch((error) => error as { code?: string; meta?: Record<string, unknown> })
+    expect(approvalError).toMatchObject({ code: "APPROVAL_REQUIRED" })
+    const approvalId = String(approvalError.meta?.approvalId ?? "")
+    const idempotencyFingerprint = String(approvalError.meta?.idempotencyFingerprint ?? "")
+    await approve(db, approvalId, REVOKE_TEAM_INVITATION_HANDLER_POLICY.actionPolicy.id)
+    const admitted = await mintAdmission(
+      { confirmed: true, approvalId, idempotencyFingerprint },
+      REVOKE_TEAM_INVITATION_HANDLER_POLICY,
+    )
+
+    let present = true
+    let dispatches = 0
+    const revoke = async () => {
+      dispatches += 1
+      present = false
+      throw new Error("response lost after invitation was revoked")
+    }
+    await expect(
+      executeRevokeTeamInvitationCommand({
+        ...command,
+        admitted,
+        list: async () => (present ? [invitation(command.invitationId)] : []),
+        revoke,
+      }),
+    ).rejects.toThrow(/response lost/)
+    await expect(
+      executeRevokeTeamInvitationCommand({
+        ...command,
+        admitted,
+        list: async () => (present ? [invitation(command.invitationId)] : []),
+        revoke,
+      }),
+    ).resolves.toBeUndefined()
+    expect(dispatches).toBe(1)
+  })
 })
+
+async function approve(
+  db: ReturnType<typeof import("@voyant-travel/db/test-utils").createTestDb>,
+  approvalId: string,
+  actionName: string,
+) {
+  await actionLedgerService.decideApproval(db, {
+    id: approvalId,
+    status: "approved",
+    decidedByPrincipalId: "user_team_role_approver",
+    decisionAction: {
+      actionName: `${actionName}.approve-test`,
+      actionVersion: "v1",
+      principalType: "user",
+      principalId: "user_team_role_approver",
+      organizationId: requestContext.organizationId,
+    },
+  })
+}
 
 async function mintAdmission(
   invocation: Record<string, string | boolean>,
   policy:
     | typeof POLICY
     | typeof ACTIVATE_TEAM_MEMBER_HANDLER_POLICY
-    | typeof DEACTIVATE_TEAM_MEMBER_HANDLER_POLICY = POLICY,
+    | typeof DEACTIVATE_TEAM_MEMBER_HANDLER_POLICY
+    | typeof REVOKE_TEAM_INVITATION_HANDLER_POLICY = POLICY,
 ): Promise<ToolHandlerActionPolicyContext> {
   let admitted: ToolHandlerActionPolicyContext | undefined
   const registry = createToolRegistry()
@@ -234,5 +304,17 @@ function member(roleId: string) {
     status: "active" as const,
     joinedAt: null,
     lastActivityAt: null,
+  }
+}
+
+function invitation(id: string) {
+  return {
+    id,
+    email: "invitee@example.com",
+    roleId: "editor",
+    roleName: "Editor",
+    status: "pending" as const,
+    createdAt: "2026-08-10T00:00:00.000Z",
+    expiresAt: "2026-08-13T00:00:00.000Z",
   }
 }

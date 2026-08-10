@@ -8,6 +8,8 @@ import {
   activateTeamMemberTool,
   DEACTIVATE_TEAM_MEMBER_HANDLER_POLICY,
   deactivateTeamMemberTool,
+  REVOKE_TEAM_INVITATION_HANDLER_POLICY,
+  revokeTeamInvitationTool,
   type TeamManagementToolContext,
   type TeamManagementToolServices,
   teamManagementTools,
@@ -81,7 +83,9 @@ function teamRegistry() {
           ? { actionPolicy: ACTIVATE_TEAM_MEMBER_HANDLER_POLICY.actionPolicy }
           : tool.name === "deactivate_team_member"
             ? { actionPolicy: DEACTIVATE_TEAM_MEMBER_HANDLER_POLICY.actionPolicy }
-            : undefined,
+            : tool.name === "revoke_team_invitation"
+              ? { actionPolicy: REVOKE_TEAM_INVITATION_HANDLER_POLICY.actionPolicy }
+              : undefined,
     )
   }
   return registry
@@ -151,6 +155,11 @@ describe("auth team-management tools", () => {
         annotations: { idempotentHint: true },
       })
     }
+    expect(revokeTeamInvitationTool).toMatchObject({
+      actionPolicyEnforcement: "handler",
+      resolvesIdempotencyKeyServerSide: true,
+      annotations: { idempotentHint: true },
+    })
     expect(
       registry
         .list()
@@ -172,7 +181,14 @@ describe("auth team-management tools", () => {
       ),
     ).resolves.toEqual(invitation)
     await expect(
-      registry.dispatch("revoke_team_invitation", { invitationId: "invitation_1" }, ctx),
+      registry.dispatch(
+        "revoke_team_invitation",
+        { invitationId: "invitation_1" },
+        {
+          ...ctx,
+          handlerActionPolicy: admission(registry, "revoke_team_invitation"),
+        },
+      ),
     ).resolves.toEqual({ invitationId: "invitation_1", revoked: true })
     await registry.dispatch(
       "update_team_member_role",
@@ -201,7 +217,7 @@ describe("auth team-management tools", () => {
       roleId: "editor",
       expiresInDays: 5,
     })
-    expect(runtime.revokeInvitation).toHaveBeenCalledWith("invitation_1")
+    expect(runtime.revokeInvitation).toHaveBeenCalledWith("invitation_1", expect.any(Object))
     expect(runtime.updateMemberRole).toHaveBeenCalledWith("member_1", "admin", expect.any(Object))
     expect(runtime.activateMember).toHaveBeenCalledWith("member_1", expect.any(Object))
     expect(runtime.deactivateMember).toHaveBeenCalledWith("member_1", expect.any(Object))

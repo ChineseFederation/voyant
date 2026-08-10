@@ -9,6 +9,7 @@ import type { Context } from "hono"
 
 import { teamManagementRuntimePort } from "./team-management-runtime-port.js"
 import {
+  executeRevokeTeamInvitationCommand,
   executeSetTeamMemberAccessCommand,
   executeUpdateTeamMemberRoleCommand,
 } from "./team-member-role-command.js"
@@ -61,7 +62,15 @@ export const voyantToolContextContribution = defineToolContextContribution({
       listRoles: () => runtime.listRoles(runtimeContext),
       listInvitations: () => runtime.listInvitations(runtimeContext),
       inviteMember: (input) => runtime.inviteMember(runtimeContext, input),
-      revokeInvitation: (invitationId) => runtime.revokeInvitation(runtimeContext, invitationId),
+      revokeInvitation: (invitationId, admitted) =>
+        executeRevokeTeamInvitationCommand({
+          db: runtimeContext.db,
+          context: actionLedgerContext(c),
+          admitted,
+          invitationId,
+          list: () => runtime.listInvitations(runtimeContext),
+          revoke: () => runtime.revokeInvitation(runtimeContext, invitationId),
+        }),
       async updateMemberRole(
         memberId: string,
         roleId: string,

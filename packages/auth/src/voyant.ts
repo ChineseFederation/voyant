@@ -361,11 +361,13 @@ export const authTeamVoyantModule = defineModule({
       kind: "execute",
       targetType: "team-invitation",
       commandTargetField: "invitationId",
-      availability: {
-        status: "unavailable",
-        reasonCode: "unsafe-nontransactional-effect",
-      },
+      targetLifecycle: "existing",
+      existingTarget: { durability: "handler-command-result-v1" },
       effectBoundary: "multistage",
+      durability: {
+        strategy: "saga",
+        testReference: "packages/auth/tests/integration/team-member-role-command.test.ts",
+      },
       resource: "team",
       action: "delete",
       requiredScopes: ["team:delete"],
