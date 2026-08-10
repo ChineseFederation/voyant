@@ -1,5 +1,11 @@
 # @voyant-travel/legal
 
+## 0.249.13
+
+### Patch Changes
+
+- 18f623f: Verify storefront contract acceptance against the pre-commit preview before server-assigned booking identifiers are added, so paid bookings promote their numbered contracts to signed.
+
 ## 0.249.12
 
 ### Patch Changes
