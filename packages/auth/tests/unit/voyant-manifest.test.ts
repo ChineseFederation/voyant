@@ -160,6 +160,19 @@ describe("auth identity/access deployment manifests", () => {
       },
       effectBoundary: "multistage",
     })
+    expect(
+      authTeamVoyantModule.actions?.find(
+        ({ id }) => id === "@voyant-travel/auth#team.action.update-member-role",
+      ),
+    ).toMatchObject({
+      targetLifecycle: "existing",
+      existingTarget: { durability: "handler-command-result-v1" },
+    })
+    expect(
+      authTeamVoyantModule.actions?.find(
+        ({ id }) => id === "@voyant-travel/auth#team.action.update-member-role",
+      ),
+    ).not.toHaveProperty("availability")
     expect(authTeamVoyantModule.access?.resources[0]).toMatchObject({
       wildcard: "explicit-resource",
       actions: [

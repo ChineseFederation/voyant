@@ -1,7 +1,14 @@
-import { defineToolContextContribution, requireService, ToolError } from "@voyant-travel/tools"
+import type { ActionLedgerRequestContextValues } from "@voyant-travel/action-ledger"
+import {
+  defineToolContextContribution,
+  requireService,
+  ToolError,
+  type ToolHandlerActionPolicyContext,
+} from "@voyant-travel/tools"
 import type { Context } from "hono"
 
 import { teamManagementRuntimePort } from "./team-management-runtime-port.js"
+import { executeUpdateTeamMemberRoleCommand } from "./team-member-role-command.js"
 import type { TeamManagementToolServices } from "./tools.js"
 
 export * from "./tools.js"
@@ -52,14 +59,45 @@ export const voyantToolContextContribution = defineToolContextContribution({
       listInvitations: () => runtime.listInvitations(runtimeContext),
       inviteMember: (input) => runtime.inviteMember(runtimeContext, input),
       revokeInvitation: (invitationId) => runtime.revokeInvitation(runtimeContext, invitationId),
-      updateMemberRole: (memberId, roleId) =>
-        runtime.updateMemberRole(runtimeContext, memberId, roleId),
+      async updateMemberRole(
+        memberId: string,
+        roleId: string,
+        admitted: ToolHandlerActionPolicyContext,
+      ) {
+        return executeUpdateTeamMemberRoleCommand({
+          db: runtimeContext.db,
+          context: actionLedgerContext(c),
+          admitted,
+          memberId,
+          roleId,
+          update: () => runtime.updateMemberRole(runtimeContext, memberId, roleId),
+        })
+      },
       activateMember: (memberId) => runtime.activateMember(runtimeContext, memberId),
       deactivateMember: (memberId) => runtime.deactivateMember(runtimeContext, memberId),
     }
     return { teamManagement }
   },
 })
+
+function actionLedgerContext(c: Context): ActionLedgerRequestContextValues {
+  const vars = c.var as Record<string, unknown>
+  return {
+    userId: (vars.userId as string | undefined) ?? null,
+    agentId: (vars.agentId as string | undefined) ?? null,
+    workflowPrincipalId: (vars.workflowPrincipalId as string | undefined) ?? null,
+    principalSubtype: (vars.principalSubtype as string | undefined) ?? null,
+    sessionId: (vars.sessionId as string | undefined) ?? null,
+    apiTokenId: ((vars.apiTokenId ?? vars.apiKeyId) as string | undefined) ?? null,
+    callerType: (vars.callerType as ActionLedgerRequestContextValues["callerType"]) ?? null,
+    actor: (vars.actor as ActionLedgerRequestContextValues["actor"]) ?? null,
+    isInternalRequest: (vars.isInternalRequest as boolean | undefined) ?? false,
+    organizationId: (vars.organizationId as string | undefined) ?? null,
+    workflowRunId: (vars.workflowRunId as string | undefined) ?? null,
+    workflowStepId: (vars.workflowStepId as string | undefined) ?? null,
+    correlationId: c.req.header("x-correlation-id") ?? c.req.header("x-request-id") ?? null,
+  }
+}
 
 function actingUserRequiredTeamManagement(): TeamManagementToolServices {
   const deny = async (): Promise<never> => {
