@@ -1,5 +1,11 @@
 # @voyant-travel/finance
 
+## 0.245.10
+
+### Patch Changes
+
+- effd44e: Allow refund credit notes on paid invoices while continuing to reject aggregate credits above the original invoice total.
+
 ## 0.245.9
 
 ### Patch Changes

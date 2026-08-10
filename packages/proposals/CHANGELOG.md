@@ -1,5 +1,11 @@
 # @voyant-travel/proposals
 
+## 0.138.4
+
+### Patch Changes
+
+- 331c013: Accept proposals by their discoverable Proposal id, preserve staff authority when creating the Booking Session, and resolve the immutable sent version on the server.
+
 ## 0.138.3
 
 ### Patch Changes

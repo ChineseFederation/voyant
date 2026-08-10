@@ -1,5 +1,13 @@
 # @voyant-travel/storefront
 
+## 0.255.1
+
+### Patch Changes
+
+- 6ae1603: Resolve base-language and presentation-currency preferences against all active storefront markets, and return unsupported shopping scopes as bounded client errors.
+- Updated dependencies [effd44e]
+  - @voyant-travel/finance@0.245.10
+
 ## 0.255.0
 
 ### Minor Changes
