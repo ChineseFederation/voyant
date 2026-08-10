@@ -81,6 +81,7 @@ export interface VoyantNodeRuntimeEnv extends VoyantBindings {
   DATABASE_URL_DIRECT?: string
   DATABASE_URL_REPLICAS?: string
   DATABASE_MAX_CONNECTIONS?: string
+  DATABASE_MAX_TOTAL_CONNECTIONS?: string
   DATABASE_MAX_TENANT_POOLS?: string
   DATABASE_TENANT_POOL_IDLE_MS?: string
   S3_ENDPOINT?: string

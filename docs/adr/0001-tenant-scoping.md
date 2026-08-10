@@ -98,11 +98,12 @@ by the cell API accepts a deployment identity, never an arbitrary database or
 tenant override.
 
 The capacity boundary is explicit: per-tenant connection concurrency remains
-bounded by `DATABASE_MAX_CONNECTIONS`; `DATABASE_MAX_TENANT_POOLS` bounds pools
-per process; the cell bounds resident runtimes; and idle tenants are evicted
-only while they have no admitted request. A resident runtime holds its pool so
-detached job work cannot lose sockets mid-execution. Pool disposal closes Node
-driver sockets.
+bounded by `DATABASE_MAX_CONNECTIONS`; `DATABASE_MAX_TOTAL_CONNECTIONS` bounds
+the sum of the primary and replica socket maxima across every retained tenant
+pool; `DATABASE_MAX_TENANT_POOLS` supplies an additional count cap; the cell
+bounds resident runtimes; and idle tenants are evicted only while they have no
+admitted request. A resident runtime holds its pool so detached job work cannot
+lose sockets mid-execution. Pool disposal closes Node driver sockets.
 
 This is not shared-schema tenancy. A tenant context still points at one database
 and domain packages still issue unscoped queries. Provisioning must reject two

@@ -7,6 +7,8 @@ export interface NodeDatabaseEnv {
   DATABASE_URL_REPLICAS?: string
   /** Maximum postgres-js sockets owned by this resident process. Default: 4. */
   DATABASE_MAX_CONNECTIONS?: string
+  /** Maximum sockets across all retained tenant pools in one process. Default: 32. */
+  DATABASE_MAX_TOTAL_CONNECTIONS?: string
   /** Maximum tenant-specific pools retained by one process. Default: 32. */
   DATABASE_MAX_TENANT_POOLS?: string
   /** Idle milliseconds before an unused tenant pool is evicted. Default: 300000. */
@@ -20,9 +22,11 @@ interface PooledDatabase {
   database: NodeDatabase
   active: number
   lastUsedAt: number
+  connectionCapacity: number
 }
 
 const pooledDatabases = new Map<string, PooledDatabase>()
+let processCapacityEnvelope: string | undefined
 
 /** Resolve the process-cached Postgres client for a resident Node deployment. */
 export function resolveNodeDatabase(env: NodeDatabaseEnv): NodeDatabase {
@@ -31,11 +35,13 @@ export function resolveNodeDatabase(env: NodeDatabaseEnv): NodeDatabase {
 
   const replicas = parseReplicaUrls(env.DATABASE_URL_REPLICAS, url)
   const maxConnections = parseMaxConnections(env.DATABASE_MAX_CONNECTIONS)
-  const cacheKey = `${url}\n${replicas.join("\n")}\nmax=${maxConnections}`
+  const capacity = resolvePoolCapacity(env, maxConnections, replicas.length)
+  enforceProcessCapacityEnvelope(capacity)
+  const cacheKey = `${url}\n${replicas.join("\n")}\nmax=${maxConnections}\npools=${capacity.maximumPools}\ntotal=${capacity.maximumConnections}`
   let pooledDatabase = pooledDatabases.get(cacheKey)
   if (!pooledDatabase) {
     evictIdleDatabases(env)
-    enforcePoolCapacity(env)
+    enforcePoolCapacity(capacity, capacity.connectionsRequired)
     pooledDatabase = {
       cacheKey,
       database: createDbClient(url, {
@@ -45,6 +51,7 @@ export function resolveNodeDatabase(env: NodeDatabaseEnv): NodeDatabase {
       }),
       active: 0,
       lastUsedAt: Date.now(),
+      connectionCapacity: capacity.connectionsRequired,
     }
     pooledDatabases.set(cacheKey, pooledDatabase)
   }
@@ -85,18 +92,84 @@ function evictIdleDatabases(env: NodeDatabaseEnv): void {
   }
 }
 
-function enforcePoolCapacity(env: NodeDatabaseEnv): void {
-  const maximum = parsePositiveInteger(
+function resolvePoolCapacity(
+  env: NodeDatabaseEnv,
+  maxConnections: number,
+  replicaCount: number,
+): {
+  configuredMaximumPools: number
+  maximumPools: number
+  maximumConnections: number
+  connectionsRequired: number
+} {
+  const configuredMaximumPools = parsePositiveInteger(
     env.DATABASE_MAX_TENANT_POOLS,
     32,
     "DATABASE_MAX_TENANT_POOLS",
   )
-  if (pooledDatabases.size < maximum) return
-  const candidate = [...pooledDatabases.entries()]
-    .filter(([, entry]) => entry.active === 0)
-    .sort((left, right) => left[1].lastUsedAt - right[1].lastUsedAt)[0]
-  if (!candidate) throw new Error("Voyant Node tenant database pool capacity is exhausted.")
-  evictDatabase(candidate[0], candidate[1])
+  const maximumConnections = parsePositiveInteger(
+    env.DATABASE_MAX_TOTAL_CONNECTIONS,
+    32,
+    "DATABASE_MAX_TOTAL_CONNECTIONS",
+  )
+  // createDbClient applies max independently to the primary and every replica.
+  const connectionsRequired = maxConnections * (replicaCount + 1)
+  const aggregateMaximumPools = Math.floor(maximumConnections / connectionsRequired)
+  if (aggregateMaximumPools < 1) {
+    throw new Error(
+      "DATABASE_MAX_TOTAL_CONNECTIONS must accommodate DATABASE_MAX_CONNECTIONS for the primary and every replica.",
+    )
+  }
+  return {
+    configuredMaximumPools,
+    maximumPools: Math.min(configuredMaximumPools, aggregateMaximumPools),
+    maximumConnections,
+    connectionsRequired,
+  }
+}
+
+function enforcePoolCapacity(
+  capacity: { maximumPools: number; maximumConnections: number },
+  connectionsRequired: number,
+): void {
+  const retainedConnections = () =>
+    [...pooledDatabases.values()].reduce((total, entry) => total + entry.connectionCapacity, 0)
+  while (
+    pooledDatabases.size >= capacity.maximumPools ||
+    retainedConnections() + connectionsRequired > capacity.maximumConnections
+  ) {
+    const candidate = [...pooledDatabases.entries()]
+      .filter(([, entry]) => entry.active === 0)
+      .sort((left, right) => left[1].lastUsedAt - right[1].lastUsedAt)[0]
+    if (!candidate) {
+      throw new Error("Voyant Node tenant database pool capacity is exhausted.")
+    }
+    evictDatabase(candidate[0], candidate[1])
+  }
+}
+
+/**
+ * Aggregate limits describe the process, not a tenant. A cell may resolve them
+ * from a tenant context, but every context in that process must agree. A
+ * configuration change can be adopted after all work is idle; changing it
+ * while a pool is held would make the active socket sum ambiguous.
+ */
+function enforceProcessCapacityEnvelope(capacity: {
+  configuredMaximumPools: number
+  maximumConnections: number
+}): void {
+  const envelope = `${capacity.configuredMaximumPools}:${capacity.maximumConnections}`
+  if (processCapacityEnvelope === undefined || processCapacityEnvelope === envelope) {
+    processCapacityEnvelope = envelope
+    return
+  }
+  if ([...pooledDatabases.values()].some((entry) => entry.active > 0)) {
+    throw new Error(
+      "Voyant Node database capacity settings cannot change while tenant pools are active.",
+    )
+  }
+  for (const [key, entry] of pooledDatabases) evictDatabase(key, entry)
+  processCapacityEnvelope = envelope
 }
 
 function evictDatabase(key: string, entry: PooledDatabase): void {
