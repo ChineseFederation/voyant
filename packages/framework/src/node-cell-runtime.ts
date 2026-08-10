@@ -18,9 +18,13 @@ export interface VoyantTenantContext {
   readonly tenantId: string
   readonly deploymentId: string
   readonly hostname: string
+  /** Digest of the complete canonical server-side context, including assignment generation. */
+  readonly contextVersion: string
   /** Server-only bindings. They must never be serialized into a response or edge manifest. */
   readonly env: VoyantNodeRuntimeEnv
 }
+
+export const VOYANT_TENANT_CONTEXT_VERSION_PATTERN = /^sha256:[0-9a-f]{64}$/u
 
 export interface VoyantTenantContextResolver {
   resolve(input: {
@@ -62,6 +66,11 @@ interface ResidentTenant {
   releaseDatabase: () => void
 }
 
+interface PendingTenant {
+  context: VoyantTenantContext
+  promise: Promise<ResidentTenant>
+}
+
 /**
  * Host a bounded set of database-per-tenant runtimes in one regional process.
  * Domain code still sees one deployment-static environment and one database;
@@ -73,7 +82,7 @@ export function createVoyantNodeCellRuntime(
   const maximum = positiveInteger(options.maxTenants, 16, "maxTenants")
   const idleMs = positiveInteger(options.idleTenantMs, 300_000, "idleTenantMs")
   const residents = new Map<string, ResidentTenant>()
-  const pending = new Map<string, Promise<ResidentTenant>>()
+  const pending = new Map<string, PendingTenant>()
   const databaseOwners = new Map<string, string>()
   const load = options.loadRuntime ?? loadVoyantNodeRuntime
 
@@ -88,7 +97,13 @@ export function createVoyantNodeCellRuntime(
       report({ type: "unknown_mapping", ...identity })
       return null
     }
-    const context = freezeContext(resolved)
+    let context: VoyantTenantContext
+    try {
+      context = freezeContext(resolved)
+    } catch {
+      report({ type: "stale_mapping", ...identity })
+      return null
+    }
     if (
       identity.hostname &&
       normalizeHostname(context.hostname) !== normalizeHostname(identity.hostname)
@@ -122,7 +137,17 @@ export function createVoyantNodeCellRuntime(
       return current
     }
     const loading = pending.get(context.deploymentId)
-    if (loading) return loading
+    if (loading) {
+      if (!sameContext(loading.context, context)) {
+        report({
+          type: "conflicting_mapping",
+          hostname: context.hostname,
+          deploymentId: context.deploymentId,
+        })
+        throw new CellAdmissionError("Tenant mapping changed while loading.")
+      }
+      return loading.promise
+    }
     const contextDatabase = databaseIdentity(context.env)
     const databaseOwner = databaseOwners.get(contextDatabase)
     if (databaseOwner && databaseOwner !== context.deploymentId) {
@@ -169,7 +194,7 @@ export function createVoyantNodeCellRuntime(
       residents.set(context.deploymentId, resident)
       return resident
     })()
-    pending.set(context.deploymentId, promise)
+    pending.set(context.deploymentId, { context, promise })
     try {
       return await promise
     } finally {
@@ -240,6 +265,7 @@ function freezeContext(context: VoyantTenantContext): VoyantTenantContext {
     tenantId: required(context.tenantId, "tenantId"),
     deploymentId: required(context.deploymentId, "deploymentId"),
     hostname: normalizeHostname(required(context.hostname, "hostname")),
+    contextVersion: immutableContextVersion(context.contextVersion),
     env: Object.freeze({ ...context.env }),
   })
 }
@@ -249,6 +275,7 @@ function sameContext(left: VoyantTenantContext, right: VoyantTenantContext): boo
     left.tenantId === right.tenantId &&
     left.deploymentId === right.deploymentId &&
     left.hostname === right.hostname &&
+    left.contextVersion === right.contextVersion &&
     left.env.DATABASE_URL === right.env.DATABASE_URL &&
     left.env.DATABASE_URL_DIRECT === right.env.DATABASE_URL_DIRECT
   )
@@ -296,6 +323,14 @@ function normalizeHostname(hostname: string): string {
 function required(value: string, name: string): string {
   const normalized = value.trim()
   if (!normalized) throw new Error(`Tenant context ${name} is required.`)
+  return normalized
+}
+
+function immutableContextVersion(value: string): string {
+  const normalized = required(value, "contextVersion")
+  if (!VOYANT_TENANT_CONTEXT_VERSION_PATTERN.test(normalized)) {
+    throw new Error("Tenant context contextVersion must be an exact sha256 digest.")
+  }
   return normalized
 }
 

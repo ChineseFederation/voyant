@@ -8,6 +8,7 @@ function context(tenantId: string): VoyantTenantContext {
     tenantId,
     deploymentId: `deployment-${tenantId}`,
     hostname: `${tenantId}.example.test`,
+    contextVersion: `sha256:${(tenantId === "alpha" ? "a" : "b").repeat(64)}`,
     env: {
       DATABASE_URL: `postgres://db/${tenantId}`,
       DATABASE_MAX_CONNECTIONS: "2",
@@ -148,5 +149,86 @@ describe("createVoyantNodeCellRuntime", () => {
     )
     expect(response.status).toBe(421)
     expect(telemetry).toHaveBeenCalledWith(expect.objectContaining({ type: "unknown_mapping" }))
+  })
+
+  it("refuses to reuse a resident runtime after its immutable context changes", async () => {
+    let resolved = context("alpha")
+    const telemetry = vi.fn()
+    const loadRuntime = vi.fn(
+      async (options: VoyantNodeRuntimeOptions) =>
+        ({
+          env: options.env,
+          fetch: async () => new Response("ok"),
+          jobs: { invoke: vi.fn() },
+        }) as unknown as VoyantNodeRuntime,
+    )
+    const cell = createVoyantNodeCellRuntime({
+      runtime: runtimeOptions(),
+      resolver: { resolve: async () => resolved },
+      securityTelemetry: telemetry,
+      loadRuntime,
+    })
+
+    expect((await cell.fetch(new Request("https://alpha.example.test/"))).status).toBe(200)
+    resolved = {
+      ...resolved,
+      contextVersion: `sha256:${"c".repeat(64)}`,
+      env: { ...resolved.env, REDIS_NAMESPACE: "changed" },
+    }
+    expect((await cell.fetch(new Request("https://alpha.example.test/"))).status).toBe(503)
+    expect(loadRuntime).toHaveBeenCalledTimes(1)
+    expect(telemetry).toHaveBeenLastCalledWith(
+      expect.objectContaining({ type: "conflicting_mapping" }),
+    )
+  })
+
+  it("does not join an in-flight runtime load for a different context version", async () => {
+    let resolved = context("alpha")
+    let releaseLoad = () => {}
+    let markStarted = () => {}
+    const loadGate = new Promise<void>((resolve) => {
+      releaseLoad = resolve
+    })
+    const loadStarted = new Promise<void>((resolve) => {
+      markStarted = resolve
+    })
+    const loadRuntime = vi.fn(async (options: VoyantNodeRuntimeOptions) => {
+      markStarted()
+      await loadGate
+      return {
+        env: options.env,
+        fetch: async () => new Response("ok"),
+        jobs: { invoke: vi.fn() },
+      } as unknown as VoyantNodeRuntime
+    })
+    const cell = createVoyantNodeCellRuntime({
+      runtime: runtimeOptions(),
+      resolver: { resolve: async () => resolved },
+      loadRuntime,
+    })
+
+    const first = cell.fetch(new Request("https://alpha.example.test/"))
+    await loadStarted
+    resolved = { ...resolved, contextVersion: `sha256:${"c".repeat(64)}` }
+    expect((await cell.fetch(new Request("https://alpha.example.test/"))).status).toBe(503)
+    releaseLoad()
+    expect((await first).status).toBe(200)
+    expect(loadRuntime).toHaveBeenCalledTimes(1)
+  })
+
+  it("rejects a malformed context version before runtime composition", async () => {
+    const invalid = { ...context("alpha"), contextVersion: "latest" }
+    const telemetry = vi.fn()
+    const loadRuntime = vi.fn()
+    const cell = createVoyantNodeCellRuntime({
+      runtime: runtimeOptions(),
+      resolver: { resolve: async () => invalid },
+      securityTelemetry: telemetry,
+      loadRuntime,
+    })
+
+    expect((await cell.fetch(new Request("https://alpha.example.test/"))).status).toBe(421)
+    expect(loadRuntime).not.toHaveBeenCalled()
+    expect(telemetry).toHaveBeenCalledWith(expect.objectContaining({ type: "stale_mapping" }))
   })
 })

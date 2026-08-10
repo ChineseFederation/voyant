@@ -84,6 +84,11 @@ wakes, the deployment identity in the authenticated contract into one frozen
 tenant context before domain code runs. Unknown, stale, or conflicting mappings
 fail closed and emit security telemetry. The context owns server-only database
 credentials; it is never serialized into responses or deployment manifests.
+It also carries a canonical `sha256:` version over the complete server-side
+configuration, including assignment generation. A resident runtime is reused
+only for the same digest; hosts create and drain cell generations instead of
+mutating resident tenant contexts. The digest is an identity, never a
+serialization of credentials, and it never reaches the browser.
 
 Each resident tenant gets its own composed module and extension registries,
 in-memory caches, authorization integration, event bus, job host, timers, and
