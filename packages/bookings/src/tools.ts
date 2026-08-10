@@ -96,19 +96,23 @@ export interface BookingsToolServices {
     admitted: ToolHandlerActionPolicyContext,
   ): Promise<unknown>
   previewTravelerCorrectionAmendment(
-    input: z.infer<typeof previewTravelerCorrectionAmendmentToolInputSchema>,
+    input: z.infer<typeof previewTravelerCorrectionAmendmentToolInputSchema> & {
+      idempotencyKey: string
+    },
   ): Promise<unknown>
   previewTravelerRosterChangeAmendment(
-    input: z.infer<typeof previewTravelerRosterChangeAmendmentToolInputSchema>,
+    input: z.infer<typeof previewTravelerRosterChangeAmendmentToolInputSchema> & {
+      idempotencyKey: string
+    },
   ): Promise<unknown>
   acceptBookingAmendment(
-    input: z.infer<typeof acceptBookingAmendmentToolInputSchema>,
+    input: z.infer<typeof acceptBookingAmendmentToolInputSchema> & { idempotencyKey: string },
   ): Promise<unknown>
   applyBookingAmendment(
-    input: z.infer<typeof applyBookingAmendmentToolInputSchema>,
+    input: z.infer<typeof applyBookingAmendmentToolInputSchema> & { idempotencyKey: string },
   ): Promise<unknown>
   reconcileBookingAmendment(
-    input: z.infer<typeof reconcileBookingAmendmentToolInputSchema>,
+    input: z.infer<typeof reconcileBookingAmendmentToolInputSchema> & { idempotencyKey: string },
   ): Promise<unknown>
 }
 
@@ -266,41 +270,31 @@ export const cancelBookingTool = defineTool<
 const amendmentCommandFields = {
   bookingId: z.string().min(1).describe("The stable Booking id."),
   amendmentId: z.string().min(1).describe("The Booking Amendment id."),
-  idempotencyKey: z
-    .string()
-    .trim()
-    .min(1)
-    .describe("Stable key for safely replaying this exact Amendment command."),
 }
 
 export const previewTravelerCorrectionAmendmentToolInputSchema =
   previewTravelerCorrectionSchema.extend({
     bookingId: amendmentCommandFields.bookingId,
-    idempotencyKey: amendmentCommandFields.idempotencyKey,
   })
 
 export const previewTravelerRosterChangeAmendmentToolInputSchema =
   previewTravelerRosterChangeSchema.extend({
     bookingId: amendmentCommandFields.bookingId,
-    idempotencyKey: amendmentCommandFields.idempotencyKey,
   })
 
 export const acceptBookingAmendmentToolInputSchema = acceptBookingAmendmentSchema.extend({
   bookingId: amendmentCommandFields.bookingId,
   amendmentId: amendmentCommandFields.amendmentId,
-  idempotencyKey: amendmentCommandFields.idempotencyKey,
 })
 
 export const applyBookingAmendmentToolInputSchema = applyBookingAmendmentSchema.extend({
   bookingId: amendmentCommandFields.bookingId,
   amendmentId: amendmentCommandFields.amendmentId,
-  idempotencyKey: amendmentCommandFields.idempotencyKey,
 })
 
 export const reconcileBookingAmendmentToolInputSchema = z.object({
   bookingId: amendmentCommandFields.bookingId,
   amendmentId: amendmentCommandFields.amendmentId,
-  idempotencyKey: amendmentCommandFields.idempotencyKey,
 })
 
 const amendmentOutcomeReferenceSchema = z.object({
@@ -326,7 +320,14 @@ const amendmentOutcomeReferenceSchema = z.object({
   }),
 })
 const amendmentPreviewToolOutputSchema = z.union([
-  z.object({ status: z.literal("ok"), amendment: amendmentOutcomeReferenceSchema }),
+  z.object({
+    status: z.literal("ok"),
+    amendment: amendmentOutcomeReferenceSchema.extend({
+      proposedRevisionId: z
+        .string()
+        .describe("Pass this exact server-issued id to the next accept/apply command."),
+    }),
+  }),
   ...bookingAmendmentPreviewResultSchema.options.slice(1),
 ])
 const acceptBookingAmendmentServiceResultSchema = z.discriminatedUnion("status", [
@@ -395,9 +396,28 @@ function toAcceptAmendmentToolOutcome(value: unknown) {
 function toAmendmentPreviewToolOutcome(value: unknown) {
   const result = bookingAmendmentPreviewResultSchema.parse(value)
   if (!("amendment" in result)) return result
+  const proposedRevision = result.amendment.revisions?.find(
+    (revision) => revision.role === "proposed_after",
+  )
+  if (!proposedRevision) {
+    throw new ToolError(
+      "The Amendment preview did not produce its required proposed Booking revision.",
+      "PROVIDER_ERROR",
+    )
+  }
   return {
     status: result.status,
-    amendment: amendmentOutcomeReferenceSchema.parse(result.amendment),
+    amendment: {
+      ...amendmentOutcomeReferenceSchema.parse(result.amendment),
+      proposedRevisionId: proposedRevision.id,
+    },
+  }
+}
+
+async function withAmendmentCommandIdentity<T extends object>(command: string, input: T) {
+  return {
+    ...input,
+    idempotencyKey: await deriveCommandIdempotencyKey(`booking-amendment-${command}`, input),
   }
 }
 
@@ -423,10 +443,15 @@ export const previewTravelerCorrectionAmendmentTool = defineTool({
   tier: "write",
   riskPolicy: bookingAmendmentWriteRisk,
   annotations: { idempotentHint: true },
+  resolvesIdempotencyKeyServerSide: true,
   async handler(input, ctx: BookingsToolContext) {
     return parseJsonResult(
       amendmentPreviewToolOutputSchema,
-      toAmendmentPreviewToolOutcome(await bookings(ctx).previewTravelerCorrectionAmendment(input)),
+      toAmendmentPreviewToolOutcome(
+        await bookings(ctx).previewTravelerCorrectionAmendment(
+          await withAmendmentCommandIdentity("preview-traveler-correction", input),
+        ),
+      ),
     )
   },
 })
@@ -445,11 +470,14 @@ export const previewTravelerRosterChangeAmendmentTool = defineTool({
   tier: "write",
   riskPolicy: bookingAmendmentWriteRisk,
   annotations: { idempotentHint: true },
+  resolvesIdempotencyKeyServerSide: true,
   async handler(input, ctx: BookingsToolContext) {
     return parseJsonResult(
       amendmentPreviewToolOutputSchema,
       toAmendmentPreviewToolOutcome(
-        await bookings(ctx).previewTravelerRosterChangeAmendment(input),
+        await bookings(ctx).previewTravelerRosterChangeAmendment(
+          await withAmendmentCommandIdentity("preview-traveler-roster", input),
+        ),
       ),
     )
   },
@@ -469,10 +497,15 @@ export const acceptBookingAmendmentTool = defineTool({
   tier: "write",
   riskPolicy: bookingAmendmentWriteRisk,
   annotations: { idempotentHint: true },
+  resolvesIdempotencyKeyServerSide: true,
   async handler(input, ctx: BookingsToolContext) {
     return parseJsonResult(
       acceptBookingAmendmentToolOutputSchema,
-      toAcceptAmendmentToolOutcome(await bookings(ctx).acceptBookingAmendment(input)),
+      toAcceptAmendmentToolOutcome(
+        await bookings(ctx).acceptBookingAmendment(
+          await withAmendmentCommandIdentity("accept", input),
+        ),
+      ),
     )
   },
 })
@@ -491,10 +524,15 @@ export const applyBookingAmendmentTool = defineTool({
   tier: "write",
   riskPolicy: bookingAmendmentWriteRisk,
   annotations: { idempotentHint: true },
+  resolvesIdempotencyKeyServerSide: true,
   async handler(input, ctx: BookingsToolContext) {
     return parseJsonResult(
       applyBookingAmendmentToolOutputSchema,
-      toAmendmentToolOutcome(await bookings(ctx).applyBookingAmendment(input)),
+      toAmendmentToolOutcome(
+        await bookings(ctx).applyBookingAmendment(
+          await withAmendmentCommandIdentity("apply", input),
+        ),
+      ),
     )
   },
 })
@@ -513,10 +551,15 @@ export const reconcileBookingAmendmentTool = defineTool({
   tier: "write",
   riskPolicy: bookingAmendmentWriteRisk,
   annotations: { idempotentHint: true },
+  resolvesIdempotencyKeyServerSide: true,
   async handler(input, ctx: BookingsToolContext) {
     return parseJsonResult(
       applyBookingAmendmentToolOutputSchema,
-      toAmendmentToolOutcome(await bookings(ctx).reconcileBookingAmendment(input)),
+      toAmendmentToolOutcome(
+        await bookings(ctx).reconcileBookingAmendment(
+          await withAmendmentCommandIdentity("reconcile", input),
+        ),
+      ),
     )
   },
 })

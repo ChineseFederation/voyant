@@ -150,6 +150,19 @@ describe("bookings tools", () => {
     expect(bookingsTools.find((tool) => tool.name === "cancel_booking")).toMatchObject({
       resolvesIdempotencyKeyServerSide: true,
     })
+    for (const name of [
+      "accept_booking_amendment",
+      "apply_booking_amendment",
+      "preview_traveler_correction_amendment",
+      "preview_traveler_roster_change_amendment",
+      "reconcile_booking_amendment",
+    ]) {
+      const tool = bookingsTools.find((entry) => entry.name === name)
+      expect(tool).toMatchObject({ resolvesIdempotencyKeyServerSide: true })
+      expect(tool?.inputSchema.safeParse({}).error?.issues).not.toContainEqual(
+        expect.objectContaining({ path: ["idempotencyKey"] }),
+      )
+    }
     expect(
       bookingsTools
         .find((tool) => tool.name === "cancel_booking")
@@ -305,11 +318,10 @@ describe("bookings tools", () => {
         expectedBookingRevision: 1,
         reason: "Correct the travel document spelling",
         patch: { firstName: "Ada" },
-        idempotencyKey: "amendment-preview-bk-1",
       },
       ctx({
         async previewTravelerCorrectionAmendment(input) {
-          expect(input.idempotencyKey).toBe("amendment-preview-bk-1")
+          expect(input.idempotencyKey).toMatch(/^booking-amendment-preview-traveler-correction:v1:/)
           return {
             status: "no_op",
             bookingId: input.bookingId,
@@ -341,16 +353,15 @@ describe("bookings tools", () => {
           bookingItemIds: ["bitm_1"],
           traveler: { firstName: "Ada", lastName: "Lovelace" },
         },
-        idempotencyKey: "roster-preview-bk-1",
       },
       ctx({
         async previewTravelerRosterChangeAmendment(input) {
           expect(input).toMatchObject({
             bookingId: "bk_1",
             expectedBookingRevision: 3,
-            idempotencyKey: "roster-preview-bk-1",
             change: { type: "traveler_add", bookingItemIds: ["bitm_1"] },
           })
+          expect(input.idempotencyKey).toMatch(/^booking-amendment-preview-traveler-roster:v1:/)
           return { status: "availability_changed", bookingItemId: "bitm_1" }
         },
       }),
@@ -359,14 +370,14 @@ describe("bookings tools", () => {
 
     const reconciled = await registry.dispatch(
       "reconcile_booking_amendment",
-      { bookingId: "bk_1", amendmentId: "bamd_1", idempotencyKey: "test-key-1" },
+      { bookingId: "bk_1", amendmentId: "bamd_1" },
       ctx({
         async reconcileBookingAmendment(input) {
-          expect(input).toEqual({
+          expect(input).toMatchObject({
             bookingId: "bk_1",
             amendmentId: "bamd_1",
-            idempotencyKey: "test-key-1",
           })
+          expect(input.idempotencyKey).toMatch(/^booking-amendment-reconcile:v1:/)
           return { status: "not_found" }
         },
       }),
