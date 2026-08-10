@@ -285,13 +285,18 @@ function searchTools(
       score: matchedGroups.length * 10 + relevance + domainBonus,
     })
   }
-  const ignoredDomain =
-    domain !== undefined &&
-    matches.length > 0 &&
-    !matches.some((candidate) => candidate.domain.toLowerCase() === domain)
+  const domainMatches = domain
+    ? matches.filter((candidate) => candidate.domain.toLowerCase() === domain)
+    : []
+  // A recognized domain is useful when that domain has relevant matches: keep
+  // incidental words in a long phrase from pulling in every other product area.
+  // If the caller guessed the domain vocabulary incorrectly, keep the established
+  // cross-domain recovery behavior and return the real matches instead.
+  const rankedMatches = domainMatches.length > 0 ? domainMatches : matches
+  const ignoredDomain = domain !== undefined && matches.length > 0 && domainMatches.length === 0
 
-  matches.sort((a, b) => b.score - a.score || a.name.localeCompare(b.name))
-  const returned = matches.slice(0, limit)
+  rankedMatches.sort((a, b) => b.score - a.score || a.name.localeCompare(b.name))
+  const returned = rankedMatches.slice(0, limit)
 
   // A zero-hit search used to return a bare `{ total: 0, tools: [] }`, which a
   // model reads as "the thing you asked about does not exist".
@@ -308,7 +313,7 @@ function searchTools(
   // TOOLS, in the field it already knows how to read — so a no-hit search falls
   // back to the query tools, which is the answer to "where do I look for a
   // record" in the only vocabulary the caller is already using.
-  const fellBack = matches.length === 0
+  const fellBack = rankedMatches.length === 0
   const allFallbacks = fellBack ? queryToolCandidates(projection) : []
   const domainFallbacks = domain
     ? allFallbacks.filter((candidate) => candidate.domain.toLowerCase() === domain)
@@ -317,9 +322,11 @@ function searchTools(
   const fallback = fallbackPool.slice(0, limit)
 
   const payload = {
-    total: matches.length,
+    total: rankedMatches.length,
     returned: fellBack ? fallback.length : returned.length,
-    truncated: fellBack ? fallbackPool.length > fallback.length : matches.length > returned.length,
+    truncated: fellBack
+      ? fallbackPool.length > fallback.length
+      : rankedMatches.length > returned.length,
     tools: fellBack ? fallback : returned.map(({ score: _score, ...tool }) => tool),
     ...(ignoredDomain ? { ignoredDomain: args.domain } : {}),
     ...(fellBack ? { howToFindARecord: recordLookupGuidance() } : {}),

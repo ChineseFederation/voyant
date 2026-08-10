@@ -395,7 +395,7 @@ describe("selected-graph MCP tool surface cost", () => {
     ).toBeLessThanOrEqual(AGGREGATE_CEILING_BYTES)
   })
 
-  it("keeps a zero-hit fallback inside a recognized domain", async () => {
+  it("keeps long natural-language matches inside a recognized domain", async () => {
     const { app } = await mountSelectedGraphMcp()
     const searched = await readRpc(
       await app.request(
@@ -407,6 +407,35 @@ describe("selected-graph MCP tool surface cost", () => {
             domain: "finance",
             limit: 50,
           },
+        }),
+        TEST_ENV,
+        TEST_CTX,
+      ),
+    )
+    const result = (
+      searched.result as {
+        structuredContent?: {
+          returned?: number
+          tools?: Array<{ name: string; domain: string }>
+        }
+      }
+    ).structuredContent
+    const tools = result?.tools ?? []
+
+    expect(tools.length).toBeGreaterThan(0)
+    expect(result?.returned).toBe(tools.length)
+    expect(new Set(tools.map(({ domain }) => domain))).toEqual(new Set(["finance"]))
+    expect(tools.map(({ name }) => name)).toContain("refund_cancelled_booking")
+  })
+
+  it("keeps a zero-hit fallback inside a recognized domain", async () => {
+    const { app } = await mountSelectedGraphMcp()
+    const searched = await readRpc(
+      await app.request(
+        "/",
+        rpc("tools/call", {
+          name: "search_tools",
+          arguments: { query: "quokka zephyr", domain: "finance", limit: 50 },
         }),
         TEST_ENV,
         TEST_CTX,

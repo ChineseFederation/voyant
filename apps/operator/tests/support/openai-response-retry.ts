@@ -22,6 +22,7 @@ export async function fetchWithTransientRetry(
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     try {
       const response = await request()
+      if (await isTerminalQuotaResponse(response)) return response
       if (!TRANSIENT_STATUS.has(response.status) || attempt === maxAttempts) return response
       const delayMs = retryDelayMs(attempt, response.headers.get("retry-after"))
       options.onRetry?.({ attempt, maxAttempts, status: response.status, delayMs })
@@ -37,6 +38,20 @@ export async function fetchWithTransientRetry(
   }
 
   throw lastError ?? new Error("Transient model request retry exhausted")
+}
+
+async function isTerminalQuotaResponse(response: Response): Promise<boolean> {
+  if (response.status !== 429) return false
+  try {
+    const body = (await response.clone().json()) as {
+      error?: { type?: string; code?: string | null }
+    }
+    return [body.error?.type, body.error?.code].some(
+      (value) => value === "insufficient_quota" || value === "billing_hard_limit_reached",
+    )
+  } catch {
+    return false
+  }
 }
 
 function retryDelayMs(attempt: number, retryAfter: string | null) {

@@ -182,6 +182,12 @@ interface JourneyRun {
   tokens: number
   exhausted: boolean
   modelTransportRetries: number
+  fatal?: {
+    source: "model_transport" | "harness"
+    status: number | null
+    code: string | null
+    message: string
+  }
 }
 
 async function runJourney(input: {
@@ -235,7 +241,17 @@ async function runJourney(input: {
         },
       },
     )
-    if (!res.ok) throw new Error(`OpenAI ${res.status}: ${(await res.text()).slice(0, 300)}`)
+    if (!res.ok) {
+      const failure = parseModelFailure(res.status, await res.text())
+      return {
+        calls,
+        answer: `FATAL: ${failure.message}`,
+        tokens,
+        exhausted: true,
+        modelTransportRetries,
+        fatal: failure,
+      }
+    }
     const body = (await res.json()) as {
       id?: string
       output_text?: string
@@ -305,6 +321,21 @@ async function runJourney(input: {
     nextInput = functionOutputs
   }
   return { calls, answer: "", tokens, exhausted: true, modelTransportRetries }
+}
+
+function parseModelFailure(status: number, responseText: string): NonNullable<JourneyRun["fatal"]> {
+  let code: string | null = null
+  let message = responseText.slice(0, 300)
+  try {
+    const body = JSON.parse(responseText) as {
+      error?: { code?: string | null; type?: string; message?: string }
+    }
+    code = body.error?.code ?? body.error?.type ?? null
+    message = body.error?.message?.slice(0, 300) ?? message
+  } catch {
+    // Preserve the bounded raw response when the provider did not return JSON.
+  }
+  return { source: "model_transport", status, code, message: `OpenAI ${status}: ${message}` }
 }
 
 /**
@@ -1208,6 +1239,11 @@ function report(): string {
       }`,
     )
     if (!done) lines.push(`      answer: ${run.answer.slice(0, 220)}`)
+    if (run.fatal) {
+      lines.push(
+        `      fatal: ${run.fatal.source} status=${run.fatal.status ?? "none"} code=${run.fatal.code ?? "none"}`,
+      )
+    }
     for (const failed of run.calls.filter((c) => c.isError)) {
       lines.push(`      ✗ ${failed.name}: ${failed.snippet.slice(0, 200)}`)
       // The error tells us which guard refused; the arguments tell us why. This
@@ -1279,6 +1315,7 @@ function writeMachineReport(): void {
         responseBytes: attempt.calls.reduce((sum, call) => sum + call.responseBytes, 0),
         tokens: attempt.tokens,
         modelTransportRetries: attempt.modelTransportRetries,
+        fatal: attempt.fatal ?? null,
         exhausted: attempt.exhausted,
         withinCallBudget: attempt.calls.length <= journey.maxCalls,
         trace: attempt.calls.map((call) => ({
@@ -1306,7 +1343,7 @@ function writeMachineReport(): void {
     destination,
     `${JSON.stringify(
       {
-        schemaVersion: 4,
+        schemaVersion: 5,
         generatedAt: new Date().toISOString(),
         model: MODEL,
         reasoningEffort: MODEL.startsWith("gpt-5") ? REASONING_EFFORT : null,
@@ -1433,6 +1470,12 @@ describe.skipIf(!enabled)("MCP capability — a travel agent's job", () => {
               tokens: 0,
               exhausted: true,
               modelTransportRetries: 0,
+              fatal: {
+                source: "harness",
+                status: null,
+                code: null,
+                message: String(err).slice(0, 300),
+              },
             }
           }
           attempts.set(journey.id, [...(attempts.get(journey.id) ?? []), run])
