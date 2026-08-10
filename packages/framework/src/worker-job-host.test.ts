@@ -187,7 +187,18 @@ describe("Voyant Worker product job host", () => {
           "acme.database": contributorPrimitives.database.resolve(undefined),
         }),
       },
-      { scheduleAuthority: "managed-http", primitives, originTrustSecret: "secret" },
+      {
+        scheduleAuthority: "managed-http",
+        primitives,
+        originTrustSecret: "secret",
+        jobWakeProducers: [
+          {
+            id: "worker.database-commit",
+            jobIds: ["acme.database-job"],
+            guarantee: "durable-work-before-wake",
+          },
+        ],
+      },
     )
     const pending: Promise<unknown>[] = []
     const accepted = await host.fetch(
@@ -200,6 +211,24 @@ describe("Voyant Worker product job host", () => {
     expect(accepted?.status).toBe(202)
     await Promise.all(pending)
     expect(observed).toHaveBeenCalledWith("from-worker-binding")
+
+    const inventoryResponse = await host.fetch(
+      new Request("https://worker.test/__voyant/jobs", {
+        headers: { "x-voyant-origin-trust": "secret" },
+      }),
+      { waitUntil: () => {} },
+    )
+    await expect(inventoryResponse?.json()).resolves.toMatchObject({
+      provisioning: {
+        jobWakeProducers: [
+          {
+            id: "worker.database-commit",
+            jobIds: ["acme.database-job"],
+            guarantee: "durable-work-before-wake",
+          },
+        ],
+      },
+    })
   })
 
   it("fans one Cron Trigger out to every graph job with that exact cron", async () => {

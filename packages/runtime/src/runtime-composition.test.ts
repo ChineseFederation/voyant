@@ -1,3 +1,4 @@
+// agent-quality: file-size exception -- owner: runtime; generated project boot, host overrides, and provider composition share one integration harness.
 import { mkdir, writeFile } from "node:fs/promises"
 import path from "node:path"
 import { customerBusinessAccountOnboardingRuntimePort } from "@voyant-travel/auth/customer-business-onboarding-runtime-port"
@@ -33,6 +34,28 @@ vi.mock("@voyant-travel/auth/storefront-channel-binding-provider", () => ({
 const mocks = getRuntimeCompositionMocks()
 
 describe("Voyant project runtime composition", () => {
+  it("forwards host-installed wake producers to the release inventory boundary", async () => {
+    const projectRoot = await createGeneratedProject()
+    const jobWakeProducers = [
+      {
+        id: "managed.mutation-outbox",
+        jobIds: ["infrastructure.event-outbox-drain"],
+        guarantee: "durable-work-before-wake" as const,
+      },
+    ]
+
+    await loadVoyantProject({
+      projectRoot,
+      adminAssetsDir: path.join(projectRoot, "admin"),
+      env: { DATABASE_URL: "postgres://example.invalid/voyant" },
+      host: { jobWakeProducers },
+    })
+
+    expect(mocks.loadVoyantNodeRuntime).toHaveBeenCalledWith(
+      expect.objectContaining({ jobWakeProducers }),
+    )
+  })
+
   it("keeps the API-only profile out of the admin document host", async () => {
     const projectRoot = await createGeneratedProject()
     const project = await loadVoyantProject({

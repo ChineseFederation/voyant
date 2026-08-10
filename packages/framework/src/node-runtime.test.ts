@@ -1,3 +1,4 @@
+// agent-quality: file-size exception -- owner: framework; Node boot, provider posture, readiness, event delivery, and managed job inventory share one runtime harness.
 import type { EventEnvelope } from "@voyant-travel/core"
 import { defineGraphRuntimeFactory, definePort } from "@voyant-travel/core/project"
 import type { LazyRedisClient } from "@voyant-travel/utils/redis-client"
@@ -590,6 +591,53 @@ describe("loadVoyantNodeRuntime", () => {
 
     expect(response.status).toBe(200)
     await expect(response.json()).resolves.toEqual({ provisioning: { jobs: [] } })
+  })
+
+  it("reports only host-installed durable wake producers in release inventory", async () => {
+    const runtime = await loadVoyantNodeRuntime({
+      graphRuntime: outboxJobRuntime(BASE_PROVIDERS, async () => {}),
+      jobs: [
+        {
+          id: OUTBOX_JOB_ID,
+          unitId: "@voyant-travel/db",
+          packageName: "@voyant-travel/db",
+          wakeup: true,
+        },
+      ],
+      jobWakeProducers: [
+        {
+          id: "managed.mutation-outbox",
+          jobIds: [OUTBOX_JOB_ID],
+          guarantee: "durable-work-before-wake",
+        },
+      ],
+      deployment: {
+        mode: "self-hosted",
+        providers: BASE_PROVIDERS,
+        redis: DEDICATED_TRUSTED_REDIS,
+      },
+      deploymentRequirements: { resources: [] },
+      env: { ORIGIN_TRUST_SECRET: "secret" },
+    })
+
+    const response = await runtime.fetch(
+      new Request("https://operator.test/__voyant/jobs", {
+        headers: { "x-voyant-origin-trust": "secret" },
+      }),
+    )
+
+    expect(response.status).toBe(200)
+    await expect(response.json()).resolves.toMatchObject({
+      provisioning: {
+        jobWakeProducers: [
+          {
+            id: "managed.mutation-outbox",
+            jobIds: [OUTBOX_JOB_ID],
+            guarantee: "durable-work-before-wake",
+          },
+        ],
+      },
+    })
   })
 
   it("requires REDIS_NAMESPACE when managed shared state uses Redis", async () => {

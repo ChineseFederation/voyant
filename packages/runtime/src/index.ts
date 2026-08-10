@@ -50,6 +50,7 @@ import {
   resolveVoyantNodeProviderPlan,
   type VoyantNodeRuntime,
   type VoyantNodeRuntimeEnv,
+  type VoyantProductJobWakeProducer,
   validateVoyantNodeProviderPlanEnv,
 } from "@voyant-travel/framework/node-runtime"
 import { consoleReporter } from "@voyant-travel/hono/observability/reporter"
@@ -124,6 +125,8 @@ export interface LoadVoyantProjectOptions {
   host?: {
     config?: Readonly<Record<string, unknown>>
     deliverEvent?: (event: unknown, bindings: unknown) => Promise<unknown>
+    /** Automatic wake sources installed by this exact host/runtime composition. */
+    jobWakeProducers?: readonly VoyantProductJobWakeProducer[]
     /** Project-owned provider overrides keyed by their published runtime-port id. */
     runtimePorts?: VoyantGraphRuntimePorts
     storage?: StorageProviderResolver
@@ -454,6 +457,7 @@ export async function loadVoyantProject(
     applicationId: path.basename(projectRoot),
     graphRuntime: activatedGraphRuntime,
     jobs: graph.jobs,
+    ...(options.host?.jobWakeProducers ? { jobWakeProducers: options.host.jobWakeProducers } : {}),
     deployment: {
       ...(deployment.mode ? { mode: deployment.mode } : {}),
       providers: deployment.providers,

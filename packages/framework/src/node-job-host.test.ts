@@ -1,3 +1,4 @@
+// agent-quality: file-size exception -- owner: framework; product-job host inventory, invocation, retry, wake, scheduling, and health cases share one fixture-rich contract suite.
 import { describe, expect, it, vi } from "vitest"
 
 import {
@@ -117,6 +118,38 @@ describe("Voyant Node product job host", () => {
         jobs: [{ ...inventory()[0]!, id: "notifications.detached" }],
       }),
     ).toThrow('provisioning job "notifications.detached" has no matching runtime job')
+  })
+
+  it("rejects a durable wake producer for an unknown job", () => {
+    expect(() =>
+      createVoyantNodeJobHost({
+        runtime: jobRuntime(() => {}),
+        jobs: inventory(),
+        jobWakeProducers: [
+          {
+            id: "notifications.outbox",
+            jobIds: ["notifications.missing"],
+            guarantee: "durable-work-before-wake",
+          },
+        ],
+      }),
+    ).toThrow('wake producer "notifications.outbox" targets unknown job "notifications.missing"')
+  })
+
+  it("rejects a durable wake producer for a non-wakeable job", () => {
+    expect(() =>
+      createVoyantNodeJobHost({
+        runtime: jobRuntime(() => {}, undefined, false),
+        jobs: inventory(undefined, false),
+        jobWakeProducers: [
+          {
+            id: "notifications.outbox",
+            jobIds: [jobId],
+            guarantee: "durable-work-before-wake",
+          },
+        ],
+      }),
+    ).toThrow(`wake producer "notifications.outbox" targets non-wakeable job "${jobId}"`)
   })
 
   it("authenticates fixed payload-free HTTP invocation and returns 202 promptly", async () => {
@@ -403,6 +436,49 @@ describe("Voyant Node product job host", () => {
     )
     expect(response?.status).toBe(200)
     await expect(response?.json()).resolves.toEqual({ provisioning: { jobs: inventory() } })
+  })
+
+  it("returns wake producer attestations in canonical identity order", async () => {
+    const host = createVoyantNodeJobHost({
+      runtime: jobRuntime(() => {}),
+      jobs: inventory(),
+      jobWakeProducers: [
+        {
+          id: "z-last",
+          jobIds: [jobId],
+          guarantee: "durable-work-before-wake",
+        },
+        {
+          id: "a-first",
+          jobIds: [jobId],
+          guarantee: "durable-work-before-wake",
+        },
+      ],
+      originTrustSecret: "secret",
+    })
+    const response = await host.handleRequest(
+      new Request(`https://operator.test${VOYANT_PRODUCT_JOB_ROUTE}`, {
+        headers: { "x-voyant-origin-trust": "secret" },
+      }),
+    )
+
+    await expect(response?.json()).resolves.toEqual({
+      provisioning: {
+        jobs: inventory(),
+        jobWakeProducers: [
+          {
+            id: "a-first",
+            jobIds: [jobId],
+            guarantee: "durable-work-before-wake",
+          },
+          {
+            id: "z-last",
+            jobIds: [jobId],
+            guarantee: "durable-work-before-wake",
+          },
+        ],
+      },
+    })
   })
 
   it("reports terminal health best-effort without repeating completed domain work", async () => {

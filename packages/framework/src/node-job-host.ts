@@ -1,3 +1,4 @@
+// agent-quality: file-size exception -- owner: framework; product-job admission, invocation, scheduling, retry, wake idempotency, and health reporting share one host state machine.
 import { verifyOriginTrust } from "@voyant-travel/runtime-core"
 
 import type { VoyantGraphProvisionedJob } from "./deployment-graph.js"
@@ -49,10 +50,24 @@ export interface VoyantNodeJobHostRetryOptions {
   maxBackoffMs?: number
 }
 
+/**
+ * Release-scoped attestation emitted by a host that actually installed an
+ * automatic product-job wake source. The guarantee is deliberately transport
+ * neutral: Queue, Pub/Sub, HTTP, and an in-process host all share the same
+ * durable-work-before-signal contract.
+ */
+export interface VoyantProductJobWakeProducer {
+  id: string
+  jobIds: readonly string[]
+  guarantee: "durable-work-before-wake"
+}
+
 export interface CreateVoyantNodeJobHostOptions {
   runtime: VoyantGraphRuntime
   /** Immutable host inventory copied from resolved provisioning.jobs. */
   jobs: readonly VoyantGraphProvisionedJob[]
+  /** Automatic wake sources installed by this exact runtime release. */
+  jobWakeProducers?: readonly VoyantProductJobWakeProducer[]
   ports?: VoyantGraphRuntimePorts
   /** Concrete deployment bindings passed to fixed product-job runtimes. */
   bindings?: unknown
@@ -141,6 +156,7 @@ export function createVoyantNodeJobHost(
   const inventory = options.jobs.map((job) => structuredClone(job))
   const jobsById = new Map(inventory.map((job) => [job.id, job]))
   assertRuntimeInventoryParity(options.runtime, inventory)
+  const jobWakeProducers = normalizeJobWakeProducers(options.jobWakeProducers ?? [], jobsById)
 
   const maxAttempts = positiveInteger(options.retry?.maxAttempts ?? 3, "retry.maxAttempts")
   const initialBackoffMs = nonNegativeNumber(
@@ -385,7 +401,12 @@ export function createVoyantNodeJobHost(
       if (url.search || (await requestHasBodyBytes(request))) {
         return new Response("Product job inventory requests do not accept input", { status: 400 })
       }
-      return Response.json({ provisioning: { jobs: inventory } })
+      return Response.json({
+        provisioning: {
+          jobs: inventory,
+          ...(jobWakeProducers.length > 0 ? { jobWakeProducers } : {}),
+        },
+      })
     }
     if (request.method !== "POST") return new Response("Method Not Allowed", { status: 405 })
     if (url.search || (await requestHasBodyBytes(request))) {
@@ -471,6 +492,67 @@ export function createVoyantNodeJobHost(
       armedWakes.clear()
     },
   }
+}
+
+function normalizeJobWakeProducers(
+  producers: readonly VoyantProductJobWakeProducer[],
+  jobsById: ReadonlyMap<string, VoyantGraphProvisionedJob>,
+): readonly VoyantProductJobWakeProducer[] {
+  const producerIds = new Set<string>()
+  return producers
+    .map((producer, index) => {
+      if (!producer || typeof producer !== "object" || Array.isArray(producer)) {
+        throw new Error(`Voyant Node job host: wake producer at index ${index} must be an object.`)
+      }
+      const unexpectedKeys = Object.keys(producer).filter(
+        (key) => !["id", "jobIds", "guarantee"].includes(key),
+      )
+      if (unexpectedKeys.length > 0) {
+        throw new Error(
+          `Voyant Node job host: wake producer at index ${index} has unsupported keys: ${unexpectedKeys.join(", ")}.`,
+        )
+      }
+      const id = typeof producer.id === "string" ? producer.id.trim() : ""
+      if (!id) {
+        throw new Error(`Voyant Node job host: wake producer at index ${index} requires an id.`)
+      }
+      if (producerIds.has(id)) {
+        throw new Error(`Voyant Node job host: duplicate wake producer id "${id}".`)
+      }
+      producerIds.add(id)
+      if (producer.guarantee !== "durable-work-before-wake") {
+        throw new Error(`Voyant Node job host: wake producer "${id}" has an unsupported guarantee.`)
+      }
+      if (!Array.isArray(producer.jobIds) || producer.jobIds.length === 0) {
+        throw new Error(`Voyant Node job host: wake producer "${id}" requires target jobs.`)
+      }
+      const jobIds = producer.jobIds.map((value) => (typeof value === "string" ? value.trim() : ""))
+      if (jobIds.some((jobId) => !jobId)) {
+        throw new Error(`Voyant Node job host: wake producer "${id}" has an invalid target job.`)
+      }
+      if (new Set(jobIds).size !== jobIds.length) {
+        throw new Error(`Voyant Node job host: wake producer "${id}" has duplicate target jobs.`)
+      }
+      for (const jobId of jobIds) {
+        const job = jobsById.get(jobId)
+        if (!job) {
+          throw new Error(
+            `Voyant Node job host: wake producer "${id}" targets unknown job "${jobId}".`,
+          )
+        }
+        if (!job.wakeup) {
+          throw new Error(
+            `Voyant Node job host: wake producer "${id}" targets non-wakeable job "${jobId}".`,
+          )
+        }
+      }
+      return {
+        id,
+        jobIds: [...jobIds].sort(),
+        guarantee: "durable-work-before-wake" as const,
+      }
+    })
+    .sort((left, right) => left.id.localeCompare(right.id))
 }
 
 interface ManagedWakeRequest {
@@ -567,18 +649,18 @@ async function readManagedWakeRequest(request: Request): Promise<ManagedWakeRequ
   if (Object.keys(record).some((key) => !allowed.has(key))) {
     return managedWakeFailure(400, "invalid_request", false)
   }
-  for (const key of allowed) {
-    const field = record[key]
-    if (
-      typeof field !== "string" ||
-      field.trim() !== field ||
-      field.length < 1 ||
-      field.length > 255
-    ) {
-      return managedWakeFailure(400, "invalid_request", false)
-    }
+  const boundedString = (field: unknown): string | null =>
+    typeof field === "string" && field.trim() === field && field.length >= 1 && field.length <= 255
+      ? field
+      : null
+  const deploymentId = boundedString(record.deploymentId)
+  const jobId = boundedString(record.jobId)
+  const eventId = boundedString(record.eventId)
+  const idempotencyKey = boundedString(record.idempotencyKey)
+  if (!deploymentId || !jobId || !eventId || !idempotencyKey) {
+    return managedWakeFailure(400, "invalid_request", false)
   }
-  return record as unknown as ManagedWakeRequest
+  return { deploymentId, jobId, eventId, idempotencyKey }
 }
 
 async function readBoundedRequestBytes(

@@ -56,7 +56,11 @@ import {
   VOYANT_PRODUCT_JOB_ROUTE,
   type VoyantNodeJobHealth,
   type VoyantNodeJobHost,
+  type VoyantProductJobWakeProducer,
 } from "./node-job-host.js"
+
+export type { VoyantProductJobWakeProducer } from "./node-job-host.js"
+
 import {
   resolveVoyantNodeProviderPlan,
   type VoyantNodeDeploymentPostureInput,
@@ -225,6 +229,8 @@ export interface VoyantNodeRuntimeOptions {
   graphRuntime: VoyantGraphRuntime
   /** Resolved, immutable provisioning.jobs inventory from the admitted graph. */
   jobs: readonly VoyantGraphProvisionedJob[]
+  /** Automatic wake sources installed by this exact host/runtime composition. */
+  jobWakeProducers?: readonly VoyantProductJobWakeProducer[]
   deployment: VoyantNodeRuntimeDeployment
   deploymentRequirements: VoyantGraphDeploymentRequirements
   runtimePorts?: import("./runtime-composition.js").VoyantGraphRuntimePorts
@@ -376,6 +382,7 @@ export async function loadVoyantNodeRuntime(
   const jobHost = createVoyantNodeJobHost({
     runtime: options.graphRuntime,
     jobs: options.jobs,
+    ...(options.jobWakeProducers ? { jobWakeProducers: options.jobWakeProducers } : {}),
     bindings: env,
     ...(runtimePorts ? { ports: runtimePorts } : {}),
     ...(env.ORIGIN_TRUST_SECRET ? { originTrustSecret: env.ORIGIN_TRUST_SECRET } : {}),
