@@ -62,6 +62,7 @@ import { contractsService, policiesService } from "@voyant-travel/legal"
 import { operatorProfile } from "@voyant-travel/operator-settings/schema"
 import { proposalsService, tripSnapshotToProposalVersionApply } from "@voyant-travel/proposals"
 import { tripsService } from "@voyant-travel/trips"
+import { scopesForRole } from "@voyant-travel/types/member-roles"
 import { sql as sqlRaw } from "drizzle-orm"
 import { Hono } from "hono"
 import { afterAll, beforeAll, describe, expect, it } from "vitest"
@@ -818,6 +819,18 @@ function buildJourneys(RUN_MARK: string): CapabilityJourney[] {
       maxCalls: 10,
       requiresDispatch: true,
     },
+    {
+      id: "team-role-update",
+      group: "team-admin",
+      domain: "team",
+      task: `Change the active team member Role Candidate ${RUN_MARK} (role.candidate.${RUN_MARK}@capability.example) from Editor to Viewer. Complete any required approval and confirm the saved role.`,
+      expect: "viewer",
+      maxCalls: 16,
+      verify: `select 1 from user_profiles
+             where id = 'user_team_role_${RUN_MARK}'
+               and is_super_admin = false
+               and permissions = '["*:read", "*:search"]'::jsonb`,
+    },
   ]
 }
 
@@ -1011,7 +1024,7 @@ async function seedContractJourney(journeyId: string, mark: string): Promise<voi
 }
 
 /** Staff authority and ordinary operator configuration for isolated admin jobs. */
-async function seedTeamAdminJourney(journeyId: string): Promise<void> {
+async function seedTeamAdminJourney(journeyId: string, mark: string): Promise<void> {
   if (!verifyDb) throw new Error("Capability eval database is not mounted")
   const now = new Date()
   await verifyDb
@@ -1053,6 +1066,41 @@ async function seedTeamAdminJourney(journeyId: string): Promise<void> {
       supportedLocales: ["en"],
       defaultLocale: "en",
     })
+  }
+  if (journeyId === "team-role-update") {
+    const targetUserId = `user_team_role_${mark}`
+    await verifyDb
+      .insert(authUser)
+      .values({
+        id: targetUserId,
+        name: `Role Candidate ${mark}`,
+        email: `role.candidate.${mark}@capability.example`,
+        emailVerified: true,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .onConflictDoNothing()
+    await verifyDb
+      .insert(userProfilesTable)
+      .values({
+        id: targetUserId,
+        firstName: "Role",
+        lastName: `Candidate ${mark}`,
+        isSuperAdmin: false,
+        permissions: scopesForRole("editor"),
+      })
+      .onConflictDoNothing()
+    await verifyDb
+      .insert(authAccount)
+      .values({
+        id: `account_team_role_${mark}`,
+        accountId: targetUserId,
+        providerId: "credential",
+        userId: targetUserId,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .onConflictDoNothing()
   }
 }
 
@@ -1538,7 +1586,7 @@ describe.skipIf(!enabled)("MCP capability — a travel agent's job", () => {
           if (journey.group === "amendment") await seedBookingAmendment(mark)
           if (journey.group === "supplier") await seedSupplierJourney(journey.id, mark)
           if (journey.group === "contract") await seedContractJourney(journey.id, mark)
-          if (journey.group === "team-admin") await seedTeamAdminJourney(journey.id)
+          if (journey.group === "team-admin") await seedTeamAdminJourney(journey.id, mark)
           if (journey.id === "proposal-accept") await seedProposalAcceptance(mark)
           if (journey.id === "paid-refund") await seedPaidCancellationRefund(mark)
           let run: JourneyRun
