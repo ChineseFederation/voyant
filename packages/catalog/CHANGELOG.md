@@ -1,5 +1,13 @@
 # @voyant-travel/catalog
 
+## 0.253.2
+
+### Patch Changes
+
+- 1a98c8a: Carry server-resolved sourced-stay identities and exact date, room, rate, and occupancy pins through opaque Trip selections, then revalidate price, lock, and confirm through the managed Connect lifecycle without exposing supplier authority to storefront clients.
+- Updated dependencies [1a98c8a]
+  - @voyant-travel/catalog-contracts@0.131.1
+
 ## 0.253.1
 
 ### Patch Changes
