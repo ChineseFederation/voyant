@@ -4,11 +4,18 @@ import {
   defineTool,
   type ToolHandlerActionPolicyContext,
 } from "@voyant-travel/tools"
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest"
+import { afterAll, beforeAll, describe, expect, it } from "vitest"
 import { z } from "zod"
 
-import { executeUpdateTeamMemberRoleCommand } from "../../src/team-member-role-command.js"
-import { UPDATE_TEAM_MEMBER_ROLE_HANDLER_POLICY as POLICY } from "../../src/tools.js"
+import {
+  executeSetTeamMemberAccessCommand,
+  executeUpdateTeamMemberRoleCommand,
+} from "../../src/team-member-role-command.js"
+import {
+  ACTIVATE_TEAM_MEMBER_HANDLER_POLICY,
+  DEACTIVATE_TEAM_MEMBER_HANDLER_POLICY,
+  UPDATE_TEAM_MEMBER_ROLE_HANDLER_POLICY as POLICY,
+} from "../../src/tools.js"
 
 const DB_AVAILABLE = Boolean(process.env.TEST_DATABASE_URL)
 const requestContext = {
@@ -31,14 +38,10 @@ describe.skipIf(!DB_AVAILABLE)("durable team member role command", () => {
   let db: ReturnType<typeof import("@voyant-travel/db/test-utils").createTestDb>
 
   beforeAll(async () => {
-    const { createTestDb } = await import("@voyant-travel/db/test-utils")
+    const { cleanupTestDb, createTestDb } = await import("@voyant-travel/db/test-utils")
     db = createTestDb()
-  })
-
-  beforeEach(async () => {
-    const { cleanupTestDb } = await import("@voyant-travel/db/test-utils")
     await cleanupTestDb(db)
-  })
+  }, 120_000)
 
   afterAll(async () => {
     const { closeTestDb } = await import("@voyant-travel/db/test-utils")
@@ -109,18 +112,72 @@ describe.skipIf(!DB_AVAILABLE)("durable team member role command", () => {
     ).rejects.toThrow()
     expect(roleId).toBe("admin")
   })
+
+  it.each([
+    ["active", ACTIVATE_TEAM_MEMBER_HANDLER_POLICY],
+    ["deactivated", DEACTIVATE_TEAM_MEMBER_HANDLER_POLICY],
+  ] as const)("recovers an ambiguous desired-%s access setter", async (access, policy) => {
+    const initial = await mintAdmission({ confirmed: true }, policy)
+    const command = {
+      db,
+      context: requestContext,
+      admitted: initial,
+      memberId: "member_2",
+      access,
+    }
+    const approvalError = await executeSetTeamMemberAccessCommand({
+      ...command,
+      update: async () => member("editor"),
+    }).catch((error) => error as { code?: string; meta?: Record<string, unknown> })
+    expect(approvalError).toMatchObject({ code: "APPROVAL_REQUIRED" })
+    const approvalId = String(approvalError.meta?.approvalId ?? "")
+    const idempotencyFingerprint = String(approvalError.meta?.idempotencyFingerprint ?? "")
+    await actionLedgerService.decideApproval(db, {
+      id: approvalId,
+      status: "approved",
+      decidedByPrincipalId: "user_team_role_approver",
+      decisionAction: {
+        actionName: `${policy.actionPolicy.id}.approve-test`,
+        actionVersion: "v1",
+        principalType: "user",
+        principalId: "user_team_role_approver",
+        organizationId: requestContext.organizationId,
+      },
+    })
+    const approved = await mintAdmission(
+      { confirmed: true, approvalId, idempotencyFingerprint },
+      policy,
+    )
+    let dispatches = 0
+    const update = async () => {
+      dispatches += 1
+      if (dispatches === 1) throw new Error("response lost after provider accepted access")
+      return { ...member("editor"), status: access }
+    }
+    await expect(
+      executeSetTeamMemberAccessCommand({ ...command, admitted: approved, update }),
+    ).rejects.toThrow(/response lost/)
+    await expect(
+      executeSetTeamMemberAccessCommand({ ...command, admitted: approved, update }),
+    ).resolves.toMatchObject({ id: "member_2", status: access })
+    expect(dispatches).toBe(2)
+  })
 })
 
 async function mintAdmission(
   invocation: Record<string, string | boolean>,
+  policy:
+    | typeof POLICY
+    | typeof ACTIVATE_TEAM_MEMBER_HANDLER_POLICY
+    | typeof DEACTIVATE_TEAM_MEMBER_HANDLER_POLICY = POLICY,
 ): Promise<ToolHandlerActionPolicyContext> {
   let admitted: ToolHandlerActionPolicyContext | undefined
   const registry = createToolRegistry()
   registry.register(
     defineTool({
-      capabilityId: POLICY.capabilityId,
-      capabilityVersion: POLICY.capabilityVersion,
-      name: POLICY.canonicalName,
+      capabilityId: policy.capabilityId,
+      capabilityVersion: policy.capabilityVersion,
+      name: policy.canonicalName,
       description: "Mint an authentic team role command admission for integration coverage.",
       inputSchema: z.object({}),
       outputSchema: z.object({ ok: z.literal(true) }),
@@ -140,12 +197,12 @@ async function mintAdmission(
         return { ok: true as const }
       },
     }),
-    { actionPolicy: POLICY.actionPolicy },
+    { actionPolicy: policy.actionPolicy },
   )
   const manifest = registry.list()[0]
   if (!manifest?.actionPolicy) throw new Error("team role action policy missing")
   await registry.dispatch(
-    POLICY.canonicalName,
+    policy.canonicalName,
     {},
     {
       db: {},

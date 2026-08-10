@@ -102,6 +102,49 @@ export const UPDATE_TEAM_MEMBER_ROLE_HANDLER_POLICY = {
   },
 } as const satisfies HandlerActionPolicyExpectation
 
+function memberAccessHandlerPolicy(input: {
+  capabilityId: string
+  canonicalName: string
+  actionId: string
+  reversible: boolean
+}): HandlerActionPolicyExpectation {
+  return {
+    capabilityId: input.capabilityId,
+    capabilityVersion: "v1",
+    canonicalName: input.canonicalName,
+    actionPolicy: {
+      id: input.actionId,
+      capabilityId: input.actionId,
+      version: "v1",
+      kind: "execute",
+      targetType: "team-member",
+      commandTargetField: "memberId",
+      targetLifecycle: "existing",
+      existingTarget: { durability: "handler-command-result-v1" },
+      risk: "high",
+      ledger: "required",
+      approval: "required",
+      policy: input.actionId,
+      reversible: input.reversible,
+      allowedActorTypes: ["staff"],
+    },
+  }
+}
+
+export const ACTIVATE_TEAM_MEMBER_HANDLER_POLICY = memberAccessHandlerPolicy({
+  capabilityId: "@voyant-travel/auth#team.tool.activate-member",
+  canonicalName: "activate_team_member",
+  actionId: "@voyant-travel/auth#team.action.activate-member",
+  reversible: true,
+})
+
+export const DEACTIVATE_TEAM_MEMBER_HANDLER_POLICY = memberAccessHandlerPolicy({
+  capabilityId: "@voyant-travel/auth#team.tool.deactivate-member",
+  canonicalName: "deactivate_team_member",
+  actionId: "@voyant-travel/auth#team.action.deactivate-member",
+  reversible: false,
+})
+
 export interface TeamManagementToolServices {
   getCapabilities(): Promise<TeamManagementCapabilitiesDto>
   listMembers(): Promise<TeamMemberDto[]>
@@ -114,8 +157,11 @@ export interface TeamManagementToolServices {
     roleId: string,
     admitted: ToolHandlerActionPolicyContext,
   ): Promise<TeamMemberDto>
-  activateMember(memberId: string): Promise<TeamMemberDto>
-  deactivateMember(memberId: string): Promise<TeamMemberDto>
+  activateMember(memberId: string, admitted: ToolHandlerActionPolicyContext): Promise<TeamMemberDto>
+  deactivateMember(
+    memberId: string,
+    admitted: ToolHandlerActionPolicyContext,
+  ): Promise<TeamMemberDto>
 }
 
 export type TeamManagementToolContext = ToolContext & {
@@ -300,6 +346,8 @@ export const activateTeamMemberTool = defineTool<
   TeamMemberDto,
   TeamManagementToolContext
 >({
+  capabilityId: ACTIVATE_TEAM_MEMBER_HANDLER_POLICY.capabilityId,
+  capabilityVersion: ACTIVATE_TEAM_MEMBER_HANDLER_POLICY.capabilityVersion,
   name: "activate_team_member",
   description:
     "Restore a team member's deployment access. Requires explicit confirmation." +
@@ -308,6 +356,8 @@ export const activateTeamMemberTool = defineTool<
   outputSchema: teamMemberSchema,
   requiredScopes: ["team:write"],
   tier: "sensitive",
+  resolvesIdempotencyKeyServerSide: true,
+  actionPolicyEnforcement: "handler",
   riskPolicy: {
     destructive: false,
     reversible: true,
@@ -315,8 +365,10 @@ export const activateTeamMemberTool = defineTool<
     confirmationRequired: true,
     sideEffects: ["data-write"],
   },
+  annotations: { idempotentHint: true },
   async handler({ memberId }, ctx) {
-    return teamManagement(ctx).activateMember(memberId)
+    const admitted = admitHandlerActionPolicy(ctx, ACTIVATE_TEAM_MEMBER_HANDLER_POLICY)
+    return teamManagement(ctx).activateMember(memberId, admitted)
   },
 })
 
@@ -325,6 +377,8 @@ export const deactivateTeamMemberTool = defineTool<
   TeamMemberDto,
   TeamManagementToolContext
 >({
+  capabilityId: DEACTIVATE_TEAM_MEMBER_HANDLER_POLICY.capabilityId,
+  capabilityVersion: DEACTIVATE_TEAM_MEMBER_HANDLER_POLICY.capabilityVersion,
   name: "deactivate_team_member",
   description:
     "Remove a team member's deployment access and potentially revoke active credentials. Requires explicit confirmation." +
@@ -333,6 +387,8 @@ export const deactivateTeamMemberTool = defineTool<
   outputSchema: teamMemberSchema,
   requiredScopes: ["team:delete"],
   tier: "destructive",
+  resolvesIdempotencyKeyServerSide: true,
+  actionPolicyEnforcement: "handler",
   riskPolicy: {
     destructive: true,
     reversible: false,
@@ -340,8 +396,10 @@ export const deactivateTeamMemberTool = defineTool<
     confirmationRequired: true,
     sideEffects: ["data-write", "data-delete"],
   },
+  annotations: { idempotentHint: true },
   async handler({ memberId }, ctx) {
-    return teamManagement(ctx).deactivateMember(memberId)
+    const admitted = admitHandlerActionPolicy(ctx, DEACTIVATE_TEAM_MEMBER_HANDLER_POLICY)
+    return teamManagement(ctx).deactivateMember(memberId, admitted)
   },
 })
 
