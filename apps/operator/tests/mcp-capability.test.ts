@@ -370,7 +370,7 @@ const RUN_MARK = process.env.VOYANT_EVAL_MARK ?? String(Date.now()).slice(-6)
 
 interface CapabilityJourney {
   id: string
-  group: "commercial" | "supplier" | "contract" | "team-admin"
+  group: "commercial" | "proposal" | "supplier" | "contract" | "team-admin"
   domain: string
   task: string
   expect: string
@@ -667,6 +667,28 @@ function buildJourneys(RUN_MARK: string): CapabilityJourney[] {
       // client, which is what the guide layer (voyant#3931) is for.
     },
     {
+      id: "proposal-author",
+      group: "proposal",
+      domain: "proposals",
+      task: `Author an open proposal named 'Independent Danube Journey ${RUN_MARK}' in pipeline 'Proposal Authoring ${RUN_MARK}' at stage 'Draft'. Set its description to 'Private Danube itinerary', pax count to 2, and currency to EUR. Add one free-text line named 'Private Danube touring' with quantity 2 and a unit price of 75000 cents in EUR. Then snapshot the proposal into its first draft version. Confirm the proposal id, version id, and total.`,
+      expect: "independent danube journey",
+      maxCalls: 20,
+      verify: `select 1 from proposals p
+             join proposal_products pp on pp.proposal_id = p.id
+             join proposal_versions pv on pv.proposal_id = p.id
+             where p.title = 'Independent Danube Journey ${RUN_MARK}'
+               and p.status = 'open'
+               and p.description = 'Private Danube itinerary'
+               and p.pax_count = 2
+               and p.value_currency = 'EUR'
+               and pp.name_snapshot = 'Private Danube touring'
+               and pp.quantity = 2
+               and pp.unit_price_amount_cents = 75000
+               and pp.currency = 'EUR'
+               and pv.status = 'draft'
+               and pv.total_amount_cents = 150000`,
+    },
+    {
       id: "supplier-create",
       group: "supplier",
       domain: "suppliers",
@@ -889,6 +911,27 @@ async function seedSupplierJourney(journeyId: string, mark: string): Promise<voi
     supplierId: supplier.id,
     email: fixture.email,
   })
+}
+
+async function seedProposalAuthoring(mark: string): Promise<void> {
+  if (!verifyDb) throw new Error("Capability eval database is not mounted")
+  const pipeline = await proposalsService.createPipeline(verifyDb, {
+    entityType: "proposal",
+    name: `Proposal Authoring ${mark}`,
+    isDefault: false,
+    sortOrder: 0,
+  })
+  if (!pipeline) throw new Error("Cannot seed proposal authoring pipeline")
+  const stage = await proposalsService.createStage(verifyDb, {
+    pipelineId: pipeline.id,
+    name: "Draft",
+    sortOrder: 0,
+    probability: 20,
+    isClosed: false,
+    isWon: false,
+    isLost: false,
+  })
+  if (!stage) throw new Error("Cannot seed proposal authoring stage")
 }
 
 /** Contract-group fixtures are versioned through Legal's owning service. */
@@ -1449,6 +1492,7 @@ describe.skipIf(!enabled)("MCP capability — a travel agent's job", () => {
         const journeys = selectedJourneys(mark)
 
         for (const journey of journeys) {
+          if (journey.group === "proposal") await seedProposalAuthoring(mark)
           if (journey.group === "supplier") await seedSupplierJourney(journey.id, mark)
           if (journey.group === "contract") await seedContractJourney(journey.id, mark)
           if (journey.group === "team-admin") await seedTeamAdminJourney(journey.id)
