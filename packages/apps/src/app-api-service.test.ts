@@ -245,4 +245,21 @@ describe("App API service boundary", () => {
       }).success,
     ).toBe(false)
   })
+
+  it("rejects a malformed external URL without throwing from validation", () => {
+    const input = {
+      reference: {
+        externalId: "42",
+        externalNumber: "42",
+        externalUrl: "",
+        status: "issued",
+        metadata: null,
+        syncedAt: "2026-08-10T04:56:09.000Z",
+        syncError: null,
+      },
+    }
+
+    expect(() => appApiFinanceExternalReferenceUpsertSchema.safeParse(input)).not.toThrow()
+    expect(appApiFinanceExternalReferenceUpsertSchema.safeParse(input).success).toBe(false)
+  })
 })

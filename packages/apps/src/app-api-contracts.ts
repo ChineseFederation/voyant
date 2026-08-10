@@ -56,7 +56,7 @@ export const appApiFinanceExternalReferenceSchema = z
       .string()
       .url()
       .max(2_048)
-      .refine((value) => new URL(value).protocol === "https:", "External URL must use HTTPS.")
+      .refine(isHttpsUrl, "External URL must use HTTPS.")
       .nullable(),
     status: z.string().min(1).max(100).nullable(),
     metadata: z
@@ -254,3 +254,11 @@ export type AppApiFinancePdfArtifact = FinanceAppApiPdfArtifact & { documentUrl:
 export type AppApiFinanceExternalSyncState = FinanceAppApiExternalSyncState
 export type AppApiFinanceExternalLifecycleObservation = FinanceAppApiExternalLifecycleObservation
 export type AppApiFinanceSettlementObservation = FinanceAppApiSettlementObservation
+
+function isHttpsUrl(value: string): boolean {
+  try {
+    return new URL(value).protocol === "https:"
+  } catch {
+    return false
+  }
+}
