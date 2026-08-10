@@ -57,7 +57,7 @@ import { supplierDirectoryProjections, suppliers } from "@voyant-travel/distribu
 import { financeService } from "@voyant-travel/finance"
 import { invoices } from "@voyant-travel/finance/schema"
 import { composeVoyantGraphRuntime } from "@voyant-travel/framework"
-import { policiesService } from "@voyant-travel/legal"
+import { contractsService, policiesService } from "@voyant-travel/legal"
 import { proposalsService, tripSnapshotToProposalVersionApply } from "@voyant-travel/proposals"
 import { tripsService } from "@voyant-travel/trips"
 import { sql as sqlRaw } from "drizzle-orm"
@@ -336,7 +336,7 @@ const RUN_MARK = process.env.VOYANT_EVAL_MARK ?? String(Date.now()).slice(-6)
 
 interface CapabilityJourney {
   id: string
-  group: "commercial" | "supplier"
+  group: "commercial" | "supplier" | "contract"
   domain: string
   task: string
   expect: string
@@ -671,6 +671,46 @@ function buildJourneys(RUN_MARK: string): CapabilityJourney[] {
       verify: `select 1 from suppliers
              where name = 'Dormant Experiences ${RUN_MARK}' and status = 'inactive'`,
     },
+    {
+      id: "contract-template-create",
+      group: "contract",
+      domain: "contracts",
+      task: `Create an active English customer contract template named 'Independent Travel Agreement ${RUN_MARK}' with slug 'independent-travel-agreement-${RUN_MARK}', description 'Customer terms for independent travel', and body '<h1>Independent Travel Agreement</h1><p>Traveler: {{travelerName}}</p>'. It must not be the default template. Confirm its id and current version.`,
+      expect: "independent travel agreement",
+      maxCalls: 16,
+      verify: `select 1 from contract_templates t
+             join contract_template_versions v on v.id = t.current_version_id
+             where t.slug = 'independent-travel-agreement-${RUN_MARK}'
+               and t.scope = 'customer'
+               and t.language = 'en'
+               and t.active = true
+               and t.is_default = false
+               and v.version = 1`,
+    },
+    {
+      id: "contract-template-find",
+      group: "contract",
+      domain: "contracts",
+      task: `Find the contract template 'Danube Charter Terms ${RUN_MARK}' and report its slug, scope, language, lifecycle status, and description.`,
+      expect: `danube-charter-terms-${RUN_MARK}`,
+      maxCalls: 12,
+      requiresDispatch: true,
+    },
+    {
+      id: "contract-template-update",
+      group: "contract",
+      domain: "contracts",
+      task: `Update the contract template 'Alpine Group Terms ${RUN_MARK}' so its description is 'Revised group terms ${RUN_MARK}' and its body is '<h1>Alpine Group Terms</h1><p>Revised terms for {{groupName}}</p>'. Preserve its name, slug, customer scope, English language, active status, and non-default status. Confirm the new version.`,
+      expect: "revised",
+      maxCalls: 18,
+      verify: `select 1 from contract_templates t
+             join contract_template_versions v on v.id = t.current_version_id
+             where t.slug = 'alpine-group-terms-${RUN_MARK}'
+               and t.description = 'Revised group terms ${RUN_MARK}'
+               and t.body = '<h1>Alpine Group Terms</h1><p>Revised terms for {{groupName}}</p>'
+               and v.version = 2
+               and v.body = t.body`,
+    },
   ]
 }
 
@@ -779,6 +819,40 @@ async function seedSupplierJourney(journeyId: string, mark: string): Promise<voi
     supplierId: supplier.id,
     email: fixture.email,
   })
+}
+
+/** Contract-group fixtures are versioned through Legal's owning service. */
+async function seedContractJourney(journeyId: string, mark: string): Promise<void> {
+  if (!verifyDb) throw new Error("Capability eval database is not mounted")
+  if (journeyId === "contract-template-create") return
+
+  const fixture =
+    journeyId === "contract-template-find"
+      ? {
+          name: `Danube Charter Terms ${mark}`,
+          slug: `danube-charter-terms-${mark}`,
+          description: `Active charter customer terms ${mark}`,
+          body: "<h1>Danube Charter Terms</h1><p>Traveler: {{travelerName}}</p>",
+        }
+      : journeyId === "contract-template-update"
+        ? {
+            name: `Alpine Group Terms ${mark}`,
+            slug: `alpine-group-terms-${mark}`,
+            description: `Original group terms ${mark}`,
+            body: "<h1>Alpine Group Terms</h1><p>Original terms for {{groupName}}</p>",
+          }
+        : null
+  if (!fixture) return
+
+  const template = await contractsService.createTemplate(verifyDb, {
+    ...fixture,
+    scope: "customer",
+    language: "en",
+    channelId: null,
+    isDefault: false,
+    active: true,
+  })
+  if (!template?.currentVersionId) throw new Error(`Cannot seed ${journeyId}`)
 }
 
 /**
@@ -1254,6 +1328,7 @@ describe.skipIf(!enabled)("MCP capability — a travel agent's job", () => {
 
         for (const journey of journeys) {
           if (journey.group === "supplier") await seedSupplierJourney(journey.id, mark)
+          if (journey.group === "contract") await seedContractJourney(journey.id, mark)
           if (journey.id === "proposal-accept") await seedProposalAcceptance(mark)
           if (journey.id === "paid-refund") await seedPaidCancellationRefund(mark)
           let run: JourneyRun

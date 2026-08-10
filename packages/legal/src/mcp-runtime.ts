@@ -12,9 +12,11 @@ import { bookingItems, bookings } from "@voyant-travel/bookings/schema"
 import type { EventBus } from "@voyant-travel/core"
 import {
   defineToolContextContribution,
+  deriveCommandIdempotencyKey,
   requireService,
   ToolError,
   type ToolHandlerActionPolicyContext,
+  withServerResolvedIdempotencyKey,
 } from "@voyant-travel/tools"
 import { and, eq, sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
@@ -55,7 +57,10 @@ import {
   mergeContractNumberIntoVariables,
   validateTemplateVariables,
 } from "./contracts/service.js"
-import { LEGAL_CONTRACT_DRAFT_CREATED_TARGET_POLICY } from "./created-target-policy.js"
+import {
+  LEGAL_CONTRACT_DRAFT_CREATED_TARGET_POLICY,
+  LEGAL_CONTRACT_TEMPLATE_CREATED_TARGET_POLICY,
+} from "./created-target-policy.js"
 import { parseManagedBookingContractReviewWorkflow } from "./managed-booking-contract-workflow.js"
 import type { Policy, PolicyRule, PolicyVersion } from "./policies/schema.js"
 import { policiesService } from "./policies/service.js"
@@ -229,10 +234,8 @@ export function createLegalToolServices(
       }
       return { rendered: contractsService.renderPreview({ body: row.body, variables }) }
     },
-    async createTemplate(input) {
-      const row = await contractsService.createTemplate(db, input)
-      if (!row) throw new Error("Contract template creation did not return a row")
-      return templateDetail(row)
+    async createTemplate(input, admitted) {
+      return executeLegalContractTemplateCreate(db, requestContext, input, admitted)
     },
     async updateTemplate({ id, ...input }) {
       const row = await contractsService.updateTemplate(db, id, input)
@@ -356,6 +359,60 @@ export function createLegalToolServices(
       return result.value
     },
   }
+}
+
+async function executeLegalContractTemplateCreate(
+  db: PostgresJsDatabase,
+  requestContext: LegalToolRequestContext,
+  commandInput: Parameters<LegalToolServices["createTemplate"]>[0],
+  admitted: ToolHandlerActionPolicyContext,
+) {
+  const policy = LEGAL_CONTRACT_TEMPLATE_CREATED_TARGET_POLICY
+  const principal = mapActionLedgerRequestContext(requestContext)
+  if (principal.principalId === "unknown_request") {
+    throw new TypeError("Legal contract-template creation requires a concrete principal")
+  }
+  if (
+    admitted.capabilityId !== policy.toolCapabilityId ||
+    admitted.actionPolicy.capabilityId !== policy.capabilityId ||
+    admitted.actionPolicy.version !== policy.actionVersion
+  ) {
+    throw new TypeError("Legal contract-template Tool identity drifted after admission")
+  }
+  const resolvedAdmitted = withServerResolvedIdempotencyKey(
+    admitted,
+    await deriveCommandIdempotencyKey("create-contract-template", commandInput),
+  )
+  admittedCreatedCommandIdempotencyKey(resolvedAdmitted, undefined)
+  return (
+    await executeAdmittedCreatedTargetCommand(
+      {
+        db,
+        context: requestContext,
+        admitted: resolvedAdmitted,
+        commandTargetType: policy.commandTargetType,
+        canonicalTargetType: policy.canonicalTargetType,
+        resultReferenceType: policy.resultReferenceType,
+        commandInput,
+        evaluatedRisk: policy.evaluatedRisk,
+      },
+      {
+        async create(tx) {
+          const row = await contractsService.createTemplate(tx as PostgresJsDatabase, commandInput)
+          if (!row) throw new Error("Contract template creation did not return a row")
+          return { value: templateDetail(row), targetId: row.id }
+        },
+        async replay(tx, completed) {
+          const row = await contractsService.getTemplateById(
+            tx as PostgresJsDatabase,
+            completed.reference.id,
+          )
+          if (!row) throw new Error("Created contract template cannot be replayed")
+          return templateDetail(row)
+        },
+      },
+    )
+  ).value
 }
 
 type LegalCreatedCommandExecutor = (
