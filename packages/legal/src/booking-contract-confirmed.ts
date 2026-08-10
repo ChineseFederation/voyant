@@ -1,3 +1,5 @@
+// agent-quality: file-size exception -- owner: legal; this module keeps the
+// transactional booking-confirmed preparation and acceptance promotion atomic.
 import {
   actionLedgerService,
   buildActionApprovalCommandFingerprint,
@@ -309,6 +311,15 @@ async function prepareBookingContractTarget(
     body: selected.version.body,
     variables,
   })
+  // The shopper reviews the contract before the Booking exists, so values
+  // assigned only by the commit (the booking id/reference and status) are not
+  // present in that preview. They are the same kind of server-assigned
+  // decoration as the contract number added below: useful on the canonical
+  // document, but not part of the commercial text the shopper could review.
+  const acceptanceRenderedBody = contractsService.renderPreview({
+    body: selected.version.body,
+    variables: bookingContractAcceptanceVariables(variables),
+  })
   const priorMetadata = record(reusable?.metadata)
   const pendingAcceptance = await bookingContractAcceptanceMetadata({
     internalNotes: booking.internalNotes,
@@ -316,6 +327,7 @@ async function prepareBookingContractTarget(
     templateVersionId: selected.version.id,
     templateSlug: selected.template.slug,
     renderedBody,
+    additionalRenderedBodies: [acceptanceRenderedBody],
   })
   const acceptance = priorMetadata.acceptance ?? pendingAcceptance ?? undefined
   const paymentConfirmation =
@@ -678,6 +690,7 @@ export async function bookingContractAcceptanceMetadata(input: {
   templateVersionId: string
   templateSlug: string
   renderedBody: string
+  additionalRenderedBodies?: readonly string[]
 }): Promise<{
   acceptedAt: string
   acceptedMarketing: boolean
@@ -702,24 +715,49 @@ export async function bookingContractAcceptanceMetadata(input: {
       ) {
         continue
       }
-      const contentDigest = await bookingContractAcceptanceContentDigest({
-        templateId: input.templateId,
-        templateVersionId: input.templateVersionId,
-        renderedBody: input.renderedBody,
-      })
-      if (value.contentDigest !== contentDigest) continue
+      let matchedRenderedBody: string | null = null
+      for (const renderedBody of [input.renderedBody, ...(input.additionalRenderedBodies ?? [])]) {
+        const candidate = await bookingContractAcceptanceContentDigest({
+          templateId: input.templateId,
+          templateVersionId: input.templateVersionId,
+          renderedBody,
+        })
+        if (value.contentDigest === candidate) {
+          matchedRenderedBody = renderedBody
+          break
+        }
+      }
+      if (matchedRenderedBody === null) continue
       return {
         acceptedAt: value.acceptedAt,
         acceptedMarketing: value.acceptedMarketing === true,
         templateId: input.templateId,
         templateVersionId: input.templateVersionId,
         templateSlug: input.templateSlug,
-        contentDigest,
-        renderedHtmlLength: input.renderedBody.length,
+        contentDigest: value.contentDigest,
+        renderedHtmlLength: matchedRenderedBody.length,
       }
     } catch {
       // Ignore malformed legacy notes and keep looking for a valid marker.
     }
   }
   return null
+}
+
+/**
+ * Reconstruct the variables available to the pre-commit storefront preview.
+ *
+ * Booking identity and status are assigned atomically only when the Session is
+ * committed. Removing them lets Legal verify the exact body the shopper saw,
+ * while the generated document can still carry the authoritative identifiers
+ * in the same way it receives its contract number after acceptance.
+ */
+export function bookingContractAcceptanceVariables(
+  variables: Record<string, unknown>,
+): Record<string, unknown> {
+  const reviewBooking = { ...record(variables.booking) }
+  for (const key of ["id", "bookingId", "reference", "bookingNumber", "number", "status"]) {
+    delete reviewBooking[key]
+  }
+  return { ...variables, booking: reviewBooking }
 }
