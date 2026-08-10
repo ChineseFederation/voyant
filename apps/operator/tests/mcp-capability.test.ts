@@ -68,6 +68,7 @@ import {
   createGeneratedGraphRuntime,
   createGeneratedTestDeploymentResources,
 } from "./api/generated-project-runtime.js"
+import { measureResponseFormats } from "./support/mcp-response-format-metrics.js"
 import { fetchWithTransientRetry } from "./support/openai-response-retry.js"
 
 const TEST_DATABASE_URL = process.env.TEST_DATABASE_URL
@@ -1020,13 +1021,15 @@ function writeMachineReport(): void {
     .sort((left, right) => right.responseBytes - left.responseBytes)
     .slice(0, 10)
     .map((call) => ({ name: call.name, responseBytes: call.responseBytes, isError: call.isError }))
+  const allCalls = [...attempts.values()].flat().flatMap((attempt) => attempt.calls)
+  const responseFormats = measureResponseFormats(allCalls)
 
   mkdirSync(dirname(destination), { recursive: true })
   writeFileSync(
     destination,
     `${JSON.stringify(
       {
-        schemaVersion: 3,
+        schemaVersion: 4,
         generatedAt: new Date().toISOString(),
         model: MODEL,
         reasoningEffort: MODEL.startsWith("gpt-5") ? REASONING_EFFORT : null,
@@ -1060,6 +1063,7 @@ function writeMachineReport(): void {
           ),
         },
         largestResponses,
+        responseFormats,
       },
       null,
       2,

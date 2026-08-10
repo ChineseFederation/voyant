@@ -82,6 +82,12 @@ const ALL_TOOLS_AGGREGATE_CEILING_BYTES = 275_000
 
 const AGGREGATE_CEILING_BYTES = 130_000
 
+/** Real Terra max: 10,421 bytes; advanced exact-command Tools retain 40 KB headroom. */
+const DESCRIBE_RESPONSE_CEILING_BYTES = 40_000
+
+/** Real Terra max after domain-scoped fallback: 6,485 bytes. */
+const SEARCH_RESPONSE_CEILING_BYTES = 8_000
+
 /** Rough proxy for tokens. JSON schema tokenizes denser than prose, so this is a floor. */
 const BYTES_PER_TOKEN = 4
 
@@ -420,6 +426,52 @@ describe("selected-graph MCP tool surface cost", () => {
     expect(result?.returned).toBe(tools.length)
     expect(new Set(tools.map(({ domain }) => domain))).toEqual(new Set(["finance"]))
     expect(tools.map(({ name }) => name)).toContain("finance_query")
+  })
+
+  it("bounds the served discovery responses a model actually pays for", async () => {
+    const { app } = await mountSelectedGraphMcp()
+    const manifest = (await (await app.request("/manifest", {}, TEST_ENV, TEST_CTX)).json()) as {
+      tools: Array<{ name?: string }>
+    }
+    const names = new Set(manifest.tools.flatMap(({ name }) => (name ? [name] : [])))
+    for (const name of [
+      "accommodations_query",
+      "bookings_query",
+      "finance_query",
+      "inventory_query",
+      "operations_query",
+      "relationships_query",
+    ]) {
+      names.add(name)
+    }
+
+    let heaviest = { name: "", bytes: 0 }
+    for (const name of names) {
+      const response = await app.request(
+        "/",
+        rpc("tools/call", { name: "describe_tool", arguments: { name } }),
+        TEST_ENV,
+        TEST_CTX,
+      )
+      const bytes = Buffer.byteLength(await response.text(), "utf8")
+      if (bytes > heaviest.bytes) heaviest = { name, bytes }
+    }
+    expect(
+      heaviest.bytes,
+      `Largest served describe_tool response was ${heaviest.name} at ${heaviest.bytes} bytes`,
+    ).toBeLessThanOrEqual(DESCRIBE_RESPONSE_CEILING_BYTES)
+
+    const fallback = await app.request(
+      "/",
+      rpc("tools/call", {
+        name: "search_tools",
+        arguments: { query: "phrase guaranteed to have no exact capability match", limit: 50 },
+      }),
+      TEST_ENV,
+      TEST_CTX,
+    )
+    const fallbackBytes = Buffer.byteLength(await fallback.text(), "utf8")
+    expect(fallbackBytes).toBeLessThanOrEqual(SEARCH_RESPONSE_CEILING_BYTES)
   })
 
   it("still bounds EVERY selected tool's schema, writes included", async () => {
