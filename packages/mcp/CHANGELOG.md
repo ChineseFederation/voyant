@@ -1,5 +1,11 @@
 # @voyant-travel/mcp
 
+## 0.22.1
+
+### Patch Changes
+
+- 9b08aeb: Treat whitespace-only optional `describe_tool` resource selectors as omitted, keep intent-bearing matches discoverable in long natural-language searches, and direct supplier discovery to the authoritative Distribution supplier directory.
+
 ## 0.22.0
 
 ### Patch Changes

@@ -1,5 +1,11 @@
 # @voyant-travel/commerce
 
+## 0.49.4
+
+### Patch Changes
+
+- ca68f42: Apply the default customer number series to automatically generated booking contracts and promote paid storefront acceptances through issue, send, and electronic signature. Bank-transfer contracts remain drafts until payment confirmation.
+
 ## 0.49.3
 
 ### Patch Changes
