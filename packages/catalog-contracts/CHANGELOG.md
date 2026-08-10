@@ -1,5 +1,11 @@
 # @voyant-travel/catalog-contracts
 
+## 0.132.0
+
+### Minor Changes
+
+- c164b40: Carry explicit storefront contract acceptance through Booking Session checkout so paid card bookings sign their numbered contract automatically and deferred bank transfers retain a numbered draft until settlement.
+
 ## 0.131.1
 
 ### Patch Changes
