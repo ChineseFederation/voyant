@@ -1423,6 +1423,37 @@ describe("createMcpApiRoutes", () => {
     })
   })
 
+  it("describes the eager call_tool meta-tool without reporting it missing", async () => {
+    const app = appWithScopes(["catalog:read"])
+    const described = await describeTool(app, "call_tool")
+
+    expect(described.result?.isError).not.toBe(true)
+    expect(described.structuredContent).toMatchObject({
+      name: "call_tool",
+      inputSchema: {
+        type: "object",
+        required: ["name"],
+      },
+    })
+  })
+
+  it("tells callers to invoke eager guide tools directly instead of nesting them", async () => {
+    const app = appWithScopes(["catalog:read"])
+    const response = await readRpc(
+      await app.request(
+        "/",
+        rpc("tools/call", {
+          name: "call_tool",
+          arguments: { name: "voyant_guide", arguments: { topic: "overview" } },
+        }),
+      ),
+    )
+    const serialized = JSON.stringify(response.result)
+
+    expect(serialized).toContain("Invoke voyant_guide directly")
+    expect(serialized).not.toContain("does not exist")
+  })
+
   it("ranks useful partial matches for verbose operator searches", async () => {
     const app = appWithScopes(["records:write"])
 

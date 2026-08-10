@@ -57,6 +57,18 @@ export const META_TOOL_NAMES: readonly string[] = [
   CALL_TOOL_NAME,
 ]
 
+const EAGER_TOOL_NAMES: readonly string[] = [...META_TOOL_NAMES, "voyant_guide", "voyant_glossary"]
+
+const CALL_TOOL_DESCRIPTION =
+  "Dispatch a tool discovered through search_tools / describe_tool. Pass the " +
+  "tool name and its arguments object; the result is the underlying tool's " +
+  "result. For a `<domain>_query` tool, include `resource` in the arguments."
+
+const callToolInputSchema = z.object({
+  name: z.string().trim().min(1),
+  arguments: z.record(z.string(), z.unknown()).optional(),
+})
+
 /** Default and maximum number of hits `search_tools` returns in one call. */
 const DEFAULT_SEARCH_LIMIT = 20
 const MAX_SEARCH_LIMIT = 50
@@ -441,6 +453,21 @@ function describeTool(
   name: string,
   resource?: string,
 ): CallToolResult {
+  if (name === CALL_TOOL_NAME) {
+    const descriptor = {
+      name: CALL_TOOL_NAME,
+      description: CALL_TOOL_DESCRIPTION,
+      inputSchema: z.toJSONSchema(callToolInputSchema, {
+        io: "input",
+        unrepresentable: "any",
+      }),
+      annotations: { openWorldHint: true },
+    }
+    return {
+      content: [{ type: "text", text: JSON.stringify(descriptor, null, 2) }],
+      structuredContent: descriptor,
+    }
+  }
   const queryTool = projection.queryToolFor(name)
   if (queryTool) {
     // Fail closed on an unknown resource rather than advertising an empty union,
@@ -504,20 +531,29 @@ function registerCallTool(input: RegisterMetaToolsInput): void {
   server.registerTool(
     CALL_TOOL_NAME,
     {
-      description:
-        "Dispatch a tool discovered through search_tools / describe_tool. Pass the " +
-        "tool name and its arguments object; the result is the underlying tool's " +
-        "result. For a `<domain>_query` tool, include `resource` in the arguments.",
-      inputSchema: z.object({
-        name: z.string().trim().min(1),
-        arguments: z.record(z.string(), z.unknown()).optional(),
-      }),
+      description: CALL_TOOL_DESCRIPTION,
+      inputSchema: callToolInputSchema,
       annotations: { openWorldHint: true },
     },
     async (args) => {
       // Tolerate a client namespace prefix before anything else, so both the
       // query-tool route and the flat route see the same resolved name.
       const invocationName = resolveInvocationName(surface, args.name)
+      if (EAGER_TOOL_NAMES.includes(invocationName)) {
+        return errorResult(
+          new ToolError(
+            `${invocationName} is an eager MCP tool and cannot be nested inside call_tool.`,
+            "INVALID_INPUT",
+            undefined,
+            undefined,
+            {
+              nextSteps: [
+                `Invoke ${invocationName} directly as an MCP tool with the same arguments.`,
+              ],
+            },
+          ),
+        )
+      }
       const queryToolName = projection.queryToolFor(args.name)
         ? args.name
         : projection.queryToolFor(invocationName)
