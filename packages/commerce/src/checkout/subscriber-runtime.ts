@@ -54,6 +54,8 @@ export interface CheckoutFinalizeSubscriberRuntimeOptions<TBindings = unknown>
   extends CatalogCheckoutRuntimeDatabase<TBindings> {
   finalize?: typeof finalizeCheckout
   settleBookingSession?: CatalogBookingSessionSettlementRuntime["commitPaidSession"]
+  legal?: AcceptanceSignatureLegalPort
+  persistSignature?: typeof persistAcceptanceSignature
   logger?: Pick<Console, "error">
   /**
    * Per-event monthly booking allowance, for hosts whose plan entitlement
@@ -153,8 +155,8 @@ export function createCheckoutFinalizeSubscriberRuntime<TBindings = unknown>(
             )
             const nestedEventBus = (context?.eventBus ?? eventBus) as EventBus
 
-            await options.withDb(runtimeBindings, (db) =>
-              finalize({
+            await options.withDb(runtimeBindings, async (db) => {
+              await finalize({
                 db,
                 eventBus: nestedEventBus,
                 input: {
@@ -163,8 +165,22 @@ export function createCheckoutFinalizeSubscriberRuntime<TBindings = unknown>(
                   paymentIntent: data.paymentIntent,
                 },
                 monthlyBookingLimit,
-              }),
-            )
+              })
+              if (!options.legal) return
+              await options.legal.recordBookingPaymentConfirmation(
+                db,
+                finalizedBookingId,
+                data.paymentSessionId,
+              )
+              const contract = await options.legal.getBookingContract(db, finalizedBookingId)
+              if (!contract) return
+              await (options.persistSignature ?? persistAcceptanceSignature)(
+                db,
+                contract.id,
+                nestedEventBus,
+                options.legal,
+              )
+            })
           } catch (error) {
             logger.error(
               `[catalog-checkout] checkout finalization failed for booking ${bookingId ?? data.targetId ?? "unknown"}`,
@@ -193,12 +209,14 @@ export const createCheckoutFinalizeSubscriberGraphRuntime = defineGraphRuntimeFa
   async ({ getPort, hostOptions }) => {
     const database = await getPort(catalogCheckoutDatabaseRuntimePort)
     const settlement = await getPort(catalogBookingSessionSettlementRuntimePort)
+    const legal = await getPort(catalogCheckoutLegalRuntimePort)
     return {
       id: COMMERCE_CHECKOUT_FINALIZE_SUBSCRIBER_ID,
       eventType: "payment.completed",
       register: async (context: BootstrapContext) => {
         const descriptor = createCheckoutFinalizeSubscriberRuntime({
           ...database,
+          legal,
           settleBookingSession: (input) => settlement.commitPaidSession(input),
           // Finalizing a checkout accepts a booking, so this path draws on the
           // same monthly quota as the booking and finance routes. Before host

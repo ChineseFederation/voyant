@@ -133,10 +133,11 @@ export async function startCatalogCheckout(
   // in `metadata.acceptance`. The auto-generate-contract subscriber
   // detects this draft from the already committed Booking
   // by booking_id, populates the rendered body + variables from the
-  // confirmed booking state, and issues + generates the PDF —
-  // allocating the contract number at issue time. The signature
-  // promotion path then reads `metadata.acceptance` straight off
-  // the contract row instead of relaying through internal_notes.
+  // confirmed booking state, selects the default customer series, allocates
+  // the contract number, and generates the numbered PDF while the contract
+  // remains a draft. The payment-completed path then issues, sends, and signs
+  // it from `metadata.acceptance`; bank-transfer contracts therefore remain
+  // drafts until the transfer is confirmed.
   //
   // Idempotency: re-entering /checkout/start (e.g. customer hits
   // Back then resubmits) finds the existing draft and updates its

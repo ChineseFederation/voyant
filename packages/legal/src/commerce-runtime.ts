@@ -3,10 +3,12 @@ import type {
   CommerceLegalRuntime,
 } from "@voyant-travel/commerce/runtime-port"
 import type { VoyantRuntimeHostPrimitives } from "@voyant-travel/core"
-import { eq } from "drizzle-orm"
+import { and, desc, eq, sql } from "drizzle-orm"
 
 import { contracts } from "./contracts/schema.js"
 import { contractsService } from "./contracts/service.js"
+import { contractSeriesService } from "./contracts/service-series.js"
+import { parseManagedBookingContractReviewWorkflow } from "./managed-booking-contract-workflow.js"
 
 /** Legal-owned contract operations consumed by Commerce checkout. */
 export function createCommerceLegalRuntime(
@@ -21,9 +23,92 @@ export function createCommerceLegalRuntime(
         .limit(1)
       return contract ?? null
     },
+    async getBookingContract(db, bookingId) {
+      const [contract] = await db
+        .select()
+        .from(contracts)
+        .where(and(eq(contracts.bookingId, bookingId), eq(contracts.scope, "customer")))
+        .orderBy(desc(contracts.createdAt), desc(contracts.id))
+        .limit(1)
+      return contract ?? null
+    },
+    async recordBookingPaymentConfirmation(db, bookingId, paymentSessionId) {
+      await db.transaction(async (tx) => {
+        // Serialize the payment checkpoint with booking-confirmed document
+        // preparation so neither metadata merge can erase the other.
+        await tx.execute(
+          sql`select pg_advisory_xact_lock(hashtext(${`legal:booking-confirmed:${bookingId}`}))`,
+        )
+        const [contract] = await tx
+          .select()
+          .from(contracts)
+          .where(and(eq(contracts.bookingId, bookingId), eq(contracts.scope, "customer")))
+          .orderBy(desc(contracts.createdAt), desc(contracts.id))
+          .limit(1)
+        if (!contract || contract.status === "signed" || contract.status === "executed") return
+        const metadata =
+          contract.metadata &&
+          typeof contract.metadata === "object" &&
+          !Array.isArray(contract.metadata)
+            ? (contract.metadata as Record<string, unknown>)
+            : {}
+        await tx
+          .update(contracts)
+          .set({
+            metadata: {
+              ...metadata,
+              paymentConfirmation: {
+                paymentSessionId,
+                confirmedAt: new Date().toISOString(),
+              },
+            },
+            updatedAt: new Date(),
+          })
+          .where(eq(contracts.id, contract.id))
+      })
+    },
     listSignatures: (db, contractId) => contractsService.listSignatures(db, contractId),
+    async issueContract(db, contractId, eventBus) {
+      const [contract] = await db
+        .select()
+        .from(contracts)
+        .where(eq(contracts.id, contractId))
+        .limit(1)
+      if (!contract) return { status: "not_found" }
+      const metadata =
+        contract.metadata &&
+        typeof contract.metadata === "object" &&
+        !Array.isArray(contract.metadata)
+          ? (contract.metadata as Record<string, unknown>)
+          : {}
+      if (
+        !parseManagedBookingContractReviewWorkflow(metadata) ||
+        !metadata.acceptance ||
+        !metadata.paymentConfirmation
+      ) {
+        return { status: "not_ready" }
+      }
+      if (!contract.seriesId) {
+        const series = await contractSeriesService.findDefaultActiveByScope(db, "customer")
+        if (!series) return { status: "series_not_found" }
+        await db
+          .update(contracts)
+          .set({ seriesId: series.id, updatedAt: new Date() })
+          .where(and(eq(contracts.id, contract.id), eq(contracts.status, "draft")))
+      }
+      return contractsService.issueContract(
+        db,
+        contractId,
+        { eventBus },
+        {
+          allowManagedBookingContractWorkflow: true,
+        },
+      )
+    },
     sendContract: (db, contractId, eventBus) =>
-      contractsService.sendContract(db, contractId, { eventBus }),
+      contractsService.sendContract(db, contractId, { eventBus }, undefined, {
+        allowManagedBookingContractWorkflow: true,
+      }),
     signContract: (db, contractId, input, eventBus) =>
       contractsService.signContract(db, contractId, input as never, { eventBus }),
     persistAcceptanceDraftContract,

@@ -30,7 +30,13 @@ import {
   contractTemplates,
   contractTemplateVersions,
 } from "./contracts/schema.js"
-import { contractsService, validateTemplateVariables } from "./contracts/service.js"
+import {
+  allocateContractNumber,
+  contractsService,
+  mergeContractNumberIntoVariables,
+  validateTemplateVariables,
+} from "./contracts/service.js"
+import { contractSeriesService } from "./contracts/service-series.js"
 
 export const LEGAL_BOOKING_CONTRACT_CONFIRMED_ACTION_ID =
   "@voyant-travel/legal#action.generate-booking-contract-on-confirmation"
@@ -47,6 +53,7 @@ export type BookingContractConfirmationResult =
         | "booking_not_found"
         | "template_not_found"
         | "template_version_missing"
+        | "series_not_found"
         | "contract_not_mutable"
         | "missing_prerequisites"
       missingPrerequisites?: string[]
@@ -298,6 +305,11 @@ async function prepareBookingContractTarget(
       reviewSnapshot,
     },
   }
+  const defaultSeries = reusable?.seriesId
+    ? null
+    : await contractSeriesService.findDefaultActiveByScope(db, "customer")
+  const seriesId = reusable?.seriesId ?? defaultSeries?.id ?? null
+  if (!seriesId) return { status: "skipped", reason: "series_not_found" }
 
   let contract: typeof contracts.$inferSelect | null
   if (reusable) {
@@ -306,6 +318,7 @@ async function prepareBookingContractTarget(
       .set({
         title: reusable.title || `${selected.template.name} — ${booking.bookingNumber}`,
         templateVersionId: selected.version.id,
+        seriesId,
         personId: reusable.personId ?? booking.personId,
         organizationId: reusable.organizationId ?? booking.organizationId,
         channelId: reusable.channelId ?? origin?.channelId ?? null,
@@ -327,7 +340,7 @@ async function prepareBookingContractTarget(
         status: "draft",
         title: `${selected.template.name} — ${booking.bookingNumber}`,
         templateVersionId: selected.version.id,
-        seriesId: null,
+        seriesId,
         bookingId,
         personId: booking.personId,
         organizationId: booking.organizationId,
@@ -349,6 +362,28 @@ async function prepareBookingContractTarget(
   }
   if (!contract) return { status: "skipped", reason: "contract_not_mutable" }
 
+  if (!contract.contractNumber) {
+    const allocated = await allocateContractNumber(db, seriesId)
+    if (!allocated) return { status: "skipped", reason: "series_not_found" }
+    const numberedVariables = mergeContractNumberIntoVariables(variables, allocated.number)
+    const numberedBody = contractsService.renderPreview({
+      body: selected.version.body,
+      variables: numberedVariables,
+    })
+    contract = await db
+      .update(contracts)
+      .set({
+        contractNumber: allocated.number,
+        variables: numberedVariables,
+        renderedBody: numberedBody,
+        updatedAt: new Date(),
+      })
+      .where(and(eq(contracts.id, contract.id), eq(contracts.status, "draft")))
+      .returning()
+      .then(([row]) => row ?? null)
+    if (!contract) return { status: "skipped", reason: "contract_not_mutable" }
+  }
+
   return {
     status: "prepared",
     bookingId,
@@ -359,9 +394,9 @@ async function prepareBookingContractTarget(
       bookingId,
       templateVersionId: selected.version.id,
       contractNumber: contract.contractNumber,
-      body: renderedBody,
+      body: contract.renderedBody ?? renderedBody,
       bodyFormat: "html",
-      variables,
+      variables: (contract.variables as Record<string, unknown> | null) ?? variables,
     },
   }
 }

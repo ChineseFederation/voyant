@@ -35,7 +35,21 @@ export interface AcceptanceSignatureLegalPort {
     db: PostgresJsDatabase,
     contractId: string,
   ): Promise<AcceptanceSignatureContract | null>
+  getBookingContract(
+    db: PostgresJsDatabase,
+    bookingId: string,
+  ): Promise<AcceptanceSignatureContract | null>
+  recordBookingPaymentConfirmation(
+    db: PostgresJsDatabase,
+    bookingId: string,
+    paymentSessionId: string,
+  ): Promise<void>
   listSignatures(db: PostgresJsDatabase, contractId: string): Promise<ReadonlyArray<unknown>>
+  issueContract(
+    db: PostgresJsDatabase,
+    contractId: string,
+    eventBus?: EventBus,
+  ): Promise<{ status: string }>
   sendContract(
     db: PostgresJsDatabase,
     contractId: string,
@@ -73,6 +87,17 @@ function readContractAcceptance(
   return null
 }
 
+function isPaymentConfirmedGeneratedDraft(contract: AcceptanceSignatureContract): boolean {
+  if (!contract.metadata || typeof contract.metadata !== "object") return false
+  const metadata = contract.metadata as Record<string, unknown>
+  return (
+    metadata.paymentConfirmation !== null &&
+    typeof metadata.paymentConfirmation === "object" &&
+    metadata.bookingContractWorkflow !== null &&
+    typeof metadata.bookingContractWorkflow === "object"
+  )
+}
+
 export async function persistAcceptanceSignature(
   db: PostgresJsDatabase,
   contractId: string,
@@ -95,7 +120,20 @@ export async function persistAcceptanceSignature(
   const existing = await legalPort.listSignatures(db, contractId)
   if (existing.length > 0) return
 
-  if (contract.status === "issued") {
+  let status = contract.status
+  if (status === "draft") {
+    if (!isPaymentConfirmedGeneratedDraft(contract)) return
+    const issued = await legalPort.issueContract(db, contractId, eventBus)
+    if (issued.status !== "issued") {
+      console.warn(
+        `[catalog-checkout] could not issue paid contract before acceptance signature for ${contractId}: ${issued.status}`,
+      )
+      return
+    }
+    status = "issued"
+  }
+
+  if (status === "issued") {
     const sent = await legalPort.sendContract(db, contractId, eventBus)
     if (sent.status !== "sent") {
       console.warn(
@@ -103,7 +141,10 @@ export async function persistAcceptanceSignature(
       )
       return
     }
+    status = "sent"
   }
+
+  if (status !== "sent") return
 
   const contactName = [booking.contactFirstName, booking.contactLastName]
     .filter(Boolean)

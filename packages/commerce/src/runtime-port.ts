@@ -73,7 +73,10 @@ export const commerceInventoryRuntimePort = objectPort<CommerceInventoryRuntime>
 
 export const commerceLegalRuntimePort = objectPort<CommerceLegalRuntime>("commerce.legal.runtime", [
   "getContract",
+  "getBookingContract",
+  "recordBookingPaymentConfirmation",
   "listSignatures",
+  "issueContract",
   "sendContract",
   "signContract",
   "persistAcceptanceDraftContract",

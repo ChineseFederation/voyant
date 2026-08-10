@@ -49,7 +49,10 @@ export const catalogCheckoutLegalRuntimePort = definePort<AcceptanceSignatureLeg
     }
     for (const method of [
       "getContract",
+      "getBookingContract",
+      "recordBookingPaymentConfirmation",
       "listSignatures",
+      "issueContract",
       "sendContract",
       "signContract",
     ] as const) {

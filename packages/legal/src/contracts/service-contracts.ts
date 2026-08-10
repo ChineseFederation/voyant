@@ -317,6 +317,7 @@ export const contractRecordsService = {
     db: PostgresJsDatabase,
     contractId: string,
     runtime?: ContractLifecycleRuntimeOptions,
+    options?: { allowManagedBookingContractWorkflow?: boolean },
   ) {
     const result = await db.transaction(async (tx) => {
       const [contract] = await tx
@@ -328,7 +329,9 @@ export const contractRecordsService = {
       if (!contract) return { status: "not_found" as const }
       const transition = checkContractLifecycleTransition(contract.status, "issued")
       if (!transition.ok) return { status: transition.reason }
-      assertGenericLifecycleMutationAllowed(contract.metadata, "issue")
+      if (!options?.allowManagedBookingContractWorkflow) {
+        assertGenericLifecycleMutationAllowed(contract.metadata, "issue")
+      }
 
       let contractNumber = contract.contractNumber
       if (!contractNumber && contract.seriesId) {
@@ -394,6 +397,7 @@ export const contractRecordsService = {
     contractId: string,
     runtime?: ContractLifecycleRuntimeOptions,
     delivery?: { recipientEmail?: string | null; subject?: string | null; message?: string | null },
+    options?: { allowManagedBookingContractWorkflow?: boolean },
   ) {
     const result = await db.transaction(async (tx) => {
       const [contract] = await tx
@@ -403,7 +407,9 @@ export const contractRecordsService = {
         .for("update")
         .limit(1)
       if (!contract) return { status: "not_found" as const }
-      assertGenericLifecycleMutationAllowed(contract.metadata, "send")
+      if (!options?.allowManagedBookingContractWorkflow) {
+        assertGenericLifecycleMutationAllowed(contract.metadata, "send")
+      }
       const transition = checkContractLifecycleTransition(contract.status, "sent")
       if (!transition.ok) return { status: transition.reason }
       if (contract.status === "sent") {

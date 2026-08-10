@@ -4,6 +4,7 @@ import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import { describe, expect, it, vi } from "vitest"
 
 import type { AcceptanceSignatureLegalPort } from "../../src/checkout/acceptance-signature.js"
+import { catalogCheckoutLegalRuntimePort } from "../../src/checkout/runtime-ports.js"
 import {
   COMMERCE_ACCEPTANCE_SIGNATURE_SUBSCRIBER_ID,
   COMMERCE_CHECKOUT_FINALIZE_SUBSCRIBER_ID,
@@ -35,12 +36,15 @@ function event(name: string, data: unknown): EventEnvelope {
   return { name, data, emittedAt: new Date().toISOString(), metadata: undefined }
 }
 
-const legalPort = {
+const legalPort: AcceptanceSignatureLegalPort = {
   getContract: vi.fn(),
+  getBookingContract: vi.fn(),
+  recordBookingPaymentConfirmation: vi.fn(),
   listSignatures: vi.fn(),
+  issueContract: vi.fn(),
   sendContract: vi.fn(),
   signContract: vi.fn(),
-} as unknown as AcceptanceSignatureLegalPort
+}
 
 describe("catalog-checkout subscriber runtimes", () => {
   it("injects the Legal port into acceptance-signature persistence", async () => {
@@ -94,9 +98,25 @@ describe("catalog-checkout subscriber runtimes", () => {
     const db = {} as PostgresJsDatabase
     const scopedEventBus = createEventBus()
     const finalize = vi.fn(async () => undefined)
+    const persistSignature = vi.fn(async () => undefined)
+    const paidLegalPort: AcceptanceSignatureLegalPort = {
+      ...legalPort,
+      getBookingContract: vi.fn(async () => ({
+        id: "contract_1",
+        bookingId: "booking_1",
+        metadata: null,
+        status: "draft",
+      })),
+      recordBookingPaymentConfirmation: vi.fn(async () => undefined),
+    }
     const withDb = vi.fn(async (_bindings, operation) => operation(db))
     const { eventBus, subscriptions } = recordingEventBus()
-    const descriptor = createCheckoutFinalizeSubscriberRuntime({ withDb, finalize })
+    const descriptor = createCheckoutFinalizeSubscriberRuntime({
+      withDb,
+      finalize,
+      legal: paidLegalPort,
+      persistSignature,
+    })
     await descriptor.register({ bindings: {}, container: createContainer(), eventBus })
 
     await subscriptions[0]?.handler(
@@ -124,6 +144,12 @@ describe("catalog-checkout subscriber runtimes", () => {
         },
       }),
     )
+    expect(paidLegalPort.recordBookingPaymentConfirmation).toHaveBeenCalledWith(
+      db,
+      "booking_1",
+      "session_1",
+    )
+    expect(persistSignature).toHaveBeenCalledWith(db, "contract_1", scopedEventBus, paidLegalPort)
   })
 
   it("commits paid Booking Sessions before finalizing their booking", async () => {
@@ -210,7 +236,8 @@ describe("catalog-checkout subscriber runtimes", () => {
     const descriptor = await createCheckoutFinalizeSubscriberGraphRuntime({
       unitId: "@voyant-travel/commerce",
       hostOptions: { finalize, resolveMonthlyBookingLimit: () => live },
-      getPort: async () => ({ withDb }),
+      getPort: async (port: { id: string }) =>
+        port.id === catalogCheckoutLegalRuntimePort.id ? legalPort : { withDb },
     } as never)
 
     await (descriptor as SubscriberRuntimeDescriptor).register({
