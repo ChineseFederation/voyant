@@ -59,4 +59,36 @@ describe("Connect package Booking Session parameters", () => {
     expect(parameters).not.toHaveProperty("connectionId")
     expect(parameters).not.toHaveProperty("providerId")
   })
+
+  it("projects sourced stay dates, room pins, and occupancy without source authority", () => {
+    const parameters = engineParametersFromSelection(
+      undefined,
+      {
+        configure: {
+          pax: { adult: 2, child: 1 },
+          dateRange: { checkIn: "2026-09-10", checkOut: "2026-09-15" },
+          roomTypeId: "room_1",
+          ratePlanId: "rate_1",
+        },
+        accommodation: {
+          rooms: [{ optionUnitId: "room_1", ratePlanId: "rate_1", quantity: 1 }],
+        },
+      },
+      { entityModule: "accommodations", sourceKind: "voyant-connect" },
+    )
+
+    expect(parameters).toMatchObject({
+      connectRoute: "stays",
+      checkIn: "2026-09-10",
+      checkOut: "2026-09-15",
+      rooms: [
+        {
+          roomTypeId: "room_1",
+          ratePlanId: "rate_1",
+          occupancy: { adults: 2, children: 1 },
+        },
+      ],
+    })
+    expect(parameters).not.toHaveProperty("connectionId")
+  })
 })

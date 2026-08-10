@@ -31,14 +31,14 @@ export const catalogAccommodationsRuntimeExtension = {
     registry.register(createAccommodationOwnedSearchHandler({}))
   },
   async presentAvailabilityCandidate({ db, registry, candidate, locale, market, currency }) {
-    const entityId = await resolveAvailabilityPresentationEntityId({
+    const bookingTarget = await resolveAvailabilityPresentationTarget({
       db,
       registry,
       candidate,
     })
     const resolved = await getAccommodationContent(
       db,
-      entityId,
+      bookingTarget.entityId,
       { preferredLocales: [locale], market, currency },
       { registry },
     )
@@ -52,7 +52,7 @@ export const catalogAccommodationsRuntimeExtension = {
         currency,
       }))
     if (!content) return undefined
-    return availabilityPresentation(content, candidate)
+    return { ...availabilityPresentation(content, candidate), bookingTarget }
   },
 } satisfies CatalogAccommodationsRuntimeExtension
 
@@ -100,18 +100,36 @@ async function fetchUnindexedAvailabilityContent(input: {
   return parsed.success ? parsed.data : undefined
 }
 
-export async function resolveAvailabilityPresentationEntityId(input: {
+export async function resolveAvailabilityPresentationTarget(input: {
   db: AnyDrizzleDb
   registry: SourceAdapterRegistry
   candidate: AvailabilityCandidate
   readBySource?: typeof readSourcedEntryBySource
-}): Promise<string> {
+}): Promise<{
+  entityModule: "accommodations"
+  entityId: string
+  sourceKind: string
+  sourceConnectionId?: string
+  sourceRef?: string
+}> {
   if (input.candidate.source?.kind !== "sourced") {
-    return input.candidate.entity_id
+    return {
+      entityModule: "accommodations",
+      entityId: input.candidate.entity_id,
+      sourceKind: "owned",
+    }
   }
   const connectionId = input.candidate.source.connectionId
   const adapter = input.registry.resolveByConnection(connectionId)
-  if (!adapter) return input.candidate.entity_id
+  if (!adapter) {
+    return {
+      entityModule: "accommodations",
+      entityId: input.candidate.entity_id,
+      sourceKind: "unknown",
+      sourceConnectionId: connectionId,
+      sourceRef: input.candidate.entity_id,
+    }
+  }
 
   // Live Connect search returns the source accommodation reference. Catalog
   // content is keyed by its canonical sourced-entry id. Resolve that identity
@@ -122,7 +140,13 @@ export async function resolveAvailabilityPresentationEntityId(input: {
     sourceConnectionId: connectionId,
     sourceRef: input.candidate.entity_id,
   })
-  return sourced?.entity_id ?? input.candidate.entity_id
+  return {
+    entityModule: "accommodations",
+    entityId: sourced?.entity_id ?? input.candidate.entity_id,
+    sourceKind: sourced?.source_kind ?? adapter.kind,
+    sourceConnectionId: sourced?.source_connection_id ?? connectionId,
+    sourceRef: sourced?.source_ref ?? input.candidate.entity_id,
+  }
 }
 
 function record(value: unknown): Record<string, unknown> | undefined {

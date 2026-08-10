@@ -18,6 +18,7 @@ import {
 } from "./geo-resolver.js"
 import { withConnectPackageBookingLifecycle } from "./package-booking.js"
 import { createConnectProductPackageSourceAdapter } from "./package-products.js"
+import { withConnectStayBookingLifecycle } from "./stay-booking.js"
 import { positiveInteger, recordValue, stringValue } from "./utils.js"
 
 export interface VoyantConnectSourceConnection {
@@ -116,14 +117,17 @@ function createDefaultSources(
   return [
     {
       role: "generic",
-      adapter: withConnectPackageBookingLifecycle(
-        createVoyantConnectSourceAdapter({
-          client: options.client,
-          operatorId: options.operatorId,
-          market: options.market,
-          discoverLimit: options.discoverLimit,
-          mapDocument: skipCruiseConnectDocuments,
-        }),
+      adapter: withConnectStayBookingLifecycle(
+        withConnectPackageBookingLifecycle(
+          createVoyantConnectSourceAdapter({
+            client: options.client,
+            operatorId: options.operatorId,
+            market: options.market,
+            discoverLimit: options.discoverLimit,
+            mapDocument: skipCruiseConnectDocuments,
+          }),
+          options.client,
+        ),
         options.client,
       ),
     },
@@ -157,16 +161,19 @@ function createConnectionScopedSources(
       connectionId: connection.id,
       role: "generic",
       sourceProvider,
-      adapter: withConnectPackageBookingLifecycle(
-        createVoyantConnectSourceAdapter({
-          client: options.client,
-          operatorId: options.operatorId,
-          sourceProvider,
-          connectionIds: [connection.id],
-          market: options.market,
-          discoverLimit: options.discoverLimit,
-          mapDocument: skipCruiseConnectDocuments,
-        }),
+      adapter: withConnectStayBookingLifecycle(
+        withConnectPackageBookingLifecycle(
+          createVoyantConnectSourceAdapter({
+            client: options.client,
+            operatorId: options.operatorId,
+            sourceProvider,
+            connectionIds: [connection.id],
+            market: options.market,
+            discoverLimit: options.discoverLimit,
+            mapDocument: skipCruiseConnectDocuments,
+          }),
+          options.client,
+        ),
         options.client,
       ),
     },

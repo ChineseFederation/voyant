@@ -46,6 +46,13 @@ export interface StorefrontStayPresentation {
   roomName?: string
   boardName?: string
   image?: { url: string; alt?: string }
+  bookingTarget?: {
+    entityModule: "accommodations"
+    entityId: string
+    sourceKind: string
+    sourceConnectionId?: string
+    sourceRef?: string
+  }
 }
 
 /**
@@ -409,19 +416,70 @@ function mapStay(
   intent: StayIntent,
   presentation: StorefrontStayPresentation,
 ): StorefrontInternalStayOffer {
+  if (!presentation.bookingTarget) {
+    throw new Error("stay_booking_target_unavailable")
+  }
+  const candidateSelection = record(candidate.selection)
+  const nestedRooms = Array.isArray(candidateSelection?.rooms)
+    ? candidateSelection.rooms.flatMap((value) => {
+        const room = record(value)
+        const roomTypeId = nonEmptyString(room?.roomTypeId)
+        const ratePlanId = nonEmptyString(room?.ratePlanId)
+        if (!roomTypeId || !ratePlanId) return []
+        return [
+          {
+            roomTypeId,
+            ratePlanId,
+            ...(record(room?.occupancy) ? { occupancy: record(room?.occupancy) } : {}),
+          },
+        ]
+      })
+    : []
+  const flatRoomTypeId = nonEmptyString(candidateSelection?.roomTypeId)
+  const flatRatePlanId = nonEmptyString(candidateSelection?.ratePlanId)
+  const selectedRooms =
+    nestedRooms.length > 0
+      ? nestedRooms
+      : flatRoomTypeId && flatRatePlanId
+        ? [
+            {
+              roomTypeId: flatRoomTypeId,
+              ratePlanId: flatRatePlanId,
+              occupancy: {
+                adults: intent.rooms[0]?.adults ?? 1,
+                ...(intent.rooms[0]?.childrenAges?.length
+                  ? { children: intent.rooms[0].childrenAges.length }
+                  : {}),
+              },
+            },
+          ]
+        : []
+  if (selectedRooms.length === 0) throw new Error("stay_rate_pin_unavailable")
+  const firstRoom = selectedRooms[0]
+  const pax = intent.rooms.reduce(
+    (counts, room) => ({
+      adult: counts.adult + room.adults,
+      child: counts.child + (room.childrenAges?.length ?? 0),
+    }),
+    { adult: 0, child: 0 },
+  )
   return {
     nativePrice: candidate.price,
     selection: {
-      entityModule: candidate.entity_module,
-      entityId: candidate.entity_id,
-      selection: candidate.selection,
-      source: candidate.source,
+      target: presentation.bookingTarget,
+      configure: {
+        dateRange: { checkIn: intent.checkIn, checkOut: intent.checkOut },
+        pax,
+        ...(firstRoom
+          ? { roomTypeId: firstRoom.roomTypeId, ratePlanId: firstRoom.ratePlanId }
+          : {}),
+      },
+      rooms: selectedRooms,
     },
     accommodationSelection: {
-      entityModule: candidate.entity_module,
-      entityId: candidate.entity_id,
+      entityModule: presentation.bookingTarget.entityModule,
+      entityId: presentation.bookingTarget.entityId,
     },
-    providerData: candidate.providerData,
     title: presentation.title,
     checkIn: intent.checkIn,
     checkOut: intent.checkOut,
@@ -430,6 +488,16 @@ function mapStay(
     ...(presentation.image ? { image: presentation.image } : {}),
     ...(candidate.expiresAt ? { expiresAt: candidate.expiresAt.toISOString() } : {}),
   }
+}
+
+function record(value: unknown): Record<string, unknown> | undefined {
+  return value !== null && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : undefined
+}
+
+function nonEmptyString(value: unknown): string | undefined {
+  return typeof value === "string" && value.length > 0 ? value : undefined
 }
 
 function packageRequest(

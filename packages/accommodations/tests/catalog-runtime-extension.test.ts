@@ -1,11 +1,16 @@
 import { describe, expect, it, vi } from "vitest"
 
-import { resolveAvailabilityPresentationEntityId } from "../src/catalog-runtime-extension.js"
+import { resolveAvailabilityPresentationTarget } from "../src/catalog-runtime-extension.js"
 
 describe("availability presentation identity", () => {
   it("maps a sourced live offer reference to the canonical catalog entity", async () => {
-    const readBySource = vi.fn(async () => ({ entity_id: "acc_canonical" }))
-    const result = await resolveAvailabilityPresentationEntityId({
+    const readBySource = vi.fn(async () => ({
+      entity_id: "acc_canonical",
+      source_kind: "voyant-connect",
+      source_connection_id: "conn_1",
+      source_ref: "hotel_source_ref",
+    }))
+    const result = await resolveAvailabilityPresentationTarget({
       db: {} as never,
       registry: {
         resolveByConnection: () => ({ kind: "voyant-connect" }),
@@ -21,7 +26,13 @@ describe("availability presentation identity", () => {
       readBySource: readBySource as never,
     })
 
-    expect(result).toBe("acc_canonical")
+    expect(result).toEqual({
+      entityModule: "accommodations",
+      entityId: "acc_canonical",
+      sourceKind: "voyant-connect",
+      sourceConnectionId: "conn_1",
+      sourceRef: "hotel_source_ref",
+    })
     expect(readBySource).toHaveBeenCalledWith(
       {},
       {
@@ -43,13 +54,17 @@ describe("availability presentation identity", () => {
       price: { amount: "100.00", currency: "EUR" },
     }
     await expect(
-      resolveAvailabilityPresentationEntityId({
+      resolveAvailabilityPresentationTarget({
         db: {} as never,
         registry: {} as never,
         candidate: { ...base, source: { kind: "owned", module: "accommodations" } },
         readBySource: readBySource as never,
       }),
-    ).resolves.toBe("acc_owned")
+    ).resolves.toEqual({
+      entityModule: "accommodations",
+      entityId: "acc_owned",
+      sourceKind: "owned",
+    })
     expect(readBySource).not.toHaveBeenCalled()
   })
 })

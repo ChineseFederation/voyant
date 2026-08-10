@@ -371,14 +371,14 @@ async function searchStays(
           purpose: "stay-offer",
           context,
           scope,
-          payload: { selection: item.selection, providerData: item.providerData },
+          payload: { selection: item.selection },
           replay: "single-use",
         }),
         issueBoundedReference(options.references, now, {
           purpose: "catalog-item",
           context,
           scope,
-          payload: { entityModule: "accommodations", selection: item.accommodationSelection },
+          payload: item.accommodationSelection,
           replay: "multi-use",
         }),
       ])

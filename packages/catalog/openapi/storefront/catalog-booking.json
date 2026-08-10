@@ -14767,6 +14767,32 @@
                                 },
                                 "ratePlanId": {
                                   "type": "string"
+                                },
+                                "occupancy": {
+                                  "type": "object",
+                                  "properties": {
+                                    "adults": {
+                                      "type": "integer",
+                                      "exclusiveMinimum": 0
+                                    },
+                                    "children": {
+                                      "type": "integer",
+                                      "minimum": 0
+                                    },
+                                    "childrenAges": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "integer",
+                                        "minimum": 0
+                                      }
+                                    },
+                                    "infants": {
+                                      "type": "integer",
+                                      "minimum": 0
+                                    }
+                                  },
+                                  "required": ["adults"],
+                                  "additionalProperties": false
                                 }
                               },
                               "required": ["optionUnitId", "quantity"]

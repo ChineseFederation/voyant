@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest"
 
 import { createClosedStorefrontShoppingLiveProvider } from "../../src/shopping/closed-live-provider.js"
 import { createManagedStorefrontShoppingRuntime } from "../../src/shopping/managed-runtime.js"
+import type { StorefrontOpaqueReferenceIssuer } from "../../src/shopping/runtime-port.js"
 
 const context = { storefrontId: "sf_1", channelId: "ch_1" }
 const scope = {
@@ -138,6 +139,13 @@ describe("closed Storefront live provider", () => {
       loadStayPresentation: vi.fn(async () => ({
         title: "Hotel Public",
         roomName: "Public room",
+        bookingTarget: {
+          entityModule: "accommodations" as const,
+          entityId: "catalog_item_1",
+          sourceKind: "voyant-connect",
+          sourceConnectionId: "stay_connection",
+          sourceRef: "hotel_1",
+        },
       })),
     })
 
@@ -239,7 +247,7 @@ describe("closed Storefront live provider", () => {
       markets: markets(),
       flights: { listAdmittedShoppingSources },
     })
-    const issued: Array<Record<string, unknown>> = []
+    const issued: Array<Parameters<StorefrontOpaqueReferenceIssuer["issue"]>[0]> = []
     let sequence = 0
     const runtime = createManagedStorefrontShoppingRuntime({
       markets: markets(),
@@ -250,7 +258,7 @@ describe("closed Storefront live provider", () => {
           return null
         },
         async issue(input) {
-          issued.push(input as unknown as Record<string, unknown>)
+          issued.push(input)
           sequence += 1
           return {
             ref: `opaque-flight-offer-${String(sequence).padStart(4, "0")}`,

@@ -243,6 +243,18 @@ export const bookingSelectionPublicV1 = z.object({
            *  requires this before the Accommodation step is
            *  considered complete. */
           ratePlanId: z.string().optional(),
+          /** Exact per-room occupancy selected from a live stay offer. The
+           * managed engine uses it for supplier revalidation; it carries no
+           * provider or connection authority. */
+          occupancy: z
+            .object({
+              adults: z.number().int().positive(),
+              children: z.number().int().nonnegative().optional(),
+              childrenAges: z.array(z.number().int().nonnegative()).optional(),
+              infants: z.number().int().nonnegative().optional(),
+            })
+            .strict()
+            .optional(),
         }),
       ),
       travelerAssignments: z.record(z.string(), z.string()).default({}),

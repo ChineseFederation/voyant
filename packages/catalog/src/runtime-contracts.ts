@@ -61,6 +61,21 @@ export interface CatalogPolicyRuntimeExtension {
   readonly fieldPolicy: readonly FieldPolicy[]
 }
 
+export interface CatalogAvailabilityPresentation {
+  title: string
+  roomName?: string
+  boardName?: string
+  image?: { url: string; alt?: string }
+  /** Server-resolved booking identity; never accepted from Storefront input. */
+  bookingTarget?: {
+    entityModule: "accommodations"
+    entityId: string
+    sourceKind: string
+    sourceConnectionId?: string
+    sourceRef?: string
+  }
+}
+
 export interface CatalogAccommodationsRuntimeExtension extends CatalogPolicyRuntimeExtension {
   readonly propertyFieldPolicy: readonly FieldPolicy[]
   createDocumentBuilder(input: { db: AnyDrizzleDb; sellerOperatorId: string }): DocumentBuilder
@@ -81,15 +96,7 @@ export interface CatalogAccommodationsRuntimeExtension extends CatalogPolicyRunt
     locale: string
     market: string
     currency: string
-  }): Promise<
-    | {
-        title: string
-        roomName?: string
-        boardName?: string
-        image?: { url: string; alt?: string }
-      }
-    | undefined
-  >
+  }): Promise<CatalogAvailabilityPresentation | undefined>
 }
 
 export interface CatalogChartersRuntimeExtension extends CatalogPolicyRuntimeExtension {}
@@ -351,15 +358,7 @@ export interface CatalogRuntimeServices {
     locale: string
     market: string
     currency: string
-  }): Promise<
-    | {
-        title: string
-        roomName?: string
-        boardName?: string
-        image?: { url: string; alt?: string }
-      }
-    | undefined
-  >
+  }): Promise<CatalogAvailabilityPresentation | undefined>
   registerCompositeBookingSessionHandler?(handler: BookingSessionCompositeHandler): void
   getCompositeBookingSessionHandler?(): BookingSessionCompositeHandler | undefined
   buildEmbeddingProvider(env: Readonly<Record<string, unknown>>): EmbeddingProvider | undefined

@@ -56,8 +56,68 @@ export function engineParametersFromSelection(
   const promotionCode = stringValue(selection?.promotionCode)
   if (promotionCode && next.promotionCode == null) next.promotionCode = promotionCode
   applyConnectPackageConfirmParameters(next, selection, context)
+  applyConnectStayParameters(next, selection, context)
 
   return next
+}
+
+function applyConnectStayParameters(
+  parameters: Record<string, unknown>,
+  selection: Record<string, unknown> | undefined,
+  context: { entityModule?: string; sourceKind?: string },
+): void {
+  if (!selection || context.sourceKind !== "voyant-connect") return
+  const entityModule = context.entityModule ?? stringValue(asRecord(selection.entity)?.module)
+  if (entityModule !== "accommodations") return
+  const configure = asRecord(selection.configure)
+  const range = asRecord(configure?.dateRange)
+  const checkIn = stringValue(range?.checkIn)
+  const checkOut = stringValue(range?.checkOut)
+  const accommodation = asRecord(selection.accommodation)
+  const selectedRooms = Array.isArray(accommodation?.rooms) ? accommodation.rooms : []
+  const fallbackOccupancy = paxOccupancy(configure?.pax)
+  const rooms = selectedRooms.flatMap((value) => {
+    const room = asRecord(value)
+    const roomTypeId = stringValue(room?.optionUnitId)
+    const ratePlanId = stringValue(room?.ratePlanId)
+    const quantity = positiveInteger(room?.quantity) ?? 1
+    if (!roomTypeId || !ratePlanId) return []
+    const occupancy = stayOccupancy(room?.occupancy) ?? fallbackOccupancy
+    return Array.from({ length: quantity }, () => ({ roomTypeId, ratePlanId, occupancy }))
+  })
+  if (!checkIn || !checkOut || rooms.length === 0) return
+  if (parameters.connectRoute == null) parameters.connectRoute = "stays"
+  if (parameters.checkIn == null) parameters.checkIn = checkIn
+  if (parameters.checkOut == null) parameters.checkOut = checkOut
+  if (parameters.rooms == null) parameters.rooms = rooms
+}
+
+function stayOccupancy(value: unknown): Record<string, unknown> | undefined {
+  const occupancy = asRecord(value)
+  const adults = positiveInteger(occupancy?.adults)
+  if (!adults) return undefined
+  const children = nonnegativeInteger(occupancy?.children)
+  const infants = nonnegativeInteger(occupancy?.infants)
+  const childrenAges = Array.isArray(occupancy?.childrenAges)
+    ? occupancy.childrenAges.filter(
+        (age): age is number => typeof age === "number" && Number.isInteger(age) && age >= 0,
+      )
+    : []
+  return {
+    adults,
+    ...(children ? { children } : {}),
+    ...(childrenAges.length > 0 ? { childrenAges } : {}),
+    ...(infants ? { infants } : {}),
+  }
+}
+
+function paxOccupancy(value: unknown): Record<string, unknown> {
+  const pax = asRecord(value)
+  return {
+    adults: positiveInteger(pax?.adult) ?? 1,
+    ...((positiveInteger(pax?.child) ?? 0) > 0 ? { children: positiveInteger(pax?.child) } : {}),
+    ...((positiveInteger(pax?.infant) ?? 0) > 0 ? { infants: positiveInteger(pax?.infant) } : {}),
+  }
 }
 
 function applyConnectPackageConfirmParameters(
@@ -197,6 +257,10 @@ function stringValue(value: unknown): string | null {
 
 function positiveInteger(value: unknown): number | null {
   return typeof value === "number" && Number.isInteger(value) && value > 0 ? value : null
+}
+
+function nonnegativeInteger(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isInteger(value) && value >= 0 ? value : undefined
 }
 
 function sumPax(value: unknown): number {

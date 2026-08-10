@@ -64,6 +64,52 @@ const packageSelectionSchema = z
   })
   .strict()
 
+const staySelectionSchema = z
+  .object({
+    target: z
+      .object({
+        entityModule: z.literal("accommodations"),
+        entityId: z.string().min(1),
+        sourceKind: z.string().min(1),
+        sourceConnectionId: z.string().min(1).optional(),
+        sourceRef: z.string().min(1).optional(),
+      })
+      .strict()
+      .superRefine((target, ctx) => {
+        if (target.sourceKind !== "owned" && (!target.sourceConnectionId || !target.sourceRef)) {
+          ctx.addIssue({ code: "custom", message: "sourced stay identity required" })
+        }
+      }),
+    configure: z
+      .object({
+        dateRange: z.object({ checkIn: z.iso.date(), checkOut: z.iso.date() }).strict(),
+        pax: z.record(z.string(), z.number().int().nonnegative()),
+        roomTypeId: z.string().min(1).optional(),
+        ratePlanId: z.string().min(1).optional(),
+      })
+      .strict(),
+    rooms: z
+      .array(
+        z
+          .object({
+            roomTypeId: z.string().min(1),
+            ratePlanId: z.string().min(1),
+            occupancy: z
+              .object({
+                adults: z.number().int().positive(),
+                children: z.number().int().nonnegative().optional(),
+                childrenAges: z.array(z.number().int().nonnegative()).optional(),
+                infants: z.number().int().nonnegative().optional(),
+              })
+              .strict()
+              .optional(),
+          })
+          .strict(),
+      )
+      .min(1),
+  })
+  .strict()
+
 const cruiseSelectionSchema = z
   .object({
     target: z
@@ -473,6 +519,39 @@ function componentFromReference(
             sourceRef: target.sourceRef,
           },
           configure,
+        },
+      },
+    }
+  }
+
+  if (reference.purpose === "stay-offer") {
+    const payload = z
+      .object({ selection: staySelectionSchema, providerData: z.never().optional() })
+      .strict()
+      .parse(reference.payload)
+    const { target, configure, rooms } = payload.selection
+    return {
+      kind: "catalog_booking",
+      catalogRef: target,
+      metadata: {
+        bookingDraftV1: {
+          entity: {
+            module: target.entityModule,
+            id: target.entityId,
+            sourceKind: target.sourceKind,
+            sourceConnectionId: target.sourceConnectionId,
+            sourceRef: target.sourceRef,
+          },
+          configure,
+          accommodation: {
+            rooms: rooms.map(({ roomTypeId, ratePlanId, occupancy }) => ({
+              optionUnitId: roomTypeId,
+              ratePlanId,
+              quantity: 1,
+              ...(occupancy ? { occupancy } : {}),
+            })),
+            travelerAssignments: {},
+          },
         },
       },
     }

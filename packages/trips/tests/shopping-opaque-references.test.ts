@@ -22,6 +22,7 @@ const CATALOG_REF = `sref_${"b".repeat(64)}`
 const PACKAGE_REF = `sref_${"c".repeat(64)}`
 const CONTINUATION_REF = `sref_${"d".repeat(64)}`
 const CRUISE_REF = `sref_${"e".repeat(64)}`
+const STAY_REF = `sref_${"f".repeat(64)}`
 
 describe("durable shopping opaque references", () => {
   it("issues a 256-bit capability while persisting only its digest and bounded payload", async () => {
@@ -250,6 +251,62 @@ describe("durable shopping opaque references", () => {
     )
   })
 
+  it("turns a sourced stay capability into a date- and rate-pinned Catalog component", async () => {
+    const store = new MemoryReferenceStore()
+    const runtime = createTripShoppingReferenceRuntimeWithStore(store, {
+      now: () => NOW,
+      createReference: () => STAY_REF,
+    })
+    await runtime.issuer.issue(stayInput())
+
+    await expect(
+      runtime.offerResolver.resolve(CONTEXT, {
+        kind: "stay",
+        offerRef: STAY_REF,
+        scope: SCOPE,
+      }),
+    ).resolves.toEqual({
+      component: {
+        kind: "catalog_booking",
+        catalogRef: {
+          entityModule: "accommodations",
+          entityId: "acc_canonical",
+          sourceKind: "voyant-connect",
+          sourceConnectionId: "connection_server",
+          sourceRef: "hotel_source",
+        },
+        metadata: {
+          bookingDraftV1: {
+            entity: {
+              module: "accommodations",
+              id: "acc_canonical",
+              sourceKind: "voyant-connect",
+              sourceConnectionId: "connection_server",
+              sourceRef: "hotel_source",
+            },
+            configure: {
+              dateRange: { checkIn: "2026-09-10", checkOut: "2026-09-15" },
+              pax: { adult: 2 },
+              roomTypeId: "room_1",
+              ratePlanId: "rate_1",
+            },
+            accommodation: {
+              rooms: [
+                {
+                  optionUnitId: "room_1",
+                  ratePlanId: "rate_1",
+                  quantity: 1,
+                  occupancy: { adults: 2 },
+                },
+              ],
+              travelerAssignments: {},
+            },
+          },
+        },
+      },
+    })
+  })
+
   it("redeems a cruise offer only for its exact managed owner and shopping scope", async () => {
     const store = new MemoryReferenceStore()
     const runtime = createTripShoppingReferenceRuntimeWithStore(store, {
@@ -445,6 +502,36 @@ function cruiseInput(): Parameters<StorefrontOpaqueReferenceIssuer["issue"]>[0] 
           fareVariant: "cruise_only",
           bookingTerms: null,
         },
+      },
+    },
+    ttlSeconds: 15 * 60,
+    replay: "single-use",
+  }
+}
+
+function stayInput(): Parameters<StorefrontOpaqueReferenceIssuer["issue"]>[0] {
+  return {
+    purpose: "stay-offer",
+    storefrontId: CONTEXT.storefrontId,
+    channelId: CONTEXT.channelId,
+    owner: { userId: CONTEXT.userId, buyerAccountId: CONTEXT.buyerAccountId },
+    scope: SCOPE,
+    payload: {
+      selection: {
+        target: {
+          entityModule: "accommodations",
+          entityId: "acc_canonical",
+          sourceKind: "voyant-connect",
+          sourceConnectionId: "connection_server",
+          sourceRef: "hotel_source",
+        },
+        configure: {
+          dateRange: { checkIn: "2026-09-10", checkOut: "2026-09-15" },
+          pax: { adult: 2 },
+          roomTypeId: "room_1",
+          ratePlanId: "rate_1",
+        },
+        rooms: [{ roomTypeId: "room_1", ratePlanId: "rate_1", occupancy: { adults: 2 } }],
       },
     },
     ttlSeconds: 15 * 60,

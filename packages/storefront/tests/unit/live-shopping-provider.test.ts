@@ -169,7 +169,15 @@ describe("storefront live shopping provider", () => {
           candidateRef: "candidate_secret",
           entity_module: "accommodations",
           entity_id: "accommodation_secret",
-          selection: { ratePlanId: "rate_secret", roomTypeId: "room_secret" },
+          selection: {
+            rooms: [
+              {
+                ratePlanId: "rate_secret",
+                roomTypeId: "room_secret",
+                occupancy: { adults: 2, children: 1 },
+              },
+            ],
+          },
           price: { amount: "450.00", currency: "EUR" },
           source: { kind: "sourced" as const, connectionId: "connection_secret" },
           expiresAt: new Date("2026-08-08T10:03:00.000Z"),
@@ -191,6 +199,13 @@ describe("storefront live shopping provider", () => {
           title: "Hotel Public",
           roomName: "Family room",
           boardName: "Breakfast",
+          bookingTarget: {
+            entityModule: "accommodations",
+            entityId: "accommodation_canonical",
+            sourceKind: "voyant-connect",
+            sourceConnectionId: "connection_secret",
+            sourceRef: "accommodation_secret",
+          },
         })),
       },
     })
@@ -267,7 +282,22 @@ describe("storefront live shopping provider", () => {
     expect(serialized).not.toContain("supplier_secret")
     expect(serialized).not.toContain("providerData")
     expect(issued).toHaveLength(2)
-    expect(JSON.stringify(issued)).toContain("supplier_secret")
+    expect(JSON.stringify(issued)).not.toContain("supplier_secret")
+    expect(issued).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          purpose: "stay-offer",
+          payload: {
+            selection: expect.objectContaining({
+              target: expect.objectContaining({ entityId: "accommodation_canonical" }),
+              configure: expect.objectContaining({
+                dateRange: { checkIn: "2026-09-10", checkOut: "2026-09-15" },
+              }),
+            }),
+          },
+        }),
+      ]),
+    )
   })
 
   it("fans out closed dynamic-package sources, maps occupancy, and hides source health identities", async () => {
@@ -437,7 +467,9 @@ describe("storefront live shopping provider", () => {
       candidateRef: "candidate_secret",
       entity_module: "accommodations",
       entity_id: "accommodation_secret",
-      selection: { ratePlanId: "rate_secret" },
+      selection: {
+        rooms: [{ roomTypeId: "room_secret", ratePlanId: "rate_secret", occupancy: { adults: 1 } }],
+      },
       price: { amount: "450.00", currency: "EUR" },
       source: { kind: "sourced" as const, connectionId: "connection_secret" },
     } satisfies AvailabilityCandidate
@@ -456,7 +488,16 @@ describe("storefront live shopping provider", () => {
         }),
         present: async ({ candidate: presented }) => {
           if (presented.candidateRef === "candidate_failed") throw new Error("catalog unavailable")
-          return { title: "Hotel Public" }
+          return {
+            title: "Hotel Public",
+            bookingTarget: {
+              entityModule: "accommodations",
+              entityId: "accommodation_canonical",
+              sourceKind: "voyant-connect",
+              sourceConnectionId: "connection_secret",
+              sourceRef: "accommodation_secret",
+            },
+          }
         },
       },
     })
