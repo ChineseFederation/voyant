@@ -1,5 +1,13 @@
 # @voyant-travel/accommodations
 
+## 0.205.3
+
+### Patch Changes
+
+- 23c895d: Resolve live sourced stay offers through their canonical Catalog identity before loading localized presentation content, with a closed adapter-content fallback for newly discovered inventory.
+- Updated dependencies [8cc7cd8]
+  - @voyant-travel/bookings@0.240.11
+
 ## 0.205.2
 
 ### Patch Changes

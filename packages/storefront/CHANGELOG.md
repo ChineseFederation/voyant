@@ -1,5 +1,13 @@
 # @voyant-travel/storefront
 
+## 0.255.3
+
+### Patch Changes
+
+- 6a951ee: Validate opaque shopping-reference expiry after asynchronous issuance so normal persistence latency cannot reject correctly bounded live offers.
+- Updated dependencies [8cc7cd8]
+  - @voyant-travel/bookings@0.240.11
+
 ## 0.255.2
 
 ### Patch Changes

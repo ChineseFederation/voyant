@@ -1,5 +1,11 @@
 # @voyant-travel/bookings
 
+## 0.240.11
+
+### Patch Changes
+
+- 8cc7cd8: Return compact amendment references and consequence summaries from Booking Amendment Tools instead of full revision graphs.
+
 ## 0.240.10
 
 ### Patch Changes
