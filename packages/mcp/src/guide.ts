@@ -236,7 +236,9 @@ function discoverySection(): string {
     'dated departures → `operations_query` (`resource: "departures"`); sales pursuit → ' +
     "`proposals_query` (`proposal`/`proposal_version`); a commitment → `bookings_query` " +
     '(`resource: "booking"` — its Travelers and Items are part of the booking record, ' +
-    "not separate traveler reads).\n\n" +
+    "not separate traveler reads). A Supplier is an operational vendor in the " +
+    'Distribution supplier directory (`distribution_query`, `resource: "suppliers"`), ' +
+    "not a CRM Organization.\n\n" +
     "Only tools your key is authorized for are discoverable or callable; an " +
     "unauthorized resource is pruned from its query tool and a call to it fails as if " +
     "it did not exist. Each read validates its own input and returns typed pure data, " +

@@ -591,6 +591,11 @@ describe("createMcpApiRoutes", () => {
     // package-owned domain ids; a wrong guess must not turn a valid query into a
     // dead end that requires another discovery round-trip.
     expect(await searchToolNames(app, { query: "echo", domain: "crm" })).toContain("echo")
+    expect(
+      await searchToolNames(app, {
+        query: "echo text with status access details for the roster",
+      }),
+    ).toContain("echo")
     expect((await describeTool(app, "echo")).structuredContent).toMatchObject({
       name: "echo",
       outputSchema: {
@@ -1358,6 +1363,28 @@ describe("createMcpApiRoutes", () => {
     expect(described.inputSchema?.oneOf).toHaveLength(2)
     // And the description tells the agent the cheaper path exists.
     expect(described.description).toContain("resource")
+  })
+
+  it("treats a blank optional describe_tool resource as omitted", async () => {
+    const app = appWithScopes(["products:read", "secrets:read"])
+    const described = await readRpc(
+      await app.request(
+        "/",
+        rpc("tools/call", {
+          name: "describe_tool",
+          arguments: { name: "test_query", resource: " " },
+        }),
+      ),
+    )
+
+    expect((described.result as { isError?: boolean })?.isError).not.toBe(true)
+    expect(
+      (
+        described.result as {
+          structuredContent?: { inputSchema?: { oneOf?: unknown[] } }
+        }
+      ).structuredContent?.inputSchema?.oneOf,
+    ).toHaveLength(2)
   })
 
   it("discovers and invokes a sensitive Tool only with its explicit grant", async () => {

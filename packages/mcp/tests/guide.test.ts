@@ -200,6 +200,10 @@ describe("MCP guide layer", () => {
     const overview = await guideText(a)
     expect(overview).toMatch(/travel/i)
 
+    const discovery = await guideText(a, "discovery")
+    expect(discovery).toMatch(/Supplier.*Distribution supplier directory/is)
+    expect(discovery).toMatch(/not.*CRM Organization/is)
+
     const journey = await guideText(a, "booking-journey")
     expect(journey).toMatch(/dynamic/i)
     expect(journey).toMatch(/scheduled/i)
