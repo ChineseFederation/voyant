@@ -303,7 +303,33 @@ export const reconcileBookingAmendmentToolInputSchema = z.object({
   idempotencyKey: amendmentCommandFields.idempotencyKey,
 })
 
-const acceptBookingAmendmentToolOutputSchema = z.discriminatedUnion("status", [
+const amendmentOutcomeReferenceSchema = z.object({
+  id: z.string(),
+  bookingId: z.string(),
+  status: z.string(),
+  resultBookingRevision: z.number().int().positive(),
+  nextActions: z.array(z.string()),
+  failureCode: z.string().nullable(),
+  priceDelta: z.object({
+    currency: z.string(),
+    amountCents: z.number().int(),
+    collectionAmountCents: z.number().int().nonnegative(),
+    refundAmountCents: z.number().int().nonnegative(),
+  }),
+  effects: z.object({
+    finance: z.string(),
+    legal: z.string(),
+    documents: z.string(),
+    fulfillment: z.string(),
+    supplier: z.string(),
+    allocation: z.string(),
+  }),
+})
+const amendmentPreviewToolOutputSchema = z.union([
+  z.object({ status: z.literal("ok"), amendment: amendmentOutcomeReferenceSchema }),
+  ...bookingAmendmentPreviewResultSchema.options.slice(1),
+])
+const acceptBookingAmendmentServiceResultSchema = z.discriminatedUnion("status", [
   z.object({ status: z.literal("ok"), amendment: bookingAmendmentSchema }),
   z.object({ status: z.literal("already_applied"), amendment: bookingAmendmentSchema }),
   z.object({ status: z.literal("not_found") }),
@@ -315,8 +341,65 @@ const acceptBookingAmendmentToolOutputSchema = z.discriminatedUnion("status", [
     currentBookingRevision: z.number().int().positive(),
   }),
 ])
+const acceptBookingAmendmentToolOutputSchema = z.union([
+  z.object({
+    status: z.enum(["ok", "already_applied"]),
+    amendment: amendmentOutcomeReferenceSchema,
+  }),
+  ...acceptBookingAmendmentServiceResultSchema.options.slice(2),
+])
+const amendmentOutcomeStatuses = [
+  "ok",
+  "supplier_pending",
+  "supplier_in_doubt",
+  "supplier_refused",
+  "manual_review",
+] as const
+const applyBookingAmendmentToolOutputSchema = z.union([
+  z.object({
+    status: z.enum(amendmentOutcomeStatuses),
+    amendment: amendmentOutcomeReferenceSchema,
+  }),
+  z.object({ status: z.literal("not_found") }),
+  z.object({ status: z.literal("revision_mismatch") }),
+  z.object({ status: z.literal("acceptance_required") }),
+  z.object({ status: z.literal("invalid_state") }),
+  z.object({ status: z.literal("idempotency_conflict") }),
+  z.object({ status: z.literal("quote_expired") }),
+  z.object({ status: z.literal("unsupported_capability") }),
+  z.object({ status: z.literal("availability_changed"), bookingItemId: z.string() }),
+  z.object({
+    status: z.literal("stale_revision"),
+    currentBookingRevision: z.number().int().positive(),
+  }),
+])
 
-const applyBookingAmendmentToolOutputSchema = bookingAmendmentApplyResultSchema
+function toAmendmentToolOutcome(value: unknown) {
+  const result = bookingAmendmentApplyResultSchema.parse(value)
+  if (!("amendment" in result)) return result
+  return {
+    status: result.status,
+    amendment: amendmentOutcomeReferenceSchema.parse(result.amendment),
+  }
+}
+
+function toAcceptAmendmentToolOutcome(value: unknown) {
+  const result = acceptBookingAmendmentServiceResultSchema.parse(value)
+  if (!("amendment" in result)) return result
+  return {
+    status: result.status,
+    amendment: amendmentOutcomeReferenceSchema.parse(result.amendment),
+  }
+}
+
+function toAmendmentPreviewToolOutcome(value: unknown) {
+  const result = bookingAmendmentPreviewResultSchema.parse(value)
+  if (!("amendment" in result)) return result
+  return {
+    status: result.status,
+    amendment: amendmentOutcomeReferenceSchema.parse(result.amendment),
+  }
+}
 
 const bookingAmendmentWriteRisk = {
   destructive: false,
@@ -334,7 +417,7 @@ export const previewTravelerCorrectionAmendmentTool = defineTool({
   description:
     "Create an immutable, idempotent before/proposed-after preview for a traveler correction without replacing the Booking.",
   inputSchema: previewTravelerCorrectionAmendmentToolInputSchema,
-  outputSchema: bookingAmendmentPreviewResultSchema,
+  outputSchema: amendmentPreviewToolOutputSchema,
   requiredScopes: ["bookings:write"],
   audience: { source: "grant", allowed: ["staff"] },
   tier: "write",
@@ -342,8 +425,8 @@ export const previewTravelerCorrectionAmendmentTool = defineTool({
   annotations: { idempotentHint: true },
   async handler(input, ctx: BookingsToolContext) {
     return parseJsonResult(
-      bookingAmendmentPreviewResultSchema,
-      await bookings(ctx).previewTravelerCorrectionAmendment(input),
+      amendmentPreviewToolOutputSchema,
+      toAmendmentPreviewToolOutcome(await bookings(ctx).previewTravelerCorrectionAmendment(input)),
     )
   },
 })
@@ -356,7 +439,7 @@ export const previewTravelerRosterChangeAmendmentTool = defineTool({
   description:
     "Quote an immutable traveler add/drop Amendment with server-calculated price, tax, inventory, supplier, and financial consequences.",
   inputSchema: previewTravelerRosterChangeAmendmentToolInputSchema,
-  outputSchema: bookingAmendmentPreviewResultSchema,
+  outputSchema: amendmentPreviewToolOutputSchema,
   requiredScopes: ["bookings:write"],
   audience: { source: "grant", allowed: ["staff"] },
   tier: "write",
@@ -364,8 +447,10 @@ export const previewTravelerRosterChangeAmendmentTool = defineTool({
   annotations: { idempotentHint: true },
   async handler(input, ctx: BookingsToolContext) {
     return parseJsonResult(
-      bookingAmendmentPreviewResultSchema,
-      await bookings(ctx).previewTravelerRosterChangeAmendment(input),
+      amendmentPreviewToolOutputSchema,
+      toAmendmentPreviewToolOutcome(
+        await bookings(ctx).previewTravelerRosterChangeAmendment(input),
+      ),
     )
   },
 })
@@ -387,7 +472,7 @@ export const acceptBookingAmendmentTool = defineTool({
   async handler(input, ctx: BookingsToolContext) {
     return parseJsonResult(
       acceptBookingAmendmentToolOutputSchema,
-      await bookings(ctx).acceptBookingAmendment(input),
+      toAcceptAmendmentToolOutcome(await bookings(ctx).acceptBookingAmendment(input)),
     )
   },
 })
@@ -409,7 +494,7 @@ export const applyBookingAmendmentTool = defineTool({
   async handler(input, ctx: BookingsToolContext) {
     return parseJsonResult(
       applyBookingAmendmentToolOutputSchema,
-      await bookings(ctx).applyBookingAmendment(input),
+      toAmendmentToolOutcome(await bookings(ctx).applyBookingAmendment(input)),
     )
   },
 })
@@ -431,7 +516,7 @@ export const reconcileBookingAmendmentTool = defineTool({
   async handler(input, ctx: BookingsToolContext) {
     return parseJsonResult(
       applyBookingAmendmentToolOutputSchema,
-      await bookings(ctx).reconcileBookingAmendment(input),
+      toAmendmentToolOutcome(await bookings(ctx).reconcileBookingAmendment(input)),
     )
   },
 })
