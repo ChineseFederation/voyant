@@ -86,8 +86,8 @@ export interface AdminCoreAccountOptions {
 export interface AdminCoreSettingsOptions {
   /** Mount path of the settings area. Default `/settings`. */
   basePath?: string
-  /** Deployment-selected catalog supplied to API-token and member permission editors. */
-  accessCatalog?: AccessCatalog
+  /** Lazily load the deployment-selected catalog for permission-editing pages. */
+  loadAccessCatalog?: () => Promise<AccessCatalog>
   /**
    * Where the settings index redirects. Default `<basePath>/channels`
    * (skipped automatically when `channels` is omitted — then the first
@@ -193,7 +193,7 @@ function createSettingsContribution(options: AdminCoreSettingsOptions): AdminUiR
       title: "Settings",
       redirectTo: indexRedirectTo,
     },
-    ...entries.map((entry) => createBuiltInSettingsPage(entry.id, options.accessCatalog)),
+    ...entries.map((entry) => createBuiltInSettingsPage(entry.id, options.loadAccessCatalog)),
     ...extraPages.map((page) => ({
       id: `core-settings-${page.id}`,
       path: page.path,
@@ -233,7 +233,7 @@ function uniqueExtraSettingsPages(
 
 function createBuiltInSettingsPage(
   id: AdminCoreSettingsPageId,
-  accessCatalog?: AccessCatalog,
+  loadAccessCatalog?: () => Promise<AccessCatalog>,
 ): AdminUiRouteContribution {
   const entry = adminCoreSettingsNavEntries.find((candidate) => candidate.id === id)
   if (!entry) {
@@ -250,7 +250,10 @@ function createBuiltInSettingsPage(
             default: module.AuthUiMessagesProvider,
           })),
         page: () =>
-          import("@voyant-travel/auth-react/components/service-api-keys-page").then((module) => {
+          Promise.all([
+            import("@voyant-travel/auth-react/components/service-api-keys-page"),
+            loadAccessCatalog?.(),
+          ]).then(([module, accessCatalog]) => {
             function ApiTokensPage() {
               return <module.ApiTokensPage accessCatalog={accessCatalog} />
             }

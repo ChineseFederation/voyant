@@ -39,7 +39,7 @@ export interface CreateAdminHostExtensionsOptions {
 }
 
 export interface CreateAdminHostPresentationOptions {
-  accessCatalog: AccessCatalog
+  loadAccessCatalog: () => Promise<AccessCatalog>
   selected: SelectedExtensionsFactory
   project?: Record<string, unknown>
 }
@@ -104,7 +104,7 @@ function uniqueExtensionsById(
 
 /** Build the standard selected-graph presentation with optional project-local extensions. */
 export function createAdminHostPresentation({
-  accessCatalog,
+  loadAccessCatalog,
   selected,
   project = {},
 }: CreateAdminHostPresentationOptions): AdminHostPresentation {
@@ -114,7 +114,7 @@ export function createAdminHostPresentation({
       core: (settingsPages, setup) =>
         createAdminCoreExtension({
           dashboard: { loader: (context) => loadAdminDashboard(context, setup) },
-          settings: { accessCatalog, extraPages: settingsPages },
+          settings: { loadAccessCatalog, extraPages: settingsPages },
         }),
       selected,
       navMessages,

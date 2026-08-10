@@ -69,6 +69,10 @@ describe("createStandardOperatorRouteFiles", () => {
     )
     expect(runtime?.source).toContain("createStandardOperatorFrontend")
     expect(runtime?.source).toContain("selectedGraphPresentationFactories")
+    expect(runtime?.source).toContain('import("../../access/selected-access-catalog.generated.js")')
+    expect(runtime?.source).not.toContain(
+      'import { accessCatalog } from "../../access/selected-access-catalog.generated.js"',
+    )
     expect(runtime?.source).toContain('import.meta.glob("../../../src/admin/*/index.tsx"')
     expect(runtime?.source).toContain("packages/*/openapi/{admin,storefront}/*.json")
 

@@ -46,9 +46,11 @@ const standardOperatorRouteFiles: readonly VoyantGeneratedRouteFile[] = [
     path: "_lib/operator-frontend.tsx",
     source: `
 import { createStandardOperatorFrontend } from ${JSON.stringify(standardFrontendImport)}
-import { accessCatalog } from "../../access/selected-access-catalog.generated.js"
 import { createSelectedGraphAdminExtensions } from "../../admin/selected-graph-admin.generated.js"
 import { selectedGraphPresentationFactories } from "../../presentations/selected-graph-presentations.generated.js"
+
+const loadAccessCatalog = () =>
+  import("../../access/selected-access-catalog.generated.js").then((module) => module.accessCatalog)
 
 const workspaceSpecs = import.meta.glob<{ default: Record<string, unknown> }>(
   "../../../../../packages/*/openapi/{admin,storefront}/*.json",
@@ -58,7 +60,7 @@ const installedSpecs = import.meta.glob<{ default: Record<string, unknown> }>(
 )
 
 export const operatorFrontend = createStandardOperatorFrontend({
-  accessCatalog,
+  loadAccessCatalog,
   selected: createSelectedGraphAdminExtensions,
   presentations: selectedGraphPresentationFactories,
   project: import.meta.glob("../../../src/admin/*/index.tsx", { eager: true }),

@@ -65,6 +65,25 @@ describe("createAdminCoreExtension", async () => {
     expect(settings?.children?.[0]?.redirectTo).toBe("/settings/api-tokens")
   })
 
+  it("does not load the access catalog until the API tokens page is requested", async () => {
+    const accessCatalog = { resources: [], presets: [] }
+    let loadCount = 0
+    const core = createAdminCoreExtensionShim({
+      settings: {
+        loadAccessCatalog: async () => {
+          loadCount += 1
+          return accessCatalog
+        },
+      },
+    })
+    const settings = core.routes?.find((route) => route.id === "core-settings")
+    const apiTokens = settings?.children?.find((child) => child.id === "core-settings-api-tokens")
+
+    expect(loadCount).toBe(0)
+    await apiTokens?.page?.()
+    expect(loadCount).toBe(1)
+  }, 15_000)
+
   it("binds app-supplied extra settings pages as child contributions", () => {
     const core = createAdminCoreExtensionShim({
       settings: {

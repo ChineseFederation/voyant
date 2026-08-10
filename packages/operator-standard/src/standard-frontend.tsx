@@ -118,7 +118,7 @@ type StandardOperatorShellBootstrap = Omit<
 }
 
 export interface CreateStandardOperatorFrontendOptions {
-  accessCatalog: AccessCatalog
+  loadAccessCatalog: () => Promise<AccessCatalog>
   selected: Parameters<typeof createAdminHostPresentation>[0]["selected"]
   presentations: Readonly<Record<string, StandardOperatorPresentationFactory>>
   project?: Record<string, unknown>
