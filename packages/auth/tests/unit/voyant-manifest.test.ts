@@ -173,6 +173,22 @@ describe("auth identity/access deployment manifests", () => {
         ({ id }) => id === "@voyant-travel/auth#team.action.update-member-role",
       ),
     ).not.toHaveProperty("availability")
+    for (const actionId of [
+      "@voyant-travel/auth#team.action.activate-member",
+      "@voyant-travel/auth#team.action.deactivate-member",
+    ]) {
+      expect(authTeamVoyantModule.actions?.find(({ id }) => id === actionId)).toMatchObject({
+        targetLifecycle: "existing",
+        existingTarget: { durability: "handler-command-result-v1" },
+        durability: {
+          strategy: "saga",
+          testReference: "packages/auth/tests/integration/team-member-role-command.test.ts",
+        },
+      })
+      expect(authTeamVoyantModule.actions?.find(({ id }) => id === actionId)).not.toHaveProperty(
+        "availability",
+      )
+    }
     expect(authTeamVoyantModule.access?.resources[0]).toMatchObject({
       wildcard: "explicit-resource",
       actions: [

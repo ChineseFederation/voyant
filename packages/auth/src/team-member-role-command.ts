@@ -45,3 +45,34 @@ export async function executeUpdateTeamMemberRoleCommand(input: {
   )
   return result.value
 }
+
+/** Admit one exact desired access state before crossing the local/cloud adapter boundary. */
+export async function executeSetTeamMemberAccessCommand(input: {
+  db: AnyDrizzleDb
+  context: ActionLedgerRequestContextValues
+  admitted: ToolHandlerActionPolicyContext
+  memberId: string
+  access: "active" | "deactivated"
+  update(): Promise<TeamMemberDto>
+}) {
+  const commandInput = { memberId: input.memberId, access: input.access }
+  const resolvedAdmitted = withServerResolvedIdempotencyKey(
+    input.admitted,
+    await deriveCommandIdempotencyKey("set-team-member-access", commandInput),
+  )
+  const result = await executeAdmittedExistingTargetCommand(
+    {
+      db: input.db,
+      context: input.context,
+      admitted: resolvedAdmitted,
+      commandInput,
+      evaluatedRisk: "high",
+    },
+    {
+      prepare: () => Promise.resolve(),
+      execute: input.update,
+      replay: input.update,
+    },
+  )
+  return result.value
+}

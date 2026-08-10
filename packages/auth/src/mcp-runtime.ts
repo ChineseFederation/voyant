@@ -8,7 +8,10 @@ import {
 import type { Context } from "hono"
 
 import { teamManagementRuntimePort } from "./team-management-runtime-port.js"
-import { executeUpdateTeamMemberRoleCommand } from "./team-member-role-command.js"
+import {
+  executeSetTeamMemberAccessCommand,
+  executeUpdateTeamMemberRoleCommand,
+} from "./team-member-role-command.js"
 import type { TeamManagementToolServices } from "./tools.js"
 
 export * from "./tools.js"
@@ -73,8 +76,24 @@ export const voyantToolContextContribution = defineToolContextContribution({
           update: () => runtime.updateMemberRole(runtimeContext, memberId, roleId),
         })
       },
-      activateMember: (memberId) => runtime.activateMember(runtimeContext, memberId),
-      deactivateMember: (memberId) => runtime.deactivateMember(runtimeContext, memberId),
+      activateMember: (memberId, admitted) =>
+        executeSetTeamMemberAccessCommand({
+          db: runtimeContext.db,
+          context: actionLedgerContext(c),
+          admitted,
+          memberId,
+          access: "active",
+          update: () => runtime.activateMember(runtimeContext, memberId),
+        }),
+      deactivateMember: (memberId, admitted) =>
+        executeSetTeamMemberAccessCommand({
+          db: runtimeContext.db,
+          context: actionLedgerContext(c),
+          admitted,
+          memberId,
+          access: "deactivated",
+          update: () => runtime.deactivateMember(runtimeContext, memberId),
+        }),
     }
     return { teamManagement }
   },

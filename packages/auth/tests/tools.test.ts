@@ -4,6 +4,10 @@ import { describe, expect, it, vi } from "vitest"
 import { voyantToolContextContribution } from "../src/mcp-runtime.js"
 import { teamManagementRuntimePort } from "../src/team-management-runtime-port.js"
 import {
+  ACTIVATE_TEAM_MEMBER_HANDLER_POLICY,
+  activateTeamMemberTool,
+  DEACTIVATE_TEAM_MEMBER_HANDLER_POLICY,
+  deactivateTeamMemberTool,
   type TeamManagementToolContext,
   type TeamManagementToolServices,
   teamManagementTools,
@@ -73,17 +77,22 @@ function teamRegistry() {
       tool,
       tool.name === "update_team_member_role"
         ? { actionPolicy: UPDATE_TEAM_MEMBER_ROLE_HANDLER_POLICY.actionPolicy }
-        : undefined,
+        : tool.name === "activate_team_member"
+          ? { actionPolicy: ACTIVATE_TEAM_MEMBER_HANDLER_POLICY.actionPolicy }
+          : tool.name === "deactivate_team_member"
+            ? { actionPolicy: DEACTIVATE_TEAM_MEMBER_HANDLER_POLICY.actionPolicy }
+            : undefined,
     )
   }
   return registry
 }
 
-function updateRoleAdmission(
+function admission(
   registry: ReturnType<typeof createToolRegistry>,
+  name = "update_team_member_role",
 ): ToolContext["handlerActionPolicy"] {
-  const manifest = registry.list().find(({ name }) => name === "update_team_member_role")
-  if (!manifest?.actionPolicy) throw new Error("update role action policy was not registered")
+  const manifest = registry.list().find((tool) => tool.name === name)
+  if (!manifest?.actionPolicy) throw new Error(`${name} action policy was not registered`)
   return {
     capabilityId: manifest.capabilityId,
     capabilityVersion: manifest.capabilityVersion,
@@ -135,6 +144,13 @@ describe("auth team-management tools", () => {
       resolvesIdempotencyKeyServerSide: true,
       annotations: { idempotentHint: true },
     })
+    for (const tool of [activateTeamMemberTool, deactivateTeamMemberTool]) {
+      expect(tool).toMatchObject({
+        actionPolicyEnforcement: "handler",
+        resolvesIdempotencyKeyServerSide: true,
+        annotations: { idempotentHint: true },
+      })
+    }
     expect(
       registry
         .list()
@@ -145,7 +161,7 @@ describe("auth team-management tools", () => {
   it("delegates every operation to the injected guarded runtime service", async () => {
     const runtime = services()
     const registry = teamRegistry()
-    const ctx = { ...toolContext(runtime), handlerActionPolicy: updateRoleAdmission(registry) }
+    const ctx = { ...toolContext(runtime), handlerActionPolicy: admission(registry) }
 
     await expect(registry.dispatch("list_team_members", {}, ctx)).resolves.toEqual([member])
     await expect(
@@ -163,8 +179,22 @@ describe("auth team-management tools", () => {
       { memberId: "member_1", roleId: "admin" },
       ctx,
     )
-    await registry.dispatch("activate_team_member", { memberId: "member_1" }, ctx)
-    await registry.dispatch("deactivate_team_member", { memberId: "member_1" }, ctx)
+    await registry.dispatch(
+      "activate_team_member",
+      { memberId: "member_1" },
+      {
+        ...ctx,
+        handlerActionPolicy: admission(registry, "activate_team_member"),
+      },
+    )
+    await registry.dispatch(
+      "deactivate_team_member",
+      { memberId: "member_1" },
+      {
+        ...ctx,
+        handlerActionPolicy: admission(registry, "deactivate_team_member"),
+      },
+    )
 
     expect(runtime.inviteMember).toHaveBeenCalledWith({
       email: "invitee@example.com",
@@ -173,8 +203,8 @@ describe("auth team-management tools", () => {
     })
     expect(runtime.revokeInvitation).toHaveBeenCalledWith("invitation_1")
     expect(runtime.updateMemberRole).toHaveBeenCalledWith("member_1", "admin", expect.any(Object))
-    expect(runtime.activateMember).toHaveBeenCalledWith("member_1")
-    expect(runtime.deactivateMember).toHaveBeenCalledWith("member_1")
+    expect(runtime.activateMember).toHaveBeenCalledWith("member_1", expect.any(Object))
+    expect(runtime.deactivateMember).toHaveBeenCalledWith("member_1", expect.any(Object))
   })
 
   it("denies non-staff callers and missing service wiring", async () => {
