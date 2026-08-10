@@ -622,6 +622,26 @@ async function createFullAdminHost(input: {
       (input.options.env?.NODE_ENV ?? process.env.NODE_ENV) === "production",
   )
   const { serveAdminHost } = await import("@voyant-travel/admin-host/serve")
+  type AdminSsrHandler = (
+    request: Request,
+    bindings: VoyantNodeRuntimeEnv,
+    ctx: import("hono").ExecutionContext,
+  ) => Response | Promise<Response>
+  let ssrHandlerPromise: Promise<AdminSsrHandler> | undefined
+  const loadSsrHandler = () => {
+    if (!ssrHandlerPromise) {
+      const attempt = import("@voyant-travel/admin-host/ssr").then(({ createAdminSsrHandler }) =>
+        createAdminSsrHandler<VoyantNodeRuntimeEnv>(),
+      )
+      ssrHandlerPromise = attempt
+      // A transient module/initialization failure must not poison every later
+      // document request in this otherwise healthy resident process.
+      void attempt.catch(() => {
+        if (ssrHandlerPromise === attempt) ssrHandlerPromise = undefined
+      })
+    }
+    return ssrHandlerPromise
+  }
   return serveAdminHost<VoyantNodeRuntimeEnv>({
     clientAssetsDir,
     app: async (request, bindings, ctx) => {
@@ -631,8 +651,7 @@ async function createFullAdminHost(input: {
       }
       const discovery = await input.resolveDiscovery(request, bindings)
       if (discovery) return discovery
-      const { createAdminSsrHandler } = await import("@voyant-travel/admin-host/ssr")
-      return createAdminSsrHandler<VoyantNodeRuntimeEnv>()(request, bindings, ctx)
+      return (await loadSsrHandler())(request, bindings, ctx)
     },
   })
 }

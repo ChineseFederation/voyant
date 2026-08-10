@@ -9,6 +9,8 @@ interface RuntimeCompositionMocks {
     clientAssetsDir: string
     app(request: Request, env: unknown, ctx: unknown): Promise<Response>
   }>
+  adminSsrHandler: Mock
+  createAdminSsrHandler: Mock
   authRuntimeOptions: Array<Record<string, unknown>>
   createNodeServer: Mock
   postgresEnqueue: Mock
@@ -27,7 +29,7 @@ interface RuntimeCompositionMocks {
   deploymentProviders: Record<string, string>
   loadVoyantNodeRuntime: Mock
   nodeRuntime: {
-    env: { DATABASE_URL: string }
+    env: Record<string, string>
     deployment: { mode: string; providers: Record<string, string> }
     app: {
       ready: Mock
@@ -60,6 +62,8 @@ const mocks: RuntimeCompositionMocks = vi.hoisted(() => {
   const services = { has: vi.fn(() => false), register: vi.fn(), resolve: vi.fn() }
   const eventBus = { emit: vi.fn(), subscribe: vi.fn() }
   const runtimeFetch = vi.fn(async (request: Request) => new Response(request.url))
+  const adminSsrHandler = vi.fn(async (request: Request) => new Response(request.url))
+  const createAdminSsrHandler = vi.fn(() => adminSsrHandler)
   const nodeRuntime = {
     env: { DATABASE_URL: "postgres://example.invalid/voyant" },
     deployment: { mode: "self-hosted", providers: {} },
@@ -70,6 +74,8 @@ const mocks: RuntimeCompositionMocks = vi.hoisted(() => {
       clientAssetsDir: string
       app(request: Request, env: unknown, ctx: unknown): Promise<Response>
     }>,
+    adminSsrHandler,
+    createAdminSsrHandler,
     authRuntimeOptions: [] as Array<Record<string, unknown>>,
     createNodeServer: vi.fn(
       (options: { residentServices?: Array<{ start(): void; stop(): void | Promise<void> }> }) => {
@@ -100,7 +106,10 @@ const mocks: RuntimeCompositionMocks = vi.hoisted(() => {
       customerAuth: "better-auth",
       outboundWebhooks: "postgres",
     } as Record<string, string>,
-    loadVoyantNodeRuntime: vi.fn(async (_options: unknown) => nodeRuntime),
+    loadVoyantNodeRuntime: vi.fn(async (options: { env?: Record<string, string> }) => {
+      nodeRuntime.env = { ...nodeRuntime.env, ...options.env }
+      return nodeRuntime
+    }),
     nodeRuntime,
     resolveNodeDatabase: vi.fn(() => ({ kind: "database" })),
     runtimePortHosts: [] as Array<{
@@ -126,6 +135,10 @@ vi.mock("@voyant-travel/admin-host/serve", () => ({
       fetch: (request: Request, env: unknown, ctx: unknown) => options.app(request, env, ctx),
     }
   },
+}))
+
+vi.mock("@voyant-travel/admin-host/ssr", () => ({
+  createAdminSsrHandler: mocks.createAdminSsrHandler,
 }))
 
 vi.mock("@voyant-travel/apps", () => ({
@@ -161,6 +174,7 @@ vi.mock("@voyant-travel/auth/node-runtime", () => ({
       getCurrentUserForRequest: vi.fn(),
       hasAuthPermission: vi.fn(),
       resolveAuthRequest: vi.fn(),
+      resolveOAuthDiscoveryRequest: vi.fn(async () => null),
       validateApiTokenAccess: vi.fn(),
     }
   },
@@ -303,6 +317,8 @@ beforeEach(() => {
   mocks.adminHostOptions.length = 0
   mocks.authRuntimeOptions.length = 0
   mocks.runtimePortHosts.length = 0
+  mocks.nodeRuntime.env = { DATABASE_URL: "postgres://example.invalid/voyant" }
+  mocks.createAdminSsrHandler.mockImplementation(() => mocks.adminSsrHandler)
   mocks.deploymentProviders = {
     adminAuth: "better-auth",
     customerAuth: "better-auth",

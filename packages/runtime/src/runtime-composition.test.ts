@@ -56,6 +56,48 @@ describe("Voyant project runtime composition", () => {
     )
   })
 
+  it("lazily constructs one SSR handler for concurrent and warm document requests", async () => {
+    const projectRoot = await createGeneratedProject()
+    const project = await loadVoyantProject({
+      projectRoot,
+      adminAssetsDir: path.join(projectRoot, "admin"),
+      env: { DATABASE_URL: "postgres://example.invalid/voyant" },
+    })
+
+    expect(mocks.createAdminSsrHandler).not.toHaveBeenCalled()
+    await project.fetch(new Request("https://operator.test/api/openapi.json"))
+    expect(mocks.createAdminSsrHandler).not.toHaveBeenCalled()
+
+    await Promise.all([
+      project.fetch(new Request("https://operator.test/products")),
+      project.fetch(new Request("https://operator.test/bookings")),
+    ])
+    await project.fetch(new Request("https://operator.test/settings"))
+
+    expect(mocks.createAdminSsrHandler).toHaveBeenCalledTimes(1)
+    expect(mocks.adminSsrHandler).toHaveBeenCalledTimes(3)
+  })
+
+  it("retries SSR handler initialization after a transient failure", async () => {
+    mocks.createAdminSsrHandler.mockImplementationOnce(() => {
+      throw new Error("temporary SSR initialization failure")
+    })
+    const projectRoot = await createGeneratedProject()
+    const project = await loadVoyantProject({
+      projectRoot,
+      adminAssetsDir: path.join(projectRoot, "admin"),
+      env: { DATABASE_URL: "postgres://example.invalid/voyant" },
+    })
+
+    await expect(project.fetch(new Request("https://operator.test/products"))).rejects.toThrow(
+      "temporary SSR initialization failure",
+    )
+    await expect(
+      project.fetch(new Request("https://operator.test/products")),
+    ).resolves.toBeInstanceOf(Response)
+    expect(mocks.createAdminSsrHandler).toHaveBeenCalledTimes(2)
+  })
+
   it("keeps the API-only profile out of the admin document host", async () => {
     const projectRoot = await createGeneratedProject()
     const project = await loadVoyantProject({
