@@ -1,5 +1,13 @@
 # @voyant-travel/framework
 
+## 0.81.1
+
+### Patch Changes
+
+- Updated dependencies [5850e1d]
+  - @voyant-travel/voyant-connect-adapter@0.28.0
+  - @voyant-travel/operator-standard@0.21.28
+
 ## 0.81.0
 
 ### Minor Changes

@@ -1,5 +1,14 @@
 # @voyant-travel/plugin-voyant-connect
 
+## 0.28.0
+
+### Patch Changes
+
+- 5850e1d: Accept the Storefront shopping contract's free-text package destination and map it to Connect's city search while continuing to reject unsupported coordinate filters.
+- Updated dependencies [c164b40]
+  - @voyant-travel/catalog-contracts@0.132.0
+  - @voyant-travel/storefront@0.255.7
+
 ## 0.27.1
 
 ### Patch Changes

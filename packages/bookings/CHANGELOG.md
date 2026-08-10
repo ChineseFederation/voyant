@@ -1,5 +1,13 @@
 # @voyant-travel/bookings
 
+## 0.240.12
+
+### Patch Changes
+
+- bdc0190: Return the server-issued proposed revision from Booking Amendment previews and derive Amendment Tool command identity server-side.
+- c164b40: Carry explicit storefront contract acceptance through Booking Session checkout so paid card bookings sign their numbered contract automatically and deferred bank transfers retain a numbered draft until settlement.
+  - @voyant-travel/products-contracts@0.111.3
+
 ## 0.240.11
 
 ### Patch Changes

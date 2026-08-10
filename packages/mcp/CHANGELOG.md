@@ -1,5 +1,12 @@
 # @voyant-travel/mcp
 
+## 0.22.3
+
+### Patch Changes
+
+- 3740f61: Describe the eager `call_tool` meta-tool on demand and return direct-invocation guidance when eager MCP tools are incorrectly nested through it.
+  - @voyant-travel/framework@0.81.1
+
 ## 0.22.2
 
 ### Patch Changes
