@@ -144,6 +144,49 @@ describe("Voyant Connect Storefront package sources", () => {
     expect(searchAcrossProviders).not.toHaveBeenCalled()
   })
 
+  it("maps the public free-text destination query to Connect's city search", async () => {
+    searchAcrossProviders.mockResolvedValue({ offers: [] })
+    const provider = createVoyantConnectStorefrontPackageSourceProvider(
+      primitives({ VOYANT_API_KEY: "key", VOYANT_CONNECT_OPERATOR_ID: "op_1" }),
+    )
+    const queryInput = {
+      ...input,
+      destination: { query: "Paris" },
+      boards: undefined,
+      pagination: undefined,
+    }
+    const [source] = await provider.resolveSources({
+      context: { storefrontId: "sf_1", channelId: "ch_1" },
+      scope: input.scope,
+      destination: queryInput.destination,
+    })
+
+    await expect(source?.search(queryInput)).resolves.toMatchObject({ status: "empty" })
+    expect(searchAcrossProviders).toHaveBeenCalledWith(
+      expect.objectContaining({ destination: { city: "Paris" } }),
+      { operatorId: "op_1" },
+    )
+  })
+
+  it("continues to reject coordinates that Connect cannot enforce", async () => {
+    const provider = createVoyantConnectStorefrontPackageSourceProvider(
+      primitives({ VOYANT_API_KEY: "key", VOYANT_CONNECT_OPERATOR_ID: "op_1" }),
+    )
+    const [source] = await provider.resolveSources({
+      context: { storefrontId: "sf_1", channelId: "ch_1" },
+      scope: input.scope,
+      destination: { latitude: 48.8566, longitude: 2.3522 },
+    })
+
+    await expect(
+      source?.search({
+        ...input,
+        destination: { latitude: 48.8566, longitude: 2.3522 },
+      }),
+    ).rejects.toThrow("does not support coordinate destinations")
+    expect(searchAcrossProviders).not.toHaveBeenCalled()
+  })
+
   it("returns no source when server-owned Connect configuration is absent", async () => {
     const provider = createVoyantConnectStorefrontPackageSourceProvider(primitives({}))
     await expect(

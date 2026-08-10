@@ -74,8 +74,12 @@ function packageQuery(input: PackageSourceInput): PackageSearchQuery {
   if (input.minStars !== undefined) {
     throw new Error("Connect package search does not support a minimum-stars constraint")
   }
-  if (input.destination.query || input.destination.latitude || input.destination.longitude) {
-    throw new Error("Connect package search requires a country or city destination")
+  if (input.destination.latitude !== undefined || input.destination.longitude !== undefined) {
+    throw new Error("Connect package search does not support coordinate destinations")
+  }
+  const city = input.destination.city ?? input.destination.query?.trim()
+  if (!input.destination.countryCode && !city) {
+    throw new Error("Connect package search requires a country, city, or query destination")
   }
   const boards = input.boards?.map((board) => board.toUpperCase())
   if (boards?.some((board) => !BOARD_CODES.has(board))) {
@@ -87,7 +91,7 @@ function packageQuery(input: PackageSourceInput): PackageSearchQuery {
       ...(input.destination.countryCode
         ? { countryCode: input.destination.countryCode.toUpperCase() }
         : {}),
-      ...(input.destination.city ? { city: input.destination.city } : {}),
+      ...(city ? { city } : {}),
     },
     departureDateFrom: input.departureDateFrom,
     departureDateTo: input.departureDateTo,
