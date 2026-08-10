@@ -1,4 +1,8 @@
+import type { SourceAdapterRegistry } from "@voyant-travel/catalog/booking-engine"
 import type { CatalogAccommodationsRuntimeExtension } from "@voyant-travel/catalog/runtime-contracts"
+import { readSourcedEntryBySource } from "@voyant-travel/catalog/services/sourced-entry"
+import type { AvailabilityCandidate } from "@voyant-travel/catalog-contracts/adapter/contract"
+import type { AnyDrizzleDb } from "@voyant-travel/db"
 
 import { registerAccommodationBookingHandler } from "./booking-engine/runtime.js"
 import { createAccommodationOwnedSearchHandler } from "./booking-engine/search-handler.js"
@@ -7,6 +11,7 @@ import {
   accommodationPropertyCatalogPolicy,
   accommodationPropertyReferenceCatalogPolicy,
 } from "./catalog-policy-properties.js"
+import { type AccommodationContent, accommodationContentSchema } from "./content-shape.js"
 import { createRoomTypeDocumentBuilder } from "./service-catalog-plane.js"
 import { getAccommodationContent } from "./service-content.js"
 import {
@@ -26,27 +31,99 @@ export const catalogAccommodationsRuntimeExtension = {
     registry.register(createAccommodationOwnedSearchHandler({}))
   },
   async presentAvailabilityCandidate({ db, registry, candidate, locale, market, currency }) {
+    const entityId = await resolveAvailabilityPresentationEntityId({
+      db,
+      registry,
+      candidate,
+    })
     const resolved = await getAccommodationContent(
       db,
-      candidate.entity_id,
+      entityId,
       { preferredLocales: [locale], market, currency },
       { registry },
     )
-    if (!resolved) return undefined
-    const selection = record(candidate.selection)
-    const roomTypeId = string(selection?.roomTypeId)
-    const ratePlanId = string(selection?.ratePlanId)
-    const room = resolved.content.room_types.find(({ id }) => id === roomTypeId)
-    const ratePlan = resolved.content.rate_plans.find(({ id }) => id === ratePlanId)
-    const imageUrl = room?.images[0] ?? resolved.content.hotel.hero_image_url ?? undefined
-    return {
-      title: resolved.content.hotel.name,
-      ...(room?.name ? { roomName: room.name } : {}),
-      ...(ratePlan?.name ? { boardName: ratePlan.name } : {}),
-      ...(imageUrl ? { image: { url: imageUrl, alt: resolved.content.hotel.name } } : {}),
-    }
+    const content =
+      resolved?.content ??
+      (await fetchUnindexedAvailabilityContent({
+        registry,
+        candidate,
+        locale,
+        market,
+        currency,
+      }))
+    if (!content) return undefined
+    return availabilityPresentation(content, candidate)
   },
 } satisfies CatalogAccommodationsRuntimeExtension
+
+function availabilityPresentation(content: AccommodationContent, candidate: AvailabilityCandidate) {
+  const selection = record(candidate.selection)
+  const roomTypeId = string(selection?.roomTypeId)
+  const ratePlanId = string(selection?.ratePlanId)
+  const rooms = Array.isArray(selection?.rooms) ? selection.rooms : []
+  const firstRoom = record(rooms[0])
+  const selectedRoomTypeId = roomTypeId ?? string(firstRoom?.roomTypeId)
+  const selectedRatePlanId = ratePlanId ?? string(firstRoom?.ratePlanId)
+  const room = content.room_types.find(({ id }) => id === selectedRoomTypeId)
+  const ratePlan = content.rate_plans.find(({ id }) => id === selectedRatePlanId)
+  const imageUrl = room?.images[0] ?? content.hotel.hero_image_url ?? undefined
+  return {
+    title: content.hotel.name,
+    ...(room?.name ? { roomName: room.name } : {}),
+    ...(ratePlan?.name ? { boardName: ratePlan.name } : {}),
+    ...(imageUrl ? { image: { url: imageUrl, alt: content.hotel.name } } : {}),
+  }
+}
+
+async function fetchUnindexedAvailabilityContent(input: {
+  registry: SourceAdapterRegistry
+  candidate: AvailabilityCandidate
+  locale: string
+  market: string
+  currency: string
+}): Promise<AccommodationContent | undefined> {
+  if (input.candidate.source?.kind !== "sourced") return undefined
+  const connectionId = input.candidate.source.connectionId
+  const adapter = input.registry.resolveByConnection(connectionId)
+  if (!adapter?.getContent) return undefined
+  const fresh = await adapter.getContent(
+    { connection_id: connectionId },
+    {
+      entity_module: "accommodations",
+      entity_id: input.candidate.entity_id,
+      locale: input.locale,
+      market: input.market,
+      currency: input.currency,
+    },
+  )
+  const parsed = accommodationContentSchema.safeParse(fresh.content)
+  return parsed.success ? parsed.data : undefined
+}
+
+export async function resolveAvailabilityPresentationEntityId(input: {
+  db: AnyDrizzleDb
+  registry: SourceAdapterRegistry
+  candidate: AvailabilityCandidate
+  readBySource?: typeof readSourcedEntryBySource
+}): Promise<string> {
+  if (input.candidate.source?.kind !== "sourced") {
+    return input.candidate.entity_id
+  }
+  const connectionId = input.candidate.source.connectionId
+  const adapter = input.registry.resolveByConnection(connectionId)
+  if (!adapter) return input.candidate.entity_id
+
+  // Live Connect search returns the source accommodation reference. Catalog
+  // content is keyed by its canonical sourced-entry id. Resolve that identity
+  // boundary before presentation; never expose or accept it from the browser.
+  const sourced = await (input.readBySource ?? readSourcedEntryBySource)(input.db, {
+    entityModule: "accommodations",
+    sourceKind: adapter.kind,
+    sourceConnectionId: connectionId,
+    sourceRef: input.candidate.entity_id,
+  })
+  return sourced?.entity_id ?? input.candidate.entity_id
+}
 
 function record(value: unknown): Record<string, unknown> | undefined {
   return value !== null && typeof value === "object" && !Array.isArray(value)
