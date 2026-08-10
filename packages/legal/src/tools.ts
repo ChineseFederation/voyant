@@ -15,7 +15,10 @@ import { z } from "zod"
 import { LEGAL_CONTRACT_DOCUMENT_HANDLER_EXPECTATIONS } from "./contract-document-policy.js"
 import { hasManagedBookingWorkflow } from "./contract-dto.js"
 import { contractsService } from "./contracts/service.js"
-import { LEGAL_CONTRACT_DRAFT_HANDLER_EXPECTATION } from "./created-target-policy.js"
+import {
+  LEGAL_CONTRACT_DRAFT_HANDLER_EXPECTATION,
+  LEGAL_CONTRACT_TEMPLATE_HANDLER_EXPECTATION,
+} from "./created-target-policy.js"
 import { LEGAL_CONTRACT_LIFECYCLE_HANDLER_EXPECTATIONS } from "./existing-target-policy.js"
 
 const OWNER = "@voyant-travel/legal"
@@ -471,6 +474,7 @@ export interface LegalToolServices {
   previewTemplate(input: z.infer<typeof previewTemplateInputSchema>): Promise<{ rendered: string }>
   createTemplate(
     input: z.infer<typeof createContractTemplateInputSchema>,
+    admitted: ToolHandlerActionPolicyContext,
   ): Promise<ContractTemplateDetail>
   updateTemplate(
     input: z.infer<typeof updateContractTemplateInputSchema>,
@@ -780,11 +784,18 @@ export const createContractTemplateTool = defineTool({
   ...writeMetadata,
   capabilityId: `${OWNER}#tool.create-contract-template`,
   name: "create_contract_template",
+  resolvesIdempotencyKeyServerSide: true,
   description:
     "Create a versioned contract template after validating its structured-template syntax.",
   inputSchema: createContractTemplateInputSchema,
   outputSchema: contractTemplateDetailSchema,
-  handler: (input, ctx: LegalToolContext) => legal(ctx).createTemplate(input),
+  annotations: { idempotentHint: true },
+  actionPolicyEnforcement: "handler",
+  handler: (input, ctx: LegalToolContext) =>
+    legal(ctx).createTemplate(
+      input,
+      admitHandlerActionPolicy(ctx, LEGAL_CONTRACT_TEMPLATE_HANDLER_EXPECTATION),
+    ),
 })
 export const updateContractTemplateTool = defineTool({
   ...writeMetadata,

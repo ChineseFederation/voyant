@@ -43,6 +43,43 @@ export const LEGAL_CONTRACT_DRAFT_HANDLER_EXPECTATION = {
   },
 } as const satisfies HandlerActionPolicyExpectation
 
+export const LEGAL_CONTRACT_TEMPLATE_CREATED_TARGET_POLICY = {
+  actionName: "@voyant-travel/legal#action.create-contract-template",
+  actionVersion: "v1",
+  toolName: "create_contract_template",
+  toolCapabilityId: "@voyant-travel/legal#tool.create-contract-template",
+  capabilityId: "@voyant-travel/legal#action.create-contract-template",
+  capabilityVersion: "v1",
+  commandTargetType: "legal_contract_template_create_command",
+  canonicalTargetType: "contract-template",
+  resultReferenceType: "contract-template",
+  evaluatedRisk: "high",
+} as const
+
+export const LEGAL_CONTRACT_TEMPLATE_HANDLER_EXPECTATION = {
+  capabilityId: LEGAL_CONTRACT_TEMPLATE_CREATED_TARGET_POLICY.toolCapabilityId,
+  capabilityVersion: LEGAL_CONTRACT_TEMPLATE_CREATED_TARGET_POLICY.capabilityVersion,
+  canonicalName: LEGAL_CONTRACT_TEMPLATE_CREATED_TARGET_POLICY.toolName,
+  actionPolicy: {
+    id: LEGAL_CONTRACT_TEMPLATE_CREATED_TARGET_POLICY.actionName,
+    capabilityId: LEGAL_CONTRACT_TEMPLATE_CREATED_TARGET_POLICY.capabilityId,
+    version: LEGAL_CONTRACT_TEMPLATE_CREATED_TARGET_POLICY.actionVersion,
+    kind: "execute",
+    targetType: LEGAL_CONTRACT_TEMPLATE_CREATED_TARGET_POLICY.canonicalTargetType,
+    targetLifecycle: "created",
+    createdTarget: {
+      commandTargetType: LEGAL_CONTRACT_TEMPLATE_CREATED_TARGET_POLICY.commandTargetType,
+      resultReferenceType: LEGAL_CONTRACT_TEMPLATE_CREATED_TARGET_POLICY.resultReferenceType,
+      durability: "handler-command-claim-v1",
+    },
+    risk: LEGAL_CONTRACT_TEMPLATE_CREATED_TARGET_POLICY.evaluatedRisk,
+    ledger: "required",
+    approval: "never",
+    reversible: false,
+    allowedActorTypes: ["staff"],
+  },
+} as const satisfies HandlerActionPolicyExpectation
+
 export function buildLegalContractDraftFingerprint(
   admittedAction: { capabilityId: string; version: string },
   commandTargetId: string,
