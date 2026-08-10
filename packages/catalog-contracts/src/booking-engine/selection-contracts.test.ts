@@ -143,6 +143,45 @@ describe("booking selection contracts", () => {
     ).toBe(false)
   })
 
+  it("carries explicit customer contract acceptance without document authority", () => {
+    const parsed = bookingSelectionV1.parse({
+      entity: ENTITY,
+      contractAcceptance: {
+        acceptedAt: "2026-08-10T12:00:00.000Z",
+        acceptedMarketing: false,
+        templateId: "clt_1",
+        templateVersionId: "cltv_1",
+        contentDigest: `booking-contract-acceptance:v1:sha256:${"a".repeat(64)}`,
+      },
+    })
+
+    expect(parsed.contractAcceptance).toEqual({
+      acceptedAt: "2026-08-10T12:00:00.000Z",
+      acceptedMarketing: false,
+      templateId: "clt_1",
+      templateVersionId: "cltv_1",
+      contentDigest: `booking-contract-acceptance:v1:sha256:${"a".repeat(64)}`,
+    })
+    expect(
+      bookingSelectionV1.safeParse({
+        entity: ENTITY,
+        contractAcceptance: { acceptedAt: "not-a-date", acceptedMarketing: false },
+      }).success,
+    ).toBe(false)
+    expect(
+      bookingSelectionV1.safeParse({
+        entity: ENTITY,
+        contractAcceptance: {
+          acceptedAt: "2026-08-10T12:00:00.000Z",
+          acceptedMarketing: false,
+          templateId: "clt_1",
+          templateVersionId: "cltv_1",
+          contentDigest: "browser-invented",
+        },
+      }).success,
+    ).toBe(false)
+  })
+
   it("accepts a Travel Credit redemption using the canonical wire fields", () => {
     const parsed = bookingSelectionV1.parse({
       entity: ENTITY,

@@ -30,6 +30,8 @@ export interface CreateSourcedBookingCommitmentInput {
   contactAddressLine1?: string | null
   contactAddressLine2?: string | null
   contactPostalCode?: string | null
+  /** System-derived evidence such as storefront contract acceptance. */
+  internalNotes?: string | null
   sellCurrency: string
   sellAmountCents: number
   title: string
@@ -96,6 +98,7 @@ export async function createSourcedBookingCommitment(
     contactAddressLine1: input.contactAddressLine1 ?? null,
     contactAddressLine2: input.contactAddressLine2 ?? null,
     contactPostalCode: input.contactPostalCode ?? null,
+    internalNotes: input.internalNotes ?? null,
     sellCurrency: input.sellCurrency,
     sellAmountCents: input.sellAmountCents,
     startDate,

@@ -14441,6 +14441,37 @@
                   "selection": {
                     "type": "object",
                     "properties": {
+                      "contractAcceptance": {
+                        "type": "object",
+                        "properties": {
+                          "acceptedAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "acceptedMarketing": {
+                            "type": "boolean",
+                            "default": false
+                          },
+                          "templateId": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "templateVersionId": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "contentDigest": {
+                            "type": "string",
+                            "pattern": "^booking-contract-acceptance:v1:sha256:[a-f0-9]{64}$"
+                          }
+                        },
+                        "required": [
+                          "acceptedAt",
+                          "templateId",
+                          "templateVersionId",
+                          "contentDigest"
+                        ]
+                      },
                       "configure": {
                         "type": "object",
                         "properties": {

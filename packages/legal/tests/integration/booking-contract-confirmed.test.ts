@@ -179,6 +179,12 @@ describe.skipIf(!DB_AVAILABLE)("booking-confirmed contract generation", () => {
         resetStrategy: "never",
       })
       .returning()
+    // Card completion can beat the queued booking.confirmed delivery. Persist
+    // that checkpoint before any contract row exists; generation must recover
+    // it and promote the accepted draft after producing the document.
+    const legal = createCommerceLegalRuntime({} as never)
+    await legal.recordBookingPaymentConfirmation(db, booking!.id, "pays_card_1")
+
     const [acceptedDraft] = await db
       .insert(contracts)
       .values({
@@ -252,7 +258,7 @@ describe.skipIf(!DB_AVAILABLE)("booking-confirmed contract generation", () => {
       templateVersionId: version!.id,
       seriesId: series!.id,
       contractNumber: "CTR-00041",
-      status: "draft",
+      status: "signed",
       renderedBody: expect.stringMatching(
         /^Contract CTR-00041 for booking BK-AUTO-CONTRACT-1, Ana Pop and 2 travellers: €120\.00 on \d{4}-\d{2}-\d{2}$/,
       ),
@@ -280,30 +286,6 @@ describe.skipIf(!DB_AVAILABLE)("booking-confirmed contract generation", () => {
       status: "requested",
       authorizationSource: "selected_graph_event",
     })
-
-    const legal = createCommerceLegalRuntime({} as never)
-    await legal.recordBookingPaymentConfirmation(db, booking!.id, "pays_card_1")
-    expect(await legal.issueContract(db, contractRows[0]!.id, eventBus)).toMatchObject({
-      status: "issued",
-    })
-    expect(await legal.sendContract(db, contractRows[0]!.id, eventBus)).toMatchObject({
-      status: "sent",
-    })
-    expect(
-      await legal.signContract(
-        db,
-        contractRows[0]!.id,
-        {
-          signerName: "Ana Pop",
-          signerEmail: "ana@example.test",
-          method: "electronic",
-          ipAddress: null,
-          userAgent: null,
-          metadata: { source: "storefront-checkout" },
-        },
-        eventBus,
-      ),
-    ).toMatchObject({ status: "signed" })
 
     const [signedContract] = await db
       .select()

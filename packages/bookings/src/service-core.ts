@@ -2048,6 +2048,52 @@ function toRows<T>(result: unknown): T[] {
 
 const bookingsServiceInternal = {
   /**
+   * Atomically replace module-owned marker lines without exposing arbitrary
+   * booking-note writes across package boundaries.
+   */
+  async setSystemInternalNotes(
+    db: PostgresJsDatabase,
+    bookingId: string,
+    updates: ReadonlyArray<{ prefix: string; note: string | null }>,
+  ): Promise<boolean> {
+    if (
+      updates.length === 0 ||
+      updates.some(
+        ({ prefix, note }) =>
+          !/^__[a-z0-9_]+__:$/.test(prefix) || (note !== null && !note.startsWith(prefix)),
+      )
+    ) {
+      throw new Error("Invalid system booking note marker")
+    }
+    return db.transaction(async (tx) => {
+      await tx.execute(
+        sql`select pg_advisory_xact_lock(hashtext(${`booking:system-notes:${bookingId}`}))`,
+      )
+      const [booking] = await tx
+        .select({ internalNotes: bookings.internalNotes })
+        .from(bookings)
+        .where(eq(bookings.id, bookingId))
+        .limit(1)
+      if (!booking) return false
+      const prefixes = new Set(updates.map(({ prefix }) => prefix))
+      const lines = (booking.internalNotes ?? "")
+        .split("\n")
+        .filter((line) => ![...prefixes].some((prefix) => line.startsWith(prefix)))
+      lines.push(...updates.flatMap(({ note }) => (note ? [note] : [])))
+      const internalNotes = lines.filter(Boolean).join("\n").trim() || null
+      await tx
+        .update(bookings)
+        .set({
+          internalNotes,
+          revision: sql`${bookings.revision} + 1`,
+          updatedAt: new Date(),
+        })
+        .where(eq(bookings.id, bookingId))
+      return true
+    })
+  },
+
+  /**
    * Append a PII-access audit record.
    *
    * `booking_pii_access_log` is bookings' table, and every reveal of traveller

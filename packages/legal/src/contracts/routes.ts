@@ -46,7 +46,7 @@ import {
   CONTRACTS_ROUTE_RUNTIME_CONTAINER_KEY,
   type ContractsRouteRuntime,
 } from "./route-runtime.js"
-import { renderPreviewResponse } from "./route-template-preview.js"
+import { renderAcceptancePreviewResponse, renderPreviewResponse } from "./route-template-preview.js"
 import type { Contract, ContractSignature } from "./schema.js"
 import { contractsService, DurableContractDocumentAttachmentMutationError } from "./service.js"
 import {
@@ -320,21 +320,22 @@ async function renderPublicTemplatePreviewBySlug(c: Context<Env>): Promise<Respo
   if (!slug) return c.json({ error: "Template not found" }, 404)
   const input = await parseJsonBody(c, publicRenderTemplatePreviewInputSchema)
   const template = await contractsService.findTemplateBySlug(c.get("db"), slug)
-  if (!template?.active) return c.json({ error: "Template not found" }, 404)
-  return renderPreviewResponse(
+  if (!template?.active || !template.currentVersionId) {
+    return c.json({ error: "Template not found" }, 404)
+  }
+  return renderAcceptancePreviewResponse(
     c,
     {
       variables: input.variables,
       body: template.body,
     },
     {
-      template: {
-        id: template.id,
-        slug: template.slug,
-        name: template.name,
-        language: template.language,
-        scope: template.scope,
-      },
+      id: template.id,
+      slug: template.slug,
+      name: template.name,
+      language: template.language,
+      scope: template.scope,
+      currentVersionId: template.currentVersionId,
     },
   )
 }

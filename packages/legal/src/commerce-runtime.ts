@@ -1,3 +1,4 @@
+import { bookingsService } from "@voyant-travel/bookings"
 import type {
   CommerceAcceptanceDraftInput,
   CommerceLegalRuntime,
@@ -5,6 +6,7 @@ import type {
 import type { VoyantRuntimeHostPrimitives } from "@voyant-travel/core"
 import { and, desc, eq, sql } from "drizzle-orm"
 
+import { PAYMENT_CONFIRMATION_MARKER_PREFIX } from "./booking-contract-confirmed.js"
 import { contracts } from "./contracts/schema.js"
 import { contractsService } from "./contracts/service.js"
 import { contractSeriesService } from "./contracts/service-series.js"
@@ -45,7 +47,17 @@ export function createCommerceLegalRuntime(
           .where(and(eq(contracts.bookingId, bookingId), eq(contracts.scope, "customer")))
           .orderBy(desc(contracts.createdAt), desc(contracts.id))
           .limit(1)
-        if (!contract || contract.status === "signed" || contract.status === "executed") return
+        if (!contract) {
+          const marker = `${PAYMENT_CONFIRMATION_MARKER_PREFIX}${JSON.stringify({
+            paymentSessionId,
+            confirmedAt: new Date().toISOString(),
+          })}`
+          await bookingsService.setSystemInternalNotes(tx, bookingId, [
+            { prefix: PAYMENT_CONFIRMATION_MARKER_PREFIX, note: marker },
+          ])
+          return
+        }
+        if (contract.status === "signed" || contract.status === "executed") return
         const metadata =
           contract.metadata &&
           typeof contract.metadata === "object" &&

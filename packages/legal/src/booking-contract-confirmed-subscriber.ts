@@ -45,7 +45,12 @@ export function createLegalBookingContractConfirmedSubscriber(
           await options.generate({ db, event })
           return
         }
-        await generateBookingContractOnConfirmation({ db, event, provider: options.provider! })
+        await generateBookingContractOnConfirmation({
+          db,
+          event,
+          provider: options.provider!,
+          eventBus,
+        })
       })
     },
   }

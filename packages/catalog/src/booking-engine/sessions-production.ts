@@ -1,3 +1,5 @@
+// agent-quality: file-size exception -- owner: catalog; the production Session
+// runtime centralizes the atomic commit ports and shared selection boundary.
 import type { BookingsRelationshipsRuntime } from "@voyant-travel/bookings/runtime-port"
 import {
   createSourcedBookingCommitment,
@@ -491,6 +493,7 @@ async function commitSourcedBooking(
       contactAddressLine1: billing.contactAddressLine1,
       contactAddressLine2: billing.contactAddressLine2,
       contactPostalCode: billing.contactPostalCode,
+      internalNotes: bookingContractAcceptanceNote(input.session.statePayload),
       sellCurrency: input.quote.pricing.currency,
       sellAmountCents: input.quote.pricing.total,
       title: sourced.title,
@@ -636,8 +639,16 @@ async function commitOwnedBookingInTransaction(
       ? applyStaffSelection(derived.command, input.session.statePayload)
       : derived.command
   const termsEvidence = cancellationTermsEvidence(input.quote, "booking_quote")
+  const acceptanceNote = bookingContractAcceptanceNote(input.session.statePayload)
+  const priorInternalNotes =
+    typeof derivedCommand.internalNotes === "string" && derivedCommand.internalNotes.trim()
+      ? derivedCommand.internalNotes.trim()
+      : null
   const command = {
     ...derivedCommand,
+    ...(acceptanceNote
+      ? { internalNotes: [priorInternalNotes, acceptanceNote].filter(Boolean).join("\n") }
+      : {}),
     ...(termsEvidence ? { cancellationTermsEvidence: termsEvidence } : {}),
   }
 
@@ -744,6 +755,34 @@ function billingContact(payload: Record<string, unknown>) {
     contactAddressLine2: trim(address?.line2),
     contactPostalCode: trim(address?.postal),
   }
+}
+
+const CONTRACT_ACCEPTANCE_MARKER_PREFIX = "__contract_acceptance__:"
+
+/**
+ * Project validated public acceptance into a system-owned Booking note.
+ * Callers cannot write arbitrary operator notes: this function serializes the
+ * admitted acceptance plus server-issued preview evidence into the marker
+ * consumed and re-verified by Legal.
+ */
+function bookingContractAcceptanceNote(payload: Record<string, unknown>): string | null {
+  const acceptance = asRecord(payload.contractAcceptance)
+  const acceptedAt =
+    typeof acceptance?.acceptedAt === "string" && !Number.isNaN(Date.parse(acceptance.acceptedAt))
+      ? acceptance.acceptedAt
+      : null
+  if (!acceptedAt) return null
+  const templateId = stringValue(acceptance?.templateId)
+  const templateVersionId = stringValue(acceptance?.templateVersionId)
+  const contentDigest = stringValue(acceptance?.contentDigest)
+  if (!templateId || !templateVersionId || !contentDigest) return null
+  return `${CONTRACT_ACCEPTANCE_MARKER_PREFIX}${JSON.stringify({
+    acceptedAt,
+    acceptedMarketing: acceptance?.acceptedMarketing === true,
+    templateId,
+    templateVersionId,
+    contentDigest,
+  })}`
 }
 
 function entityModuleForSession(target: CommitOwnedBookingInput["session"]["target"]) {
@@ -1013,7 +1052,18 @@ export function normalizeBookingSelection(
   const billingContact = asRecord(billing?.contact)
   const billingAddress = asRecord(billing?.address)
   const accommodation = asRecord(source.accommodation)
+  const contractAcceptance = asRecord(source.contractAcceptance)
   return pruneEmpty({
+    contractAcceptance: pruneEmpty({
+      acceptedAt: stringValue(contractAcceptance?.acceptedAt),
+      acceptedMarketing:
+        typeof contractAcceptance?.acceptedMarketing === "boolean"
+          ? contractAcceptance.acceptedMarketing
+          : undefined,
+      templateId: stringValue(contractAcceptance?.templateId),
+      templateVersionId: stringValue(contractAcceptance?.templateVersionId),
+      contentDigest: stringValue(contractAcceptance?.contentDigest),
+    }),
     configure: pruneEmpty({
       pax: normalizeStringNumberMap(asRecord(configure?.pax)),
       departureSlotId: stringValue(configure?.departureSlotId),

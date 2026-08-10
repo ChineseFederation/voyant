@@ -100,6 +100,22 @@ export const bookingSelectionEngineOwnedV1 = z.object({
  * added anywhere else is denied by default.
  */
 export const bookingSelectionPublicV1 = z.object({
+  /**
+   * The customer's explicit acceptance of the contract shown by the
+   * storefront. The server-issued evidence binds that act to the exact
+   * template version and rendered preview; Legal verifies it again against
+   * the committed booking before treating the contract as accepted.
+   */
+  contractAcceptance: z
+    .object({
+      acceptedAt: z.string().datetime(),
+      acceptedMarketing: z.boolean().default(false),
+      templateId: z.string().min(1),
+      templateVersionId: z.string().min(1),
+      contentDigest: z.string().regex(/^booking-contract-acceptance:v1:sha256:[a-f0-9]{64}$/),
+    })
+    .optional(),
+
   // Step 1 — Configure
   configure: z
     .object({

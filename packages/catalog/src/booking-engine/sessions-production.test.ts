@@ -1,3 +1,5 @@
+// agent-quality: file-size exception -- owner: catalog; this suite verifies the
+// production Session runtime's cross-port transaction contract as one harness.
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 const financeCreate = vi.hoisted(() => ({
@@ -375,6 +377,53 @@ describe("production Booking Session ports", () => {
       (financeCreate.resolvedCommand?.cancellationTermsEvidence as { capturedAt: string })
         .capturedAt,
     ).toMatch(/^\d{4}-\d{2}-\d{2}T/)
+  })
+
+  it("projects checkout contract acceptance into system-owned booking evidence", async () => {
+    const module = createCommittableProductionModule()
+    const access = {
+      actorKind: "anonymous" as const,
+      capability: TEST_CAPABILITY,
+      ...STOREFRONT_ACCESS,
+    }
+    const created = await module.createSession(
+      {
+        ...committableCreateInput("create_contract_acceptance"),
+        selection: {
+          ...committableCreateInput("ignored").selection,
+          contractAcceptance: {
+            acceptedAt: "2026-08-10T12:00:00.000Z",
+            acceptedMarketing: false,
+            templateId: "clt_1",
+            templateVersionId: "cltv_1",
+            contentDigest: `booking-contract-acceptance:v1:sha256:${"a".repeat(64)}`,
+          },
+        },
+      },
+      access,
+    )
+    if (created.kind !== "session_created") throw new Error("session not created")
+    const prepared = await quoteAndHoldForCommit(
+      module,
+      created.session.id,
+      created.session.revision,
+      access,
+      "contract_acceptance",
+    )
+
+    await module.commitSession(
+      created.session.id,
+      {
+        expectedRevision: created.session.revision,
+        ...prepared,
+        idempotencyKey: "commit_contract_acceptance",
+      },
+      access,
+    )
+
+    expect(financeCreate.resolvedCommand?.internalNotes).toBe(
+      `__contract_acceptance__:{"acceptedAt":"2026-08-10T12:00:00.000Z","acceptedMarketing":false,"templateId":"clt_1","templateVersionId":"cltv_1","contentDigest":"booking-contract-acceptance:v1:sha256:${"a".repeat(64)}"}`,
+    )
   })
 
   it("commits a guest booking when email and phone are both optional", async () => {
