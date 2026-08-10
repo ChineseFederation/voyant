@@ -1,5 +1,11 @@
 # @voyant-travel/crm
 
+## 0.133.21
+
+### Patch Changes
+
+- 2544ff4: Hide server-owned idempotency keys from six MCP Tool inputs and enforce an exact inventory of retained caller-owned protocol fields.
+
 ## 0.133.20
 
 ### Patch Changes

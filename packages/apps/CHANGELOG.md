@@ -1,5 +1,11 @@
 # @voyant-travel/apps
 
+## 0.14.16
+
+### Patch Changes
+
+- 1a244a7: Reject malformed finance external-reference URLs without throwing from App API request validation.
+
 ## 0.14.15
 
 ### Patch Changes

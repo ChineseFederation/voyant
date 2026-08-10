@@ -1,5 +1,15 @@
 # @voyant-travel/finance
 
+## 0.246.0
+
+### Minor Changes
+
+- 7dbd3c7: Add a booking cancellation refund intent Tool that resolves the durable contractual entitlement, paid invoice, and original payment server-side, binds both accounting and settlement legs to one approval, and rejects ambiguous or changed consequences.
+
+### Patch Changes
+
+- 2544ff4: Hide server-owned idempotency keys from six MCP Tool inputs and enforce an exact inventory of retained caller-owned protocol fields.
+
 ## 0.245.10
 
 ### Patch Changes
