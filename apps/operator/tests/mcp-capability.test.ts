@@ -68,6 +68,7 @@ import {
   createGeneratedGraphRuntime,
   createGeneratedTestDeploymentResources,
 } from "./api/generated-project-runtime.js"
+import { fetchWithTransientRetry } from "./support/openai-response-retry.js"
 
 const TEST_DATABASE_URL = process.env.TEST_DATABASE_URL
 
@@ -175,6 +176,7 @@ interface JourneyRun {
   answer: string
   tokens: number
   exhausted: boolean
+  modelTransportRetries: number
 }
 
 async function runJourney(input: {
@@ -198,24 +200,36 @@ async function runJourney(input: {
     (input.serverInstructions ? `\n\n--- server instructions ---\n${input.serverInstructions}` : "")
   const calls: ToolCallRecord[] = []
   let tokens = 0
+  let modelTransportRetries = 0
   let previousResponseId: string | undefined
   let nextInput: unknown = input.task
 
   for (let turn = 0; turn <= input.maxCalls; turn += 1) {
-    const res = await fetch("https://api.openai.com/v1/responses", {
-      method: "POST",
-      headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({
-        model: MODEL,
-        instructions,
-        input: nextInput,
-        tools: input.tools,
-        tool_choice: "auto",
-        reasoning: { effort: REASONING_EFFORT },
-        previous_response_id: previousResponseId,
-        store: true,
-      }),
-    })
+    const res = await fetchWithTransientRetry(
+      () =>
+        fetch("https://api.openai.com/v1/responses", {
+          method: "POST",
+          headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
+          body: JSON.stringify({
+            model: MODEL,
+            instructions,
+            input: nextInput,
+            tools: input.tools,
+            tool_choice: "auto",
+            reasoning: { effort: REASONING_EFFORT },
+            previous_response_id: previousResponseId,
+            store: true,
+          }),
+        }),
+      {
+        onRetry: ({ attempt, maxAttempts, status, delayMs }) => {
+          modelTransportRetries += 1
+          process.stdout.write(
+            `model transport retry ${attempt}/${maxAttempts - 1}: ${status ?? "network_error"}, waiting ${delayMs}ms\n`,
+          )
+        },
+      },
+    )
     if (!res.ok) throw new Error(`OpenAI ${res.status}: ${(await res.text()).slice(0, 300)}`)
     const body = (await res.json()) as {
       id?: string
@@ -240,7 +254,7 @@ async function runJourney(input: {
           .flatMap((item) => ("content" in item ? (item.content ?? []) : []))
           .map((content) => content.text ?? "")
           .join("")
-      return { calls, answer: text, tokens, exhausted: false }
+      return { calls, answer: text, tokens, exhausted: false, modelTransportRetries }
     }
 
     const functionOutputs: Array<{
@@ -250,7 +264,7 @@ async function runJourney(input: {
     }> = []
     for (const call of toolCalls) {
       if (calls.length >= input.maxCalls) {
-        return { calls, answer: "", tokens, exhausted: true }
+        return { calls, answer: "", tokens, exhausted: true, modelTransportRetries }
       }
       let args: Record<string, unknown> = {}
       try {
@@ -285,7 +299,7 @@ async function runJourney(input: {
     }
     nextInput = functionOutputs
   }
-  return { calls, answer: "", tokens, exhausted: true }
+  return { calls, answer: "", tokens, exhausted: true, modelTransportRetries }
 }
 
 /**
@@ -899,6 +913,7 @@ function report(): string {
     lines.push(
       `  ${done ? "✓" : outcomes.length && passed ? "~" : "✗"}${rate} ${journey.id.padEnd(18)} [${journey.domain.padEnd(9)}] ` +
         `calls=${String(run.calls.length).padStart(2)} errors=${errs} tokens=${run.tokens}` +
+        (run.modelTransportRetries ? ` model-retries=${run.modelTransportRetries}` : "") +
         (run.exhausted ? " EXHAUSTED" : ""),
     )
     // Print the ARGUMENTS. "search_tools → gave up" and "search_tools(Ioana
@@ -985,6 +1000,7 @@ function writeMachineReport(): void {
         errors: attempt.calls.filter((call) => call.isError).length,
         responseBytes: attempt.calls.reduce((sum, call) => sum + call.responseBytes, 0),
         tokens: attempt.tokens,
+        modelTransportRetries: attempt.modelTransportRetries,
         exhausted: attempt.exhausted,
         withinCallBudget: attempt.calls.length <= journey.maxCalls,
         trace: attempt.calls.map((call) => ({
@@ -1010,7 +1026,7 @@ function writeMachineReport(): void {
     destination,
     `${JSON.stringify(
       {
-        schemaVersion: 2,
+        schemaVersion: 3,
         generatedAt: new Date().toISOString(),
         model: MODEL,
         reasoningEffort: MODEL.startsWith("gpt-5") ? REASONING_EFFORT : null,
@@ -1034,6 +1050,12 @@ function writeMachineReport(): void {
           tokens: journeys.reduce(
             (total, journey) =>
               total + journey.attempts.reduce((sum, attempt) => sum + attempt.tokens, 0),
+            0,
+          ),
+          modelTransportRetries: journeys.reduce(
+            (total, journey) =>
+              total +
+              journey.attempts.reduce((sum, attempt) => sum + attempt.modelTransportRetries, 0),
             0,
           ),
         },
@@ -1126,6 +1148,7 @@ describe.skipIf(!enabled)("MCP capability — a travel agent's job", () => {
               answer: `FATAL: ${String(err).slice(0, 300)}`,
               tokens: 0,
               exhausted: true,
+              modelTransportRetries: 0,
             }
           }
           attempts.set(journey.id, [...(attempts.get(journey.id) ?? []), run])
