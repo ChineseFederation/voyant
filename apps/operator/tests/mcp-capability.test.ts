@@ -50,7 +50,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { homedir } from "node:os"
 import { dirname, join, resolve } from "node:path"
-import { bookingActivityLog, bookings } from "@voyant-travel/bookings/schema"
+import { bookingActivityLog, bookings, bookingTravelers } from "@voyant-travel/bookings/schema"
 import { createDbClient } from "@voyant-travel/db"
 import { authAccount, authUser, userProfilesTable } from "@voyant-travel/db/schema/iam"
 import { dbClientDispose } from "@voyant-travel/db/transaction-capability"
@@ -370,7 +370,7 @@ const RUN_MARK = process.env.VOYANT_EVAL_MARK ?? String(Date.now()).slice(-6)
 
 interface CapabilityJourney {
   id: string
-  group: "commercial" | "proposal" | "supplier" | "contract" | "team-admin"
+  group: "commercial" | "proposal" | "amendment" | "supplier" | "contract" | "team-admin"
   domain: string
   task: string
   expect: string
@@ -689,6 +689,26 @@ function buildJourneys(RUN_MARK: string): CapabilityJourney[] {
                and pv.total_amount_cents = 150000`,
     },
     {
+      id: "booking-amend-traveler",
+      group: "amendment",
+      domain: "bookings",
+      task: `Correct the first name of the traveler on confirmed booking 'BK-AMEND-${RUN_MARK}' from Mihai to Michael. Preview the traveler correction and then apply that exact proposed Booking revision without replacing the stable Booking. Confirm the Booking id, Amendment id, and final Booking revision.`,
+      expect: "michael",
+      maxCalls: 22,
+      verify: `select 1 from bookings b
+             join booking_travelers bt on bt.booking_id = b.id
+             join booking_amendments ba on ba.booking_id = b.id
+             where b.booking_number = 'BK-AMEND-${RUN_MARK}'
+               and b.status = 'confirmed'
+               and b.revision = 2
+               and bt.first_name = 'Michael'
+               and bt.last_name = 'Popescu'
+               and ba.traveler_id = bt.id
+               and ba.status = 'applied'
+               and ba.base_booking_revision = 1
+               and ba.result_booking_revision = 2`,
+    },
+    {
       id: "supplier-create",
       group: "supplier",
       domain: "suppliers",
@@ -932,6 +952,28 @@ async function seedProposalAuthoring(mark: string): Promise<void> {
     isLost: false,
   })
   if (!stage) throw new Error("Cannot seed proposal authoring stage")
+}
+
+/** A minimal real Booking aggregate for an isolated correction Amendment. */
+async function seedBookingAmendment(mark: string): Promise<void> {
+  if (!verifyDb) throw new Error("Capability eval database is not mounted")
+  const [booking] = await verifyDb
+    .insert(bookings)
+    .values({
+      bookingNumber: `BK-AMEND-${mark}`,
+      sellCurrency: "EUR",
+      status: "confirmed",
+    })
+    .returning({ id: bookings.id })
+  if (!booking) throw new Error("Cannot seed booking Amendment")
+  await verifyDb.insert(bookingTravelers).values({
+    bookingId: booking.id,
+    firstName: "Mihai",
+    lastName: "Popescu",
+    email: `mihai.${mark}@example.test`,
+    personId: `pers_amendment_${mark}`,
+    isPrimary: true,
+  })
 }
 
 /** Contract-group fixtures are versioned through Legal's owning service. */
@@ -1493,6 +1535,7 @@ describe.skipIf(!enabled)("MCP capability — a travel agent's job", () => {
 
         for (const journey of journeys) {
           if (journey.group === "proposal") await seedProposalAuthoring(mark)
+          if (journey.group === "amendment") await seedBookingAmendment(mark)
           if (journey.group === "supplier") await seedSupplierJourney(journey.id, mark)
           if (journey.group === "contract") await seedContractJourney(journey.id, mark)
           if (journey.group === "team-admin") await seedTeamAdminJourney(journey.id)
