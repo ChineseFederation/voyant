@@ -325,7 +325,7 @@ describe("selected Operator graph runtime composition", () => {
     expect(subscribe.mock.calls.filter(([event]) => event === "payment.completed")).toHaveLength(1)
   })
 
-  it("activates both selected Commerce checkout subscribers exactly once", async () => {
+  it("activates all selected Commerce checkout subscribers exactly once", async () => {
     const runtime = createGeneratedGraphRuntime()
     const checkout = runtime.extensions.find(
       (unit) => unit.id === "@voyant-travel/commerce#catalog-checkout-extension",
@@ -349,16 +349,22 @@ describe("selected Operator graph runtime composition", () => {
         .map((reference) => reference.entityId),
     ).toEqual([
       "@voyant-travel/commerce#subscriber.catalog-checkout-contract-document-generated",
+      "@voyant-travel/commerce#subscriber.catalog-checkout-invoice-payment-recorded",
       "@voyant-travel/commerce#subscriber.catalog-checkout-payment-completed",
     ])
     expect(
       subscribe.mock.calls.filter(
         ([eventType]) =>
-          eventType === "contract.document.generated" || eventType === "payment.completed",
+          eventType === "contract.document.generated" ||
+          eventType === "payment.completed" ||
+          eventType === "invoice.payment.recorded",
       ),
-    ).toHaveLength(2)
+    ).toHaveLength(3)
     expect(
       subscribe.mock.calls.find(([eventType]) => eventType === "payment.completed")?.[2],
+    ).toEqual({ inline: true })
+    expect(
+      subscribe.mock.calls.find(([eventType]) => eventType === "invoice.payment.recorded")?.[2],
     ).toEqual({ inline: true })
   })
 

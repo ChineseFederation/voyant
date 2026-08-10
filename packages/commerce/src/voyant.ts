@@ -564,6 +564,15 @@ export const commerceCatalogCheckoutVoyantPlugin = defineExtension({
         export: "createCheckoutFinalizeSubscriberGraphRuntime",
       },
     },
+    {
+      id: "@voyant-travel/commerce#subscriber.catalog-checkout-invoice-payment-recorded",
+      eventType: "invoice.payment.recorded",
+      source: "@voyant-travel/commerce/catalog-checkout-subscribers",
+      runtime: {
+        entry: "@voyant-travel/commerce/catalog-checkout-subscribers",
+        export: "createInvoicePaymentSignatureSubscriberGraphRuntime",
+      },
+    },
   ],
   meta: {
     ownership: "package",

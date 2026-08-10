@@ -286,9 +286,18 @@ describe("commerce deployment manifest", () => {
             export: "createCheckoutFinalizeSubscriberGraphRuntime",
           },
         },
+        {
+          id: "@voyant-travel/commerce#subscriber.catalog-checkout-invoice-payment-recorded",
+          eventType: "invoice.payment.recorded",
+          source: "@voyant-travel/commerce/catalog-checkout-subscribers",
+          runtime: {
+            entry: "@voyant-travel/commerce/catalog-checkout-subscribers",
+            export: "createInvoicePaymentSignatureSubscriberGraphRuntime",
+          },
+        },
       ],
     })
-    expect(commerceCatalogCheckoutVoyantPlugin.subscribers).toHaveLength(2)
+    expect(commerceCatalogCheckoutVoyantPlugin.subscribers).toHaveLength(3)
 
     expect(commerceBookingMaintenanceVoyantPlugin).toMatchObject({
       schemaVersion: "voyant.extension.v1",
