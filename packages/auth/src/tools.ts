@@ -1,9 +1,12 @@
 import {
+  admitHandlerActionPolicy,
   defineTool,
+  type HandlerActionPolicyExpectation,
   READ_ONLY_RISK,
   requireService,
   type ToolContext,
   ToolError,
+  type ToolHandlerActionPolicyContext,
 } from "@voyant-travel/tools"
 import { z } from "zod"
 
@@ -77,6 +80,28 @@ const updateMemberRoleInputSchema = memberIdInputSchema.extend({
 const actingUserRequirement =
   " Requires an authenticated acting staff user; organization-only grants are rejected."
 
+export const UPDATE_TEAM_MEMBER_ROLE_HANDLER_POLICY = {
+  capabilityId: "@voyant-travel/auth#team.tool.update-member-role",
+  capabilityVersion: "v1",
+  canonicalName: "update_team_member_role",
+  actionPolicy: {
+    id: "@voyant-travel/auth#team.action.update-member-role",
+    capabilityId: "@voyant-travel/auth#team.action.update-member-role",
+    version: "v1",
+    kind: "execute",
+    targetType: "team-member",
+    commandTargetField: "memberId",
+    targetLifecycle: "existing",
+    existingTarget: { durability: "handler-command-result-v1" },
+    risk: "high",
+    ledger: "required",
+    approval: "required",
+    policy: "@voyant-travel/auth#team.action.update-member-role",
+    reversible: true,
+    allowedActorTypes: ["staff"],
+  },
+} as const satisfies HandlerActionPolicyExpectation
+
 export interface TeamManagementToolServices {
   getCapabilities(): Promise<TeamManagementCapabilitiesDto>
   listMembers(): Promise<TeamMemberDto[]>
@@ -84,7 +109,11 @@ export interface TeamManagementToolServices {
   listInvitations(): Promise<TeamInvitationDto[]>
   inviteMember(input: InviteTeamMemberInput): Promise<CreatedTeamInvitationDto>
   revokeInvitation(invitationId: string): Promise<void>
-  updateMemberRole(memberId: string, roleId: string): Promise<TeamMemberDto>
+  updateMemberRole(
+    memberId: string,
+    roleId: string,
+    admitted: ToolHandlerActionPolicyContext,
+  ): Promise<TeamMemberDto>
   activateMember(memberId: string): Promise<TeamMemberDto>
   deactivateMember(memberId: string): Promise<TeamMemberDto>
 }
@@ -240,6 +269,8 @@ export const updateTeamMemberRoleTool = defineTool<
   TeamMemberDto,
   TeamManagementToolContext
 >({
+  capabilityId: UPDATE_TEAM_MEMBER_ROLE_HANDLER_POLICY.capabilityId,
+  capabilityVersion: UPDATE_TEAM_MEMBER_ROLE_HANDLER_POLICY.capabilityVersion,
   name: "update_team_member_role",
   description:
     "Change a team member's role and effective access. Requires explicit confirmation." +
@@ -248,6 +279,8 @@ export const updateTeamMemberRoleTool = defineTool<
   outputSchema: teamMemberSchema,
   requiredScopes: ["team:write"],
   tier: "sensitive",
+  resolvesIdempotencyKeyServerSide: true,
+  actionPolicyEnforcement: "handler",
   riskPolicy: {
     destructive: false,
     reversible: true,
@@ -255,8 +288,10 @@ export const updateTeamMemberRoleTool = defineTool<
     confirmationRequired: true,
     sideEffects: ["data-write"],
   },
+  annotations: { idempotentHint: true },
   async handler({ memberId, roleId }, ctx) {
-    return teamManagement(ctx).updateMemberRole(memberId, roleId)
+    const admitted = admitHandlerActionPolicy(ctx, UPDATE_TEAM_MEMBER_ROLE_HANDLER_POLICY)
+    return teamManagement(ctx).updateMemberRole(memberId, roleId, admitted)
   },
 })
 

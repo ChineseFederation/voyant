@@ -7,6 +7,8 @@ import {
   type TeamManagementToolContext,
   type TeamManagementToolServices,
   teamManagementTools,
+  UPDATE_TEAM_MEMBER_ROLE_HANDLER_POLICY,
+  updateTeamMemberRoleTool,
 } from "../src/tools.js"
 
 const member = {
@@ -64,10 +66,36 @@ function services(): TeamManagementToolServices {
   }
 }
 
+function teamRegistry() {
+  const registry = createToolRegistry()
+  for (const tool of teamManagementTools) {
+    registry.register(
+      tool,
+      tool.name === "update_team_member_role"
+        ? { actionPolicy: UPDATE_TEAM_MEMBER_ROLE_HANDLER_POLICY.actionPolicy }
+        : undefined,
+    )
+  }
+  return registry
+}
+
+function updateRoleAdmission(
+  registry: ReturnType<typeof createToolRegistry>,
+): ToolContext["handlerActionPolicy"] {
+  const manifest = registry.list().find(({ name }) => name === "update_team_member_role")
+  if (!manifest?.actionPolicy) throw new Error("update role action policy was not registered")
+  return {
+    capabilityId: manifest.capabilityId,
+    capabilityVersion: manifest.capabilityVersion,
+    canonicalName: manifest.name,
+    actionPolicy: manifest.actionPolicy,
+    invocation: { approvalId: "approval_1", idempotencyFingerprint: "fingerprint_1" },
+  }
+}
+
 describe("auth team-management tools", () => {
   it("registers provider-neutral reads and confirmation-gated access writes", () => {
-    const registry = createToolRegistry()
-    registry.registerAll(teamManagementTools)
+    const registry = teamRegistry()
 
     expect(
       registry
@@ -102,6 +130,11 @@ describe("auth team-management tools", () => {
       tier: "destructive",
       riskPolicy: { destructive: true, reversible: false, confirmationRequired: true },
     })
+    expect(updateTeamMemberRoleTool).toMatchObject({
+      actionPolicyEnforcement: "handler",
+      resolvesIdempotencyKeyServerSide: true,
+      annotations: { idempotentHint: true },
+    })
     expect(
       registry
         .list()
@@ -111,9 +144,8 @@ describe("auth team-management tools", () => {
 
   it("delegates every operation to the injected guarded runtime service", async () => {
     const runtime = services()
-    const registry = createToolRegistry()
-    registry.registerAll(teamManagementTools)
-    const ctx = toolContext(runtime)
+    const registry = teamRegistry()
+    const ctx = { ...toolContext(runtime), handlerActionPolicy: updateRoleAdmission(registry) }
 
     await expect(registry.dispatch("list_team_members", {}, ctx)).resolves.toEqual([member])
     await expect(
@@ -140,14 +172,13 @@ describe("auth team-management tools", () => {
       expiresInDays: 5,
     })
     expect(runtime.revokeInvitation).toHaveBeenCalledWith("invitation_1")
-    expect(runtime.updateMemberRole).toHaveBeenCalledWith("member_1", "admin")
+    expect(runtime.updateMemberRole).toHaveBeenCalledWith("member_1", "admin", expect.any(Object))
     expect(runtime.activateMember).toHaveBeenCalledWith("member_1")
     expect(runtime.deactivateMember).toHaveBeenCalledWith("member_1")
   })
 
   it("denies non-staff callers and missing service wiring", async () => {
-    const registry = createToolRegistry()
-    registry.registerAll(teamManagementTools)
+    const registry = teamRegistry()
 
     await expect(
       registry.dispatch("list_team_members", {}, toolContext(services(), "customer")),
@@ -201,8 +232,7 @@ describe("auth team-management tools", () => {
       context: toolContext(),
       resources: { [teamManagementRuntimePort.id]: services() },
     })
-    const registry = createToolRegistry()
-    registry.registerAll(teamManagementTools)
+    const registry = teamRegistry()
 
     await expect(
       registry.dispatch(
