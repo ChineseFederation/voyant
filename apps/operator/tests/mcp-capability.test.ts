@@ -398,6 +398,8 @@ async function runCodexJourney(input: {
       "--skip-git-repo-check",
       "--sandbox",
       "read-only",
+      "-c",
+      'approval_policy="never"',
       "--cd",
       workspace,
       "--model",
@@ -407,6 +409,10 @@ async function runCodexJourney(input: {
       "--json",
       "-c",
       `mcp_servers.voyant.url=${JSON.stringify(codexServerUrl)}`,
+      "-c",
+      'mcp_servers.voyant.approval_mode="approve"',
+      "-c",
+      'mcp_servers.voyant.tools.call_tool.approval_mode="approve"',
       prompt,
     ])
     let answer = ""
@@ -416,11 +422,16 @@ async function runCodexJourney(input: {
       try {
         const event = JSON.parse(line) as {
           type?: string
-          item?: { type?: string; text?: string }
+          item?: { type?: string; text?: string; status?: string; error?: unknown; tool?: string }
           usage?: { input_tokens?: number; output_tokens?: number }
         }
         if (event.type === "item.completed" && event.item?.type === "agent_message") {
           answer = event.item.text ?? answer
+        }
+        if (event.item?.type === "mcp_tool_call" && event.item.status === "failed") {
+          process.stdout.write(
+            `Codex MCP client event: ${JSON.stringify(event.item).slice(0, 1_000)}\n`,
+          )
         }
         if (event.type === "turn.completed") {
           tokens += (event.usage?.input_tokens ?? 0) + (event.usage?.output_tokens ?? 0)

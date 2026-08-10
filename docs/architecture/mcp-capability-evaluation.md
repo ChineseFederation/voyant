@@ -38,7 +38,10 @@ It starts a loopback-only HTTP bridge to the same selected-graph MCP transport, 
 Codex non-interactively in an empty read-only workspace, removes database and API
 credentials from the child environment, and records Tool calls at the MCP boundary.
 This keeps the model from bypassing the Tool surface through repository or database
-access. Use `--provider openai` to exercise the direct Responses API lane; that lane
+access. Codex's client-side prompts are disabled and the isolated Voyant server is
+explicitly approved because the unattended runner cannot answer MCP client prompts;
+Voyant confirmation and action-ledger approval remain enforced by the MCP server.
+Use `--provider openai` to exercise the direct Responses API lane; that lane
 requires `OPENAI_API_KEY` or the existing `~/.config/agent-run/openai-token`.
 
 When `TEST_DATABASE_URL` is absent the runner starts a
