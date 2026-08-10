@@ -12,6 +12,7 @@ export function parseArgs(argv) {
     artifactDir: null,
     databaseUrl: process.env.TEST_DATABASE_URL?.trim() || null,
     mode: "smoke",
+    provider: "codex",
     model: "gpt-5.6-terra",
     journey: null,
     group: null,
@@ -26,6 +27,10 @@ export function parseArgs(argv) {
     }
     if (value === "--model") {
       options.model = requiredValue(value, values.shift())
+      continue
+    }
+    if (value === "--provider") {
+      options.provider = requiredValue(value, values.shift())
       continue
     }
     if (value === "--journey") {
@@ -53,6 +58,9 @@ export function parseArgs(argv) {
   if (!new Set(["smoke", "measure"]).has(options.mode)) {
     throw new Error(`--mode must be smoke or measure, received ${options.mode}`)
   }
+  if (!new Set(["codex", "openai"]).has(options.provider)) {
+    throw new Error(`--provider must be codex or openai, received ${options.provider}`)
+  }
   if (options.journey && options.group) {
     throw new Error("--journey and --group are mutually exclusive")
   }
@@ -64,14 +72,16 @@ export function usage() {
 
 Options:
   --mode smoke|measure     One run for smoke, five runs for measurement (default: smoke)
-  --model <model>          OpenAI model name (default: gpt-5.6-terra)
+  --provider codex|openai  ChatGPT-authenticated Codex (default) or OpenAI API
+  --model <model>          Model name (default: gpt-5.6-terra)
   --journey <id>           Run one independently seeded journey instead of the full chain
   --group <id>             Run one independently seeded operator-job group
   --artifacts <directory>  Result directory (default: .agent-runs/mcp-capability/<timestamp>)
   --database-url <url>     Existing disposable database; otherwise start a temporary Docker Postgres
   --help                   Show this help
 
-Requires OPENAI_API_KEY or ~/.config/agent-run/openai-token. The database is mutated.`
+Codex requires an authenticated local Codex CLI. OpenAI requires OPENAI_API_KEY or
+~/.config/agent-run/openai-token. The database is mutated.`
 }
 
 function requiredValue(option, value) {
@@ -206,6 +216,7 @@ async function main() {
         process.env.POSTGRES_SEARCH_CURSOR_SIGNING_KEY ??
         "mcp-capability-eval-catalog-cursor-signing-key",
       VOYANT_EVAL_MODEL: options.model,
+      VOYANT_EVAL_PROVIDER: options.provider,
       VOYANT_EVAL_REPORT_FILE: path.join(artifactDir, "report.json"),
       VOYANT_EVAL_RUNS: options.mode === "measure" ? "5" : "1",
       ...(options.journey ? { VOYANT_EVAL_JOURNEY: options.journey } : {}),
@@ -219,6 +230,7 @@ async function main() {
           startedAt: new Date().toISOString(),
           mode: options.mode,
           model: options.model,
+          provider: options.provider,
           runs: Number(env.VOYANT_EVAL_RUNS),
           journey: options.journey,
           group: options.group,

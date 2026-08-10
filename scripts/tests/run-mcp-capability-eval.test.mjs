@@ -6,6 +6,7 @@ import { cleanupResult, parseArgs, usage } from "../run-mcp-capability-eval.mjs"
 test("defaults to a one-run smoke evaluation", () => {
   const options = parseArgs([])
   assert.equal(options.mode, "smoke")
+  assert.equal(options.provider, "codex")
   assert.equal(options.model, "gpt-5.6-terra")
 })
 
@@ -14,6 +15,8 @@ test("accepts the measurement lane and artifact destination", () => {
     "--",
     "--mode",
     "measure",
+    "--provider",
+    "openai",
     "--model",
     "gpt-test",
     "--journey",
@@ -22,6 +25,7 @@ test("accepts the measurement lane and artifact destination", () => {
     "tmp/eval",
   ])
   assert.equal(options.mode, "measure")
+  assert.equal(options.provider, "openai")
   assert.equal(options.model, "gpt-test")
   assert.equal(options.journey, "proposal-accept")
   assert.match(options.artifactDir, /tmp\/eval$/)
@@ -43,7 +47,9 @@ test("rejects selecting both a journey and a group", () => {
 
 test("rejects unknown modes and documents the destructive database requirement", () => {
   assert.throws(() => parseArgs(["--mode", "fast"]), /smoke or measure/)
+  assert.throws(() => parseArgs(["--provider", "other"]), /codex or openai/)
   assert.match(usage(), /database is mutated/i)
+  assert.match(usage(), /ChatGPT-authenticated Codex/i)
 })
 
 test("records whether disposable database cleanup succeeded", () => {
