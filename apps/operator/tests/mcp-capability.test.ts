@@ -47,9 +47,11 @@
  * the product before the departure — because that dependency is exactly what an
  * endpoint-shaped surface makes hard and what #3921 is trying to fix.
  */
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs"
-import { homedir } from "node:os"
+import { spawn } from "node:child_process"
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
+import { homedir, tmpdir } from "node:os"
 import { dirname, join, resolve } from "node:path"
+import { type ServerType, serve } from "@hono/node-server"
 import { bookingActivityLog, bookings, bookingTravelers } from "@voyant-travel/bookings/schema"
 import { createDbClient } from "@voyant-travel/db"
 import { authAccount, authUser, userProfilesTable } from "@voyant-travel/db/schema/iam"
@@ -88,10 +90,11 @@ function resolveKey(): string | undefined {
   }
 }
 const apiKey = resolveKey()
+const EVAL_PROVIDER = process.env.VOYANT_EVAL_PROVIDER ?? "codex"
 const MODEL = process.env.VOYANT_EVAL_MODEL ?? "gpt-5.6-terra"
 const REASONING_EFFORT = "medium"
 const REPORT_FILE = process.env.VOYANT_EVAL_REPORT_FILE?.trim()
-const enabled = Boolean(TEST_DATABASE_URL && apiKey)
+const enabled = Boolean(TEST_DATABASE_URL && (EVAL_PROVIDER === "codex" || apiKey))
 
 /** A live model turn plus a real dispatch is slow; the default would time out on latency. */
 const JOURNEY_TIMEOUT_MS = 180_000
@@ -133,6 +136,9 @@ async function readRpc(res: Response): Promise<Record<string, unknown>> {
 
 /** Mount the real selected-graph MCP behind a full-scope staff key and a REAL db. */
 let verifyDb: ReturnType<typeof createDbClient> | undefined
+let codexServer: ServerType | undefined
+let codexServerUrl: string | undefined
+let activeCodexCalls: ToolCallRecord[] | undefined
 
 async function mountRealMcp(): Promise<Hono> {
   const db = createDbClient(TEST_DATABASE_URL as string, {
@@ -170,6 +176,50 @@ async function mountRealMcp(): Promise<Hono> {
   return app
 }
 
+async function startCodexMcpServer(app: Hono): Promise<string> {
+  return new Promise<string>((resolvePromise, reject) => {
+    codexServer = serve(
+      {
+        hostname: "127.0.0.1",
+        port: 0,
+        fetch: async (request) => {
+          const requestBody = (await request
+            .clone()
+            .json()
+            .catch(() => undefined)) as
+            | { method?: string; params?: { name?: string; arguments?: Record<string, unknown> } }
+            | undefined
+          const response = await app.fetch(request, TEST_ENV, TEST_CTX)
+          if (requestBody?.method === "tools/call" && activeCodexCalls) {
+            const rpcBody = await readRpc(response.clone())
+            const result = rpcBody.result as
+              | {
+                  isError?: boolean
+                  content?: Array<{ text?: string }>
+                  structuredContent?: unknown
+                }
+              | undefined
+            const fullText =
+              result?.structuredContent !== undefined
+                ? JSON.stringify(result.structuredContent)
+                : (result?.content?.[0]?.text ?? JSON.stringify(rpcBody))
+            activeCodexCalls.push({
+              name: String(requestBody.params?.name ?? "unknown"),
+              args: requestBody.params?.arguments ?? {},
+              isError: result?.isError === true,
+              responseBytes: Buffer.byteLength(fullText, "utf8"),
+              snippet: fullText.slice(0, 300),
+            })
+          }
+          return response
+        },
+      },
+      ({ port }) => resolvePromise(`http://127.0.0.1:${port}/`),
+    )
+    codexServer.once("error", reject)
+  })
+}
+
 interface ToolCallRecord {
   name: string
   args: Record<string, unknown>
@@ -199,6 +249,7 @@ async function runJourney(input: {
   /** The server's own `instructions`, exactly as a real MCP client surfaces them. */
   serverInstructions: string
 }): Promise<JourneyRun> {
+  if (EVAL_PROVIDER === "codex") return runCodexJourney(input)
   const instructions =
     "You are the back-office agent for a travel operator, connected to its MCP server. " +
     "Use the tools to actually perform the work end to end. Never invent data. If a write " +
@@ -322,6 +373,124 @@ async function runJourney(input: {
     nextInput = functionOutputs
   }
   return { calls, answer: "", tokens, exhausted: true, modelTransportRetries }
+}
+
+async function runCodexJourney(input: {
+  task: string
+  maxCalls: number
+  serverInstructions: string
+}): Promise<JourneyRun> {
+  if (!codexServerUrl) throw new Error("Codex MCP bridge is not running")
+  const calls: ToolCallRecord[] = []
+  activeCodexCalls = calls
+  const workspace = mkdtempSync(join(tmpdir(), "voyant-codex-mcp-eval-"))
+  const prompt =
+    "You are the back-office agent for a travel operator. Use only the voyant MCP tools " +
+    "to perform the requested work; do not use shell commands or inspect local files. " +
+    `Use at most ${input.maxCalls} MCP tool calls. Never invent data. If a write requires ` +
+    "confirmation or approval, follow the model-visible remediation and complete it. " +
+    `Finish with a concise durable outcome.\n\n${input.serverInstructions}\n\nTask: ${input.task}`
+  try {
+    const result = await spawnCodex([
+      "exec",
+      "--ephemeral",
+      "--ignore-user-config",
+      "--skip-git-repo-check",
+      "--sandbox",
+      "read-only",
+      "-c",
+      'approval_policy="never"',
+      "--cd",
+      workspace,
+      "--model",
+      MODEL,
+      "-c",
+      `model_reasoning_effort=${JSON.stringify(REASONING_EFFORT)}`,
+      "--json",
+      "-c",
+      `mcp_servers.voyant.url=${JSON.stringify(codexServerUrl)}`,
+      "-c",
+      'mcp_servers.voyant.approval_mode="approve"',
+      "-c",
+      'mcp_servers.voyant.tools.call_tool.approval_mode="approve"',
+      prompt,
+    ])
+    let answer = ""
+    let tokens = 0
+    for (const line of result.stdout.split("\n")) {
+      if (!line.trim()) continue
+      try {
+        const event = JSON.parse(line) as {
+          type?: string
+          item?: { type?: string; text?: string; status?: string; error?: unknown; tool?: string }
+          usage?: { input_tokens?: number; output_tokens?: number }
+        }
+        if (event.type === "item.completed" && event.item?.type === "agent_message") {
+          answer = event.item.text ?? answer
+        }
+        if (event.item?.type === "mcp_tool_call" && event.item.status === "failed") {
+          process.stdout.write(
+            `Codex MCP client event: ${JSON.stringify(event.item).slice(0, 1_000)}\n`,
+          )
+        }
+        if (event.type === "turn.completed") {
+          tokens += (event.usage?.input_tokens ?? 0) + (event.usage?.output_tokens ?? 0)
+        }
+      } catch {
+        // Codex diagnostics can share stderr/stdout; retain them only on failure.
+      }
+    }
+    const exhausted = calls.length > input.maxCalls || result.exitCode !== 0
+    return {
+      calls,
+      answer: answer || (result.exitCode === 0 ? "" : `FATAL: ${result.stderr.slice(0, 300)}`),
+      tokens,
+      exhausted,
+      modelTransportRetries: 0,
+      ...(result.exitCode === 0
+        ? {}
+        : {
+            fatal: {
+              source: "model_transport" as const,
+              status: null,
+              code: "codex_exec_failed",
+              message: result.stderr.slice(0, 300),
+            },
+          }),
+    }
+  } finally {
+    activeCodexCalls = undefined
+    rmSync(workspace, { recursive: true, force: true })
+  }
+}
+
+function spawnCodex(args: string[]): Promise<{ exitCode: number; stdout: string; stderr: string }> {
+  return new Promise((resolvePromise, reject) => {
+    const env = { ...process.env }
+    for (const key of [
+      "DATABASE_URL",
+      "TEST_DATABASE_URL",
+      "OPENAI_API_KEY",
+      "VOYANT_API_KEY",
+      "POSTGRES_SEARCH_CURSOR_SIGNING_KEY",
+    ])
+      delete env[key]
+    const child = spawn("codex", args, { env, stdio: ["ignore", "pipe", "pipe"] })
+    const stdout: Buffer[] = []
+    const stderr: Buffer[] = []
+    child.stdout.on("data", (chunk) => stdout.push(chunk))
+    child.stderr.on("data", (chunk) => stderr.push(chunk))
+    child.once("error", reject)
+    const timeout = setTimeout(() => child.kill("SIGTERM"), JOURNEY_TIMEOUT_MS)
+    child.once("close", (exitCode) => {
+      clearTimeout(timeout)
+      resolvePromise({
+        exitCode: exitCode ?? 1,
+        stdout: Buffer.concat(stdout).toString("utf8"),
+        stderr: Buffer.concat(stderr).toString("utf8"),
+      })
+    })
+  })
 }
 
 function parseModelFailure(status: number, responseText: string): NonNullable<JourneyRun["fatal"]> {
@@ -1477,9 +1646,10 @@ function writeMachineReport(): void {
     `${JSON.stringify(
       {
         schemaVersion: 5,
+        provider: EVAL_PROVIDER,
         generatedAt: new Date().toISOString(),
         model: MODEL,
-        reasoningEffort: MODEL.startsWith("gpt-5") ? REASONING_EFFORT : null,
+        reasoningEffort: REASONING_EFFORT,
         runMark: RUN_MARK,
         configuredRuns: RUNS,
         journeys,
@@ -1524,6 +1694,10 @@ describe.skipIf(!enabled)("MCP capability — a travel agent's job", () => {
     async () => {
       if (!enabled) return
       const app = await mountRealMcp()
+      if (EVAL_PROVIDER === "codex") {
+        codexServerUrl = await startCodexMcpServer(app)
+        process.stdout.write(`Codex MCP bridge: ${codexServerUrl}\n`)
+      }
       // Invoice numbering is deployment configuration, not part of the travel
       // agent's request to issue a proforma. A real agency configures this before
       // taking bookings; an empty disposable database does not. Seed the same
@@ -1647,6 +1821,8 @@ describe.skipIf(!enabled)("MCP capability — a travel agent's job", () => {
   )
 
   afterAll(async () => {
+    if (codexServer)
+      await new Promise<void>((resolvePromise) => codexServer?.close(() => resolvePromise()))
     const dispose = dbClientDispose(verifyDb)
     if (dispose) await dispose()
   })

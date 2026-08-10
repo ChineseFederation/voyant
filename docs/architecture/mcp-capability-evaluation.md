@@ -1,6 +1,6 @@
 # MCP Capability Evaluation
 
-The MCP capability evaluation answers one question: can a real GPT model complete an
+The MCP capability evaluation answers one question: can a real model complete an
 operator job through the real selected deployment graph and MCP JSON-RPC transport?
 It is not a substitute for deterministic package tests. It measures whether the Tool
 surface is discoverable, drivable, and complete when the caller is a model.
@@ -33,8 +33,18 @@ pnpm eval:mcp-capability -- --mode smoke --group supplier
 commercial-chain failure cannot cap its result. Use `--journey <id>` for a single
 independently seeded diagnostic. The two selectors are mutually exclusive.
 
-The runner requires `OPENAI_API_KEY` or the existing
-`~/.config/agent-run/openai-token`. When `TEST_DATABASE_URL` is absent it starts a
+The default `--provider codex` lane uses the locally ChatGPT-authenticated Codex CLI.
+It starts a loopback-only HTTP bridge to the same selected-graph MCP transport, runs
+Codex non-interactively in an empty read-only workspace, removes database and API
+credentials from the child environment, and records Tool calls at the MCP boundary.
+This keeps the model from bypassing the Tool surface through repository or database
+access. Codex's client-side prompts are disabled and the isolated Voyant server is
+explicitly approved because the unattended runner cannot answer MCP client prompts;
+Voyant confirmation and action-ledger approval remain enforced by the MCP server.
+Use `--provider openai` to exercise the direct Responses API lane; that lane
+requires `OPENAI_API_KEY` or the existing `~/.config/agent-run/openai-token`.
+
+When `TEST_DATABASE_URL` is absent the runner starts a
 temporary PostgreSQL 16 Docker container on a random localhost port, migrates it,
 runs the focused evaluation, and removes the container. A supplied database is
 assumed disposable and is not dropped by the runner.
@@ -46,8 +56,8 @@ depend on stale JavaScript beside package TypeScript sources.
 The default model is `gpt-5.6-terra` at medium reasoning effort: the balanced
 quality/cost tier for a multi-step operator capability evaluation. Use
 `--model gpt-5.6-luna` for an explicit cost-sensitive comparison; never mix model
-results under one baseline. The harness uses the Responses API with medium
-reasoning and continues each Tool turn through `previous_response_id`. GPT-5.6
+or provider results under one baseline. The OpenAI provider uses the Responses API
+with medium reasoning and continues each Tool turn through `previous_response_id`. GPT-5.6
 does not support function Tools with nonzero reasoning effort on Chat Completions;
 using Responses preserves the reasoning baseline instead of silently setting it
 to `none`.
