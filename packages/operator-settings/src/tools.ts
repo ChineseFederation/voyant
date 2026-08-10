@@ -64,6 +64,7 @@ export const UPDATE_OPERATOR_SETTINGS_HANDLER_POLICY = {
     risk: "high",
     ledger: "required",
     approval: "required",
+    policy: "operator-settings.update.v1",
     reversible: true,
   },
 } as const satisfies HandlerActionPolicyExpectation

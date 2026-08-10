@@ -159,6 +159,7 @@ export const operatorSettingsVoyantModule = defineModule({
       risk: "high",
       ledger: "required",
       approval: "required",
+      policy: "operator-settings.update.v1",
       reversible: true,
       availability: { status: "available" },
       effectBoundary: "local",
