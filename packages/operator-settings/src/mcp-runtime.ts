@@ -3,8 +3,10 @@ import {
   executeAdmittedExistingTargetCommand,
 } from "@voyant-travel/action-ledger"
 import {
+  deriveCommandIdempotencyKey,
   defineToolContextContribution,
   type ToolHandlerActionPolicyContext,
+  withServerResolvedIdempotencyKey,
 } from "@voyant-travel/tools"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import type { Context } from "hono"
@@ -27,13 +29,20 @@ export const voyantToolContextContribution = defineToolContextContribution({
           input: Parameters<typeof upsertOperatorSettings>[1],
           admitted: ToolHandlerActionPolicyContext,
         ) {
+          const commandInput = { settingsId: "operator-settings", patch: input }
+          const resolvedAdmitted = admitted.invocation.idempotencyKey?.trim()
+            ? admitted
+            : withServerResolvedIdempotencyKey(
+                admitted,
+                await deriveCommandIdempotencyKey("update-operator-settings", commandInput),
+              )
           let settings: Awaited<ReturnType<typeof upsertOperatorSettings>> | undefined
           const result = await executeAdmittedExistingTargetCommand(
             {
               db,
               context: actionLedgerContext(request as Context),
-              admitted,
-              commandInput: { settingsId: "operator-settings", patch: input },
+              admitted: resolvedAdmitted,
+              commandInput,
               evaluatedRisk: "high",
             },
             {

@@ -113,6 +113,7 @@ export const updateOperatorSettingsTool = defineTool<
   OperatorSettingsToolContext
 >({
   name: "update_operator_settings",
+  resolvesIdempotencyKeyServerSide: true,
   description:
     "Update operator identity/contact details, branding/locales, bank-transfer instructions, or payment defaults. supportedLocales and defaultLocale must be updated together, and defaultLocale must be included in supportedLocales. Requires confirmation because payment defaults affect future bookings and invoices.",
   inputSchema: updateOperatorSettingsSchema,

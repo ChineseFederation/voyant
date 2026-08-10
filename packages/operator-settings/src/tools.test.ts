@@ -99,5 +99,6 @@ describe("operator settings tools", () => {
       sideEffects: ["data-write"],
     })
     expect(updateOperatorSettingsTool.actionPolicyEnforcement).toBe("handler")
+    expect(updateOperatorSettingsTool.resolvesIdempotencyKeyServerSide).toBe(true)
   })
 })
