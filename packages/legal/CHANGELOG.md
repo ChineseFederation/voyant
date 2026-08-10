@@ -1,5 +1,15 @@
 # @voyant-travel/legal
 
+## 0.249.10
+
+### Patch Changes
+
+- 3993474: Expose contract-template creation and updates as admitted MCP tools. Template creation now uses a handler-owned created-target command with server-derived idempotency, while updates declare their exact existing target.
+- Updated dependencies [007ac90]
+- Updated dependencies [c1f23ab]
+  - @voyant-travel/tools@0.10.2
+  - @voyant-travel/db@0.121.1
+
 ## 0.249.9
 
 ### Patch Changes

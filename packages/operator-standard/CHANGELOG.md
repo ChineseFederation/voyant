@@ -1,5 +1,33 @@
 # @voyant-travel/operator-standard
 
+## 0.21.25
+
+### Patch Changes
+
+- b2c8b94: Reduce production admin-shell startup work by deferring lazy-route dependency preloads, keeping storefront presentation imports off the broad barrel, lazily loading public auth and proposal page implementations, loading Reporting admin routes on demand, and tightening the initial preload budget to 480 KiB gzip.
+- 9ec0c18: Keep the deployment access catalog out of the initial admin shell and load it only when the API Tokens settings page is opened.
+- Updated dependencies [56e575c]
+- Updated dependencies [3993474]
+- Updated dependencies [65cd39b]
+- Updated dependencies [b2c8b94]
+- Updated dependencies [9ec0c18]
+- Updated dependencies [9576bcc]
+- Updated dependencies [007ac90]
+- Updated dependencies [c1f23ab]
+  - @voyant-travel/mcp@0.22.0
+  - @voyant-travel/legal@0.249.10
+  - @voyant-travel/operator-settings@0.17.31
+  - @voyant-travel/auth-react@0.152.1
+  - @voyant-travel/proposals-react@0.274.1
+  - @voyant-travel/reporting@0.3.21
+  - @voyant-travel/storefront@0.255.5
+  - @voyant-travel/storefront-react@0.278.1
+  - @voyant-travel/vite-config@0.5.4
+  - @voyant-travel/admin-app@0.169.1
+  - @voyant-travel/admin-host@0.127.1
+  - @voyant-travel/tools@0.10.2
+  - @voyant-travel/db@0.121.1
+
 ## 0.21.24
 
 ### Patch Changes

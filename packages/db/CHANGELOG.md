@@ -1,5 +1,11 @@
 # @voyant-travel/db
 
+## 0.121.1
+
+### Patch Changes
+
+- c1f23ab: Bound the aggregate Node database socket capacity across retained tenant pools.
+
 ## 0.121.0
 
 ### Minor Changes

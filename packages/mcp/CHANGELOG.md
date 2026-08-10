@@ -1,5 +1,17 @@
 # @voyant-travel/mcp
 
+## 0.22.0
+
+### Patch Changes
+
+- 56e575c: Rank verbose Tool searches by partial semantic coverage and treat domain inputs as ranking hints so valid cross-domain capabilities remain discoverable.
+- Updated dependencies [a93b626]
+- Updated dependencies [51c5d53]
+- Updated dependencies [007ac90]
+- Updated dependencies [c1f23ab]
+  - @voyant-travel/framework@0.81.0
+  - @voyant-travel/tools@0.10.2
+
 ## 0.21.7
 
 ### Patch Changes

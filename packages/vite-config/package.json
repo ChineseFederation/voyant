@@ -1,6 +1,6 @@
 {
   "name": "@voyant-travel/vite-config",
-  "version": "0.5.3",
+  "version": "0.5.4",
   "license": "Apache-2.0",
   "type": "module",
   "sideEffects": false,

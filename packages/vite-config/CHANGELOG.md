@@ -1,5 +1,12 @@
 # @voyant-travel/vite-config
 
+## 0.5.4
+
+### Patch Changes
+
+- b2c8b94: Reduce production admin-shell startup work by deferring lazy-route dependency preloads, keeping storefront presentation imports off the broad barrel, lazily loading public auth and proposal page implementations, loading Reporting admin routes on demand, and tightening the initial preload budget to 480 KiB gzip.
+- 9576bcc: Consolidate the admin shell's required UI primitives into one production chunk and enforce a 20-request initial preload budget.
+
 ## 0.5.3
 
 ### Patch Changes

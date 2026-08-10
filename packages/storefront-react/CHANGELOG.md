@@ -1,5 +1,11 @@
 # @voyant-travel/storefront-react
 
+## 0.278.1
+
+### Patch Changes
+
+- b2c8b94: Reduce production admin-shell startup work by deferring lazy-route dependency preloads, keeping storefront presentation imports off the broad barrel, lazily loading public auth and proposal page implementations, loading Reporting admin routes on demand, and tightening the initial preload budget to 480 KiB gzip.
+
 ## 0.278.0
 
 ### Patch Changes

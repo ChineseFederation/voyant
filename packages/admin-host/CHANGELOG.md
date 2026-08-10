@@ -1,5 +1,11 @@
 # @voyant-travel/admin-host
 
+## 0.127.1
+
+### Patch Changes
+
+- 9ec0c18: Keep the deployment access catalog out of the initial admin shell and load it only when the API Tokens settings page is opened.
+
 ## 0.127.0
 
 ### Patch Changes

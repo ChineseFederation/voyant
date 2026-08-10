@@ -1,5 +1,23 @@
 # @voyant-travel/framework
 
+## 0.81.0
+
+### Minor Changes
+
+- a93b626: Fence resident application-cell runtimes with an immutable tenant context digest.
+- 51c5d53: Expose provider-neutral, release-scoped attestations for automatic product-job wake producers installed by the active runtime host.
+
+### Patch Changes
+
+- c1f23ab: Bound the aggregate Node database socket capacity across retained tenant pools.
+- Updated dependencies [b2c8b94]
+- Updated dependencies [9ec0c18]
+- Updated dependencies [007ac90]
+- Updated dependencies [c1f23ab]
+  - @voyant-travel/operator-standard@0.21.25
+  - @voyant-travel/tools@0.10.2
+  - @voyant-travel/db@0.121.1
+
 ## 0.80.6
 
 ### Patch Changes

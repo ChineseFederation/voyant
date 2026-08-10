@@ -1,5 +1,15 @@
 # @voyant-travel/storefront
 
+## 0.255.5
+
+### Patch Changes
+
+- b2c8b94: Reduce production admin-shell startup work by deferring lazy-route dependency preloads, keeping storefront presentation imports off the broad barrel, lazily loading public auth and proposal page implementations, loading Reporting admin routes on demand, and tightening the initial preload budget to 480 KiB gzip.
+- Updated dependencies [007ac90]
+- Updated dependencies [c1f23ab]
+  - @voyant-travel/tools@0.10.2
+  - @voyant-travel/db@0.121.1
+
 ## 0.255.4
 
 ### Patch Changes

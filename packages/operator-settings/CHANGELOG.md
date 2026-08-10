@@ -1,5 +1,15 @@
 # @voyant-travel/operator-settings
 
+## 0.17.31
+
+### Patch Changes
+
+- 65cd39b: Derive operator-settings update command identity in the handler so MCP callers only carry confirmation and server-issued approval continuations.
+- Updated dependencies [007ac90]
+- Updated dependencies [c1f23ab]
+  - @voyant-travel/tools@0.10.2
+  - @voyant-travel/db@0.121.1
+
 ## 0.17.30
 
 ### Patch Changes

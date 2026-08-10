@@ -1,5 +1,27 @@
 # @voyant-travel/runtime
 
+## 0.23.0
+
+### Minor Changes
+
+- 51c5d53: Expose provider-neutral, release-scoped attestations for automatic product-job wake producers installed by the active runtime host.
+
+### Patch Changes
+
+- b2c8b94: Reduce production admin-shell startup work by deferring lazy-route dependency preloads, keeping storefront presentation imports off the broad barrel, lazily loading public auth and proposal page implementations, loading Reporting admin routes on demand, and tightening the initial preload budget to 480 KiB gzip.
+- c1e6eb9: Reuse the portable full-host SSR handler across document requests.
+- c1f23ab: Bound the aggregate Node database socket capacity across retained tenant pools.
+- Updated dependencies [a93b626]
+- Updated dependencies [51c5d53]
+- Updated dependencies [b2c8b94]
+- Updated dependencies [9ec0c18]
+- Updated dependencies [9576bcc]
+- Updated dependencies [c1f23ab]
+  - @voyant-travel/framework@0.81.0
+  - @voyant-travel/vite-config@0.5.4
+  - @voyant-travel/admin-host@0.127.1
+  - @voyant-travel/db@0.121.1
+
 ## 0.22.7
 
 ### Patch Changes
