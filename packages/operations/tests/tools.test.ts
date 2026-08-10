@@ -1,3 +1,4 @@
+// agent-quality: file-size exception -- owner: operations; Tool registry behavior stays co-located while shared protocol fixtures are tightened.
 import { createToolRegistry, type ToolContext } from "@voyant-travel/tools"
 import { describe, expect, it } from "vitest"
 
@@ -74,7 +75,7 @@ function registry() {
 }
 
 describe("Operations tools", () => {
-  it("creates a lossless departure through the admitted idempotent command surface", async () => {
+  it("creates a lossless departure while keeping command identity server-owned", async () => {
     const writeRegistry = createToolRegistry()
     writeRegistry.register(createDepartureTool, {
       actionPolicy: CREATE_DEPARTURE_HANDLER_POLICY.actionPolicy,
@@ -95,12 +96,11 @@ describe("Operations tools", () => {
         nights: 2,
         days: 3,
         notes: "Meet at the station",
-        idempotencyKey: "bucharest-2026-10-12-v1",
       },
       {
         ...contextWith({
           async createDeparture(input) {
-            expect(input.idempotencyKey).toBe("bucharest-2026-10-12-v1")
+            expect(input).not.toHaveProperty("idempotencyKey")
             return {
               replayed: false,
               departure: {

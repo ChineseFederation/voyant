@@ -1,0 +1,166 @@
+{
+  "frameworkControls": [
+    {
+      "field": "_voyant",
+      "ownership": "server-issued-continuation",
+      "rationale": "Carries caller confirmation and platform-issued approval ids; command identity remains server-owned."
+    }
+  ],
+  "entries": [
+    {
+      "id": "@voyant-travel/accommodations:create_room_block:input.idempotencyKey",
+      "ownership": "caller-owned-command-identity",
+      "rationale": "Retained because the caller chooses the stable identity of this retryable business command."
+    },
+    {
+      "id": "@voyant-travel/action-ledger:request_action_approval:input.idempotencyKey",
+      "ownership": "caller-owned-command-identity",
+      "rationale": "Retained because the caller chooses the stable identity of this retryable business command."
+    },
+    {
+      "id": "@voyant-travel/bookings:accept_booking_amendment:input.idempotencyKey",
+      "ownership": "caller-owned-command-identity",
+      "rationale": "Retained because the caller chooses the stable identity of this retryable business command."
+    },
+    {
+      "id": "@voyant-travel/bookings:apply_booking_amendment:input.idempotencyKey",
+      "ownership": "caller-owned-command-identity",
+      "rationale": "Retained because the caller chooses the stable identity of this retryable business command."
+    },
+    {
+      "id": "@voyant-travel/bookings:create_booking_extra:input.idempotencyKey",
+      "ownership": "caller-owned-command-identity",
+      "rationale": "Retained because the caller chooses the stable identity of this retryable business command."
+    },
+    {
+      "id": "@voyant-travel/bookings:preview_traveler_correction_amendment:input.idempotencyKey",
+      "ownership": "caller-owned-command-identity",
+      "rationale": "Retained because the caller chooses the stable identity of this retryable business command."
+    },
+    {
+      "id": "@voyant-travel/bookings:preview_traveler_roster_change_amendment:input.idempotencyKey",
+      "ownership": "caller-owned-command-identity",
+      "rationale": "Retained because the caller chooses the stable identity of this retryable business command."
+    },
+    {
+      "id": "@voyant-travel/bookings:reconcile_booking_amendment:input.idempotencyKey",
+      "ownership": "caller-owned-command-identity",
+      "rationale": "Retained because the caller chooses the stable identity of this retryable business command."
+    },
+    {
+      "id": "@voyant-travel/charters:create_charter_product:input.idempotencyKey",
+      "ownership": "caller-owned-command-identity",
+      "rationale": "Retained because the caller chooses the stable identity of this retryable business command."
+    },
+    {
+      "id": "@voyant-travel/charters:create_charter_yacht:input.idempotencyKey",
+      "ownership": "caller-owned-command-identity",
+      "rationale": "Retained because the caller chooses the stable identity of this retryable business command."
+    },
+    {
+      "id": "@voyant-travel/commerce:create_cancellation_policy:input.idempotencyKey",
+      "ownership": "caller-owned-command-identity",
+      "rationale": "Retained because the caller chooses the stable identity of this retryable business command."
+    },
+    {
+      "id": "@voyant-travel/commerce:create_price_catalog:input.idempotencyKey",
+      "ownership": "caller-owned-command-identity",
+      "rationale": "Retained because the caller chooses the stable identity of this retryable business command."
+    },
+    {
+      "id": "@voyant-travel/commerce:create_promotion:input.idempotencyKey",
+      "ownership": "caller-owned-command-identity",
+      "rationale": "Retained because the caller chooses the stable identity of this retryable business command."
+    },
+    {
+      "id": "@voyant-travel/cruises:create_cruise:input.idempotencyKey",
+      "ownership": "caller-owned-command-identity",
+      "rationale": "Retained because the caller chooses the stable identity of this retryable business command."
+    },
+    {
+      "id": "@voyant-travel/cruises:create_cruise_ship:input.idempotencyKey",
+      "ownership": "caller-owned-command-identity",
+      "rationale": "Retained because the caller chooses the stable identity of this retryable business command."
+    },
+    {
+      "id": "@voyant-travel/distribution:create_distribution_channel:input.idempotencyKey",
+      "ownership": "caller-owned-command-identity",
+      "rationale": "Retained because the caller chooses the stable identity of this retryable business command."
+    },
+    {
+      "id": "@voyant-travel/distribution:create_external_reference:input.idempotencyKey",
+      "ownership": "caller-owned-command-identity",
+      "rationale": "Retained because the caller chooses the stable identity of this retryable business command."
+    },
+    {
+      "id": "@voyant-travel/distribution:create_supplier:input.idempotencyKey",
+      "ownership": "caller-owned-command-identity",
+      "rationale": "Retained because the caller chooses the stable identity of this retryable business command."
+    },
+    {
+      "id": "@voyant-travel/finance:issue_invoice_refund:input.idempotencyKey",
+      "ownership": "caller-owned-command-identity",
+      "rationale": "Retained because the caller chooses the stable identity of this retryable business command."
+    },
+    {
+      "id": "@voyant-travel/finance:issue_unsynced_proforma_from_booking:input.idempotencyKey",
+      "ownership": "caller-owned-command-identity",
+      "rationale": "Retained because the caller chooses the stable identity of this retryable business command."
+    },
+    {
+      "id": "@voyant-travel/finance:record_refund_settlement:input.idempotencyKey",
+      "ownership": "caller-owned-command-identity",
+      "rationale": "Retained because the caller chooses the stable identity of this retryable business command."
+    },
+    {
+      "id": "@voyant-travel/identity:create_identity_address:input.idempotencyKey",
+      "ownership": "caller-owned-command-identity",
+      "rationale": "Retained because the caller chooses the stable identity of this retryable business command."
+    },
+    {
+      "id": "@voyant-travel/identity:create_identity_contact_point:input.idempotencyKey",
+      "ownership": "caller-owned-command-identity",
+      "rationale": "Retained because the caller chooses the stable identity of this retryable business command."
+    },
+    {
+      "id": "@voyant-travel/identity:create_identity_named_contact:input.idempotencyKey",
+      "ownership": "caller-owned-command-identity",
+      "rationale": "Retained because the caller chooses the stable identity of this retryable business command."
+    },
+    {
+      "id": "@voyant-travel/inventory:compose_product:input.idempotencyKey",
+      "ownership": "caller-owned-command-identity",
+      "rationale": "Retained because the caller chooses the stable identity of this retryable business command."
+    },
+    {
+      "id": "@voyant-travel/inventory:create_option_extra_config:input.idempotencyKey",
+      "ownership": "caller-owned-command-identity",
+      "rationale": "Retained because the caller chooses the stable identity of this retryable business command."
+    },
+    {
+      "id": "@voyant-travel/inventory:create_product_extra:input.idempotencyKey",
+      "ownership": "caller-owned-command-identity",
+      "rationale": "Retained because the caller chooses the stable identity of this retryable business command."
+    },
+    {
+      "id": "@voyant-travel/legal:create_legal_contract_draft:input.idempotencyKey",
+      "ownership": "caller-owned-command-identity",
+      "rationale": "Retained because the caller chooses the stable identity of this retryable business command."
+    },
+    {
+      "id": "@voyant-travel/mice:create_mice_program:input.idempotencyKey",
+      "ownership": "caller-owned-command-identity",
+      "rationale": "Retained because the caller chooses the stable identity of this retryable business command."
+    },
+    {
+      "id": "@voyant-travel/relationships:create_organization:input.idempotencyKey",
+      "ownership": "caller-owned-command-identity",
+      "rationale": "Retained because the caller chooses the stable identity of this retryable business command."
+    },
+    {
+      "id": "@voyant-travel/storefront:create_invoice_payment_link:input.idempotencyKey",
+      "ownership": "caller-owned-command-identity",
+      "rationale": "Retained because the caller chooses the stable identity of this retryable business command."
+    }
+  ]
+}

@@ -1,3 +1,4 @@
+// agent-quality: file-size exception -- owner: operations; departure Tool schemas and definitions remain co-located pending a domain-aligned extraction.
 import { bookingActionSyncSummarySchema } from "@voyant-travel/bookings-contracts/booking-actions"
 import {
   admitHandlerActionPolicy,
@@ -521,17 +522,7 @@ export const RELEASE_DEPARTURE_ROOM_BLOCK_HANDLER_POLICY = {
   },
 } as const satisfies HandlerActionPolicyExpectation
 
-const createDepartureArgs = availabilitySlotCoreSchema
-  .extend({
-    idempotencyKey: z
-      .string()
-      .trim()
-      .min(1)
-      .max(255)
-      .optional()
-      .describe("Stable retry key. Must match the admitted Tool invocation idempotency key."),
-  })
-  .strict()
+const createDepartureArgs = availabilitySlotCoreSchema.strict()
 
 // Preserve the original update Tool contract: callers commonly round-trip a
 // get_departure snapshot, so known compatibility fields remain accepted and

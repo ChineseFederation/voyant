@@ -1,3 +1,4 @@
+// agent-quality: file-size exception -- owner: inventory; Tool registry behavior stays co-located while shared protocol fixtures are tightened.
 import { createToolRegistry, type ToolContext } from "@voyant-travel/tools"
 import { describe, expect, it } from "vitest"
 
@@ -473,7 +474,7 @@ describe("inventory tools", () => {
     let forwarded: unknown
     const result = await makeRegistry().dispatch<{ productId: string }>(
       "create_product",
-      { name: "Cairo discovery", sellCurrency: "EUR", idempotencyKey: "product-create-1" },
+      { name: "Cairo discovery", sellCurrency: "EUR" },
       ctxWith(
         {
           async createProduct(input) {
@@ -488,7 +489,7 @@ describe("inventory tools", () => {
         },
       ),
     )
-    expect(forwarded).toMatchObject({ idempotencyKey: "product-create-1" })
+    expect(forwarded).not.toHaveProperty("idempotencyKey")
     expect(result).toEqual({ productId: "prod_1" })
   })
 

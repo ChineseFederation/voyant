@@ -377,14 +377,6 @@ export const financeBookingsCreateTools = [createBookingTool, bookProductTool] a
 
 export const issueInvoiceFromBookingToolInputSchema = z.object({
   command: invoiceFromBookingSchema.describe("The exact invoice or proforma issue command."),
-  idempotencyKey: z
-    .string()
-    .trim()
-    .min(1)
-    .optional()
-    .describe(
-      "Optional. Leave this out — the platform derives a stable key from the command itself. Only send one to override that.",
-    ),
 })
 
 export const issueInvoiceFromBookingToolOutputSchema = z.union([

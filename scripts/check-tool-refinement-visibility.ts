@@ -11,7 +11,8 @@
 import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs"
 import path from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
-
+import type { z } from "zod"
+import { inspectToolProtocolFieldInventory } from "./lib/tool-protocol-field-inventory.mjs"
 import {
   entryId,
   findRefinementPaths,
@@ -19,6 +20,7 @@ import {
 } from "./lib/tool-refinement-inventory.mjs"
 
 const INVENTORY_PATH = "scripts/tool-refinement-inventory.json"
+const PROTOCOL_INVENTORY_PATH = "scripts/tool-protocol-field-inventory.json"
 
 void main()
 
@@ -30,13 +32,16 @@ async function main() {
       : path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
   const write = process.argv.includes("--write")
 
-  const { found, unknownTypes } = await collectRefinements(repoRoot)
+  const { found, protocolFields, unknownTypes } = await collectRefinements(repoRoot)
 
   if (process.argv.includes("--report")) {
     for (const item of found) {
       console.log(`\n${item.id}`)
       console.log(`  tool: ${collapse(item.toolDescription)}`)
       console.log(`  path: ${collapse(item.pathDescription)}`)
+    }
+    for (const item of protocolFields) {
+      console.log(`\n${item.id} (${item.serverResolved ? "server-owned" : "caller-owned"})`)
     }
     return
   }
@@ -86,10 +91,21 @@ async function main() {
 
   const inventory = JSON.parse(readFileSync(inventoryFile, "utf8")) as Inventory
   const result = inspectRefinementInventory(found, inventory)
+  const protocolInventoryFile = path.join(repoRoot, PROTOCOL_INVENTORY_PATH)
+  if (!existsSync(protocolInventoryFile)) {
+    console.error(`Tool refinement visibility failed — ${PROTOCOL_INVENTORY_PATH} is missing.`)
+    process.exitCode = 1
+    return
+  }
+  const protocolResult = inspectToolProtocolFieldInventory(
+    protocolFields,
+    JSON.parse(readFileSync(protocolInventoryFile, "utf8")),
+  )
 
-  if (result.diagnostics.length > 0) {
+  if (result.diagnostics.length > 0 || protocolResult.diagnostics.length > 0) {
     console.error("Tool refinement visibility failed:\n")
     for (const diagnostic of result.diagnostics) console.error(`- ${diagnostic}`)
+    for (const diagnostic of protocolResult.diagnostics) console.error(`- ${diagnostic}`)
     process.exitCode = 1
     return
   }
@@ -98,6 +114,7 @@ async function main() {
     `Tool refinement visibility: OK (${result.total} refinements, ` +
       `${result.documented} documented, ${result.undocumented} undocumented)`,
   )
+  console.log(`Tool protocol field inventory: OK (${protocolResult.total} classified fields)`)
 }
 
 function collapse(text: string) {
@@ -156,6 +173,7 @@ async function collectRefinements(root: string) {
     pathDescription: string
   }[] = []
   const unknownTypes: string[] = []
+  const protocolFields: { id: string; serverResolved: boolean }[] = []
   const packagesRoot = path.join(root, "packages")
 
   for (const packageDirectory of findPackageDirectories(packagesRoot)) {
@@ -183,11 +201,19 @@ async function collectRefinements(root: string) {
           )
         }
         const toolModule = await importFile(packageDirectory, target, packageJson.name)
-        const definition = toolModule[tool.export] as { inputSchema?: unknown } | undefined
+        const definition = toolModule[tool.export] as
+          | { inputSchema?: z.ZodType; resolvesIdempotencyKeyServerSide?: boolean }
+          | undefined
         if (!definition?.inputSchema) {
           throw new Error(
             `${packageJson.name}: "${tool.export}" is not an exported Tool with an inputSchema`,
           )
+        }
+        if (hasTopLevelField(definition.inputSchema, "idempotencyKey")) {
+          protocolFields.push({
+            id: `${packageJson.name}:${tool.name}:input.idempotencyKey`,
+            serverResolved: definition.resolvesIdempotencyKeyServerSide === true,
+          })
         }
         const walked = findRefinementPaths(definition.inputSchema)
         for (const entry of walked.unknownTypes) {
@@ -211,7 +237,25 @@ async function collectRefinements(root: string) {
   // human classifies once, so collapse them.
   const byId = new Map(found.map((item) => [item.id, item]))
   const unique = [...byId.values()].sort((left, right) => left.id.localeCompare(right.id))
-  return { found: unique, unknownTypes }
+  const uniqueProtocolFields = [
+    ...new Map(protocolFields.map((item) => [item.id, item])).values(),
+  ].sort((left, right) => left.id.localeCompare(right.id))
+  return { found: unique, protocolFields: uniqueProtocolFields, unknownTypes }
+}
+
+function hasTopLevelField(schema: unknown, field: string, depth = 0): boolean {
+  if (depth > 12 || !schema || typeof schema !== "object") return false
+  const def = (schema as { _zod?: { def?: Record<string, unknown> } })._zod?.def
+  if (!def) return false
+  const shape = typeof def.shape === "function" ? def.shape() : def.shape
+  if (shape && typeof shape === "object" && field in shape) return true
+  for (const key of ["left", "right", "innerType", "in", "out"]) {
+    if (hasTopLevelField(def[key], field, depth + 1)) return true
+  }
+  if (Array.isArray(def.options)) {
+    return def.options.some((option) => hasTopLevelField(option, field, depth + 1))
+  }
+  return false
 }
 
 function manifestTools(value: unknown) {
