@@ -97,6 +97,9 @@ if (check) {
   if ((report.portableShell?.initialPreloads.gzipBytes ?? 0) > 430 * 1024) {
     failures.push("portable admin shell initial preloads exceed 430 KiB gzip")
   }
+  if ((report.portableShell?.initialPreloads.files ?? Number.POSITIVE_INFINITY) > 20) {
+    failures.push("portable admin shell initial preloads exceed 20 JavaScript requests")
+  }
   if (
     report.portableShell?.initialPreloads.paths.some((path) => /\/recharts-[^/]+\.js$/.test(path))
   ) {

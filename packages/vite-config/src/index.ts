@@ -28,6 +28,60 @@ function isNodeModulePackage(id: string, packageName: string): boolean {
   return id.includes(`/node_modules/${packageName}/`)
 }
 
+const ADMIN_SHELL_UI_MODULES = new Set([
+  "alert",
+  "badge",
+  "button",
+  "card",
+  "input",
+  "label",
+  "separator",
+  "skeleton",
+  "table",
+  "textarea",
+])
+
+function voyantAdminShellUiChunk(id: string): string | undefined {
+  const normalizedId = id.replaceAll("\\", "/")
+  if (
+    !normalizedId.includes("/packages/ui/") &&
+    !normalizedId.includes("/node_modules/@voyant-travel/ui/")
+  ) {
+    return undefined
+  }
+
+  if (normalizedId.endsWith("/src/lib/utils.ts") || normalizedId.endsWith("/dist/lib/utils.js")) {
+    return "admin-shell-ui"
+  }
+
+  const match = normalizedId.match(/\/(?:src|dist)\/components\/([^/]+)\.(?:ts|tsx|js)$/)
+  return match?.[1] && ADMIN_SHELL_UI_MODULES.has(match[1]) ? "admin-shell-ui" : undefined
+}
+
+const ADMIN_SHELL_LUCIDE_ICONS = new Set(["check", "file-text", "loader-circle", "search"])
+const ADMIN_SHELL_LUCIDE_CORE = new Set([
+  "Icon.mjs",
+  "context.mjs",
+  "createLucideIcon.mjs",
+  "defaultAttributes.mjs",
+  "shared/src/utils/hasA11yProp.mjs",
+  "shared/src/utils/mergeClasses.mjs",
+  "shared/src/utils/toKebabCase.mjs",
+  "shared/src/utils/toPascalCase.mjs",
+])
+
+function voyantAdminShellLucideChunk(id: string): string | undefined {
+  const normalizedId = id.replaceAll("\\", "/")
+  if (!isNodeModulePackage(normalizedId, "lucide-react")) return undefined
+
+  const relativePath = normalizedId.split("/lucide-react/dist/esm/")[1]
+  if (!relativePath) return undefined
+  if (ADMIN_SHELL_LUCIDE_CORE.has(relativePath)) return "admin-shell-lucide"
+
+  const icon = relativePath.match(/^icons\/([^/]+)\.mjs$/)?.[1]
+  return icon && ADMIN_SHELL_LUCIDE_ICONS.has(icon) ? "admin-shell-lucide" : undefined
+}
+
 export function voyantVendorChunk(id: string): string | undefined {
   const normalizedId = id.replaceAll("\\", "/")
 
@@ -87,7 +141,11 @@ export function voyantVendorChunk(id: string): string | undefined {
 type ExtraManualChunks = (id: string) => string | undefined
 
 export function voyantChunkOutput(viteMajor: number, extraManualChunks?: ExtraManualChunks) {
-  const chunkName = (id: string) => voyantVendorChunk(id) ?? extraManualChunks?.(id)
+  const chunkName = (id: string) =>
+    voyantVendorChunk(id) ??
+    voyantAdminShellUiChunk(id) ??
+    voyantAdminShellLucideChunk(id) ??
+    extraManualChunks?.(id)
   if (viteMajor >= 8) {
     return {
       codeSplitting: {

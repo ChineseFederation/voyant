@@ -257,6 +257,22 @@ describe("voyantStartViteConfig", () => {
     if (typeof chunkName !== "function") throw new Error("missing chunk name function")
 
     expect(chunkName("/repo/node_modules/react/index.js", {} as never)).toBe("react")
+    expect(chunkName("/repo/packages/ui/src/components/button.tsx", {} as never)).toBe(
+      "admin-shell-ui",
+    )
+    expect(
+      chunkName("/repo/node_modules/@voyant-travel/ui/dist/components/button.js", {} as never),
+    ).toBe("admin-shell-ui")
+    expect(chunkName("/repo/packages/ui/src/components/date-picker.tsx", {} as never)).toBeNull()
+    expect(
+      chunkName("/repo/node_modules/lucide-react/dist/esm/icons/loader-circle.mjs", {} as never),
+    ).toBe("admin-shell-lucide")
+    expect(
+      chunkName("/repo/node_modules/lucide-react/dist/esm/createLucideIcon.mjs", {} as never),
+    ).toBe("admin-shell-lucide")
+    expect(
+      chunkName("/repo/node_modules/lucide-react/dist/esm/icons/settings.mjs", {} as never),
+    ).toBeNull()
     expect(chunkName("/repo/node_modules/lodash/index.js", {} as never)).toBe("lodash")
     expect(chunkName("/repo/node_modules/zod/index.js", {} as never)).toBeNull()
   })
