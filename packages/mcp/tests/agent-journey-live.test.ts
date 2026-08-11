@@ -1,9 +1,10 @@
 /**
  * Live-client agent journey eval (voyant#3936, RFC voyant#3921).
  *
- * OPT-IN. Skipped with no `OPENAI_API_KEY` (or `~/.config/agent-run/openai-token`),
- * so CI stays deterministic and a rotated key can never redden the build. Run it
- * deliberately, when changing the prose an agent depends on.
+ * OPT-IN. Skipped unless `VOYANT_RUN_LIVE_EVALS=1` and an `OPENAI_API_KEY` (or
+ * `~/.config/agent-run/openai-token`) is available, so CI stays deterministic
+ * and a rotated key can never redden the build. Run it deliberately when
+ * changing the prose an agent depends on.
  *
  * Why it exists alongside the scripted lane rather than replacing it: the
  * scripted driver is handed the tool name, the resource, and the argument shape,

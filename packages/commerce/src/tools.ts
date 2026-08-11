@@ -3,10 +3,12 @@
 import {
   admitHandlerActionPolicy,
   defineTool,
+  deriveCommandIdempotencyKey,
   READ_ONLY_RISK,
   requireService,
   type ToolContext,
   type ToolHandlerActionPolicyContext,
+  withServerResolvedIdempotencyKey,
 } from "@voyant-travel/tools"
 import { listResponseSchema } from "@voyant-travel/types"
 import { z } from "zod"
@@ -74,8 +76,7 @@ const createCancellationPolicyToolInputSchema =
   insertCancellationPolicySchema.extend(createdCommandInput)
 const createPriceCatalogToolInputSchema = insertPriceCatalogSchema.extend(createdCommandInput)
 const createPromotionToolInputSchema = insertPromotionalOfferSchema.extend(createdCommandInput)
-const createSellabilityPolicyToolInputSchema =
-  insertSellabilityPolicySchema.extend(createdCommandInput)
+const createSellabilityPolicyToolInputSchema = insertSellabilityPolicySchema
 
 const cancellationPolicySchema = z.object({
   id: z.string(),
@@ -340,10 +341,14 @@ export const createSellabilityPolicyTool = defineTool({
   outputSchema: createdSellabilityPolicyOutputSchema,
   annotations: { idempotentHint: true },
   actionPolicyEnforcement: "handler",
+  resolvesIdempotencyKeyServerSide: true,
   async handler(input, ctx: CommerceToolContext) {
-    const admitted = admitHandlerActionPolicy(
-      ctx,
-      commerceHandlerActionPolicyExpectation(COMMERCE_CREATED_TARGET_POLICIES.sellabilityPolicy),
+    const admitted = withServerResolvedIdempotencyKey(
+      admitHandlerActionPolicy(
+        ctx,
+        commerceHandlerActionPolicyExpectation(COMMERCE_CREATED_TARGET_POLICIES.sellabilityPolicy),
+      ),
+      await deriveCommandIdempotencyKey("create-sellability-policy", input),
     )
     return createdSellabilityPolicyOutputSchema.parse(
       await commerce(ctx).createSellabilityPolicy(input, admitted),

@@ -34,16 +34,15 @@ export const voyantToolContextContribution = defineToolContextContribution({
         return json(await sellabilityService.getPolicyById(db, id))
       },
       async createSellabilityPolicy(input, admitted) {
-        const { idempotencyKey: legacyIdempotencyKey, ...commandInput } = input
         const result = await executeCommerceCreate(
           db,
           requestContext,
           COMMERCE_CREATED_TARGET_POLICIES.sellabilityPolicy,
-          legacyIdempotencyKey,
-          commandInput,
+          undefined,
+          input,
           admitted,
           async (tx) => {
-            const row = await sellabilityService.createPolicy(tx, commandInput)
+            const row = await sellabilityService.createPolicy(tx, input)
             if (!row) throw new Error("Sellability policy creation returned no row")
             return { id: row.id }
           },

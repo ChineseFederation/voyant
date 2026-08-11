@@ -13,9 +13,10 @@
  * does it pull the whole union? Is a `nextSteps` string followable? Those are
  * claims about PROSE, and prose cannot be unit-tested.
  *
- * So this lane is opt-in and never blocks: no key, no run. It talks to the
- * OpenAI HTTP API with `fetch` rather than adding an SDK dependency to a
- * published package for a test-only path.
+ * So this lane is opt-in and never blocks: `VOYANT_RUN_LIVE_EVALS=1` plus a key
+ * enables it; otherwise it does not run. It talks to the OpenAI HTTP API with
+ * `fetch` rather than adding an SDK dependency to a published package for a
+ * test-only path.
  */
 import { readFileSync } from "node:fs"
 import { homedir } from "node:os"
@@ -25,10 +26,13 @@ import { join } from "node:path"
 const OPENAI_URL = "https://api.openai.com/v1/chat/completions"
 
 /**
- * Resolve the key from the environment, else from the 0600 file the operator
- * convention puts it in. Returns undefined when absent — the caller skips.
+ * Resolve the key only for an explicitly enabled live-eval run, first from the
+ * environment and then from the 0600 file the operator convention puts it in.
+ * A developer having that shared token must not silently turn normal tests into
+ * paid network calls.
  */
 export function resolveOpenAiKey(): string | undefined {
+  if (process.env.VOYANT_RUN_LIVE_EVALS !== "1") return undefined
   const fromEnv = process.env.OPENAI_API_KEY?.trim()
   if (fromEnv) return fromEnv
   try {

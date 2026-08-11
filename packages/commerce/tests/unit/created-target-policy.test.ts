@@ -162,7 +162,6 @@ describe("commerce created-target commands", () => {
         createSellabilityPolicyTool,
         createSellabilityPolicyTool.inputSchema.parse({
           name: "Adults only",
-          idempotencyKey: "key",
         }),
       ],
       [
