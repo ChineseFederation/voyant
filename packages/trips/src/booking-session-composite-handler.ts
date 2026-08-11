@@ -273,10 +273,13 @@ export function createTripBookingSessionCompositeHandler(
       const database = input.db as PostgresJsDatabase
       const snapshot = await loadTargetSnapshot(database, input.session, persistence.loadSnapshot)
       if (materialTermsChanged(snapshot, input.quote.pricing)) {
-        return {
-          kind: "proposal_acceptance_required",
-          nextAction: "renew_proposal_version_acceptance",
-          proposalVersionId: requiredProposalOrigin(input.session).proposalVersionId,
+        const proposalOrigin = acceptedProposalOrigin(input.session)
+        if (proposalOrigin) {
+          return {
+            kind: "proposal_acceptance_required",
+            nextAction: "renew_proposal_version_acceptance",
+            proposalVersionId: proposalOrigin.proposalVersionId,
+          }
         }
       }
 
@@ -755,25 +758,24 @@ async function recordComponentCommit(input: {
       bookingSessionQuoteId: quote.id,
     },
   })
-  const origin = requiredProposalOrigin(session)
-  await setAcceptedProposalBookingOrigin(db, {
-    bookingId: commitment.bookingId,
-    proposalId: origin.proposalId,
-    proposalVersionId: origin.proposalVersionId,
-    tripEnvelopeId: snapshot.envelopeId,
-    tripSnapshotId: snapshot.id,
-    tripComponentId: component.id,
-    bookingSessionId: session.id,
-    bookingSessionQuoteId: quote.id,
-    supplierOperationId: commitment.supplierOperationId,
-  })
+  const origin = acceptedProposalOrigin(session)
+  if (origin) {
+    await setAcceptedProposalBookingOrigin(db, {
+      bookingId: commitment.bookingId,
+      proposalId: origin.proposalId,
+      proposalVersionId: origin.proposalVersionId,
+      tripEnvelopeId: snapshot.envelopeId,
+      tripSnapshotId: snapshot.id,
+      tripComponentId: component.id,
+      bookingSessionId: session.id,
+      bookingSessionQuoteId: quote.id,
+      supplierOperationId: commitment.supplierOperationId,
+    })
+  }
 }
 
-function requiredProposalOrigin(session: BookingSessionInternalRecord) {
-  if (session.origin?.kind !== "accepted_proposal_version") {
-    throw new Error("accepted_proposal_version_origin_required")
-  }
-  return session.origin
+function acceptedProposalOrigin(session: BookingSessionInternalRecord) {
+  return session.origin?.kind === "accepted_proposal_version" ? session.origin : undefined
 }
 
 function componentQuantity(payload: Record<string, unknown>): number {

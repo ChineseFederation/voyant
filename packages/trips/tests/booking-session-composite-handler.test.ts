@@ -234,6 +234,64 @@ describe("accepted Proposal Version Booking Session composite", () => {
     )
   })
 
+  it("commits a customer-built Trip without an accepted Proposal origin", async () => {
+    const selectedPackage = component({
+      sourceKind: "voyant-connect",
+      sourceConnectionId: "connection_server",
+      sourceRef: "product_1",
+    })
+    const state = harness([selectedPackage])
+    state.session.origin = undefined
+    state.session.actorKind = "customer"
+    state.session.ownerPrincipalId = undefined
+    const handler = createTripBookingSessionCompositeHandler(state.persistence)
+    const leaf = leafRuntime()
+    const quote = await createQuote(handler, state.session, leaf, state.db)
+
+    await expect(
+      handler.commit({
+        session: state.session,
+        quote,
+        idempotencyKey: "commit_customer_trip",
+        requestFingerprint: "fp_customer_trip",
+        access: ACCESS,
+        now: NOW,
+        consumeSources: async () => {},
+        leaf,
+        db: state.db,
+      }),
+    ).resolves.toMatchObject({ kind: "committed" })
+  })
+
+  it("commits an originless customer Trip against its accepted fresh quote", async () => {
+    const state = harness([component()])
+    state.session.origin = undefined
+    state.session.actorKind = "customer"
+    state.session.ownerPrincipalId = undefined
+    const handler = createTripBookingSessionCompositeHandler(state.persistence)
+    const quote = await createQuote(
+      handler,
+      state.session,
+      leafRuntime({ quoteTotal: 12_000 }),
+      state.db,
+    )
+
+    await expect(
+      handler.commit({
+        session: state.session,
+        quote,
+        hold: aggregateHold(state.session, quote),
+        idempotencyKey: "commit_customer_changed_price",
+        requestFingerprint: "fp_customer_changed_price",
+        access: ACCESS,
+        now: NOW,
+        consumeSources: async () => {},
+        leaf: leafRuntime({ quoteTotal: 12_000 }),
+        db: state.db,
+      }),
+    ).resolves.toMatchObject({ kind: "committed" })
+  })
+
   it("keeps an ambiguous package confirmation in doubt without materializing a booking", async () => {
     const selectedPackage = component({
       sourceKind: "voyant-connect",
