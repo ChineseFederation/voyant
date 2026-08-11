@@ -105,26 +105,30 @@ export const voyantToolContextContribution = defineToolContextContribution({
             taxId?: string | null
             vatNumber?: string
             billingAddress?: Record<string, unknown>
-            idempotencyKey?: string
             [key: string]: unknown
           },
           admitted: ToolHandlerActionPolicyContext,
         ) {
-          const { idempotencyKey, vatNumber, billingAddress, ...rawOrganization } = input
+          const { vatNumber, billingAddress, ...rawOrganization } = input
           const organizationData = {
             ...rawOrganization,
             taxId: rawOrganization.taxId ?? vatNumber,
           } as Parameters<typeof relationshipsService.createOrganization>[1]
+          const commandInput = {
+            organization: organizationData,
+            billingAddress: billingAddress
+              ? (billingAddress as Parameters<typeof relationshipsService.createAddress>[3])
+              : null,
+          }
+          const idempotencyKey = await deriveCommandIdempotencyKey(
+            "create-organization",
+            commandInput,
+          )
           const result = await executeOrganizationCreateCommand({
             db,
             context: requestContext,
-            commandInput: {
-              organization: organizationData,
-              billingAddress: billingAddress
-                ? (billingAddress as Parameters<typeof relationshipsService.createAddress>[3])
-                : null,
-            },
-            admitted,
+            commandInput,
+            admitted: withServerResolvedIdempotencyKey(admitted, idempotencyKey),
             legacyIdempotencyKey: idempotencyKey,
           })
           return {
