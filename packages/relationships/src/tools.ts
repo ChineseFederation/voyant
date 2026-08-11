@@ -138,13 +138,6 @@ const billingAddressSchema = insertAddressForEntitySchema.omit({ metadata: true 
 export const createOrganizationToolInputSchema = insertOrganizationSchema
   .omit({ ownerId: true, source: true, sourceRef: true, customFields: true })
   .extend({
-    idempotencyKey: z
-      .string()
-      .trim()
-      .min(1)
-      .max(255)
-      .optional()
-      .describe("Compatibility copy of the admitted created-command idempotency key."),
     vatNumber: z.string().optional().describe("Compatibility alias for taxId."),
     billingAddress: billingAddressSchema,
   })
@@ -416,6 +409,7 @@ export const createOrganizationTool = defineTool<
   riskPolicy: CREATED_WRITE_RISK,
   capabilityId: `${OWNER}#tool.create-organization`,
   name: "create_organization",
+  resolvesIdempotencyKeyServerSide: true,
   description:
     "Create a CRM organization and optional billing address atomically. Exact retries return the original immutable organization reference.",
   inputSchema: createOrganizationToolInputSchema,

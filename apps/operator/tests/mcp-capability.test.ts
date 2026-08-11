@@ -61,6 +61,7 @@ import { invoices } from "@voyant-travel/finance/schema"
 import { composeVoyantGraphRuntime } from "@voyant-travel/framework"
 import { contractsService, policiesService } from "@voyant-travel/legal"
 import { proposalsService, tripSnapshotToProposalVersionApply } from "@voyant-travel/proposals"
+import { organizations } from "@voyant-travel/relationships/schema"
 import { tripsService } from "@voyant-travel/trips"
 import { sql as sqlRaw } from "drizzle-orm"
 import { Hono } from "hono"
@@ -556,7 +557,7 @@ const RUN_MARK = process.env.VOYANT_EVAL_MARK ?? String(Date.now()).slice(-6)
 
 interface CapabilityJourney {
   id: string
-  group: "commercial" | "proposal" | "amendment" | "supplier" | "contract"
+  group: "commercial" | "proposal" | "amendment" | "supplier" | "contract" | "organization"
   domain: string
   task: string
   expect: string
@@ -934,6 +935,49 @@ function buildJourneys(RUN_MARK: string): CapabilityJourney[] {
              where name = 'Dormant Experiences ${RUN_MARK}' and status = 'inactive'`,
     },
     {
+      id: "organization-create",
+      group: "organization",
+      domain: "organizations",
+      task: `Create an active client organization named 'Northstar Corporate Travel ${RUN_MARK}' with legal name 'Northstar Corporate Travel SRL', website 'https://northstar-${RUN_MARK}.example.com', tax id 'RO${RUN_MARK}42', default currency EUR, preferred language en, and 30-day payment terms. Confirm its organization id and recorded commercial details.`,
+      expect: "northstar",
+      maxCalls: 16,
+      verify: `select 1 from organizations
+             where name = 'Northstar Corporate Travel ${RUN_MARK}'
+               and legal_name = 'Northstar Corporate Travel SRL'
+               and website = 'https://northstar-${RUN_MARK}.example.com'
+               and tax_id = 'RO${RUN_MARK}42'
+               and relation = 'client'
+               and default_currency = 'EUR'
+               and preferred_language = 'en'
+               and payment_terms = 30
+               and status = 'active'`,
+    },
+    {
+      id: "organization-find",
+      group: "organization",
+      domain: "organizations",
+      task: `Find the CRM organization 'Danube Corporate Events ${RUN_MARK}' and report its legal name, relationship, tax id, default currency, and payment terms.`,
+      expect: `RODANUBE${RUN_MARK}`,
+      maxCalls: 12,
+      requiresDispatch: true,
+    },
+    {
+      id: "organization-deactivate",
+      group: "organization",
+      domain: "organizations",
+      task: `Mark the CRM organization 'Former Alpine Client ${RUN_MARK}' inactive without changing its name, client relationship, tax id, currency, language, or 45-day payment terms. Confirm its final status.`,
+      expect: "inactive",
+      maxCalls: 16,
+      verify: `select 1 from organizations
+             where name = 'Former Alpine Client ${RUN_MARK}'
+               and relation = 'client'
+               and tax_id = 'ROALPINE${RUN_MARK}'
+               and default_currency = 'EUR'
+               and preferred_language = 'de'
+               and payment_terms = 45
+               and status = 'inactive'`,
+    },
+    {
       id: "contract-template-create",
       group: "contract",
       domain: "contracts",
@@ -1086,6 +1130,37 @@ async function seedSupplierJourney(journeyId: string, mark: string): Promise<voi
     supplierId: supplier.id,
     email: fixture.email,
   })
+}
+
+async function seedOrganizationJourney(journeyId: string, mark: string): Promise<void> {
+  if (!verifyDb) throw new Error("Capability eval database is not mounted")
+  if (journeyId === "organization-create") return
+  const values =
+    journeyId === "organization-find"
+      ? {
+          name: `Danube Corporate Events ${mark}`,
+          legalName: "Danube Corporate Events SRL",
+          relation: "client" as const,
+          taxId: `RODANUBE${mark}`,
+          defaultCurrency: "EUR",
+          preferredLanguage: "ro",
+          paymentTerms: 30,
+          status: "active" as const,
+        }
+      : journeyId === "organization-deactivate"
+        ? {
+            name: `Former Alpine Client ${mark}`,
+            legalName: "Former Alpine Client GmbH",
+            relation: "client" as const,
+            taxId: `ROALPINE${mark}`,
+            defaultCurrency: "EUR",
+            preferredLanguage: "de",
+            paymentTerms: 45,
+            status: "active" as const,
+          }
+        : null
+  if (!values) throw new Error(`Unknown organization journey ${journeyId}`)
+  await verifyDb.insert(organizations).values(values)
 }
 
 async function seedProposalAuthoring(mark: string): Promise<void> {
@@ -1652,6 +1727,9 @@ describe.skipIf(!enabled)("MCP capability — a travel agent's job", () => {
           if (journey.group === "amendment") await seedBookingAmendment(mark)
           if (journey.group === "supplier") await seedSupplierJourney(journey.id, mark)
           if (journey.group === "contract") await seedContractJourney(journey.id, mark)
+          if (journey.group === "organization") {
+            await seedOrganizationJourney(journey.id, mark)
+          }
           if (journey.id === "proposal-accept") await seedProposalAcceptance(mark)
           if (journey.id === "paid-refund") await seedPaidCancellationRefund(mark)
           let run: JourneyRun

@@ -29,6 +29,9 @@ Run one independently seeded operator-job group:
 pnpm eval:mcp-capability -- --mode smoke --group supplier
 ```
 
+Supported independent groups include `organization`, `supplier`, `contract`,
+`proposal`, and `amendment`.
+
 `--group` keeps each journey's fixture boundary local to that group, so an unrelated
 commercial-chain failure cannot cap its result. Use `--journey <id>` for a single
 independently seeded diagnostic. The two selectors are mutually exclusive.
