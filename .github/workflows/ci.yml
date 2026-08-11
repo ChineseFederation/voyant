@@ -361,6 +361,8 @@ jobs:
                 tests/integration/postgres-pgtrgm-indexer.test.ts
               pnpm --filter @voyant-travel/commerce exec vitest run \
                 tests/integration/promotion-created-command.test.ts
+              pnpm --filter @voyant-travel/commerce exec vitest run \
+                tests/integration/linked-payment-contract-confirmation.test.ts
               pnpm --filter @voyant-travel/cruises exec vitest run \
                 tests/integration/created-target-tools.test.ts
               pnpm --filter @voyant-travel/inventory exec vitest run \

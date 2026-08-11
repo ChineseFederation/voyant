@@ -9,6 +9,7 @@ import {
 } from "@voyant-travel/catalog/ports"
 import type { BootstrapContext, EventBus, SubscriberRuntimeDescriptor } from "@voyant-travel/core"
 import { defineGraphRuntimeFactory } from "@voyant-travel/core/project"
+import { and, desc, eq, inArray } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 
 import {
@@ -48,6 +49,7 @@ export interface CatalogCheckoutRuntimeDatabase<TBindings = unknown>
 export interface AcceptanceSignatureSubscriberRuntimeOptions<TBindings = unknown>
   extends CatalogCheckoutRuntimeDatabase<TBindings> {
   legal: AcceptanceSignatureLegalPort
+  promoteLinkedPayment?: typeof recordLinkedBookingPaymentConfirmation
   persistSignature?: typeof persistAcceptanceSignature
   logger?: Pick<Console, "error">
 }
@@ -86,10 +88,47 @@ interface InvoicePaymentRecordedPayload {
   status: "pending" | "completed" | "failed" | "refunded"
 }
 
+/**
+ * Recover the card path when the shopper's paid Commit wins the settlement
+ * subscriber race.
+ *
+ * The Booking Session payment is transferred onto the Booking in the same
+ * transaction that creates it. The earlier `payment.completed` event may have
+ * already been delivered while that payment still targeted the Booking
+ * Session, so document generation is the first durable post-commit checkpoint
+ * guaranteed to see both the Contract and the transferred payment.
+ */
+export async function recordLinkedBookingPaymentConfirmation(
+  db: PostgresJsDatabase,
+  contractId: string,
+  legal: AcceptanceSignatureLegalPort,
+): Promise<void> {
+  const contract = await legal.getContract(db, contractId)
+  if (!contract?.bookingId) return
+
+  const { paymentSessions } = await import("@voyant-travel/finance/schema")
+  const [paymentSession] = await db
+    .select({ id: paymentSessions.id })
+    .from(paymentSessions)
+    .where(
+      and(
+        eq(paymentSessions.bookingId, contract.bookingId),
+        inArray(paymentSessions.status, ["authorized", "paid"]),
+      ),
+    )
+    .orderBy(desc(paymentSessions.updatedAt), desc(paymentSessions.id))
+    .limit(1)
+  if (!paymentSession) return
+
+  await legal.recordBookingPaymentConfirmation(db, contract.bookingId, paymentSession.id)
+}
+
 /** Build the acceptance-signature descriptor without activating its manifest runtime. */
 export function createAcceptanceSignatureSubscriberRuntime<TBindings = unknown>(
   options: AcceptanceSignatureSubscriberRuntimeOptions<TBindings>,
 ): SubscriberRuntimeDescriptor {
+  const promoteLinkedPayment =
+    options.promoteLinkedPayment ?? recordLinkedBookingPaymentConfirmation
   const persistSignature = options.persistSignature ?? persistAcceptanceSignature
   const logger = options.logger ?? console
 
@@ -102,9 +141,10 @@ export function createAcceptanceSignatureSubscriberRuntime<TBindings = unknown>(
         "contract.document.generated",
         async ({ data }) => {
           try {
-            await options.withDb(runtimeBindings, (db) =>
-              persistSignature(db, data.contractId, eventBus, options.legal),
-            )
+            await options.withDb(runtimeBindings, async (db) => {
+              await promoteLinkedPayment(db, data.contractId, options.legal)
+              await persistSignature(db, data.contractId, eventBus, options.legal)
+            })
           } catch (error) {
             logger.error("[catalog-checkout] persistAcceptanceSignature failed", error)
             throw error

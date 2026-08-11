@@ -13,6 +13,7 @@ import {
   createCheckoutFinalizeSubscriberGraphRuntime,
   createCheckoutFinalizeSubscriberRuntime,
   createInvoicePaymentSignatureSubscriberRuntime,
+  recordLinkedBookingPaymentConfirmation,
 } from "../../src/checkout/subscriber-runtime.js"
 
 type Handler = (
@@ -72,6 +73,63 @@ describe("catalog-checkout subscriber runtimes", () => {
     })
     expect(withDb).toHaveBeenCalledWith(bindings, expect.any(Function))
     expect(persistSignature).toHaveBeenCalledWith(db, "contract_1", eventBus, legalPort)
+  })
+
+  it("recovers a linked paid checkout before promoting the generated contract", async () => {
+    const db = {} as PostgresJsDatabase
+    const calls: string[] = []
+    const promoteLinkedPayment = vi.fn(async () => {
+      calls.push("payment")
+    })
+    const persistSignature = vi.fn(async () => {
+      calls.push("signature")
+    })
+    const { eventBus, subscriptions } = recordingEventBus()
+    const descriptor = createAcceptanceSignatureSubscriberRuntime({
+      legal: legalPort,
+      withDb: async (_bindings, operation) => operation(db),
+      promoteLinkedPayment,
+      persistSignature,
+    })
+
+    await descriptor.register({ bindings: {}, container: createContainer(), eventBus })
+    await subscriptions[0]?.handler(
+      event("contract.document.generated", { contractId: "contract_card_1" }),
+    )
+
+    expect(promoteLinkedPayment).toHaveBeenCalledWith(db, "contract_card_1", legalPort)
+    expect(calls).toEqual(["payment", "signature"])
+  })
+
+  it("records a transferred paid Booking Session as contract payment confirmation", async () => {
+    const limit = vi.fn(async () => [{ id: "session_card_1" }])
+    const db = {
+      select: () => ({
+        from: () => ({
+          where: () => ({
+            orderBy: () => ({ limit }),
+          }),
+        }),
+      }),
+    } as PostgresJsDatabase
+    const paidLegalPort: AcceptanceSignatureLegalPort = {
+      ...legalPort,
+      getContract: vi.fn(async () => ({
+        id: "contract_card_1",
+        bookingId: "booking_card_1",
+        metadata: null,
+        status: "draft",
+      })),
+      recordBookingPaymentConfirmation: vi.fn(async () => undefined),
+    }
+
+    await recordLinkedBookingPaymentConfirmation(db, "contract_card_1", paidLegalPort)
+
+    expect(paidLegalPort.recordBookingPaymentConfirmation).toHaveBeenCalledWith(
+      db,
+      "booking_card_1",
+      "session_card_1",
+    )
   })
 
   it("logs and rethrows acceptance-signature failures for outbox retry", async () => {
