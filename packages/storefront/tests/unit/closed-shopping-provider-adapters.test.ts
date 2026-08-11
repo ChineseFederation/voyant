@@ -68,6 +68,7 @@ function adapters(
   input: {
     active?: (context: typeof storefront) => boolean
     indexer?: IndexerAdapter
+    markets?: Array<typeof activeMarket>
     policies?: FieldPolicy[]
   } = {},
 ) {
@@ -102,7 +103,7 @@ function adapters(
           ],
         ]),
     },
-    listMarkets: vi.fn(async () => [activeMarket]),
+    listMarkets: vi.fn(async () => input.markets ?? [activeMarket]),
     isActiveStorefrontChannel: vi.fn(async (_db, context) =>
       input.active ? input.active(context as typeof storefront) : true,
     ),
@@ -163,6 +164,46 @@ describe("closed storefront shopping market adapter", () => {
 })
 
 describe("closed storefront shopping catalog adapter", () => {
+  it("admits a presentation currency configured on another active market", async () => {
+    const indexer = createIndexer()
+    const provider = adapters({
+      indexer,
+      markets: [
+        activeMarket,
+        {
+          ...activeMarket,
+          id: "market_uk",
+          code: "UK",
+          countryCode: "GB",
+          defaultLocale: "en-GB",
+          defaultCurrency: "GBP",
+          locales: [{ languageTag: "en-GB", isDefault: true }],
+          currencies: [{ currencyCode: "GBP", isDefault: true }],
+        },
+      ],
+    }).catalog
+
+    await expect(
+      provider.searchSlice({
+        context: storefront,
+        scope: {
+          marketId: "market_ro",
+          locale: "ro-RO",
+          currency: "GBP",
+          available: {
+            marketIds: ["market_ro", "market_uk"],
+            locales: ["ro-RO", "en-GB"],
+            currencies: ["RON", "EUR", "GBP"],
+          },
+        },
+        vertical: "products",
+        query: "",
+        filters: [],
+      }),
+    ).resolves.toMatchObject({ items: [], total: 0 })
+    expect(indexer.search).toHaveBeenCalledOnce()
+  })
+
   it.each([
     ["disabled locale", { marketId: "market_ro", locale: "de-DE", currency: "RON" }],
     ["disabled currency", { marketId: "market_ro", locale: "ro-RO", currency: "USD" }],

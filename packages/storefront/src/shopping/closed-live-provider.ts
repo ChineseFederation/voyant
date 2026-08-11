@@ -361,9 +361,12 @@ async function assertActiveScope(
     channelId: context.channelId,
   })
   const market = active.find(({ id }) => id === scope.marketId)
+  const currency = scope.currency.trim().toUpperCase()
   if (
     !market?.locales.includes(scope.locale) ||
-    !market.currencies.map((currency) => currency.toUpperCase()).includes(scope.currency)
+    !active.some(({ currencies }) =>
+      currencies.map((candidate) => candidate.trim().toUpperCase()).includes(currency),
+    )
   ) {
     throw new StorefrontShoppingUnavailableError("active market scope")
   }

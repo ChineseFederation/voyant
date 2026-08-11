@@ -122,13 +122,24 @@ describe("managed storefront shopping scope", () => {
       currency: "RON",
     })
     await expect(runtime.resolveScope(context, { currency: "GBP" })).resolves.toMatchObject({
-      marketId: "market_uk",
+      marketId: "market_eu",
       locale: "en-GB",
       currency: "GBP",
     })
     await expect(
+      runtime.resolveScope(context, { locale: "ro", currency: "GBP" }),
+    ).resolves.toMatchObject({
+      marketId: "market_ro",
+      locale: "ro-RO",
+      currency: "GBP",
+    })
+    await expect(
       runtime.resolveScope(context, { locale: "fr-FR", currency: "RON" }),
-    ).rejects.toMatchObject({ code: "storefront_shopping_scope_unsupported" })
+    ).resolves.toMatchObject({
+      marketId: "market_eu",
+      locale: "fr-FR",
+      currency: "RON",
+    })
     await expect(runtime.resolveScope(context, { locale: "en-US" })).rejects.toMatchObject({
       code: "storefront_shopping_scope_unsupported",
       selector: "locale",

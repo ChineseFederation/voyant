@@ -121,9 +121,12 @@ async function assertActiveScope(
 ): Promise<void> {
   const active = await provider.listActiveMarkets(context)
   const market = active.find(({ id }) => id === scope.marketId)
+  const currency = scope.currency.trim().toUpperCase()
   if (
     !market?.locales.includes(scope.locale) ||
-    !market.currencies.includes(scope.currency.trim().toUpperCase())
+    !active.some(({ currencies }) =>
+      currencies.map((candidate) => candidate.trim().toUpperCase()).includes(currency),
+    )
   ) {
     throw new StorefrontShoppingUnavailableError("active market scope")
   }

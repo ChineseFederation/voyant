@@ -105,9 +105,7 @@ async function resolveActiveScope(
   )
   const requestedCurrency = requested.currency ? upperCurrency(requested.currency) : undefined
   const eligible = markets.filter(
-    (candidate) =>
-      (!requested.locale || resolveSupportedLocale(candidate, requested.locale)) &&
-      (!requestedCurrency || marketCurrencies(candidate).includes(requestedCurrency)),
+    (candidate) => !requested.locale || resolveSupportedLocale(candidate, requested.locale),
   )
   const market = requested.marketId
     ? markets.find((candidate) => candidate.id === requested.marketId)
@@ -128,10 +126,9 @@ async function resolveActiveScope(
   const locale = requested.locale
     ? resolveSupportedLocale(market, requested.locale)
     : market.defaultLocale
-  const currencies = marketCurrencies(market)
   const currency = requestedCurrency ?? upperCurrency(market.defaultCurrency)
   if (!locale) throw new StorefrontShoppingScopeError("locale", requested.locale)
-  if (!currencies.includes(currency)) {
+  if (!availableCurrencies.includes(currency)) {
     throw new StorefrontShoppingScopeError("currency", currency)
   }
 
@@ -149,10 +146,6 @@ async function resolveActiveScope(
 
 function marketLocales(market: StorefrontActiveMarket): string[] {
   return unique([market.defaultLocale, ...market.locales])
-}
-
-function marketCurrencies(market: StorefrontActiveMarket): string[] {
-  return unique([market.defaultCurrency, ...market.currencies].map(upperCurrency))
 }
 
 function baseLanguageRange(locale: string): string | null {
