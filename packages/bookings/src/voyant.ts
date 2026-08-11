@@ -558,6 +558,7 @@ export const bookingsVoyantModule = defineModule({
       requiredScopes: ["bookings:write"],
       context: ["bookings"],
       risk: "medium",
+      adminWrites: ["/v1/admin/bookings/{bookingId}/amendments/traveler-corrections/preview"],
     },
     {
       id: "@voyant-travel/bookings#tool.accept-booking-amendment",
@@ -580,6 +581,7 @@ export const bookingsVoyantModule = defineModule({
       requiredScopes: ["bookings:write"],
       context: ["bookings"],
       risk: "medium",
+      adminWrites: ["/v1/admin/bookings/{bookingId}/amendments/traveler-roster/preview"],
     },
     {
       id: "@voyant-travel/bookings#tool.apply-booking-amendment",

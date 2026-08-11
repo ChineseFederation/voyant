@@ -9,7 +9,6 @@ import {
   defineModule,
   providePort,
   requirePort,
-  type VoyantGraphActionDeclaration,
 } from "@voyant-travel/core/project"
 import {
   financeAccommodationsPaymentPolicyRuntimePort,
@@ -41,111 +40,13 @@ import {
   pricingRuleChangedPayloadSchema,
   promotionChangedPayloadSchema,
 } from "./voyant-event-schemas.js"
+import { commerceToolActions } from "./voyant-tool-actions.js"
 
 const commerceAdminRouteId = "@voyant-travel/commerce#admin.route.promotions-index"
 const commerceAdminRuntime = {
   entry: "@voyant-travel/commerce-react/admin",
   export: "createCommerceAdminExtension",
 } as const
-
-const commerceToolActions = [
-  commerceToolAction("resolve-sellability", "sellability", "read"),
-  commerceToolAction("list-cancellation-policies", "pricing", "read"),
-  commerceToolAction("get-cancellation-policy", "pricing", "read"),
-  commerceToolAction("create-cancellation-policy", "pricing", "write"),
-  commerceToolAction("update-cancellation-policy", "pricing", "write"),
-  commerceToolAction("list-price-catalogs", "pricing", "read"),
-  commerceToolAction("get-price-catalog", "pricing", "read"),
-  commerceToolAction("create-price-catalog", "pricing", "write"),
-  commerceToolAction("update-price-catalog", "pricing", "write"),
-  commerceToolAction("list-promotions", "promotions", "read"),
-  commerceToolAction("get-promotion", "promotions", "read"),
-  commerceToolAction("create-promotion", "promotions", "write"),
-  commerceToolAction("update-promotion", "promotions", "write"),
-  commerceToolAction("archive-promotion", "promotions", "write"),
-] as const
-
-function commerceToolAction(
-  suffix: string,
-  resource: "sellability" | "pricing" | "promotions",
-  action: "read" | "write",
-): VoyantGraphActionDeclaration {
-  const write = action === "write"
-  const created =
-    suffix === "create-cancellation-policy"
-      ? {
-          targetType: "cancellation-policy",
-          commandTargetType: "cancellation_policy_create_command",
-          resultReferenceType: "cancellation-policy",
-        }
-      : suffix === "create-price-catalog"
-        ? {
-            targetType: "price-catalog",
-            commandTargetType: "price_catalog_create_command",
-            resultReferenceType: "price-catalog",
-          }
-        : suffix === "create-promotion"
-          ? {
-              targetType: "promotion",
-              commandTargetType: "promotion_create_command",
-              resultReferenceType: "promotion",
-            }
-          : null
-  return {
-    id: `@voyant-travel/commerce#action.${suffix}`,
-    version: "v1",
-    kind: write ? "execute" : "read",
-    targetType: created?.targetType ?? resource,
-    ...([
-      "update-cancellation-policy",
-      "update-price-catalog",
-      "update-promotion",
-      "archive-promotion",
-    ].includes(suffix)
-      ? {
-          commandTargetField: "id",
-          availability: { status: "available" as const },
-          effectBoundary: "local" as const,
-          targetLifecycle: "existing" as const,
-        }
-      : {}),
-    ...(suffix === "create-promotion"
-      ? {
-          availability: { status: "available" as const },
-          effectBoundary: "multistage" as const,
-          durability: {
-            strategy: "outbox" as const,
-            testReference: "packages/commerce/tests/integration/promotion-created-command.test.ts",
-          },
-        }
-      : {}),
-    ...(suffix === "create-cancellation-policy" || suffix === "create-price-catalog"
-      ? {
-          availability: { status: "available" as const },
-          effectBoundary: "local" as const,
-        }
-      : {}),
-    resource,
-    action,
-    requiredScopes: [`${resource}:${action}`],
-    risk: write ? "medium" : "low",
-    ledger: write ? "required" : "optional",
-    approval: "never",
-    reversible: write && !created,
-    allowedActorTypes: ["staff"],
-    ...(created
-      ? {
-          targetLifecycle: "created" as const,
-          createdTarget: {
-            commandTargetType: created.commandTargetType,
-            resultReferenceType: created.resultReferenceType,
-            durability: "handler-command-claim-v1" as const,
-          },
-        }
-      : {}),
-    from: { tools: [`@voyant-travel/commerce#tool.${suffix}`] },
-  }
-}
 
 /** Import-cheap deployment declaration owned by the commerce package. */
 export const commerceVoyantModule = defineModule({
@@ -265,6 +166,52 @@ export const commerceVoyantModule = defineModule({
       requiredScopes: ["sellability:read"],
       context: ["commerce"],
       risk: "low",
+    },
+    {
+      id: "@voyant-travel/commerce#tool.list-sellability-policies",
+      name: "list_sellability_policies",
+      runtime: {
+        entry: "@voyant-travel/commerce/tools",
+        export: "listSellabilityPoliciesTool",
+      },
+      requiredScopes: ["sellability:read"],
+      context: ["commerce"],
+      risk: "low",
+    },
+    {
+      id: "@voyant-travel/commerce#tool.get-sellability-policy",
+      name: "get_sellability_policy",
+      runtime: {
+        entry: "@voyant-travel/commerce/tools",
+        export: "getSellabilityPolicyTool",
+      },
+      requiredScopes: ["sellability:read"],
+      context: ["commerce"],
+      risk: "low",
+    },
+    {
+      id: "@voyant-travel/commerce#tool.create-sellability-policy",
+      name: "create_sellability_policy",
+      runtime: {
+        entry: "@voyant-travel/commerce/tools",
+        export: "createSellabilityPolicyTool",
+      },
+      requiredScopes: ["sellability:write"],
+      context: ["commerce"],
+      risk: "medium",
+      adminWrites: ["/v1/admin/sellability/policies"],
+    },
+    {
+      id: "@voyant-travel/commerce#tool.update-sellability-policy",
+      name: "update_sellability_policy",
+      runtime: {
+        entry: "@voyant-travel/commerce/tools",
+        export: "updateSellabilityPolicyTool",
+      },
+      requiredScopes: ["sellability:write"],
+      context: ["commerce"],
+      risk: "medium",
+      adminWrites: ["/v1/admin/sellability/policies/{id}"],
     },
     {
       id: "@voyant-travel/commerce#tool.list-cancellation-policies",

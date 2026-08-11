@@ -29,7 +29,14 @@ import {
   promotionalOfferSchema,
   updatePromotionalOfferSchema,
 } from "./promotions/validation.js"
-import { sellabilityResolveQuerySchema } from "./sellability/validation.js"
+import {
+  insertSellabilityPolicySchema,
+  sellabilityPolicyListQuerySchema,
+  sellabilityPolicyScopeSchema,
+  sellabilityPolicyTypeSchema,
+  sellabilityResolveQuerySchema,
+  updateSellabilityPolicySchema,
+} from "./sellability/validation.js"
 
 const OWNER = "@voyant-travel/commerce"
 const VERSION = "v1"
@@ -53,6 +60,7 @@ const idSchema = z.object({ id: z.string().min(1) })
 const updateCancellationPolicyToolSchema = z.intersection(idSchema, updateCancellationPolicySchema)
 const updatePriceCatalogToolSchema = z.intersection(idSchema, updatePriceCatalogSchema)
 const updatePromotionToolSchema = z.intersection(idSchema, updatePromotionalOfferSchema)
+const updateSellabilityPolicyToolSchema = z.intersection(idSchema, updateSellabilityPolicySchema)
 const createdCommandInput = {
   idempotencyKey: z
     .string()
@@ -66,6 +74,8 @@ const createCancellationPolicyToolInputSchema =
   insertCancellationPolicySchema.extend(createdCommandInput)
 const createPriceCatalogToolInputSchema = insertPriceCatalogSchema.extend(createdCommandInput)
 const createPromotionToolInputSchema = insertPromotionalOfferSchema.extend(createdCommandInput)
+const createSellabilityPolicyToolInputSchema =
+  insertSellabilityPolicySchema.extend(createdCommandInput)
 
 const cancellationPolicySchema = z.object({
   id: z.string(),
@@ -75,6 +85,25 @@ const cancellationPolicySchema = z.object({
   simpleCutoffHours: z.number().int().nullable(),
   isDefault: z.boolean(),
   active: z.boolean(),
+  notes: z.string().nullable(),
+  metadata: z.record(z.string(), z.unknown()).nullable(),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+})
+
+const sellabilityPolicySchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  scope: sellabilityPolicyScopeSchema,
+  policyType: sellabilityPolicyTypeSchema,
+  productId: z.string().nullable(),
+  optionId: z.string().nullable(),
+  marketId: z.string().nullable(),
+  channelId: z.string().nullable(),
+  priority: z.number().int(),
+  active: z.boolean(),
+  conditions: z.record(z.string(), z.unknown()),
+  effects: z.record(z.string(), z.unknown()),
   notes: z.string().nullable(),
   metadata: z.record(z.string(), z.unknown()).nullable(),
   createdAt: z.string().datetime(),
@@ -115,6 +144,11 @@ const createdPriceCatalogOutputSchema = z.object({
 const createdPromotionOutputSchema = z.object({
   status: z.literal("created"),
   promotion: z.object({ id: z.string() }),
+  replayed: z.boolean(),
+})
+const createdSellabilityPolicyOutputSchema = z.object({
+  status: z.literal("created"),
+  sellabilityPolicy: z.object({ id: z.string() }),
   replayed: z.boolean(),
 })
 
@@ -193,6 +227,13 @@ const resolveSellabilityOutputSchema = z.object({
 type AnyServiceInput = Record<string, unknown>
 export interface CommerceToolServices {
   resolveSellability(input: z.infer<typeof sellabilityResolveQuerySchema>): Promise<unknown>
+  listSellabilityPolicies(input: z.infer<typeof sellabilityPolicyListQuerySchema>): Promise<unknown>
+  getSellabilityPolicy(id: string): Promise<unknown>
+  createSellabilityPolicy(
+    input: z.infer<typeof createSellabilityPolicyToolInputSchema>,
+    admitted: ToolHandlerActionPolicyContext,
+  ): Promise<unknown>
+  updateSellabilityPolicy(id: string, input: AnyServiceInput): Promise<unknown>
   listCancellationPolicies(
     input: z.infer<typeof cancellationPolicyListQuerySchema>,
   ): Promise<unknown>
@@ -258,6 +299,71 @@ export const resolveSellabilityTool = defineTool({
   outputSchema: resolveSellabilityOutputSchema,
   async handler(input, ctx: CommerceToolContext) {
     return resolveSellabilityOutputSchema.parse(await commerce(ctx).resolveSellability(input))
+  },
+})
+
+export const listSellabilityPoliciesTool = defineTool({
+  ...readMetadata(["sellability:read"]),
+  capabilityId: `${OWNER}#tool.list-sellability-policies`,
+  name: "list_sellability_policies",
+  description:
+    "List the commercial policies that determine whether an offer can be sold. Read-only.",
+  inputSchema: sellabilityPolicyListQuerySchema,
+  outputSchema: listResponseSchema(sellabilityPolicySchema),
+  async handler(input, ctx: CommerceToolContext) {
+    return listResponseSchema(sellabilityPolicySchema).parse(
+      await commerce(ctx).listSellabilityPolicies(input),
+    )
+  },
+})
+
+export const getSellabilityPolicyTool = defineTool({
+  ...readMetadata(["sellability:read"]),
+  capabilityId: `${OWNER}#tool.get-sellability-policy`,
+  name: "get_sellability_policy",
+  description: "Read one commercial sellability policy by id. Read-only.",
+  inputSchema: idSchema,
+  outputSchema: sellabilityPolicySchema.nullable(),
+  async handler({ id }, ctx: CommerceToolContext) {
+    return sellabilityPolicySchema.nullable().parse(await commerce(ctx).getSellabilityPolicy(id))
+  },
+})
+
+export const createSellabilityPolicyTool = defineTool({
+  ...writeMetadata(["sellability:write"]),
+  riskPolicy: createdWriteRisk,
+  capabilityId: `${OWNER}#tool.create-sellability-policy`,
+  name: "create_sellability_policy",
+  description:
+    "Create a commercial sellability rule for a global, product, option, market, or channel scope. Exact retries return the original reference.",
+  inputSchema: createSellabilityPolicyToolInputSchema,
+  outputSchema: createdSellabilityPolicyOutputSchema,
+  annotations: { idempotentHint: true },
+  actionPolicyEnforcement: "handler",
+  async handler(input, ctx: CommerceToolContext) {
+    const admitted = admitHandlerActionPolicy(
+      ctx,
+      commerceHandlerActionPolicyExpectation(COMMERCE_CREATED_TARGET_POLICIES.sellabilityPolicy),
+    )
+    return createdSellabilityPolicyOutputSchema.parse(
+      await commerce(ctx).createSellabilityPolicy(input, admitted),
+    )
+  },
+})
+
+export const updateSellabilityPolicyTool = defineTool({
+  ...writeMetadata(["sellability:write"]),
+  capabilityId: `${OWNER}#tool.update-sellability-policy`,
+  name: "update_sellability_policy",
+  description:
+    "Update or deactivate an existing sellability policy while preserving its identity and evaluation history.",
+  inputSchema: updateSellabilityPolicyToolSchema,
+  outputSchema: sellabilityPolicySchema.nullable(),
+  annotations: { idempotentHint: true },
+  async handler({ id, ...patch }, ctx: CommerceToolContext) {
+    return sellabilityPolicySchema
+      .nullable()
+      .parse(await commerce(ctx).updateSellabilityPolicy(id, patch))
   },
 })
 
@@ -459,6 +565,10 @@ export const archivePromotionTool = defineTool({
 
 export const commerceTools = [
   resolveSellabilityTool,
+  listSellabilityPoliciesTool,
+  getSellabilityPolicyTool,
+  createSellabilityPolicyTool,
+  updateSellabilityPolicyTool,
   listCancellationPoliciesTool,
   getCancellationPolicyTool,
   createCancellationPolicyTool,

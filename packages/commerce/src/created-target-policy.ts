@@ -20,6 +20,20 @@ interface CommerceCreatedTargetPolicy {
 }
 
 export const COMMERCE_CREATED_TARGET_POLICIES = {
+  sellabilityPolicy: {
+    actionName: "@voyant-travel/commerce#action.create-sellability-policy",
+    actionVersion: "v1",
+    toolName: "create_sellability_policy",
+    toolCapabilityId: "@voyant-travel/commerce#tool.create-sellability-policy",
+    capabilityId: "@voyant-travel/commerce#action.create-sellability-policy",
+    capabilityVersion: "v1",
+    commandTargetType: "sellability_policy_create_command",
+    canonicalTargetType: "sellability-policy",
+    resultReferenceType: "sellability-policy",
+    evaluatedRisk: "medium",
+    approvalPolicy: "none",
+    approvalReasonCode: null,
+  },
   cancellationPolicy: {
     actionName: "@voyant-travel/commerce#action.create-cancellation-policy",
     actionVersion: "v1",

@@ -12,12 +12,18 @@ import {
   createCancellationPolicyTool,
   createPriceCatalogTool,
   createPromotionTool,
+  createSellabilityPolicyTool,
 } from "../../src/tools.js"
 import { commerceVoyantModule } from "../../src/voyant.js"
 
 describe("commerce created-target commands", () => {
   it("declares handler-owned generated targets with immutable outputs", () => {
     for (const [policy, tool, outputKey] of [
+      [
+        COMMERCE_CREATED_TARGET_POLICIES.sellabilityPolicy,
+        createSellabilityPolicyTool,
+        "sellabilityPolicy",
+      ],
       [
         COMMERCE_CREATED_TARGET_POLICIES.cancellationPolicy,
         createCancellationPolicyTool,
@@ -52,6 +58,9 @@ describe("commerce created-target commands", () => {
       )
     }
     expect(createCancellationPolicyTool.inputSchema.safeParse({ name: "Policy" }).success).toBe(
+      true,
+    )
+    expect(createSellabilityPolicyTool.inputSchema.safeParse({ name: "Adults only" }).success).toBe(
       true,
     )
     expect(
@@ -148,6 +157,14 @@ describe("commerce created-target commands", () => {
 
   it("rejects missing, stale, and excluded-actor admission before service mutation", async () => {
     for (const [policy, tool, input] of [
+      [
+        COMMERCE_CREATED_TARGET_POLICIES.sellabilityPolicy,
+        createSellabilityPolicyTool,
+        createSellabilityPolicyTool.inputSchema.parse({
+          name: "Adults only",
+          idempotencyKey: "key",
+        }),
+      ],
       [
         COMMERCE_CREATED_TARGET_POLICIES.cancellationPolicy,
         createCancellationPolicyTool,
