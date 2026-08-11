@@ -107,10 +107,38 @@ async function resolveCloudRequest(
 export function createCloudTeamManagementAdapter(
   identityAccess: IdentityAccessRuntimeProvider,
 ): TeamManagementAdapter {
+  const requests = new WeakMap<
+    TeamManagementRequestContext,
+    Promise<CloudAdminMembersRequest & { actingExternalUserId: string }>
+  >()
+  const members = new WeakMap<TeamManagementRequestContext, Promise<CloudAdminMember[]>>()
+
+  function requestFor(context: TeamManagementRequestContext) {
+    const existing = requests.get(context)
+    if (existing) return existing
+    const pending = resolveCloudRequest(identityAccess, context)
+    requests.set(context, pending)
+    void pending.catch(() => {
+      if (requests.get(context) === pending) requests.delete(context)
+    })
+    return pending
+  }
+
+  function membersFor(context: TeamManagementRequestContext) {
+    const existing = members.get(context)
+    if (existing) return existing
+    const pending = requestFor(context).then(listCloudAdminMembers)
+    members.set(context, pending)
+    void pending.catch(() => {
+      if (members.get(context) === pending) members.delete(context)
+    })
+    return pending
+  }
+
   return {
     async getActor(context) {
-      const request = await resolveCloudRequest(identityAccess, context)
-      const actor = (await listCloudAdminMembers(request)).find(
+      const request = await requestFor(context)
+      const actor = (await membersFor(context)).find(
         (member) => member.externalUserId === request.actingExternalUserId,
       )
       if (!actor?.hasDeploymentAccess) {
@@ -130,24 +158,24 @@ export function createCloudTeamManagementAdapter(
       }
     },
     async listMembers(context) {
-      return (await listCloudAdminMembers(await resolveCloudRequest(identityAccess, context))).map(
-        cloudTeamMemberDto,
-      )
+      return (await membersFor(context)).map(cloudTeamMemberDto)
     },
     async listRoles(context) {
-      return (
-        await listCloudAdminMemberRoles(await resolveCloudRequest(identityAccess, context))
-      ).map((role) => ({ id: role.slug, name: role.name, description: role.description }))
+      return (await listCloudAdminMemberRoles(await requestFor(context))).map((role) => ({
+        id: role.slug,
+        name: role.name,
+        description: role.description,
+      }))
     },
     async listInvitations(context) {
-      return (
-        await listCloudAdminInvitations(await resolveCloudRequest(identityAccess, context))
-      ).map(cloudTeamInvitationDto)
+      return (await listCloudAdminInvitations(await requestFor(context))).map(
+        cloudTeamInvitationDto,
+      )
     },
     async inviteMember(context, input) {
       return createdInvitationDto(
         await inviteCloudAdminMember({
-          ...(await resolveCloudRequest(identityAccess, context)),
+          ...(await requestFor(context)),
           input: {
             email: input.email,
             roleSlug: input.roleId,
@@ -158,14 +186,14 @@ export function createCloudTeamManagementAdapter(
     },
     async revokeInvitation(context, invitationId) {
       await revokeCloudAdminInvitation({
-        ...(await resolveCloudRequest(identityAccess, context)),
+        ...(await requestFor(context)),
         invitationId,
       })
     },
     async updateMemberRole(context, memberId, roleId) {
       return cloudTeamMemberDto(
         await setCloudAdminMemberRole({
-          ...(await resolveCloudRequest(identityAccess, context)),
+          ...(await requestFor(context)),
           membershipId: memberId,
           roleSlug: roleId,
         }),
@@ -174,7 +202,7 @@ export function createCloudTeamManagementAdapter(
     async deactivateMember(context, memberId) {
       return cloudTeamMemberDto(
         await setCloudAdminMemberAccess({
-          ...(await resolveCloudRequest(identityAccess, context)),
+          ...(await requestFor(context)),
           membershipId: memberId,
           hasAccess: false,
         }),
@@ -183,7 +211,7 @@ export function createCloudTeamManagementAdapter(
     async activateMember(context, memberId) {
       return cloudTeamMemberDto(
         await setCloudAdminMemberAccess({
-          ...(await resolveCloudRequest(identityAccess, context)),
+          ...(await requestFor(context)),
           membershipId: memberId,
           hasAccess: true,
         }),
