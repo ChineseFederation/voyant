@@ -1,5 +1,11 @@
 # @voyant-travel/legal
 
+## 0.249.14
+
+### Patch Changes
+
+- 900c452: Keep production runtime-port startup preflight side-effect free while retaining exhaustive behavioral provider verification for CI and release gates.
+
 ## 0.249.13
 
 ### Patch Changes
