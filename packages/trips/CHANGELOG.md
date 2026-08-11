@@ -1,5 +1,17 @@
 # @voyant-travel/trips
 
+## 0.234.6
+
+### Patch Changes
+
+- 7db4d2a: Commit customer-built Trip snapshots without requiring accepted Proposal provenance, while preserving Proposal booking-origin evidence and renewed-acceptance handling for Proposal-backed journeys.
+- a1f9523: Preserve the exact server-selected supplier kind, connection, and source reference when a Trip composite session quotes and books sourced inventory.
+- Updated dependencies [c56d33a]
+- Updated dependencies [a1f9523]
+  - @voyant-travel/storefront@0.255.8
+  - @voyant-travel/catalog@0.253.4
+  - @voyant-travel/catalog-contracts@0.132.1
+
 ## 0.234.5
 
 ### Patch Changes

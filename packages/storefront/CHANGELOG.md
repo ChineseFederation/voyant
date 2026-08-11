@@ -1,5 +1,14 @@
 # @voyant-travel/storefront
 
+## 0.255.8
+
+### Patch Changes
+
+- c56d33a: Allow visitors to choose any operator-configured presentation currency independently of their resolved shopping market and locale, while keeping market, locale, and currency validation server-owned.
+- Updated dependencies [a1f9523]
+  - @voyant-travel/catalog@0.253.4
+  - @voyant-travel/catalog-contracts@0.132.1
+
 ## 0.255.7
 
 ### Patch Changes

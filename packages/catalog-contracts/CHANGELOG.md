@@ -1,5 +1,11 @@
 # @voyant-travel/catalog-contracts
 
+## 0.132.1
+
+### Patch Changes
+
+- a1f9523: Preserve the exact server-selected supplier kind, connection, and source reference when a Trip composite session quotes and books sourced inventory.
+
 ## 0.132.0
 
 ### Minor Changes
