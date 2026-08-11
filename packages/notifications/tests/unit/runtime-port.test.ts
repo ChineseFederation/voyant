@@ -73,16 +73,20 @@ describe("Notifications runtime port", () => {
       },
     })
     const selected = providerForProcess()
+    const createIsolatedProbe = vi.fn(async () => ({
+      providers: [providerForProcess()],
+      restart: async () => [providerForProcess()],
+      acceptedCount: (_providerName: string, key: string) => (accepted.has(key) ? 1 : 0),
+    }))
+    const runtime = { providers: [selected], createIsolatedProbe }
+
+    await durableNotificationProviderPort.test(runtime)
+    expect(createIsolatedProbe).not.toHaveBeenCalled()
+
     await expect(
-      assertPortConforms(durableNotificationProviderPort, {
-        providers: [selected],
-        createIsolatedProbe: async () => ({
-          providers: [providerForProcess()],
-          restart: async () => [providerForProcess()],
-          acceptedCount: (_providerName: string, key: string) => (accepted.has(key) ? 1 : 0),
-        }),
-      }),
+      assertPortConforms(durableNotificationProviderPort, runtime),
     ).resolves.toBeUndefined()
+    expect(createIsolatedProbe).toHaveBeenCalledOnce()
 
     let lieCount = 0
     const liar = () => ({

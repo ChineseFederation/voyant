@@ -1,3 +1,4 @@
+import { assertPortConforms } from "@voyant-travel/core/project"
 import { describe, expect, it } from "vitest"
 import {
   assertLegalDocumentArtifactProviderConformance,
@@ -105,11 +106,20 @@ describe("legal document artifact provider conformance", () => {
     const provider = memoryProvider()
     const alternate = memoryProvider()
 
-    await legalDocumentArtifactProviderPort.test(provider)
+    await assertPortConforms(legalDocumentArtifactProviderPort, provider)
 
     expect(provider.puts).toBe(4)
     expect(provider.deletes).toBe(4)
     expect(alternate.puts).toBe(0)
     expect(alternate.deletes).toBe(0)
+  })
+
+  it("keeps runtime startup preflight side-effect free", async () => {
+    const provider = memoryProvider()
+
+    await legalDocumentArtifactProviderPort.test(provider)
+
+    expect(provider.puts).toBe(0)
+    expect(provider.deletes).toBe(0)
   })
 })

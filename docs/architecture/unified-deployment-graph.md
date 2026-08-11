@@ -280,8 +280,13 @@ passed to job handlers; the host never creates per-run bindings or input.
 Packages own product runtime composition. A selected package declares the ports
 its runtime factory requires and publishes a package-owned runtime contributor.
 Generated composition loads contributors from selected packages, runs port
-conformance checks, and passes only the declared providers to each package
-factory.
+startup preflight, and passes only the declared providers to each package
+factory. Startup preflight is deliberately structural and side-effect free:
+runtime composition may resolve the same port for multiple units, so it must
+never turn a cold start into repeated network calls, durable writes, renderer
+jobs, or storage mutations. Ports that need executable behavioral proof expose
+an additional `verify` hook. Provider CI and release verification run it through
+`assertPortConforms`; production composition runs only `test`.
 
 Ports carry behaviour one graph unit needs from another. A host may also
 contribute per-unit runtime options that the graph cannot supply, because they

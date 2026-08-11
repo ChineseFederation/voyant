@@ -1,5 +1,5 @@
 import { assertPortConforms } from "@voyant-travel/core/project"
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 
 import {
   type DurableTripActionCapability,
@@ -12,6 +12,15 @@ describe("durable Trip action provider conformance", () => {
     await expect(
       assertPortConforms(durableTripActionRuntimePort, conformingRuntime()),
     ).resolves.toBeUndefined()
+  })
+
+  it("does not execute the isolated behavioral probe during runtime startup", async () => {
+    const runtime = conformingRuntime()
+    runtime.createIsolatedProbe = vi.fn(runtime.createIsolatedProbe)
+
+    await durableTripActionRuntimePort.test(runtime)
+
+    expect(runtime.createIsolatedProbe).not.toHaveBeenCalled()
   })
 
   it("rejects an identity change after restart", async () => {

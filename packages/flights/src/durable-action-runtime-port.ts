@@ -55,18 +55,24 @@ export const durableFlightActionRuntimePort = definePort<DurableFlightActionRunt
     entry: "@voyant-travel/flights/durable-action-runtime-port",
     export: "durableFlightActionRuntimePort",
   },
-  async test(runtime) {
-    if (
-      !runtime ||
-      typeof runtime !== "object" ||
-      typeof runtime.createIsolatedProbe !== "function"
-    ) {
-      throw new Error("flights.durable-action-runtime provider is incomplete")
-    }
+  test: assertRuntimeShape,
+  async verify(runtime) {
     await assertActionConforms(runtime, "ticket-order")
     await assertActionConforms(runtime, "cancel-order")
   },
 })
+
+function assertRuntimeShape(runtime: DurableFlightActionRuntime): void {
+  if (
+    !runtime ||
+    typeof runtime !== "object" ||
+    typeof runtime.createIsolatedProbe !== "function"
+  ) {
+    throw new Error("flights.durable-action-runtime provider is incomplete")
+  }
+  assertCapability(runtime.ticket)
+  assertCapability(runtime.cancel)
+}
 
 async function assertActionConforms(
   runtime: DurableFlightActionRuntime,

@@ -49,18 +49,24 @@ export const durableTripActionRuntimePort = definePort<DurableTripActionRuntime>
     entry: "@voyant-travel/trips/durable-action-runtime-port",
     export: "durableTripActionRuntimePort",
   },
-  async test(runtime) {
-    if (
-      !runtime ||
-      typeof runtime !== "object" ||
-      typeof runtime.createIsolatedProbe !== "function"
-    ) {
-      throw new Error("trips.durable-action-runtime provider is incomplete")
-    }
+  test: assertRuntimeShape,
+  async verify(runtime) {
     await assertActionConforms(runtime, "price-trip")
     await assertActionConforms(runtime, "reserve-trip")
   },
 })
+
+function assertRuntimeShape(runtime: DurableTripActionRuntime): void {
+  if (
+    !runtime ||
+    typeof runtime !== "object" ||
+    typeof runtime.createIsolatedProbe !== "function"
+  ) {
+    throw new Error("trips.durable-action-runtime provider is incomplete")
+  }
+  assertCapability(runtime.price)
+  assertCapability(runtime.reserve)
+}
 
 async function assertActionConforms(
   runtime: DurableTripActionRuntime,

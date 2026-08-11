@@ -86,7 +86,8 @@ export const legalDocumentArtifactProviderPort = definePort<LegalDocumentArtifac
     entry: "@voyant-travel/legal",
     export: "legalDocumentArtifactProviderPort",
   },
-  async test(provider) {
+  test: assertLegalDocumentArtifactProvider,
+  async verify(provider) {
     await assertLegalDocumentArtifactProviderConformance({
       provider,
       namespace: "legal/contract-documents/provider-conformance",

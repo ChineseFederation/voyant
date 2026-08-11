@@ -1,6 +1,10 @@
 // agent-quality: file-size exception -- owner: framework; graph unit, facet, port, route posture, and plugin output contracts share one composition harness.
 import { createEventBus } from "@voyant-travel/core"
-import { defineGraphRuntimeFactory, definePort } from "@voyant-travel/core/project"
+import {
+  assertPortConforms,
+  defineGraphRuntimeFactory,
+  definePort,
+} from "@voyant-travel/core/project"
 import { mountApp } from "@voyant-travel/hono"
 import { Hono } from "hono"
 import { describe, expect, it, vi } from "vitest"
@@ -774,11 +778,13 @@ describe("graph runtime composition", () => {
   })
 
   it("runs a port's conformance kit before exposing a deployment binding", async () => {
+    const exhaustiveVerification = vi.fn()
     const runtimePort = definePort<{ ready: boolean }>({
       id: "loyalty.runtime",
       test(provider) {
         if (!provider.ready) throw new Error("loyalty.runtime provider is not ready")
       },
+      verify: exhaustiveVerification,
     })
     const runtime = createVoyantGraphRuntime({
       graphHash: "sha256:non-conforming-runtime-port",
@@ -829,6 +835,10 @@ describe("graph runtime composition", () => {
         ports: { [runtimePort.id]: { ready: false } },
       }),
     ).rejects.toThrow("loyalty.runtime provider is not ready")
+    expect(exhaustiveVerification).not.toHaveBeenCalled()
+
+    await assertPortConforms(runtimePort, { ready: true })
+    expect(exhaustiveVerification).toHaveBeenCalledOnce()
   })
 
   it("uses selected ID bindings for option-bearing factories and local units", async () => {

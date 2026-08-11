@@ -22,19 +22,9 @@ export const durableNotificationProviderPort = definePort<DurableNotificationPro
     entry: "@voyant-travel/notifications/durable-provider-port",
     export: "durableNotificationProviderPort",
   },
-  async test(runtime) {
-    if (
-      !runtime ||
-      typeof runtime !== "object" ||
-      !Array.isArray(runtime.providers) ||
-      runtime.providers.length === 0 ||
-      typeof runtime.createIsolatedProbe !== "function"
-    ) {
-      throw new Error("notifications.durable-provider must expose providers and an isolated probe")
-    }
+  test: assertRuntimeShape,
+  async verify(runtime) {
     const selectedProviders = [...runtime.providers]
-    for (const provider of selectedProviders) assertDurableProvider(provider)
-    assertUniqueProviderNames(selectedProviders, "selected runtime")
 
     const probe = await runtime.createIsolatedProbe()
     if (
@@ -98,6 +88,20 @@ export const durableNotificationProviderPort = definePort<DurableNotificationPro
     }
   },
 })
+
+function assertRuntimeShape(runtime: DurableNotificationProviderRuntime): void {
+  if (
+    !runtime ||
+    typeof runtime !== "object" ||
+    !Array.isArray(runtime.providers) ||
+    runtime.providers.length === 0 ||
+    typeof runtime.createIsolatedProbe !== "function"
+  ) {
+    throw new Error("notifications.durable-provider must expose providers and an isolated probe")
+  }
+  for (const provider of runtime.providers) assertDurableProvider(provider)
+  assertUniqueProviderNames(runtime.providers, "selected runtime")
+}
 
 function assertDurableProvider(provider: NotificationProvider): void {
   const capability = provider?.durableDelivery

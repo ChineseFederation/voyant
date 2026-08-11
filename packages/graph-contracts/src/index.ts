@@ -93,7 +93,20 @@ export interface VoyantGraphPortDeclaration {
 
 export interface VoyantPort<TProvider> {
   readonly id: string
+  /**
+   * Side-effect-free startup preflight. Runtime composition may call this more
+   * than once while separate graph units resolve the same selected provider,
+   * so it must not perform network requests, durable writes, or other live
+   * behavioral probes.
+   */
   readonly test: (provider: TProvider) => void | Promise<void>
+  /**
+   * Exhaustive behavioral conformance for provider CI/release verification.
+   * `assertPortConforms` runs this after the structural hook; production
+   * runtime composition deliberately uses only the side-effect-free `test`
+   * hook above.
+   */
+  readonly verify?: (provider: TProvider) => void | Promise<void>
   /** Import-cheap reference back to this typed port for generic startup preflight. */
   readonly conformance?: VoyantGraphRuntimeReference
 }
@@ -108,6 +121,7 @@ export function definePort<TProvider>(input: VoyantPort<TProvider>): VoyantPort<
   return Object.freeze({
     id: input.id,
     test: input.test,
+    ...(input.verify ? { verify: input.verify } : {}),
     ...(input.conformance ? { conformance: input.conformance } : {}),
   })
 }
@@ -133,6 +147,7 @@ export async function assertPortConforms<TProvider>(
   provider: TProvider,
 ): Promise<void> {
   await port.test(provider)
+  await port.verify?.(provider)
 }
 
 export interface VoyantGraphRuntimeFactoryGraph {

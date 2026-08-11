@@ -45,7 +45,7 @@ spread it unconditionally.
 | | runtime port | host options |
 |---|---|---|
 | declared by | the consuming package, in its manifest | nobody — the host supplies it |
-| validated | `definePort({ test })` conformance | not validated |
+| validated | side-effect-free `test`; optional behavioral `verify` in provider CI/release verification | not validated |
 | visible to | `verify:graph-conformance`, graph resolution | composition only |
 | for | behaviour one graph unit needs from another | knowledge only the host has |
 
