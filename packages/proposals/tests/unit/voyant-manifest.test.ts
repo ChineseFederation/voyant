@@ -182,6 +182,8 @@ describe("proposals deployment manifests", () => {
     expect(proposalsVoyantModule.tools?.map(({ name }) => name)).toEqual([
       "list_proposals",
       "get_proposal",
+      "list_proposal_versions",
+      "get_proposal_version",
       "list_proposal_pipelines",
       "list_proposal_stages",
       "create_proposal",

@@ -21,6 +21,7 @@ import {
   pipelineSchema,
   proposalProductSchema,
   proposalSchema,
+  proposalVersionProposalSchema,
   proposalVersionSchema,
   stageSchema,
 } from "./routes/openapi-schemas.js"
@@ -30,6 +31,7 @@ import {
   insertProposalSchema,
   pipelineListQuerySchema,
   proposalListQuerySchema,
+  proposalVersionListQuerySchema,
   sendProposalVersionSchema,
   stageListQuerySchema,
 } from "./validation.js"
@@ -43,10 +45,13 @@ const WRITE_SCOPES = ["proposals:write"] as const
 const proposalVersionIdSchema = z.string().min(1).describe("The proposal version id.")
 const proposalIdSchema = z.string().min(1).describe("The proposal id.")
 const proposalListOutputSchema = listResponseSchema(proposalSchema)
+const proposalVersionListOutputSchema = listResponseSchema(proposalVersionSchema)
 
 export interface ProposalsToolServices {
   listProposals(query: z.infer<typeof proposalListQuerySchema>): Promise<unknown>
   getProposalById(id: string): Promise<unknown>
+  getProposalVersionProposal(id: string): Promise<unknown>
+  listProposalVersions(query: z.infer<typeof proposalVersionListQuerySchema>): Promise<unknown>
   listPipelines(query: z.infer<typeof pipelineListQuerySchema>): Promise<unknown>
   listStages(query: z.infer<typeof stageListQuerySchema>): Promise<unknown>
   createProposal(
@@ -225,6 +230,38 @@ export const getProposalTool = defineTool({
   outputSchema: proposalSchema.nullable(),
   async handler({ id }, ctx: ProposalsToolContext) {
     return parseJsonResult(proposalSchema.nullable(), await proposals(ctx).getProposalById(id))
+  },
+})
+
+export const getProposalVersionTool = defineTool({
+  ...readMetadata,
+  capabilityId: `${OWNER}#tool.get-proposal-version`,
+  name: "get_proposal_version",
+  description:
+    "Read one immutable proposal version with its parent proposal and frozen line items. Returns null when not found. Staff-only and read-only.",
+  inputSchema: z.object({ proposalVersionId: proposalVersionIdSchema }),
+  outputSchema: proposalVersionProposalSchema.nullable(),
+  async handler({ proposalVersionId }, ctx: ProposalsToolContext) {
+    return parseJsonResult(
+      proposalVersionProposalSchema.nullable(),
+      await proposals(ctx).getProposalVersionProposal(proposalVersionId),
+    )
+  },
+})
+
+export const listProposalVersionsTool = defineTool({
+  ...readMetadata,
+  capabilityId: `${OWNER}#tool.list-proposal-versions`,
+  name: "list_proposal_versions",
+  description:
+    "List immutable versions of a proposal with bounded filters and pagination. Staff-only and read-only.",
+  inputSchema: proposalVersionListQuerySchema,
+  outputSchema: proposalVersionListOutputSchema,
+  async handler(query, ctx: ProposalsToolContext) {
+    return parseJsonResult(
+      proposalVersionListOutputSchema,
+      await proposals(ctx).listProposalVersions(query),
+    )
   },
 })
 
@@ -491,6 +528,8 @@ export const declineProposalVersionTool = defineTool({
 export const proposalsTools = [
   listProposalsTool,
   getProposalTool,
+  getProposalVersionTool,
+  listProposalVersionsTool,
   listProposalPipelinesTool,
   listProposalStagesTool,
   createProposalTool,

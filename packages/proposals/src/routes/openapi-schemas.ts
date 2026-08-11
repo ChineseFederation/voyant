@@ -175,6 +175,12 @@ export const proposalVersionLineSchema = z.object({
   updatedAt: isoTimestamp,
 })
 
+export const proposalVersionProposalSchema = z.object({
+  proposal: proposalSchema,
+  proposalVersion: proposalVersionSchema,
+  lines: z.array(proposalVersionLineSchema),
+})
+
 // --- composite version results ---------------------------------------------
 
 // `applyTripSnapshotToProposalVersion` returns the updated version plus its rebuilt

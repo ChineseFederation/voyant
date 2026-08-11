@@ -32,6 +32,11 @@ export const voyantToolContextContribution = defineToolContextContribution({
         listProposals: (query: Parameters<typeof proposalsService.listProposals>[1]) =>
           proposalsService.listProposals(db, query),
         getProposalById: (id: string) => proposalsService.getProposalById(db, id),
+        getProposalVersionProposal: (id: string) =>
+          proposalsService.getProposalVersionProposal(db, id),
+        listProposalVersions: (
+          query: Parameters<typeof proposalsService.listProposalVersions>[1],
+        ) => proposalsService.listProposalVersions(db, query),
         listPipelines: (query: Parameters<typeof proposalsService.listPipelines>[1]) =>
           proposalsService.listPipelines(db, query),
         listStages: (query: Parameters<typeof proposalsService.listStages>[1]) =>

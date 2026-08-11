@@ -234,7 +234,7 @@ function discoverySection(): string {
     "so their action policy stays explicit.\n\n" +
     'Example lookups: catalog → `inventory_query` (`resource: "products"`/`"product"`); ' +
     'dated departures → `operations_query` (`resource: "departures"`); sales pursuit → ' +
-    "`proposals_query` (`proposal`/`proposal_version`); a commitment → `bookings_query` " +
+    "`proposals_query` (`proposal`/`proposal_versions`/`proposal_version`); a commitment → `bookings_query` " +
     '(`resource: "booking"` — its Travelers and Items are part of the booking record, ' +
     "not separate traveler reads). A Supplier is an operational vendor in the " +
     'Distribution supplier directory (`distribution_query`, `resource: "suppliers"`), ' +
