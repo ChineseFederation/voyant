@@ -44,14 +44,17 @@ function candidate(overrides: Partial<TripCandidate> = {}): TripCandidate {
     candidateRef: "ref_1",
     entityModule: "accommodations",
     entityId: "acc_1",
-    sourceKind: "sourced",
+    sourceKind: "direct:tui",
     sourceConnectionId: "conn_a",
     sourceModule: null,
     selection: { ratePlanId: "rate_1" },
     priceCurrency: "USD",
     priceAmount: "200.00",
     expiresAt: null,
-    providerData: null,
+    providerData: {
+      _voyantSourceProvider: "direct:tui",
+      _voyantSourceRef: "hotel_1",
+    },
     createdAt: new Date("2026-06-22T00:00:00Z"),
     updatedAt: new Date("2026-06-22T00:00:00Z"),
     ...overrides,
@@ -126,7 +129,13 @@ describe("availabilityCandidateToRow", () => {
       envelopeId: "trip_9",
       candidate: {
         ...base,
-        source: { kind: "sourced", connectionId: "conn_x" },
+        source: {
+          kind: "sourced",
+          connectionId: "conn_x",
+          sourceKind: "voyant-connect",
+          sourceProvider: "tui",
+          sourceRef: "hotel_42",
+        },
         expiresAt: new Date("2026-06-22T13:00:00Z"),
       },
       rank: 3,
@@ -139,11 +148,15 @@ describe("availabilityCandidateToRow", () => {
       candidateRef: "ref_42",
       entityModule: "accommodations",
       entityId: "acc_42",
-      sourceKind: "sourced",
+      sourceKind: "voyant-connect",
       sourceConnectionId: "conn_x",
       sourceModule: null,
       priceCurrency: "EUR",
       priceAmount: "349.95",
+      providerData: {
+        _voyantSourceProvider: "tui",
+        _voyantSourceRef: "hotel_42",
+      },
     })
   })
 
@@ -170,14 +183,16 @@ describe("pinnedComponentValuesFromCandidate", () => {
       status: "draft",
       entityModule: "accommodations",
       entityId: "acc_1",
-      sourceKind: "sourced",
+      sourceKind: "direct:tui",
       sourceConnectionId: "conn_a",
+      sourceRef: "hotel_1",
       componentCurrency: "USD",
     })
     expect(values.metadata).toMatchObject({
       resolvedFromCandidateId: "trcd_1",
       candidateRef: "ref_1",
       selection: { ratePlanId: "rate_1" },
+      sourceProvider: "direct:tui",
     })
   })
 

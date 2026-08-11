@@ -31,6 +31,9 @@ import { assertTripEnvelopeCanMutateComponents } from "./service-edit-safeguards
 import { createComponentEvent } from "./service-internals.js"
 import { TripsInvariantError } from "./service-types.js"
 
+const SOURCE_PROVIDER_DATA_KEY = "_voyantSourceProvider"
+const SOURCE_REF_DATA_KEY = "_voyantSourceRef"
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Pure helpers (invariants + mapping) — no db
 // ─────────────────────────────────────────────────────────────────────────────
@@ -88,14 +91,17 @@ export function availabilityCandidateToRow(args: {
     candidateRef: candidate.candidateRef,
     entityModule: candidate.entity_module,
     entityId: candidate.entity_id,
-    sourceKind: candidate.source?.kind ?? "sourced",
+    sourceKind:
+      candidate.source?.kind === "owned"
+        ? "owned"
+        : (candidate.source?.sourceKind ?? candidate.source?.kind ?? "sourced"),
     sourceConnectionId: candidate.source?.kind === "sourced" ? candidate.source.connectionId : null,
     sourceModule: candidate.source?.kind === "owned" ? candidate.source.module : null,
     selection: candidate.selection,
     priceCurrency: candidate.price.currency,
     priceAmount: candidate.price.amount,
     expiresAt: candidate.expiresAt ?? null,
-    providerData: candidate.providerData ?? null,
+    providerData: candidateProviderData(candidate),
   }
 }
 
@@ -110,7 +116,8 @@ export function availabilityCandidateToRow(args: {
  * to placeholder pricing → `unavailable`), and the catalog booking engine
  * routes on it — `"owned"` (`OWNED_SOURCE_KIND`) to an owned handler keyed by
  * entityModule, anything else to a sourced adapter keyed by `sourceConnectionId`.
- * The candidate's `sourceKind` is already `"owned"`/`"sourced"`, which aligns.
+ * The candidate's `sourceKind` is already `"owned"` or the concrete sourced
+ * adapter kind stamped by Catalog fan-out, which preserves booking authority.
  */
 export function pinnedComponentValuesFromCandidate(
   candidate: TripCandidate,
@@ -125,6 +132,7 @@ export function pinnedComponentValuesFromCandidate(
     entityId: candidate.entityId,
     sourceKind: candidate.sourceKind,
     sourceConnectionId: candidate.sourceConnectionId,
+    sourceRef: candidateSourceRef(candidate),
     componentCurrency: candidate.priceCurrency,
     metadata: {
       resolvedFromCandidateId: candidate.id,
@@ -134,9 +142,33 @@ export function pinnedComponentValuesFromCandidate(
         candidate.sourceKind === "owned"
           ? { kind: "owned", module: candidate.sourceModule }
           : { kind: "sourced", connectionId: candidate.sourceConnectionId },
+      sourceProvider: candidateSourceProvider(candidate),
       selection: candidate.selection,
     },
   }
+}
+
+function candidateSourceProvider(candidate: TripCandidate): string | undefined {
+  const value = candidate.providerData?.[SOURCE_PROVIDER_DATA_KEY]
+  return typeof value === "string" && value.length > 0 ? value : undefined
+}
+
+function candidateSourceRef(candidate: TripCandidate): string | undefined {
+  const value = candidate.providerData?.[SOURCE_REF_DATA_KEY]
+  return typeof value === "string" && value.length > 0 ? value : undefined
+}
+
+function candidateProviderData(candidate: AvailabilityCandidate): Record<string, unknown> | null {
+  const sourceProvider =
+    candidate.source?.kind === "sourced" ? candidate.source.sourceProvider : undefined
+  const sourceRef = candidate.source?.kind === "sourced" ? candidate.source.sourceRef : undefined
+  return sourceProvider || sourceRef
+    ? {
+        ...candidate.providerData,
+        ...(sourceProvider ? { [SOURCE_PROVIDER_DATA_KEY]: sourceProvider } : {}),
+        ...(sourceRef ? { [SOURCE_REF_DATA_KEY]: sourceRef } : {}),
+      }
+    : (candidate.providerData ?? null)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

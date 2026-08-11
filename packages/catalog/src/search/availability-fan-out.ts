@@ -145,9 +145,21 @@ export async function fanOutAvailabilitySearch(
       )
       // Stamp the dispatching connection as origin, unless the adapter already
       // set a more specific one (e.g. a cross-provider search per candidate).
-      const candidates = result.candidates.map((c) =>
-        c.source ? c : { ...c, source: { kind: "sourced" as const, connectionId } },
-      )
+      const candidates = result.candidates.map((candidate) => {
+        if (candidate.source?.kind === "owned") return candidate
+        return {
+          ...candidate,
+          source: {
+            kind: "sourced" as const,
+            connectionId: candidate.source?.connectionId ?? connectionId,
+            sourceKind: candidate.source?.sourceKind ?? adapter.kind,
+            ...(candidate.source?.sourceProvider
+              ? { sourceProvider: candidate.source.sourceProvider }
+              : {}),
+            ...(candidate.source?.sourceRef ? { sourceRef: candidate.source.sourceRef } : {}),
+          },
+        }
+      })
       return { status: result.status, candidates, nextCursor: result.next_cursor }
     }),
   )

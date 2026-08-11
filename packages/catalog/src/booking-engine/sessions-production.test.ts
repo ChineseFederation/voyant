@@ -42,6 +42,9 @@ vi.mock("@voyant-travel/finance", async (importOriginal) => ({
 
 import type { BookingRequirementsV1 } from "@voyant-travel/catalog-contracts/booking-engine/requirements-contracts"
 import { defaultRequirementsFlags } from "@voyant-travel/catalog-contracts/booking-engine/requirements-defaults"
+import type { SQL } from "drizzle-orm"
+import { PgDialect } from "drizzle-orm/pg-core"
+import type { SourceAdapter } from "../adapter/contract.js"
 import type { OwnedBookingHandler } from "./owned-handler.js"
 import { createOwnedBookingHandlerRegistry } from "./owned-handler.js"
 import { createSourceAdapterRegistry } from "./registry.js"
@@ -307,6 +310,274 @@ describe("normalizeProductSelection", () => {
         },
       ),
     ).toThrow(/booking_session_selection_forbidden_field:selection\.staffBooking/)
+  })
+})
+
+describe("composite sourced target authority", () => {
+  it("resolves a legacy generic sourced kind from the exact connection and reference", async () => {
+    const repository = createInMemoryBookingSessionRepository()
+    const registry = createSourceAdapterRegistry()
+    const liveResolve = vi.fn<NonNullable<SourceAdapter["liveResolve"]>>(
+      async (_context, request) => ({
+        values: { [request.ids[0] ?? "missing"]: { priceCents: 104_400, currency: "EUR" } },
+      }),
+    )
+    registry.register("connection_selected", {
+      kind: "voyant-connect",
+      capabilities: {
+        verticals: ["products"],
+        supportsLiveResolution: true,
+        supportsDriftDetection: false,
+        supportsBookingForwarding: false,
+        postBookOperations: [],
+      },
+      liveResolve,
+    } as never)
+    const predicates: Array<{ sql: string; params: unknown[] }> = []
+    const dialect = new PgDialect()
+    const selectedRow = {
+      entity_module: "products",
+      entity_id: "prod_shared",
+      source_kind: "voyant-connect",
+      source_provider: "tui",
+      source_connection_id: "connection_selected",
+      source_ref: "selected-package-ref",
+      projection: { name: "Selected package" },
+      status: "active",
+    }
+    const module = createProductionBookingSessionModule({
+      db: {
+        select: () => ({
+          from: () => ({
+            where: (condition: SQL) => ({
+              limit: async () => {
+                predicates.push(dialect.sqlToQuery(condition))
+                return [selectedRow]
+              },
+            }),
+          }),
+        }),
+        transaction: async (operation: (tx: unknown) => Promise<unknown>) => operation({}),
+      } as never,
+      repository,
+      resolveOwnedHandlers: () => createOwnedBookingHandlerRegistry(),
+      resolveSourceRegistry: () => registry,
+      resolveCompositeHandler: () => ({
+        composeRequirements: ({ session, leaf }) =>
+          leaf.composeRequirements({
+            session: {
+              ...session,
+              target: { kind: "catalog_item", catalogItemId: "prod_shared" },
+              sourcedTargetPin: {
+                entityModule: "products",
+                entityId: "prod_shared",
+                sourceKind: "sourced",
+                sourceProvider: null,
+                sourceConnectionId: "connection_selected",
+                sourceRef: "selected-package-ref",
+                projection: { title: "Selected package" },
+                title: "Selected package",
+              },
+            },
+            now: new Date("2026-08-11T12:00:00.000Z"),
+            tx: undefined,
+          }),
+        composeQuote: ({ session, leaf }) =>
+          leaf.composeQuote({
+            session: {
+              ...session,
+              target: { kind: "catalog_item", catalogItemId: "prod_shared" },
+              sourcedTargetPin: {
+                entityModule: "products",
+                entityId: "prod_shared",
+                sourceKind: "sourced",
+                sourceProvider: null,
+                sourceConnectionId: "connection_selected",
+                sourceRef: "selected-package-ref",
+                projection: { title: "Selected package" },
+                title: "Selected package",
+              },
+            },
+            now: new Date("2026-08-11T12:00:00.000Z"),
+            tx: undefined,
+          }),
+        placeCapacityHold: async () => "held",
+        releaseCapacityHold: async () => undefined,
+        commit: async () => ({ kind: "committed", bookings: [] }),
+      }),
+    })
+
+    const outcome = await module.createCompositeSession(
+      {
+        idempotencyKey: "legacy_generic_source_kind",
+        target: {
+          kind: "trip_snapshot",
+          tripSnapshotId: "trsn_legacy",
+          tripEnvelopeId: "trip_legacy",
+        },
+        selection: { configure: { pax: { adult: 2 } } },
+      },
+      {
+        actorKind: "anonymous",
+        capability: TEST_CAPABILITY,
+        ...STOREFRONT_ACCESS,
+      },
+    )
+
+    expect(outcome.kind).toBe("session_created")
+    expect(liveResolve).toHaveBeenCalledWith(
+      { connection_id: "connection_selected" },
+      expect.objectContaining({
+        ids: ["prod_shared"],
+        source_refs: { prod_shared: "selected-package-ref" },
+      }),
+    )
+    expect(predicates).toHaveLength(2)
+    for (const predicate of predicates) {
+      expect(predicate.params).not.toContain("sourced")
+      expect(predicate.params).toContain("connection_selected")
+      expect(predicate.params).toContain("selected-package-ref")
+    }
+  })
+
+  it("quotes the exact internal supplier pin without re-resolving a conflicting Catalog row", async () => {
+    const repository = createInMemoryBookingSessionRepository()
+    const registry = createSourceAdapterRegistry()
+    const liveResolve = vi.fn<NonNullable<SourceAdapter["liveResolve"]>>(
+      async (_context, request) => {
+        const id = request.ids[0] ?? "missing"
+        return { values: { [id]: { priceCents: 104_400, currency: "EUR" } } }
+      },
+    )
+    registry.register("connection_selected", {
+      kind: "voyant-connect",
+      capabilities: {
+        verticals: ["products"],
+        supportsLiveResolution: true,
+        supportsDriftDetection: false,
+        supportsBookingForwarding: false,
+        postBookOperations: [],
+      },
+      liveResolve,
+    } as never)
+    const access = {
+      actorKind: "anonymous" as const,
+      capability: TEST_CAPABILITY,
+      ...STOREFRONT_ACCESS,
+    }
+    let sourcedEntryReads = 0
+    const sourcedEntryPredicates: Array<{ sql: string; params: unknown[] }> = []
+    const dialect = new PgDialect()
+    const module = createProductionBookingSessionModule({
+      db: {
+        select: () => ({
+          from: () => ({
+            where: (condition: SQL) => ({
+              limit: async () => {
+                sourcedEntryPredicates.push(dialect.sqlToQuery(condition))
+                sourcedEntryReads += 1
+                if (sourcedEntryReads % 2 === 1) return []
+                return [
+                  {
+                    entity_module: "products",
+                    entity_id: "prod_shared",
+                    source_kind: "other-source",
+                    source_provider: "other-provider",
+                    source_connection_id: "connection_other",
+                    source_ref: "other-package-ref",
+                    projection: { name: "Canonical package title" },
+                    status: "active",
+                  },
+                ]
+              },
+            }),
+          }),
+        }),
+        transaction: async (operation: (tx: unknown) => Promise<unknown>) => operation({}),
+      } as never,
+      repository,
+      resolveOwnedHandlers: () => createOwnedBookingHandlerRegistry(),
+      resolveSourceRegistry: () => registry,
+      resolveCompositeHandler: () => ({
+        composeRequirements: ({ session, leaf }) =>
+          leaf.composeRequirements({
+            session: {
+              ...session,
+              target: { kind: "catalog_item", catalogItemId: "prod_shared" },
+              sourcedTargetPin: {
+                entityModule: "products",
+                entityId: "prod_shared",
+                sourceKind: "voyant-connect",
+                sourceProvider: "voyant-connect",
+                sourceConnectionId: "connection_selected",
+                sourceRef: "selected-package-ref",
+                projection: { title: "Selected package" },
+                title: "Selected package",
+              },
+            },
+            now: new Date("2026-08-11T12:00:00.000Z"),
+            tx: undefined,
+          }),
+        composeQuote: ({ session, leaf }) =>
+          leaf.composeQuote({
+            session: {
+              ...session,
+              target: { kind: "catalog_item", catalogItemId: "prod_shared" },
+              sourcedTargetPin: {
+                entityModule: "products",
+                entityId: "prod_shared",
+                sourceKind: "voyant-connect",
+                sourceProvider: "voyant-connect",
+                sourceConnectionId: "connection_selected",
+                sourceRef: "selected-package-ref",
+                projection: { title: "Selected package" },
+                title: "Selected package",
+              },
+            },
+            now: new Date("2026-08-11T12:00:00.000Z"),
+            tx: undefined,
+          }),
+        placeCapacityHold: async () => "held",
+        releaseCapacityHold: async () => undefined,
+        commit: async () => ({ kind: "committed", bookings: [] }),
+      }),
+    })
+
+    const outcome = await module.createCompositeSession(
+      {
+        idempotencyKey: "selected_package_composite",
+        target: {
+          kind: "trip_snapshot",
+          tripSnapshotId: "trsn_selected",
+          tripEnvelopeId: "trip_selected",
+        },
+        selection: {
+          configure: {
+            departureDate: "2026-10-15",
+            departureAirportCode: "OTP",
+            nights: 3,
+            pax: { adult: 2 },
+          },
+        },
+      },
+      access,
+    )
+
+    expect(outcome.kind).toBe("session_created")
+    expect(liveResolve).toHaveBeenCalledWith(
+      { connection_id: "connection_selected" },
+      expect.objectContaining({
+        ids: ["prod_shared"],
+        source_refs: { prod_shared: "selected-package-ref" },
+      }),
+    )
+    expect(repository.sessions.size).toBe(1)
+    expect(sourcedEntryReads).toBe(4)
+    expect(sourcedEntryPredicates).toHaveLength(4)
+    for (const predicate of sourcedEntryPredicates) {
+      expect(predicate.sql).toContain('"catalog_sourced_entries"."entity_module"')
+      expect(predicate.params).toContain("products")
+    }
   })
 })
 

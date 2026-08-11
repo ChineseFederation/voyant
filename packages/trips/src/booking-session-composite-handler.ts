@@ -1,3 +1,4 @@
+// agent-quality: file-size exception -- owner: trips; aggregate quote, hold, commit, compensation, and component projection intentionally remain one composite protocol.
 import { bookingsService, setAcceptedProposalBookingOrigin } from "@voyant-travel/bookings"
 import type {
   BookingHoldInternalRecord,
@@ -462,7 +463,8 @@ async function loadTargetSnapshot(
 function frozenComponents(snapshot: TripSnapshot): Map<string, TripComponent> {
   return new Map(
     snapshot.frozenComponents.map((value) => {
-      const component = value as unknown as TripComponent
+      // agent-quality: unsafe-cast reviewed -- owner: trips; immutable snapshots store the validated TripComponent projection as JSON records.
+      const component = { ...value } as TripComponent
       return [component.id, component]
     }),
   )
@@ -480,6 +482,24 @@ function childSession(
   return {
     ...parent,
     target: componentTarget(component),
+    sourcedTargetPin:
+      component.sourceKind !== "owned" && component.sourceConnectionId && component.sourceRef
+        ? {
+            entityModule: required(component.entityModule, "component.entityModule"),
+            entityId: required(component.entityId, "component.entityId"),
+            sourceKind: required(component.sourceKind, "component.sourceKind"),
+            sourceProvider: componentSourceProvider(component),
+            sourceConnectionId: component.sourceConnectionId,
+            sourceRef: component.sourceRef,
+            projection: compact({
+              title: component.title,
+              description: component.description,
+            }),
+            title:
+              component.title ??
+              `Sourced ${required(component.entityModule, "component.entityModule")}`,
+          }
+        : undefined,
     statePayload: compact({
       configure: draft.configure,
       billing: parentBilling ?? draft.billing,
@@ -807,4 +827,9 @@ function compact(value: Record<string, unknown>): Record<string, unknown> {
 function required(value: string | null | undefined, label: string): string {
   if (!value) throw new Error(`${label} is required`)
   return value
+}
+
+function componentSourceProvider(component: TripComponent): string | null {
+  const value = component.metadata.sourceProvider
+  return typeof value === "string" && value.length > 0 ? value : null
 }

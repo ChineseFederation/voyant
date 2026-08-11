@@ -568,6 +568,75 @@ async function resolveSourcedTarget(
   session: CommitSourcedBookingInput["session"],
 ) {
   if (session.target.kind !== "catalog_item") return null
+  const pin = session.sourcedTargetPin
+  if (pin) {
+    if (
+      pin.entityId !== session.target.catalogItemId ||
+      pin.sourceKind === "owned" ||
+      !pin.sourceConnectionId ||
+      !pin.sourceRef
+    ) {
+      return null
+    }
+    const hasConcreteSourceKind = pin.sourceKind !== "sourced"
+    const exactRows = await db
+      .select()
+      .from(catalogSourcedEntriesTable)
+      .where(
+        and(
+          eq(catalogSourcedEntriesTable.entity_module, pin.entityModule),
+          eq(catalogSourcedEntriesTable.entity_id, pin.entityId),
+          eq(catalogSourcedEntriesTable.status, "active"),
+          hasConcreteSourceKind
+            ? eq(catalogSourcedEntriesTable.source_kind, pin.sourceKind)
+            : undefined,
+          eq(catalogSourcedEntriesTable.source_connection_id, pin.sourceConnectionId),
+          eq(catalogSourcedEntriesTable.source_ref, pin.sourceRef),
+        ),
+      )
+      .limit(hasConcreteSourceKind ? 1 : 2)
+    const exact = exactRows.length === 1 ? exactRows[0] : undefined
+    if (exact && exact.source_kind !== "owned") {
+      const title =
+        stringValue(exact.projection.name) ?? stringValue(exact.projection.title) ?? pin.title
+      return {
+        ...pin,
+        sourceKind: exact.source_kind,
+        sourceProvider: exact.source_provider ?? pin.sourceProvider ?? null,
+        projection: exact.projection,
+        title,
+      }
+    }
+    // Legacy/manual Trip components can carry the classification literal
+    // `sourced` instead of a concrete adapter kind. The connection/ref pair is
+    // still sufficient to recover that provenance while its exact Catalog row
+    // is active, but it is not safe to commit the generic classifier after the
+    // row disappears (or when that identity is ambiguous).
+    if (!hasConcreteSourceKind) return null
+    // Older/source-specific offers can outlive the exact projection row while
+    // the canonical Catalog entity remains active. Preserve that entity's
+    // display snapshot only; supplier authority still comes exclusively from
+    // the frozen pin.
+    const displayRows = await db
+      .select()
+      .from(catalogSourcedEntriesTable)
+      .where(
+        and(
+          eq(catalogSourcedEntriesTable.entity_module, pin.entityModule),
+          eq(catalogSourcedEntriesTable.entity_id, pin.entityId),
+          eq(catalogSourcedEntriesTable.status, "active"),
+        ),
+      )
+      .limit(2)
+    const display = displayRows.length === 1 ? displayRows[0] : undefined
+    const projection = display?.projection ?? pin.projection
+    return {
+      ...pin,
+      sourceProvider: pin.sourceProvider ?? null,
+      projection,
+      title: stringValue(projection.name) ?? stringValue(projection.title) ?? pin.title,
+    }
+  }
   const rows = await db
     .select()
     .from(catalogSourcedEntriesTable)

@@ -77,7 +77,18 @@ export interface AvailabilityCandidate {
    * origin; otherwise the fan-out stamps it from the dispatching connection /
    * owned module. Optional only so adapters need not construct it themselves.
    */
-  source?: { kind: "sourced"; connectionId: string } | { kind: "owned"; module: string }
+  source?:
+    | {
+        kind: "sourced"
+        connectionId: string
+        /** Concrete server-owned adapter kind; the fan-out always stamps it. */
+        sourceKind?: string
+        /** Concrete supplier/provider label when the adapter can prove it. */
+        sourceProvider?: string
+        /** Stable upstream entity reference used only for server-side re-resolution. */
+        sourceRef?: string
+      }
+    | { kind: "owned"; module: string }
   /** Public-safe price for ranking and display. */
   price: { amount: string; currency: string }
   /**

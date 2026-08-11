@@ -159,14 +159,23 @@ describe("fanOutAvailabilitySearch", () => {
     })
 
     const byId = Object.fromEntries(result.candidates.map((c) => [c.entity_id, c.source]))
-    expect(byId.a1).toEqual({ kind: "sourced", connectionId: "conn_a" })
+    expect(byId.a1).toEqual({
+      kind: "sourced",
+      connectionId: "conn_a",
+      sourceKind: "a",
+    })
     expect(byId.owned1).toEqual({ kind: "owned", module: "accommodations" })
   })
 
   it("does not clobber an origin the adapter already set (cross-provider case)", async () => {
     const pre = {
       ...candidate("x", "200"),
-      source: { kind: "sourced" as const, connectionId: "upstream_real" },
+      source: {
+        kind: "sourced" as const,
+        connectionId: "upstream_real",
+        sourceProvider: "supplier-a",
+        sourceRef: "hotel-42",
+      },
     }
     const result = await fanOutAvailabilitySearch({
       adapters: [
@@ -178,7 +187,13 @@ describe("fanOutAvailabilitySearch", () => {
       request: REQUEST,
     })
 
-    expect(result.candidates[0]?.source).toEqual({ kind: "sourced", connectionId: "upstream_real" })
+    expect(result.candidates[0]?.source).toEqual({
+      kind: "sourced",
+      connectionId: "upstream_real",
+      sourceKind: "agg",
+      sourceProvider: "supplier-a",
+      sourceRef: "hotel-42",
+    })
   })
 
   it("skips sources that don't feed the requested vertical, without querying them", async () => {

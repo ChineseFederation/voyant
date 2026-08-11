@@ -1,3 +1,4 @@
+// agent-quality: file-size exception -- owner: catalog; the Session state machine, internal records, authorization, and atomic lifecycle intentionally remain one protocol.
 import type { BookingPaymentCheckoutV1 } from "@voyant-travel/catalog-contracts/booking-engine/lifecycle-conformance"
 import type {
   OfferPreviewOutcomeV1,
@@ -71,6 +72,22 @@ export interface BookingSessionInternalRecord {
   ownerOrganizationId?: string
   /** Immutable server-derived public storefront provenance. Never serialized. */
   storefrontOrigin?: { storefrontId: string; channelId: string }
+  /**
+   * Exact server-selected sourced inventory identity for an internal composite
+   * leaf. This is never accepted from public input, persisted, or serialized.
+   * It prevents a Trip leaf from being re-resolved to a different supplier row
+   * that happens to share the same Catalog entity id.
+   */
+  sourcedTargetPin?: {
+    entityModule: string
+    entityId: string
+    sourceKind: string
+    sourceProvider?: string | null
+    sourceConnectionId: string
+    sourceRef: string
+    projection: Record<string, unknown>
+    title: string
+  }
   /**
    * Immutable commercial scope. Fixed at create so a Quote, the Hold taken
    * against it, and the Commit that consumes both all mean one price in one

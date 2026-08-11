@@ -565,7 +565,7 @@ export const tripCandidates = pgTable(
     entityId: text("entity_id").notNull(),
 
     // Origin, so a selection routes back to the right source at reserve time.
-    sourceKind: text("source_kind").notNull(), // "sourced" | "owned"
+    sourceKind: text("source_kind").notNull(), // concrete sourced adapter kind | "owned"
     sourceConnectionId: text("source_connection_id"), // when sourced
     sourceModule: text("source_module"), // when owned
 
