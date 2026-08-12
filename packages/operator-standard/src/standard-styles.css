@@ -3,10 +3,12 @@
 @import "@fontsource-variable/inter-tight";
 
 @source "../../admin/dist/**/*.{js,mjs}";
+@source "../../admin-app/dist/**/*.{js,mjs}";
 @source "../../auth-react/dist/**/*.{js,mjs}";
 @source "../../ui/dist/**/*.{js,mjs}";
 @source "../../{operations,bookings,catalog,commerce,custom-fields,relationships,finance,flights,legal,inventory,distribution,mice,reporting}-react/dist/**/*.{js,mjs}";
 @source "../../admin/src/**/*.{ts,tsx}";
+@source "../../admin-app/src/**/*.{ts,tsx}";
 @source "../../auth-react/src/**/*.{ts,tsx}";
 @source "../../ui/src/**/*.{ts,tsx}";
 @source "../../{operations,bookings,catalog,commerce,custom-fields,relationships,finance,flights,legal,inventory,distribution,mice,reporting}-react/src/**/*.{ts,tsx}";

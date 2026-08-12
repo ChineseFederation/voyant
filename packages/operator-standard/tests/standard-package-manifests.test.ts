@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs"
 import { bookingsVoyantModule } from "@voyant-travel/bookings/voyant"
 import { catalogVoyantModule } from "@voyant-travel/catalog/voyant"
 import { commerceVoyantModule } from "@voyant-travel/commerce/voyant"
@@ -26,6 +27,13 @@ import {
 } from "../src/index.js"
 
 describe("standard package manifests", () => {
+  it("includes the packaged admin shell in Tailwind source discovery", () => {
+    const styles = readFileSync(new URL("../src/standard-styles.css", import.meta.url), "utf8")
+
+    expect(styles).toContain('@source "../../admin-app/src/**/*.{ts,tsx}";')
+    expect(styles).toContain('@source "../../admin-app/dist/**/*.{js,mjs}";')
+  })
+
   it("declares its response-cache posture alongside the cache backend it selected", () => {
     // The profile is a single-instance self-hosted deployment with nothing but
     // Postgres, so it declares that nothing caches responses in front of the
