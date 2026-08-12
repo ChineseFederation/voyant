@@ -1,5 +1,11 @@
 # @voyant-travel/finance
 
+## 0.246.2
+
+### Patch Changes
+
+- 10b5e14: Preserve provider-owned invoice numbering for booking-created and already-paid invoices.
+
 ## 0.246.1
 
 ### Patch Changes
