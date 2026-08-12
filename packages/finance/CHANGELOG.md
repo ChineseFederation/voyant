@@ -1,5 +1,13 @@
 # @voyant-travel/finance
 
+## 0.246.1
+
+### Patch Changes
+
+- e993e19: Deliver post-payment booking document bundles only after every template-required attachment is ready, including final provider invoices, contracts, and product brochures. Emit a booking-keyed checkout-finalized event after Booking Session settlement, retry pending bundles on document and brochure readiness events, encode storage metadata safely for Unicode values, and record the managed-runtime release identity for the new delivery contract.
+- Updated dependencies [e993e19]
+  - @voyant-travel/storage@0.115.5
+
 ## 0.246.0
 
 ### Minor Changes
