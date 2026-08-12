@@ -1,5 +1,12 @@
 # @voyant-travel/apps
 
+## 0.14.17
+
+### Patch Changes
+
+- Updated dependencies [f4ac273]
+  - @voyant-travel/admin@0.137.0
+
 ## 0.14.16
 
 ### Patch Changes

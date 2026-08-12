@@ -1,5 +1,44 @@
 # @voyant-travel/operator-standard
 
+## 0.21.32
+
+### Patch Changes
+
+- c118bc4: Include the packaged admin shell in Tailwind source discovery so responsive settings navigation utilities are emitted in operator builds.
+- Updated dependencies [f4ac273]
+  - @voyant-travel/ui@0.111.0
+  - @voyant-travel/admin@0.137.0
+  - @voyant-travel/admin-app@0.171.0
+  - @voyant-travel/bookings-react@0.278.0
+  - @voyant-travel/finance-react@0.278.0
+  - @voyant-travel/inventory-react@0.160.0
+  - @voyant-travel/distribution-react@0.268.0
+  - @voyant-travel/relationships-react@0.278.0
+  - @voyant-travel/catalog-react@0.276.0
+  - @voyant-travel/legal-react@0.278.0
+  - @voyant-travel/notifications-react@0.151.0
+  - @voyant-travel/operations-react@0.159.0
+  - @voyant-travel/commerce-react@0.160.0
+  - @voyant-travel/action-ledger-react@0.167.0
+  - @voyant-travel/trips-react@0.271.0
+  - @voyant-travel/apps-react@0.13.0
+  - @voyant-travel/auth-react@0.153.0
+  - @voyant-travel/cruises-react@0.277.0
+  - @voyant-travel/custom-fields-react@0.13.0
+  - @voyant-travel/flights-react@0.278.0
+  - @voyant-travel/identity-react@0.278.0
+  - @voyant-travel/media-react@0.13.0
+  - @voyant-travel/mice-react@0.146.0
+  - @voyant-travel/navigation-preferences-react@0.27.0
+  - @voyant-travel/operator-settings-react@0.135.0
+  - @voyant-travel/proposals-react@0.276.0
+  - @voyant-travel/reporting-react@0.13.0
+  - @voyant-travel/setup-react@0.20.0
+  - @voyant-travel/storefront-react@0.280.0
+  - @voyant-travel/admin-host@0.129.0
+  - @voyant-travel/apps@0.14.17
+  - @voyant-travel/event-catalog-react@0.30.0
+
 ## 0.21.31
 
 ### Patch Changes
