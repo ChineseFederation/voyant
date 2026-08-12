@@ -37,7 +37,12 @@ export function PersonDialog({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent data-slot="person-dialog" side="right" size="lg">
+      <SheetContent
+        data-slot="person-dialog"
+        side="right"
+        size="lg"
+        className="data-[side=right]:w-full"
+      >
         <SheetHeader>
           <SheetTitle>
             {isEdit ? messages.personDialog.titles.edit : messages.personDialog.titles.create}

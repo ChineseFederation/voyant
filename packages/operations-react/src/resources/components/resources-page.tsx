@@ -459,7 +459,10 @@ export function ResourcesPage({
               </Button>
             }
           />
-          <PopoverContent align="end" className="w-[22rem] p-4">
+          <PopoverContent
+            align="end"
+            className="max-h-[75vh] w-[min(22rem,calc(100vw-2rem))] overflow-y-auto p-4"
+          >
             <ResourcesFilterPopover
               activeTab={activeTab}
               suppliers={suppliers}

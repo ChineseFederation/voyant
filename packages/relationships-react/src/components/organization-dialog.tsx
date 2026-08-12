@@ -34,7 +34,12 @@ export function OrganizationDialog({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent data-slot="organization-dialog" side="right" size="lg">
+      <SheetContent
+        data-slot="organization-dialog"
+        side="right"
+        size="lg"
+        className="data-[side=right]:w-full"
+      >
         <SheetHeader>
           <SheetTitle>
             {isEdit

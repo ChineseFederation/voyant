@@ -140,7 +140,7 @@ export function PersonDocumentDialog({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="sm:max-w-[520px]">
+      <SheetContent side="right" className="data-[side=right]:w-full sm:max-w-[520px]">
         <SheetHeader>
           <SheetTitle>{isEditing ? dialog.title : dialog.addTitle}</SheetTitle>
           <SheetDescription>

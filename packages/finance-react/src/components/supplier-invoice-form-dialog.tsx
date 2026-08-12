@@ -256,7 +256,7 @@ export function SupplierInvoiceFormDialog({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="sm:max-w-lg">
+      <SheetContent side="right" className="data-[side=right]:w-full sm:max-w-lg">
         <SheetHeader>
           <SheetTitle>
             {isEdit ? t.editTitle : messages.supplierInvoicesPage.recordInvoice}

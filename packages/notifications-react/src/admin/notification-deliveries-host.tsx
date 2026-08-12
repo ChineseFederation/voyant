@@ -93,7 +93,7 @@ export function NotificationDeliveriesHost() {
       ) : null}
 
       {!isPending && data?.data && data.data.length > 0 ? (
-        <div className="rounded-md border">
+        <div className="overflow-x-auto rounded-md border">
           <table className="w-full text-sm">
             <thead className="bg-muted/40 text-left text-xs uppercase tracking-wide text-muted-foreground">
               <tr>

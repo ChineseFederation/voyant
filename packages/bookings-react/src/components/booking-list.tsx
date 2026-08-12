@@ -20,6 +20,7 @@ import {
   TableHeader,
   TableRow,
 } from "@voyant-travel/ui/components/table"
+import { SECONDARY_COLUMN_CLASS } from "@voyant-travel/ui/lib/responsive"
 import { ArrowDown, ArrowUp, ArrowUpDown, Search } from "lucide-react"
 import * as React from "react"
 import { BOOKING_STATUS_ALL } from "../booking-list-constants.js"
@@ -352,7 +353,7 @@ export function BookingList({
                   onSort={handleSort}
                 />
               </TableHead>
-              <TableHead>
+              <TableHead className={SECONDARY_COLUMN_CLASS}>
                 <SortHeader
                   label={columnMessages.createdAt}
                   field={SORTABLE_COLUMNS.createdAt}
@@ -361,8 +362,8 @@ export function BookingList({
                   onSort={handleSort}
                 />
               </TableHead>
-              <TableHead>{columnMessages.lead}</TableHead>
-              <TableHead>{columnMessages.whatBooked}</TableHead>
+              <TableHead className={SECONDARY_COLUMN_CLASS}>{columnMessages.lead}</TableHead>
+              <TableHead className={SECONDARY_COLUMN_CLASS}>{columnMessages.whatBooked}</TableHead>
               <TableHead>
                 <SortHeader
                   label={columnMessages.status}
@@ -381,7 +382,7 @@ export function BookingList({
                   onSort={handleSort}
                 />
               </TableHead>
-              <TableHead>
+              <TableHead className={SECONDARY_COLUMN_CLASS}>
                 <SortHeader
                   label={columnMessages.pax}
                   field={SORTABLE_COLUMNS.pax}
@@ -430,9 +431,11 @@ export function BookingList({
                   className="cursor-pointer"
                 >
                   <TableCell className="font-medium">{booking.bookingNumber}</TableCell>
-                  <TableCell>{formatBookingDateTime(booking.createdAt, formatDateTime)}</TableCell>
-                  <TableCell>{formatLead(booking)}</TableCell>
-                  <TableCell>
+                  <TableCell className={SECONDARY_COLUMN_CLASS}>
+                    {formatBookingDateTime(booking.createdAt, formatDateTime)}
+                  </TableCell>
+                  <TableCell className={SECONDARY_COLUMN_CLASS}>{formatLead(booking)}</TableCell>
+                  <TableCell className={SECONDARY_COLUMN_CLASS}>
                     {formatBookingItems(
                       booking,
                       messages.bookingList.itemsMore,
@@ -452,7 +455,7 @@ export function BookingList({
                           maximumFractionDigits: 2,
                         })} ${booking.sellCurrency}`}
                   </TableCell>
-                  <TableCell>{booking.pax ?? "—"}</TableCell>
+                  <TableCell className={SECONDARY_COLUMN_CLASS}>{booking.pax ?? "—"}</TableCell>
                   <TableCell className="whitespace-nowrap">
                     {formatBookingRecordDateRange(booking, formatDate, locale)}
                   </TableCell>
@@ -618,12 +621,20 @@ function BookingTableSkeleton({ rows }: { rows: number }) {
   return (
     <>
       {Array.from({ length: rows }).map((_, idx) => (
+        // Cells mirror the header one-for-one, including which of them drop out
+        // below `md` — a shorter skeleton row misaligns the columns while loading.
         // biome-ignore lint/suspicious/noArrayIndexKey: because skeleton placeholders are stable
         <TableRow key={`skeleton-${idx}`}>
           <TableCell>
             <Skeleton className="h-4 w-24" />
           </TableCell>
-          <TableCell>
+          <TableCell className={SECONDARY_COLUMN_CLASS}>
+            <Skeleton className="h-4 w-32" />
+          </TableCell>
+          <TableCell className={SECONDARY_COLUMN_CLASS}>
+            <Skeleton className="h-4 w-24" />
+          </TableCell>
+          <TableCell className={SECONDARY_COLUMN_CLASS}>
             <Skeleton className="h-4 w-48" />
           </TableCell>
           <TableCell>
@@ -632,11 +643,8 @@ function BookingTableSkeleton({ rows }: { rows: number }) {
           <TableCell>
             <Skeleton className="h-4 w-20" />
           </TableCell>
-          <TableCell>
+          <TableCell className={SECONDARY_COLUMN_CLASS}>
             <Skeleton className="h-4 w-8" />
-          </TableCell>
-          <TableCell>
-            <Skeleton className="h-4 w-32" />
           </TableCell>
           <TableCell>
             <Skeleton className="h-4 w-32" />

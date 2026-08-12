@@ -2360,7 +2360,7 @@ const BOOKING_TEMPLATES = [
   {
     key: "b-hold",
     number: "VYT-2026-00002",
-    status: "on_hold" as const,
+    status: "in_progress" as const,
     personIdx: 12,
     productIdx: 4,
     orgId: null,
@@ -2373,7 +2373,7 @@ const BOOKING_TEMPLATES = [
   {
     key: "b-drafting",
     number: "VYT-2026-00003",
-    status: "draft" as const,
+    status: "in_progress" as const,
     personIdx: 11,
     productIdx: 2,
     orgId: null,

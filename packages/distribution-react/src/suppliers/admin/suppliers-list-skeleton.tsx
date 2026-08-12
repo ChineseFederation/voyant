@@ -1,13 +1,18 @@
 "use client"
 
 import { Skeleton } from "@voyant-travel/ui/components/skeleton"
+import { SECONDARY_COLUMN_CLASS } from "@voyant-travel/ui/lib/responsive"
+import { cn } from "@voyant-travel/ui/lib/utils"
 
+// `className` mirrors which columns SuppliersPage drops below `md`. Without it
+// the placeholder is two columns wider than the table it stands in for, so the
+// list visibly reflows once the query resolves.
 const COLUMNS = [
-  { id: "name", headerWidth: "w-16", width: "w-40" },
-  { id: "type", headerWidth: "w-12", width: "w-20" },
-  { id: "status", headerWidth: "w-16", width: "w-16" },
-  { id: "country", headerWidth: "w-16", width: "w-20" },
-  { id: "currency", headerWidth: "w-16", width: "w-12" },
+  { id: "name", headerWidth: "w-16", width: "w-40", className: undefined },
+  { id: "type", headerWidth: "w-12", width: "w-20", className: undefined },
+  { id: "status", headerWidth: "w-16", width: "w-16", className: undefined },
+  { id: "country", headerWidth: "w-16", width: "w-20", className: SECONDARY_COLUMN_CLASS },
+  { id: "currency", headerWidth: "w-16", width: "w-12", className: SECONDARY_COLUMN_CLASS },
 ] as const
 
 /**
@@ -33,12 +38,12 @@ export function SuppliersListSkeleton() {
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-md border">
+      <div className="overflow-x-auto rounded-md border">
         <table className="w-full text-sm">
           <thead className="bg-muted/40 text-left text-muted-foreground">
             <tr>
               {COLUMNS.map((column) => (
-                <th key={column.id} className="px-4 py-3 font-medium">
+                <th key={column.id} className={cn("px-4 py-3 font-medium", column.className)}>
                   <Skeleton className={`h-3.5 ${column.headerWidth}`} />
                 </th>
               ))}
@@ -48,7 +53,7 @@ export function SuppliersListSkeleton() {
             {Array.from({ length: 8 }, (_, rowIndex) => `row-${rowIndex}`).map((rowKey) => (
               <tr key={rowKey} className="border-t">
                 {COLUMNS.map((column) => (
-                  <td key={`${rowKey}-${column.id}`} className="px-4 py-3">
+                  <td key={`${rowKey}-${column.id}`} className={cn("px-4 py-3", column.className)}>
                     <Skeleton className={`h-4 ${column.width}`} />
                   </td>
                 ))}

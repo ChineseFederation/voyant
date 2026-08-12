@@ -259,7 +259,7 @@ export function DeparturesTable({
           {filtersActive ? noResultsLabel : noUpcomingLabel}
         </div>
       ) : (
-        <div className="overflow-hidden rounded-md border">
+        <div className="overflow-x-auto rounded-md border">
           <table className="w-full text-sm">
             <thead className="border-b bg-muted/30 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
               <tr>

@@ -64,7 +64,7 @@ export function NumberSeriesPage({ renderNumberSeriesDialog }: NumberSeriesPageP
       ) : null}
 
       {!isPending && rows.length > 0 ? (
-        <div className="rounded border bg-background">
+        <div className="overflow-x-auto rounded border bg-background">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b text-muted-foreground">

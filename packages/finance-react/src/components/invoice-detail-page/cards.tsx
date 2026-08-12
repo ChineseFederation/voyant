@@ -192,7 +192,7 @@ export function InvoiceLineItemsCard({
       ) : lineItems.length === 0 ? (
         <EmptyRow>{detail.states.noLineItems}</EmptyRow>
       ) : (
-        <div className="overflow-hidden rounded border bg-background">
+        <div className="overflow-x-auto rounded border bg-background">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b text-muted-foreground">
@@ -417,7 +417,7 @@ export function InvoiceAttachmentsCard({
       ) : attachments.length === 0 ? (
         <EmptyRow>{detail.states.noAttachments}</EmptyRow>
       ) : (
-        <div className="overflow-hidden rounded border bg-background">
+        <div className="overflow-x-auto rounded border bg-background">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b text-muted-foreground">

@@ -2,6 +2,7 @@ import { formatMessage } from "@voyant-travel/i18n"
 import { Button } from "@voyant-travel/ui/components/button"
 import { Skeleton } from "@voyant-travel/ui/components/skeleton"
 import { TableCell, TableRow } from "@voyant-travel/ui/components/table"
+import { SECONDARY_COLUMN_CLASS } from "@voyant-travel/ui/lib/responsive"
 import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react"
 
 import { useFinanceUiMessagesOrDefault } from "../i18n/index.js"
@@ -116,10 +117,12 @@ export function InvoiceRowSkeleton({ rows }: { rows: number }) {
           <TableCell>
             <Skeleton className="h-5 w-20 rounded-full" />
           </TableCell>
-          <TableCell>
+          {/* Total and Paid drop out below `md`; mirror that here or the
+              skeleton columns misalign with the header while loading. */}
+          <TableCell className={SECONDARY_COLUMN_CLASS}>
             <Skeleton className="h-4 w-24" />
           </TableCell>
-          <TableCell>
+          <TableCell className={SECONDARY_COLUMN_CLASS}>
             <Skeleton className="h-4 w-24" />
           </TableCell>
           <TableCell>

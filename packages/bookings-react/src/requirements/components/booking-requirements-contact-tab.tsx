@@ -34,7 +34,7 @@ export function BookingRequirementsContactTab({
           <p className="text-sm text-muted-foreground">{messages.contactTab.empty}</p>
         </div>
       ) : (
-        <div className="rounded-md border bg-background">
+        <div className="overflow-x-auto rounded-md border bg-background">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b text-muted-foreground">

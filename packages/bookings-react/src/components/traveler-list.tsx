@@ -277,7 +277,7 @@ export function TravelerList({ bookingId, autoReveal = false }: TravelerListProp
           if (!next) setViewingId(null)
         }}
       >
-        <SheetContent side="right" className="sm:max-w-2xl">
+        <SheetContent side="right" className="data-[side=right]:w-full sm:max-w-2xl">
           <SheetHeader>
             <SheetTitle>{messages.travelerList.snapshot.title}</SheetTitle>
             <SheetDescription>{messages.travelerList.snapshot.subtitle}</SheetDescription>

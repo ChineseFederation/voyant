@@ -140,7 +140,7 @@ export function BookingRequirementsQuestionsTab({
                             {messages.questionsTab.noChoices}
                           </p>
                         ) : (
-                          <div className="rounded border bg-background">
+                          <div className="overflow-x-auto rounded border bg-background">
                             <table className="w-full text-xs">
                               <thead>
                                 <tr className="border-b text-muted-foreground">

@@ -204,7 +204,7 @@ export function BookingInvoiceSheet({ invoiceId, onOpenInvoice }: BookingInvoice
               {messages.lineItemsEmpty}
             </p>
           ) : (
-            <div className="overflow-hidden rounded-md border">
+            <div className="overflow-x-auto rounded-md border">
               <table className="w-full text-sm">
                 <thead className="bg-muted/50">
                   <tr className="border-b text-muted-foreground">
@@ -264,7 +264,7 @@ export function BookingInvoiceSheet({ invoiceId, onOpenInvoice }: BookingInvoice
               {messages.paymentsEmpty}
             </p>
           ) : (
-            <div className="overflow-hidden rounded-md border">
+            <div className="overflow-x-auto rounded-md border">
               <table className="w-full text-sm">
                 <thead className="bg-muted/50">
                   <tr className="border-b text-muted-foreground">

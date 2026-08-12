@@ -100,7 +100,7 @@ export function BookingQuickViewSheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="sm:max-w-md">
+      <SheetContent side="right" className="data-[side=right]:w-full sm:max-w-md">
         <SheetHeader className="border-b">
           {booking ? (
             <>

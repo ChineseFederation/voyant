@@ -137,55 +137,57 @@ export function ProductDetailDayRow({
               {dayRowMessages.emptyServices}
             </p>
           ) : (
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="border-b bg-muted/30 text-muted-foreground">
-                  <th className="py-2 pl-4 pr-3 text-left font-medium">
-                    {dayRowMessages.tableName}
-                  </th>
-                  <th className="px-3 py-2 text-left font-medium">{dayRowMessages.tableType}</th>
-                  <th className="px-3 py-2 text-left font-medium">{dayRowMessages.tableCost}</th>
-                  <th className="px-3 py-2 text-left font-medium">
-                    {dayRowMessages.tableQuantity}
-                  </th>
-                  <th className="w-10 px-3 py-2" />
-                </tr>
-              </thead>
-              <tbody>
-                {servicesData.data.map((service) => (
-                  <tr key={service.id} className="border-b last:border-b-0">
-                    <td className="py-2 pl-4 pr-3">{service.name}</td>
-                    <td className="px-3 py-2">
-                      <Badge variant="outline" className="text-xs capitalize">
-                        {getServiceTypeLabel(service.serviceType, serviceMessages)}
-                      </Badge>
-                    </td>
-                    <td className="px-3 py-2 font-mono">
-                      {(service.costAmountCents / 100).toFixed(2)} {service.costCurrency}
-                    </td>
-                    <td className="px-3 py-2">{service.quantity}</td>
-                    <td className="px-3 py-2">
-                      <ActionMenu
-                        label={`${service.name}: ${dayRowMessages.editAction} / ${dayRowMessages.deleteAction}`}
-                      >
-                        <DropdownMenuItem onClick={() => onEditService(service)}>
-                          <Pencil className="h-4 w-4" />
-                          {dayRowMessages.editAction}
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          variant="destructive"
-                          onClick={() => onDeleteService(service.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                          {dayRowMessages.deleteAction}
-                        </DropdownMenuItem>
-                      </ActionMenu>
-                    </td>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b bg-muted/30 text-muted-foreground">
+                    <th className="py-2 pl-4 pr-3 text-left font-medium">
+                      {dayRowMessages.tableName}
+                    </th>
+                    <th className="px-3 py-2 text-left font-medium">{dayRowMessages.tableType}</th>
+                    <th className="px-3 py-2 text-left font-medium">{dayRowMessages.tableCost}</th>
+                    <th className="px-3 py-2 text-left font-medium">
+                      {dayRowMessages.tableQuantity}
+                    </th>
+                    <th className="w-10 px-3 py-2" />
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {servicesData.data.map((service) => (
+                    <tr key={service.id} className="border-b last:border-b-0">
+                      <td className="py-2 pl-4 pr-3">{service.name}</td>
+                      <td className="px-3 py-2">
+                        <Badge variant="outline" className="text-xs capitalize">
+                          {getServiceTypeLabel(service.serviceType, serviceMessages)}
+                        </Badge>
+                      </td>
+                      <td className="px-3 py-2 font-mono">
+                        {(service.costAmountCents / 100).toFixed(2)} {service.costCurrency}
+                      </td>
+                      <td className="px-3 py-2">{service.quantity}</td>
+                      <td className="px-3 py-2">
+                        <ActionMenu
+                          label={`${service.name}: ${dayRowMessages.editAction} / ${dayRowMessages.deleteAction}`}
+                        >
+                          <DropdownMenuItem onClick={() => onEditService(service)}>
+                            <Pencil className="h-4 w-4" />
+                            {dayRowMessages.editAction}
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            variant="destructive"
+                            onClick={() => onDeleteService(service.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                            {dayRowMessages.deleteAction}
+                          </DropdownMenuItem>
+                        </ActionMenu>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
       ) : null}

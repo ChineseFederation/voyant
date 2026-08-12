@@ -1,6 +1,7 @@
 import { Link, Outlet, useRouterState } from "@tanstack/react-router"
 import { useOperatorAdminMessages } from "@voyant-travel/admin/providers/operator-admin-messages"
 import { cn } from "@voyant-travel/ui/lib/utils"
+import { useEffect, useRef } from "react"
 
 import {
   type AdminCoreSettingsExtraNavEntry,
@@ -83,6 +84,26 @@ export function AdminCoreSettingsLayout({
 
   const isActive = (href: string) => pathname.replace(/\/$/, "") === href
 
+  const activeHref =
+    navGroups.flatMap((group) => group.items).find((item) => isActive(item.href))?.href ?? null
+
+  // On a phone the nav is a scroll strip roughly six times wider than the
+  // viewport, so without this the active section is almost always scrolled out
+  // of sight and there is nothing to say which of ~18 sections you are in.
+  //
+  // Keyed on the active entry rather than on mount: the settings pages are child
+  // routes of this layout, so moving between them — including via browser
+  // back/forward — keeps this component alive, and a mount-only effect would
+  // leave the strip parked on whichever section was active when it first
+  // rendered. Keying on the resolved href rather than `pathname` also avoids
+  // re-scrolling when only a query string changes.
+  const navRef = useRef<HTMLElement | null>(null)
+  useEffect(() => {
+    if (!activeHref) return
+    const active = navRef.current?.querySelector<HTMLElement>("[data-settings-nav-active='true']")
+    active?.scrollIntoView({ block: "nearest", inline: "center" })
+  }, [activeHref])
+
   // Full-height two-pane settings shell. It bleeds out of the shared page
   // padding (px-4 py-6 md:px-6 from the workspace layout) so the panes stay
   // edge-to-edge; the content pane re-adds its own padding below.
@@ -94,7 +115,10 @@ export function AdminCoreSettingsLayout({
           <h1 className="text-xl font-semibold tracking-tight">{messages.settings.title}</h1>
           <p className="mt-1 text-sm text-muted-foreground">{messages.settings.description}</p>
         </div>
-        <nav className="flex gap-1 overflow-x-auto px-4 py-3 md:mt-6 md:flex-col md:gap-6 md:overflow-x-visible md:px-0 md:py-0">
+        <nav
+          ref={navRef}
+          className="flex gap-1 overflow-x-auto px-4 py-3 md:mt-6 md:flex-col md:gap-6 md:overflow-x-visible md:px-0 md:py-0"
+        >
           {navGroups.map((group) => (
             <div key={group.title} className="flex gap-1 md:flex-col md:gap-0">
               <h3 className="mb-2 hidden px-3 text-xs font-medium uppercase tracking-wider text-muted-foreground md:block">
@@ -105,6 +129,7 @@ export function AdminCoreSettingsLayout({
                   <li key={item.href}>
                     <Link
                       to={item.href}
+                      data-settings-nav-active={isActive(item.href) ? "true" : undefined}
                       className={cn(
                         "flex items-center gap-2.5 whitespace-nowrap rounded-md px-3 py-2 text-sm transition-colors",
                         isActive(item.href)

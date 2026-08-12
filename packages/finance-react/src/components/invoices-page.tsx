@@ -21,6 +21,7 @@ import {
   TableHeader,
   TableRow,
 } from "@voyant-travel/ui/components/table"
+import { SECONDARY_COLUMN_CLASS, TOUCH_CHECKBOX_CLASS } from "@voyant-travel/ui/lib/responsive"
 import { cn } from "@voyant-travel/ui/lib/utils"
 import { ListFilter, Plus, Search, X } from "lucide-react"
 import { useEffect, useState } from "react"
@@ -224,7 +225,10 @@ export function InvoicesPage({ className, onOpenInvoice }: InvoicesPageProps = {
                 </Button>
               }
             />
-            <PopoverContent align="start" className="w-[24rem] p-4">
+            <PopoverContent
+              align="start"
+              className="max-h-[75vh] w-[min(24rem,calc(100vw-2rem))] overflow-y-auto p-4"
+            >
               <div className="flex flex-col gap-4">
                 <div className="flex flex-col gap-1.5">
                   <Label htmlFor="invoices-filter-status">{f.filters.statusLabel}</Label>
@@ -307,6 +311,7 @@ export function InvoicesPage({ className, onOpenInvoice }: InvoicesPageProps = {
               <TableRow>
                 <TableHead className="w-10">
                   <Checkbox
+                    className={TOUCH_CHECKBOX_CLASS}
                     aria-label={f.bulkActions.selectAllOnPage}
                     checked={allPageInvoicesSelected}
                     indeterminate={somePageInvoicesSelected}
@@ -333,7 +338,7 @@ export function InvoicesPage({ className, onOpenInvoice }: InvoicesPageProps = {
                     onSort={handleSort}
                   />
                 </TableHead>
-                <TableHead>
+                <TableHead className={SECONDARY_COLUMN_CLASS}>
                   <SortHeader
                     label={f.columns.total}
                     field="totalCents"
@@ -342,7 +347,7 @@ export function InvoicesPage({ className, onOpenInvoice }: InvoicesPageProps = {
                     onSort={handleSort}
                   />
                 </TableHead>
-                <TableHead>
+                <TableHead className={SECONDARY_COLUMN_CLASS}>
                   <SortHeader
                     label={f.columns.paid}
                     field="paidCents"
@@ -395,6 +400,7 @@ export function InvoicesPage({ className, onOpenInvoice }: InvoicesPageProps = {
                   >
                     <TableCell>
                       <Checkbox
+                        className={TOUCH_CHECKBOX_CLASS}
                         aria-label={f.bulkActions.selectInvoice}
                         checked={selectedInvoiceIds.has(row.id)}
                         onClickCapture={(event) => event.stopPropagation()}
@@ -423,10 +429,10 @@ export function InvoicesPage({ className, onOpenInvoice }: InvoicesPageProps = {
                         {messages.common.invoiceStatusLabels[row.status] ?? row.status}
                       </Badge>
                     </TableCell>
-                    <TableCell className="font-mono">
+                    <TableCell className={cn("font-mono", SECONDARY_COLUMN_CLASS)}>
                       {formatInvoiceAmount(row.totalCents, row.currency)}
                     </TableCell>
-                    <TableCell className="font-mono">
+                    <TableCell className={cn("font-mono", SECONDARY_COLUMN_CLASS)}>
                       {formatInvoiceAmount(row.paidCents, row.currency)}
                     </TableCell>
                     <TableCell className="font-mono">

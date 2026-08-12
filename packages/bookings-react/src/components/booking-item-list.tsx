@@ -232,7 +232,7 @@ export function BookingItemList({
           if (!next) setViewing(null)
         }}
       >
-        <SheetContent side="right" className="sm:max-w-2xl">
+        <SheetContent side="right" className="data-[side=right]:w-full sm:max-w-2xl">
           <SheetHeader>
             <SheetTitle>{messages.bookingItemList.snapshot.title}</SheetTitle>
             <SheetDescription>{messages.bookingItemList.snapshot.subtitle}</SheetDescription>

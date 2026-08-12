@@ -24,6 +24,7 @@ import {
   TableHeader,
   TableRow,
 } from "@voyant-travel/ui/components/table"
+import { SECONDARY_COLUMN_CLASS } from "@voyant-travel/ui/lib/responsive"
 import { ArrowDown, ArrowUp, ArrowUpDown, ListFilter, Plus, Search, X } from "lucide-react"
 import * as React from "react"
 import { toast } from "sonner"
@@ -608,10 +609,18 @@ export function ProductList({
                   onSort={handleSort}
                 />
               </TableHead>
-              <TableHead>{productMessages.columns.family}</TableHead>
-              <TableHead>{productMessages.columns.subtype}</TableHead>
-              <TableHead>{productMessages.columns.duration}</TableHead>
-              <TableHead>{productMessages.columns.bookingMode}</TableHead>
+              <TableHead className={SECONDARY_COLUMN_CLASS}>
+                {productMessages.columns.family}
+              </TableHead>
+              <TableHead className={SECONDARY_COLUMN_CLASS}>
+                {productMessages.columns.subtype}
+              </TableHead>
+              <TableHead className={SECONDARY_COLUMN_CLASS}>
+                {productMessages.columns.duration}
+              </TableHead>
+              <TableHead className={SECONDARY_COLUMN_CLASS}>
+                {productMessages.columns.bookingMode}
+              </TableHead>
               <TableHead>{productMessages.columns.nextDeparture}</TableHead>
             </TableRow>
           </TableHeader>
@@ -657,7 +666,7 @@ export function ProductList({
                       locale,
                     )}
                   </TableCell>
-                  <TableCell>
+                  <TableCell className={SECONDARY_COLUMN_CLASS}>
                     <div className="flex flex-col gap-0.5">
                       <div className="flex items-center gap-1.5">
                         <span>
@@ -691,7 +700,7 @@ export function ProductList({
                       ) : null}
                     </div>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className={SECONDARY_COLUMN_CLASS}>
                     {product.classification?.subtypeCode ? (
                       <Badge variant="secondary" className="text-xs">
                         {formatProductSubtype(product.classification.subtypeCode)}
@@ -700,8 +709,10 @@ export function ProductList({
                       productMessages.noValue
                     )}
                   </TableCell>
-                  <TableCell>{formatListDuration(product, productMessages)}</TableCell>
-                  <TableCell>
+                  <TableCell className={SECONDARY_COLUMN_CLASS}>
+                    {formatListDuration(product, productMessages)}
+                  </TableCell>
+                  <TableCell className={SECONDARY_COLUMN_CLASS}>
                     {messages.common.productBookingModeLabels[product.bookingMode]}
                   </TableCell>
                   <TableCell>
@@ -806,16 +817,18 @@ function ProductTableSkeleton({ rows }: { rows: number }) {
           <TableCell>
             <Skeleton className="h-4 w-24" />
           </TableCell>
-          <TableCell>
+          {/* Family/subtype/duration/booking-mode drop out below `md`; mirror
+              that here or the skeleton misaligns with the header while loading. */}
+          <TableCell className={SECONDARY_COLUMN_CLASS}>
             <Skeleton className="h-4 w-20" />
           </TableCell>
-          <TableCell>
+          <TableCell className={SECONDARY_COLUMN_CLASS}>
             <Skeleton className="h-4 w-20" />
           </TableCell>
-          <TableCell>
+          <TableCell className={SECONDARY_COLUMN_CLASS}>
             <Skeleton className="h-4 w-20" />
           </TableCell>
-          <TableCell>
+          <TableCell className={SECONDARY_COLUMN_CLASS}>
             <Skeleton className="h-4 w-16" />
           </TableCell>
           <TableCell>

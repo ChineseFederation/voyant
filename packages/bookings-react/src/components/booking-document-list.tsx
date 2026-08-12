@@ -66,7 +66,7 @@ export function BookingDocumentList({ bookingId }: BookingDocumentListProps) {
             {messages.bookingDocumentList.empty}
           </p>
         ) : (
-          <div className="rounded border bg-background">
+          <div className="overflow-x-auto rounded border bg-background">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b text-muted-foreground">

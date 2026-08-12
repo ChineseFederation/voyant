@@ -366,9 +366,9 @@ export function BookingDetailPage({
         </div>
       )}
 
-      <div className="flex items-start justify-between">
-        <div className="flex flex-col gap-1">
-          <div className="flex items-center gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex min-w-0 flex-col gap-1">
+          <div className="flex flex-wrap items-center gap-3">
             <h1 className="text-2xl font-bold tracking-tight">{booking.bookingNumber}</h1>
             <StatusBadge status={booking.status}>
               {getBookingStatusLabel(booking.status, messages.common.bookingStatusLabels)}
@@ -387,7 +387,7 @@ export function BookingDetailPage({
           ) : null}
         </div>
         {isCancelled ? null : (
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
               <Pencil className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
               {detailMessages.editAction}
@@ -490,20 +490,24 @@ export function BookingDetailPage({
         value={activeTab}
         onValueChange={(value) => onTabChange?.(String(value) as BookingDetailTabValue)}
       >
-        <TabsList className="w-full justify-start">
-          <TabsTrigger value="items">{detailMessages.tabOverview}</TabsTrigger>
-          <TabsTrigger value="travelers">{detailMessages.tabTravelers}</TabsTrigger>
-          <TabsTrigger value="finance">{detailMessages.tabFinance}</TabsTrigger>
-          {slots?.invoicesTab ? (
-            <TabsTrigger value="invoices">
-              {slots.invoicesTab.label ?? detailMessages.tabInvoices}
-            </TabsTrigger>
-          ) : null}
-          <TabsTrigger value="documents">{detailMessages.tabDocuments}</TabsTrigger>
-          <TabsTrigger value="suppliers">{detailMessages.tabSuppliers}</TabsTrigger>
-          <TabsTrigger value="activity">{detailMessages.tabActivity}</TabsTrigger>
-          <TabsTrigger value="metadata">{detailMessages.tabMetadata}</TabsTrigger>
-        </TabsList>
+        {/* The tab set is wider than a phone viewport; scroll it here rather than
+            letting it push the whole document sideways. */}
+        <div className="-mx-1 overflow-x-auto px-1">
+          <TabsList className="w-full min-w-max justify-start">
+            <TabsTrigger value="items">{detailMessages.tabOverview}</TabsTrigger>
+            <TabsTrigger value="travelers">{detailMessages.tabTravelers}</TabsTrigger>
+            <TabsTrigger value="finance">{detailMessages.tabFinance}</TabsTrigger>
+            {slots?.invoicesTab ? (
+              <TabsTrigger value="invoices">
+                {slots.invoicesTab.label ?? detailMessages.tabInvoices}
+              </TabsTrigger>
+            ) : null}
+            <TabsTrigger value="documents">{detailMessages.tabDocuments}</TabsTrigger>
+            <TabsTrigger value="suppliers">{detailMessages.tabSuppliers}</TabsTrigger>
+            <TabsTrigger value="activity">{detailMessages.tabActivity}</TabsTrigger>
+            <TabsTrigger value="metadata">{detailMessages.tabMetadata}</TabsTrigger>
+          </TabsList>
+        </div>
 
         <TabsContent value="items" className="mt-4 flex flex-col gap-6">
           {slots?.overviewStart?.(booking)}

@@ -15,6 +15,7 @@ import {
   SelectValue,
 } from "@voyant-travel/ui/components"
 import { CurrencyCombobox } from "@voyant-travel/ui/components/currency-combobox"
+import { SECONDARY_COLUMN_CLASS } from "@voyant-travel/ui/lib/responsive"
 import { cn } from "@voyant-travel/ui/lib/utils"
 import { ArrowDown, ArrowUp, ListFilter, Plus, Search, X } from "lucide-react"
 import * as React from "react"
@@ -32,6 +33,9 @@ import { formatMessage } from "./message-format.js"
 import { SupplierDialog } from "./supplier-dialog.js"
 
 const ALL = "__all__"
+
+/** Zero-based indexes of the columns hidden below `md`: Country and Currency. */
+const SECONDARY_SUPPLIER_COLUMNS = [3, 4] as const
 
 export type SuppliersPageProps = {
   pageSize?: number
@@ -141,7 +145,10 @@ export function SuppliersPage({
               </Button>
             }
           />
-          <PopoverContent align="start" className="w-[20rem] p-4">
+          <PopoverContent
+            align="start"
+            className="max-h-[75vh] w-[min(20rem,calc(100vw-2rem))] overflow-y-auto p-4"
+          >
             <div className="flex flex-col gap-4">
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="suppliers-filter-type">
@@ -257,7 +264,7 @@ export function SuppliersPage({
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-md border">
+      <div className="overflow-x-auto rounded-md border">
         <table className="w-full text-sm">
           <thead className="bg-muted/40 text-left text-muted-foreground">
             <tr>
@@ -282,19 +289,22 @@ export function SuppliersPage({
                 sortDir={sortDir}
                 onSort={toggleSort}
               />
-              <th className="px-4 py-3 font-medium">{messages.suppliersPage.columns.country}</th>
+              <th className={cn("px-4 py-3 font-medium", SECONDARY_COLUMN_CLASS)}>
+                {messages.suppliersPage.columns.country}
+              </th>
               <SortableHeader
                 label={messages.suppliersPage.columns.currency}
                 field="defaultCurrency"
                 sortBy={sortBy}
                 sortDir={sortDir}
                 onSort={toggleSort}
+                className={SECONDARY_COLUMN_CLASS}
               />
             </tr>
           </thead>
           <tbody>
             {query.isPending ? (
-              <LoadingRows columns={5} rows={8} />
+              <LoadingRows columns={5} rows={8} secondaryColumns={SECONDARY_SUPPLIER_COLUMNS} />
             ) : query.isError ? (
               <MessageRow columns={5}>{messages.suppliersPage.loadFailed}</MessageRow>
             ) : rows.length === 0 ? (
@@ -318,8 +328,12 @@ export function SuppliersPage({
                       {messages.common.supplierStatusLabels[supplier.status]}
                     </Badge>
                   </td>
-                  <td className="px-4 py-3">{supplier.country ?? messages.common.none}</td>
-                  <td className="px-4 py-3">{supplier.defaultCurrency ?? messages.common.none}</td>
+                  <td className={cn("px-4 py-3", SECONDARY_COLUMN_CLASS)}>
+                    {supplier.country ?? messages.common.none}
+                  </td>
+                  <td className={cn("px-4 py-3", SECONDARY_COLUMN_CLASS)}>
+                    {supplier.defaultCurrency ?? messages.common.none}
+                  </td>
                 </tr>
               ))
             )}
@@ -372,15 +386,17 @@ function SortableHeader({
   sortBy,
   sortDir,
   onSort,
+  className,
 }: {
   label: string
   field: SuppliersListSortField
   sortBy: SuppliersListSortField
   sortDir: SuppliersListSortDir
   onSort: (field: SuppliersListSortField) => void
+  className?: string
 }) {
   return (
-    <th className="px-4 py-3 font-medium">
+    <th className={cn("px-4 py-3 font-medium", className)}>
       <Button type="button" variant="ghost" size="sm" onClick={() => onSort(field)}>
         {label}
         {sortBy === field &&
@@ -390,16 +406,35 @@ function SortableHeader({
   )
 }
 
-function LoadingRows({ rows, columns }: { rows: number; columns: number }) {
+/**
+ * `secondaryColumns` names the zero-based indexes that the real table drops
+ * below `md`. They have to be mirrored here: otherwise the pending state is two
+ * columns wider than the table it stands in for, keeping exactly the horizontal
+ * width the responsive columns exist to remove, and the list reflows once the
+ * query resolves.
+ */
+function LoadingRows({
+  rows,
+  columns,
+  secondaryColumns = [],
+}: {
+  rows: number
+  columns: number
+  secondaryColumns?: readonly number[]
+}) {
   return Array.from({ length: rows }, (_, rowIndex) => `row-${rowIndex}`).map((rowKey) => (
     <tr key={rowKey} className="border-t">
-      {Array.from({ length: columns }, (__, columnIndex) => `${rowKey}-cell-${columnIndex}`).map(
-        (columnKey) => (
-          <td key={columnKey} className="px-4 py-3">
-            <div className="h-4 w-full max-w-32 animate-pulse rounded bg-muted" />
-          </td>
-        ),
-      )}
+      {Array.from({ length: columns }, (__, columnIndex) => columnIndex).map((columnIndex) => (
+        <td
+          key={`${rowKey}-cell-${columnIndex}`}
+          className={cn(
+            "px-4 py-3",
+            secondaryColumns.includes(columnIndex) && SECONDARY_COLUMN_CLASS,
+          )}
+        >
+          <div className="h-4 w-full max-w-32 animate-pulse rounded bg-muted" />
+        </td>
+      ))}
     </tr>
   ))
 }

@@ -132,7 +132,10 @@ export function TemplatesPage({
               </Button>
             }
           />
-          <PopoverContent align="start" className="w-[22rem] p-4">
+          <PopoverContent
+            align="start"
+            className="max-h-[75vh] w-[min(22rem,calc(100vw-2rem))] overflow-y-auto p-4"
+          >
             <div className="flex flex-col gap-4">
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="templates-filter-scope">{f.filters.scope}</Label>

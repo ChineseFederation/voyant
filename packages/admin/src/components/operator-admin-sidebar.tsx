@@ -14,6 +14,7 @@ import {
   SidebarRail,
   SidebarTrigger,
 } from "@voyant-travel/ui/components"
+import { TOUCH_ICON_BUTTON_CLASS } from "@voyant-travel/ui/lib/responsive"
 import { Settings as DefaultSettingsIcon } from "lucide-react"
 import type * as React from "react"
 
@@ -357,14 +358,16 @@ export function OperatorAdminWorkspaceLayout({
       {hasHeader && (
         <header
           className={cn(
-            "flex h-14 shrink-0 items-center justify-between gap-3 border-b px-4 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12",
+            // Sticky because on a phone the sidebar is a sheet and this trigger is
+            // the only way to reach navigation — a static header takes it off-screen.
+            "sticky top-0 z-20 flex h-14 shrink-0 items-center justify-between gap-3 border-b bg-background px-4 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12",
             headerClassName,
           )}
         >
           <div className="flex min-w-0 items-center gap-2">
             {showSidebarTrigger && (
               <SidebarTrigger
-                className="-ml-1"
+                className={cn("-ml-1", TOUCH_ICON_BUTTON_CLASS)}
                 title={messages.toggleSidebarShortcut}
                 aria-label={messages.toggleSidebar}
               />
