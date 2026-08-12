@@ -326,13 +326,28 @@ export const financeInvoiceNumberingService = {
   async applyExternalInvoiceAllocation(
     db: PostgresJsDatabase,
     invoiceId: string,
-    data: { invoiceNumber: string; status?: "issued" | "draft" },
+    data: {
+      invoiceNumber: string
+      status?: "issued" | "draft"
+      preserveProgressedStatus?: boolean
+    },
   ) {
     const [existing] = await db.select().from(invoices).where(eq(invoices.id, invoiceId)).limit(1)
     if (!existing) return { status: "not_found" as const }
-    if (existing.status !== "pending_external_allocation") {
+    const progressedStatus = ["issued", "partially_paid", "paid", "overdue"].includes(
+      existing.status,
+    )
+    if (
+      existing.status !== "pending_external_allocation" &&
+      !(data.preserveProgressedStatus && progressedStatus)
+    ) {
       return { status: "not_pending_external_allocation" as const, invoice: existing }
     }
+
+    const nextStatus =
+      existing.status === "pending_external_allocation"
+        ? (data.status ?? "issued")
+        : existing.status
 
     let invoice: typeof invoices.$inferSelect | undefined
     try {
@@ -340,7 +355,7 @@ export const financeInvoiceNumberingService = {
         .update(invoices)
         .set({
           invoiceNumber: data.invoiceNumber,
-          status: data.status ?? "issued",
+          status: nextStatus,
           updatedAt: new Date(),
         })
         .where(eq(invoices.id, invoiceId))

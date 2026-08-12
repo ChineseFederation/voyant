@@ -176,6 +176,90 @@ describe("finance App API runtime", () => {
     })
   })
 
+  it("repairs a paid placeholder when the owning provider reports its fiscal number", async () => {
+    const execute = vi
+      .fn()
+      .mockResolvedValueOnce([
+        {
+          invoice_number: "INV-BK-2608-399637",
+          series_id: "series_1",
+          status: "paid",
+        },
+      ])
+      .mockResolvedValueOnce([{ external_provider: "smartbill" }])
+    const db = postgresStub({
+      execute,
+      select: () => ({
+        from: () => ({
+          where: () => ({
+            limit: async () => [
+              {
+                id: "ref_1",
+                invoiceId: "inv_1",
+                provider: "smartbill",
+                externalId: "0174",
+                externalNumber: "0174",
+                externalUrl: null,
+                status: "retrying",
+                metadata: { series: "B", number: "0174" },
+                syncedAt: null,
+                syncError: "allocation was delayed",
+                createdAt: new Date(),
+                updatedAt: new Date(),
+              },
+            ],
+          }),
+        }),
+      }),
+    })
+    vi.spyOn(financeService, "applyExternalInvoiceAllocation").mockResolvedValue({
+      status: "applied",
+      invoice: { invoiceNumber: "B0174", status: "paid" },
+    } as never)
+    vi.spyOn(financeService, "registerInvoiceExternalRef").mockResolvedValue({
+      id: "ref_1",
+      invoiceId: "inv_1",
+      provider: "smartbill",
+      externalId: "0174",
+      externalNumber: "0174",
+      externalUrl: null,
+      status: "issued",
+      metadata: { series: "B", number: "0174" },
+      syncedAt: null,
+      syncError: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    } as never)
+
+    const result = await createFinanceAppApiRuntime().upsertExternalReference(
+      db,
+      "inv_1",
+      "smartbill",
+      {
+        reference: {
+          externalId: "0174",
+          externalNumber: "0174",
+          externalUrl: null,
+          status: "issued",
+          metadata: { series: "B", number: "0174" },
+          syncedAt: null,
+          syncError: null,
+        },
+        allocation: { invoiceNumber: "B0174" },
+      },
+    )
+
+    expect(result).toMatchObject({
+      status: "ok",
+      allocationOutcome: "applied",
+      referenceOutcome: "updated",
+    })
+    expect(financeService.applyExternalInvoiceAllocation).toHaveBeenCalledWith(db, "inv_1", {
+      invoiceNumber: "B0174",
+      preserveProgressedStatus: true,
+    })
+  })
+
   it("rejects allocation when the caller does not own the external series", async () => {
     const execute = vi
       .fn()

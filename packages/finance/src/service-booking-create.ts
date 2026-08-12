@@ -2889,12 +2889,18 @@ export async function createBookingMutation(
       issueDate
     const dueDatePaymentSchedule =
       result.paymentSchedules.find((schedule) => schedule.dueDate === dueDate) ?? null
+    const defaultSeries = await financeService.resolveDefaultInvoiceNumberSeries(
+      tx,
+      documentGeneration.invoiceType,
+    )
 
     const invoice = await financeService.createInvoiceFromBooking(
       tx,
       {
         bookingId: result.booking.id,
-        invoiceNumber: generateInvoiceNumber(result.booking.bookingNumber),
+        ...(defaultSeries
+          ? { seriesId: defaultSeries.id }
+          : { invoiceNumber: generateInvoiceNumber(result.booking.bookingNumber) }),
         issueDate,
         dueDate,
         invoiceType: documentGeneration.invoiceType,

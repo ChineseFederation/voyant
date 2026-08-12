@@ -186,16 +186,29 @@ export function createFinanceAppApiRuntime(
       )[0]
       if (!locked) return { status: "not_found" }
 
+      let existingReference: typeof invoiceExternalRefs.$inferSelect | undefined
+      let existingReferenceLoaded = false
+      const loadExistingReference = async () => {
+        if (!existingReferenceLoaded) {
+          const rows = await db
+            .select()
+            .from(invoiceExternalRefs)
+            .where(
+              and(
+                eq(invoiceExternalRefs.invoiceId, documentId),
+                eq(invoiceExternalRefs.provider, provider),
+              ),
+            )
+            .limit(1)
+          existingReference = rows[0]
+          existingReferenceLoaded = true
+        }
+        return existingReference
+      }
+
       let allocationOutcome: "not_requested" | "applied" | "already_applied" = "not_requested"
       if (input.allocation) {
-        if (locked.status !== "pending_external_allocation") {
-          if (locked.invoice_number !== input.allocation.invoiceNumber) {
-            return {
-              status: "allocation_conflict",
-              currentNumber: locked.invoice_number,
-              currentStatus: locked.status,
-            }
-          }
+        if (locked.invoice_number === input.allocation.invoiceNumber) {
           allocationOutcome = "already_applied"
         } else {
           const series = toRows<{ external_provider: string | null }>(
@@ -204,7 +217,13 @@ export function createFinanceAppApiRuntime(
               sql`SELECT external_provider FROM invoice_number_series WHERE id = ${locked.series_id} FOR UPDATE`,
             ),
           )[0]
-          if (!series || series.external_provider !== provider) {
+          const existing =
+            series?.external_provider === provider ? await loadExistingReference() : null
+          if (
+            !series ||
+            series.external_provider !== provider ||
+            (existing && !referenceIdentityMatches(existing, input.reference))
+          ) {
             return {
               status: "allocation_conflict",
               currentNumber: locked.invoice_number,
@@ -215,6 +234,7 @@ export function createFinanceAppApiRuntime(
           try {
             const allocation = await financeService.applyExternalInvoiceAllocation(db, documentId, {
               invoiceNumber: input.allocation.invoiceNumber,
+              preserveProgressedStatus: true,
             })
             if (allocation.status === "not_found") return { status: "not_found" }
             if (allocation.status === "not_pending_external_allocation") {
@@ -234,16 +254,7 @@ export function createFinanceAppApiRuntime(
         }
       }
 
-      const [existing] = await db
-        .select()
-        .from(invoiceExternalRefs)
-        .where(
-          and(
-            eq(invoiceExternalRefs.invoiceId, documentId),
-            eq(invoiceExternalRefs.provider, provider),
-          ),
-        )
-        .limit(1)
+      const existing = await loadExistingReference()
       const referenceOutcome = existing
         ? referenceMatches(existing, input.reference)
           ? "unchanged"
@@ -960,6 +971,16 @@ function referenceMatches(
     canonicalJson(existing.metadata) === canonicalJson(input.metadata ?? null) &&
     (existing.syncedAt?.toISOString() ?? null) === (input.syncedAt ?? null) &&
     existing.syncError === (input.syncError ?? null)
+  )
+}
+
+function referenceIdentityMatches(
+  existing: typeof invoiceExternalRefs.$inferSelect,
+  input: FinanceAppApiExternalReferenceUpsertInput["reference"],
+) {
+  return (
+    existing.externalId === (input.externalId ?? null) &&
+    existing.externalNumber === (input.externalNumber ?? null)
   )
 }
 

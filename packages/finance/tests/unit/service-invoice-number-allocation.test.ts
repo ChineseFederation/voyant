@@ -1546,6 +1546,28 @@ describe("financeService.applyExternalInvoiceAllocation", () => {
     })
   })
 
+  it("preserves paid status when a provider number arrives after settlement", async () => {
+    const paidInvoice = {
+      ...pendingInvoice,
+      invoiceNumber: "INV-BK-2608-399637",
+      status: "paid",
+      paidCents: 12_000,
+      balanceDueCents: 0,
+    }
+    const { db, updates } = makeExternalAllocationDb({ existing: paidInvoice })
+
+    const result = await financeService.applyExternalInvoiceAllocation(db, "inv_new", {
+      invoiceNumber: "B0174",
+      preserveProgressedStatus: true,
+    })
+
+    expect(result.status).toBe("applied")
+    expect(updates[0]).toMatchObject({
+      invoiceNumber: "B0174",
+      status: "paid",
+    })
+  })
+
   it("normalizes duplicate external allocation numbers into a typed conflict", async () => {
     const { db } = makeExternalAllocationDb({
       existing: pendingInvoice,

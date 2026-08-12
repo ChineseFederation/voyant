@@ -45,6 +45,7 @@ import { financeBookingLifecycle } from "../../src/booking-lifecycle.js"
 import {
   bookingItemTaxLines,
   bookingPaymentSchedules,
+  invoiceNumberSeries,
   invoiceRenditions,
   invoices,
   paymentInstruments,
@@ -1312,6 +1313,54 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
       .from(payments)
       .where(eq(payments.invoiceId, invoiceRows[0]!.id))
     expect(paymentRows).toHaveLength(1)
+  })
+
+  it("keeps the default external series on invoices created with paid bookings", async () => {
+    const { productId } = await seedProduct()
+    const [series] = await db
+      .insert(invoiceNumberSeries)
+      .values({
+        code: "SMARTBILL_B_INV",
+        name: "SmartBill B",
+        scope: "invoice",
+        prefix: "",
+        separator: "",
+        padLength: 0,
+        externalProvider: "mapp_smartbill",
+        externalConfigKey: "B",
+        isDefault: true,
+        active: true,
+      })
+      .returning()
+
+    const outcome = await createBooking(db, {
+      productId,
+      bookingNumber: nextBookingNumber(),
+      ...bookingParty(),
+      paymentSchedules: [
+        {
+          scheduleType: "balance",
+          status: "paid",
+          dueDate: "2026-06-15",
+          currency: "EUR",
+          amountCents: 50_000,
+          notes: JSON.stringify({
+            alreadyPaid: true,
+            paymentDate: "2026-06-10",
+            paymentMethod: "credit_card",
+            paymentReference: "pi_paid_before_allocation",
+          }),
+        },
+      ],
+    })
+
+    expect(outcome.status).toBe("ok")
+    if (outcome.status !== "ok") return
+    expect(outcome.result.invoice).toMatchObject({
+      seriesId: series?.id,
+      status: "paid",
+    })
+    expect(outcome.result.invoice?.invoiceNumber).toMatch(/^PENDING-INVOICE-/)
   })
 
   it("previews exact paid invoice settlement consequences before cancellation", async () => {
