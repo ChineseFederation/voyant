@@ -275,10 +275,11 @@ export const bookingsUiRoSections = {
       noUnits: "Aceasta plecare nu are disponibilitate configurata pe unitati.",
       remaining: "ramase",
       unlimited: "nelimitat",
-      fillsSlotCapacity: "camera este plina",
+      fillsSlotCapacity: "inclus in capacitatea plecarii",
       decreaseUnitPrefix: "Scade",
       increaseUnitPrefix: "Creste",
       reviewLine: "Verifica aceasta linie",
+      required: "Obligatoriu",
     },
   },
   sharedRoomSection: {

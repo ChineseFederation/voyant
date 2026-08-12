@@ -73,9 +73,28 @@ export interface OptionUnitsStepperSectionProps {
     unlimited?: string
     fillsSlotCapacity?: string
     reviewLine?: string
+    required?: string
   }
   slotHasFiniteCapacity?: boolean
   invalidOptionUnitIds?: readonly string[]
+  /**
+   * Marks the section as a required control so an operator can tell, before
+   * submitting, that a quantity has to be picked here. See #4588.
+   */
+  required?: boolean
+  /**
+   * Field-level validation message, rendered against this section rather than
+   * only in the form's error banner. Anchors "Select at least one option." to
+   * the control it actually refers to.
+   */
+  error?: string | null
+  /**
+   * Focus/scroll anchor for the section container, so a failed submit can
+   * bring the operator to the control that blocked it.
+   */
+  sectionRef?: React.Ref<HTMLDivElement>
+  /** DOM id for the section container, for `aria-describedby` from outside. */
+  id?: string
   /** Catalog-sourced products provide option/unit shape through the live quote. */
   providedOptions?: ReadonlyArray<{ id: string; name: string }>
   /** When present (including an empty array), skip owned product/availability lookups. */
@@ -124,10 +143,17 @@ export function OptionUnitsStepperSection({
   invalidOptionUnitIds = [],
   providedOptions,
   providedUnits,
+  required = false,
+  error = null,
+  sectionRef,
+  id,
 }: OptionUnitsStepperSectionProps) {
   const productsClient = useVoyantProductsContext()
   const messages = useBookingsUiMessagesOrDefault()
   const merged = { ...messages.roomsStepperSection.labels, ...labels }
+  const generatedId = React.useId()
+  const sectionId = id ?? generatedId
+  const errorId = `${sectionId}-error`
   const usesProvidedUnits = providedUnits !== undefined
   const availability = useSlotUnitAvailability({
     slotId,
@@ -254,10 +280,44 @@ export function OptionUnitsStepperSection({
     [units, productOptions],
   )
 
+  // The section is a group of steppers rather than a single control, so the
+  // required marker and the validation message live on the container. Both
+  // are rendered in every branch — an operator who has to pick a quantity
+  // here should be told so before they press a disabled button (#4588).
+  const containerProps = {
+    id: sectionId,
+    ref: sectionRef,
+    tabIndex: -1,
+    "aria-invalid": error ? true : undefined,
+    "aria-describedby": error ? errorId : undefined,
+    className: `flex flex-col gap-2 rounded-md border p-3 outline-none ${
+      error ? "border-destructive/70 bg-destructive/5 ring-1 ring-destructive/20" : ""
+    }`,
+  } as const
+  const heading = (
+    <Label>
+      {merged.heading}
+      {required ? (
+        <>
+          <span aria-hidden="true" className="text-destructive">
+            {" *"}
+          </span>
+          <span className="sr-only">{` (${merged.required})`}</span>
+        </>
+      ) : null}
+    </Label>
+  )
+  const errorNode = error ? (
+    <p id={errorId} role="alert" className="text-xs font-medium text-destructive">
+      {error}
+    </p>
+  ) : null
+
   if (!slotId && !productId && !optionId) {
     return (
-      <div className="flex flex-col gap-2 rounded-md border p-3">
-        <Label>{merged.heading}</Label>
+      <div {...containerProps}>
+        {heading}
+        {errorNode}
         <p className="text-xs text-muted-foreground">{merged.noOption}</p>
       </div>
     )
@@ -277,8 +337,9 @@ export function OptionUnitsStepperSection({
       : optionsLoaded
   if (loaded && units.length === 0) {
     return (
-      <div className="flex flex-col gap-2 rounded-md border p-3">
-        <Label>{merged.heading}</Label>
+      <div {...containerProps}>
+        {heading}
+        {errorNode}
         <p className="text-xs text-muted-foreground">{merged.noUnits}</p>
       </div>
     )
@@ -295,8 +356,9 @@ export function OptionUnitsStepperSection({
   }
 
   return (
-    <div className="flex flex-col gap-2 rounded-md border p-3">
-      <Label>{merged.heading}</Label>
+    <div {...containerProps}>
+      {heading}
+      {errorNode}
       <div className="flex flex-col gap-2">
         {optionRows.map(({ optionKey, optionName, primary, allUnits, totalRemaining }) => {
           const qty = value.quantities[primary.optionUnitId] ?? 0

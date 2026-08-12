@@ -8,6 +8,8 @@ import {
   resolveOptionRemainingLabel,
   resolveSlotOptionId,
 } from "../../src/components/option-units-stepper-section.js"
+import { bookingsUiEn } from "../../src/i18n/en.js"
+import { bookingsUiRo } from "../../src/i18n/ro.js"
 
 function makeRow(
   optionId: string | null,
@@ -140,6 +142,26 @@ describe("resolveOptionRemainingLabel", () => {
         fillsSlotCapacity: "fills slot capacity",
       }),
     ).toBe("unlimited")
+  })
+
+  it("does not describe an uncapped person row as sold out in either locale", () => {
+    // #4588: the shipped copy read "room is full" / "camera este plina" next
+    // to a departure showing "45 left", so operators never touched the
+    // stepper and Create booking stayed disabled. The label states that the
+    // row draws on the departure's capacity — it is not a sold-out state.
+    for (const messages of [bookingsUiEn, bookingsUiRo]) {
+      const label = resolveOptionRemainingLabel({
+        totalRemaining: null,
+        units: [{ unitType: "person" }],
+        slotHasFiniteCapacity: true,
+        remaining: messages.roomsStepperSection.labels.remaining,
+        unlimited: messages.roomsStepperSection.labels.unlimited,
+        fillsSlotCapacity: messages.roomsStepperSection.labels.fillsSlotCapacity,
+      })
+
+      expect(label).toBe(messages.roomsStepperSection.labels.fillsSlotCapacity)
+      expect(label).not.toMatch(/full|plin/i)
+    }
   })
 
   it("shows explicit remaining counts when option units are capped", () => {

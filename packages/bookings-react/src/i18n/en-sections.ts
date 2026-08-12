@@ -275,10 +275,11 @@ export const bookingsUiEnSections = {
       noUnits: "This departure has no per-unit availability configured.",
       remaining: "left",
       unlimited: "unlimited",
-      fillsSlotCapacity: "room is full",
+      fillsSlotCapacity: "included in departure capacity",
       decreaseUnitPrefix: "Decrease",
       increaseUnitPrefix: "Increase",
       reviewLine: "Review this line",
+      required: "Required",
     },
   },
   sharedRoomSection: {

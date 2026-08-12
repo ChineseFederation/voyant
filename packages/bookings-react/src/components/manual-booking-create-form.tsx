@@ -515,6 +515,61 @@ export function validateManualBookingDraft(input: {
   return null
 }
 
+/**
+ * A validation message plus enough context to keep it honest.
+ *
+ * Before #4588 this was a bare string cleared only at the top of
+ * `handleSubmit`. Every condition that raises a `blocksSubmit` message also
+ * disables **Create booking**, so the operator could not resubmit to clear it
+ * — and a disabled submit button means Enter does not fire implicit form
+ * submission either. The banner outlived its cause until a page reload.
+ */
+export interface ManualBookingFormError {
+  message: string
+  /**
+   * The control the message refers to, when there is one. `units` renders the
+   * message against the Options section and sends focus there on failure —
+   * "option" is overloaded in this form and operators read the unanchored
+   * sentence as the Document generation checkboxes.
+   */
+  field?: "units"
+  /**
+   * Set when the raising condition also disables **Create booking**. Those
+   * messages are cleared as soon as submit becomes possible again, because
+   * nothing else can clear them.
+   */
+  blocksSubmit?: boolean
+}
+
+/**
+ * Wraps a draft validation message with the context above. The units check is
+ * the only draft validation that also disables **Create booking**, so it is
+ * the only one that gets an anchor and an automatic clear.
+ */
+export function toManualBookingFormError(
+  message: string,
+  unitsMessage: string,
+): ManualBookingFormError {
+  const isUnitsError = message === unitsMessage
+  return {
+    message,
+    field: isUnitsError ? "units" : undefined,
+    blocksSubmit: isUnitsError || undefined,
+  }
+}
+
+/**
+ * Drops a message raised by a submit-gating condition once submit is possible
+ * again. Messages the operator can act on and resubmit are left alone.
+ */
+export function clearUnblockedManualBookingError(
+  previous: ManualBookingFormError | null,
+  submitBlocked: boolean,
+): ManualBookingFormError | null {
+  if (submitBlocked) return previous
+  return previous?.blocksSubmit ? null : previous
+}
+
 export function ManualBookingCreateForm({
   defaultProductId,
   defaultSlotId,
@@ -579,7 +634,7 @@ export function ManualBookingCreateForm({
   })
   const [contactTouched, setContactTouched] = React.useState(false)
   const [notes, setNotes] = React.useState("")
-  const [error, setError] = React.useState<string | null>(null)
+  const [error, setError] = React.useState<ManualBookingFormError | null>(null)
   /**
    * The requirements the Booking Session said this selection does not satisfy.
    *
@@ -592,6 +647,7 @@ export function ManualBookingCreateForm({
    */
   const [unsatisfied, setUnsatisfied] = React.useState<UnsatisfiedRequirementV1[]>([])
   const errorRef = React.useRef<HTMLParagraphElement>(null)
+  const unitsSectionRef = React.useRef<HTMLDivElement>(null)
   const [submitting, setSubmitting] = React.useState(false)
   const [payloadMismatchUnitIds, setPayloadMismatchUnitIds] = React.useState<string[]>([])
   const attemptRef = React.useRef<ManualBookingAttempt | null>(null)
@@ -600,8 +656,11 @@ export function ManualBookingCreateForm({
 
   React.useEffect(() => {
     if (!error) return
-    errorRef.current?.focus()
-    errorRef.current?.scrollIntoView({ block: "nearest" })
+    // Anchored messages take the operator to the control that blocked the
+    // submit; everything else falls back to the banner.
+    const target = error.field === "units" ? unitsSectionRef.current : errorRef.current
+    target?.focus()
+    target?.scrollIntoView({ block: "nearest" })
   }, [error])
 
   const defaultSlotQuery = useQuery({
@@ -772,21 +831,32 @@ export function ManualBookingCreateForm({
     setPayloadMismatchUnitIds([])
   }, [product.productId, defaultSlotId])
 
+  // Unit quantities belong to a (departure, option) pair, so they are dropped
+  // when the operator changes either. Keyed on the ids and NOT on the slots
+  // array identity: `allOpenSlots` and `defaultSlot` get a new identity on
+  // every refetch — including one triggered by an unrelated booking mutating
+  // a slot row the query returns — which used to wipe a filled-in stepper
+  // under the operator mid-form (#4588).
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the ids are the reset key, not values the effect reads.
   React.useEffect(() => {
     setRooms(emptyOptionUnitsStepperValue)
     setRoomUnits([])
     setPayloadMismatchUnitIds([])
+  }, [slotId, product.optionId])
+
+  // Reconcile a departure that is bound to a different option than the one
+  // selected. Setting either id re-runs the reset above.
+  React.useEffect(() => {
     if (!slotId || !product.optionId) return
     const departure =
       allOpenSlots.find((slot) => slot.id === slotId) ??
       (defaultSlot?.id === slotId ? defaultSlot : null)
-    if (departure?.optionId && departure.optionId !== product.optionId) {
-      if (defaultSlotId && departure.id === defaultSlotId) {
-        setProduct((prev) => ({ ...prev, optionId: departure.optionId }))
-        return
-      }
-      setSlotId(null)
+    if (!departure?.optionId || departure.optionId === product.optionId) return
+    if (defaultSlotId && departure.id === defaultSlotId) {
+      setProduct((prev) => ({ ...prev, optionId: departure.optionId }))
+      return
     }
+    setSlotId(null)
   }, [allOpenSlots, product.optionId, slotId, defaultSlotId, defaultSlot])
 
   React.useEffect(() => {
@@ -1360,6 +1430,28 @@ export function ManualBookingCreateForm({
             : copy.promotion.unavailable
     : null
 
+  /**
+   * Every condition that keeps **Create booking** disabled. Named once so the
+   * button and the error-clearing effect below cannot drift apart.
+   */
+  const submitBlocked =
+    isSourcedProduct ||
+    hasPromotionCode ||
+    !product.productId ||
+    !hasBookingTiming ||
+    !hasSelectedUnits ||
+    quote.isSettling ||
+    !sourcedQuoteReady ||
+    !promotionReady
+
+  // #4588: a message raised by a submit-gating condition has no other way out
+  // — the button is dead, and Enter does not fire implicit submission through
+  // a disabled submit button either. Drop it the moment submit is possible
+  // again, so it can never outlive the condition that produced it.
+  React.useEffect(() => {
+    setError((prev) => clearUnblockedManualBookingError(prev, submitBlocked))
+  }, [submitBlocked])
+
   // Human copy for the server's findings. The descriptor is only consulted for
   // labels, and an owned product's form never loaded one — the messages then
   // name the requirement by its own key, which is what an operator would look
@@ -1379,25 +1471,27 @@ export function ManualBookingCreateForm({
     setUnsatisfied([])
     setPayloadMismatchUnitIds([])
     if (quote.isSettling) {
-      setError(copy.validation.pricingPending)
+      setError({ message: copy.validation.pricingPending, blocksSubmit: true })
       return
     }
     if (isSourcedProduct) {
-      setError(copy.validation.sourcedBookingSessionRequired)
+      setError({ message: copy.validation.sourcedBookingSessionRequired, blocksSubmit: true })
       return
     }
     if (hasPromotionCode) {
-      setError(copy.validation.promotionBookingSessionRequired)
+      setError({ message: copy.validation.promotionBookingSessionRequired, blocksSubmit: true })
       return
     }
     if (!sourcedQuoteReady) {
-      setError(copy.validation.pricingUnavailable)
+      setError({ message: copy.validation.pricingUnavailable, blocksSubmit: true })
       return
     }
     if (hasPromotionCode && !promotionReady) {
-      setError(
-        quote.data?.available === false ? copy.promotion.invalid : copy.promotion.unavailable,
-      )
+      setError({
+        message:
+          quote.data?.available === false ? copy.promotion.invalid : copy.promotion.unavailable,
+        blocksSubmit: true,
+      })
       return
     }
     const validationError = validateManualBookingDraft({
@@ -1418,11 +1512,11 @@ export function ManualBookingCreateForm({
       messages: copy,
     })
     if (validationError) {
-      setError(validationError)
+      setError(toManualBookingFormError(validationError, copy.validation.units))
       return
     }
     if (sharedRoom.enabled && sharedRoom.mode === "join" && !sharedRoom.groupId) {
-      setError(copy.validation.sharedRoomGroup)
+      setError({ message: copy.validation.sharedRoomGroup })
       return
     }
     const overCapacity = getOverCapacityInventoryAssignments(
@@ -1431,13 +1525,13 @@ export function ManualBookingCreateForm({
       displayDraft.travelers,
     )[0]
     if (overCapacity) {
-      setError(
-        formatMessage(messages.bookingCreateDialog.validation.roomCapacityExceeded, {
+      setError({
+        message: formatMessage(messages.bookingCreateDialog.validation.roomCapacityExceeded, {
           room: overCapacity.unitName,
           assigned: overCapacity.assignedTravelers,
           capacity: overCapacity.capacity,
         }),
-      )
+      })
       return
     }
     if (!resolvedPricing) return
@@ -1580,7 +1674,7 @@ export function ManualBookingCreateForm({
     } satisfies Record<string, unknown>
     if (!quoteDraft) {
       submissionRef.current = false
-      setError(copy.validation.pricingUnavailable)
+      setError({ message: copy.validation.pricingUnavailable, blocksSubmit: true })
       return
     }
     const fingerprint = JSON.stringify({
@@ -1650,13 +1744,14 @@ export function ManualBookingCreateForm({
       attemptRef.current = null
       onCreated(result.bookingId)
     } catch (cause) {
-      setError(
-        cause instanceof BookingSessionJourneyError
-          ? copy.validation.bookingSession[cause.recovery]
-          : cause instanceof Error
-            ? cause.message
-            : copy.validation.create,
-      )
+      setError({
+        message:
+          cause instanceof BookingSessionJourneyError
+            ? copy.validation.bookingSession[cause.recovery]
+            : cause instanceof Error
+              ? cause.message
+              : copy.validation.create,
+      })
       // The typed outcome carried the list; keep it. Collapsing it back into
       // the sentence above is what made the server's enforcement invisible.
       setUnsatisfied(cause instanceof BookingSessionJourneyError ? (cause.unsatisfied ?? []) : [])
@@ -1778,6 +1873,9 @@ export function ManualBookingCreateForm({
               invalidOptionUnitIds={payloadMismatchUnitIds}
               providedOptions={isSourcedProduct ? sourcedProductOptions : undefined}
               providedUnits={isSourcedProduct ? sourcedOptionUnits : undefined}
+              sectionRef={unitsSectionRef}
+              required={requiresUnitSelection}
+              error={error?.field === "units" ? error.message : null}
               labels={{
                 heading: messages.bookingCreateDialog.labels.roomsHeading,
                 noOption: messages.bookingCreateDialog.labels.roomsNoOption,
@@ -2014,7 +2112,7 @@ export function ManualBookingCreateForm({
             tabIndex={-1}
             className="mt-3 rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-xs text-destructive"
           >
-            {error}
+            {error.message}
           </p>
         ) : null}
         {unsatisfiedMessages.length > 0 ? (
@@ -2050,21 +2148,7 @@ export function ManualBookingCreateForm({
           <Button type="button" variant="ghost" size="sm" onClick={onCancel} disabled={submitting}>
             {messages.common.cancel}
           </Button>
-          <Button
-            type="submit"
-            size="sm"
-            disabled={
-              submitting ||
-              isSourcedProduct ||
-              hasPromotionCode ||
-              !product.productId ||
-              !hasBookingTiming ||
-              !hasSelectedUnits ||
-              quote.isSettling ||
-              !sourcedQuoteReady ||
-              !promotionReady
-            }
-          >
+          <Button type="submit" size="sm" disabled={submitting || submitBlocked}>
             {submitting ? (
               <Loader2 data-icon="inline-start" className="animate-spin" aria-hidden="true" />
             ) : null}

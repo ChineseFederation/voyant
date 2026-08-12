@@ -3,12 +3,14 @@ import { describe, expect, it, vi } from "vitest"
 import {
   buildManualBookingQuoteDraft,
   buildManualBookingSessionSelection,
+  clearUnblockedManualBookingError,
   formatManualBookingAmount,
   manualBookingTravelersToRows,
   normalizeCatalogBookingSlot,
   resolveManualBookingPricing,
   resolveSourcedOptionUnits,
   resolveSourcedProductOptions,
+  toManualBookingFormError,
   validateManualBookingDraft,
 } from "../../src/components/manual-booking-create-form.js"
 import { bookingsUiEn } from "../../src/i18n/en.js"
@@ -470,5 +472,44 @@ describe("manual booking validation", () => {
       travelerCategory: "senior",
       roomUnitId: "unit_adult",
     })
+  })
+})
+
+describe("manual booking error banner lifecycle (#4588)", () => {
+  const unitsMessage = bookingsUiEn.manualBookingCreate.validation.units
+
+  it("anchors the units message to the Options section and marks it blocking", () => {
+    expect(toManualBookingFormError(unitsMessage, unitsMessage)).toEqual({
+      message: unitsMessage,
+      field: "units",
+      blocksSubmit: true,
+    })
+  })
+
+  it("leaves messages the operator can resubmit past unanchored", () => {
+    const contactMessage = bookingsUiEn.manualBookingCreate.validation.contact
+
+    expect(toManualBookingFormError(contactMessage, unitsMessage)).toEqual({
+      message: contactMessage,
+      field: undefined,
+      blocksSubmit: undefined,
+    })
+  })
+
+  it("drops a blocking message once submit is possible again", () => {
+    const blocking = toManualBookingFormError(unitsMessage, unitsMessage)
+
+    expect(clearUnblockedManualBookingError(blocking, true)).toBe(blocking)
+    expect(clearUnblockedManualBookingError(blocking, false)).toBeNull()
+  })
+
+  it("keeps a non-blocking message so the operator can read it while fixing it", () => {
+    const recoverable = toManualBookingFormError(
+      bookingsUiEn.manualBookingCreate.validation.contact,
+      unitsMessage,
+    )
+
+    expect(clearUnblockedManualBookingError(recoverable, false)).toBe(recoverable)
+    expect(clearUnblockedManualBookingError(null, false)).toBeNull()
   })
 })

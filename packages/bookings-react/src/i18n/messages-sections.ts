@@ -268,10 +268,17 @@ export type BookingsUiSectionsMessages = {
       noUnits: string
       remaining: string
       unlimited: string
+      /**
+       * Shown when per-unit capacity is uncapped but the departure's own
+       * capacity is finite: the row draws on the departure's shared pool.
+       * It is NOT a sold-out state — see #4588.
+       */
       fillsSlotCapacity: string
       decreaseUnitPrefix: string
       increaseUnitPrefix: string
       reviewLine: string
+      /** Screen-reader text for the required marker on the section heading. */
+      required: string
     }
   }
   sharedRoomSection: {
