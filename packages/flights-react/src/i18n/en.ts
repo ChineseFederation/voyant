@@ -423,6 +423,10 @@ export const flightsUiEn = {
         description:
           "Tickets issue immediately. Card details are entered securely on the next step.",
       },
+      saved_method: {
+        title: "Use a saved card",
+        description: "Charges a card already on file for this customer. Nothing is re-entered.",
+      },
       bank_transfer: {
         title: "Bank transfer",
         description:

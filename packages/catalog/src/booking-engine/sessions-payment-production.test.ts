@@ -159,6 +159,78 @@ describe("production Booking Session hosted-checkout initiation", () => {
     expect(startArgs().locale).toBe("ro-RO")
   })
 
+  it("stores nothing when no mandate is configured", async () => {
+    await prepare({ locale: "en-GB", departureDate: null, personId: "per_01k" })
+
+    expect(startArgs().storeInstrument).toBeUndefined()
+  })
+
+  // Terms that carry the mandate authorize nothing until somebody accepts them.
+  it("stores nothing when the shopper accepted no terms", async () => {
+    await prepare({
+      locale: "en-GB",
+      departureDate: null,
+      personId: "per_01k",
+      mandate: { enabled: true, revision: "v3" },
+    })
+
+    expect(startArgs().storeInstrument).toBeUndefined()
+  })
+
+  // And an acceptance authorizes nothing if the terms accepted never said it.
+  it("stores nothing when the operator's terms carry no mandate", async () => {
+    await prepare({
+      locale: "en-GB",
+      departureDate: null,
+      personId: "per_01k",
+      mandate: { enabled: false, revision: "v3" },
+      contractAcceptedAt: "2026-08-12T09:00:00.000Z",
+    })
+
+    expect(startArgs().storeInstrument).toBeUndefined()
+  })
+
+  // Storage binds to a customer record, so there has to be one to bind to.
+  it("stores nothing for a shopper it cannot identify", async () => {
+    await prepare({
+      locale: "en-GB",
+      departureDate: null,
+      mandate: { enabled: true, revision: "v3" },
+      contractAcceptedAt: "2026-08-12T09:00:00.000Z",
+    })
+
+    expect(startArgs().storeInstrument).toBeUndefined()
+  })
+
+  it("names the terms revision and the acceptance it rests on", async () => {
+    await prepare({
+      locale: "en-GB",
+      departureDate: null,
+      personId: "per_01k",
+      mandate: { enabled: true, revision: "v3" },
+      contractAcceptedAt: "2026-08-12T09:00:00.000Z",
+    })
+
+    expect(startArgs().storeInstrument).toEqual({
+      merchantInitiated: true,
+      agreementReference: "booking-terms:v3:bses_01k:2026-08-12T09:00:00.000Z",
+    })
+  })
+
+  // Permission to show the card back to the shopper is a separate consent that
+  // only the payment surface can collect, so the runtime never grants it here.
+  it("never grants reselection from the terms alone", async () => {
+    await prepare({
+      locale: "en-GB",
+      departureDate: null,
+      personId: "per_01k",
+      mandate: { enabled: true, revision: "v3" },
+      contractAcceptedAt: "2026-08-12T09:00:00.000Z",
+    })
+
+    expect(startArgs().storeInstrument).not.toHaveProperty("offerShopperReselect")
+  })
+
   it("references the CRM person the buyer was identified as", async () => {
     await prepare({ locale: "en-GB", departureDate: null, personId: "per_01k" })
 
@@ -338,6 +410,8 @@ async function prepare(input: {
   refreshedCheckout?: Record<string, unknown>
   refreshedRedirectUrl?: string | null
   settlementPaymentSessionId?: string
+  mandate?: { enabled: boolean; revision: string } | null
+  contractAcceptedAt?: string
 }) {
   if (input.refreshedCheckout !== undefined) {
     // What the adapter persisted, read back by the port exactly as production
@@ -367,6 +441,9 @@ async function prepare(input: {
     distribution: { loadSupplierPaymentPolicy: async () => null },
     settings: { resolveOperatorDefaultPaymentPolicy: async () => null },
     resolvePaymentAdapter: () => ({ id: "test" }) as never,
+    ...(input.mandate === undefined
+      ? {}
+      : { resolveStoredInstrumentMandate: async () => input.mandate ?? null }),
   })
 
   return payments.prepare({
@@ -378,6 +455,9 @@ async function prepare(input: {
       target: { kind: "product", productId: "prod_1" },
       expiresAt: new Date("2026-08-06T00:00:00Z"),
       statePayload: {
+        ...(input.contractAcceptedAt
+          ? { contractAcceptance: { acceptedAt: input.contractAcceptedAt } }
+          : {}),
         billing: {
           contact: input.omitContact
             ? {}
@@ -424,6 +504,7 @@ function startArgs() {
     description?: string
     locale?: string
     customerReference?: string
+    storeInstrument?: { merchantInitiated: boolean; agreementReference?: string }
     billing?: Record<string, unknown>
     acceptedCheckoutHandoffs?: readonly ("redirect" | "embedded")[]
   }

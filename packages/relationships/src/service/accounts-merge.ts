@@ -425,9 +425,38 @@ export const accountMergeService = {
         .update(personDocuments)
         .set({ personId: keepId, updatedAt: new Date() })
         .where(eq(personDocuments.personId, mergeId))
+      // Payment methods follow the surviving person, but a projected one also
+      // carries a binding to a customer record at the provider, and merging two
+      // people here does not merge those. The surviving person therefore ends
+      // up with methods hanging off two provider customers.
+      //
+      // That is survivable for charging, because a token is charged through the
+      // adapter that issued it and each still resolves. It is not survivable for
+      // reuse the customer authorized: the losing person's agreement was given
+      // by a record that no longer exists, so those methods stop being
+      // chargeable while the customer is away until a fresh agreement is taken.
+      //
+      // Retiring the authorization rather than the row keeps the method visible
+      // to the operator, which is what makes the state explainable instead of a
+      // card silently vanishing mid-merge.
       await tx
         .update(personPaymentMethods)
-        .set({ personId: keepId })
+        .set({
+          personId: keepId,
+          authorizedReuses: [],
+          status: "requires_new_agreement",
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(personPaymentMethods.personId, mergeId),
+            eq(personPaymentMethods.source, "payment"),
+          ),
+        )
+      // Manual rows carry no provider binding and no authorization to lose.
+      await tx
+        .update(personPaymentMethods)
+        .set({ personId: keepId, updatedAt: new Date() })
         .where(eq(personPaymentMethods.personId, mergeId))
       await tx
         .update(communicationLog)

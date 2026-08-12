@@ -246,6 +246,10 @@ export const paymentIntentSchema = z.discriminatedUnion("type", [
     billingAddress: billingAddressSchema.optional(),
   }),
   z.object({
+    type: z.literal("saved_method"),
+    methodId: z.string().min(1),
+  }),
+  z.object({
     type: z.literal("ticket_on_credit"),
     iataCode: z.string().optional(),
   }),

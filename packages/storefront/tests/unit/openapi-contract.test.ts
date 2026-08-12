@@ -264,6 +264,7 @@ describe("storefront catalog read response contracts", () => {
         privacyUrl: null,
         cancellationUrl: null,
         defaultContractTemplateId: null,
+        storedInstrumentMandate: null,
       },
       localization: { defaultLocale: "en", currencyDisplay: "symbol" },
       forms: { billing: { fields: [] }, travelers: { fields: [] } },

@@ -43,9 +43,13 @@ export {
   storefrontPaymentScheduleInputSchema,
   storefrontPaymentScheduleSchema,
   storefrontPaymentStructureSchema,
+  storefrontPublicSettingsSchema,
   storefrontSettingsInputSchema,
   storefrontSettingsPatchSchema,
   storefrontSettingsSchema,
+  storefrontStoredInstrumentMandateInputSchema,
+  storefrontStoredInstrumentMandateSchema,
   storefrontSupportLinkInputSchema,
   storefrontSupportLinkSchema,
+  toPublicStorefrontSettings,
 } from "./validation-settings.js"

@@ -322,6 +322,10 @@ export function resolveStorefrontSettings(input?: StorefrontSettingsInput): Stor
       privacyUrl: parsed.legal?.privacyUrl ?? null,
       cancellationUrl: parsed.legal?.cancellationUrl ?? null,
       defaultContractTemplateId: parsed.legal?.defaultContractTemplateId ?? null,
+      // Fail closed. An operator who has not stated that their terms carry the
+      // mandate has not granted one, and they are the merchant of record who
+      // would carry the liability for assuming otherwise.
+      storedInstrumentMandate: parsed.legal?.storedInstrumentMandate ?? null,
     },
     localization: {
       defaultLocale: parsed.localization?.defaultLocale ?? null,

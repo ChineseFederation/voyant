@@ -335,7 +335,6 @@ export const savedPaymentMethodSchema = z.object({
   /** Null for non-card methods. */
   expMonth: z.number().nullable().optional(),
   expYear: z.number().nullable().optional(),
-  processorToken: z.string(),
   isDefault: z.boolean(),
   createdAt: z.string(),
 })

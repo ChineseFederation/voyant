@@ -235,6 +235,16 @@ export type PaymentIntent =
   | { type: "hold" }
   | { type: "bank_transfer" }
   | { type: "card"; token: string; cardholderName?: string; billingAddress?: BillingAddress }
+  /**
+   * A method already on file for the customer, named rather than carried.
+   *
+   * Distinct from `card` because the two are not the same fact: `card` carries
+   * a credential the shopper just entered, while this carries only an
+   * identifier the server resolves to a token it never sends out. Collapsing
+   * them would put a chargeable credential on every client that renders a saved
+   * card, which is exactly what having the id avoids.
+   */
+  | { type: "saved_method"; methodId: string }
   | { type: "ticket_on_credit"; iataCode?: string }
 
 export interface BillingAddress {

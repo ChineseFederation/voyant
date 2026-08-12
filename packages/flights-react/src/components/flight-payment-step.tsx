@@ -82,17 +82,12 @@ export function FlightPaymentStep({
           return
         }
         if (next.type === "saved_method") {
+          // A saved method is named, never carried. The token that can charge
+          // it stays server-side and is resolved from this id, so nothing here
+          // has to synthesize a stand-in for a credential it is not allowed to
+          // hold.
           onSelectSaved(next.method.id)
-          // The CRM `processor_token` for the method isn't on the
-          // PublicPaymentAccount projection. The vertical wrapper here
-          // emits a placeholder token derived from the account id; the
-          // parent is expected to call `useInitiateCheckoutCollection`
-          // with `paymentInstrumentId: next.method.id` rather than
-          // relying on the flight `PaymentIntent.token` field.
-          onChange({
-            type: "card",
-            token: `acct:${next.method.id}`,
-          })
+          onChange({ type: "saved_method", methodId: next.method.id })
           return
         }
         onSelectSaved(null)

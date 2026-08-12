@@ -46,7 +46,8 @@ import {
   storefrontPromotionalOfferListQuerySchema,
   storefrontPromotionalOfferListResponseSchema,
   storefrontPromotionalOfferResponseSchema,
-  storefrontSettingsSchema,
+  storefrontPublicSettingsSchema,
+  toPublicStorefrontSettings,
 } from "./validation.js"
 import { storefrontTransportEligibilityInputSchema } from "./validation-transport-eligibility.js"
 
@@ -109,7 +110,11 @@ const settingsRoute = createRoute({
   responses: {
     200: {
       description: "The deployment's public storefront settings",
-      content: { "application/json": { schema: z.object({ data: storefrontSettingsSchema }) } },
+      content: {
+        "application/json": {
+          schema: z.object({ data: storefrontPublicSettingsSchema }),
+        },
+      },
     },
   },
 })
@@ -565,7 +570,14 @@ export function createStorefrontPublicRoutes(options?: StorefrontPublicRoutesOpt
       )
     })
     .openapi(settingsRoute, async (c) => {
-      return c.json({ data: await storefrontService.resolveSettings(getRequestContext(c)) }, 200)
+      return c.json(
+        {
+          data: toPublicStorefrontSettings(
+            await storefrontService.resolveSettings(getRequestContext(c)),
+          ),
+        },
+        200,
+      )
     })
     .openapi(departureByIdRoute, async (c) => {
       const context = getRequestContext(c)

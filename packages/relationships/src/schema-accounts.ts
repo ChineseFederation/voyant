@@ -307,11 +307,45 @@ export type PersonRelationship = typeof personRelationships.$inferSelect
 export type NewPersonRelationship = typeof personRelationships.$inferInsert
 
 /**
- * Saved payment methods on file for a person. Stores processor-issued
- * tokens (never raw card numbers) so the booking flow can charge the
- * customer without re-entering card details. Cards have last4 + expiry +
- * brand; bank-transfer "methods" carry a brand of "bank_transfer" with
- * last4 / expiry omitted.
+ * Where a saved payment method came from.
+ *
+ * `manual` is an operator typing what they know: a reference from a terminal
+ * receipt, a card the customer read out over the phone. Nothing but a human
+ * vouches for it, and its `processor_token` is a note rather than a credential.
+ *
+ * `payment` is projected from a payment a provider actually took and stored, so
+ * its token can charge and its display fields came from the network. The two
+ * must stay distinguishable: a projected row that an operator can retype is a
+ * row that can be made to point at somebody else's card.
+ */
+export const paymentMethodSourceEnum = pgEnum("payment_method_source", ["manual", "payment"])
+
+/**
+ * Whether a saved method can still be used, mirroring `PaymentInstrumentStatus`
+ * on the payment port.
+ *
+ * `requires_new_agreement` is the one worth knowing about: when a card is
+ * reissued its brand can change, and the agreement the customer gave no longer
+ * covers what replaced it, so it cannot be charged while they are away until a
+ * new one exists. The instrument works; the permission does not.
+ */
+export const paymentMethodStatusEnum = pgEnum("payment_method_status", [
+  "usable",
+  "requires_new_agreement",
+  "expired",
+  "revoked",
+])
+
+/**
+ * Saved payment methods on file for a person.
+ *
+ * Two kinds of row live here, told apart by `source`. A projected row carries
+ * the provider that issued its token, what the customer authorized it to be
+ * used for, and whether it is still usable; a manual row carries none of that
+ * and can only ever be a reminder to a human.
+ *
+ * Cards have last4 + expiry + brand; bank-transfer "methods" carry a brand of
+ * "bank_transfer" with last4 / expiry omitted.
  */
 export const personPaymentMethods = pgTable(
   "person_payment_methods",
@@ -320,6 +354,7 @@ export const personPaymentMethods = pgTable(
     personId: typeIdRef("person_id")
       .notNull()
       .references(() => people.id, { onDelete: "cascade" }),
+    source: paymentMethodSourceEnum("source").notNull().default("manual"),
     /** "visa" | "mastercard" | "amex" | "revolut" | "bank_transfer" — kept as text to stay open. */
     brand: text("brand").notNull(),
     /** Last four digits — null for non-card methods. */
@@ -330,12 +365,58 @@ export const personPaymentMethods = pgTable(
     expYear: integer("exp_year"),
     /** Opaque processor token — used to charge the customer. */
     processorToken: text("processor_token").notNull(),
+    /**
+     * The payment adapter that issued `processor_token`. Null on a manual row.
+     *
+     * Load-bearing rather than informational: a token is only meaningful to the
+     * provider that minted it, so charging one against a different adapter is
+     * either an error or somebody else's card.
+     */
+    providerId: text("provider_id"),
+    /** The provider's own customer record this method hangs off, where it has one. */
+    providerCustomerReference: text("provider_customer_reference"),
+    /**
+     * Stable across re-entry of the same underlying instrument. Lets a repeat
+     * payment recognize a card already on file instead of adding a duplicate.
+     */
+    fingerprint: text("fingerprint"),
+    /**
+     * What the customer authorized, as `PaymentInstrumentReuse` values.
+     *
+     * Empty is meaningful and is the safe default: the method is on the
+     * operator's own records and may not be charged or offered back. An
+     * operator reading their own books is neither of those uses.
+     */
+    authorizedReuses: jsonb("authorized_reuses")
+      .$type<string[]>()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
+    status: paymentMethodStatusEnum("status").notNull().default("usable"),
+    /**
+     * The record of the agreement that authorized charging this method while
+     * the customer is away. Keeping that record is a requirement in its own
+     * right, so this is the handle back to it.
+     */
+    agreementReference: text("agreement_reference"),
     isDefault: boolean("is_default").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
     index("idx_person_payment_methods_person").on(table.personId),
     index("idx_person_payment_methods_person_default").on(table.personId, table.isDefault),
+    /**
+     * What makes projection idempotent. A provider token identifies one
+     * instrument, so a replayed callback and a status poll that both report it
+     * converge on the same row instead of racing to add two.
+     *
+     * Partial because manual rows have no provider and their free-text
+     * "tokens" collide freely — two operators typing "visa ending 4242" must
+     * not be forced into one row.
+     */
+    uniqueIndex("uq_person_payment_methods_provider_token")
+      .on(table.providerId, table.processorToken)
+      .where(sql`${table.providerId} is not null`),
   ],
 )
 

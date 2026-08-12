@@ -8,6 +8,7 @@ import type {
   PaymentHostedCheckout,
   PaymentInitiationInput,
   PaymentInitiationResult,
+  PaymentInstrumentStorageIntent,
   PaymentMoney,
   PaymentOperationInput,
   PaymentOperationResult,
@@ -15,12 +16,15 @@ import type {
   PaymentSessionState,
   PaymentStatusInput,
   PaymentStatusResult,
+  PaymentStoredInstrument,
 } from "./index.js"
 import {
   acceptedPaymentCheckoutHandoffs,
   isEmbeddedPaymentCheckout,
   isPaymentAdapterError,
   PAYMENT_DISPUTE_STATUSES,
+  PAYMENT_INSTRUMENT_REUSES,
+  PAYMENT_INSTRUMENT_STATUSES,
   paymentAdapterRuntimePort,
   paymentCheckoutHandoff,
 } from "./index.js"
@@ -80,6 +84,16 @@ export interface PaymentAdapterConformanceHarness {
    * replayed under a fresh session/idempotency key.
    */
   redirectOnlyInitiation?: PaymentInitiationInput
+  /**
+   * A separate initiation carrying a storage intent. Required when
+   * `storeInstrument` is declared.
+   *
+   * It does not have to produce an instrument synchronously — most providers
+   * store at confirmation, which a conformance run never reaches — so what is
+   * checked is that the adapter accepts the intent and never over-reports
+   * against it.
+   */
+  storeInstrumentInitiation?: PaymentInitiationInput
   authorize?: PaymentOperationConformanceInput
   capture?: PaymentOperationConformanceInput
   void?: PaymentOperationConformanceInput
@@ -170,6 +184,14 @@ function buildCases(harness: PaymentAdapterConformanceHarness): ConformanceCase[
       run: () => assertStatus(harness),
     },
     { name: "honors manual capture", run: () => assertManualCapture(harness) },
+    {
+      name: "stores nothing when the caller asked for no storage",
+      run: () => assertNoUnrequestedStorage(harness),
+    },
+    {
+      name: "honors declared instrument-storage capability",
+      run: () => assertInstrumentStorage(harness),
+    },
     {
       name: "honors declared embedded checkout capability",
       run: () => assertEmbeddedCheckout(harness),
@@ -473,6 +495,78 @@ async function assertManualCapture(harness: PaymentAdapterConformanceHarness) {
   )
 }
 
+/**
+ * Silence must mean "keep nothing". Every adapter runs this, not just the
+ * storage-capable ones, so the property stays proven as capabilities grow — the
+ * same reason the redirect-only downgrade is universal.
+ *
+ * This is the case that would have caught the defect this contract exists for,
+ * inverted: an adapter that keeps instruments nobody asked it to keep is a
+ * worse failure than one that keeps none.
+ */
+async function assertNoUnrequestedStorage(harness: PaymentAdapterConformanceHarness) {
+  const base = harness.initiation
+  const { storeInstrument: _ignored, ...withoutStorage } = base
+  const input: PaymentInitiationInput = {
+    ...withoutStorage,
+    paymentSessionId: `${base.paymentSessionId}:no-storage`,
+    idempotencyKey: `${base.idempotencyKey}:no-storage`,
+  }
+  const result = await harness.adapter.initiate(harness.context, input)
+  if (result.storedInstrument) {
+    throw new Error("Adapter stored an instrument for a caller that requested no storage.")
+  }
+}
+
+/**
+ * An adapter may store less than it was asked to, and routinely will: the
+ * shopper declines, or the provider stores at confirmation and has nothing to
+ * report yet. It may never store *more* than it was asked to, because each
+ * reuse rests on a permission the caller either holds or does not.
+ */
+async function assertInstrumentStorage(harness: PaymentAdapterConformanceHarness) {
+  if (!harness.adapter.capabilities.storeInstrument) return
+  const input = harness.storeInstrumentInitiation
+  if (!input) {
+    throw new Error(
+      "Adapter declares instrument storage but no storeInstrumentInitiation fixture was supplied.",
+    )
+  }
+  const intent = input.storeInstrument
+  if (!intent) {
+    throw new Error("Instrument-storage fixture must carry a storeInstrument intent.")
+  }
+  await assertMoney(input.money)
+  const accepted = acceptedPaymentCheckoutHandoffs(input)
+  const first = await harness.adapter.initiate(harness.context, input)
+  const duplicate = await harness.adapter.initiate(harness.context, input)
+  assertInitiationResult(harness.adapter, first, accepted)
+  assertInitiationResult(harness.adapter, duplicate, accepted)
+  assertSame(
+    initiationIdentity(first),
+    initiationIdentity(duplicate),
+    "Instrument-storage initiation must be idempotent.",
+  )
+  for (const result of [first, duplicate]) {
+    if (!result.storedInstrument) continue
+    assertAuthorizedWithinIntent(result.storedInstrument, intent)
+  }
+}
+
+function assertAuthorizedWithinIntent(
+  instrument: PaymentStoredInstrument,
+  intent: PaymentInstrumentStorageIntent,
+) {
+  if (instrument.authorizedReuses.includes("merchant_initiated") && !intent.merchantInitiated) {
+    throw new Error(
+      "Adapter authorized merchant-initiated reuse the caller did not state the shopper had agreed to.",
+    )
+  }
+  if (instrument.authorizedReuses.includes("shopper_reselect") && !intent.offerShopperReselect) {
+    throw new Error("Adapter authorized shopper reselection without permission to offer it.")
+  }
+}
+
 async function assertEmbeddedCheckout(harness: PaymentAdapterConformanceHarness) {
   if (!harness.adapter.capabilities.embeddedCheckout) return
   const input = harness.embeddedInitiation
@@ -570,6 +664,7 @@ function assertInitiationResult(
   assertState(result.nextState)
   assertNonEmpty(result.idempotencyKey, "Initiation result idempotency key")
   assertIdentity(result.processorIdentity)
+  if (result.storedInstrument) assertStoredInstrument(result.storedInstrument)
   if (!result.checkout) return
   assertCheckoutArm(adapter, result.checkout)
   const handoff = paymentCheckoutHandoff(result.checkout)
@@ -638,6 +733,41 @@ function assertCallbackEvent(event: PaymentCallbackEvent) {
   assertIdentity(event.processorIdentity)
   if (event.money) assertMoney(event.money)
   if (event.dispute) assertDisputeSignal(event.dispute)
+  if (event.storedInstrument) assertStoredInstrument(event.storedInstrument)
+}
+
+/**
+ * The shape every reported instrument must have, wherever it is reported.
+ *
+ * Deliberately strict about `last4` and the expiry: these reach an operator
+ * screen and a shopper's saved-card list, and a provider that pads or reformats
+ * them produces a card that looks like somebody else's.
+ */
+function assertStoredInstrument(instrument: PaymentStoredInstrument) {
+  assertNonEmpty(instrument.token, "Stored instrument token")
+  if (!Array.isArray(instrument.authorizedReuses)) {
+    throw new Error("Stored instrument must declare which reuses are authorized.")
+  }
+  for (const reuse of instrument.authorizedReuses) {
+    if (!PAYMENT_INSTRUMENT_REUSES.includes(reuse)) {
+      throw new Error("Stored instrument declares an unknown reuse.")
+    }
+  }
+  if (new Set(instrument.authorizedReuses).size !== instrument.authorizedReuses.length) {
+    throw new Error("Stored instrument repeats an authorized reuse.")
+  }
+  if (instrument.status !== undefined && !PAYMENT_INSTRUMENT_STATUSES.includes(instrument.status)) {
+    throw new Error("Stored instrument declares an unknown status.")
+  }
+  if (instrument.last4 != null && !/^\d{4}$/.test(instrument.last4)) {
+    throw new Error("Stored instrument last4 must be exactly four digits.")
+  }
+  if (instrument.expMonth != null && !(instrument.expMonth >= 1 && instrument.expMonth <= 12)) {
+    throw new Error("Stored instrument expiry month must be 1-12.")
+  }
+  if (instrument.expYear != null && !Number.isInteger(instrument.expYear)) {
+    throw new Error("Stored instrument expiry year must be an integer.")
+  }
 }
 
 function assertDisputeSignal(dispute: PaymentDisputeSignal) {
@@ -694,6 +824,7 @@ function assertStatusResult(input: PaymentStatusInput, result: PaymentStatusResu
   assertMappedValue(input.processorPaymentId, result.processorPaymentId, "processor payment id")
   assertMappedIdentity(input.processorIdentity, result.processorIdentity, "status")
   if (result.money) assertMoney(result.money)
+  if (result.storedInstrument) assertStoredInstrument(result.storedInstrument)
 }
 
 function assertMappedValue(

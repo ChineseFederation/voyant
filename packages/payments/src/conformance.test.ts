@@ -12,6 +12,7 @@ import {
   type PaymentCallbackRequest,
   type PaymentHostedCheckout,
   type PaymentInitiationInput,
+  type PaymentInstrumentReuse,
   type PaymentOperationInput,
   type PaymentOperationResult,
   type PaymentStatusInput,
@@ -32,13 +33,16 @@ type BrokenBehavior =
   | "manual-capture-pays"
   | "never-embeds"
   | "remap-status-identity"
+  | "store-beyond-intent"
+  | "store-malformed-instrument"
+  | "store-unrequested"
   | "untyped-conflict-error"
   | "verify-invalid-callback"
   | "verify-malformed-callback"
   | "verify-replayed-callback"
 
-/** Whether the fake adapter declares (and can serve) in-page checkout. */
-type FakeAdapterOptions = { embeddedCheckout?: boolean }
+/** What the fake adapter declares (and can serve) beyond the mandatory contract. */
+type FakeAdapterOptions = { embeddedCheckout?: boolean; storeInstrument?: boolean }
 
 const context: PaymentAdapterRuntimeContext = {
   env: {},
@@ -134,6 +138,70 @@ describe("payment adapter conformance", () => {
     expect(await failedCaseNames(harness)).toContain("initiates idempotently")
   })
 
+  it("passes a storage-capable adapter that reports exactly what it was granted", async () => {
+    const results = await runPaymentAdapterConformance(
+      createHarness(undefined, { storeInstrument: true }),
+    )
+
+    expect(results.filter((result) => !result.passed)).toEqual([])
+    expect(results.map((result) => result.name)).toEqual(
+      expect.arrayContaining([
+        "honors declared instrument-storage capability",
+        "stores nothing when the caller asked for no storage",
+      ]),
+    )
+  })
+
+  it("fails when a declared storage capability has no fixture", async () => {
+    const harness = createHarness(undefined, { storeInstrument: true })
+    harness.storeInstrumentInitiation = undefined
+
+    expect(await failedCaseNames(harness)).toContain(
+      "honors declared instrument-storage capability",
+    )
+  })
+
+  it("fails when the storage fixture carries no intent", async () => {
+    const harness = createHarness(undefined, { storeInstrument: true })
+    harness.storeInstrumentInitiation = {
+      paymentSessionId: "payment-stored",
+      money: { amountMinor: 1_000, currency: "EUR" },
+      idempotencyKey: "init-stored",
+    }
+
+    expect(await failedCaseNames(harness)).toContain(
+      "honors declared instrument-storage capability",
+    )
+  })
+
+  it("skips the storage case when the capability is not declared", async () => {
+    expect(await failedCaseNames(createHarness())).not.toContain(
+      "honors declared instrument-storage capability",
+    )
+  })
+
+  it.each([
+    ["store-beyond-intent", "honors declared instrument-storage capability"],
+    ["store-malformed-instrument", "honors declared instrument-storage capability"],
+  ] as ReadonlyArray<
+    [BrokenBehavior, string]
+  >)("catches a %s storage-capable adapter", async (behavior, failedCase) => {
+    const harness = createHarness(behavior, { storeInstrument: true })
+
+    expect(await failedCaseNames(harness)).toContain(failedCase)
+  })
+
+  // The universal probe: an adapter that keeps instruments nobody asked it to
+  // keep must fail even when it never declared the capability at all.
+  it("catches an adapter that stores without being asked", async () => {
+    expect(await failedCaseNames(createHarness("store-unrequested"))).toContain(
+      "stores nothing when the caller asked for no storage",
+    )
+    expect(
+      await failedCaseNames(createHarness("store-unrequested", { storeInstrument: true })),
+    ).toContain("stores nothing when the caller asked for no storage")
+  })
+
   it("fails when a declared operation has no method", async () => {
     const harness = createHarness()
     harness.adapter.capture = undefined
@@ -209,6 +277,15 @@ function createHarness(
           idempotencyKey: "init-embedded",
         }
       : undefined,
+    storeInstrumentInitiation: options.storeInstrument
+      ? {
+          paymentSessionId: "payment-stored",
+          money: { amountMinor: 1_000, currency: "EUR" },
+          captureMode: "automatic",
+          idempotencyKey: "init-stored",
+          storeInstrument: { merchantInitiated: true, agreementReference: "terms-v3" },
+        }
+      : undefined,
     initiation: {
       paymentSessionId: "payment-1",
       money: { amountMinor: 1_000, currency: "EUR" },
@@ -271,6 +348,7 @@ function createFakeAdapter(
   options: FakeAdapterOptions = {},
 ): PaymentAdapter {
   const embeddedCheckout = options.embeddedCheckout === true
+  const storeInstrument = options.storeInstrument === true
   const initiationKeys = new Map<string, { payload: string; result: unknown }>()
   const operationKeys = new Map<string, { payload: string; result: PaymentOperationResult }>()
   let operationSequence = 0
@@ -313,6 +391,40 @@ function createFakeAdapter(
       clientSecret: behavior === "embed-without-client-secret" ? "" : "session-secret-1",
       publishableKey: "pk-test-fake-pay",
       providerAccountId: "acct-1",
+    }
+  }
+
+  /**
+   * What a conforming adapter reports back: exactly the reuses the caller
+   * granted, and nothing at all when the caller granted none. Each broken
+   * behavior breaks one of those two rules.
+   */
+  const storedInstrumentFor = (input: PaymentInitiationInput) => {
+    const intent = input.storeInstrument
+    if (behavior === "store-unrequested") {
+      return { storedInstrument: { token: "pm-uninvited", authorizedReuses: [] as const } }
+    }
+    if (!intent || !storeInstrument) return {}
+    if (behavior === "store-malformed-instrument") {
+      return { storedInstrument: { token: "pm-1", authorizedReuses: [], last4: "12" } }
+    }
+    const authorizedReuses: PaymentInstrumentReuse[] =
+      behavior === "store-beyond-intent"
+        ? ["merchant_initiated", "shopper_reselect"]
+        : [
+            ...(intent.merchantInitiated ? (["merchant_initiated"] as const) : []),
+            ...(intent.offerShopperReselect ? (["shopper_reselect"] as const) : []),
+          ]
+    return {
+      storedInstrument: {
+        token: "pm-1",
+        authorizedReuses,
+        status: "usable" as const,
+        brand: "visa",
+        last4: "4242",
+        expMonth: 5,
+        expYear: 2031,
+      },
     }
   }
 
@@ -379,6 +491,7 @@ function createFakeAdapter(
       callbackSignatureVerification: true,
       idempotencyKeys: true,
       retrySafeInitiation: true,
+      storeInstrument,
     },
     async initiate(_context, input) {
       validateMoney(input.money)
@@ -399,6 +512,7 @@ function createFakeAdapter(
           input.captureMode === "manual" && behavior !== "manual-capture-pays"
             ? ("authorized" as const)
             : ("paid" as const),
+        ...storedInstrumentFor(input),
         idempotencyKey: input.idempotencyKey,
       }
       initiationKeys.set(input.idempotencyKey, { payload, result })

@@ -116,15 +116,30 @@ const personNoteRow: InferSelectModel<typeof personNotes> = {
   createdAt,
 }
 
-const personPaymentMethodRow: InferSelectModel<typeof personPaymentMethods> = {
+/**
+ * The projection the route serves, not the row. `processor_token` is
+ * deliberately absent: it is the one column that can charge the customer and it
+ * never leaves the server.
+ */
+const personPaymentMethodRow: Omit<
+  InferSelectModel<typeof personPaymentMethods>,
+  | "processorToken"
+  | "providerCustomerReference"
+  | "fingerprint"
+  | "agreementReference"
+  | "updatedAt"
+> = {
   id: "person_payment_methods_000000000000",
   personId: "people_000000000000000000000000",
+  source: "payment",
   brand: "visa",
   last4: "4242",
   holderName: null,
   expMonth: 12,
   expYear: 2030,
-  processorToken: "tok_123",
+  providerId: "voyant-pay",
+  authorizedReuses: ["merchant_initiated"],
+  status: "usable",
   isDefault: true,
   createdAt,
 }

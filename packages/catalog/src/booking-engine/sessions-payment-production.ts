@@ -31,6 +31,45 @@ export interface ProductionBookingSessionPaymentDeps {
   financeRuntime?: Parameters<typeof createOrReuseBookingSessionPayment>[2]
   /** Host-owned bank-transfer document/instruction orchestration. */
   establishBankTransfer?: BookingSessionPaymentPorts["establishBankTransfer"]
+  /**
+   * Whether the operator's booking terms authorize charging a stored
+   * instrument while the shopper is away, and which revision says so.
+   *
+   * Absent, or resolving to null, means no instrument is stored. Fail closed
+   * is the only safe default: the operator is the merchant of record and
+   * carries the liability for an agreement they never wrote.
+   */
+  resolveStoredInstrumentMandate?: (
+    db: PostgresJsDatabase,
+  ) => Promise<{ enabled: boolean; revision: string } | null>
+}
+
+/**
+ * What the shopper authorized, derived from the operator's terms and the
+ * shopper's acceptance of them.
+ *
+ * Both halves are required and neither substitutes for the other. Terms that
+ * carry the mandate authorize nothing until somebody accepts them, and an
+ * acceptance authorizes nothing if the terms accepted never said it.
+ *
+ * `agreementReference` is the record. Card network rules ask the merchant to
+ * keep one, and this is the handle that ties the stored instrument back to the
+ * exact acceptance and terms revision it rests on. Without the revision an
+ * acceptance says only that some terms were agreed at some point, which is not
+ * evidence of anything.
+ */
+function storedInstrumentIntent(
+  mandate: { enabled: boolean; revision: string } | null | undefined,
+  session: { id: string; statePayload: Record<string, unknown> },
+): { merchantInitiated: true; agreementReference: string } | undefined {
+  if (!mandate?.enabled) return undefined
+  const acceptance = record(session.statePayload.contractAcceptance)
+  const acceptedAt = stringValue(acceptance?.acceptedAt)
+  if (!acceptedAt || Number.isNaN(Date.parse(acceptedAt))) return undefined
+  return {
+    merchantInitiated: true,
+    agreementReference: `booking-terms:${mandate.revision}:${session.id}:${acceptedAt}`,
+  }
 }
 
 export function createProductionBookingSessionPaymentPorts(
@@ -144,6 +183,12 @@ export function createProductionBookingSessionPaymentPorts(
       const adapter = await deps.resolvePaymentAdapter?.()
       if (adapter && paymentSession.status === "pending") {
         const reference = customerReference(session)
+        // Storage binds to the customer record, so an unidentified shopper
+        // stores nothing however the terms read: there would be nobody for the
+        // instrument to belong to.
+        const storeInstrument = reference
+          ? storedInstrumentIntent(await deps.resolveStoredInstrumentMandate?.(deps.db), session)
+          : undefined
         await startPaymentAdapterCardPayment(
           adapter,
           {
@@ -167,6 +212,7 @@ export function createProductionBookingSessionPaymentPorts(
             }),
             locale: session.scope.locale,
             ...(reference ? { customerReference: reference } : {}),
+            ...(storeInstrument ? { storeInstrument } : {}),
             returnUrl: commit.payment?.returnUrl,
             cancelUrl: commit.payment?.cancelUrl,
             // Forwarded verbatim: the storefront is the only party that knows

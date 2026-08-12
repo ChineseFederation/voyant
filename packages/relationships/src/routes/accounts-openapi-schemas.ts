@@ -121,12 +121,25 @@ export const personNoteSchema = z.object({
 export const personPaymentMethodSchema = z.object({
   id: idSchema,
   personId: z.string(),
+  /** "manual" when an operator typed it, "payment" when a payment produced it. */
+  source: z.enum(["manual", "payment"]),
   brand: z.string(),
   last4: z.string().nullable(),
   holderName: z.string().nullable(),
   expMonth: z.number().int().nullable(),
   expYear: z.number().int().nullable(),
-  processorToken: z.string(),
+  /**
+   * The adapter that issued the token, null on a manual row.
+   *
+   * `processorToken` itself is deliberately absent. It is the one field that
+   * can charge the customer, every authenticated admin client would receive
+   * it, and no screen needs it to render a saved card. A caller that means to
+   * charge names the method by id and lets the server resolve the token.
+   */
+  providerId: z.string().nullable(),
+  /** `PaymentInstrumentReuse` values the customer authorized. */
+  authorizedReuses: z.array(z.string()),
+  status: z.enum(["usable", "requires_new_agreement", "expired", "revoked"]),
   isDefault: z.boolean(),
   createdAt: isoTimestamp,
 })

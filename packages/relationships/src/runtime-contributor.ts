@@ -18,6 +18,10 @@ import {
   customFieldValueOperationsRuntimePort,
 } from "@voyant-travel/core/runtime-port"
 import type { AnyDrizzleDb } from "@voyant-travel/db"
+import {
+  type FinanceStoredInstrumentRuntime,
+  financeStoredInstrumentRuntimePort,
+} from "@voyant-travel/finance/runtime-port"
 import { sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import type { RelationshipsRouteRuntimeOptions } from "./route-runtime.js"
@@ -247,5 +251,17 @@ export function createRelationshipsRuntimePortContribution(
       getPersonById: (...args) => relationshipsService.getPersonById(...args),
       getOrganizationById: (...args) => relationshipsService.getOrganizationById(...args),
     } satisfies BookingsRelationshipsRuntime,
+    /**
+     * Where an instrument a payment provider stored becomes a row on the
+     * person who paid. Finance owns the payment and knows the instrument; it
+     * does not know what a person is, so this is the seam it hands the fact
+     * across.
+     */
+    [financeStoredInstrumentRuntimePort.id]: {
+      async recordStoredInstrument(db, instrument) {
+        const { personId, ...rest } = instrument
+        await relationshipsService.recordProjectedPersonPaymentMethod(db, personId, rest)
+      },
+    } satisfies FinanceStoredInstrumentRuntime,
   }
 }

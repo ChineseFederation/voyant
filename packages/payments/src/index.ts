@@ -87,6 +87,132 @@ export interface PaymentDisputeSignal {
   evidenceSubmittedAt?: string | null
 }
 
+/**
+ * What a shopper has authorized a stored instrument to be used for.
+ *
+ * These are two distinct permissions under card network rules, granted in
+ * different ways, so an adapter that collapses them into one flag cannot be
+ * compliant for either.
+ *
+ * `merchant_initiated` covers charging the instrument while the shopper is
+ * away — a scheduled balance payment, say. It is authorized by the merchant's
+ * own terms, which the shopper accepts at checkout, and needs no control beside
+ * the payment field.
+ *
+ * `shopper_reselect` covers showing the instrument back to the shopper so they
+ * can choose it on a later checkout. That is a specific purpose and needs
+ * explicit consent for it, collected wherever the payment details are entered.
+ *
+ * Neither implies the other, and an operator viewing their own customer record
+ * is neither: that is the merchant reading their own books, not a reuse.
+ */
+export const PAYMENT_INSTRUMENT_REUSES = ["merchant_initiated", "shopper_reselect"] as const
+export type PaymentInstrumentReuse = (typeof PAYMENT_INSTRUMENT_REUSES)[number]
+
+/**
+ * Whether a stored instrument can still be used, and if not, why.
+ *
+ * `requires_new_agreement` is the one that is easy to miss. When a card is
+ * reissued its brand can change, and the agreement the shopper gave no longer
+ * covers the instrument that replaced it, so merchant-initiated use has to stop
+ * until a new agreement exists. It is not expired and not revoked — the
+ * instrument works, the permission does not.
+ */
+export const PAYMENT_INSTRUMENT_STATUSES = [
+  "usable",
+  "requires_new_agreement",
+  "expired",
+  "revoked",
+] as const
+export type PaymentInstrumentStatus = (typeof PAYMENT_INSTRUMENT_STATUSES)[number]
+
+/**
+ * An instrument a provider has stored for a customer, as the adapter reports
+ * it.
+ *
+ * `token` is opaque and is the only field that can charge anything. Everything
+ * else is display data the framework shows an operator or a shopper, so a
+ * provider that cannot supply a field omits it rather than inventing one. No
+ * field here ever carries a full instrument number.
+ *
+ * The same token reported twice is the same instrument: that is what makes a
+ * replayed callback update the record it already wrote instead of creating a
+ * second one.
+ */
+export interface PaymentStoredInstrument {
+  /** Opaque provider reference. The only field that can initiate a charge. */
+  token: string
+  /**
+   * What the shopper actually authorized, which is not necessarily what the
+   * caller asked for. An empty list means the instrument was stored but may not
+   * be reused, which is a real outcome rather than a malformed one: the
+   * merchant may still show it on their own records.
+   */
+  authorizedReuses: readonly PaymentInstrumentReuse[]
+  status?: PaymentInstrumentStatus
+  /**
+   * The provider's own customer record this instrument hangs off, where the
+   * provider has one. Opaque, and only meaningful to the adapter that issued
+   * it.
+   */
+  customerReference?: string | null
+  /**
+   * Stable across re-entry of the same underlying instrument, where the
+   * provider supplies it. Lets a caller recognize that a shopper has re-added
+   * a card it already holds rather than accumulating duplicates.
+   */
+  fingerprint?: string | null
+  /** "visa", "mastercard", "bank_transfer", … Recorded verbatim, never parsed. */
+  brand?: string | null
+  /** Last four digits, for instruments that have them. */
+  last4?: string | null
+  holderName?: string | null
+  /** 1-12. */
+  expMonth?: number | null
+  expYear?: number | null
+}
+
+/** Whether a stored instrument may be put to a given use. */
+export function paymentInstrumentAllows(
+  instrument: Pick<PaymentStoredInstrument, "authorizedReuses" | "status">,
+  reuse: PaymentInstrumentReuse,
+): boolean {
+  if (instrument.status !== undefined && instrument.status !== "usable") return false
+  return instrument.authorizedReuses.includes(reuse)
+}
+
+/**
+ * What the caller authorizes for the instrument this payment uses.
+ *
+ * The asymmetry between the two fields is deliberate and reflects who knows
+ * what. Whether the shopper accepted terms permitting merchant-initiated
+ * payments is a fact the caller already holds, so it states it. Whether the
+ * shopper will consent to being shown the instrument again is not knowable
+ * until they are asked, and they have to be asked on the surface that takes the
+ * payment details — so the caller grants permission to ask, and learns the
+ * answer from `PaymentStoredInstrument.authorizedReuses`.
+ */
+export interface PaymentInstrumentStorageIntent {
+  /**
+   * Whether the shopper has accepted terms authorizing payments initiated on
+   * their behalf while they are away. False means the instrument may still be
+   * stored, but only for the merchant's own records.
+   */
+  merchantInitiated: boolean
+  /**
+   * Whether the adapter may offer to keep the instrument for the shopper to
+   * choose again later. Absent means do not offer, so an instrument is never
+   * silently made re-selectable.
+   */
+  offerShopperReselect?: boolean
+  /**
+   * The caller's record of the agreement that authorizes `merchantInitiated`,
+   * carried so the two can be reconciled later. Keeping a record of that
+   * agreement is a requirement in its own right, and this is the handle to it.
+   */
+  agreementReference?: string | null
+}
+
 export interface PaymentProcessorIdentity {
   providerId: string
   connectionId: string
@@ -111,6 +237,13 @@ export interface PaymentAdapterCapabilities {
    * the same fact as `false`.
    */
   embeddedCheckout?: boolean
+  /**
+   * Storing the shopper's instrument for later reuse. Optional for the same
+   * reason as `embeddedCheckout`: absent is the same fact as `false`, so an
+   * adapter written against an earlier revision keeps compiling and keeps its
+   * meaning.
+   */
+  storeInstrument?: boolean
   authorize: boolean
   capture: boolean
   void: boolean
@@ -220,6 +353,27 @@ export function negotiatePaymentCheckoutHandoff(
   )
 }
 
+/**
+ * The storage an adapter should actually attempt for this caller, or null when
+ * it should attempt none.
+ *
+ * Null covers three different situations that all mean the same thing to an
+ * adapter, which is why they collapse here rather than at each call site: the
+ * caller asked for nothing, the adapter cannot store instruments, or the caller
+ * asked for something that authorizes no reuse at all and grants no permission
+ * to ask for one. That last case is worth storing nothing for — an instrument
+ * kept with no authorized use is a liability rather than a feature.
+ */
+export function negotiatePaymentInstrumentStorage(
+  capabilities: PaymentAdapterCapabilities,
+  input: Pick<PaymentInitiationInput, "storeInstrument">,
+): PaymentInstrumentStorageIntent | null {
+  const intent = input.storeInstrument
+  if (!intent || !capabilities.storeInstrument) return null
+  if (!intent.merchantInitiated && !intent.offerShopperReselect) return null
+  return intent
+}
+
 export interface PaymentAdapterDiagnostics {
   status: "ok" | "degraded" | "down"
   checkedAt: string
@@ -298,6 +452,15 @@ export interface PaymentInitiationInput {
     firstName?: string | null
     lastName?: string | null
   }
+  /**
+   * Keep the instrument this payment uses, and what it may later be used for.
+   *
+   * Absent means store nothing, so a caller written against an earlier revision
+   * of this contract keeps its behavior exactly. An adapter whose capabilities
+   * do not include `storeInstrument` ignores this rather than failing: the
+   * payment is the point, and storage is an addition to it.
+   */
+  storeInstrument?: PaymentInstrumentStorageIntent
   shipping?: Record<string, unknown>
   metadata?: Record<string, unknown>
 }
@@ -308,6 +471,16 @@ export interface PaymentInitiationResult {
   processorIdentity?: PaymentProcessorIdentity
   checkout?: PaymentHostedCheckout | null
   nextState: PaymentSessionState
+  /**
+   * Present only when an instrument was genuinely stored. A caller that asked
+   * for storage and receives nothing here learns that it did not happen,
+   * without having to reconcile a request against an outcome.
+   *
+   * Rarely present on initiation, because most handoffs store the instrument at
+   * confirmation rather than at initiation. It exists here for the providers
+   * that can answer immediately.
+   */
+  storedInstrument?: PaymentStoredInstrument | null
   idempotencyKey: string
   raw?: unknown
 }
@@ -344,6 +517,13 @@ export interface PaymentStatusResult {
   processorPaymentId?: string | null
   processorIdentity?: PaymentProcessorIdentity
   money?: PaymentMoney
+  /**
+   * The instrument stored for this payment, where one was. Carried here as well
+   * as on the callback because status is the backstop for a shopper who closed
+   * the tab: a poll has to be able to learn everything the callback would have
+   * delivered, or the two paths converge on different records.
+   */
+  storedInstrument?: PaymentStoredInstrument | null
   raw?: unknown
 }
 
@@ -372,6 +552,16 @@ export interface PaymentCallbackEvent {
    * session's current state in `nextState` and puts what changed here.
    */
   dispute?: PaymentDisputeSignal
+  /**
+   * An instrument this event stores, or whose usability it changes.
+   *
+   * Like a dispute, this does not move the payment's own lifecycle: a card
+   * reissued long after the payment settled reports the session's current state
+   * in `nextState` and puts what changed here. A caller keys on
+   * `PaymentStoredInstrument.token` so the second report about an instrument
+   * updates the first rather than duplicating it.
+   */
+  storedInstrument?: PaymentStoredInstrument
   idempotencyKey: string
   raw?: unknown
 }
@@ -468,6 +658,12 @@ export const paymentAdapterRuntimePort = definePort<PaymentAdapter>({
       typeof adapter.capabilities.embeddedCheckout !== "boolean"
     ) {
       throw new Error("Payment adapter capability embeddedCheckout must be boolean when declared.")
+    }
+    if (
+      adapter.capabilities.storeInstrument !== undefined &&
+      typeof adapter.capabilities.storeInstrument !== "boolean"
+    ) {
+      throw new Error("Payment adapter capability storeInstrument must be boolean when declared.")
     }
   },
 })

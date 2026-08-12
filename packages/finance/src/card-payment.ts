@@ -16,6 +16,7 @@ import type {
   PaymentAdapterRuntimeContext,
   PaymentCheckoutHandoff,
   PaymentHostedCheckout,
+  PaymentInstrumentStorageIntent,
 } from "@voyant-travel/payments"
 import { paymentCheckoutRedirectUrl } from "@voyant-travel/payments"
 import { and, eq, isNull, sql } from "drizzle-orm"
@@ -67,6 +68,14 @@ export interface CardPaymentStartArgs {
    * See `PaymentInitiationInput["customer"].reference`.
    */
   customerReference?: string
+  /**
+   * Keep the instrument this payment uses, and what it may be reused for.
+   *
+   * Absent means keep nothing. The caller states it rather than the adapter
+   * inferring it, because whether the shopper accepted terms authorizing later
+   * charges is a fact only the caller holds.
+   */
+  storeInstrument?: PaymentInstrumentStorageIntent
   returnUrl?: string
   cancelUrl?: string
   shipping?: Record<string, unknown>
@@ -217,6 +226,7 @@ export async function startPaymentAdapterCardPayment(
       cancelUrl: args.cancelUrl ?? session.cancelUrl ?? undefined,
       acceptedCheckoutHandoffs: args.acceptedCheckoutHandoffs,
       idempotencyKey,
+      ...(args.storeInstrument ? { storeInstrument: args.storeInstrument } : {}),
       customer: {
         reference: args.customerReference ?? null,
         email: args.billing.email ?? null,

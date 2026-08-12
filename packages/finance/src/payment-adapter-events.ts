@@ -277,7 +277,71 @@ export async function applyPaymentAdapterCallbackEvent(
     await applyPaymentAdapterDisputeSignal(db, event, runtime)
   }
 
+  // Same shape as a dispute, for the same reason: an instrument stored during
+  // this payment, or a reissued card that lost its agreement long after the
+  // payment settled, changes nothing about the session's own lifecycle.
+  if (event.storedInstrument) {
+    await recordStoredInstrumentForSession(
+      db,
+      event.paymentSessionId,
+      event.storedInstrument,
+      event.processorIdentity?.providerId ?? null,
+      runtime,
+    )
+  }
+
   return session
+}
+
+/**
+ * Attach a stored instrument to the person the session named as payer.
+ *
+ * Every early return here is a case where recording would be a guess:
+ *
+ * - No recorder wired, so nothing in this deployment keeps customer records.
+ * - No provider id, so the token could not be charged later even if kept, and
+ *   a token attributed to the wrong adapter is worse than no token.
+ * - No payer person, which is the ordinary anonymous checkout. An instrument
+ *   with nobody to attach it to is not an error; there is simply no customer
+ *   record for it to belong to.
+ *
+ * Failure to record never fails the payment. The money moved and the session is
+ * already correct; losing the instrument is a degraded outcome, not a reason to
+ * reject a callback the provider will otherwise retry forever.
+ */
+async function recordStoredInstrumentForSession(
+  db: PostgresJsDatabase,
+  paymentSessionId: string,
+  instrument: NonNullable<PaymentCallbackEvent["storedInstrument"]>,
+  providerId: string | null,
+  runtime: FinanceServiceRuntime,
+) {
+  const recorder = runtime.storedInstrumentRecorder
+  if (!recorder) return
+
+  const [session] = await db
+    .select({ payerPersonId: paymentSessions.payerPersonId, provider: paymentSessions.provider })
+    .from(paymentSessions)
+    .where(eq(paymentSessions.id, paymentSessionId))
+    .limit(1)
+
+  const resolvedProviderId = providerId ?? session?.provider ?? null
+  if (!session?.payerPersonId || !resolvedProviderId) return
+
+  await recorder.recordStoredInstrument(db, {
+    personId: session.payerPersonId,
+    providerId: resolvedProviderId,
+    token: instrument.token,
+    authorizedReuses: instrument.authorizedReuses,
+    status: instrument.status,
+    providerCustomerReference: instrument.customerReference ?? null,
+    fingerprint: instrument.fingerprint ?? null,
+    brand: instrument.brand ?? null,
+    last4: instrument.last4 ?? null,
+    holderName: instrument.holderName ?? null,
+    expMonth: instrument.expMonth ?? null,
+    expYear: instrument.expYear ?? null,
+  })
 }
 
 async function applyPaymentAdapterDisputeSignal(
@@ -321,6 +385,19 @@ export async function applyPaymentAdapterStatusResult(
   checkedAt = new Date(),
 ) {
   const occurredAt = checkedAt.toISOString()
+  // The poll is the backstop for a shopper who closed the tab before the
+  // callback landed. It has to record the instrument too, or which of the two
+  // paths arrives first decides whether the customer has a card on file.
+  // Idempotent on (provider, token), so both arriving is a no-op.
+  if (result.storedInstrument) {
+    await recordStoredInstrumentForSession(
+      db,
+      paymentSessionId,
+      result.storedInstrument,
+      result.processorIdentity?.providerId ?? null,
+      runtime,
+    )
+  }
   return applyPaymentAdapterStateUpdate(
     db,
     {

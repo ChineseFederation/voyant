@@ -425,6 +425,11 @@ export const flightsUiRo = {
         description:
           "Biletele se emit imediat. Datele cardului se introduc in siguranta la pasul urmator.",
       },
+      saved_method: {
+        title: "Foloseste un card salvat",
+        description:
+          "Incaseaza de pe un card deja salvat pentru acest client. Nu se reintroduce nimic.",
+      },
       bank_transfer: {
         title: "Transfer bancar",
         description:

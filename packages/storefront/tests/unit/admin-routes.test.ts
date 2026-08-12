@@ -25,6 +25,7 @@ describe("createStorefrontAdminRoutes", () => {
           privacyUrl: "https://example.com/privacy",
           cancellationUrl: "https://example.com/cancellation",
           defaultContractTemplateId: "tmpl_terms",
+          storedInstrumentMandate: null,
         },
         localization: {
           defaultLocale: "en-US",
@@ -77,6 +78,7 @@ describe("createStorefrontAdminRoutes", () => {
           privacyUrl: "https://example.com/privacy",
           cancellationUrl: "https://example.com/cancellation",
           defaultContractTemplateId: "tmpl_terms",
+          storedInstrumentMandate: null,
         },
         localization: {
           defaultLocale: "en-US",

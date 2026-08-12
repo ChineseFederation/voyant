@@ -198,7 +198,6 @@ export const personPaymentMethodRecordSchema = z.object({
   holderName: z.string().nullable(),
   expMonth: z.number().int().nullable(),
   expYear: z.number().int().nullable(),
-  processorToken: z.string(),
   isDefault: z.boolean(),
   createdAt: z.string(),
 })

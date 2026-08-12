@@ -143,6 +143,50 @@ export interface FinanceInventoryPaymentPolicyRuntime {
   readPolicySourceFromInternalNotes: BookingScheduleRoutesOptions["readPolicySourceFromInternalNotes"]
 }
 
+/**
+ * An instrument a payment provider stored, on its way from the payment path to
+ * whatever module keeps customer records.
+ *
+ * Deliberately its own shape rather than `PaymentStoredInstrument` re-exported:
+ * this is a seam between two modules that do not depend on each other, and
+ * pinning it to the payment port's revision would make the CRM's contract move
+ * whenever an adapter's did.
+ */
+export interface FinanceStoredInstrumentRecord {
+  /** The person the payment session named as payer. */
+  personId: string
+  /** The adapter that issued `token`. Without it the token can charge nothing. */
+  providerId: string
+  token: string
+  /** `PaymentInstrumentReuse` values the customer authorized. Empty is meaningful. */
+  authorizedReuses: readonly string[]
+  status?: "usable" | "requires_new_agreement" | "expired" | "revoked"
+  providerCustomerReference?: string | null
+  fingerprint?: string | null
+  brand?: string | null
+  last4?: string | null
+  holderName?: string | null
+  expMonth?: number | null
+  expYear?: number | null
+  /** The record of the agreement authorizing merchant-initiated reuse. */
+  agreementReference?: string | null
+}
+
+/**
+ * Where a stored instrument goes once a payment produced one.
+ *
+ * Finance owns the payment and learns the instrument; it does not own the
+ * customer record and must not reach into one. A deployment without this port
+ * wired still takes payments perfectly — instruments simply go unrecorded,
+ * which is the behavior every deployment had before the seam existed.
+ */
+export interface FinanceStoredInstrumentRuntime {
+  recordStoredInstrument(
+    db: PostgresJsDatabase,
+    instrument: FinanceStoredInstrumentRecord,
+  ): Promise<void>
+}
+
 export interface FinanceCheckoutPaymentStartersRuntime {
   resolvePaymentStarters(bindings: Record<string, unknown>): Record<string, CheckoutPaymentStarter>
 }
@@ -242,6 +286,10 @@ export const financeInventoryPaymentPolicyRuntimePort =
     "stampPolicySourceOnBooking",
     "readPolicySourceFromInternalNotes",
   ])
+export const financeStoredInstrumentRuntimePort = objectPort<FinanceStoredInstrumentRuntime>(
+  "finance.stored-instrument.runtime",
+  ["recordStoredInstrument"],
+)
 export const financeCheckoutPaymentStartersRuntimePort =
   objectPort<FinanceCheckoutPaymentStartersRuntime>("finance.checkout-payment-starters.runtime", [
     "resolvePaymentStarters",

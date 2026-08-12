@@ -76,6 +76,9 @@ import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import type { z } from "zod"
 import { resolveFxMoneyBaseAmount } from "./fx-money.js"
 import type { InvoiceFxOptions } from "./invoice-fx.js"
+// Type-only: `runtime-port` reaches back into route modules that import this
+// one, so a value import here would close a cycle.
+import type { FinanceStoredInstrumentRuntime } from "./runtime-port.js"
 import {
   type bookingGuarantees,
   type bookingItemTaxLines,
@@ -1068,6 +1071,15 @@ export async function touchLinkedBookingUpdatedAt(
  */
 export interface FinanceServiceRuntime extends InvoiceFxOptions {
   eventBus?: EventBus
+  /**
+   * Where an instrument a provider stored gets recorded, wired from
+   * `finance.stored-instrument.runtime`.
+   *
+   * Absent means nothing records instruments, which is the behavior every
+   * deployment had before the seam existed: payments still complete, the
+   * instrument simply is not kept anywhere finance can see.
+   */
+  storedInstrumentRecorder?: FinanceStoredInstrumentRuntime
   monthlyBookingLimit?: number | null
   actionLedgerContext?: ActionLedgerRequestContextValues
   actionLedgerAuthorizationSource?: string | null

@@ -148,6 +148,19 @@ export const storefrontPaymentScheduleSchema = z.object({
 
 export const storefrontCurrencyDisplaySchema = z.enum(["code", "symbol", "name"])
 
+export const storefrontStoredInstrumentMandateInputSchema = z.object({
+  /** The operator's terms authorize charging a stored instrument off-session. */
+  enabled: z.boolean(),
+  /** Bumped when the mandate wording changes. Recorded on every acceptance. */
+  revision: z.string().trim().min(1).max(64),
+})
+
+export const storefrontStoredInstrumentMandateSchema = storefrontStoredInstrumentMandateInputSchema
+
+export type StorefrontStoredInstrumentMandate = z.infer<
+  typeof storefrontStoredInstrumentMandateSchema
+>
+
 export const storefrontSettingsInputSchema = z.object({
   support: z
     .object({
@@ -162,6 +175,28 @@ export const storefrontSettingsInputSchema = z.object({
       privacyUrl: httpUrlSchema.optional().nullable(),
       cancellationUrl: httpUrlSchema.optional().nullable(),
       defaultContractTemplateId: z.string().trim().min(1).optional().nullable(),
+      /**
+       * The operator's authority to keep a shopper's payment instrument and charge it
+       * later while they are away.
+       *
+       * That authority comes from the operator's own booking terms, which the shopper
+       * accepts at checkout, not from a checkbox beside the card field. Card network
+       * rules ask the terms to state that payments may be initiated on the shopper's
+       * behalf, their anticipated timing and frequency, how the amount is determined,
+       * and the cancellation policy — and to keep a record of each acceptance.
+       *
+       * `revision` is what makes that record meaningful. Without it an acceptance
+       * says only that some version of some terms was agreed to at some point, which
+       * is not evidence of anything. Bump it whenever the mandate wording changes;
+       * acceptances of the old revision stay valid for instruments already stored
+       * under it.
+       *
+       * Absent means the operator has no such authority and nothing is stored. Fail
+       * closed is the only safe default: the operator is the merchant of record and
+       * carries the liability, so silently assuming an authority they never granted
+       * would put that liability on somebody who never chose it.
+       */
+      storedInstrumentMandate: storefrontStoredInstrumentMandateInputSchema.optional().nullable(),
     })
     .optional(),
   localization: z
@@ -207,6 +242,8 @@ export const storefrontSettingsSchema = z.object({
     privacyUrl: urlOrNullSchema,
     cancellationUrl: urlOrNullSchema,
     defaultContractTemplateId: z.string().trim().min(1).nullable(),
+    /** Null means the operator has no authority to store instruments. */
+    storedInstrumentMandate: storefrontStoredInstrumentMandateSchema.nullable(),
   }),
   localization: z.object({
     defaultLocale: languageTagSchema.nullable(),
@@ -229,6 +266,27 @@ export const storefrontSettingsSchema = z.object({
     bankTransfer: storefrontBankTransferSchema.nullable(),
   }),
 })
+
+/**
+ * The shopper-facing projection.
+ *
+ * The mandate is operator configuration, not something a storefront renders:
+ * what the shopper reads is the booking terms themselves, through the contract
+ * template. Publishing which revision authorizes stored cards tells a visitor
+ * nothing they can act on and puts operator settings on an anonymous endpoint.
+ */
+export const storefrontPublicSettingsSchema = storefrontSettingsSchema.extend({
+  legal: storefrontSettingsSchema.shape.legal.omit({
+    storedInstrumentMandate: true,
+  }),
+})
+
+export function toPublicStorefrontSettings<T extends { legal: Record<string, unknown> }>(
+  settings: T,
+): T {
+  const { storedInstrumentMandate: _internal, ...legal } = settings.legal
+  return { ...settings, legal }
+}
 
 export const storefrontSettingsPatchSchema = z.object({
   support: storefrontSettingsInputSchema.shape.support,
