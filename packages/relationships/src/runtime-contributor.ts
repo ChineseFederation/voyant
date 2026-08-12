@@ -2,6 +2,7 @@ import {
   type BookingsRelationshipsRuntime,
   bookingsRelationshipsRuntimePort,
 } from "@voyant-travel/bookings/runtime-port"
+import type { VoyantRuntimeHostPrimitives } from "@voyant-travel/core"
 import {
   type CustomFieldsRuntime,
   type CustomFieldValueLifecycleRuntime,
@@ -16,12 +17,17 @@ import {
   type CustomFieldValueOperationsRuntime,
   customFieldValueOperationsRuntimePort,
 } from "@voyant-travel/core/runtime-port"
+import type { AnyDrizzleDb } from "@voyant-travel/db"
 import { sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import type { RelationshipsRouteRuntimeOptions } from "./route-runtime.js"
 import {
+  type RelationshipsBookingEnrichmentDatabaseRuntime,
   type RelationshipsMiceRuntime,
+  type RelationshipsPersonNotificationsRuntime,
+  relationshipsBookingEnrichmentDatabaseRuntimePort,
   relationshipsMiceRuntimePort,
+  relationshipsPersonNotificationsRuntimePort,
   relationshipsRouteRuntimePort,
 } from "./runtime-port.js"
 import { relationshipsService } from "./service/index.js"
@@ -146,7 +152,27 @@ const relationshipCustomFieldValueOperations: CustomFieldValueOperationsRuntime 
 }
 
 interface RelationshipsRuntimeContributorHost {
+  primitives: VoyantRuntimeHostPrimitives
+  hasRuntimePort?(port: Pick<VoyantPort<unknown>, "id">): boolean
   getRuntimePort<T>(port: Pick<VoyantPort<T>, "id">): T | Promise<T>
+}
+
+/**
+ * Notifications is optional. A deployment that selects CRM without it keeps a
+ * Communications tab listing only hand-logged entries, which is what it showed
+ * before this seam existed.
+ */
+async function resolvePersonNotifications(
+  host: RelationshipsRuntimeContributorHost,
+): Promise<RelationshipsPersonNotificationsRuntime | undefined> {
+  if (host.hasRuntimePort?.(relationshipsPersonNotificationsRuntimePort) === false) return undefined
+  try {
+    return await host.getRuntimePort<RelationshipsPersonNotificationsRuntime>(
+      relationshipsPersonNotificationsRuntimePort,
+    )
+  } catch {
+    return undefined
+  }
 }
 
 /** Package-owned registration map for Relationships deployment adapters. */
@@ -156,6 +182,7 @@ export function createRelationshipsRuntimePortContribution(
   const customFieldsRuntime = Promise.resolve(
     host.getRuntimePort<CustomFieldsRuntime>(customFieldsRuntimePort),
   )
+  const personNotifications = resolvePersonNotifications(host)
   const customFields: CustomFieldValueReaderRuntime = {
     async resolveVisibleValues(db, entity, entityId, channel) {
       const database = db as PostgresJsDatabase
@@ -195,11 +222,25 @@ export function createRelationshipsRuntimePortContribution(
         (await customFieldsRuntime).resolveRegistry(db as PostgresJsDatabase),
       customFieldsForWrite: async (db, entity) =>
         (await customFieldsRuntime).resolveRegistryForWrite(db as PostgresJsDatabase, entity),
+      // Resolved per call, not folded into this object: routes read the route
+      // runtime synchronously, so awaiting an optional port to build it would
+      // hand them a promise where they expect the options. Answers with an
+      // empty list when no notifications module is selected.
+      personNotifications: {
+        listPersonDeliveries: async (db, personId, query) =>
+          (await personNotifications)?.listPersonDeliveries(db, personId, query) ?? [],
+      },
     } satisfies RelationshipsRouteRuntimeOptions,
     [relationshipsMiceRuntimePort.id]: {
       personExists: async (db, personId) =>
         (await relationshipsService.getPersonById(db as never, personId)) != null,
     } satisfies RelationshipsMiceRuntime,
+    [relationshipsBookingEnrichmentDatabaseRuntimePort.id]: {
+      withDb: <T>(bindings: unknown, operation: (db: AnyDrizzleDb) => Promise<T>) =>
+        host.primitives.database.transaction(bindings, (database) =>
+          operation(database as AnyDrizzleDb),
+        ),
+    } satisfies RelationshipsBookingEnrichmentDatabaseRuntime,
     [bookingsRelationshipsRuntimePort.id]: {
       loadPersonTravelSnapshot: (...args) => relationshipsService.loadPersonTravelSnapshot(...args),
       upsertPersonFromContact: (...args) => relationshipsService.upsertPersonFromContact(...args),

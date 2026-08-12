@@ -1752,12 +1752,16 @@
       "@voyant-travel/relationships/action-ledger-capabilities": [
         "../relationships/dist/action-ledger-capabilities.d.ts"
       ],
+      "@voyant-travel/relationships/booking-enrichment-subscriber": [
+        "../relationships/dist/booking-enrichment/subscriber-runtime.d.ts"
+      ],
       "@voyant-travel/relationships/events": ["../relationships/dist/events.d.ts"],
       "@voyant-travel/relationships/linkables": ["../relationships/dist/linkables.d.ts"],
       "@voyant-travel/relationships/routes": ["../relationships/dist/routes/index.d.ts"],
       "@voyant-travel/relationships/runtime-contributor": [
         "../relationships/dist/runtime-contributor.d.ts"
       ],
+      "@voyant-travel/relationships/runtime-port": ["../relationships/dist/runtime-port.d.ts"],
       "@voyant-travel/relationships/schema": ["../relationships/dist/schema.d.ts"],
       "@voyant-travel/relationships/tools": ["../relationships/dist/mcp-runtime.d.ts"],
       "@voyant-travel/relationships/validation": ["../relationships/dist/validation.d.ts"],

@@ -96,7 +96,15 @@ export type PersonPaymentMethod = Pick<
 
 export type PersonCommunication = Pick<
   CommunicationLogRecord,
-  "channel" | "content" | "createdAt" | "direction" | "id" | "personId" | "sentAt" | "subject"
+  | "channel"
+  | "content"
+  | "createdAt"
+  | "direction"
+  | "id"
+  | "personId"
+  | "sentAt"
+  | "source"
+  | "subject"
 >
 
 export type PersonTravelSnapshot = PersonTravelSnapshotRecord

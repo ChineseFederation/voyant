@@ -5,6 +5,7 @@ export const entityTypeEnum = pgEnum("entity_type", [
   "person",
   "proposal",
   "activity",
+  "booking",
 ])
 
 export const relationTypeEnum = pgEnum("relation_type", ["client", "partner", "supplier", "other"])

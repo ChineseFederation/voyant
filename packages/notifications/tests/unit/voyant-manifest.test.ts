@@ -24,6 +24,9 @@ describe("notifications deployment manifest", () => {
           { id: "notifications.runtime" },
           { id: "notifications.reminder-job" },
           { id: proposalsNotificationsRuntimePort.id },
+          // Lets the CRM Communications tab read what was actually delivered
+          // without holding a second copy of it.
+          { id: "relationships.person-notifications" },
         ],
       },
       runtimePorts: [

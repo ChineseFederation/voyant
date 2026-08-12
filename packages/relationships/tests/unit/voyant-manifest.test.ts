@@ -29,9 +29,17 @@ describe("relationships deployment manifest", () => {
           { id: customFieldValueReaderRuntimePort.id },
           { id: customFieldValueLifecycleRuntimePort.id },
           { id: customFieldValueOperationsRuntimePort.id },
+          { id: "relationships.booking-enrichment-database" },
         ],
       },
-      runtimePorts: [{ id: customFieldsRuntimePort.id }, { id: "relationships.route-runtime" }],
+      runtimePorts: [
+        { id: customFieldsRuntimePort.id },
+        { id: "relationships.route-runtime" },
+        { id: "relationships.booking-enrichment-database" },
+        // Optional: a deployment can select CRM without Bookings, and then
+        // nothing emits `booking.confirmed` for the enrichment subscriber.
+        { id: "bookings.crm-snapshot.runtime", optional: true },
+      ],
       api: [
         {
           id: "@voyant-travel/relationships#api.admin",

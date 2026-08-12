@@ -8,6 +8,7 @@ import {
   type ProposalsNotificationsRuntime,
   proposalsNotificationsRuntimePort,
 } from "@voyant-travel/proposals/runtime-port"
+import { relationshipsPersonNotificationsRuntimePort } from "@voyant-travel/relationships/runtime-port"
 import { storefrontVerificationRuntimePort } from "@voyant-travel/storefront"
 import type { StorefrontVerificationRoutesOptions } from "@voyant-travel/storefront/verification"
 import {
@@ -15,6 +16,7 @@ import {
   durableNotificationProviderPort,
 } from "./durable-provider-port.js"
 import { createFinanceNotificationsRuntime } from "./finance-runtime.js"
+import { createPersonCommunicationsRuntime } from "./person-communications-runtime.js"
 import { createProposalsNotificationsRuntime } from "./proposals-runtime.js"
 import { notificationsReminderJobRuntimePort } from "./reminder-job-runtime-port.js"
 import { createNotificationsRuntime } from "./runtime.js"
@@ -48,6 +50,7 @@ export function createNotificationsRuntimePortContribution(
     [financeNotificationsRuntimePort.id]: createFinanceNotificationsRuntime(
       host.primitives,
     ) satisfies FinanceNotificationsRuntime,
+    [relationshipsPersonNotificationsRuntimePort.id]: createPersonCommunicationsRuntime(),
   }
   if (host.hasRuntimePort?.(durableNotificationProviderPort)) {
     contribution[proposalsNotificationsRuntimePort.id] = Promise.resolve(

@@ -1,0 +1,13 @@
+-- Let a CRM activity link to the booking it came from.
+--
+-- `entity_type` backs `activity_links.entity_type`, and until now a booking
+-- could not be named there — so the activity a confirmed booking produces could
+-- reference the person but not the booking, and the operator had no way back to
+-- the record that caused it. `custom_field_target` already carries 'booking'
+-- (0003); this brings the link enum in line with it.
+--
+-- ADD VALUE IF NOT EXISTS is a no-op on re-run, and PostgreSQL 12+ permits it
+-- inside the migration transaction as long as the new label is not USED in the
+-- same transaction. Nothing here writes a row with it, so the first write is a
+-- later statement in a later transaction.
+ALTER TYPE "public"."entity_type" ADD VALUE IF NOT EXISTS 'booking';

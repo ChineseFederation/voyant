@@ -118,6 +118,61 @@ export interface BookingsRelationshipsRuntime {
   getOrganizationById(db: PostgresJsDatabase, organizationId: string): Promise<unknown | null>
 }
 
+/**
+ * A traveler as CRM cares about them: who they are and, when the booking
+ * resolved one, which person row they belong to.
+ */
+export interface BookingCrmTravelerSnapshot {
+  personId: string | null
+  firstName: string
+  lastName: string
+  isPrimary: boolean
+}
+
+/**
+ * Everything a booking can tell CRM about the customer behind it.
+ *
+ * Read back from the booking rather than carried on `booking.confirmed`: the
+ * event is a wake-up signal, and stuffing an address plus a traveler list into
+ * an `additionalProperties: false` payload would make the two drift.
+ */
+export interface BookingCrmSnapshot {
+  bookingId: string
+  bookingNumber: string
+  status: string
+  personId: string | null
+  organizationId: string | null
+  sourceType: string
+  startDate: string | null
+  sellCurrency: string
+  sellAmountCents: number | null
+  billingAddress: {
+    line1: string | null
+    line2: string | null
+    city: string | null
+    region: string | null
+    postalCode: string | null
+    country: string | null
+  }
+  travelers: readonly BookingCrmTravelerSnapshot[]
+}
+
+/**
+ * Lets CRM read the booking behind a `booking.confirmed` event without
+ * importing Bookings' tables — ADR-0016 decision 6, and the reason the
+ * relationships->bookings pair is absent from the table-privacy baseline.
+ *
+ * Declared here rather than in Relationships because relationships already
+ * depends on bookings; defining the consumer's port in the consumer would
+ * make bookings import relationships and close a package cycle.
+ */
+export interface BookingsCrmSnapshotRuntime {
+  loadBookingCrmSnapshot(
+    db: PostgresJsDatabase,
+    bookingId: string,
+  ): Promise<BookingCrmSnapshot | null>
+}
+
 export interface BookingsCancellationPolicyRuntime {
   evaluateCancellationSnapshot: BookingCancellationPolicyEvaluator
   captureApplicableCancellationPolicySnapshot(
@@ -230,6 +285,10 @@ export const bookingsInventoryRuntimePort = objectPort<BookingsInventoryRuntime>
 export const bookingsRelationshipsRuntimePort = objectPort<BookingsRelationshipsRuntime>(
   "bookings.relationships.runtime",
   ["loadPersonTravelSnapshot", "upsertPersonFromContact", "getPersonById", "getOrganizationById"],
+)
+export const bookingsCrmSnapshotRuntimePort = objectPort<BookingsCrmSnapshotRuntime>(
+  "bookings.crm-snapshot.runtime",
+  ["loadBookingCrmSnapshot"],
 )
 export const bookingsCancellationPolicyRuntimePort = objectPort<BookingsCancellationPolicyRuntime>(
   "bookings.cancellation-policy.runtime",

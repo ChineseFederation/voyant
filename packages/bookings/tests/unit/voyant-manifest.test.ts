@@ -18,6 +18,8 @@ describe("bookings deployment manifest", () => {
         capabilities: ["bookings.data-owner"],
         ports: [
           { id: "action-ledger.booking-drift-runtime" },
+          // Lets CRM read a confirmed booking without importing these tables.
+          { id: "bookings.crm-snapshot.runtime" },
           { id: "custom-fields.value-lifecycle" },
           { id: "custom-fields.value-operations" },
         ],

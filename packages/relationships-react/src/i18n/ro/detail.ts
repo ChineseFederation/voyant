@@ -200,6 +200,7 @@ export const crmUiRoDetailMessages = {
         inbound: "Primita",
         outbound: "Trimisa",
       },
+      automaticBadge: "Automat",
     },
     relationshipKindLabels: {
       spouse: "Sot/sotie",

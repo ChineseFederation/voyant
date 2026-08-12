@@ -13,6 +13,8 @@
     "./action-ledger-capabilities": "./src/action-ledger-capabilities.ts",
     "./tools": "./src/mcp-runtime.ts",
     "./runtime-contributor": "./src/runtime-contributor.ts",
+    "./runtime-port": "./src/runtime-port.ts",
+    "./booking-enrichment-subscriber": "./src/booking-enrichment/subscriber-runtime.ts",
     "./voyant": "./src/voyant.ts",
     "./openapi/admin": "./openapi/admin/relationships.json"
   },
@@ -100,6 +102,16 @@
         "types": "./dist/runtime-contributor.d.ts",
         "import": "./dist/runtime-contributor.js",
         "default": "./dist/runtime-contributor.js"
+      },
+      "./runtime-port": {
+        "types": "./dist/runtime-port.d.ts",
+        "import": "./dist/runtime-port.js",
+        "default": "./dist/runtime-port.js"
+      },
+      "./booking-enrichment-subscriber": {
+        "types": "./dist/booking-enrichment/subscriber-runtime.d.ts",
+        "import": "./dist/booking-enrichment/subscriber-runtime.js",
+        "default": "./dist/booking-enrichment/subscriber-runtime.js"
       },
       "./voyant": {
         "types": "./dist/voyant.d.ts",

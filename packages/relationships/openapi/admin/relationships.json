@@ -4965,6 +4965,10 @@
                           },
                           "createdAt": {
                             "type": "string"
+                          },
+                          "source": {
+                            "type": "string",
+                            "enum": ["logged", "notification"]
                           }
                         },
                         "required": [
@@ -4976,7 +4980,8 @@
                           "subject",
                           "content",
                           "sentAt",
-                          "createdAt"
+                          "createdAt",
+                          "source"
                         ]
                       }
                     }
@@ -5081,6 +5086,10 @@
                         },
                         "createdAt": {
                           "type": "string"
+                        },
+                        "source": {
+                          "type": "string",
+                          "enum": ["logged", "notification"]
                         }
                       },
                       "required": [
@@ -5092,7 +5101,8 @@
                         "subject",
                         "content",
                         "sentAt",
-                        "createdAt"
+                        "createdAt",
+                        "source"
                       ]
                     }
                   },

@@ -12,6 +12,8 @@ import {
 import { sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import { checkBookingActionLedgerDrift } from "./action-ledger-drift.js"
+import { loadBookingCrmSnapshot } from "./crm-snapshot.js"
+import { type BookingsCrmSnapshotRuntime, bookingsCrmSnapshotRuntimePort } from "./runtime-port.js"
 
 export interface BookingsRuntimeContributorHost {
   primitives: VoyantRuntimeHostPrimitives
@@ -117,5 +119,8 @@ export function createBookingsRuntimePortContribution(
     } satisfies ActionLedgerBookingDriftRuntime,
     [customFieldValueLifecycleRuntimePort.id]: bookingCustomFieldValues,
     [customFieldValueOperationsRuntimePort.id]: bookingCustomFieldValueOperations,
+    [bookingsCrmSnapshotRuntimePort.id]: {
+      loadBookingCrmSnapshot,
+    } satisfies BookingsCrmSnapshotRuntime,
   }
 }

@@ -143,6 +143,12 @@ export const communicationLogEntrySchema = z.object({
   content: z.string().nullable(),
   sentAt: isoTimestamp.nullable(),
   createdAt: isoTimestamp,
+  /**
+   * Where the entry came from. `logged` is a row staff wrote and can edit;
+   * `notification` is a message the deployment delivered, and is read-only —
+   * its authority is the delivery record, not CRM.
+   */
+  source: z.enum(["logged", "notification"]).default("logged"),
 })
 
 // --- segments ---------------------------------------------------------------

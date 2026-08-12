@@ -1,9 +1,48 @@
 import { definePort } from "@voyant-travel/core/project"
+import type { AnyDrizzleDb } from "@voyant-travel/db"
 
 import type { RelationshipsRouteRuntimeOptions } from "./route-runtime.js"
 
 export interface RelationshipsMiceRuntime {
   personExists(db: unknown, personId: string): Promise<boolean>
+}
+
+/** Database access for the CRM enrichment subscriber, which runs off-request. */
+export interface RelationshipsBookingEnrichmentDatabaseRuntime {
+  withDb<T>(bindings: unknown, operation: (db: AnyDrizzleDb) => Promise<T>): Promise<T>
+}
+
+/** One message a deployment actually delivered to a person. */
+export interface PersonNotificationDelivery {
+  id: string
+  channel: "email" | "sms"
+  subject: string | null
+  body: string | null
+  sentAt: string | null
+  createdAt: string
+}
+
+export interface PersonNotificationDeliveryQuery {
+  limit: number
+  offset: number
+  dateFrom?: string
+  dateTo?: string
+}
+
+/**
+ * Lets the Communications tab show what was actually sent.
+ *
+ * The delivery record is the authority on a sent message, so CRM reads it
+ * rather than keeping a second copy in `communication_log` that would go stale
+ * the moment a delivery bounced. Declared here because notifications already
+ * depends on relationships; the reverse import would close a package cycle.
+ */
+export interface RelationshipsPersonNotificationsRuntime {
+  listPersonDeliveries(
+    db: unknown,
+    personId: string,
+    query: PersonNotificationDeliveryQuery,
+  ): Promise<readonly PersonNotificationDelivery[]>
 }
 
 /** Deployment contract consumed by the package-owned Relationships graph runtime. */
@@ -26,6 +65,38 @@ export const relationshipsRouteRuntimePort = definePort<RelationshipsRouteRuntim
     }
   },
 })
+
+export const relationshipsBookingEnrichmentDatabaseRuntimePort =
+  definePort<RelationshipsBookingEnrichmentDatabaseRuntime>({
+    id: "relationships.booking-enrichment-database",
+    test(provider) {
+      if (
+        provider === null ||
+        typeof provider !== "object" ||
+        typeof provider.withDb !== "function"
+      ) {
+        throw new Error(
+          "relationships.booking-enrichment-database provider must implement withDb().",
+        )
+      }
+    },
+  })
+
+export const relationshipsPersonNotificationsRuntimePort =
+  definePort<RelationshipsPersonNotificationsRuntime>({
+    id: "relationships.person-notifications",
+    test(provider) {
+      if (
+        provider === null ||
+        typeof provider !== "object" ||
+        typeof provider.listPersonDeliveries !== "function"
+      ) {
+        throw new Error(
+          "relationships.person-notifications provider must implement listPersonDeliveries().",
+        )
+      }
+    },
+  })
 
 /** Narrow Relationships behavior consumed by MICE without deployment wiring. */
 export const relationshipsMiceRuntimePort = definePort<RelationshipsMiceRuntime>({

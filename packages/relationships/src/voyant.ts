@@ -1,5 +1,8 @@
 // agent-quality: file-size exception -- owner: relationships; the import-cheap package manifest remains centralized until #3398 moves custom-field API and Settings facets to their generic owner.
-import { bookingsRelationshipsRuntimePort } from "@voyant-travel/bookings/runtime-port"
+import {
+  bookingsCrmSnapshotRuntimePort,
+  bookingsRelationshipsRuntimePort,
+} from "@voyant-travel/bookings/runtime-port"
 import { defineModule, providePort, requirePort } from "@voyant-travel/core/project"
 import {
   customFieldsRuntimePort,
@@ -7,7 +10,11 @@ import {
   customFieldValueOperationsRuntimePort,
   customFieldValueReaderRuntimePort,
 } from "@voyant-travel/core/runtime-port"
-import { relationshipsMiceRuntimePort, relationshipsRouteRuntimePort } from "./runtime-port.js"
+import {
+  relationshipsBookingEnrichmentDatabaseRuntimePort,
+  relationshipsMiceRuntimePort,
+  relationshipsRouteRuntimePort,
+} from "./runtime-port.js"
 
 export {
   type RelationshipsMiceRuntime,
@@ -85,9 +92,17 @@ export const relationshipsVoyantModule = defineModule({
       providePort(customFieldValueReaderRuntimePort),
       providePort(customFieldValueLifecycleRuntimePort),
       providePort(customFieldValueOperationsRuntimePort),
+      providePort(relationshipsBookingEnrichmentDatabaseRuntimePort),
     ],
   },
-  runtimePorts: [requirePort(customFieldsRuntimePort), requirePort(relationshipsRouteRuntimePort)],
+  runtimePorts: [
+    requirePort(customFieldsRuntimePort),
+    requirePort(relationshipsRouteRuntimePort),
+    requirePort(relationshipsBookingEnrichmentDatabaseRuntimePort),
+    // Optional so a deployment that selects CRM without Bookings still boots;
+    // the enrichment subscriber simply has nothing to read.
+    requirePort(bookingsCrmSnapshotRuntimePort, { optional: true }),
+  ],
   api: [
     {
       id: "@voyant-travel/relationships#api.admin",
@@ -150,6 +165,17 @@ export const relationshipsVoyantModule = defineModule({
       payloadSchema: relationshipChangedPayloadSchema,
       visibility: "internal",
       audit: { sourceModule: "relationships", category: "domain" },
+    },
+  ],
+  subscribers: [
+    {
+      id: "@voyant-travel/relationships#subscriber.crm-enrichment-booking-confirmed",
+      eventType: "booking.confirmed",
+      source: "@voyant-travel/relationships/booking-enrichment-subscriber",
+      runtime: {
+        entry: "@voyant-travel/relationships/booking-enrichment-subscriber",
+        export: "createBookingCrmEnrichmentSubscriberGraphRuntime",
+      },
     },
   ],
   access: {

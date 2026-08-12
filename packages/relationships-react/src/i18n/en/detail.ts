@@ -200,6 +200,7 @@ export const crmUiEnDetailMessages = {
         inbound: "Inbound",
         outbound: "Outbound",
       },
+      automaticBadge: "Automatic",
     },
     relationshipKindLabels: {
       spouse: "Spouse",

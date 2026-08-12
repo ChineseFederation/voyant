@@ -503,6 +503,8 @@ export type CrmUiMessages = {
         inbound: string
         outbound: string
       }
+      /** Marks an entry the system sent, as opposed to one staff logged. */
+      automaticBadge: string
     }
     relationshipKindLabels: {
       spouse: string

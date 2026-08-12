@@ -52,6 +52,7 @@ import {
 } from "../route-runtime.js"
 import { RelationshipsMergeError } from "../service/accounts-merge.js"
 import { relationshipsService } from "../service/index.js"
+import { mergePersonCommunications } from "../service/person-communications.js"
 import {
   communicationListQuerySchema,
   insertCommunicationLogSchema,
@@ -964,25 +965,31 @@ peopleRoutes
       ? c.json({ success: true } as const, 200)
       : c.json({ error: "Payment method not found" }, 404)
   })
-  .openapi(listCommunicationsRoute, async (c) =>
-    c.json(
-      {
-        data: await relationshipsService.listCommunications(
-          c.get("db"),
-          c.req.valid("param").id,
-          c.req.valid("query"),
-        ),
-      },
-      200,
-    ),
-  )
+  .openapi(listCommunicationsRoute, async (c) => {
+    const personId = c.req.valid("param").id
+    const query = c.req.valid("query")
+    const runtime = c.get("container")?.resolve(RELATIONSHIPS_ROUTE_RUNTIME_CONTAINER_KEY) as
+      | RelationshipsRouteRuntime
+      | undefined
+    const [logged, delivered] = await Promise.all([
+      relationshipsService.listCommunications(c.get("db"), personId, query),
+      // Deliveries are outbound by definition, so a caller filtering for
+      // inbound is asking for hand-logged entries only.
+      query.direction === "inbound" || !runtime?.personNotifications
+        ? Promise.resolve([])
+        : runtime.personNotifications.listPersonDeliveries(c.get("db"), personId, query),
+    ])
+    return c.json({ data: mergePersonCommunications(personId, logged, delivered, query) }, 200)
+  })
   .openapi(createCommunicationRoute, async (c) => {
     const row = await relationshipsService.createCommunication(
       c.get("db"),
       c.req.valid("param").id,
       c.req.valid("json"),
     )
-    return row ? c.json({ data: row }, 201) : c.json({ error: "Person not found" }, 404)
+    return row
+      ? c.json({ data: { ...row, source: "logged" as const } }, 201)
+      : c.json({ error: "Person not found" }, 404)
   })
 
 // ===========================================================================

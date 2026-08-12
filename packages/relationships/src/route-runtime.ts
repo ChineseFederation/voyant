@@ -1,6 +1,8 @@
 import type { CustomFieldRegistryResolver } from "@voyant-travel/core/custom-fields"
 import { createKmsProviderFromEnv, type KmsProvider } from "@voyant-travel/utils"
 
+import type { RelationshipsPersonNotificationsRuntime } from "./runtime-port.js"
+
 export const RELATIONSHIPS_ROUTE_RUNTIME_CONTAINER_KEY = "runtime.relationships.routes"
 
 /**
@@ -23,12 +25,20 @@ export interface RelationshipsRouteRuntime {
   customFields?: CustomFieldRegistryResolver
   /** Resolves and locks persisted definitions for an entity write transaction. */
   customFieldsForWrite?: (db: unknown, entity: string) => ReturnType<CustomFieldRegistryResolver>
+  /**
+   * Reads messages a deployment actually delivered to a person, so the
+   * Communications tab shows them alongside hand-logged entries. Absent when
+   * the deployment selects no notifications module — the tab then lists only
+   * what staff recorded, which is what it did before.
+   */
+  personNotifications?: RelationshipsPersonNotificationsRuntime
 }
 
 export interface RelationshipsRouteRuntimeOptions {
   resolveKmsProvider?: ResolveRelationshipsKmsProvider
   customFields?: CustomFieldRegistryResolver
   customFieldsForWrite?: (db: unknown, entity: string) => ReturnType<CustomFieldRegistryResolver>
+  personNotifications?: RelationshipsPersonNotificationsRuntime
 }
 
 function buildRuntimeEnv(bindings: Record<string, unknown>): Record<string, string | undefined> {
@@ -67,5 +77,6 @@ export function buildRelationshipsRouteRuntime(
     },
     customFields: options.customFields,
     customFieldsForWrite: options.customFieldsForWrite,
+    personNotifications: options.personNotifications,
   }
 }

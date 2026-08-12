@@ -690,6 +690,9 @@ export function PersonCommunicationsPanel({
               <div className="flex flex-col items-end gap-1">
                 <Badge variant="outline">{labels.channelLabels[communication.channel]}</Badge>
                 <Badge variant="secondary">{labels.directionLabels[communication.direction]}</Badge>
+                {communication.source === "notification" ? (
+                  <Badge variant="outline">{labels.automaticBadge}</Badge>
+                ) : null}
               </div>
             </li>
           ))}

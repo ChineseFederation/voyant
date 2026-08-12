@@ -231,6 +231,12 @@ export const communicationLogRecordSchema = z.object({
   content: z.string().nullable(),
   sentAt: z.string().nullable(),
   createdAt: z.string(),
+  /**
+   * `logged` entries were recorded by staff; `notification` entries are
+   * messages the deployment delivered and cannot be edited here. Defaulted so
+   * an older API that omits the field still parses.
+   */
+  source: z.enum(["logged", "notification"]).default("logged"),
 })
 
 export type CommunicationLogRecord = z.infer<typeof communicationLogRecordSchema>

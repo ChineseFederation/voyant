@@ -33,19 +33,26 @@ function firstExecuteRow<T>(result: unknown): T | undefined {
   return undefined
 }
 
-async function proposalExists(db: PostgresJsDatabase, proposalId: string) {
+/**
+ * Existence probe for a table this module does not own.
+ *
+ * Raw SQL behind a `to_regclass` guard rather than an imported Drizzle table:
+ * the linked module may not be in the selected graph at all, and importing its
+ * schema here would be the ADR-0016 reach-in the table-privacy ratchet exists
+ * to stop. A deployment without the table simply cannot link to it.
+ */
+async function foreignRowExists(db: PostgresJsDatabase, table: string, id: string) {
   const tableResult = await db.execute(
-    sql<{ exists: boolean }[]>`select (to_regclass('public.proposals') is not null) as exists`,
+    sql<{ exists: boolean }[]>`select (to_regclass(${`public.${table}`}) is not null) as exists`,
   )
-  const tableRow = firstExecuteRow<{ exists: boolean }>(tableResult)
-  if (!tableRow?.exists) return false
+  if (!firstExecuteRow<{ exists: boolean }>(tableResult)?.exists) return false
 
-  const proposalResult = await db.execute(
-    sql<{ exists: boolean }[]>`
-      select exists(select 1 from public.proposals where id = ${proposalId}) as exists
-    `,
+  const rowResult = await db.execute(
+    sql<
+      { exists: boolean }[]
+    >`select exists(select 1 from ${sql.identifier(table)} where id = ${id}) as exists`,
   )
-  return !!firstExecuteRow<{ exists: boolean }>(proposalResult)?.exists
+  return !!firstExecuteRow<{ exists: boolean }>(rowResult)?.exists
 }
 
 async function linkedEntityExists(db: PostgresJsDatabase, data: CreateActivityLinkInput) {
@@ -75,7 +82,9 @@ async function linkedEntityExists(db: PostgresJsDatabase, data: CreateActivityLi
       return !!row
     }
     case "proposal":
-      return proposalExists(db, data.entityId)
+      return foreignRowExists(db, "proposals", data.entityId)
+    case "booking":
+      return foreignRowExists(db, "bookings", data.entityId)
   }
 }
 

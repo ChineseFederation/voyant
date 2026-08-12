@@ -31,7 +31,8 @@
       "portIds": [
         "relationships.route-runtime",
         "relationships.mice.runtime",
-        "custom-fields.runtime"
+        "custom-fields.runtime",
+        "relationships.booking-enrichment-database"
       ],
       "runtimeExport": "createRelationshipsRuntimePortContribution"
     }

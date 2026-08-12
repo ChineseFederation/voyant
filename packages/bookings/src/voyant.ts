@@ -19,6 +19,7 @@ import {
   bookingActionProjectionRuntimePort,
   bookingsAccommodationRuntimePort,
   bookingsCancellationPolicyRuntimePort,
+  bookingsCrmSnapshotRuntimePort,
   bookingsFinanceRuntimePort,
   bookingsInventoryRuntimePort,
   bookingsRelationshipsRuntimePort,
@@ -361,6 +362,7 @@ export const bookingsVoyantModule = defineModule({
     capabilities: ["bookings.data-owner"],
     ports: [
       providePort(actionLedgerBookingDriftRuntimePort),
+      providePort(bookingsCrmSnapshotRuntimePort),
       providePort(customFieldValueLifecycleRuntimePort),
       providePort(customFieldValueOperationsRuntimePort),
     ],
