@@ -133,6 +133,10 @@ describe("commerce deployment manifest", () => {
       migrations: [{ id: "@voyant-travel/commerce#migrations" }],
       events: [
         {
+          id: "@voyant-travel/commerce#event.checkout.finalized",
+          eventType: "checkout.finalized",
+        },
+        {
           id: "@voyant-travel/commerce#event.promotion.changed",
           eventType: "promotion.changed",
         },

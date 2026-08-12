@@ -279,12 +279,16 @@ export async function listBookingNotificationItems(db: PostgresJsDatabase, booki
       sellCurrency: bookingItems.sellCurrency,
       unitSellAmountCents: bookingItems.unitSellAmountCents,
       totalSellAmountCents: bookingItems.totalSellAmountCents,
+      productId: bookingItems.productId,
     })
     .from(bookingItems)
     .where(eq(bookingItems.bookingId, bookingId))
     .orderBy(bookingItems.createdAt)
 
-  return rows.map((row) => enrichBookingItem(row))
+  return rows.map((row) => ({
+    ...(enrichBookingItem(row) as Record<string, unknown>),
+    productId: row.productId,
+  }))
 }
 
 export async function paginate<T>(

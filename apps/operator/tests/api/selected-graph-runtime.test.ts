@@ -267,7 +267,11 @@ describe("selected Operator graph runtime composition", () => {
     expect(subscribe.mock.calls.map(([eventType]) => eventType)).toEqual([
       "booking.cancelled",
       "booking.confirmed",
+      "checkout.finalized",
+      "contract.document.generated",
+      "invoice.rendered",
       "payment.completed",
+      "product.content.changed",
       "booking.cancelled",
       "booking.confirmed",
       "booking.inquiry.created",
@@ -284,7 +288,7 @@ describe("selected Operator graph runtime composition", () => {
         .map(([eventType], index) => ({ eventType, index }))
         .filter(({ eventType }) => eventType === "booking.confirmed")
         .map(({ index }) => index),
-    ).toEqual([1, 4])
+    ).toEqual([1, 8])
   })
 
   it("activates the Trips payment subscriber and its runtime service", async () => {

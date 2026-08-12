@@ -1,5 +1,5 @@
 import { bookings } from "@voyant-travel/bookings/schema"
-import type { VoyantRuntimeHostPrimitives } from "@voyant-travel/core"
+import type { EventBus, VoyantRuntimeHostPrimitives } from "@voyant-travel/core"
 import type {
   FinanceAppApiExternalLifecycleMutationResult,
   FinanceAppApiExternalLifecycleObservation,
@@ -40,8 +40,26 @@ import { InvoiceNumberConflictError, toRows } from "./service-shared.js"
 
 type ArtifactRuntimePrimitives = Pick<VoyantRuntimeHostPrimitives, "storage">
 
+function artifactEventBus(
+  primitives: Pick<VoyantRuntimeHostPrimitives, "events"> | undefined,
+  bindings: unknown,
+): EventBus | undefined {
+  if (!primitives) return undefined
+  return {
+    emit: async (name, data, metadata) => {
+      await primitives.events.deliver(
+        { name, data, metadata, emittedAt: new Date().toISOString() },
+        bindings,
+      )
+    },
+    subscribe() {
+      throw new Error("Finance app artifact event adapter does not support subscriptions")
+    },
+  }
+}
+
 export function createFinanceAppApiRuntime(
-  primitives?: ArtifactRuntimePrimitives,
+  primitives?: ArtifactRuntimePrimitives & Pick<VoyantRuntimeHostPrimitives, "events">,
 ): FinanceAppApiRuntime<PostgresJsDatabase> {
   return {
     async getIssuanceDocument(db, documentId) {
@@ -283,18 +301,23 @@ export function createFinanceAppApiRuntime(
       const storageKey = uploaded.key
 
       try {
-        const result = await financeService.bindInvoiceRendition(db, documentId, {
-          format: "pdf",
-          contentType: input.contentType,
-          storageKey,
-          fileSize: input.bytes.byteLength,
-          checksum,
-          generatedAt: new Date().toISOString(),
-          appProvider: provider,
-          appIdempotencyDigest: idempotencyDigest,
-          appFileName: input.fileName,
-          metadata: { source: "remote_app" },
-        })
+        const result = await financeService.bindInvoiceRendition(
+          db,
+          documentId,
+          {
+            format: "pdf",
+            contentType: input.contentType,
+            storageKey,
+            fileSize: input.bytes.byteLength,
+            checksum,
+            generatedAt: new Date().toISOString(),
+            appProvider: provider,
+            appIdempotencyDigest: idempotencyDigest,
+            appFileName: input.fileName,
+            metadata: { source: "remote_app" },
+          },
+          { eventBus: artifactEventBus(primitives, environment) },
+        )
         if (result.status === "not_found") {
           await bestEffortDelete(storage, storageKey)
           return { status: "not_found" }

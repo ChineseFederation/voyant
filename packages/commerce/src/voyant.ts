@@ -36,6 +36,7 @@ import {
 } from "./runtime-port.js"
 import { commerceAccess } from "./voyant-access.js"
 import {
+  checkoutFinalizedPayloadSchema,
   inquiryCreatedPayloadSchema,
   pricingRuleChangedPayloadSchema,
   promotionChangedPayloadSchema,
@@ -332,6 +333,14 @@ export const commerceVoyantModule = defineModule({
   ],
   actions: commerceToolActions,
   events: [
+    {
+      id: "@voyant-travel/commerce#event.checkout.finalized",
+      eventType: "checkout.finalized",
+      version: "1.0.0",
+      payloadSchema: checkoutFinalizedPayloadSchema,
+      visibility: "internal",
+      audit: { sourceModule: "commerce", category: "domain" },
+    },
     {
       id: "@voyant-travel/commerce#event.promotion.changed",
       eventType: "promotion.changed",

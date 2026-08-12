@@ -45,6 +45,13 @@ async function opaqueBackendIdentity(value: string): Promise<string> {
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("")
 }
 
+function base64UrlUtf8(value: string): string {
+  const bytes = new TextEncoder().encode(value)
+  let binary = ""
+  for (const byte of bytes) binary += String.fromCharCode(byte)
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "")
+}
+
 /**
  * Build a storage provider that talks to an HTTP storage gateway.
  *
@@ -92,7 +99,8 @@ export function createGatewayStorageProvider(
         "content-type": uploadOptions.contentType ?? "application/octet-stream",
       })
       if (uploadOptions.metadata !== undefined) {
-        headers["x-voyant-metadata"] = JSON.stringify(uploadOptions.metadata)
+        headers["x-voyant-metadata"] = base64UrlUtf8(JSON.stringify(uploadOptions.metadata))
+        headers["x-voyant-metadata-encoding"] = "base64url"
       }
       const response = await doFetch(objectUrl(key), {
         method: "PUT",

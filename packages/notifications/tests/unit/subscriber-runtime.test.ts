@@ -6,6 +6,7 @@ import type { NotificationService } from "../../src/service.js"
 import {
   createBookingCancelledReminderSubscriberRuntime,
   createBookingConfirmedReminderSubscriberRuntime,
+  createCheckoutFinalizedReminderSubscriberRuntime,
   createPaymentCompletedReminderSubscriberRuntime,
   NOTIFICATIONS_SUBSCRIBER_RUNTIME_KEY,
   type NotificationsSubscriberRuntime,
@@ -48,6 +49,22 @@ describe("Notifications subscriber runtime descriptors", () => {
       {
         id: "@voyant-travel/notifications#subscriber.reminder-payment-completed",
         eventType: "payment.completed",
+      },
+      {
+        id: "@voyant-travel/notifications#subscriber.reminder-checkout-finalized",
+        eventType: "checkout.finalized",
+      },
+      {
+        id: "@voyant-travel/notifications#subscriber.reminder-invoice-rendered",
+        eventType: "invoice.rendered",
+      },
+      {
+        id: "@voyant-travel/notifications#subscriber.reminder-contract-document-generated",
+        eventType: "contract.document.generated",
+      },
+      {
+        id: "@voyant-travel/notifications#subscriber.reminder-product-content-changed",
+        eventType: "product.content.changed",
       },
       {
         id: "@voyant-travel/notifications#subscriber.reminder-booking-cancelled",
@@ -168,6 +185,31 @@ describe("Notifications subscriber runtime descriptors", () => {
     expect(isNotificationsSuppressed).toHaveBeenCalledWith(db, "book_silent")
     expect(isPaidInFull).not.toHaveBeenCalled()
     expect(dispatchReminderRules).not.toHaveBeenCalled()
+  })
+
+  it("dispatches a booking-keyed payment reminder after checkout finalization", async () => {
+    const dispatchReminderRules = vi.fn().mockResolvedValue(undefined)
+    const harness = createHarness()
+    createCheckoutFinalizedReminderSubscriberRuntime({
+      dispatchReminderRules,
+      isPaidInFull: vi.fn().mockResolvedValue(true),
+      isNotificationsSuppressed: vi.fn().mockResolvedValue(false),
+    }).register(harness)
+
+    const payload = { bookingId: "book_1", paymentSessionId: "pay_1" }
+    await harness.eventBus.emit("checkout.finalized", payload)
+
+    expect(dispatchReminderRules).toHaveBeenCalledWith(
+      db,
+      dispatcher,
+      {
+        targetType: "payment_complete",
+        bookingId: "book_1",
+        paymentSessionId: "pay_1",
+        eventData: payload,
+      },
+      { documentAttachmentResolver: attachmentResolver },
+    )
   })
 
   it("dispatches cancellation rules for committed Bookings", async () => {

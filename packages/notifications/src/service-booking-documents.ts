@@ -4,6 +4,7 @@ import { contractAttachments, contracts } from "@voyant-travel/legal/schema"
 import { and, desc, eq, ne, or } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 
+import { bookingItemsRef, productMediaRef } from "./payment-bundle-refs.js"
 import { enqueueNotification } from "./service-durable-send.js"
 import { buildNotificationPortalContext } from "./service-portal-context.js"
 import type {
@@ -242,6 +243,65 @@ async function listFinanceBookingDocuments(
   })
 }
 
+async function listProductBookingDocuments(
+  db: PostgresJsDatabase,
+  bookingId: string,
+): Promise<BookingDocumentBundleItem[]> {
+  const itemRows = await db
+    .select({ productId: bookingItemsRef.productId })
+    .from(bookingItemsRef)
+    .where(eq(bookingItemsRef.bookingId, bookingId))
+  const productIds = [
+    ...new Set(
+      itemRows
+        .map(({ productId }) => productId)
+        .filter((productId): productId is string => Boolean(productId)),
+    ),
+  ]
+  if (productIds.length === 0) return []
+
+  const brochureRows = await db
+    .select()
+    .from(productMediaRef)
+    .where(
+      and(
+        eq(productMediaRef.isBrochure, true),
+        eq(productMediaRef.isBrochureCurrent, true),
+        or(...productIds.map((productId) => eq(productMediaRef.productId, productId))),
+      ),
+    )
+    .orderBy(desc(productMediaRef.brochureVersion), desc(productMediaRef.createdAt))
+
+  const bestByProductId = new Map<string, typeof productMediaRef.$inferSelect>()
+  for (const brochure of brochureRows) {
+    if (!bestByProductId.has(brochure.productId)) bestByProductId.set(brochure.productId, brochure)
+  }
+
+  return [...bestByProductId.values()].map((brochure) => ({
+    key: `products:${brochure.id}`,
+    source: "products" as const,
+    documentType: "brochure" as const,
+    bookingId,
+    contractId: null,
+    invoiceId: null,
+    attachmentId: null,
+    renditionId: null,
+    contractStatus: null,
+    invoiceStatus: null,
+    name: brochure.name,
+    format: brochure.mimeType === "application/pdf" ? "pdf" : null,
+    mimeType: brochure.mimeType,
+    storageKey: brochure.storageKey,
+    downloadUrl: brochure.url,
+    language: null,
+    metadata: {
+      productId: brochure.productId,
+      brochureVersion: brochure.brochureVersion,
+    },
+    createdAt: brochure.createdAt.toISOString(),
+  }))
+}
+
 export const bookingDocumentNotificationsService = {
   async listBookingDocumentBundle(db: PostgresJsDatabase, bookingId: string) {
     const [booking] = await db.select().from(bookings).where(eq(bookings.id, bookingId)).limit(1)
@@ -249,14 +309,15 @@ export const bookingDocumentNotificationsService = {
       return null
     }
 
-    const [legalDocuments, financeDocuments] = await Promise.all([
+    const [legalDocuments, financeDocuments, productDocuments] = await Promise.all([
       listLegalBookingDocuments(db, bookingId),
       listFinanceBookingDocuments(db, bookingId),
+      listProductBookingDocuments(db, bookingId),
     ])
 
     return {
       bookingId,
-      documents: [...legalDocuments, ...financeDocuments],
+      documents: [...legalDocuments, ...financeDocuments, ...productDocuments],
     }
   },
 

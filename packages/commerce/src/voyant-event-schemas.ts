@@ -51,3 +51,13 @@ export const inquiryCreatedPayloadSchema = {
   },
   additionalProperties: false,
 } as const
+
+export const checkoutFinalizedPayloadSchema = {
+  type: "object",
+  required: ["bookingId", "paymentSessionId"],
+  properties: {
+    bookingId: { type: "string" },
+    paymentSessionId: { type: "string" },
+  },
+  additionalProperties: false,
+} as const

@@ -426,6 +426,42 @@ export const notificationsReminderSubscribersVoyantPlugin = defineExtension({
       },
     },
     {
+      id: "@voyant-travel/notifications#subscriber.reminder-checkout-finalized",
+      eventType: "checkout.finalized",
+      source: "@voyant-travel/notifications/subscriber-runtime",
+      runtime: {
+        entry: "@voyant-travel/notifications/subscriber-runtime",
+        export: "notificationsCheckoutFinalizedReminderSubscriber",
+      },
+    },
+    {
+      id: "@voyant-travel/notifications#subscriber.reminder-invoice-rendered",
+      eventType: "invoice.rendered",
+      source: "@voyant-travel/notifications/subscriber-runtime",
+      runtime: {
+        entry: "@voyant-travel/notifications/subscriber-runtime",
+        export: "notificationsInvoiceRenderedReminderSubscriber",
+      },
+    },
+    {
+      id: "@voyant-travel/notifications#subscriber.reminder-contract-document-generated",
+      eventType: "contract.document.generated",
+      source: "@voyant-travel/notifications/subscriber-runtime",
+      runtime: {
+        entry: "@voyant-travel/notifications/subscriber-runtime",
+        export: "notificationsContractDocumentReminderSubscriber",
+      },
+    },
+    {
+      id: "@voyant-travel/notifications#subscriber.reminder-product-content-changed",
+      eventType: "product.content.changed",
+      source: "@voyant-travel/notifications/subscriber-runtime",
+      runtime: {
+        entry: "@voyant-travel/notifications/subscriber-runtime",
+        export: "notificationsProductContentReminderSubscriber",
+      },
+    },
+    {
       id: "@voyant-travel/notifications#subscriber.reminder-booking-cancelled",
       eventType: "booking.cancelled",
       source: "@voyant-travel/notifications/subscriber-runtime",

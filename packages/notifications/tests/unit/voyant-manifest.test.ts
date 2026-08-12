@@ -216,6 +216,10 @@ describe("notifications deployment manifest", () => {
     expect(declarations.map((subscriber) => subscriber.runtime?.export)).toEqual([
       "notificationsBookingConfirmedReminderSubscriber",
       "notificationsPaymentCompletedReminderSubscriber",
+      "notificationsCheckoutFinalizedReminderSubscriber",
+      "notificationsInvoiceRenderedReminderSubscriber",
+      "notificationsContractDocumentReminderSubscriber",
+      "notificationsProductContentReminderSubscriber",
       "notificationsBookingCancelledReminderSubscriber",
       "notificationsStaffBookingConfirmedAlertSubscriber",
       "notificationsStaffBookingCancelledAlertSubscriber",

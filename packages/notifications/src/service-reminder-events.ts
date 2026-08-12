@@ -2,7 +2,11 @@ import { bookings, bookingTravelers } from "@voyant-travel/bookings/schema"
 import { and, desc, eq } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 
-import { notificationReminderRules, notificationReminderRuns } from "./schema.js"
+import {
+  notificationReminderRules,
+  notificationReminderRuns,
+  notificationTemplates,
+} from "./schema.js"
 import { enqueueNotification } from "./service-durable-send.js"
 import {
   type BookingEventReminderRuntimeOptions,
@@ -12,7 +16,11 @@ import {
   serializeBookingPaymentContext,
 } from "./service-reminder-booking-context.js"
 import { markReminderRunFailed, markReminderRunSkipped } from "./service-reminder-run-state.js"
-import type { NotificationReminderRuleRow, NotificationService } from "./service-shared.js"
+import type {
+  BookingDocumentBundleItem,
+  NotificationReminderRuleRow,
+  NotificationService,
+} from "./service-shared.js"
 import {
   buildReminderDedupeKey,
   listBookingNotificationItems,
@@ -24,6 +32,75 @@ type BookingEventReminderTargetType = Extract<
   ReminderTargetType,
   "booking_confirmed" | "payment_complete" | "booking_cancelled_non_payment"
 >
+
+const BOOKING_DOCUMENT_TYPES = new Set(["contract", "invoice", "proforma", "brochure"])
+
+function configuredAttachmentTypes(metadata: Record<string, unknown> | null) {
+  const configured = metadata?.attachments
+  if (!Array.isArray(configured)) return []
+  return configured.filter(
+    (value): value is "contract" | "invoice" | "proforma" | "brochure" =>
+      typeof value === "string" && BOOKING_DOCUMENT_TYPES.has(value),
+  )
+}
+
+export async function requiredAttachmentTypes(
+  db: PostgresJsDatabase,
+  rule: NotificationReminderRuleRow,
+) {
+  const [template] = rule.templateId
+    ? await db
+        .select({ metadata: notificationTemplates.metadata })
+        .from(notificationTemplates)
+        .where(eq(notificationTemplates.id, rule.templateId))
+        .limit(1)
+    : rule.templateSlug
+      ? await db
+          .select({ metadata: notificationTemplates.metadata })
+          .from(notificationTemplates)
+          .where(eq(notificationTemplates.slug, rule.templateSlug))
+          .limit(1)
+      : []
+  return configuredAttachmentTypes(template?.metadata ?? null)
+}
+
+export function shouldResolveBookingEventDocuments(
+  targetType: BookingEventReminderTargetType,
+  channel: NotificationReminderRuleRow["channel"],
+  requiredDocumentTypes: ReadonlyArray<BookingDocumentBundleItem["documentType"]>,
+) {
+  return (
+    channel === "email" &&
+    (targetType === "booking_confirmed" ||
+      (targetType === "payment_complete" && requiredDocumentTypes.length > 0))
+  )
+}
+
+export function missingRequiredAttachmentTypes(
+  requiredDocumentTypes: ReadonlyArray<BookingDocumentBundleItem["documentType"]>,
+  documents: ReadonlyArray<BookingDocumentBundleItem>,
+  bookedProductIds: ReadonlyArray<string>,
+) {
+  const readyTypes = new Set(documents.map(({ documentType }) => documentType))
+  const missingTypes = requiredDocumentTypes.filter((type) => !readyTypes.has(type))
+
+  if (requiredDocumentTypes.includes("brochure")) {
+    const brochureProductIds = new Set(
+      documents
+        .filter(({ documentType }) => documentType === "brochure")
+        .map(({ metadata }) => metadata?.productId)
+        .filter((productId): productId is string => typeof productId === "string"),
+    )
+    if (
+      bookedProductIds.some((productId) => !brochureProductIds.has(productId)) &&
+      !missingTypes.includes("brochure")
+    ) {
+      missingTypes.push("brochure")
+    }
+  }
+
+  return missingTypes
+}
 
 async function sendBookingEventReminder(
   db: PostgresJsDatabase,
@@ -41,11 +118,15 @@ async function sendBookingEventReminder(
   const dedupeKey = buildReminderDedupeKey(rule.id, input.bookingId, input.targetType)
 
   const [existingRun] = await db
-    .select({ id: notificationReminderRuns.id })
+    .select()
     .from(notificationReminderRuns)
     .where(eq(notificationReminderRuns.dedupeKey, dedupeKey))
     .limit(1)
-  if (existingRun) {
+  const retryingPendingBundle =
+    existingRun?.status === "failed" &&
+    existingRun.notificationDeliveryId === null &&
+    existingRun.errorMessage?.startsWith("payment_document_bundle_not_ready:")
+  if (existingRun && !retryingPendingBundle) {
     return null
   }
 
@@ -81,7 +162,14 @@ async function sendBookingEventReminder(
     return run ?? null
   }
 
-  const [participants, items, paymentContext, documentContext] = await Promise.all([
+  const requiredDocumentTypes =
+    rule.channel === "email" ? await requiredAttachmentTypes(db, rule) : []
+  const shouldResolveDocuments = shouldResolveBookingEventDocuments(
+    input.targetType,
+    rule.channel,
+    requiredDocumentTypes,
+  )
+  const [participants, items, paymentContext, unfilteredDocumentContext] = await Promise.all([
     db
       .select({
         id: bookingTravelers.id,
@@ -96,37 +184,137 @@ async function sendBookingEventReminder(
       .orderBy(desc(bookingTravelers.isPrimary), bookingTravelers.createdAt),
     listBookingNotificationItems(db, booking.id),
     getBookingPaymentNotificationContext(db, booking.id),
-    input.targetType === "booking_confirmed" && rule.channel === "email"
-      ? getBookingEventDocumentContext(db, booking.id, runtime.documentAttachmentResolver)
+    shouldResolveDocuments
+      ? getBookingEventDocumentContext(
+          db,
+          booking.id,
+          runtime.documentAttachmentResolver,
+          input.targetType === "payment_complete" ? requiredDocumentTypes : undefined,
+        )
       : Promise.resolve({ documents: [], attachments: [] }),
   ])
+  const documentContext = unfilteredDocumentContext
+
+  if (input.targetType === "payment_complete" && requiredDocumentTypes.length > 0) {
+    const bookedProductIds = [
+      ...new Set(
+        items
+          .map((item) => item.productId)
+          .filter((productId): productId is string => typeof productId === "string"),
+      ),
+    ]
+    const missingTypes = missingRequiredAttachmentTypes(
+      requiredDocumentTypes,
+      documentContext.documents,
+      bookedProductIds,
+    )
+    if (
+      missingTypes.length > 0 ||
+      documentContext.attachments.length !== documentContext.documents.length
+    ) {
+      const unresolved =
+        documentContext.attachments.length !== documentContext.documents.length
+          ? ["unresolvable_attachment"]
+          : []
+      const errorMessage = `payment_document_bundle_not_ready:${[
+        ...missingTypes,
+        ...unresolved,
+      ].join(",")}`
+      if (existingRun) {
+        const [pendingRun] = await db
+          .update(notificationReminderRuns)
+          .set({
+            paymentSessionId: input.paymentSessionId ?? existingRun.paymentSessionId,
+            processedAt: now,
+            errorMessage,
+            metadata: {
+              ...(existingRun.metadata ?? {}),
+              eventTargetType: input.targetType,
+              bookingNumber: booking.bookingNumber,
+              requiredDocumentTypes,
+              ...(input.eventData ?? {}),
+            },
+            updatedAt: now,
+          })
+          .where(eq(notificationReminderRuns.id, existingRun.id))
+          .returning()
+        return pendingRun ?? null
+      }
+      const [pendingRun] = await db
+        .insert(notificationReminderRuns)
+        .values({
+          reminderRuleId: rule.id,
+          targetType: input.targetType,
+          targetId: booking.id,
+          dedupeKey,
+          bookingId: booking.id,
+          personId: booking.personId ?? null,
+          organizationId: booking.organizationId ?? null,
+          paymentSessionId: input.paymentSessionId ?? null,
+          notificationDeliveryId: null,
+          status: "failed",
+          recipient: null,
+          scheduledFor: now,
+          processedAt: now,
+          errorMessage,
+          metadata: {
+            eventTargetType: input.targetType,
+            bookingNumber: booking.bookingNumber,
+            requiredDocumentTypes,
+            ...(input.eventData ?? {}),
+          },
+        })
+        .onConflictDoNothing({ target: notificationReminderRuns.dedupeKey })
+        .returning()
+      return pendingRun ?? null
+    }
+  }
 
   const recipient = resolveReminderRecipient(booking, participants)
-  const [processingRun] = await db
-    .insert(notificationReminderRuns)
-    .values({
-      reminderRuleId: rule.id,
-      targetType: input.targetType,
-      targetId: booking.id,
-      dedupeKey,
-      bookingId: booking.id,
-      personId: booking.personId ?? null,
-      organizationId: booking.organizationId ?? null,
-      paymentSessionId: input.paymentSessionId ?? null,
-      notificationDeliveryId: null,
-      status: "queued",
-      recipient: recipient?.email ?? null,
-      scheduledFor: now,
-      processedAt: now,
-      errorMessage: null,
-      metadata: {
-        eventTargetType: input.targetType,
-        bookingNumber: booking.bookingNumber,
-        ...(input.eventData ?? {}),
-      },
-    })
-    .onConflictDoNothing({ target: notificationReminderRuns.dedupeKey })
-    .returning()
+  const [processingRun] = existingRun
+    ? await db
+        .update(notificationReminderRuns)
+        .set({
+          paymentSessionId: input.paymentSessionId ?? existingRun.paymentSessionId,
+          status: "queued",
+          recipient: recipient?.email ?? null,
+          processedAt: now,
+          errorMessage: null,
+          metadata: {
+            ...(existingRun.metadata ?? {}),
+            eventTargetType: input.targetType,
+            bookingNumber: booking.bookingNumber,
+            ...(input.eventData ?? {}),
+          },
+          updatedAt: now,
+        })
+        .where(eq(notificationReminderRuns.id, existingRun.id))
+        .returning()
+    : await db
+        .insert(notificationReminderRuns)
+        .values({
+          reminderRuleId: rule.id,
+          targetType: input.targetType,
+          targetId: booking.id,
+          dedupeKey,
+          bookingId: booking.id,
+          personId: booking.personId ?? null,
+          organizationId: booking.organizationId ?? null,
+          paymentSessionId: input.paymentSessionId ?? null,
+          notificationDeliveryId: null,
+          status: "queued",
+          recipient: recipient?.email ?? null,
+          scheduledFor: now,
+          processedAt: now,
+          errorMessage: null,
+          metadata: {
+            eventTargetType: input.targetType,
+            bookingNumber: booking.bookingNumber,
+            ...(input.eventData ?? {}),
+          },
+        })
+        .onConflictDoNothing({ target: notificationReminderRuns.dedupeKey })
+        .returning()
 
   if (!processingRun) {
     return null

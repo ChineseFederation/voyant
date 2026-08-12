@@ -229,6 +229,14 @@ export function createCheckoutFinalizeSubscriberRuntime<TBindings = unknown>(
                 options.legal,
               )
             })
+            await nestedEventBus.emit(
+              "checkout.finalized",
+              {
+                bookingId: finalizedBookingId,
+                paymentSessionId: data.paymentSessionId,
+              },
+              { category: "internal", source: "service" },
+            )
           } catch (error) {
             logger.error(
               `[catalog-checkout] checkout finalization failed for booking ${bookingId ?? data.targetId ?? "unknown"}`,

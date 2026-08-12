@@ -52,7 +52,18 @@ function createFakeGateway(options: { token?: string } = {}) {
         bytes: body,
         contentType: headers.get("content-type") ?? "application/octet-stream",
       }
-      if (rawMetadata) record.metadata = JSON.parse(rawMetadata)
+      if (rawMetadata) {
+        const decoded =
+          headers.get("x-voyant-metadata-encoding") === "base64url"
+            ? new TextDecoder().decode(
+                Uint8Array.from(
+                  atob(rawMetadata.replace(/-/g, "+").replace(/_/g, "/")),
+                  (character) => character.charCodeAt(0),
+                ),
+              )
+            : rawMetadata
+        record.metadata = JSON.parse(decoded)
+      }
       store.set(key, record)
       return Response.json({ key, url: `${url.origin}/objects/${encodeURIComponent(key)}` })
     }
@@ -121,6 +132,25 @@ describe("createGatewayStorageProvider", () => {
     expect(stored?.bytes).toEqual(new Uint8Array([1, 2, 3]))
     expect(stored?.contentType).toBe("application/pdf")
     expect(stored?.metadata).toEqual({ owner: "workspace" })
+  })
+
+  it("uploads Unicode metadata through an ASCII-safe header", async () => {
+    const gateway = createFakeGateway()
+    const provider = createGatewayStorageProvider({
+      endpoint: "https://gw.test",
+      token: "t",
+      fetch: gateway.fetch,
+    })
+
+    await expect(
+      provider.upload(new Uint8Array([1]), {
+        key: "docs/contract.pdf",
+        metadata: { title: "Contract — Călătorie în România" },
+      }),
+    ).resolves.toBeDefined()
+    expect(gateway.store.get("docs/contract.pdf")?.metadata).toEqual({
+      title: "Contract — Călătorie în România",
+    })
   })
 
   it("derives public urls from the configured base and returns null without one", () => {

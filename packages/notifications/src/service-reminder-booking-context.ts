@@ -169,12 +169,16 @@ export async function getBookingEventDocumentContext(
   db: PostgresJsDatabase,
   bookingId: string,
   attachmentResolver?: BookingDocumentAttachmentResolver,
+  requestedDocumentTypes?: ReadonlyArray<BookingDocumentBundleItem["documentType"]>,
 ): Promise<{
   documents: BookingDocumentBundleItem[]
   attachments: NotificationAttachment[]
 }> {
   const bundle = await bookingDocumentNotificationsService.listBookingDocumentBundle(db, bookingId)
-  const documents = bundle?.documents ?? []
+  const requested = requestedDocumentTypes ? new Set(requestedDocumentTypes) : null
+  const documents = (bundle?.documents ?? []).filter(
+    (document) => !requested || requested.has(document.documentType),
+  )
   if (documents.length === 0) {
     return { documents, attachments: [] }
   }
