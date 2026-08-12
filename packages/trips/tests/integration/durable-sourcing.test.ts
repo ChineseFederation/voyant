@@ -705,7 +705,7 @@ describe.skipIf(!DB_AVAILABLE)("Trips durable requirement sourcing", () => {
 
   function availabilityAdapter(candidates: AvailabilityCandidate[]): SourceAdapter {
     return {
-      kind: "test",
+      kind: "sourced",
       capabilities: {
         verticals: ["accommodations"],
         supportsLiveResolution: true,

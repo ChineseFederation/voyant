@@ -251,7 +251,9 @@ describe("Voyant project runtime composition", () => {
         protocol: "legal-document-artifact.v1",
       },
     })
-    await expect(legalDocumentArtifactProviderPort.test(provider as never)).resolves.toBeUndefined()
+    await expect(
+      Promise.resolve(legalDocumentArtifactProviderPort.test(provider as never)),
+    ).resolves.toBeUndefined()
     expect(mocks.loadVoyantNodeRuntime.mock.calls[0]?.[0]).toMatchObject({
       graphRuntime: mocks.activatedGraphRuntime,
     })
