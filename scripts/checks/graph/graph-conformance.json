@@ -5,6 +5,17 @@
     "matched how a module was written rather than what it contributes.",
     "See docs/adr/0016-modules-as-components-of-one-deployable.md and issue #3898."
   ],
+  "actionIds": {
+    "$comment": [
+      "Every declared graph action id must be qualified by its own package, as",
+      "'<packageName>#...'. This is an authoring convention, not a wire contract:",
+      "actionPolicy.id stays an opaque lookup key and a consumer must not infer",
+      "ownership from its shape. See voyant#4596, where two shapes for one field",
+      "invited exactly that inference. Add to 'allow' only with the reason an id",
+      "cannot move; a stale entry fails the check."
+    ],
+    "allow": {}
+  },
   "packages": {
     "@voyant-travel/flights": {
       "requiresSchemas": ["@voyant-travel/finance"],

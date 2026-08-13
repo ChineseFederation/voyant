@@ -61,6 +61,14 @@ const amendmentWriteCapability = {
   },
 } as const
 
+/**
+ * `graph.id` is the manifest-visible key a Tool's `actionPolicy.id` resolves
+ * against, and nothing persists it: the generic gate records
+ * `capabilityId ?? id` as the ledger `action_name`, and every one of these
+ * declares a `capabilityId`. The package-local admin route path records its own
+ * `booking.status.*` literals (`routes-admin.ts`, `service-core.ts`), which are
+ * ledger identity and must not be renamed to follow this file.
+ */
 export const BOOKING_ACTION_DECLARATIONS = {
   piiRead: {
     id: "bookings-pii:read",
@@ -74,7 +82,7 @@ export const BOOKING_ACTION_DECLARATIONS = {
     allowedActorTypes: ["staff", "system"],
     requiredGrants: [{ resource: "bookings-pii", action: "read" }],
     graph: {
-      id: "booking.pii.read",
+      id: "@voyant-travel/bookings#action.read-booking-pii",
       kind: "sensitive-read",
       from: adminRouteBinding,
       policy: "bookings-pii-scope-or-staff-v1",
@@ -89,7 +97,7 @@ export const BOOKING_ACTION_DECLARATIONS = {
       approvalPolicy: "conditional",
       graph: {
         ...bookingWriteCapability.graph,
-        id: "booking.status.cancel",
+        id: "@voyant-travel/bookings#action.cancel-booking",
         approval: "required",
         policy: "bookings-status-approval-v1",
         commandTargetField: "id",
@@ -111,13 +119,19 @@ export const BOOKING_ACTION_DECLARATIONS = {
       ...bookingWriteCapability,
       id: "bookings:status:start",
       action: "start",
-      graph: { ...bookingWriteCapability.graph, id: "booking.status.start" },
+      graph: {
+        ...bookingWriteCapability.graph,
+        id: "@voyant-travel/bookings#action.start-booking",
+      },
     },
     complete: {
       ...bookingWriteCapability,
       id: "bookings:status:complete",
       action: "complete",
-      graph: { ...bookingWriteCapability.graph, id: "booking.status.complete" },
+      graph: {
+        ...bookingWriteCapability.graph,
+        id: "@voyant-travel/bookings#action.complete-booking",
+      },
     },
     override: {
       ...bookingWriteCapability,
@@ -125,7 +139,10 @@ export const BOOKING_ACTION_DECLARATIONS = {
       action: "override_status",
       risk: "high",
       approvalPolicy: "conditional",
-      graph: { ...bookingWriteCapability.graph, id: "booking.status.override" },
+      graph: {
+        ...bookingWriteCapability.graph,
+        id: "@voyant-travel/bookings#action.override-booking-status",
+      },
     },
   },
   amendments: {

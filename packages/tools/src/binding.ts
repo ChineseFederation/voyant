@@ -51,7 +51,31 @@ export type ToolActionTransport = "tool" | "route" | "both"
 
 /** Selected graph action policy bound to one stable Tool capability. */
 export interface ToolActionPolicyBinding {
+  /**
+   * Opaque key of the selected graph action, matched by exact equality against
+   * that action's own `id`. It is **not** an owner-scoped identity and carries
+   * no ownership claim: a client must not parse it, must not require a package
+   * prefix, and must not infer an owner from it. First-party actions are named
+   * `<package>#action.<name>` by convention, but that is a convention and a
+   * consumer must not depend on it.
+   *
+   * It is not an audit identity either — the ledger records
+   * `capabilityId ?? id` as its `action_name`, so for any action that declares
+   * a capability this key never reaches a persisted row.
+   *
+   * There is no field here a consumer can derive ownership from — do not try.
+   * The owning module states which Tools may select the action, by naming their
+   * capability ids in the declaration's `from.tools`, and the gate enforces that
+   * binding. Nothing string-matches a field of this policy against `owner`.
+   */
   id: string
+  /**
+   * Capability identity of the selected action — a capability token such as
+   * `bookings:status:cancel`, **not** a package-shaped identifier and not
+   * comparable to the Tool's `owner`. The gate checks only that it equals the
+   * selected graph declaration's own capability. It is what the action ledger
+   * persists as `action_name`.
+   */
   capabilityId: string
   version: string
   kind: "execute" | "read" | "sensitive-read"

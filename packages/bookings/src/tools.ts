@@ -212,7 +212,7 @@ export const CANCEL_BOOKING_HANDLER_POLICY = {
   capabilityVersion: "v1",
   canonicalName: "cancel_booking",
   actionPolicy: {
-    id: "booking.status.cancel",
+    id: "@voyant-travel/bookings#action.cancel-booking",
     capabilityId: "bookings:status:cancel",
     version: "v1",
     kind: "execute",

@@ -653,7 +653,10 @@ export const relationshipsVoyantModule = defineModule({
       from: { tools: ["@voyant-travel/relationships#tool.update-relationship-address"] },
     },
     {
-      id: "relationships.person_document.reveal",
+      // The admin route records the disclosure itself under
+      // `PERSON_DOCUMENT_REVEAL_ACTION_NAME`, which is the persisted ledger
+      // identity and stays as it is; this id is only the manifest key.
+      id: "@voyant-travel/relationships#action.reveal-person-document",
       version: "v1",
       kind: "sensitive-read",
       targetType: "person_document",

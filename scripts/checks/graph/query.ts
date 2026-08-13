@@ -13,6 +13,7 @@ interface GraphUnitLike {
   requires?: { capabilities?: readonly string[] }
   provides?: { ports?: readonly (string | { id?: string })[] }
   runtimePorts?: readonly (string | { id?: string })[]
+  actions?: readonly { id?: string }[]
 }
 
 interface GraphPackageRecordLike {
@@ -52,6 +53,16 @@ export function packageRecord(graph: GraphLike, packageName: string) {
 /** Capability tokens a package requires, per its selected unit. */
 export function requiredCapabilities(graph: GraphLike, packageName: string): readonly string[] {
   return unitForPackage(graph, packageName)?.requires?.capabilities ?? []
+}
+
+/** Every declared graph action, paired with the unit that declared it. */
+export function declaredActions(graph: GraphLike): { packageName: string; id: string }[] {
+  return allUnits(graph).flatMap((unit) =>
+    (unit.actions ?? [])
+      .map((action) => action?.id)
+      .filter((id): id is string => typeof id === "string" && id.length > 0)
+      .map((id) => ({ packageName: unit.packageName ?? "(unnamed unit)", id })),
+  )
 }
 
 /** Runtime port ids a package declares, per its selected unit. */

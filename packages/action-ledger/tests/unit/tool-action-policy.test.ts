@@ -27,6 +27,61 @@ describe("generic MCP action-policy gate", () => {
     expect(dispatch).toHaveBeenCalledOnce()
   })
 
+  // voyant#4596: `actionPolicy.id` is an opaque graph key, not an owner-scoped
+  // identity. A consumer that requires it to share a package with the Tool's
+  // `owner` rejects the whole legacy `booking.*` family, which selects fine.
+  it("selects an action whose id carries no package prefix", async () => {
+    const selected = legacyKeyedAction()
+    const dispatch = vi.fn(async () => ({ ok: true }))
+
+    await expect(gate(selected).execute(execution(selected, {}), dispatch)).resolves.toEqual({
+      ok: true,
+    })
+    expect(dispatch).toHaveBeenCalledOnce()
+  })
+
+  // The other half of "opaque": the key is matched by exact equality, so
+  // renaming one to the prefixed convention is a wire-visible change, not a
+  // cosmetic one.
+  it("refuses a policy whose id does not equal the selected action id", async () => {
+    const selected = legacyKeyedAction()
+    const submitted = execution(selected, {})
+    const dispatch = vi.fn(async () => ({ ok: true }))
+
+    await expect(
+      gate(selected).execute(
+        {
+          ...submitted,
+          actionPolicy: {
+            ...submitted.actionPolicy,
+            id: "@voyant-travel/legacy#action.cancel",
+          },
+        },
+        dispatch,
+      ),
+    ).rejects.toMatchObject({
+      code: "ACTION_POLICY_REQUIRED",
+      meta: { actionId: "@voyant-travel/legacy#action.cancel" },
+    })
+    expect(dispatch).not.toHaveBeenCalled()
+  })
+
+  // The actual ownership assertion: the owning module names the Tool
+  // capabilities allowed to select the action, and nothing string-matches a
+  // policy field against `owner`. A consumer must not reimplement this.
+  it("refuses a Tool the selected action does not bind in from.tools", async () => {
+    const selected = action({ from: { tools: ["@voyant-travel/other#tool.mutate"] } })
+    const dispatch = vi.fn(async () => ({ ok: true }))
+
+    await expect(
+      gate(selected).execute(execution(selected, { confirmed: true, requestId }), dispatch),
+    ).rejects.toMatchObject({
+      code: "ACTION_POLICY_REQUIRED",
+      meta: { capabilityId: "@voyant-travel/test#tool.mutate" },
+    })
+    expect(dispatch).not.toHaveBeenCalled()
+  })
+
   it("fails closed when a ledgered action has no server-resolved target", async () => {
     const selected = action()
     const dispatch = vi.fn(async () => ({ ok: true }))
@@ -477,6 +532,17 @@ function action(
     from: { tools: ["@voyant-travel/test#tool.mutate"] },
     ...overrides,
   }
+}
+
+/** A dotted key with an unrelated capability id — the shape the contract admits. */
+function legacyKeyedAction(): VoyantGraphActionDeclaration {
+  return action({
+    id: "legacy.status.cancel",
+    capabilityId: "legacy:status:cancel",
+    kind: "read",
+    ledger: "optional",
+    risk: "low",
+  })
 }
 
 function execution(

@@ -6,17 +6,26 @@ import { readFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
 
-import { checkGraphConformance, type GraphConformanceSpec } from "./conformance.ts"
+import {
+  type ActionIdConvention,
+  checkActionIdConvention,
+  checkGraphConformance,
+  type GraphConformanceSpec,
+} from "./conformance.ts"
 import { loadResolvedGraph } from "./load.ts"
+import { declaredActions } from "./query.ts"
 
 async function main(): Promise<void> {
   const here = dirname(fileURLToPath(import.meta.url))
-  const { packages } = JSON.parse(readFileSync(join(here, "graph-conformance.json"), "utf8")) as {
-    packages: GraphConformanceSpec
-  }
+  const { packages, actionIds } = JSON.parse(
+    readFileSync(join(here, "graph-conformance.json"), "utf8"),
+  ) as { packages: GraphConformanceSpec; actionIds?: ActionIdConvention }
 
   const graph = await loadResolvedGraph()
-  const violations = checkGraphConformance(graph, packages)
+  const violations = [
+    ...checkGraphConformance(graph, packages),
+    ...checkActionIdConvention(graph, actionIds),
+  ]
 
   if (violations.length > 0) {
     console.error("Graph conformance check failed.\n")
@@ -25,7 +34,7 @@ async function main(): Promise<void> {
   }
 
   console.log(
-    `verify:graph-conformance: ${Object.keys(packages).length} package(s) conform to the resolved graph.`,
+    `verify:graph-conformance: ${Object.keys(packages).length} package(s) conform to the resolved graph; ${declaredActions(graph).length} action id(s) package-qualified.`,
   )
 }
 

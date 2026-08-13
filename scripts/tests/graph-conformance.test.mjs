@@ -1,7 +1,7 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 
-import { checkGraphConformance } from "../checks/graph/conformance.ts"
+import { checkActionIdConvention, checkGraphConformance } from "../checks/graph/conformance.ts"
 
 /**
  * These assert the replacement is at least as strict as the substring pins it
@@ -89,4 +89,60 @@ test("a package that contributes no unit at all is caught", () => {
   const graph = clone(conformantGraph)
   graph.modules = []
   assert.match(checkGraphConformance(graph, spec)[0], /contributes no selected graph unit/)
+})
+
+/**
+ * The action-id convention. Both directions matter: a checker that accepted
+ * everything would pass the conformant case on its own.
+ */
+const actionGraph = {
+  modules: [
+    {
+      packageName: "@voyant-travel/bookings",
+      actions: [
+        { id: "@voyant-travel/bookings#action.cancel-booking" },
+        { id: "@voyant-travel/bookings#amendments.action.accept" },
+      ],
+    },
+  ],
+  extensions: [],
+  plugins: [],
+  adapters: [],
+  providers: [],
+  packageRecords: [],
+}
+
+test("package-qualified action ids conform", () => {
+  assert.deepEqual(checkActionIdConvention(actionGraph, { allow: {} }), [])
+})
+
+test("an action id that is not qualified by its own package is caught", () => {
+  const graph = clone(actionGraph)
+  graph.modules[0].actions[0].id = "booking.status.cancel"
+  assert.match(
+    checkActionIdConvention(graph, { allow: {} })[0],
+    /graph action id "booking.status.cancel" must be qualified as "@voyant-travel\/bookings#…"/,
+  )
+})
+
+test("an action id qualified by a different package is caught", () => {
+  const graph = clone(actionGraph)
+  graph.modules[0].actions[0].id = "@voyant-travel/finance#action.cancel-booking"
+  assert.equal(checkActionIdConvention(graph, { allow: {} }).length, 1)
+})
+
+test("an allowlisted id is exempt", () => {
+  const graph = clone(actionGraph)
+  graph.modules[0].actions[0].id = "booking.status.cancel"
+  assert.deepEqual(
+    checkActionIdConvention(graph, { allow: { "booking.status.cancel": "reason" } }),
+    [],
+  )
+})
+
+test("an allowlist entry for an id nothing declares is caught", () => {
+  assert.match(
+    checkActionIdConvention(actionGraph, { allow: { "booking.status.cancel": "reason" } })[0],
+    /no longer declared; remove the exemption/,
+  )
 })

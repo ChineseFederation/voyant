@@ -9,11 +9,20 @@ describe("standard booking action-ledger authority", () => {
   it("keeps the manifest in parity with the canonical request registry", () => {
     const actions = bookingsVoyantModule.actions ?? []
     expect(actions.map(({ id, capabilityId }) => ({ id, capabilityId }))).toEqual([
-      { id: "booking.pii.read", capabilityId: "bookings-pii:read" },
-      { id: "booking.status.cancel", capabilityId: "bookings:status:cancel" },
-      { id: "booking.status.start", capabilityId: "bookings:status:start" },
-      { id: "booking.status.complete", capabilityId: "bookings:status:complete" },
-      { id: "booking.status.override", capabilityId: "bookings:status:override" },
+      { id: "@voyant-travel/bookings#action.read-booking-pii", capabilityId: "bookings-pii:read" },
+      {
+        id: "@voyant-travel/bookings#action.cancel-booking",
+        capabilityId: "bookings:status:cancel",
+      },
+      { id: "@voyant-travel/bookings#action.start-booking", capabilityId: "bookings:status:start" },
+      {
+        id: "@voyant-travel/bookings#action.complete-booking",
+        capabilityId: "bookings:status:complete",
+      },
+      {
+        id: "@voyant-travel/bookings#action.override-booking-status",
+        capabilityId: "bookings:status:override",
+      },
       {
         id: "@voyant-travel/bookings#action.preview-traveler-correction-amendment",
         capabilityId: "bookings:amendments:preview-traveler-correction",
@@ -129,7 +138,7 @@ describe("standard booking action-ledger authority", () => {
 
     const lifecycleActionExpectations = [
       {
-        graphId: "booking.status.cancel",
+        graphId: "@voyant-travel/bookings#action.cancel-booking",
         capabilityId: "bookings:status:cancel",
         toolId: "@voyant-travel/bookings#tool.cancel-booking",
         toolPolicy: CANCEL_BOOKING_HANDLER_POLICY,

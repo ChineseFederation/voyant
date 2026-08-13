@@ -12,6 +12,7 @@
  * unit tests inject a synthetic graph rather than resolving the real one.
  */
 import {
+  declaredActions,
   declaredPortIds,
   type GraphLike,
   packageRecord,
@@ -31,6 +32,52 @@ export interface PackageExpectation {
 }
 
 export type GraphConformanceSpec = Record<string, PackageExpectation>
+
+/**
+ * Repo-wide naming rule for graph action ids, rather than a per-package fact.
+ *
+ * This is an **authoring** convention, not a wire contract. `actionPolicy.id` is
+ * an opaque lookup key and a consumer must not infer ownership from its shape
+ * (voyant#4596) — a custom module from outside this repo is free to name its
+ * actions anything, and this checker cannot reach it. What the rule buys is that
+ * first-party manifests stop shipping two shapes for one field, which is what
+ * invited the wrong inference in the first place.
+ */
+export interface ActionIdConvention {
+  /** Ids exempt from the rule, each mapped to the reason it cannot move. */
+  allow?: Readonly<Record<string, string>>
+}
+
+/**
+ * Every declared action id must be qualified by the package that declares it,
+ * as `<packageName>#…`. Returns a violation string per offending id.
+ */
+export function checkActionIdConvention(
+  graph: GraphLike,
+  convention: ActionIdConvention = {},
+): string[] {
+  const violations: string[] = []
+  const actions = declaredActions(graph)
+  const allowed = new Set(Object.keys(convention.allow ?? {}))
+
+  for (const { packageName, id } of actions) {
+    if (allowed.has(id) || id.startsWith(`${packageName}#`)) continue
+    violations.push(
+      `${packageName}: graph action id "${id}" must be qualified as "${packageName}#…"`,
+    )
+  }
+
+  // An exemption that outlives its subject quietly makes the rule optional
+  // again, so a stale allowlist entry is itself a violation.
+  const declared = new Set(actions.map((action) => action.id))
+  for (const id of allowed) {
+    if (!declared.has(id)) {
+      violations.push(`allowlisted action id "${id}" is no longer declared; remove the exemption`)
+    }
+  }
+
+  return violations
+}
 
 function missing(expected: readonly string[], actual: readonly string[]): string[] {
   const have = new Set(actual)

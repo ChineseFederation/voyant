@@ -80,7 +80,7 @@ const cancel = defineOperation({
   output: bookingSummarySchema,
   classification: "requires_confirmation",
   scopes: ["bookings:write"],
-  capabilityKey: "booking.status.cancel",
+  capabilityKey: "@voyant-travel/bookings#action.cancel-booking",
   idempotent: true,
   summary: "Cancel a booking. May require approval (HTTP 202).",
 })

@@ -44,7 +44,7 @@ rules as data rather than code:
 | Check | Enforces | Where rules live |
 |---|---|---|
 | `verify:boundary` | browser packages must not reach Drizzle or Hono through value imports | `.dependency-cruiser.cjs` |
-| `verify:graph-conformance` | what a package contributes to the resolved graph | `scripts/checks/graph/graph-conformance.json` |
+| `verify:graph-conformance` | what a package contributes to the resolved graph, and that every graph action id is qualified by its own package | `scripts/checks/graph/graph-conformance.json` |
 | `verify:symbol-policy` | where a symbol may and may not appear | `scripts/checks/symbols/symbol-policy.json` |
 | `verify:retired-surfaces` | deleted paths stay deleted | `scripts/checks/regression/retired-paths.json` |
 | `verify:public-surface` | what may be published, who outside this repo depends on it, and what a withdrawn package's successor is | `scripts/checks/manifests/public-surface.json` |

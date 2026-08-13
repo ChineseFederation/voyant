@@ -25,7 +25,7 @@ describe("@voyant-travel/admin-contracts operation descriptors", () => {
     expect(cancel.inputLocation).toBe("body") // POST → body
     expect(cancel.idempotent).toBe(true)
     expect(cancel.classification).toBe("requires_confirmation")
-    expect(cancel.capabilityKey).toBe("booking.status.cancel")
+    expect(cancel.capabilityKey).toBe("@voyant-travel/bookings#action.cancel-booking")
   })
 
   it("builds paths from params and exposes stable templates", () => {

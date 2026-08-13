@@ -78,6 +78,49 @@ Rules:
   architecture checker rejects `z.custom()` and opaque top-level output schemas in
   canonical Tool runtime modules.
 
+### `actionPolicy.id` is an opaque key, not an identity
+
+A manifest consumer must not parse `actionPolicy.id`, must not require a package
+prefix on it, and must not infer an owner from it. It is a **lookup key**: the gate
+in `@voyant-travel/action-ledger` selects the graph action whose own `id` is exactly
+equal to it, and everything load-bearing about that action — kind, target, risk,
+ledger, approval — comes from the resolved declaration, not from the string.
+
+**No field of the action policy is an ownership claim, so do not validate one against
+`owner`.** The owning module states which Tools may select an action by naming their
+capability ids in its `from.tools`, and `resolveSelectedAction` enforces exactly that:
+the invoking Tool capability must appear in the declaration's tool list. The action's
+own `capabilityId` is a capability token — `bookings:status:cancel` — checked only for
+equality against the selected declaration. It is not package-shaped and never was, so
+a consumer that requires it to share a package with `owner` rejects a valid selection.
+
+It is not an audit identity either. The ledger records `capabilityId ?? id` as its
+`action_name`, so for any action that declares a capability — which is nearly all of
+them — `actionPolicy.id` never reaches a persisted row. Do not read a graph action id
+as the thing you would search ledger history for.
+
+Every one of the 277 first-party graph actions is now qualified by the package that
+declares it — `<packageName>#…`, usually `#action.<name>` and sometimes with a facet
+segment in between — and `verify:graph-conformance` holds that line, allowlist and
+all. The six that did not follow it (bookings'
+`booking.status.{cancel,start,complete,override}` and `booking.pii.read`, plus
+`relationships.person_document.reveal`) were renamed in voyant#4596.
+
+That checker is an **authoring** rule and does not change the paragraphs above. A
+consumer still must not require the prefix: `actionPolicy.id` remains an opaque key,
+and a custom module from outside this repo names its actions whatever it likes, where
+no checker of ours can reach it.
+
+**Renaming a graph action id is only safe while it is not the ledger name.** Those six
+each either declare a `capabilityId` (so the gate persists that instead) or are
+recorded by a package-local route path under its own constant, so nothing persisted
+moved. The `booking.status.*` literals in `bookings/src/routes-admin.ts` and
+`service-core.ts`, and `PERSON_DOCUMENT_REVEAL_ACTION_NAME` in relationships, are
+ledger identity: they are what `action_ledger_entries.action_name` holds, they
+participate in the idempotency unique index and the approval command fingerprint, and
+they must not be renamed to match the graph. Before renaming an action id, check
+which of the two you are holding.
+
 ## Intent-level workflow tools
 
 Some jobs an operator does are not one service call — they are a fixed sequence of
