@@ -45,6 +45,10 @@ export {
   withBookingSessionAnalytics,
 } from "./analytics.js"
 export {
+  type BookingAppliedOffers,
+  readAppliedOffersForBooking,
+} from "./applied-offers.js"
+export {
   type CancelEntityDeps,
   type CancelEntityRequest,
   type CancelEntityResult,
@@ -183,6 +187,11 @@ export type {
   PromotionEvaluationInput,
   PromotionEvaluationOutput,
 } from "./promotions-contract.js"
+export {
+  applyPromotionsToBreakdown,
+  type PromotionEvaluator,
+  promotionEvaluationInputFor,
+} from "./quote-promotions.js"
 export { engineParametersFromSelection } from "./quote-support.js"
 export {
   createSourceAdapterRegistry,

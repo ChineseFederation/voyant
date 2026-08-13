@@ -20,7 +20,6 @@
     "apps->custom-fields": 1,
     "bookings->action-ledger": 1,
     "commerce->bookings": 6,
-    "commerce->catalog": 1,
     "commerce->distribution": 4,
     "commerce->finance": 1,
     "cruises->catalog": 1,

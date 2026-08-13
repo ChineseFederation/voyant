@@ -13,6 +13,7 @@ import {
   type BookingSelectionV1,
   bookingSelectionV1,
   type PaxBandCode,
+  type PromotionCodeStatusV1,
 } from "@voyant-travel/catalog-contracts/booking-engine/contracts"
 import type { UnsatisfiedRequirementV1 } from "@voyant-travel/catalog-contracts/booking-engine/requirements-validation"
 import {
@@ -347,6 +348,61 @@ export function buildManualBookingQuoteDraft(input: {
     payment: { intent: hasAnyPaidPayment(input.paymentSchedule) ? "bank_transfer" : "hold" },
     promotionCode: input.promotionCode.trim() || undefined,
   })
+}
+
+/**
+ * Whether a typed promotion code lets the booking be created.
+ *
+ * Before voyant#4615 this was `hasPromotionCode` — any code at all blocked
+ * submit, and a second, unreachable guard below it pretended otherwise. The
+ * quote now answers for the code, so the only thing that blocks is a code the
+ * quote rejected: creating the booking anyway would drop a discount the
+ * operator has already promised over the phone, and clearing the field is one
+ * keystroke away.
+ */
+export function resolveManualBookingPromotionState(input: {
+  promotionCode: string
+  isSettling: boolean
+  hasError: boolean
+  hasPricing: boolean
+  status: PromotionCodeStatusV1 | null | undefined
+}): { hasCode: boolean; rejected: boolean; ready: boolean } {
+  const hasCode = Boolean(input.promotionCode.trim())
+  const rejected = Boolean(hasCode && input.status && input.status.kind !== "code_valid")
+  const ready = !hasCode || (!input.isSettling && !input.hasError && input.hasPricing && !rejected)
+  return { hasCode, rejected, ready }
+}
+
+/**
+ * Human copy for the quote's verdict on a promotion code.
+ *
+ * Every branch names what is actually wrong with the code. The generic
+ * `invalid` string stays as the fallback for a status this build does not
+ * know, so a server that grows a new rejection reason degrades to a vague
+ * message rather than an empty one.
+ */
+export function promotionCodeStatusMessage(
+  status: PromotionCodeStatusV1,
+  copy: {
+    invalid: string
+    notFound: string
+    expired: string
+    notYetValid: string
+    notApplicable: string
+  },
+): string {
+  switch (status.kind) {
+    case "code_not_found":
+      return copy.notFound
+    case "code_expired":
+      return copy.expired
+    case "code_not_yet_valid":
+      return copy.notYetValid
+    case "code_not_applicable":
+      return copy.notApplicable
+    default:
+      return copy.invalid
+  }
 }
 
 const BOOKING_SESSION_ENGINE_OWNED_FIELDS = new Set([
@@ -1399,36 +1455,44 @@ export function ManualBookingCreateForm({
       pricing.confirmedAmountCents !== resolvedPricing.catalogAmountCents &&
       !pricing.priceOverrideReason.trim(),
   )
-  const hasPromotionCode = Boolean(promotionCode.trim())
-  const promotionReady =
-    !hasPromotionCode ||
-    (!quote.isSettling &&
-      !quote.error &&
-      quote.data?.available !== false &&
-      Boolean(quote.data?.pricing))
+  // The quote is authoritative about the code now (voyant#4615). Before that
+  // the selection's `promotionCode` was projected away server-side, so the
+  // form had nothing to read and inferred rejection from an unrelated
+  // `available === false` — which is why a perfectly good departure reported
+  // the operator's code as invalid.
+  const promotionCodeStatus = quote.data?.pricing?.promotionCodeStatus ?? null
+  const {
+    hasCode: hasPromotionCode,
+    rejected: promotionRejected,
+    ready: promotionReady,
+  } = resolveManualBookingPromotionState({
+    promotionCode,
+    isSettling: quote.isSettling,
+    hasError: Boolean(quote.error),
+    hasPricing: Boolean(quote.data?.pricing),
+    status: promotionCodeStatus,
+  })
   const sourcedQuoteReady =
     !isSourcedProduct ||
     (!quote.isSettling &&
       !quote.error &&
       quote.data?.available !== false &&
       Boolean(quote.data?.pricing))
-  const promoFeedback = promotionCode.trim()
-    ? quote.isSettling
+  const promoFeedback = !hasPromotionCode
+    ? null
+    : quote.isSettling
       ? copy.promotion.checking
-      : quote.error
+      : quote.error || !quote.data?.pricing
         ? copy.promotion.unavailable
-        : quote.data?.available === false
-          ? copy.promotion.invalid
-          : quote.data?.pricing
-            ? formatMessage(copy.promotion.valid, {
-                amount: formatManualBookingAmount(
-                  quote.data.pricing.total,
-                  quote.data.pricing.currency,
-                  formatCurrency,
-                ),
-              })
-            : copy.promotion.unavailable
-    : null
+        : promotionCodeStatus && promotionCodeStatus.kind !== "code_valid"
+          ? promotionCodeStatusMessage(promotionCodeStatus, copy.promotion)
+          : formatMessage(copy.promotion.valid, {
+              amount: formatManualBookingAmount(
+                quote.data.pricing.total,
+                quote.data.pricing.currency,
+                formatCurrency,
+              ),
+            })
 
   /**
    * Every condition that keeps **Create booking** disabled. Named once so the
@@ -1436,7 +1500,6 @@ export function ManualBookingCreateForm({
    */
   const submitBlocked =
     isSourcedProduct ||
-    hasPromotionCode ||
     !product.productId ||
     !hasBookingTiming ||
     !hasSelectedUnits ||
@@ -1478,18 +1541,13 @@ export function ManualBookingCreateForm({
       setError({ message: copy.validation.sourcedBookingSessionRequired, blocksSubmit: true })
       return
     }
-    if (hasPromotionCode) {
-      setError({ message: copy.validation.promotionBookingSessionRequired, blocksSubmit: true })
-      return
-    }
     if (!sourcedQuoteReady) {
       setError({ message: copy.validation.pricingUnavailable, blocksSubmit: true })
       return
     }
-    if (hasPromotionCode && !promotionReady) {
+    if (!promotionReady) {
       setError({
-        message:
-          quote.data?.available === false ? copy.promotion.invalid : copy.promotion.unavailable,
+        message: promotionRejected ? copy.promotion.blocked : copy.promotion.unavailable,
         blocksSubmit: true,
       })
       return
@@ -2136,12 +2194,12 @@ export function ManualBookingCreateForm({
             {copy.validation.sourcedBookingSessionRequired}
           </p>
         ) : null}
-        {hasPromotionCode ? (
+        {promotionRejected ? (
           <p
             role="alert"
             className="mt-3 rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-xs text-destructive"
           >
-            {copy.validation.promotionBookingSessionRequired}
+            {copy.promotion.blocked}
           </p>
         ) : null}
         <div className="mt-4 flex items-center justify-end gap-2 border-t px-1 pt-3">
@@ -2198,7 +2256,9 @@ export function ManualBookingCreateForm({
               {promoFeedback ? (
                 <FieldDescription
                   className={
-                    quote.error || quote.data?.available === false ? "text-destructive" : undefined
+                    !quote.isSettling && (quote.error || promotionRejected || !quote.data?.pricing)
+                      ? "text-destructive"
+                      : undefined
                   }
                 >
                   {promoFeedback}

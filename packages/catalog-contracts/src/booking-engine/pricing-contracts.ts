@@ -37,6 +37,46 @@ export const bookingPolicyEvidenceV1 = z.object({
   bookingTerms: z.unknown().optional(),
 })
 
+/**
+ * One promotional offer applied to a quote. Structurally identical to the
+ * `AppliedOffer` interface in `./promotions-contract.ts` — that file declares
+ * the evaluator seam, this schema is the wire form carried on the quote and
+ * frozen onto `PricingBasis.appliedOffers` at commit.
+ */
+export const pricingAppliedOfferV1 = z.object({
+  offerId: z.string().min(1),
+  offerName: z.string(),
+  discountAppliedCents: z.number().int(),
+  discountedPriceCents: z.number().int(),
+  currency: z.string(),
+  discountKind: z.enum(["percentage", "fixed_amount"]),
+  discountPercent: z.number().nullable(),
+  discountAmountCents: z.number().int().nullable(),
+  /** The literal code the customer entered (case preserved); null for auto-applied. */
+  appliedCode: z.string().nullable(),
+  stackable: z.boolean(),
+})
+export type PricingAppliedOfferV1 = z.infer<typeof pricingAppliedOfferV1>
+
+/**
+ * Verdict on a promotion code the caller supplied. Present only when a code
+ * was sent, and carried on an **available** quote: a rejected code does not
+ * make the target unbookable, it just does not discount it. Without this a
+ * client has no way to tell "your code is wrong" from "this departure cannot
+ * be priced", which is exactly the conflation voyant#4615 reported.
+ */
+export const promotionCodeStatusV1 = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("code_valid") }),
+  z.object({ kind: z.literal("code_not_found") }),
+  z.object({ kind: z.literal("code_expired") }),
+  z.object({ kind: z.literal("code_not_yet_valid") }),
+  z.object({
+    kind: z.literal("code_not_applicable"),
+    reason: z.enum(["scope", "min_pax", "eligibility", "currency"]),
+  }),
+])
+export type PromotionCodeStatusV1 = z.infer<typeof promotionCodeStatusV1>
+
 export const pricingBreakdownV1 = z.object({
   currency: z.string().length(3),
   lines: z.array(pricingLineV1),
@@ -44,6 +84,13 @@ export const pricingBreakdownV1 = z.object({
   subtotal: z.number().int(),
   taxTotal: z.number().int(),
   total: z.number().int(),
+  /**
+   * Promotional offers reflected in the totals above. The `discount` lines in
+   * `lines` are the human-readable face of the same offers.
+   */
+  appliedOffers: z.array(pricingAppliedOfferV1).optional(),
+  /** Verdict on the caller's promotion code. Absent when no code was sent. */
+  promotionCodeStatus: promotionCodeStatusV1.optional(),
   /** Fresh policy evidence for a leaf Quote. */
   policyEvidence: bookingPolicyEvidenceV1.optional(),
   /** Component-tagged policy evidence for an aggregate Trip Quote. */

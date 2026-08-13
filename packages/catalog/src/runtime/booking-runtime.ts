@@ -31,7 +31,7 @@ export function createOperatorCatalogBookingRouteModuleOptions(options: {
   /** Host-bound product analytics. Unbound is the default and emits nothing. */
   analytics?: AnalyticsPort
 }): CatalogBookingRouteModuleOptions {
-  const { distribution, inventory, operations } = catalogRuntimeExtensions()
+  const { commerce, distribution, inventory, operations } = catalogRuntimeExtensions()
   return {
     resolveDb: getCatalogBookingDb,
     bookingSessions: {
@@ -40,6 +40,7 @@ export function createOperatorCatalogBookingRouteModuleOptions(options: {
         return createProductionBookingSessionModule({
           db,
           ...(options.analytics ? { analytics: options.analytics } : {}),
+          resolvePromotionEvaluator: (sessionDb) => commerce.createPromotionEvaluator?.(sessionDb),
           repository: createDrizzleBookingSessionRepository(db),
           resolveOwnedHandlers: () => getOwnedBookingHandlerRegistryFromContext(c),
           resolveSourceRegistry: () => getBookingEngineRegistryFromContext(c),

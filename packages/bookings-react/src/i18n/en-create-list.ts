@@ -51,8 +51,6 @@ export const bookingsUiEnCreateList = {
         "We couldn't calculate a live supplier price. Review the selection and try again.",
       sourcedBookingSessionRequired:
         "This supplier source does not support Booking Session v1 Commit yet. Use a v1-capable source or contact operations.",
-      promotionBookingSessionRequired:
-        "Promotion codes are not authoritative in Booking Session v1 yet. Remove the code before committing this booking.",
       paymentGuaranteeRequired:
         "This booking requires a payment guarantee, but no payment continuation is available.",
       bookingSession: {
@@ -84,7 +82,12 @@ export const bookingsUiEnCreateList = {
       checking: "Checking promotion...",
       valid: "Promotion applied. New total: {amount}.",
       invalid: "This promotion code is not valid for this booking.",
+      notFound: "We don't recognise this promotion code.",
+      expired: "This promotion code has expired.",
+      notYetValid: "This promotion code is not valid yet.",
+      notApplicable: "This promotion code does not apply to this booking.",
       unavailable: "We couldn't check this promotion code. Try again.",
+      blocked: "Remove or correct the promotion code before creating this booking.",
     },
     actions: {
       create: "Create booking",

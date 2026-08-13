@@ -20,6 +20,7 @@ import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import type {
   BookingSessionCompositeHandler,
   OwnedBookingHandlerRegistry,
+  PromotionEvaluator,
   SourceAdapterRegistry,
 } from "./booking-engine/index.js"
 import type { CatalogBookingRouteModuleOptions } from "./booking-engine/operator-routes.js"
@@ -108,6 +109,15 @@ export interface CatalogCommerceRuntimeExtension {
   }>
   createPricingProjectionExtension(): CatalogProjectionExtension
   createPromotionsProjectionExtension(): CatalogProjectionExtension
+  /**
+   * Request-scoped promotion evaluator for the Booking Session quote.
+   *
+   * The same evaluator the catalog-plane projection uses to advertise a
+   * discounted price, so the quote and the listing agree. Optional because a
+   * deployment may run the catalog without the commerce promotions module;
+   * absent means quotes price undiscounted.
+   */
+  createPromotionEvaluator?(db: AnyDrizzleDb): PromotionEvaluator
 }
 
 export interface CatalogLegalRuntimeExtension {

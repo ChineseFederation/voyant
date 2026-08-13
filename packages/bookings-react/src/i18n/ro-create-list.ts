@@ -51,8 +51,6 @@ export const bookingsUiRoCreateList = {
         "Nu am putut calcula pretul furnizorului. Verifica selectia si incearca din nou.",
       sourcedBookingSessionRequired:
         "Aceasta sursa nu accepta inca finalizarea prin Booking Session v1. Foloseste o sursa compatibila sau contacteaza operatiunile.",
-      promotionBookingSessionRequired:
-        "Codurile promotionale nu sunt inca autoritative in Booking Session v1. Elimina codul inainte de finalizarea rezervarii.",
       paymentGuaranteeRequired:
         "Aceasta rezervare necesita o garantie de plata, dar continuarea platii nu este disponibila.",
       bookingSession: {
@@ -85,7 +83,12 @@ export const bookingsUiRoCreateList = {
       checking: "Se verifica promotia...",
       valid: "Promotie aplicata. Total nou: {amount}.",
       invalid: "Acest cod promotional nu este valabil pentru rezervarea selectata.",
+      notFound: "Nu recunoastem acest cod promotional.",
+      expired: "Acest cod promotional a expirat.",
+      notYetValid: "Acest cod promotional nu este inca valabil.",
+      notApplicable: "Acest cod promotional nu se aplica acestei rezervari.",
       unavailable: "Codul promotional nu a putut fi verificat. Incearca din nou.",
+      blocked: "Elimina sau corecteaza codul promotional inainte de a crea rezervarea.",
     },
     actions: {
       create: "Creeaza rezervarea",

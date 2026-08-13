@@ -45,7 +45,6 @@ export type BookingsUiCreateListMessages = {
       pricingPending: string
       pricingUnavailable: string
       sourcedBookingSessionRequired: string
-      promotionBookingSessionRequired: string
       paymentGuaranteeRequired: string
       bookingSession: {
         revisionConflict: string
@@ -71,7 +70,12 @@ export type BookingsUiCreateListMessages = {
       checking: string
       valid: string
       invalid: string
+      notFound: string
+      expired: string
+      notYetValid: string
+      notApplicable: string
       unavailable: string
+      blocked: string
     }
     actions: {
       create: string

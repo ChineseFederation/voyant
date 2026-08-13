@@ -37,13 +37,18 @@ import { captureSnapshot } from "../services/snapshot-service.js"
 import type { PricingBasis } from "../snapshot/schema.js"
 import { bookingAllocationsRef, bookingsRef } from "./bookings-ref.js"
 import type { BookingRequirementsV1 } from "./contracts.js"
-import { pricingBreakdownV1 } from "./contracts.js"
+import { type PricingBreakdownV1, pricingBreakdownV1 } from "./contracts.js"
 import type {
   ComputeQuoteRequest,
   OwnedBookingHandlerRegistry,
   OwnedQuoteScope,
   SelfServiceBillingParty,
 } from "./owned-handler.js"
+import {
+  applyPromotionsToBreakdown,
+  type PromotionEvaluator,
+  promotionEvaluationInputFor,
+} from "./quote-promotions.js"
 import { engineParametersFromSelection } from "./quote-support.js"
 import type { SourceAdapterRegistry } from "./registry.js"
 import type { ProductionBookingSessionPaymentDeps } from "./sessions-payment-production.js"
@@ -83,6 +88,14 @@ export interface ProductionBookingSessionModuleDeps {
   payments?: Omit<ProductionBookingSessionPaymentDeps, "db" | "financeRuntime">
   /** Host-bound product analytics. Absent means unbound — see `./analytics.ts`. */
   analytics?: AnalyticsPort
+  /**
+   * Request-scoped promotion evaluator. Absent means the deployment has no
+   * promotions module wired, and quotes price undiscounted — the state every
+   * deployment was in between voyant#4188 and voyant#4615.
+   */
+  resolvePromotionEvaluator?(
+    db: PostgresJsDatabase,
+  ): PromotionEvaluator | undefined | Promise<PromotionEvaluator | undefined>
 }
 
 export function createProductionBookingSessionModule(
@@ -257,7 +270,13 @@ function createProductionCompositeLeafRuntime(
       return {
         status: "quoted",
         requirements: quoted,
-        pricing: pricingBreakdownFromBasis(result.pricing, result.upstreamPayload),
+        pricing: await promotedPricing(
+          deps,
+          session,
+          now,
+          db,
+          pricingBreakdownFromBasis(result.pricing, result.upstreamPayload),
+        ),
       }
     },
     async placeCapacityHold(input) {
@@ -892,6 +911,80 @@ function pricingBreakdownFromBasis(pricing: PricingBasis, policySource?: Record<
   }
 }
 
+/**
+ * Fold promotional offers into a priced quote.
+ *
+ * Runs for every owned product quote, not only when a code was typed: auto
+ * offers already set the price the catalog plane advertises
+ * (`originalPriceFromAmountCents`), so evaluating only code-gated offers here
+ * would keep quoting a total the listing contradicts.
+ *
+ * Unwired deployments (and every non-product target) fall through unchanged —
+ * except that a code sent against a target promotions cannot scope to is
+ * reported as such rather than silently ignored.
+ */
+async function promotedPricing(
+  deps: ProductionBookingSessionModuleDeps,
+  session: CommitOwnedBookingInput["session"],
+  now: Date,
+  db: PostgresJsDatabase,
+  breakdown: PricingBreakdownV1,
+): Promise<PricingBreakdownV1> {
+  const code = stringValue(session.statePayload.promotionCode)
+  const evaluate = await deps.resolvePromotionEvaluator?.(db)
+  if (!evaluate || session.target.kind !== "product") {
+    // Saying nothing here would be read as "applied" by a client that has a
+    // priced quote and no rejection, so a code always gets an answer. A
+    // deployment with no promotions module cannot find the code at all;
+    // promotions only scope to products, so any other target is out of scope.
+    if (!code) return breakdown
+    return {
+      ...breakdown,
+      promotionCodeStatus: evaluate
+        ? { kind: "code_not_applicable", reason: "scope" }
+        : { kind: "code_not_found" },
+    }
+  }
+  const travelers = arrayValue(session.statePayload.travelers) ?? []
+  try {
+    const evaluation = await evaluate(
+      promotionEvaluationInputFor({
+        productId: session.target.productId,
+        breakdown,
+        scope: session.scope,
+        audience: bookingSessionAudienceForActorV1(session.actorKind),
+        pax: quotedPaxCount(session.statePayload, travelers.length),
+        at: now,
+        code,
+        hasChildTraveler: travelers.some((traveler) =>
+          (stringValue(asRecord(traveler)?.band) ?? "").startsWith("child"),
+        ),
+      }),
+    )
+    return applyPromotionsToBreakdown(breakdown, evaluation)
+  } catch (error) {
+    // A promotions failure must not collapse a good price — the same rule the
+    // products handler applies to its own pricing loads. The quote stands at
+    // full price and, when a code was sent, says the code did not resolve
+    // rather than pretending it applied.
+    console.warn(
+      "[catalog/booking-engine] promotion evaluation failed; quoting undiscounted",
+      error,
+    )
+    return code ? { ...breakdown, promotionCodeStatus: { kind: "code_not_found" } } : breakdown
+  }
+}
+
+/** Travelers being priced. Pax bands are authoritative; travelers are the fallback. */
+function quotedPaxCount(statePayload: Record<string, unknown>, travelerCount: number): number {
+  const pax = asRecord(asRecord(statePayload.configure)?.pax)
+  const banded = Object.values(pax ?? {}).reduce<number>(
+    (sum, value) => sum + (positiveInteger(value) ?? 0),
+    0,
+  )
+  return banded > 0 ? banded : Math.max(1, travelerCount)
+}
+
 function pricingBreakdownFromLiveValues(values: Record<string, unknown>) {
   const priceCents = numberValue(values.priceCents) ?? numberValue(values.price)
   const currency = stringValue(values.currency)
@@ -1072,6 +1165,9 @@ function pricingBasisFromBreakdown(
     surcharges: 0,
     currency: pricing.currency,
     breakdown: pricing,
+    // Frozen onto the snapshot so the post-commit redemption recorder can
+    // attribute the discount without re-evaluating anything.
+    ...(pricing.appliedOffers?.length ? { appliedOffers: pricing.appliedOffers } : {}),
   }
 }
 
@@ -1191,6 +1287,10 @@ export function normalizeBookingSelection(
     addons: arrayValue(source.addons)
       ?.map(normalizeAddon)
       .filter((value): value is Record<string, unknown> => value != null),
+    // Declared on the public selection since the beta quote path, but
+    // projected away here until voyant#4615 — so every caller that sent a
+    // code had it silently dropped before any handler could evaluate it.
+    promotionCode: stringValue(source.promotionCode),
     ...(rawStaffBooking !== undefined
       ? { staffBooking: normalizeBookingSessionStaffSelectionV1(rawStaffBooking) }
       : {}),

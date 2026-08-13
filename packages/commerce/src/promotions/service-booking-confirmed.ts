@@ -1,8 +1,7 @@
 /**
  * Booking-confirmed redemption subscriber — records one row per
  * (offer, booking) in `promotional_offer_redemptions` after a booking
- * commits, by reading `pricing_applied_offers` from `catalog_quotes`
- * (joined to the booking via the existing `consumed_booking_id` column).
+ * commits, from the offers the consumed quote actually applied.
  *
  * Why a subscriber rather than a commit-time hook: the owned `createBooking`
  * path opens its own transaction in `@voyant-travel/finance`, so there is no
@@ -11,27 +10,28 @@
  *
  * Per docs/architecture/promotions-architecture.md §3.6 + §7.3.
  *
- * The recorder reads from `catalog_quotes` NOT from
- * `booking_catalog_snapshot`, to avoid an ordering race with the
- * catalog-bridge's `captureSnapshotGraph` subscriber (both fire on the same
- * `booking.confirmed` event).
+ * The lookup is catalog's `readAppliedOffersForBooking`, which spans the v1
+ * `booking_session_quotes` and the legacy `catalog_quotes`. Neither is read
+ * directly here: they are catalog's tables, and reaching into them from this
+ * package was both an ADR-0016 violation and the reason this recorder went
+ * blind. It deliberately does not read `booking_catalog_snapshot`, to avoid an
+ * ordering race with the catalog-bridge's `captureSnapshotGraph` subscriber
+ * (both fire on the same `booking.confirmed` event).
  *
- * READS HISTORY ONLY (voyant#4188). Both writes this depends on are gone:
- * `pricing_applied_offers` was written by the beta `quoteEntity`, and
- * `consumed_booking_id` by `bookEntity` (#3747). New bookings therefore record
- * no redemptions. This recorder is the reason `catalog_quotes` was kept rather
- * than dropped — it is the read path for rows a shipped booking already
- * consumed. Restoring redemption recording means evaluating promotions on the
- * v1 Session `composeQuote` and reading `booking_session_quotes` here.
+ * Live again as of voyant#4615. Between voyant#4188 and that change this read
+ * history only: `pricing_applied_offers` was written by the beta `quoteEntity`
+ * and `consumed_booking_id` by `bookEntity` (#3747), so no new booking
+ * recorded a redemption. Promotions are evaluated on the v1 Session
+ * `composeQuote` now, and the applied offers ride the quote to commit.
  *
  * Idempotent on retry: the unique `(offer_id, booking_id)` index on
  * `promotional_offer_redemptions` (per §4.3) lets the upsert refresh the
  * aggregate cleanly even if the subscriber is replayed.
  */
 
-import { type AppliedOffer, catalogQuotesTable } from "@voyant-travel/catalog/booking-engine"
+import { readAppliedOffersForBooking } from "@voyant-travel/catalog/booking-engine"
 import type { AnyDrizzleDb } from "@voyant-travel/db"
-import { eq, sql } from "drizzle-orm"
+import { sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 
 import { promotionalOfferRedemptions } from "./schema.js"
@@ -62,12 +62,9 @@ export async function recordPromotionRedemptionsForBooking(
   db: AnyDrizzleDb,
   bookingId: string,
 ): Promise<RecordRedemptionsResult> {
-  const rows = await db
-    .select({ pricing_applied_offers: catalogQuotesTable.pricing_applied_offers })
-    .from(catalogQuotesTable)
-    .where(eq(catalogQuotesTable.consumed_booking_id, bookingId))
+  const { quotesScanned, offers } = await readAppliedOffersForBooking(db, bookingId)
 
-  if (rows.length === 0) {
+  if (quotesScanned === 0) {
     return { quotesScanned: 0, offersFound: 0, rowsUpserted: 0 }
   }
 
@@ -76,29 +73,26 @@ export async function recordPromotionRedemptionsForBooking(
     string,
     { discountAppliedCents: number; currency: string; codeUsed: string | null }
   >()
-  for (const row of rows) {
-    const offers: AppliedOffer[] = row.pricing_applied_offers ?? []
-    for (const offer of offers) {
-      const existing = aggregated.get(offer.offerId)
-      if (existing) {
-        existing.discountAppliedCents += offer.discountAppliedCents
-        // First non-null wins — the code-gated offer (if any) is
-        // typically a single occurrence.
-        if (existing.codeUsed == null && offer.appliedCode != null) {
-          existing.codeUsed = offer.appliedCode
-        }
-      } else {
-        aggregated.set(offer.offerId, {
-          discountAppliedCents: offer.discountAppliedCents,
-          currency: offer.currency,
-          codeUsed: offer.appliedCode,
-        })
+  for (const offer of offers) {
+    const existing = aggregated.get(offer.offerId)
+    if (existing) {
+      existing.discountAppliedCents += offer.discountAppliedCents
+      // First non-null wins — the code-gated offer (if any) is
+      // typically a single occurrence.
+      if (existing.codeUsed == null && offer.appliedCode != null) {
+        existing.codeUsed = offer.appliedCode
       }
+    } else {
+      aggregated.set(offer.offerId, {
+        discountAppliedCents: offer.discountAppliedCents,
+        currency: offer.currency,
+        codeUsed: offer.appliedCode,
+      })
     }
   }
 
   if (aggregated.size === 0) {
-    return { quotesScanned: rows.length, offersFound: 0, rowsUpserted: 0 }
+    return { quotesScanned, offersFound: 0, rowsUpserted: 0 }
   }
 
   const insertValues = Array.from(aggregated.entries()).map(([offerId, summary]) => ({
@@ -131,7 +125,7 @@ export async function recordPromotionRedemptionsForBooking(
     })
 
   return {
-    quotesScanned: rows.length,
+    quotesScanned,
     offersFound: aggregated.size,
     rowsUpserted: aggregated.size,
   }

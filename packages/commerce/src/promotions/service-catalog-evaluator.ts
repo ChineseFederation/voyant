@@ -3,10 +3,10 @@
  * `PromotionEvaluationInput` / `PromotionEvaluationOutput` contract to
  * this package's internal evaluator.
  *
- * Currently unwired: the deployment hook it plugged into was the beta
- * `QuoteEntityDeps.evaluatePromotions`, deleted with the beta quote path in
- * voyant#4188. The bridge is kept because it is the published adapter a
- * v1 Session `composeQuote` promotion hook would reuse verbatim.
+ * Wired onto the v1 Session `composeQuote` in voyant#4615 via
+ * `CatalogCommerceRuntimeExtension.createPromotionEvaluator`, after spending
+ * the interval since voyant#4188 — which deleted its original hook, the beta
+ * `QuoteEntityDeps.evaluatePromotions` — with no call sites at all.
  *
  * Per docs/architecture/promotions-architecture.md §3.6 + §7.1.
  */

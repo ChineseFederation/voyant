@@ -214,6 +214,16 @@ describe("normalizeProductSelection", () => {
     })
   })
 
+  it("carries the promotion code through to the quote", () => {
+    // voyant#4615: the field was declared on the public selection and accepted
+    // by the route, then projected away here — so no handler could ever see a
+    // code and no code could ever change a price.
+    expect(normalizeProductSelection(PRODUCT_TARGET, { promotionCode: "  GREEK15 " })).toEqual({
+      promotionCode: "GREEK15",
+    })
+    expect(normalizeProductSelection(PRODUCT_TARGET, { promotionCode: "   " })).toEqual({})
+  })
+
   it("models a Bucharest Sector as the city and the county as an ISO 3166-2 region", () => {
     // Bucharest has no ordinary city/county pair: the six Sectors act as the
     // county-level subdivision. The Sector belongs in `city` and `RO-B` in
@@ -601,6 +611,177 @@ describe("production Booking Session ports", () => {
         bookingStatus: "confirmed",
       }
     })
+  })
+
+  it("prices a promotion code the caller supplied and commits at the discounted total", async () => {
+    // voyant#4615 end to end: the code reaches the evaluator at all, the quote
+    // total drops, and the amount the booking is created at follows the quote
+    // rather than the undiscounted catalogue price.
+    const evaluated: Record<string, unknown>[] = []
+    const module = createCommittableProductionModule(
+      { productId: "prod_1" },
+      undefined,
+      undefined,
+      () => async (input) => {
+        evaluated.push(input as unknown as Record<string, unknown>)
+        return {
+          applied: [
+            {
+              offerId: "prof_greek",
+              offerName: "Greek islands late summer",
+              discountAppliedCents: 1500,
+              discountedPriceCents: 8500,
+              currency: "EUR",
+              discountKind: "percentage" as const,
+              discountPercent: 15,
+              discountAmountCents: null,
+              appliedCode: input.code ?? null,
+              stackable: false,
+            },
+          ],
+          total: { discountAppliedCents: 1500, discountedPriceCents: 8500 },
+          codeStatus: { kind: "code_valid" as const },
+        }
+      },
+    )
+    const access = {
+      actorKind: "anonymous" as const,
+      capability: TEST_CAPABILITY,
+      ...STOREFRONT_ACCESS,
+    }
+    const created = await module.createSession(
+      {
+        ...committableCreateInput("create_promotion"),
+        selection: {
+          ...committableCreateInput("ignored").selection,
+          promotionCode: "GREEK15",
+        },
+      },
+      access,
+    )
+    if (created.kind !== "session_created") throw new Error("session not created")
+    const quoted = await module.quoteSession(
+      created.session.id,
+      { expectedRevision: created.session.revision, idempotencyKey: "quote_promotion" },
+      access,
+    )
+    if (quoted.kind !== "quote_created") throw new Error("quote not created")
+
+    expect(evaluated[0]).toMatchObject({
+      productId: "prod_selection",
+      code: "GREEK15",
+      basePriceCents: 10_000,
+      baseCurrency: "EUR",
+      pax: 1,
+    })
+    expect(quoted.quote.pricing.total).toBe(8500)
+    expect(quoted.quote.pricing.promotionCodeStatus).toEqual({ kind: "code_valid" })
+    expect(quoted.quote.pricing.appliedOffers).toHaveLength(1)
+    expect(quoted.quote.pricing.lines.at(-1)).toMatchObject({
+      kind: "discount",
+      totalAmount: -1500,
+    })
+  })
+
+  it("reports a rejected code on an otherwise good quote instead of failing it", async () => {
+    const module = createCommittableProductionModule(
+      { productId: "prod_1" },
+      undefined,
+      undefined,
+      () => async () => ({
+        applied: [],
+        total: { discountAppliedCents: 0, discountedPriceCents: 10_000 },
+        codeStatus: { kind: "code_not_found" as const },
+      }),
+    )
+    const access = {
+      actorKind: "anonymous" as const,
+      capability: TEST_CAPABILITY,
+      ...STOREFRONT_ACCESS,
+    }
+    const created = await module.createSession(
+      {
+        ...committableCreateInput("create_bad_promotion"),
+        selection: {
+          ...committableCreateInput("ignored").selection,
+          promotionCode: "NOPE",
+        },
+      },
+      access,
+    )
+    if (created.kind !== "session_created") throw new Error("session not created")
+    const quoted = await module.quoteSession(
+      created.session.id,
+      { expectedRevision: created.session.revision, idempotencyKey: "quote_bad_promotion" },
+      access,
+    )
+
+    // The departure is still bookable — the code is the only thing wrong, and
+    // conflating the two is what made the form call a good departure invalid.
+    if (quoted.kind !== "quote_created") throw new Error("quote not created")
+    expect(quoted.quote.pricing.total).toBe(10_000)
+    expect(quoted.quote.pricing.promotionCodeStatus).toEqual({ kind: "code_not_found" })
+  })
+
+  it("does not let a code read as applied when no promotions module is wired", async () => {
+    // No evaluator: the quote is priced and carries no rejection, which a
+    // client reads as "applied" — so the code has to be answered explicitly.
+    const module = createCommittableProductionModule({ productId: "prod_1" })
+    const access = {
+      actorKind: "anonymous" as const,
+      capability: TEST_CAPABILITY,
+      ...STOREFRONT_ACCESS,
+    }
+    const created = await module.createSession(
+      {
+        ...committableCreateInput("create_unwired_promotion"),
+        selection: {
+          ...committableCreateInput("ignored").selection,
+          promotionCode: "GREEK15",
+        },
+      },
+      access,
+    )
+    if (created.kind !== "session_created") throw new Error("session not created")
+    const quoted = await module.quoteSession(
+      created.session.id,
+      { expectedRevision: created.session.revision, idempotencyKey: "quote_unwired_promotion" },
+      access,
+    )
+
+    if (quoted.kind !== "quote_created") throw new Error("quote not created")
+    expect(quoted.quote.pricing.total).toBe(10_000)
+    expect(quoted.quote.pricing.promotionCodeStatus).toEqual({ kind: "code_not_found" })
+  })
+
+  it("keeps quoting at full price when promotion evaluation throws", async () => {
+    const module = createCommittableProductionModule(
+      { productId: "prod_1" },
+      undefined,
+      undefined,
+      () => async () => {
+        throw new Error("promotions unavailable")
+      },
+    )
+    const access = {
+      actorKind: "anonymous" as const,
+      capability: TEST_CAPABILITY,
+      ...STOREFRONT_ACCESS,
+    }
+    const created = await module.createSession(
+      committableCreateInput("create_promotion_failure"),
+      access,
+    )
+    if (created.kind !== "session_created") throw new Error("session not created")
+    const quoted = await module.quoteSession(
+      created.session.id,
+      { expectedRevision: created.session.revision, idempotencyKey: "quote_promotion_failure" },
+      access,
+    )
+
+    if (quoted.kind !== "quote_created") throw new Error("quote not created")
+    expect(quoted.quote.pricing.total).toBe(10_000)
+    expect(quoted.quote.pricing.promotionCodeStatus).toBeUndefined()
   })
 
   it("carries frozen quote cancellation terms into the server-held create command", async () => {
@@ -1244,6 +1425,7 @@ function createCommittableProductionModule(
   upsertPersonFromContact: NonNullable<
     ProductionBookingSessionModuleDeps["relationships"]
   >["upsertPersonFromContact"] = async () => ({ id: "per_buyer" }) as never,
+  resolvePromotionEvaluator?: ProductionBookingSessionModuleDeps["resolvePromotionEvaluator"],
 ) {
   const repository = createInMemoryBookingSessionRepository()
   const handlers = createOwnedBookingHandlerRegistry()
@@ -1287,6 +1469,7 @@ function createCommittableProductionModule(
     relationships: {
       upsertPersonFromContact,
     } as never,
+    ...(resolvePromotionEvaluator ? { resolvePromotionEvaluator } : {}),
   })
 }
 

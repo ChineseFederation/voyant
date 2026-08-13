@@ -7629,6 +7629,116 @@
                       "total": {
                         "type": "integer"
                       },
+                      "appliedOffers": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "offerId": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "offerName": {
+                              "type": "string"
+                            },
+                            "discountAppliedCents": {
+                              "type": "integer"
+                            },
+                            "discountedPriceCents": {
+                              "type": "integer"
+                            },
+                            "currency": {
+                              "type": "string"
+                            },
+                            "discountKind": {
+                              "type": "string",
+                              "enum": ["percentage", "fixed_amount"]
+                            },
+                            "discountPercent": {
+                              "type": ["number", "null"]
+                            },
+                            "discountAmountCents": {
+                              "type": ["integer", "null"]
+                            },
+                            "appliedCode": {
+                              "type": ["string", "null"]
+                            },
+                            "stackable": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": [
+                            "offerId",
+                            "offerName",
+                            "discountAppliedCents",
+                            "discountedPriceCents",
+                            "currency",
+                            "discountKind",
+                            "discountPercent",
+                            "discountAmountCents",
+                            "appliedCode",
+                            "stackable"
+                          ]
+                        }
+                      },
+                      "promotionCodeStatus": {
+                        "oneOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "kind": {
+                                "type": "string",
+                                "enum": ["code_valid"]
+                              }
+                            },
+                            "required": ["kind"]
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "kind": {
+                                "type": "string",
+                                "enum": ["code_not_found"]
+                              }
+                            },
+                            "required": ["kind"]
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "kind": {
+                                "type": "string",
+                                "enum": ["code_expired"]
+                              }
+                            },
+                            "required": ["kind"]
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "kind": {
+                                "type": "string",
+                                "enum": ["code_not_yet_valid"]
+                              }
+                            },
+                            "required": ["kind"]
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "kind": {
+                                "type": "string",
+                                "enum": ["code_not_applicable"]
+                              },
+                              "reason": {
+                                "type": "string",
+                                "enum": ["scope", "min_pax", "eligibility", "currency"]
+                              }
+                            },
+                            "required": ["kind", "reason"]
+                          }
+                        ]
+                      },
                       "policyEvidence": {
                         "type": "object",
                         "properties": {
@@ -12113,6 +12223,116 @@
                       },
                       "total": {
                         "type": "integer"
+                      },
+                      "appliedOffers": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "offerId": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "offerName": {
+                              "type": "string"
+                            },
+                            "discountAppliedCents": {
+                              "type": "integer"
+                            },
+                            "discountedPriceCents": {
+                              "type": "integer"
+                            },
+                            "currency": {
+                              "type": "string"
+                            },
+                            "discountKind": {
+                              "type": "string",
+                              "enum": ["percentage", "fixed_amount"]
+                            },
+                            "discountPercent": {
+                              "type": ["number", "null"]
+                            },
+                            "discountAmountCents": {
+                              "type": ["integer", "null"]
+                            },
+                            "appliedCode": {
+                              "type": ["string", "null"]
+                            },
+                            "stackable": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": [
+                            "offerId",
+                            "offerName",
+                            "discountAppliedCents",
+                            "discountedPriceCents",
+                            "currency",
+                            "discountKind",
+                            "discountPercent",
+                            "discountAmountCents",
+                            "appliedCode",
+                            "stackable"
+                          ]
+                        }
+                      },
+                      "promotionCodeStatus": {
+                        "oneOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "kind": {
+                                "type": "string",
+                                "enum": ["code_valid"]
+                              }
+                            },
+                            "required": ["kind"]
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "kind": {
+                                "type": "string",
+                                "enum": ["code_not_found"]
+                              }
+                            },
+                            "required": ["kind"]
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "kind": {
+                                "type": "string",
+                                "enum": ["code_expired"]
+                              }
+                            },
+                            "required": ["kind"]
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "kind": {
+                                "type": "string",
+                                "enum": ["code_not_yet_valid"]
+                              }
+                            },
+                            "required": ["kind"]
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "kind": {
+                                "type": "string",
+                                "enum": ["code_not_applicable"]
+                              },
+                              "reason": {
+                                "type": "string",
+                                "enum": ["scope", "min_pax", "eligibility", "currency"]
+                              }
+                            },
+                            "required": ["kind", "reason"]
+                          }
+                        ]
                       },
                       "policyEvidence": {
                         "type": "object",

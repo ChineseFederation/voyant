@@ -216,10 +216,11 @@ export function createCatalogRuntimePortContribution(
     const db = (dbOverride ?? host.primitives.database.resolve(undefined)) as PostgresJsDatabase
     const runtime = await contribution
     const services = await runtime.services
-    const [, , , distribution, , inventory, , , settings] = await dependencies
+    const [, , commerce, distribution, , inventory, , , settings] = await dependencies
     return createProductionBookingSessionModule({
       db,
       ...(analytics ? { analytics } : {}),
+      resolvePromotionEvaluator: (sessionDb) => commerce.createPromotionEvaluator?.(sessionDb),
       repository: createDrizzleBookingSessionRepository(db),
       resolveOwnedHandlers: () => services.getOwnedHandlers(host.primitives.env(undefined)),
       resolveSourceRegistry: () => services.ensureSourceRegistry(host.primitives.env(undefined)),
