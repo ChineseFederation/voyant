@@ -58,7 +58,8 @@
     "build": "tsc -p tsconfig.build.json",
     "clean": "rm -rf dist tsconfig.tsbuildinfo",
     "prepack": "pnpm run build",
-    "db:generate": "drizzle-kit generate --config=drizzle.migrations.config.ts --name=trips_baseline && node ../../scripts/migrations/guard-create-type.mjs ./migrations && node ../../scripts/migrations/ensure-extensions.mjs ./migrations"
+    "db:generate": "drizzle-kit generate --config=drizzle.migrations.config.ts --name=trips_baseline && node ../../scripts/migrations/guard-create-type.mjs ./migrations && node ../../scripts/migrations/ensure-extensions.mjs ./migrations",
+    "generate:openapi": "tsx scripts/generate-openapi.ts && biome format --write openapi/admin/trips.json openapi/storefront/trips.json"
   },
   "dependencies": {
     "@voyant-travel/action-ledger": "workspace:^",

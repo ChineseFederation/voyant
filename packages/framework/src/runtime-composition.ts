@@ -180,6 +180,7 @@ function runtimePortStub(id: string): unknown {
     resolveDocumentGenerator: () => undefined,
     guessMimeType: () => "application/octet-stream",
     resolvePublicProposalBaseUrl: () => "http://localhost:8080",
+    priceTripDeps: () => runtimeServiceStub(id),
     reserveTripDeps: () => runtimeServiceStub(id),
     startCheckoutDeps: () => runtimeServiceStub(id),
     cancelTripComponentsDeps: () => runtimeServiceStub(id),

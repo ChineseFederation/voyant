@@ -12,118 +12,7 @@
     }
   ],
   "components": {
-    "schemas": {
-      "CatalogSearchFilter": {
-        "anyOf": [
-          {
-            "type": "object",
-            "properties": {
-              "kind": {
-                "type": "string",
-                "enum": ["eq"]
-              },
-              "field": {
-                "type": "string",
-                "minLength": 1
-              },
-              "value": {
-                "anyOf": [
-                  {
-                    "type": "string"
-                  },
-                  {
-                    "type": "number"
-                  },
-                  {
-                    "type": "boolean"
-                  }
-                ]
-              }
-            },
-            "required": ["kind", "field", "value"]
-          },
-          {
-            "type": "object",
-            "properties": {
-              "kind": {
-                "type": "string",
-                "enum": ["in"]
-              },
-              "field": {
-                "type": "string",
-                "minLength": 1
-              },
-              "values": {
-                "type": "array",
-                "items": {
-                  "anyOf": [
-                    {
-                      "type": "string"
-                    },
-                    {
-                      "type": "number"
-                    }
-                  ]
-                }
-              }
-            },
-            "required": ["kind", "field", "values"]
-          },
-          {
-            "type": "object",
-            "properties": {
-              "kind": {
-                "type": "string",
-                "enum": ["range"]
-              },
-              "field": {
-                "type": "string",
-                "minLength": 1
-              },
-              "gte": {
-                "type": "number"
-              },
-              "lte": {
-                "type": "number"
-              }
-            },
-            "required": ["kind", "field"]
-          },
-          {
-            "type": "object",
-            "properties": {
-              "kind": {
-                "type": "string",
-                "enum": ["and"]
-              },
-              "clauses": {
-                "type": "array",
-                "items": {
-                  "$ref": "#/components/schemas/CatalogSearchFilter"
-                }
-              }
-            },
-            "required": ["kind", "clauses"]
-          },
-          {
-            "type": "object",
-            "properties": {
-              "kind": {
-                "type": "string",
-                "enum": ["or"]
-              },
-              "clauses": {
-                "type": "array",
-                "items": {
-                  "$ref": "#/components/schemas/CatalogSearchFilter"
-                }
-              }
-            },
-            "required": ["kind", "clauses"]
-          }
-        ]
-      }
-    },
+    "schemas": {},
     "parameters": {}
   },
   "paths": {
@@ -4116,13 +4005,12 @@
                               "required": ["status", "error"]
                             },
                             {
-                              "nullable": true
+                              "type": "null"
                             }
                           ]
                         },
                         "error": {
-                          "type": "string",
-                          "nullable": true
+                          "type": ["string", "null"]
                         },
                         "attempts": {
                           "type": "integer",
@@ -4130,15 +4018,13 @@
                         },
                         "maxAttempts": {
                           "type": "integer",
-                          "minimum": 0,
-                          "exclusiveMinimum": true
+                          "exclusiveMinimum": 0
                         },
                         "nextAttemptAt": {
                           "type": "string"
                         },
                         "completedAt": {
-                          "type": "string",
-                          "nullable": true
+                          "type": ["string", "null"]
                         },
                         "createdAt": {
                           "type": "string"
@@ -4180,9 +4066,7 @@
                     }
                   },
                   "required": ["error"],
-                  "additionalProperties": {
-                    "nullable": true
-                  }
+                  "additionalProperties": {}
                 }
               }
             }
@@ -4199,9 +4083,7 @@
                     }
                   },
                   "required": ["error"],
-                  "additionalProperties": {
-                    "nullable": true
-                  }
+                  "additionalProperties": {}
                 }
               }
             }
@@ -4650,6 +4532,856 @@
         "x-voyant-surface": "storefront"
       }
     },
+    "/v1/public/trips/{envelopeId}/price": {
+      "post": {
+        "x-voyant-api-id": "@voyant-travel/trips#api.public",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "envelopeId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "scope": {
+                    "type": "object",
+                    "properties": {
+                      "locale": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "audience": {
+                        "type": "string",
+                        "enum": ["staff", "customer", "partner", "supplier"]
+                      },
+                      "market": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "currency": {
+                        "type": "string",
+                        "minLength": 3,
+                        "maxLength": 3
+                      }
+                    },
+                    "required": ["locale", "audience", "market"]
+                  },
+                  "ttlMs": {
+                    "type": "integer",
+                    "exclusiveMinimum": 0
+                  }
+                },
+                "required": ["scope"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The priced envelope with components and a composed pricing result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "envelope": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "status": {
+                              "type": "string",
+                              "enum": [
+                                "draft",
+                                "priced",
+                                "reserve_in_progress",
+                                "reserved",
+                                "checkout_started",
+                                "booked",
+                                "failed",
+                                "cancelled"
+                              ]
+                            },
+                            "title": {
+                              "type": ["string", "null"]
+                            },
+                            "description": {
+                              "type": ["string", "null"]
+                            },
+                            "travelerParty": {
+                              "type": "object",
+                              "additionalProperties": {}
+                            },
+                            "constraints": {
+                              "type": "object",
+                              "additionalProperties": {}
+                            },
+                            "aggregateCurrency": {
+                              "type": ["string", "null"]
+                            },
+                            "aggregateSubtotalAmountCents": {
+                              "type": ["integer", "null"]
+                            },
+                            "aggregateTaxAmountCents": {
+                              "type": ["integer", "null"]
+                            },
+                            "aggregateTotalAmountCents": {
+                              "type": ["integer", "null"]
+                            },
+                            "aggregatePricingSnapshot": {},
+                            "currentPriceExpiresAt": {
+                              "type": ["string", "null"]
+                            },
+                            "bookingGroupId": {
+                              "type": ["string", "null"]
+                            },
+                            "orderId": {
+                              "type": ["string", "null"]
+                            },
+                            "paymentSessionId": {
+                              "type": ["string", "null"]
+                            },
+                            "reserveIdempotencyKey": {
+                              "type": ["string", "null"]
+                            },
+                            "reserveStartedAt": {
+                              "type": ["string", "null"]
+                            },
+                            "reservedAt": {
+                              "type": ["string", "null"]
+                            },
+                            "checkoutIdempotencyKey": {
+                              "type": ["string", "null"]
+                            },
+                            "checkoutStartedAt": {
+                              "type": ["string", "null"]
+                            },
+                            "createdBy": {
+                              "type": ["string", "null"]
+                            },
+                            "updatedBy": {
+                              "type": ["string", "null"]
+                            },
+                            "createdAt": {
+                              "type": "string"
+                            },
+                            "updatedAt": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "status",
+                            "title",
+                            "description",
+                            "travelerParty",
+                            "constraints",
+                            "aggregateCurrency",
+                            "aggregateSubtotalAmountCents",
+                            "aggregateTaxAmountCents",
+                            "aggregateTotalAmountCents",
+                            "currentPriceExpiresAt",
+                            "bookingGroupId",
+                            "orderId",
+                            "paymentSessionId",
+                            "reserveIdempotencyKey",
+                            "reserveStartedAt",
+                            "reservedAt",
+                            "checkoutIdempotencyKey",
+                            "checkoutStartedAt",
+                            "createdBy",
+                            "updatedBy",
+                            "createdAt",
+                            "updatedAt"
+                          ]
+                        },
+                        "components": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "envelopeId": {
+                                "type": "string"
+                              },
+                              "sequence": {
+                                "type": "integer"
+                              },
+                              "kind": {
+                                "type": "string",
+                                "enum": [
+                                  "catalog_booking",
+                                  "manual_placeholder",
+                                  "flight_placeholder",
+                                  "flight_order",
+                                  "external_order"
+                                ]
+                              },
+                              "status": {
+                                "type": "string",
+                                "enum": [
+                                  "draft",
+                                  "priced",
+                                  "unavailable",
+                                  "held",
+                                  "booked",
+                                  "checkout_started",
+                                  "failed",
+                                  "cancelled",
+                                  "removed"
+                                ]
+                              },
+                              "title": {
+                                "type": ["string", "null"]
+                              },
+                              "description": {
+                                "type": ["string", "null"]
+                              },
+                              "entityModule": {
+                                "type": ["string", "null"]
+                              },
+                              "entityId": {
+                                "type": ["string", "null"]
+                              },
+                              "sourceKind": {
+                                "type": ["string", "null"]
+                              },
+                              "sourceConnectionId": {
+                                "type": ["string", "null"]
+                              },
+                              "sourceRef": {
+                                "type": ["string", "null"]
+                              },
+                              "bookingDraftId": {
+                                "type": ["string", "null"]
+                              },
+                              "catalogQuoteId": {
+                                "type": ["string", "null"]
+                              },
+                              "bookingId": {
+                                "type": ["string", "null"]
+                              },
+                              "bookingGroupId": {
+                                "type": ["string", "null"]
+                              },
+                              "orderId": {
+                                "type": ["string", "null"]
+                              },
+                              "paymentSessionId": {
+                                "type": ["string", "null"]
+                              },
+                              "providerRef": {
+                                "type": ["string", "null"]
+                              },
+                              "supplierRef": {
+                                "type": ["string", "null"]
+                              },
+                              "componentCurrency": {
+                                "type": ["string", "null"]
+                              },
+                              "componentSubtotalAmountCents": {
+                                "type": ["integer", "null"]
+                              },
+                              "componentTaxAmountCents": {
+                                "type": ["integer", "null"]
+                              },
+                              "componentTotalAmountCents": {
+                                "type": ["integer", "null"]
+                              },
+                              "pricingSnapshot": {},
+                              "taxLines": {
+                                "type": ["array", "null"],
+                                "items": {}
+                              },
+                              "cancellationSnapshot": {},
+                              "holdToken": {
+                                "type": ["string", "null"]
+                              },
+                              "holdExpiresAt": {
+                                "type": ["string", "null"]
+                              },
+                              "priceExpiresAt": {
+                                "type": ["string", "null"]
+                              },
+                              "warningCodes": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "metadata": {
+                                "type": "object",
+                                "additionalProperties": {}
+                              },
+                              "createdAt": {
+                                "type": "string"
+                              },
+                              "updatedAt": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "envelopeId",
+                              "sequence",
+                              "kind",
+                              "status",
+                              "title",
+                              "description",
+                              "entityModule",
+                              "entityId",
+                              "sourceKind",
+                              "sourceConnectionId",
+                              "sourceRef",
+                              "bookingDraftId",
+                              "catalogQuoteId",
+                              "bookingId",
+                              "bookingGroupId",
+                              "orderId",
+                              "paymentSessionId",
+                              "providerRef",
+                              "supplierRef",
+                              "componentCurrency",
+                              "componentSubtotalAmountCents",
+                              "componentTaxAmountCents",
+                              "componentTotalAmountCents",
+                              "taxLines",
+                              "holdToken",
+                              "holdExpiresAt",
+                              "priceExpiresAt",
+                              "warningCodes",
+                              "metadata",
+                              "createdAt",
+                              "updatedAt"
+                            ]
+                          }
+                        }
+                      },
+                      "required": ["envelope", "components"],
+                      "additionalProperties": {}
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "invalid_request — body failed validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"],
+                  "additionalProperties": {}
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Trip envelope not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"],
+                  "additionalProperties": {}
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Envelope cannot be priced in its current state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"],
+                  "additionalProperties": {}
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Trips price dependencies are not configured",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"],
+                  "additionalProperties": {}
+                }
+              }
+            }
+          }
+        },
+        "operationId": "postPublicTripsByEnvelopeIdPrice",
+        "summary": "POST /v1/public/trips/{envelopeId}/price",
+        "tags": ["trips"],
+        "x-voyant-module": "trips",
+        "x-voyant-surface": "storefront"
+      }
+    },
+    "/v1/public/trips/{envelopeId}/reserve": {
+      "post": {
+        "x-voyant-api-id": "@voyant-travel/trips#api.public",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "envelopeId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "idempotencyKey": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 255
+                  },
+                  "refreshScope": {
+                    "type": "object",
+                    "properties": {
+                      "locale": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "audience": {
+                        "type": "string",
+                        "enum": ["staff", "customer", "partner", "supplier"]
+                      },
+                      "market": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "currency": {
+                        "type": "string",
+                        "minLength": 3,
+                        "maxLength": 3
+                      }
+                    },
+                    "required": ["locale", "audience", "market"]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The reserved envelope with components and a composed reservation result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "envelope": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "status": {
+                              "type": "string",
+                              "enum": [
+                                "draft",
+                                "priced",
+                                "reserve_in_progress",
+                                "reserved",
+                                "checkout_started",
+                                "booked",
+                                "failed",
+                                "cancelled"
+                              ]
+                            },
+                            "title": {
+                              "type": ["string", "null"]
+                            },
+                            "description": {
+                              "type": ["string", "null"]
+                            },
+                            "travelerParty": {
+                              "type": "object",
+                              "additionalProperties": {}
+                            },
+                            "constraints": {
+                              "type": "object",
+                              "additionalProperties": {}
+                            },
+                            "aggregateCurrency": {
+                              "type": ["string", "null"]
+                            },
+                            "aggregateSubtotalAmountCents": {
+                              "type": ["integer", "null"]
+                            },
+                            "aggregateTaxAmountCents": {
+                              "type": ["integer", "null"]
+                            },
+                            "aggregateTotalAmountCents": {
+                              "type": ["integer", "null"]
+                            },
+                            "aggregatePricingSnapshot": {},
+                            "currentPriceExpiresAt": {
+                              "type": ["string", "null"]
+                            },
+                            "bookingGroupId": {
+                              "type": ["string", "null"]
+                            },
+                            "orderId": {
+                              "type": ["string", "null"]
+                            },
+                            "paymentSessionId": {
+                              "type": ["string", "null"]
+                            },
+                            "reserveIdempotencyKey": {
+                              "type": ["string", "null"]
+                            },
+                            "reserveStartedAt": {
+                              "type": ["string", "null"]
+                            },
+                            "reservedAt": {
+                              "type": ["string", "null"]
+                            },
+                            "checkoutIdempotencyKey": {
+                              "type": ["string", "null"]
+                            },
+                            "checkoutStartedAt": {
+                              "type": ["string", "null"]
+                            },
+                            "createdBy": {
+                              "type": ["string", "null"]
+                            },
+                            "updatedBy": {
+                              "type": ["string", "null"]
+                            },
+                            "createdAt": {
+                              "type": "string"
+                            },
+                            "updatedAt": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "status",
+                            "title",
+                            "description",
+                            "travelerParty",
+                            "constraints",
+                            "aggregateCurrency",
+                            "aggregateSubtotalAmountCents",
+                            "aggregateTaxAmountCents",
+                            "aggregateTotalAmountCents",
+                            "currentPriceExpiresAt",
+                            "bookingGroupId",
+                            "orderId",
+                            "paymentSessionId",
+                            "reserveIdempotencyKey",
+                            "reserveStartedAt",
+                            "reservedAt",
+                            "checkoutIdempotencyKey",
+                            "checkoutStartedAt",
+                            "createdBy",
+                            "updatedBy",
+                            "createdAt",
+                            "updatedAt"
+                          ]
+                        },
+                        "components": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "envelopeId": {
+                                "type": "string"
+                              },
+                              "sequence": {
+                                "type": "integer"
+                              },
+                              "kind": {
+                                "type": "string",
+                                "enum": [
+                                  "catalog_booking",
+                                  "manual_placeholder",
+                                  "flight_placeholder",
+                                  "flight_order",
+                                  "external_order"
+                                ]
+                              },
+                              "status": {
+                                "type": "string",
+                                "enum": [
+                                  "draft",
+                                  "priced",
+                                  "unavailable",
+                                  "held",
+                                  "booked",
+                                  "checkout_started",
+                                  "failed",
+                                  "cancelled",
+                                  "removed"
+                                ]
+                              },
+                              "title": {
+                                "type": ["string", "null"]
+                              },
+                              "description": {
+                                "type": ["string", "null"]
+                              },
+                              "entityModule": {
+                                "type": ["string", "null"]
+                              },
+                              "entityId": {
+                                "type": ["string", "null"]
+                              },
+                              "sourceKind": {
+                                "type": ["string", "null"]
+                              },
+                              "sourceConnectionId": {
+                                "type": ["string", "null"]
+                              },
+                              "sourceRef": {
+                                "type": ["string", "null"]
+                              },
+                              "bookingDraftId": {
+                                "type": ["string", "null"]
+                              },
+                              "catalogQuoteId": {
+                                "type": ["string", "null"]
+                              },
+                              "bookingId": {
+                                "type": ["string", "null"]
+                              },
+                              "bookingGroupId": {
+                                "type": ["string", "null"]
+                              },
+                              "orderId": {
+                                "type": ["string", "null"]
+                              },
+                              "paymentSessionId": {
+                                "type": ["string", "null"]
+                              },
+                              "providerRef": {
+                                "type": ["string", "null"]
+                              },
+                              "supplierRef": {
+                                "type": ["string", "null"]
+                              },
+                              "componentCurrency": {
+                                "type": ["string", "null"]
+                              },
+                              "componentSubtotalAmountCents": {
+                                "type": ["integer", "null"]
+                              },
+                              "componentTaxAmountCents": {
+                                "type": ["integer", "null"]
+                              },
+                              "componentTotalAmountCents": {
+                                "type": ["integer", "null"]
+                              },
+                              "pricingSnapshot": {},
+                              "taxLines": {
+                                "type": ["array", "null"],
+                                "items": {}
+                              },
+                              "cancellationSnapshot": {},
+                              "holdToken": {
+                                "type": ["string", "null"]
+                              },
+                              "holdExpiresAt": {
+                                "type": ["string", "null"]
+                              },
+                              "priceExpiresAt": {
+                                "type": ["string", "null"]
+                              },
+                              "warningCodes": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "metadata": {
+                                "type": "object",
+                                "additionalProperties": {}
+                              },
+                              "createdAt": {
+                                "type": "string"
+                              },
+                              "updatedAt": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "envelopeId",
+                              "sequence",
+                              "kind",
+                              "status",
+                              "title",
+                              "description",
+                              "entityModule",
+                              "entityId",
+                              "sourceKind",
+                              "sourceConnectionId",
+                              "sourceRef",
+                              "bookingDraftId",
+                              "catalogQuoteId",
+                              "bookingId",
+                              "bookingGroupId",
+                              "orderId",
+                              "paymentSessionId",
+                              "providerRef",
+                              "supplierRef",
+                              "componentCurrency",
+                              "componentSubtotalAmountCents",
+                              "componentTaxAmountCents",
+                              "componentTotalAmountCents",
+                              "taxLines",
+                              "holdToken",
+                              "holdExpiresAt",
+                              "priceExpiresAt",
+                              "warningCodes",
+                              "metadata",
+                              "createdAt",
+                              "updatedAt"
+                            ]
+                          }
+                        }
+                      },
+                      "required": ["envelope", "components"],
+                      "additionalProperties": {}
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "invalid_request — body failed validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"],
+                  "additionalProperties": {}
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Trip envelope not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"],
+                  "additionalProperties": {}
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Envelope cannot be reserved in its current state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"],
+                  "additionalProperties": {}
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Trips reserve dependencies are not configured",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"],
+                  "additionalProperties": {}
+                }
+              }
+            }
+          }
+        },
+        "operationId": "postPublicTripsByEnvelopeIdReserve",
+        "summary": "POST /v1/public/trips/{envelopeId}/reserve",
+        "tags": ["trips"],
+        "x-voyant-module": "trips",
+        "x-voyant-surface": "storefront"
+      }
+    },
     "/v1/public/trips/{envelopeId}/checkout": {
       "post": {
         "x-voyant-api-id": "@voyant-travel/trips#api.public",
@@ -4677,7 +5409,7 @@
                   },
                   "intent": {
                     "type": "string",
-                    "enum": ["card", "bank_transfer", "hold", "inquiry"],
+                    "enum": ["card", "bank_transfer"],
                     "default": "card"
                   },
                   "request": {

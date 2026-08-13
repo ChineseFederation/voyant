@@ -15,6 +15,13 @@
         "packages/catalog/openapi/admin/catalog-booking.json",
         "packages/catalog/openapi/storefront/catalog-booking.json"
       ]
+    },
+    {
+      "command": "pnpm --filter @voyant-travel/trips generate:openapi",
+      "files": [
+        "packages/trips/openapi/admin/trips.json",
+        "packages/trips/openapi/storefront/trips.json"
+      ]
     }
   ]
 }

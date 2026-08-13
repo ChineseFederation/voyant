@@ -163,7 +163,10 @@ describe("trips routes", () => {
     })
   })
 
-  it("does not expose direct price or reserve mutation routes", async () => {
+  it("exposes the composer price and reserve legs, gated on their runtime deps", async () => {
+    // voyant#4601: these legs are the staff/storefront composer lifecycle and
+    // must stay reachable. The agent-facing `price_trip` / `reserve_trip` tools
+    // are a separate, durable path and are unaffected by this route surface.
     const routeOptions = vi.fn(async () => ({}))
     const app = appWithDb(createTripsRoutes(routeOptions))
 
@@ -171,17 +174,90 @@ describe("trips routes", () => {
 
     const health = await app.request("/health")
     expect(health.status).toBe(200)
+    // Route options stay lazy: health must not resolve deployment deps.
     expect(routeOptions).not.toHaveBeenCalled()
 
-    for (const path of ["/trip_123/price", "/trip_123/reserve"]) {
+    const cases = [
+      {
+        path: "/trip_123/price",
+        body: { scope: { locale: "en-US", audience: "staff", market: "default", currency: "EUR" } },
+        error: "Trips price dependencies are not configured",
+      },
+      {
+        path: "/trip_123/reserve",
+        body: { idempotencyKey: "admin-reserve-trip_123" },
+        error: "Trips reserve dependencies are not configured",
+      },
+    ]
+    for (const { path, body, error } of cases) {
       const response = await app.request(path, {
         method: "POST",
-        body: JSON.stringify({}),
+        body: JSON.stringify(body),
         headers: { "content-type": "application/json" },
       })
-      expect(response.status, path).toBe(404)
+      expect(response.status, path).toBe(501)
+      await expect(response.json()).resolves.toEqual({ error })
     }
-    expect(routeOptions).not.toHaveBeenCalled()
+    expect(routeOptions).toHaveBeenCalled()
+  })
+
+  it("prices a composer trip through the configured deps", async () => {
+    const priced = {
+      envelope: { id: "trip_123", status: "priced" },
+      components: [],
+      pricing: { currency: "EUR", totalAmountCents: 9500 },
+      failures: [],
+      warnings: [],
+    }
+    const price = vi
+      .spyOn(tripsService, "priceTrip")
+      .mockResolvedValue(priced as unknown as Awaited<ReturnType<typeof tripsService.priceTrip>>)
+    const quoteCatalogComponent = vi.fn()
+    const app = appWithDb(createTripsRoutes({ priceTripDeps: { quoteCatalogComponent } }))
+
+    const scope = { locale: "en-US", audience: "staff", market: "default", currency: "EUR" }
+    const response = await app.request("/trip_123/price", {
+      method: "POST",
+      body: JSON.stringify({ scope }),
+      headers: { "content-type": "application/json" },
+    })
+
+    expect(response.status).toBe(200)
+    await expect(response.json()).resolves.toEqual({ data: priced })
+    expect(price).toHaveBeenCalledWith(
+      expect.anything(),
+      { envelopeId: "trip_123", scope },
+      { quoteCatalogComponent },
+    )
+  })
+
+  it("reports reserve failures as 409 with the composed reservation result", async () => {
+    const result = {
+      envelope: { id: "trip_123", status: "failed" },
+      components: [],
+      failures: [{ componentId: "trcp_1", reason: "sold_out", code: "supplier_rejected" }],
+      reservationPlanId: "trrp_1",
+      warnings: [],
+    }
+    vi.spyOn(tripsService, "reserveTrip").mockResolvedValue(
+      result as unknown as Awaited<ReturnType<typeof tripsService.reserveTrip>>,
+    )
+    const app = appWithDb(
+      createTripsRoutes({ reserveTripDeps: { submitReservationPlan: vi.fn() } as never }),
+    )
+
+    const response = await app.request("/trip_123/reserve", {
+      method: "POST",
+      body: JSON.stringify({ idempotencyKey: "admin-reserve-trip_123" }),
+      headers: { "content-type": "application/json" },
+    })
+
+    expect(response.status).toBe(409)
+    await expect(response.json()).resolves.toMatchObject({
+      error: "Trip reservation failed",
+      failures: [{ componentId: "trcp_1", reason: "sold_out", code: "supplier_rejected" }],
+      reservationPlanId: "trrp_1",
+    })
   })
 })
 
