@@ -31672,6 +31672,12 @@
                           "supplierId": {
                             "type": "string"
                           },
+                          "supplierName": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
                           "supplierInvoiceNo": {
                             "type": "string"
                           },
@@ -31820,6 +31826,7 @@
                         "required": [
                           "id",
                           "supplierId",
+                          "supplierName",
                           "supplierInvoiceNo",
                           "internalRef",
                           "status",
@@ -32158,6 +32165,12 @@
                         "supplierId": {
                           "type": "string"
                         },
+                        "supplierName": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
                         "supplierInvoiceNo": {
                           "type": "string"
                         },
@@ -32498,6 +32511,7 @@
                       "required": [
                         "id",
                         "supplierId",
+                        "supplierName",
                         "supplierInvoiceNo",
                         "internalRef",
                         "status",
@@ -32637,6 +32651,12 @@
                         "supplierId": {
                           "type": "string"
                         },
+                        "supplierName": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
                         "supplierInvoiceNo": {
                           "type": "string"
                         },
@@ -32977,6 +32997,7 @@
                       "required": [
                         "id",
                         "supplierId",
+                        "supplierName",
                         "supplierInvoiceNo",
                         "internalRef",
                         "status",
@@ -33199,6 +33220,12 @@
                         "supplierId": {
                           "type": "string"
                         },
+                        "supplierName": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
                         "supplierInvoiceNo": {
                           "type": "string"
                         },
@@ -33539,6 +33566,7 @@
                       "required": [
                         "id",
                         "supplierId",
+                        "supplierName",
                         "supplierInvoiceNo",
                         "internalRef",
                         "status",
@@ -33826,6 +33854,12 @@
                         "supplierId": {
                           "type": "string"
                         },
+                        "supplierName": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
                         "supplierInvoiceNo": {
                           "type": "string"
                         },
@@ -34166,6 +34200,7 @@
                       "required": [
                         "id",
                         "supplierId",
+                        "supplierName",
                         "supplierInvoiceNo",
                         "internalRef",
                         "status",
@@ -34397,6 +34432,12 @@
                         "supplierId": {
                           "type": "string"
                         },
+                        "supplierName": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
                         "supplierInvoiceNo": {
                           "type": "string"
                         },
@@ -34737,6 +34778,7 @@
                       "required": [
                         "id",
                         "supplierId",
+                        "supplierName",
                         "supplierInvoiceNo",
                         "internalRef",
                         "status",

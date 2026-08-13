@@ -115,11 +115,7 @@ function KpiView({
   if (!valueColumn) return <p className="text-muted-foreground text-sm">No value to display.</p>
   const row = result.rows[0] ?? {}
   const raw = row[valueColumn.id]
-  const currencyField = readFirstString(options, "currencyField")
-  const rowFormat = {
-    ...format,
-    currency: readString(currencyField ? row[currencyField] : undefined) ?? format.currency,
-  }
+  const rowFormat = cellFormat(valueColumn, row, format, readFirstString(options, "currencyField"))
   return (
     <Card size="sm" className="h-full">
       <CardHeader>
@@ -159,11 +155,11 @@ function TableView({
           <TableRow key={rowIndex}>
             {result.columns.map((column) => (
               <TableCell key={column.id}>
-                {formatReportValue(row[column.id], column.valueType, {
-                  ...format,
-                  currency:
-                    readString(currencyField ? row[currencyField] : undefined) ?? format.currency,
-                })}
+                {formatReportValue(
+                  row[column.id],
+                  column.valueType,
+                  cellFormat(column, row, format, currencyField),
+                )}
               </TableCell>
             ))}
           </TableRow>
@@ -226,7 +222,7 @@ function SeriesChart({
         keysByLabel.set(seriesLabel, seriesKey)
       }
       const point = pointsByCategory.get(category) ?? { [categoryColumn.id]: category }
-      point[seriesKey] = chartNumber(row[valueColumn.id], valueColumn.valueType, format)
+      point[seriesKey] = chartNumber(row[valueColumn.id], valueColumn, format)
       pointsByCategory.set(category, point)
     }
     chartSeriesColumns = [...keysByLabel].map(([label, id]) => ({
@@ -245,7 +241,7 @@ function SeriesChart({
         ),
       }
       for (const column of chartSeriesColumns) {
-        point[column.id] = chartNumber(row[column.id], column.valueType, format)
+        point[column.id] = chartNumber(row[column.id], column, format)
       }
       return point
     })
@@ -320,7 +316,7 @@ function PieView({
 
   const data = result.rows.map((row, index) => ({
     name: formatReportValue(row[categoryColumn.id], categoryColumn.valueType, format),
-    value: chartNumber(row[valueColumn.id], valueColumn.valueType, format),
+    value: chartNumber(row[valueColumn.id], valueColumn, format),
     fill: CHART_COLORS[index % CHART_COLORS.length],
   }))
 
@@ -340,6 +336,26 @@ function PieView({
       </PieChart>
     </ChartContainer>
   )
+}
+
+/**
+ * Presentation options for one cell. The widget's own options win where the
+ * author set them; otherwise the column's declaration from its dataset is used,
+ * so a custom widget that never opened the inspector still renders money at the
+ * right scale and in the currency its own result reports.
+ */
+function cellFormat(
+  column: ReportColumn,
+  row: Record<string, unknown>,
+  format: FormatOptions,
+  optionCurrencyField: string | undefined,
+): FormatOptions {
+  const currencyField = optionCurrencyField ?? column.currencyField
+  return {
+    ...format,
+    minorUnit: format.minorUnit ?? column.minorUnit,
+    currency: readString(currencyField ? row[currencyField] : undefined) ?? format.currency,
+  }
 }
 
 function findColumn(result: ReportResult, id: string | undefined): ReportColumn | undefined {
@@ -390,11 +406,8 @@ function optionalArray(value: string | undefined): string[] | undefined {
   return value ? [value] : undefined
 }
 
-function chartNumber(
-  value: unknown,
-  valueType: ReportFieldValueType,
-  format: FormatOptions,
-): number {
+function chartNumber(value: unknown, column: ReportColumn, format: FormatOptions): number {
   const numeric = toNumber(value) ?? 0
-  return valueType === "currency" && format.minorUnit ? numeric / 100 : numeric
+  const minorUnit = format.minorUnit ?? column.minorUnit
+  return column.valueType === "currency" && minorUnit ? numeric / 100 : numeric
 }

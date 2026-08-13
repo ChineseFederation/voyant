@@ -354,9 +354,9 @@ export function SupplierInvoiceFormDialog({
               {listDeparturesForProduct ? (
                 <Field label={t.departure} className="col-span-2">
                   <AsyncCombobox
-                    // Remount when the product changes so stale departures from
-                    // the previous product can't be offered/selected.
-                    key={form.productId || "no-product"}
+                    // Re-resolve when the product changes so stale departures
+                    // from the previous product can't be offered/selected.
+                    searchKey={form.productId}
                     value={form.departureId || null}
                     onChange={(v) => set({ departureId: v ?? "" })}
                     disabled={!form.productId}

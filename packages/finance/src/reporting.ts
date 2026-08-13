@@ -216,6 +216,15 @@ export function compileFinanceReceivablesQuery(input: ReportDatasetExecutionInpu
     groups.set(group.field, group)
   }
 
+  // The output column that carries each row's ISO currency code, when the query
+  // selects one. Money measures are denominated by it; without it in the result
+  // there is no currency to render with.
+  const currencySelection = query.select.find(
+    (selection) => selection.kind === "field" && selection.field === "currency",
+  )
+  const currencyField =
+    currencySelection?.kind === "field" ? (currencySelection.as ?? "currency") : undefined
+
   const aggregateQuery = query.select.some((selection) => selection.kind === "aggregate")
   const selections = query.select.map((selection): CompiledSelection => {
     if (selection.kind === "field") {
@@ -230,7 +239,12 @@ export function compileFinanceReceivablesQuery(input: ReportDatasetExecutionInpu
         id,
         field,
         expression: groupExpression(field.id, groups.get(field.id)?.timeGrain),
-        column: { id, label: field.label, valueType: field.valueType },
+        column: {
+          id,
+          label: outputLabel(selection.as, field),
+          valueType: field.valueType,
+          ...moneyPresentation(field.valueType, currencyField),
+        },
       }
     }
 
@@ -263,17 +277,19 @@ export function compileFinanceReceivablesQuery(input: ReportDatasetExecutionInpu
         : selection.operation === "countDistinct"
           ? sql`count(DISTINCT ${fieldExpression(field?.id ?? "")})::bigint`
           : sql`coalesce(sum(${fieldExpression(field?.id ?? "")}), 0)::bigint`
+    const valueType =
+      selection.operation === "count" || selection.operation === "countDistinct"
+        ? "integer"
+        : (field?.valueType ?? "number")
     return {
       id: selection.as,
       field,
       expression,
       column: {
         id: selection.as,
-        label: field?.label ?? "Count",
-        valueType:
-          selection.operation === "count" || selection.operation === "countDistinct"
-            ? "integer"
-            : (field?.valueType ?? "number"),
+        label: field ? outputLabel(selection.as, field) : "Count",
+        valueType,
+        ...moneyPresentation(valueType, currencyField),
       },
     }
   })
@@ -363,6 +379,31 @@ export const financeReceivablesDataset: ReportDatasetContribution = {
       warnings: [],
     }
   },
+}
+
+/**
+ * The header a selection should carry. The query language requires an alias on
+ * every aggregate, so an alias that merely restates the field id is the DSL's
+ * mandatory output name and the dataset's own label still reads better; an alias
+ * that says something else is the author naming the column, and replacing it
+ * with a canned field label loses what they asked for.
+ */
+function outputLabel(alias: string | undefined, field: ReportDatasetField): string {
+  return alias && alias !== field.id ? alias : field.label
+}
+
+/**
+ * Every money field in this dataset is a `*Cents` measure in the document
+ * currency — there is no major-unit alternative to select — so a currency column
+ * is always minor-unit, and is denominated by the currency dimension whenever
+ * the query selects it.
+ */
+function moneyPresentation(
+  valueType: ReportDatasetField["valueType"],
+  currencyField: string | undefined,
+): { minorUnit?: true; currencyField?: string } {
+  if (valueType !== "currency") return {}
+  return { minorUnit: true, ...(currencyField ? { currencyField } : {}) }
 }
 
 function requireField(

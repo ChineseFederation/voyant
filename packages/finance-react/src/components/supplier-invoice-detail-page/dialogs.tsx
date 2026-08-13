@@ -297,6 +297,7 @@ export function AllocationDialog({
                   value={targetId || null}
                   onChange={(v) => setTargetId(v ?? "")}
                   disabled={!productId}
+                  searchKey={productId}
                   search={(query) =>
                     productId
                       ? (listDeparturesForProduct?.(productId, query) ?? Promise.resolve([]))

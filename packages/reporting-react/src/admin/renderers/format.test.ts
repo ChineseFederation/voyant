@@ -29,6 +29,15 @@ describe("formatReportValue", () => {
     ).toContain("123.45")
   })
 
+  it("never invents a currency symbol when none was declared", () => {
+    // 351533 minor units is a balance of 3,515.33 — rendering "$351,533.00" is
+    // wrong twice over, and the symbol is what makes it believable.
+    expect(formatReportValue(351_533, "currency", { locale: "en-US" })).toBe("351,533")
+    expect(formatReportValue(351_533, "currency", { locale: "en-US", minorUnit: true })).toBe(
+      "3,515.33",
+    )
+  })
+
   it("formats booleans, dates, and json", () => {
     expect(formatReportValue(true, "boolean")).toBe("Yes")
     expect(formatReportValue(false, "boolean")).toBe("No")

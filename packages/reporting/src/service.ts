@@ -156,7 +156,7 @@ export function createReportingService(registry: ReportingRegistry) {
             columns: result.columns,
             rows: result.rows,
             format: {
-              minorUnit: options.minorUnit === true,
+              minorUnit: typeof options.minorUnit === "boolean" ? options.minorUnit : undefined,
               currencyField:
                 typeof options.currencyField === "string" ? options.currencyField : undefined,
               currency: typeof options.currency === "string" ? options.currency : undefined,
@@ -178,8 +178,12 @@ export function createReportingService(registry: ReportingRegistry) {
 
 /** Presentation hints carried from a widget's visualization options into export. */
 export interface ReportExportSectionFormat {
-  /** Currency values are stored in minor units (cents) and must be divided by 100. */
-  readonly minorUnit: boolean
+  /**
+   * Currency values are stored in minor units (cents) and must be divided by
+   * 100. Absent when the widget does not say, in which case each column's own
+   * dataset-declared scale applies.
+   */
+  readonly minorUnit?: boolean
   /** Column whose value holds the ISO currency code for each row. */
   readonly currencyField?: string
   /** Fallback ISO currency when a row has no {@link currencyField}. */
@@ -189,7 +193,15 @@ export interface ReportExportSectionFormat {
 /** A single widget's tabular data within an exported report. */
 export interface ReportExportSection {
   readonly title: string
-  readonly columns: ReadonlyArray<{ id: string; label: string; valueType: string }>
+  readonly columns: ReadonlyArray<{
+    id: string
+    label: string
+    valueType: string
+    /** Dataset-declared: the column's values are in minor units. */
+    minorUnit?: boolean
+    /** Dataset-declared: the output column carrying this column's ISO currency. */
+    currencyField?: string
+  }>
   readonly rows: ReadonlyArray<Record<string, unknown>>
   readonly format?: ReportExportSectionFormat
   readonly error?: string

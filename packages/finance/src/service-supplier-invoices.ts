@@ -519,13 +519,60 @@ async function loadSupplierInvoice(db: PostgresJsDatabase, id: string) {
       .where(eq(supplierCostAllocations.supplierInvoiceId, id))
       .orderBy(asc(supplierCostAllocations.createdAt)),
   ])
-  const targetLabels = await resolveAllocationTargetLabels(db, allocations)
+  const [targetLabels, supplierNames] = await Promise.all([
+    resolveAllocationTargetLabels(db, allocations),
+    resolveSupplierNames(db, [invoice.supplierId]),
+  ])
   const allocationsWithLabels = allocations.map((a) => ({
     ...a,
     targetLabel:
       targetLabels.get(a.departureId ?? a.productId ?? a.bookingId ?? a.travelerId ?? "") ?? null,
   }))
-  return { ...invoice, lines, allocations: allocationsWithLabels }
+  return {
+    ...invoice,
+    supplierName: supplierNames.get(invoice.supplierId) ?? null,
+    lines,
+    allocations: allocationsWithLabels,
+  }
+}
+
+/**
+ * Resolve supplier display names for AP reads. The invoice stores only the
+ * supplier's id (a loose text reference, no cross-package FK — see
+ * `useSupplierPicker`), so every read that shows an invoice has to join the name
+ * back or the screen shows a ULID. Read-only, ids parameter-bound, and tolerant
+ * of a deployment whose graph does not include the suppliers module at all — the
+ * same shape as {@link resolveAllocationTargetLabels}.
+ */
+export async function resolveSupplierNames(
+  db: PostgresJsDatabase,
+  supplierIds: ReadonlyArray<string | null>,
+): Promise<Map<string, string>> {
+  const names = new Map<string, string>()
+  const ids = [...new Set(supplierIds.filter((id): id is string => Boolean(id)))]
+  if (ids.length === 0) return names
+
+  const tableResult = await db.execute(sql`
+    SELECT EXISTS (
+      SELECT 1
+      FROM information_schema.tables
+      WHERE table_schema = 'public'
+        AND table_name = 'suppliers'
+    ) AS table_exists
+  `)
+  if (!toRows<{ table_exists: boolean }>(tableResult)[0]?.table_exists) return names
+
+  const rows = await executeBoundaryRows<{ id: string; name: string | null }>(
+    db,
+    // agent-quality: raw-sql reviewed -- owner: finance; Supplier is a read-only display-name source and ids are parameter-bound.
+    sql`
+      SELECT id, name
+      FROM suppliers
+      WHERE id IN (${sqlList(ids)})
+    `,
+  )
+  for (const row of rows) if (row.name) names.set(row.id, row.name)
+  return names
 }
 
 /** Resolve friendly labels for allocation targets (departure date+product, product, booking no). */
@@ -652,8 +699,16 @@ export const supplierInvoicesService = {
       db.select({ count: sql<number>`count(*)::int` }).from(supplierInvoices).where(where),
     ])
 
+    const supplierNames = await resolveSupplierNames(
+      db,
+      rows.map((row) => row.supplierId),
+    )
+
     return {
-      data: rows,
+      data: rows.map((row) => ({
+        ...row,
+        supplierName: supplierNames.get(row.supplierId) ?? null,
+      })),
       total: countResult[0]?.count ?? 0,
       limit: query.limit,
       offset: query.offset,

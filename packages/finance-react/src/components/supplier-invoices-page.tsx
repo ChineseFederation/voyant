@@ -243,7 +243,9 @@ export function SupplierInvoicesPage({
                   }
                 >
                   <TableCell className="font-medium">{invoice.supplierInvoiceNo}</TableCell>
-                  <TableCell className="text-muted-foreground">{invoice.supplierId}</TableCell>
+                  <TableCell className="text-muted-foreground" title={invoice.supplierId}>
+                    {invoice.supplierName ?? invoice.supplierId}
+                  </TableCell>
                   <TableCell>
                     <Badge variant={STATUS_VARIANT[invoice.status]}>
                       {t.statusLabels[invoice.status]}

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest"
 import {
   nextStatusForBalance,
   recomputeTotalsFromLines,
+  resolveSupplierNames,
   SupplierInvoiceServiceError,
   supplierInvoicesService,
   validateAllocations,
@@ -287,5 +288,59 @@ describe("nextStatusForBalance (§5.4 settlement flow)", () => {
 
   it("leaves a zero-total invoice with no payments unchanged", () => {
     expect(nextStatusForBalance("received", 0, 0)).toBe("received")
+  })
+})
+
+describe("resolveSupplierNames (AP read-side display)", () => {
+  it("maps ids to names, and reports the unresolvable ones as absent", async () => {
+    const statements: string[] = []
+    const db = {
+      execute: async (query: { queryChunks?: unknown[] }) => {
+        statements.push(JSON.stringify(query.queryChunks ?? query))
+        return statements.length === 1
+          ? [{ table_exists: true }]
+          : [
+              { id: "supp_alpen", name: "Alpenroute Chauffeur GmbH" },
+              // A supplier row that exists but was never named.
+              { id: "supp_blank", name: null },
+            ]
+      },
+    }
+
+    const names = await resolveSupplierNames(db as never, [
+      "supp_alpen",
+      "supp_blank",
+      "supp_gone",
+      "supp_alpen",
+      null,
+    ])
+
+    expect(names.get("supp_alpen")).toBe("Alpenroute Chauffeur GmbH")
+    expect(names.has("supp_blank")).toBe(false)
+    expect(names.has("supp_gone")).toBe(false)
+  })
+
+  it("degrades to no names on a deployment without the suppliers module", async () => {
+    let calls = 0
+    const db = {
+      execute: async () => {
+        calls += 1
+        return [{ table_exists: false }]
+      },
+    }
+
+    await expect(resolveSupplierNames(db as never, ["supp_alpen"])).resolves.toEqual(new Map())
+    // The existence probe is the only statement: no query is run against a
+    // table that is not there.
+    expect(calls).toBe(1)
+  })
+
+  it("does not touch the database when there is nothing to resolve", async () => {
+    const db = {
+      execute: async () => {
+        throw new Error("should not query")
+      },
+    }
+    await expect(resolveSupplierNames(db as never, [null, null])).resolves.toEqual(new Map())
   })
 })

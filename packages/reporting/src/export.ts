@@ -29,10 +29,16 @@ function cellText(value: unknown): string {
 type ExportColumn = ReportExportSection["columns"][number]
 type ExportFormat = ReportExportSection["format"]
 
-function toMajorUnits(value: unknown, format: ExportFormat): number | null {
+/**
+ * Scale a money cell to major units. The widget's own option wins where the
+ * author set it; otherwise the column's declaration from its dataset is used, so
+ * a custom widget that never opened the inspector still exports at the right
+ * scale.
+ */
+function toMajorUnits(value: unknown, column: ExportColumn, format: ExportFormat): number | null {
   const numeric = typeof value === "number" ? value : Number(value)
   if (!Number.isFinite(numeric)) return null
-  return format?.minorUnit ? numeric / 100 : numeric
+  return (format?.minorUnit ?? column.minorUnit) ? numeric / 100 : numeric
 }
 
 /**
@@ -46,14 +52,19 @@ function numericCell(
   format: ExportFormat,
 ): number | boolean | string {
   if (column.valueType === "currency") {
-    const major = toMajorUnits(value, format)
+    const major = toMajorUnits(value, column, format)
     return major ?? cellText(value)
   }
   if (typeof value === "number" || typeof value === "boolean") return value
   return cellText(value)
 }
 
-/** Presentation cell (PDF): currency formatted with the row's own currency symbol. */
+/**
+ * Presentation cell (PDF): currency formatted with the row's own currency
+ * symbol. When neither the widget nor the column says which currency the row is
+ * in, the amount is written as a plain number — a symbol borrowed from a default
+ * would make it read as an amount it is not.
+ */
 function displayCell(
   value: unknown,
   column: ExportColumn,
@@ -62,10 +73,12 @@ function displayCell(
 ): string {
   if (value === null || value === undefined) return ""
   if (column.valueType === "currency") {
-    const major = toMajorUnits(value, format)
+    const major = toMajorUnits(value, column, format)
     if (major === null) return cellText(value)
-    const perRow = format?.currencyField ? row[format.currencyField] : undefined
-    const currency = (typeof perRow === "string" && perRow) || format?.currency || "USD"
+    const currencyField = format?.currencyField ?? column.currencyField
+    const perRow = currencyField ? row[currencyField] : undefined
+    const currency = (typeof perRow === "string" && perRow) || format?.currency
+    if (!currency) return major.toLocaleString("en-US")
     try {
       return new Intl.NumberFormat("en-US", { style: "currency", currency }).format(major)
     } catch {

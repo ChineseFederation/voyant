@@ -16,8 +16,11 @@ export interface FormatOptions {
 
 /**
  * Format a raw report cell value for display, keyed by its declared field value
- * type. Deliberately dataset-semantics-neutral: it never rescales values (e.g.
- * it does not assume currency is stored in minor units), it only presents them.
+ * type. Deliberately dataset-semantics-neutral: it never decides on its own that
+ * a value is in minor units or what currency it is in — the caller passes what
+ * the dataset declared. A currency value with no declared currency is formatted
+ * as a plain number rather than borrowing a symbol from a default, because a
+ * symbol makes an amount believable and this one would not be true.
  */
 export function formatReportValue(
   value: unknown,
@@ -25,7 +28,7 @@ export function formatReportValue(
   options: FormatOptions = {},
 ): string {
   if (value === null || value === undefined) return "—"
-  const { locale, currency = "USD", minorUnit = false, timeZone } = options
+  const { locale, currency, minorUnit = false, timeZone } = options
 
   switch (valueType) {
     case "integer":
@@ -36,9 +39,14 @@ export function formatReportValue(
     case "currency": {
       const numeric = toNumber(value)
       if (numeric === undefined) return String(value)
-      return new Intl.NumberFormat(locale, { style: "currency", currency }).format(
-        minorUnit ? numeric / 100 : numeric,
-      )
+      const amount = minorUnit ? numeric / 100 : numeric
+      if (!currency) {
+        return new Intl.NumberFormat(
+          locale,
+          minorUnit ? { minimumFractionDigits: 2, maximumFractionDigits: 2 } : {},
+        ).format(amount)
+      }
+      return new Intl.NumberFormat(locale, { style: "currency", currency }).format(amount)
     }
     case "boolean":
       return value ? "Yes" : "No"

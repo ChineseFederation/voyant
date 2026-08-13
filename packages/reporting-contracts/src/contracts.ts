@@ -171,6 +171,20 @@ export const reportColumnSchema = z
     id: reportingIdentifierSchema,
     label: z.string().trim().min(1).max(160),
     valueType: reportFieldValueTypeSchema,
+    // Presentation facts about a `currency` column that only the dataset that
+    // produced it can know. A renderer has the value and the value type; it has
+    // no way to tell whether 351533 is a balance of 351,533 or of 3,515.33, and
+    // no way to tell which currency the row is denominated in. Without both, the
+    // honest rendering is a plain number — a symbol picked from a default is a
+    // number that reads as an amount it is not.
+    /** The column's values are in minor units and must be scaled to display. */
+    minorUnit: z.boolean().optional(),
+    /**
+     * Output column of the same result carrying this column's ISO currency code.
+     * Only set when the query actually selects it, so it is absent rather than
+     * guessed.
+     */
+    currencyField: reportingIdentifierSchema.optional(),
   })
   .strict()
 export const reportResultSchema = z

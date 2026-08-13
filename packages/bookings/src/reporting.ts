@@ -205,6 +205,17 @@ function compileQuery(
   }
 }
 
+/**
+ * The header a selection should carry. The query language requires an alias on
+ * every aggregate, so an alias that merely restates the field id is the DSL's
+ * mandatory output name and the dataset's own label still reads better; an alias
+ * that says something else is the author naming the column, and replacing it
+ * with a canned field label loses what they asked for.
+ */
+function outputLabel(alias: string | undefined, fallback: string, fieldId: string): string {
+  return alias && alias !== fieldId ? alias : fallback
+}
+
 function compileSelection(
   selection: ReportSelection,
   groups: ReadonlyMap<string, ReportQuery["groupBy"][number]>,
@@ -220,7 +231,7 @@ function compileSelection(
     }
     return {
       expression: compileGroupExpression(field, group?.timeGrain),
-      label: field.definition.label,
+      label: outputLabel(selection.as, field.definition.label, field.definition.id),
       valueType: group?.timeGrain ? "date" : field.definition.valueType,
     }
   }
@@ -241,7 +252,11 @@ function compileSelection(
   const expression = aggregateExpression(selection.operation, field.expression)
   return {
     expression,
-    label: `${aggregationLabel(selection.operation)} ${field.definition.label}`,
+    label: outputLabel(
+      selection.as,
+      `${aggregationLabel(selection.operation)} ${field.definition.label}`,
+      field.definition.id,
+    ),
     valueType:
       selection.operation === "count" || selection.operation === "countDistinct"
         ? "integer"

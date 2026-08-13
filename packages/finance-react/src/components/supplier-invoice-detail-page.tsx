@@ -163,7 +163,9 @@ export function SupplierInvoiceDetailPage({
         <CardHeader className="flex flex-row items-start justify-between gap-2">
           <div>
             <CardTitle className="text-lg">{invoice.supplierInvoiceNo}</CardTitle>
-            <p className="text-sm text-muted-foreground">{invoice.supplierId}</p>
+            <p className="text-sm text-muted-foreground" title={invoice.supplierId}>
+              {invoice.supplierName ?? invoice.supplierId}
+            </p>
           </div>
           <div className="flex items-center gap-2">
             <Badge variant={STATUS_VARIANT[invoice.status]}>{statusLabels[invoice.status]}</Badge>

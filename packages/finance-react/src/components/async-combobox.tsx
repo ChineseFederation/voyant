@@ -31,6 +31,13 @@ export interface AsyncComboboxProps {
   /** Resolve options for a query (debounced). */
   search: (query: string) => Promise<AsyncComboboxOption[]>
   /**
+   * Opaque key for whatever else {@link search} depends on — a dependent
+   * picker's parent selection, say. `search` is re-run whenever it changes, so
+   * the list is not left holding results resolved against the previous value.
+   * Callers who pass a plain `search` do not need it.
+   */
+  searchKey?: string
+  /**
    * When set, an inline "create" row appears for the current query (unless it
    * exactly matches an existing option). Returns the new option to select, or
    * null to cancel.
@@ -56,6 +63,7 @@ export function AsyncCombobox({
   value,
   onChange,
   search,
+  searchKey,
   onCreate,
   createLabel,
   placeholder = "Search…", // i18n-literal-ok (generic fallback; callers pass localized copy)
@@ -69,13 +77,24 @@ export function AsyncCombobox({
   const [inputValue, setInputValue] = useState("")
   const [creating, setCreating] = useState(false)
 
+  // Options on screen were resolved against the previous `searchKey`; drop them
+  // as soon as it changes rather than offering them until the next resolve lands.
+  const [resolvedFor, setResolvedFor] = useState(searchKey)
+  if (resolvedFor !== searchKey) {
+    setResolvedFor(searchKey)
+    setOptions([])
+  }
+
   const onCreateRef = useRef(onCreate)
   onCreateRef.current = onCreate
 
-  // Latest search fn via ref so the debounce effect only re-runs on query.
+  // Latest search fn via ref so the debounce effect re-runs on the query and on
+  // `searchKey` only — callers pass an inline arrow, whose identity changes every
+  // render.
   const searchRef = useRef(search)
   searchRef.current = search
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: searchKey is the meaningful-change signal; the resolver it keys is read off searchRef so the effect doesn't re-fire on every render -- owner: finance-react
   useEffect(() => {
     let active = true
     const handle = setTimeout(() => {
@@ -98,7 +117,7 @@ export function AsyncCombobox({
       active = false
       clearTimeout(handle)
     }
-  }, [query])
+  }, [query, searchKey])
 
   // Reflect the selected value's label (or raw id) in the input.
   useEffect(() => {

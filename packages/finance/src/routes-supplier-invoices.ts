@@ -118,6 +118,13 @@ const paymentStatusValues = ["pending", "completed", "failed", "refunded"] as co
 const supplierInvoiceSchema = z.object({
   id: z.string(),
   supplierId: z.string(),
+  /**
+   * Joined in on read from the suppliers module. `null` when the id resolves to
+   * nothing — a supplier deleted since, or a deployment without the suppliers
+   * module — so the caller can fall back to the id rather than render an empty
+   * cell.
+   */
+  supplierName: z.string().nullable(),
   supplierInvoiceNo: z.string(),
   internalRef: z.string().nullable(),
   status: z.enum(supplierInvoiceStatusValues),

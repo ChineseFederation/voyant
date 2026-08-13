@@ -73,6 +73,8 @@ export type SupplierCostAllocationRecord = z.infer<typeof supplierCostAllocation
 export const supplierInvoiceRecordSchema = z.object({
   id: z.string(),
   supplierId: z.string(),
+  /** Resolved supplier display name; `null` when the id resolves to nothing. */
+  supplierName: z.string().nullable().optional(),
   supplierInvoiceNo: z.string(),
   internalRef: z.string().nullable(),
   status: supplierInvoiceStatusSchema,
