@@ -107,6 +107,11 @@ export function ProductContractTemplateCombobox({ value, onChange, placeholder, 
     setInputValue(selectedLabel)
   }, [selectedLabel])
 
+  const itemLabel = (id: unknown) => {
+    const item = itemMap.get(id as string)
+    return item ? `${item.name} · ${item.language}` : ""
+  }
+
   return (
     <Combobox
       items={items.map((item) => item.id)}
@@ -114,10 +119,8 @@ export function ProductContractTemplateCombobox({ value, onChange, placeholder, 
       inputValue={inputValue}
       autoHighlight
       disabled={disabled}
-      itemToStringValue={(id) => {
-        const item = itemMap.get(id as string)
-        return item ? `${item.name} · ${item.language}` : ""
-      }}
+      itemToStringLabel={itemLabel}
+      itemToStringValue={itemLabel}
       onInputValueChange={(next) => {
         setInputValue(next)
         setSearch(next)

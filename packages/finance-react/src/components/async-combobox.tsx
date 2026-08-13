@@ -150,6 +150,9 @@ export function AsyncCombobox({
       .finally(() => setCreating(false))
   }
 
+  const itemLabel = (v: unknown) =>
+    v === CREATE_SENTINEL ? createRowLabel : (labels[v as string] ?? (v as string))
+
   return (
     <Combobox
       items={items}
@@ -157,9 +160,8 @@ export function AsyncCombobox({
       inputValue={inputValue}
       autoHighlight
       disabled={disabled || creating}
-      itemToStringValue={(v) =>
-        v === CREATE_SENTINEL ? createRowLabel : (labels[v as string] ?? (v as string))
-      }
+      itemToStringLabel={itemLabel}
+      itemToStringValue={itemLabel}
       onInputValueChange={(next) => {
         setInputValue(next)
         setQuery(next)

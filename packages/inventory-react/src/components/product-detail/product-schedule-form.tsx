@@ -422,6 +422,7 @@ export function ScheduleForm({ productId, rule, onSuccess, onCancel }: ScheduleF
               items={TIMEZONE_IDS}
               value={timezone || null}
               autoHighlight
+              itemToStringLabel={(id) => getTimezoneLabel(id as string)}
               itemToStringValue={(id) => getTimezoneLabel(id as string)}
               onValueChange={(next) => {
                 if (typeof next === "string") {

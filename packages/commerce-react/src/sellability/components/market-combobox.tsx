@@ -50,6 +50,7 @@ export function MarketCombobox({ value, onChange, placeholder, disabled }: Props
       inputValue={inputValue}
       autoHighlight
       disabled={disabled}
+      itemToStringLabel={(id) => itemMap.get(id as string)?.name ?? ""}
       itemToStringValue={(id) => itemMap.get(id as string)?.name ?? ""}
       onInputValueChange={(next) => {
         setInputValue(next)

@@ -61,6 +61,7 @@ export function PriceScheduleCombobox({
       inputValue={inputValue}
       autoHighlight
       disabled={disabled || !priceCatalogId}
+      itemToStringLabel={(id) => itemMap.get(id as string)?.name ?? ""}
       itemToStringValue={(id) => itemMap.get(id as string)?.name ?? ""}
       onInputValueChange={(next) => {
         setInputValue(next)

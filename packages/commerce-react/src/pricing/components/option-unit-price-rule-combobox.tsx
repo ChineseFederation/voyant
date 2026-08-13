@@ -57,6 +57,11 @@ export function OptionUnitPriceRuleCombobox({ value, onChange, placeholder, disa
     if (selectedLabel) setInputValue(selectedLabel)
   }, [selectedLabel])
 
+  const itemLabel = (id: unknown) => {
+    const item = itemMap.get(id as string)
+    return item ? formatOptionUnitPriceRuleLabel(item) : ""
+  }
+
   return (
     <Combobox
       items={items.map((item) => item.id)}
@@ -64,10 +69,8 @@ export function OptionUnitPriceRuleCombobox({ value, onChange, placeholder, disa
       inputValue={inputValue}
       autoHighlight
       disabled={disabled}
-      itemToStringValue={(id) => {
-        const item = itemMap.get(id as string)
-        return item ? formatOptionUnitPriceRuleLabel(item) : ""
-      }}
+      itemToStringLabel={itemLabel}
+      itemToStringValue={itemLabel}
       onInputValueChange={(next) => {
         setInputValue(next)
         setSearch(next)

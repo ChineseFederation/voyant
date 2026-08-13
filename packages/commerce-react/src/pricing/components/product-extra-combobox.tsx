@@ -112,6 +112,7 @@ export function ProductExtraCombobox({ value, onChange, placeholder, disabled }:
       inputValue={inputValue}
       autoHighlight
       disabled={disabled}
+      itemToStringLabel={(id) => itemMap.get(id as string)?.name ?? ""}
       itemToStringValue={(id) => itemMap.get(id as string)?.name ?? ""}
       onInputValueChange={(next) => {
         setInputValue(next)

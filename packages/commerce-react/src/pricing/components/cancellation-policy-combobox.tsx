@@ -48,6 +48,11 @@ export function CancellationPolicyCombobox({ value, onChange, placeholder, disab
     if (selectedLabel) setInputValue(selectedLabel)
   }, [selectedLabel])
 
+  const itemLabel = (id: unknown) => {
+    const item = itemMap.get(id as string)
+    return item ? `${item.name}${item.code ? ` · ${item.code}` : ""}` : ""
+  }
+
   return (
     <Combobox
       items={items.map((item) => item.id)}
@@ -55,10 +60,8 @@ export function CancellationPolicyCombobox({ value, onChange, placeholder, disab
       inputValue={inputValue}
       autoHighlight
       disabled={disabled}
-      itemToStringValue={(id) => {
-        const item = itemMap.get(id as string)
-        return item ? `${item.name}${item.code ? ` · ${item.code}` : ""}` : ""
-      }}
+      itemToStringLabel={itemLabel}
+      itemToStringValue={itemLabel}
       onInputValueChange={(next) => {
         setInputValue(next)
         setSearch(next)

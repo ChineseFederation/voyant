@@ -42,6 +42,11 @@ export function PriceCatalogCombobox({ value, onChange, placeholder, disabled }:
     if (selectedLabel) setInputValue(selectedLabel)
   }, [selectedLabel])
 
+  const itemLabel = (id: unknown) => {
+    const item = itemMap.get(id as string)
+    return item ? `${item.name} · ${item.code}` : ""
+  }
+
   return (
     <Combobox
       items={items.map((item) => item.id)}
@@ -49,10 +54,8 @@ export function PriceCatalogCombobox({ value, onChange, placeholder, disabled }:
       inputValue={inputValue}
       autoHighlight
       disabled={disabled}
-      itemToStringValue={(id) => {
-        const item = itemMap.get(id as string)
-        return item ? `${item.name} · ${item.code}` : ""
-      }}
+      itemToStringLabel={itemLabel}
+      itemToStringValue={itemLabel}
       onInputValueChange={(next) => {
         setInputValue(next)
         setSearch(next)

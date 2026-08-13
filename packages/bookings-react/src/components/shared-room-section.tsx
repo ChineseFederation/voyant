@@ -192,6 +192,7 @@ export function SharedRoomSection({
             inputValue={groupInputValue}
             autoHighlight
             disabled={!enabled || !productId}
+            itemToStringLabel={(id) => groupsMap.get(id as string)?.label ?? ""}
             itemToStringValue={(id) => groupsMap.get(id as string)?.label ?? ""}
             onInputValueChange={(next) => {
               setGroupInputValue(next)

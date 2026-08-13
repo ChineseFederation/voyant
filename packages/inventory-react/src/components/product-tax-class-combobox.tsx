@@ -109,6 +109,11 @@ export function ProductTaxClassCombobox({ value, onChange, placeholder, disabled
     setInputValue(selectedLabel)
   }, [selectedLabel])
 
+  const itemLabel = (id: unknown) => {
+    const item = itemMap.get(id as string)
+    return item ? `${item.label} · ${item.code}` : ""
+  }
+
   return (
     <Combobox
       items={items.map((item) => item.id)}
@@ -116,10 +121,8 @@ export function ProductTaxClassCombobox({ value, onChange, placeholder, disabled
       inputValue={inputValue}
       autoHighlight
       disabled={disabled}
-      itemToStringValue={(id) => {
-        const item = itemMap.get(id as string)
-        return item ? `${item.label} · ${item.code}` : ""
-      }}
+      itemToStringLabel={itemLabel}
+      itemToStringValue={itemLabel}
       onInputValueChange={(next) => {
         setInputValue(next)
         setSearch(next)
