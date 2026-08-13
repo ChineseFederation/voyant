@@ -551,7 +551,7 @@ export function ContractDialog({
                     placeholder={t.templatePlaceholder}
                     searchPlaceholder={t.templateSearchPlaceholder}
                     emptyLabel={t.templateEmpty}
-                    loading={templateListQuery.isPending || selectedTemplateQuery.isPending}
+                    loading={templateListQuery.isLoading || selectedTemplateQuery.isLoading}
                     onSearchChange={setTemplateSearch}
                     loadingLabel={t.loading}
                   />
@@ -575,7 +575,7 @@ export function ContractDialog({
                       templateId ? t.templateVersionEmpty : t.templateVersionPickTemplateFirst
                     }
                     loading={
-                      templateVersionsQuery.isPending || selectedTemplateVersionQuery.isPending
+                      templateVersionsQuery.isLoading || selectedTemplateVersionQuery.isLoading
                     }
                     disabled={!templateId}
                     loadingLabel={t.loading}
@@ -597,7 +597,7 @@ export function ContractDialog({
                   placeholder={t.numberSeriesPlaceholder}
                   searchPlaceholder={t.numberSeriesSearchPlaceholder}
                   emptyLabel={t.numberSeriesEmpty}
-                  loading={numberSeriesQuery.isPending}
+                  loading={numberSeriesQuery.isLoading}
                   loadingLabel={t.loading}
                 />
               </div>

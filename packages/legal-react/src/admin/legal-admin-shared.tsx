@@ -11,6 +11,13 @@ import {
 } from "@voyant-travel/ui/components/combobox"
 import { useEffect, useMemo, useState } from "react"
 
+/**
+ * Widest page `/v1/admin/distribution/channels` accepts. The channel pickers
+ * filter client-side because the endpoint exposes no `search`, so they ask for
+ * the cap; anything above it is rejected as `too_big` and the picker is empty.
+ */
+export const CHANNEL_PAGE_LIMIT = 200
+
 /** A searchable-select option: stable id + label, optional secondary line. */
 export interface ComboboxOption {
   value: string
@@ -83,6 +90,9 @@ export function SearchableSelect({
       inputValue={inputValue}
       autoHighlight
       disabled={disabled}
+      // base-ui matches the typed query against the item's *label* string, and
+      // filters everything out when it is left to stringify the raw id.
+      itemToStringLabel={(id) => optionMap.get(id as string)?.label ?? ""}
       itemToStringValue={(id) => optionMap.get(id as string)?.label ?? ""}
       onInputValueChange={(next) => {
         setInputValue(next)

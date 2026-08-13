@@ -63,7 +63,7 @@ import {
   VariableValueField,
 } from "./contract-dialog-fields.js"
 import { ContractUploadField } from "./contract-upload-field.js"
-import { mergeUniqueOptions, SearchableSelect } from "./legal-admin-shared.js"
+import { CHANNEL_PAGE_LIMIT, mergeUniqueOptions, SearchableSelect } from "./legal-admin-shared.js"
 
 export type { ContractDialogProps } from "./contract-dialog-fields.js"
 
@@ -185,7 +185,7 @@ export function ContractDialog({ open, onOpenChange, contract, onSuccess }: Cont
   const selectedSupplierQuery = useSupplier(selectedSupplierId ?? "", {
     enabled: open && !!selectedSupplierId,
   })
-  const channelsQuery = useChannels({ limit: 250, enabled: open })
+  const channelsQuery = useChannels({ limit: CHANNEL_PAGE_LIMIT, enabled: open })
   const selectedChannelQuery = useChannel(selectedChannelId, {
     enabled: open && !!selectedChannelId,
   })
@@ -665,7 +665,7 @@ export function ContractDialog({ open, onOpenChange, contract, onSuccess }: Cont
                     placeholder={t.templatePlaceholder}
                     searchPlaceholder={t.templateSearchPlaceholder}
                     emptyLabel={t.templateEmpty}
-                    loading={templateListQuery.isPending || selectedTemplateQuery.isPending}
+                    loading={templateListQuery.isLoading || selectedTemplateQuery.isLoading}
                     onSearchChange={setTemplateSearch}
                     loadingLabel={t.loading}
                   />
@@ -689,7 +689,7 @@ export function ContractDialog({ open, onOpenChange, contract, onSuccess }: Cont
                       templateId ? t.templateVersionEmpty : t.templateVersionPickTemplateFirst
                     }
                     loading={
-                      templateVersionsQuery.isPending || selectedTemplateVersionQuery.isPending
+                      templateVersionsQuery.isLoading || selectedTemplateVersionQuery.isLoading
                     }
                     disabled={!templateId}
                     loadingLabel={t.loading}
@@ -712,7 +712,7 @@ export function ContractDialog({ open, onOpenChange, contract, onSuccess }: Cont
                     placeholder={t.numberSeriesPlaceholder}
                     searchPlaceholder={t.numberSeriesSearchPlaceholder}
                     emptyLabel={t.numberSeriesEmpty}
-                    loading={numberSeriesQuery.isPending}
+                    loading={numberSeriesQuery.isLoading}
                     loadingLabel={t.loading}
                   />
                 </div>
@@ -750,7 +750,7 @@ export function ContractDialog({ open, onOpenChange, contract, onSuccess }: Cont
                     placeholder={t.personPlaceholder}
                     searchPlaceholder={t.personSearchPlaceholder}
                     emptyLabel={t.personEmpty}
-                    loading={peopleQuery.isPending || selectedPersonQuery.isPending}
+                    loading={peopleQuery.isLoading || selectedPersonQuery.isLoading}
                     onSearchChange={setPersonSearch}
                     loadingLabel={t.loading}
                   />
@@ -770,7 +770,7 @@ export function ContractDialog({ open, onOpenChange, contract, onSuccess }: Cont
                     placeholder={t.organizationPlaceholder}
                     searchPlaceholder={t.organizationSearchPlaceholder}
                     emptyLabel={t.organizationEmpty}
-                    loading={organizationsQuery.isPending}
+                    loading={organizationsQuery.isLoading}
                     onSearchChange={setOrganizationSearch}
                     loadingLabel={t.loading}
                   />
@@ -792,7 +792,7 @@ export function ContractDialog({ open, onOpenChange, contract, onSuccess }: Cont
                     placeholder={t.supplierPlaceholder}
                     searchPlaceholder={t.supplierSearchPlaceholder}
                     emptyLabel={t.supplierEmpty}
-                    loading={suppliersQuery.isPending || selectedSupplierQuery.isPending}
+                    loading={suppliersQuery.isLoading || selectedSupplierQuery.isLoading}
                     onSearchChange={setSupplierSearch}
                     loadingLabel={t.loading}
                   />
@@ -812,7 +812,7 @@ export function ContractDialog({ open, onOpenChange, contract, onSuccess }: Cont
                     placeholder={t.channelPlaceholder}
                     searchPlaceholder={t.channelSearchPlaceholder}
                     emptyLabel={t.channelEmpty}
-                    loading={channelsQuery.isPending || selectedChannelQuery.isPending}
+                    loading={channelsQuery.isLoading || selectedChannelQuery.isLoading}
                     loadingLabel={t.loading}
                   />
                 </div>

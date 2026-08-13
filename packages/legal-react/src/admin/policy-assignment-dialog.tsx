@@ -29,7 +29,7 @@ import { useForm } from "react-hook-form"
 import { z } from "zod/v4"
 import { type LegalPolicyAssignmentRecord, useLegalPolicyAssignmentMutation } from "../index.js"
 
-import { mergeUniqueOptions, SearchableSelect } from "./legal-admin-shared.js"
+import { CHANNEL_PAGE_LIMIT, mergeUniqueOptions, SearchableSelect } from "./legal-admin-shared.js"
 
 // Parity with the previous operator-local entity combobox, which showed a
 // hardcoded "No results." empty state; the loading label is localized via
@@ -339,7 +339,7 @@ function ProductPicker({ value, onChange, placeholder }: ScopedPickerProps) {
       searchPlaceholder={placeholder}
       emptyLabel={PICKER_EMPTY_LABEL}
       loadingLabel={loadingLabel}
-      loading={listQuery.isPending || (Boolean(value) && selectedQuery.isPending)}
+      loading={listQuery.isLoading || selectedQuery.isLoading}
       onSearchChange={setSearch}
     />
   )
@@ -347,9 +347,11 @@ function ProductPicker({ value, onChange, placeholder }: ScopedPickerProps) {
 
 function ChannelPicker({ value, onChange, placeholder }: ScopedPickerProps) {
   const loadingLabel = usePickerLoadingLabel()
-  // Channels expose no server-side search filter; load a wide page and let
-  // the combobox narrow client-side (same approach as the contract dialog).
-  const listQuery = useChannels({ limit: 250 })
+  // Channels expose no server-side search filter; load the widest page the
+  // endpoint allows and let the combobox narrow client-side (same approach as
+  // the contract dialog). 200 is the distribution list cap — asking for more
+  // is a 400 and an empty picker.
+  const listQuery = useChannels({ limit: CHANNEL_PAGE_LIMIT })
   const selectedQuery = useChannel(value, { enabled: Boolean(value) })
 
   const options = useMemo(() => {
@@ -382,7 +384,7 @@ function ChannelPicker({ value, onChange, placeholder }: ScopedPickerProps) {
       searchPlaceholder={placeholder}
       emptyLabel={PICKER_EMPTY_LABEL}
       loadingLabel={loadingLabel}
-      loading={listQuery.isPending || (Boolean(value) && selectedQuery.isPending)}
+      loading={listQuery.isLoading || selectedQuery.isLoading}
     />
   )
 }
@@ -423,7 +425,7 @@ function SupplierPicker({ value, onChange, placeholder }: ScopedPickerProps) {
       searchPlaceholder={placeholder}
       emptyLabel={PICKER_EMPTY_LABEL}
       loadingLabel={loadingLabel}
-      loading={listQuery.isPending || (Boolean(value) && selectedQuery.isPending)}
+      loading={listQuery.isLoading || selectedQuery.isLoading}
       onSearchChange={setSearch}
     />
   )
@@ -465,7 +467,7 @@ function MarketPicker({ value, onChange, placeholder }: ScopedPickerProps) {
       searchPlaceholder={placeholder}
       emptyLabel={PICKER_EMPTY_LABEL}
       loadingLabel={loadingLabel}
-      loading={listQuery.isPending || (Boolean(value) && selectedQuery.isPending)}
+      loading={listQuery.isLoading || selectedQuery.isLoading}
       onSearchChange={setSearch}
     />
   )
@@ -507,7 +509,7 @@ function OrganizationPicker({ value, onChange, placeholder }: ScopedPickerProps)
       searchPlaceholder={placeholder}
       emptyLabel={PICKER_EMPTY_LABEL}
       loadingLabel={loadingLabel}
-      loading={listQuery.isPending || (Boolean(value) && selectedQuery.isPending)}
+      loading={listQuery.isLoading || selectedQuery.isLoading}
       onSearchChange={setSearch}
     />
   )

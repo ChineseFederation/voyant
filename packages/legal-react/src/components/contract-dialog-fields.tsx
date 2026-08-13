@@ -261,6 +261,9 @@ export function SearchableSelect({
       inputValue={inputValue}
       autoHighlight
       disabled={disabled}
+      // base-ui matches the typed query against the item's *label* string, and
+      // filters everything out when it is left to stringify the raw id.
+      itemToStringLabel={(id) => optionMap.get(id as string)?.label ?? ""}
       itemToStringValue={(id) => optionMap.get(id as string)?.label ?? ""}
       onInputValueChange={(next) => {
         setInputValue(next)
