@@ -370,6 +370,11 @@ export const authUiEn: AuthUiMessages = {
     title: "API tokens",
     description:
       "Create permissioned API tokens for automation, integrations, and third-party systems.",
+    catalogUnavailable: {
+      title: "Permissions are unavailable",
+      description:
+        "This deployment did not supply its permission catalog, so no scopes can be selected and no token can be created. Reload the page; if it persists, the operator app is mounting the API tokens page without its access catalog.",
+    },
     createdToken: {
       title: "Token secret",
       description: "This token secret is shown once. Store it before leaving.",
@@ -377,6 +382,9 @@ export const authUiEn: AuthUiMessages = {
     },
     create: {
       title: "Create token",
+      description: "Name the token, choose how long it lives, and pick the scopes it may use.",
+      open: "New token",
+      cancel: "Cancel",
       name: "Name",
       namePlaceholder: "CMS sync, webhook relay, nightly automation",
       expiration: "Expiration",
@@ -394,6 +402,24 @@ export const authUiEn: AuthUiMessages = {
         oneYear: "1 year",
       },
     },
+    scopes: {
+      title: "Select scopes",
+      description:
+        "A scope is one action on one resource. Grant a whole resource to cover every action it has today and every action added later.",
+      presets: "Start from a preset",
+      fullAccess: "Full access",
+      fullAccessHint:
+        "Every resource and every action, including ones added in future releases. Replaces any other selection.",
+      search: "Search resources and actions",
+      noResults: "No resources match your search.",
+      selectedCount: "{count} selected",
+      groupAllLabel: "Grant all of {resource}",
+      groupAllHint: "Tick the resource to grant every action below and lock them together.",
+      lockedHint: "Included by the resource grant above.",
+      sensitive: "Sensitive",
+      countOf: "{selected}/{total}",
+      clear: "Clear all",
+    },
     list: {
       title: "Existing tokens",
       refresh: "Refresh",
@@ -403,7 +429,16 @@ export const authUiEn: AuthUiMessages = {
       enabled: "Enabled",
       disabled: "Disabled",
       noPermissions: "No permissions",
-      metadata: "Created {created} · Expires {expires} · Last used {lastUsed}",
+      created: "Created {created}",
+      actions: "Token actions",
+      moreScopes: "+{count} more",
+      deleteConfirm: "Delete this token? Anything using it stops working immediately.",
+      columns: {
+        name: "Token",
+        scopes: "Scopes",
+        expires: "Expires",
+        lastUsed: "Last used",
+      },
       disable: "Disable",
       enable: "Enable",
       rotate: "Rotate",

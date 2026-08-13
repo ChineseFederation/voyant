@@ -4,36 +4,55 @@ import { formatMessage } from "@voyant-travel/i18n"
 import {
   type AccessCatalog,
   type ApiKeyPermissions,
-  accessCatalogPermissionGroups,
-  describePermissions,
-  hasApiKeyPermission,
-  permissionStringsToPermissions,
   permissionsToStrings,
 } from "@voyant-travel/types/api-keys"
 import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
   Badge,
   Button,
   Card,
   CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-  Checkbox,
   cn,
   confirmDialog,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
   Input,
   Label,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Sheet,
+  SheetBody,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from "@voyant-travel/ui/components"
 import {
   Check,
   Copy,
   KeyRound,
   Loader2,
+  MoreHorizontal,
   Plus,
   Power,
   PowerOff,
   RefreshCw,
   Trash2,
+  TriangleAlert,
 } from "lucide-react"
 import { type FormEvent, useMemo, useState } from "react"
 import { useAuthUiI18nOrDefault, useAuthUiMessagesOrDefault } from "../i18n/provider.js"
@@ -43,6 +62,8 @@ import {
   useApiTokenMutation,
   useApiTokens,
 } from "../index.js"
+import { ApiTokenScopePicker } from "./api-token-scope-picker.js"
+import { defaultTokenPermissions } from "./api-token-scopes.js"
 
 export interface ServiceApiKeysPageProps {
   className?: string
@@ -53,6 +74,8 @@ export interface ServiceApiKeysPageProps {
 }
 
 export type ApiTokensPageProps = ServiceApiKeysPageProps
+
+const EMPTY_CATALOG: AccessCatalog = { resources: [], presets: [] }
 
 function expiresInSeconds(days: number | null): number | null {
   return days === null ? null : days * 24 * 60 * 60
@@ -71,28 +94,6 @@ function permissionLabel(permission: string, fullAccessLabel: string): string {
   if (permission === "*") return fullAccessLabel
   const [resource, action] = permission.split(":")
   return `${resource ?? permission}:${action ?? ""}`
-}
-
-function togglePermission(
-  permissions: ApiKeyPermissions,
-  resource: string,
-  action: string,
-  checked: boolean,
-): ApiKeyPermissions {
-  const current = new Set(permissions[resource] ?? [])
-  if (checked) {
-    current.add(action)
-  } else {
-    current.delete(action)
-  }
-
-  const next = { ...permissions }
-  if (current.size === 0) {
-    delete next[resource]
-  } else {
-    next[resource] = Array.from(current).sort()
-  }
-  return next
 }
 
 function useClipboard() {
@@ -115,139 +116,202 @@ export function ServiceApiKeysPage({
   description,
   accessCatalog,
 }: ServiceApiKeysPageProps) {
-  const catalog = useMemo(() => accessCatalog ?? { resources: [], presets: [] }, [accessCatalog])
-  const permissionGroups = useMemo(() => accessCatalogPermissionGroups(catalog), [catalog])
-  const permissionPresets = useMemo(
-    () =>
-      Object.fromEntries(
-        catalog.presets
-          .filter((preset) => preset.kind === "api-token")
-          .map((preset) => [
-            preset.id,
-            {
-              label: preset.label,
-              description: preset.description,
-              permissions: permissionStringsToPermissions(preset.grants),
-            },
-          ]),
-      ) as Record<string, { label: string; description: string; permissions: ApiKeyPermissions }>,
-    [catalog],
-  )
+  const catalog = accessCatalog ?? EMPTY_CATALOG
+  // A deployment whose catalog never arrived can only render a create form that
+  // is guaranteed to fail validation, so the page says so instead (#4618).
+  const catalogUnavailable = catalog.resources.length === 0
   const messages = useAuthUiMessagesOrDefault().serviceApiKeysPage
   const pageTitle = title ?? messages.title
   const pageDescription = description ?? messages.description
-  const expirationOptions = [
-    { label: messages.create.expirationOptions.never, days: null },
-    { label: messages.create.expirationOptions.sevenDays, days: 7 },
-    { label: messages.create.expirationOptions.thirtyDays, days: 30 },
-    { label: messages.create.expirationOptions.ninetyDays, days: 90 },
-    { label: messages.create.expirationOptions.oneYear, days: 365 },
-  ] as const
   const keys = useApiTokens({ limit: pageSize, sortBy: "createdAt", sortDirection: "desc" })
-  const mutations = useApiTokenMutation()
   const clipboard = useClipboard()
 
-  const [name, setName] = useState("")
-  const [expirationDays, setExpirationDays] = useState<number | null>(90)
-  const [selectedPermissions, setSelectedPermissions] = useState<ApiKeyPermissions>(() => ({
-    ...(permissionPresets["catalog-read"]?.permissions ??
-      Object.values(permissionPresets)[0]?.permissions ??
-      {}),
-  }))
+  const [createOpen, setCreateOpen] = useState(false)
   const [issuedKey, setIssuedKey] = useState<ApiTokenWithSecret | null>(null)
   const [error, setError] = useState<string | null>(null)
 
-  const selectedDescription = useMemo(
-    () => describePermissions(selectedPermissions),
-    [selectedPermissions],
+  return (
+    <div data-slot="api-tokens-page" className={cn("flex flex-col gap-6", className)}>
+      <header className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">{pageTitle}</h1>
+          <p className="text-sm text-muted-foreground">{pageDescription}</p>
+        </div>
+        <div className="flex gap-2">
+          <Button type="button" variant="outline" onClick={() => void keys.refetch()}>
+            <RefreshCw className="mr-2 size-4" />
+            {messages.list.refresh}
+          </Button>
+          <Button type="button" disabled={catalogUnavailable} onClick={() => setCreateOpen(true)}>
+            <Plus className="mr-2 size-4" />
+            {messages.create.open}
+          </Button>
+        </div>
+      </header>
+
+      {catalogUnavailable && (
+        <Alert variant="destructive">
+          <TriangleAlert />
+          <AlertTitle>{messages.catalogUnavailable.title}</AlertTitle>
+          <AlertDescription>{messages.catalogUnavailable.description}</AlertDescription>
+        </Alert>
+      )}
+
+      {error && (
+        <Alert variant="destructive">
+          <TriangleAlert />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
+      {issuedKey && (
+        <Alert>
+          <KeyRound />
+          <AlertTitle>{messages.createdToken.title}</AlertTitle>
+          <AlertDescription className="flex flex-col gap-3">
+            <span>{messages.createdToken.description}</span>
+            <span className="flex w-full flex-col gap-2 sm:flex-row">
+              <Input value={issuedKey.key} readOnly className="font-mono text-xs" />
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => void clipboard.copy(issuedKey.id, issuedKey.key)}
+              >
+                {clipboard.copied === issuedKey.id ? (
+                  <Check className="mr-2 size-4" />
+                ) : (
+                  <Copy className="mr-2 size-4" />
+                )}
+                {messages.createdToken.copy}
+              </Button>
+            </span>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {keys.isLoading ? (
+        <Card>
+          <CardContent className="flex items-center gap-2 py-6 text-sm text-muted-foreground">
+            <Loader2 className="size-4 animate-spin" />
+            {messages.list.loading}
+          </CardContent>
+        </Card>
+      ) : keys.data?.apiKeys.length ? (
+        <section className="flex flex-col gap-3">
+          <h2 className="text-lg font-semibold">{messages.list.title}</h2>
+          <ServiceApiKeyTable
+            apiKeys={keys.data.apiKeys}
+            onError={setError}
+            onSecretIssued={setIssuedKey}
+          />
+        </section>
+      ) : (
+        <Card>
+          <CardContent className="py-10 text-center text-sm text-muted-foreground">
+            {messages.list.empty}
+          </CardContent>
+        </Card>
+      )}
+
+      <CreateApiTokenSheet
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        catalog={catalog}
+        onCreated={(created) => {
+          setError(null)
+          setIssuedKey(created)
+          setCreateOpen(false)
+        }}
+      />
+    </div>
   )
+}
 
-  const onTogglePermission = (resource: string, action: string, checked: boolean) => {
-    setSelectedPermissions((current) => togglePermission(current, resource, action, checked))
-  }
+export const ApiTokensPage = ServiceApiKeysPage
 
-  const applyPreset = (preset: string) => {
-    const selected = permissionPresets[preset]
-    if (selected) setSelectedPermissions({ ...selected.permissions })
+function CreateApiTokenSheet({
+  open,
+  onOpenChange,
+  catalog,
+  onCreated,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  catalog: AccessCatalog
+  onCreated: (created: ApiTokenWithSecret) => void
+}) {
+  const messages = useAuthUiMessagesOrDefault().serviceApiKeysPage
+  const mutations = useApiTokenMutation()
+  const expirationOptions = [
+    { value: "never", label: messages.create.expirationOptions.never, days: null },
+    { value: "7", label: messages.create.expirationOptions.sevenDays, days: 7 },
+    { value: "30", label: messages.create.expirationOptions.thirtyDays, days: 30 },
+    { value: "90", label: messages.create.expirationOptions.ninetyDays, days: 90 },
+    { value: "365", label: messages.create.expirationOptions.oneYear, days: 365 },
+  ] as const
+
+  const [name, setName] = useState("")
+  const [expiration, setExpiration] = useState<string>("90")
+  const [permissions, setPermissions] = useState<ApiKeyPermissions>(() =>
+    defaultTokenPermissions(catalog),
+  )
+  const [error, setError] = useState<string | null>(null)
+
+  const scopeStrings = useMemo(() => permissionsToStrings(permissions), [permissions])
+
+  const reset = () => {
+    setName("")
+    setExpiration("90")
+    setPermissions(defaultTokenPermissions(catalog))
+    setError(null)
   }
 
   const handleCreate = async (event: FormEvent) => {
     event.preventDefault()
     setError(null)
-    setIssuedKey(null)
 
     if (!name.trim()) {
       setError(messages.create.errors.nameRequired)
       return
     }
-
-    if (permissionsToStrings(selectedPermissions).length === 0) {
+    if (scopeStrings.length === 0) {
       setError(messages.create.errors.permissionRequired)
       return
     }
 
     try {
+      const days = expirationOptions.find((option) => option.value === expiration)?.days ?? null
       const result = await mutations.create.mutateAsync({
         name: name.trim(),
-        permissions: selectedPermissions,
-        expiresIn: expiresInSeconds(expirationDays),
+        permissions,
+        expiresIn: expiresInSeconds(days),
       })
-      setIssuedKey(result)
-      setName("")
+      reset()
+      onCreated(result)
     } catch (err) {
       setError(err instanceof Error ? err.message : messages.create.errors.createFailed)
     }
   }
 
   return (
-    <div data-slot="api-tokens-page" className={cn("flex flex-col gap-6", className)}>
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">{pageTitle}</h1>
-        <p className="text-sm text-muted-foreground">{pageDescription}</p>
-      </div>
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent size="xl" className="gap-0">
+        <SheetHeader className="border-b">
+          <SheetTitle>{messages.create.title}</SheetTitle>
+          <SheetDescription>{messages.create.description}</SheetDescription>
+        </SheetHeader>
 
-      {issuedKey && (
-        <Card className="border-primary/30 bg-primary/5">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <KeyRound className="h-4 w-4" />
-              {messages.createdToken.title}
-            </CardTitle>
-            <CardDescription>{messages.createdToken.description}</CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-3 sm:flex-row">
-            <Input value={issuedKey.key} readOnly className="font-mono text-xs" />
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => void clipboard.copy(issuedKey.id, issuedKey.key)}
-            >
-              {clipboard.copied === issuedKey.id ? (
-                <Check className="mr-2 h-4 w-4" />
-              ) : (
-                <Copy className="mr-2 h-4 w-4" />
-              )}
-              {messages.createdToken.copy}
-            </Button>
-          </CardContent>
-        </Card>
-      )}
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">{messages.create.title}</CardTitle>
-          <CardDescription>{selectedDescription}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleCreate} className="flex flex-col gap-4">
+        <form onSubmit={handleCreate} className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          <SheetBody className="flex flex-col gap-4">
             {error && (
-              <div className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
-                {error}
-              </div>
+              <Alert variant="destructive">
+                <TriangleAlert />
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
             )}
 
-            <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_180px]">
-              <div className="space-y-2">
+            <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_180px]">
+              <div className="flex flex-col gap-2">
                 <Label htmlFor="api-token-name">{messages.create.name}</Label>
                 <Input
                   id="api-token-name"
@@ -256,135 +320,82 @@ export function ServiceApiKeysPage({
                   placeholder={messages.create.namePlaceholder}
                 />
               </div>
-              <div className="space-y-2">
+              <div className="flex flex-col gap-2">
                 <Label htmlFor="api-token-expiration">{messages.create.expiration}</Label>
-                <select
-                  id="api-token-expiration"
-                  value={expirationDays ?? "never"}
-                  onChange={(event) =>
-                    setExpirationDays(
-                      event.target.value === "never" ? null : Number(event.target.value),
-                    )
-                  }
-                  className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-                >
-                  {expirationOptions.map((option) => (
-                    <option key={option.label} value={option.days ?? "never"}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
+                <Select value={expiration} onValueChange={(value) => setExpiration(String(value))}>
+                  <SelectTrigger id="api-token-expiration" className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {expirationOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
-            <div className="flex flex-wrap gap-2">
-              {Object.entries(permissionPresets).map(([key, preset]) => (
-                <Button key={key} type="button" variant="outline" onClick={() => applyPreset(key)}>
-                  {preset.label}
-                </Button>
-              ))}
-            </div>
+            <ApiTokenScopePicker catalog={catalog} value={permissions} onChange={setPermissions} />
+          </SheetBody>
 
-            <div className="grid gap-4 lg:grid-cols-2">
-              {permissionGroups.map((group) => (
-                <div key={group.resource} className="rounded-md border p-4">
-                  <div className="mb-3">
-                    <h2 className="text-sm font-medium">{group.label}</h2>
-                    <p className="text-xs text-muted-foreground">{group.description}</p>
-                  </div>
-                  <div className="space-y-3">
-                    {group.permissions.map((descriptor) => {
-                      const checked = hasApiKeyPermission(
-                        selectedPermissions,
-                        descriptor.resource,
-                        descriptor.action,
-                        catalog,
-                      )
-                      const permissionId = `permission-${descriptor.resource}-${descriptor.action}`
-                      return (
-                        <label
-                          key={`${descriptor.resource}:${descriptor.action}`}
-                          htmlFor={permissionId}
-                          className="flex cursor-pointer items-start gap-3 rounded-md p-2 hover:bg-muted/60"
-                        >
-                          <Checkbox
-                            id={permissionId}
-                            checked={checked}
-                            onCheckedChange={(value) =>
-                              onTogglePermission(
-                                descriptor.resource,
-                                descriptor.action,
-                                value === true,
-                              )
-                            }
-                            className="mt-0.5"
-                          />
-                          <span className="min-w-0">
-                            <span className="block text-sm font-medium">{descriptor.label}</span>
-                            <span className="block text-xs text-muted-foreground">
-                              {descriptor.description}
-                            </span>
-                          </span>
-                        </label>
-                      )
-                    })}
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div>
-              <Button type="submit" disabled={mutations.create.isPending}>
-                {mutations.create.isPending ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <Plus className="mr-2 h-4 w-4" />
-                )}
-                {messages.create.submit}
-              </Button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
-
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">{messages.list.title}</h2>
-        <Button type="button" variant="outline" size="sm" onClick={() => void keys.refetch()}>
-          <RefreshCw className="mr-2 h-4 w-4" />
-          {messages.list.refresh}
-        </Button>
-      </div>
-
-      {keys.isLoading ? (
-        <Card>
-          <CardContent className="flex items-center gap-2 py-6 text-sm text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            {messages.list.loading}
-          </CardContent>
-        </Card>
-      ) : keys.data?.apiKeys.length ? (
-        <div className="space-y-3">
-          {keys.data.apiKeys.map((key) => (
-            <ServiceApiKeyRow
-              key={key.id}
-              apiKey={key}
-              onError={setError}
-              onSecretIssued={setIssuedKey}
-            />
-          ))}
-        </div>
-      ) : (
-        <Card>
-          <CardContent className="py-6 text-sm text-muted-foreground">
-            {messages.list.empty}
-          </CardContent>
-        </Card>
-      )}
-    </div>
+          <SheetFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              {messages.create.cancel}
+            </Button>
+            <Button type="submit" disabled={mutations.create.isPending}>
+              {mutations.create.isPending ? (
+                <Loader2 className="mr-2 size-4 animate-spin" />
+              ) : (
+                <Plus className="mr-2 size-4" />
+              )}
+              {messages.create.submit}
+            </Button>
+          </SheetFooter>
+        </form>
+      </SheetContent>
+    </Sheet>
   )
 }
 
-export const ApiTokensPage = ServiceApiKeysPage
+function ServiceApiKeyTable({
+  apiKeys,
+  onError,
+  onSecretIssued,
+}: {
+  apiKeys: readonly ApiToken[]
+  onError: (error: string | null) => void
+  onSecretIssued: (apiKey: ApiTokenWithSecret) => void
+}) {
+  const messages = useAuthUiMessagesOrDefault().serviceApiKeysPage
+
+  return (
+    <Card className="gap-0 py-0">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>{messages.list.columns.name}</TableHead>
+            <TableHead>{messages.list.columns.scopes}</TableHead>
+            <TableHead>{messages.list.columns.expires}</TableHead>
+            <TableHead>{messages.list.columns.lastUsed}</TableHead>
+            <TableHead className="w-10" />
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {apiKeys.map((apiKey) => (
+            <ServiceApiKeyRow
+              key={apiKey.id}
+              apiKey={apiKey}
+              onError={onError}
+              onSecretIssued={onSecretIssued}
+            />
+          ))}
+        </TableBody>
+      </Table>
+    </Card>
+  )
+}
 
 function ServiceApiKeyRow({
   apiKey,
@@ -399,6 +410,17 @@ function ServiceApiKeyRow({
   const messages = i18n.messages.serviceApiKeysPage
   const mutations = useApiTokenMutation()
   const enabled = apiKey.enabled !== false
+  const removeToken = async () => {
+    // A dropdown item is a single click away from destroying a live
+    // credential, so it asks first — the same guard rotation already has.
+    if (!(await confirmDialog(messages.list.deleteConfirm))) return
+    onError(null)
+    try {
+      await mutations.remove.mutateAsync({ keyId: apiKey.id })
+    } catch (err) {
+      onError(err instanceof Error ? err.message : messages.list.rotateFailed)
+    }
+  }
   const rotateToken = async () => {
     if (!(await confirmDialog(messages.list.rotateConfirm))) return
     onError(null)
@@ -415,74 +437,89 @@ function ServiceApiKeyRow({
   }
 
   return (
-    <Card>
-      <CardContent className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div className="min-w-0 space-y-2">
-          <div className="flex flex-wrap items-center gap-2">
-            <h3 className="font-medium">{apiKey.name || messages.list.untitled}</h3>
+    <TableRow>
+      <TableCell className="align-top">
+        <div className="flex flex-col gap-1">
+          <span className="flex flex-wrap items-center gap-2 font-medium">
+            {apiKey.name || messages.list.untitled}
             <Badge variant={enabled ? "default" : "secondary"}>
               {enabled ? messages.list.enabled : messages.list.disabled}
             </Badge>
-            {apiKey.start && <Badge variant="outline">{apiKey.start}</Badge>}
-          </div>
-          <div className="flex flex-wrap gap-1">
-            {apiKey.permissionList.length ? (
-              apiKey.permissionList.map((permission) => (
-                <Badge key={permission} variant="outline" className="font-mono text-[11px]">
-                  {permissionLabel(permission, messages.permissions.fullAccess)}
-                </Badge>
-              ))
-            ) : (
-              <span className="text-xs text-muted-foreground">{messages.list.noPermissions}</span>
+            {apiKey.start && (
+              <Badge variant="outline" className="font-mono text-[11px]">
+                {apiKey.start}
+              </Badge>
             )}
-          </div>
-          <p className="text-xs text-muted-foreground">
-            {formatMessage(messages.list.metadata, {
+          </span>
+          <span className="text-xs text-muted-foreground">
+            {formatMessage(messages.list.created, {
               created: formatDate(apiKey.createdAt, messages.date.never, i18n.formatDateTime),
-              expires: formatDate(apiKey.expiresAt, messages.date.never, i18n.formatDateTime),
-              lastUsed: formatDate(apiKey.lastRequest, messages.date.never, i18n.formatDateTime),
             })}
-          </p>
+          </span>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={mutations.update.isPending}
-            onClick={() =>
-              void mutations.update.mutateAsync({ keyId: apiKey.id, enabled: !enabled })
-            }
-          >
-            {enabled ? <PowerOff className="mr-2 h-4 w-4" /> : <Power className="mr-2 h-4 w-4" />}
-            {enabled ? messages.list.disable : messages.list.enable}
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={mutations.rotate.isPending}
-            onClick={() => void rotateToken()}
-          >
-            {mutations.rotate.isPending ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <RefreshCw className="mr-2 h-4 w-4" />
+      </TableCell>
+      <TableCell className="max-w-xs align-top">
+        {apiKey.permissionList.length ? (
+          <div className="flex flex-wrap gap-1">
+            {apiKey.permissionList.slice(0, 6).map((permission) => (
+              <Badge key={permission} variant="outline" className="font-mono text-[11px]">
+                {permissionLabel(permission, messages.permissions.fullAccess)}
+              </Badge>
+            ))}
+            {apiKey.permissionList.length > 6 && (
+              <Badge variant="secondary" className="text-[11px]">
+                {formatMessage(messages.list.moreScopes, {
+                  count: String(apiKey.permissionList.length - 6),
+                })}
+              </Badge>
             )}
-            {messages.list.rotate}
-          </Button>
-          <Button
-            type="button"
-            variant="destructive"
-            size="sm"
-            disabled={mutations.remove.isPending}
-            onClick={() => void mutations.remove.mutateAsync({ keyId: apiKey.id })}
+          </div>
+        ) : (
+          <span className="text-xs text-muted-foreground">{messages.list.noPermissions}</span>
+        )}
+      </TableCell>
+      <TableCell className="align-top text-sm text-muted-foreground">
+        {formatDate(apiKey.expiresAt, messages.date.never, i18n.formatDateTime)}
+      </TableCell>
+      <TableCell className="align-top text-sm text-muted-foreground">
+        {formatDate(apiKey.lastRequest, messages.date.never, i18n.formatDateTime)}
+      </TableCell>
+      <TableCell className="align-top">
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={<Button type="button" variant="ghost" size="icon-sm" />}
+            aria-label={messages.list.actions}
           >
-            <Trash2 className="mr-2 h-4 w-4" />
-            {messages.list.delete}
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
+            <MoreHorizontal className="size-4" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem
+              disabled={mutations.update.isPending}
+              onClick={() =>
+                void mutations.update.mutateAsync({ keyId: apiKey.id, enabled: !enabled })
+              }
+            >
+              {enabled ? <PowerOff className="mr-2 size-4" /> : <Power className="mr-2 size-4" />}
+              {enabled ? messages.list.disable : messages.list.enable}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={mutations.rotate.isPending}
+              onClick={() => void rotateToken()}
+            >
+              <RefreshCw className="mr-2 size-4" />
+              {messages.list.rotate}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              variant="destructive"
+              disabled={mutations.remove.isPending}
+              onClick={() => void removeToken()}
+            >
+              <Trash2 className="mr-2 size-4" />
+              {messages.list.delete}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </TableCell>
+    </TableRow>
   )
 }

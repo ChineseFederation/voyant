@@ -374,6 +374,11 @@ export const authUiRo: AuthUiMessages = {
     title: "Tokenuri API",
     description:
       "Creeaza tokenuri API cu permisiuni pentru automatizari, integrari si sisteme terte.",
+    catalogUnavailable: {
+      title: "Permisiunile nu sunt disponibile",
+      description:
+        "Acest deployment nu a furnizat catalogul de permisiuni, deci nu poate fi selectat niciun scope si nu poate fi creat niciun token. Reincarca pagina; daca problema persista, aplicatia de operare monteaza pagina de tokenuri API fara catalogul de acces.",
+    },
     createdToken: {
       title: "Secret token",
       description: "Acest secret de token este afisat o singura data. Salveaza-l inainte sa pleci.",
@@ -381,6 +386,10 @@ export const authUiRo: AuthUiMessages = {
     },
     create: {
       title: "Creeaza token",
+      description:
+        "Denumeste tokenul, alege cat timp este valabil si selecteaza scope-urile pe care le poate folosi.",
+      open: "Token nou",
+      cancel: "Anuleaza",
       name: "Nume",
       namePlaceholder: "Sincronizare CMS, webhook relay, automatizare nocturna",
       expiration: "Expirare",
@@ -398,6 +407,25 @@ export const authUiRo: AuthUiMessages = {
         oneYear: "1 an",
       },
     },
+    scopes: {
+      title: "Selecteaza scope-uri",
+      description:
+        "Un scope este o actiune pe o resursa. Acorda o resursa intreaga pentru a acoperi toate actiunile ei de azi si pe cele adaugate ulterior.",
+      presets: "Porneste de la un preset",
+      fullAccess: "Acces complet",
+      fullAccessHint:
+        "Toate resursele si toate actiunile, inclusiv cele adaugate in versiuni viitoare. Inlocuieste orice alta selectie.",
+      search: "Cauta resurse si actiuni",
+      noResults: "Nicio resursa nu corespunde cautarii.",
+      selectedCount: "{count} selectate",
+      groupAllLabel: "Acorda tot pentru {resource}",
+      groupAllHint:
+        "Bifeaza resursa pentru a acorda toate actiunile de mai jos si a le bloca impreuna.",
+      lockedHint: "Incluse de acordarea resursei de mai sus.",
+      sensitive: "Sensibil",
+      countOf: "{selected}/{total}",
+      clear: "Sterge tot",
+    },
     list: {
       title: "Tokenuri existente",
       refresh: "Reincarca",
@@ -407,7 +435,16 @@ export const authUiRo: AuthUiMessages = {
       enabled: "Activ",
       disabled: "Inactiv",
       noPermissions: "Fara permisiuni",
-      metadata: "Creat {created} · Expira {expires} · Ultima utilizare {lastUsed}",
+      created: "Creat {created}",
+      actions: "Actiuni token",
+      moreScopes: "+{count} in plus",
+      deleteConfirm: "Stergi acest token? Tot ce il foloseste nu va mai functiona imediat.",
+      columns: {
+        name: "Token",
+        scopes: "Scope-uri",
+        expires: "Expira",
+        lastUsed: "Ultima utilizare",
+      },
       disable: "Dezactiveaza",
       enable: "Activeaza",
       rotate: "Roteste",

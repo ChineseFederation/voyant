@@ -10,6 +10,7 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
+  Checkbox,
   Input,
   Label,
 } from "@voyant-travel/ui/components"
@@ -198,23 +199,24 @@ export function WebhookSubscriptionDetailPage({ params }: AdminRoutePageProps) {
             <legend className="text-sm font-medium">{t.events}</legend>
             <div className="grid gap-2 sm:grid-cols-2">
               {catalog.data?.map((event) => (
-                <label
+                <Label
                   key={event.id}
-                  className="flex items-center gap-2 rounded-md border p-2 text-sm"
+                  htmlFor={`detail-webhook-event-${event.id}`}
+                  className="flex items-center gap-2 rounded-md border p-2 font-normal"
                 >
-                  <input
-                    type="checkbox"
+                  <Checkbox
+                    id={`detail-webhook-event-${event.id}`}
                     checked={selectedEvents.includes(event.eventType)}
-                    onChange={(input) =>
+                    onCheckedChange={(checked) =>
                       setSelectedEvents((current) =>
-                        input.target.checked
+                        checked === true
                           ? [...current, event.eventType]
                           : current.filter((value) => value !== event.eventType),
                       )
                     }
                   />
                   <span className="font-mono text-xs">{event.eventType}</span>
-                </label>
+                </Label>
               ))}
             </div>
           </fieldset>

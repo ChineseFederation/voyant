@@ -10,7 +10,9 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  Checkbox,
   Dialog,
+  DialogBody,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -147,12 +149,15 @@ export function WebhooksSettingsPage() {
       )}
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-xl">
+        <DialogContent size="lg">
           <DialogHeader>
             <DialogTitle>{t.create}</DialogTitle>
             <DialogDescription>{t.description}</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
+          {/* DialogBody, not a plain div: DialogContent is a flex column with a
+              capped height, so the scroll region has to be the shrinkable child
+              or the footer's buttons get pushed past the viewport. */}
+          <DialogBody className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="webhook-url">{t.endpoint}</Label>
               <Input
@@ -173,15 +178,19 @@ export function WebhooksSettingsPage() {
             </div>
             <fieldset className="space-y-2">
               <legend className="text-sm font-medium">{t.events}</legend>
-              <div className="max-h-52 space-y-2 overflow-auto rounded-md border p-3">
+              <div className="max-h-64 space-y-1 overflow-y-auto rounded-md border p-2">
                 {catalog.data?.map((event) => (
-                  <label key={event.id} className="flex items-center gap-2 text-sm">
-                    <input
-                      type="checkbox"
+                  <Label
+                    key={event.id}
+                    htmlFor={`webhook-event-${event.id}`}
+                    className="flex items-center gap-2 rounded-md p-1.5 font-normal hover:bg-muted/60"
+                  >
+                    <Checkbox
+                      id={`webhook-event-${event.id}`}
                       checked={events.includes(event.eventType)}
-                      onChange={(input) =>
+                      onCheckedChange={(checked) =>
                         setEvents((current) =>
-                          input.target.checked
+                          checked === true
                             ? [...current, event.eventType]
                             : current.filter((value) => value !== event.eventType),
                         )
@@ -189,11 +198,11 @@ export function WebhooksSettingsPage() {
                     />
                     <span className="font-mono text-xs">{event.eventType}</span>
                     <span className="text-muted-foreground">v{event.version}</span>
-                  </label>
+                  </Label>
                 ))}
               </div>
             </fieldset>
-          </div>
+          </DialogBody>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>
               {t.cancel}

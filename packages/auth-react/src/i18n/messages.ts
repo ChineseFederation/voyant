@@ -555,6 +555,10 @@ export type AuthUiMessages = {
   serviceApiKeysPage: {
     title: string
     description: string
+    catalogUnavailable: {
+      title: string
+      description: string
+    }
     createdToken: {
       title: string
       description: string
@@ -562,6 +566,9 @@ export type AuthUiMessages = {
     }
     create: {
       title: string
+      description: string
+      open: string
+      cancel: string
       name: string
       namePlaceholder: string
       expiration: string
@@ -579,6 +586,22 @@ export type AuthUiMessages = {
         oneYear: string
       }
     }
+    scopes: {
+      title: string
+      description: string
+      presets: string
+      fullAccess: string
+      fullAccessHint: string
+      search: string
+      noResults: string
+      selectedCount: string
+      groupAllLabel: string
+      groupAllHint: string
+      lockedHint: string
+      sensitive: string
+      countOf: string
+      clear: string
+    }
     list: {
       title: string
       refresh: string
@@ -588,7 +611,16 @@ export type AuthUiMessages = {
       enabled: string
       disabled: string
       noPermissions: string
-      metadata: string
+      created: string
+      actions: string
+      moreScopes: string
+      deleteConfirm: string
+      columns: {
+        name: string
+        scopes: string
+        expires: string
+        lastUsed: string
+      }
       disable: string
       enable: string
       rotate: string
