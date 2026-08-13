@@ -12,7 +12,6 @@ import {
   ConfirmActionButton,
 } from "@voyant-travel/ui/components"
 import {
-  ArrowLeft,
   Building,
   Calendar,
   CircleDot,
@@ -45,36 +44,73 @@ export type {
   OrganizationPerson,
 } from "./organization-detail-types.js"
 
-export interface OrganizationTopBarProps {
-  orgName: string
-  onBack: () => void
+export interface OrganizationHeaderProps {
+  org: OrganizationData
+  websiteHref?: string
   onMerge?: () => void
   onDelete: () => Promise<void>
   deletePending: boolean
 }
 
-export function OrganizationTopBar({
-  orgName,
-  onBack,
+/**
+ * Page header for the organization detail route.
+ *
+ * Deliberately renders no breadcrumb and no back affordance: the admin chrome
+ * already owns both (`useAdminBreadcrumbs` in the host). Identity — avatar,
+ * name, legal name, website and the relation/status badges — lives here rather
+ * than in the sidebar, matching the product detail header.
+ */
+export function OrganizationHeader({
+  org,
+  websiteHref,
   onMerge,
   onDelete,
   deletePending,
-}: OrganizationTopBarProps) {
+}: OrganizationHeaderProps) {
   const messages = useCrmUiMessagesOrDefault()
+  const relationLabel = org.relation
+    ? (messages.common.relationTypeLabels[
+        org.relation as keyof typeof messages.common.relationTypeLabels
+      ] ?? org.relation)
+    : null
+  const statusLabel =
+    messages.common.recordStatusLabels[
+      org.status as keyof typeof messages.common.recordStatusLabels
+    ] ?? org.status
 
   return (
-    <div className="sticky top-0 z-10 flex items-center gap-3 border-b bg-background px-6 py-3">
-      <Button variant="ghost" size="icon" onClick={onBack} className="h-8 w-8">
-        <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-      </Button>
-      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-        <button type="button" onClick={onBack} className="hover:text-foreground">
-          {messages.organizationDetail.topBar.organizations}
-        </button>
-        <span>/</span>
-        <span className="text-foreground">{orgName}</span>
+    <div className="flex flex-wrap items-start justify-between gap-3">
+      <div className="flex min-w-0 items-center gap-3">
+        <Avatar className="size-10 shrink-0">
+          <AvatarFallback>{initialsFrom(org.name)}</AvatarFallback>
+        </Avatar>
+        <div className="flex min-w-0 flex-col gap-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="text-xl font-bold tracking-tight sm:text-2xl">{org.name}</h1>
+            {relationLabel ? <Badge variant="secondary">{relationLabel}</Badge> : null}
+            <Badge variant="outline">{statusLabel}</Badge>
+          </div>
+          {org.legalName || websiteHref ? (
+            <div className="flex min-w-0 flex-wrap items-center gap-1.5 text-sm text-muted-foreground">
+              {org.legalName ? <span className="truncate">{org.legalName}</span> : null}
+              {org.legalName && websiteHref ? (
+                <span className="text-muted-foreground/60">/</span>
+              ) : null}
+              {websiteHref ? (
+                <a
+                  href={websiteHref}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="truncate transition-colors hover:text-foreground hover:underline"
+                >
+                  {org.website}
+                </a>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
       </div>
-      <div className="ml-auto flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         {onMerge ? (
           <Button variant="outline" size="sm" onClick={onMerge}>
             <GitMerge className="size-4" aria-hidden="true" />
@@ -103,6 +139,11 @@ export interface OrganizationSidebarProps {
   children?: ReactNode
 }
 
+/**
+ * About + Tags rail. The standalone profile card is gone — its avatar, badges
+ * and website now live in {@link OrganizationHeader} — leaving this rail as the
+ * single place every organization field is read and inline-edited.
+ */
 export function OrganizationSidebar({
   org,
   websiteHref,
@@ -123,43 +164,7 @@ export function OrganizationSidebar({
   ]
 
   return (
-    <aside className="col-span-12 flex flex-col gap-4 lg:col-span-3">
-      <Card>
-        <CardContent className="flex flex-col items-center gap-3 text-center">
-          <Avatar className="h-20 w-20">
-            <AvatarFallback className="text-xl">{initialsFrom(org.name)}</AvatarFallback>
-          </Avatar>
-          <div className="space-y-1">
-            <h2 className="text-lg font-semibold leading-tight">{org.name}</h2>
-            {org.legalName && <p className="text-sm text-muted-foreground">{org.legalName}</p>}
-            {websiteHref && (
-              <a
-                href={websiteHref}
-                target="_blank"
-                rel="noreferrer"
-                className="text-sm text-primary hover:underline"
-              >
-                {org.website}
-              </a>
-            )}
-          </div>
-          <div className="flex flex-wrap justify-center gap-1">
-            {org.relation && (
-              <Badge variant="secondary">
-                {messages.common.relationTypeLabels[
-                  org.relation as keyof typeof messages.common.relationTypeLabels
-                ] ?? org.relation}
-              </Badge>
-            )}
-            <Badge variant="outline">
-              {messages.common.recordStatusLabels[
-                org.status as keyof typeof messages.common.recordStatusLabels
-              ] ?? org.status}
-            </Badge>
-          </div>
-        </CardContent>
-      </Card>
-
+    <aside className="flex flex-col gap-6">
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-sm font-semibold">
@@ -167,6 +172,9 @@ export function OrganizationSidebar({
           </CardTitle>
         </CardHeader>
         <CardContent className="divide-y text-sm">
+          {/* Name and legal name stay here even though the header displays them:
+              the header is read-only, and this list is the only inline editor
+              for them — the organization page has no edit dialog. */}
           <InlineField
             icon={Building}
             label={messages.organizationDetail.sidebar.fields.name}
@@ -189,6 +197,7 @@ export function OrganizationSidebar({
             icon={Globe}
             label={messages.organizationDetail.sidebar.fields.website}
             kind="url"
+            href={websiteHref}
             value={org.website}
             onSave={(next) => onUpdateField({ website: next })}
           />

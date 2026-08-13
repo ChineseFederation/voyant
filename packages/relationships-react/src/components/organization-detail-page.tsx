@@ -11,9 +11,9 @@ import { OrganizationMergeDialog } from "./merge-dialogs.js"
 import {
   type OrganizationDetailPageSlots,
   type OrganizationDetailTab,
+  OrganizationHeader,
   OrganizationMain,
   OrganizationSidebar,
-  OrganizationTopBar,
 } from "./organization-detail-sections.js"
 import { PersonDialog } from "./person-dialog.js"
 
@@ -109,13 +109,10 @@ export function OrganizationDetailPage({
     : undefined
 
   return (
-    <div
-      data-slot="organization-detail-page"
-      className={cn("flex min-h-screen flex-col", className)}
-    >
-      <OrganizationTopBar
-        orgName={org.name}
-        onBack={() => onBack?.()}
+    <div data-slot="organization-detail-page" className={cn("flex flex-col gap-6", className)}>
+      <OrganizationHeader
+        org={org}
+        websiteHref={websiteHref}
         onMerge={() => setMergeOpen(true)}
         deletePending={remove.isPending}
         onDelete={async () => {
@@ -126,10 +123,7 @@ export function OrganizationDetailPage({
       />
       {slots?.afterTopBar}
 
-      <div className="grid flex-1 grid-cols-12 gap-4 p-4 lg:p-6">
-        <OrganizationSidebar org={org} websiteHref={websiteHref} onUpdateField={updateField}>
-          {slots?.sidebarEnd}
-        </OrganizationSidebar>
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
         <OrganizationMain
           activeTab={activeTab}
           setActiveTab={setActiveTab}
@@ -144,6 +138,9 @@ export function OrganizationDetailPage({
           onUpdateField={updateField}
           slots={slots}
         />
+        <OrganizationSidebar org={org} websiteHref={websiteHref} onUpdateField={updateField}>
+          {slots?.sidebarEnd}
+        </OrganizationSidebar>
       </div>
       <PersonDialog
         open={personDialogOpen}

@@ -1,5 +1,6 @@
 "use client"
 
+import { formatMessage } from "@voyant-travel/i18n"
 import { Button, cn, Input, Textarea } from "@voyant-travel/ui/components"
 import { Check, Loader2, Pencil, X } from "lucide-react"
 import { type ComponentType, type KeyboardEvent, useState } from "react"
@@ -124,19 +125,24 @@ export function InlineField({
             </div>
           </div>
         ) : (
-          <div className="flex items-center gap-2">
-            <div className={cn("flex-1 text-sm", kind !== "textarea" && "truncate")}>
+          <div className="flex items-start gap-2">
+            {/* `break-words` rather than `truncate`: in a 320px rail these are
+                long values (legal names, URLs, industries) and silently cutting
+                them off hid data that had no other place on the page. */}
+            <div
+              className={cn("min-w-0 flex-1 text-sm", kind === "textarea" && "whitespace-pre-wrap")}
+            >
               {href && value ? (
                 <a
                   href={href}
-                  className="text-primary hover:underline"
+                  className="break-words text-primary hover:underline"
                   target={href.startsWith("http") ? "_blank" : undefined}
                   rel={href.startsWith("http") ? "noreferrer" : undefined}
                 >
                   {value}
                 </a>
               ) : (
-                display
+                <span className="break-words">{display}</span>
               )}
             </div>
             {!disabled ? (
@@ -144,7 +150,8 @@ export function InlineField({
                 size="sm"
                 variant="ghost"
                 onClick={() => setEditing(true)}
-                className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100"
+                aria-label={formatMessage(messages.editTemplate, { label: label.toLowerCase() })}
+                className="h-6 w-6 shrink-0 p-0 opacity-0 transition-opacity focus-visible:opacity-100 group-hover:opacity-100"
               >
                 <Pencil className="h-3 w-3" aria-hidden="true" />
               </Button>

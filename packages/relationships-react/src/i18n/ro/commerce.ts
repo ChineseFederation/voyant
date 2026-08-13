@@ -55,6 +55,7 @@ export const crmUiRoCommerceMessages = {
     searchLanguagePlaceholder: "Cauta limba...",
     noLanguagesFound: "Nu au fost gasite limbi.",
     addTemplate: "Adauga {label}",
+    editTemplate: "Editeaza {label}",
     addTagPlaceholder: "Adauga eticheta...",
     tagAlreadyAdded: "Eticheta este deja adaugata.",
     addTagFailed: "Adaugarea etichetei a esuat.",

@@ -299,6 +299,7 @@ export type CrmUiMessages = {
     searchLanguagePlaceholder: string
     noLanguagesFound: string
     addTemplate: string
+    editTemplate: string
     addTagPlaceholder: string
     tagAlreadyAdded: string
     addTagFailed: string
@@ -310,7 +311,6 @@ export type CrmUiMessages = {
   }
   organizationDetail: {
     topBar: {
-      organizations: string
       merge: string
       delete: string
       deleteTitle: string
@@ -377,7 +377,6 @@ export type CrmUiMessages = {
       addPerson: string
       addActivity: string
     }
-    hint: string
   }
   personDetailPage: {
     notFound: string
@@ -385,7 +384,6 @@ export type CrmUiMessages = {
   }
   personDetail: {
     topBar: {
-      people: string
       edit: string
       merge: string
       delete: string
@@ -405,7 +403,6 @@ export type CrmUiMessages = {
     sidebar: {
       about: string
       tags: string
-      openWebsite: string
       fields: {
         firstName: string
         lastName: string
@@ -535,7 +532,6 @@ export type CrmUiMessages = {
       noCommunications: string
       noTravelProfile: string
     }
-    hint: string
   }
   personDocument: {
     /** Row-level inline reveal panel + per-row action icons. */

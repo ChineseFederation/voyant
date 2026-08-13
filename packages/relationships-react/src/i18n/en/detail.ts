@@ -5,7 +5,6 @@ export const crmUiEnDetailMessages = {
   },
   organizationDetail: {
     topBar: {
-      organizations: "Organizations",
       merge: "Merge",
       delete: "Delete",
       deleteTitle: "Delete this organization?",
@@ -73,7 +72,6 @@ export const crmUiEnDetailMessages = {
       addPerson: "Add person",
       addActivity: "Add activity",
     },
-    hint: "Hover a field to edit it.",
   },
   personDetailPage: {
     notFound: "Person not found",
@@ -81,7 +79,6 @@ export const crmUiEnDetailMessages = {
   },
   personDetail: {
     topBar: {
-      people: "People",
       edit: "Edit",
       merge: "Merge",
       delete: "Delete",
@@ -102,7 +99,6 @@ export const crmUiEnDetailMessages = {
     sidebar: {
       about: "About",
       tags: "Tags",
-      openWebsite: "Open website",
       fields: {
         firstName: "First name",
         lastName: "Last name",
@@ -231,7 +227,6 @@ export const crmUiEnDetailMessages = {
       noCommunications: "No communications.",
       noTravelProfile: "No travel profile data.",
     },
-    hint: "Hover a field to edit it.",
   },
   personDocument: {
     row: {

@@ -1,16 +1,6 @@
 "use client"
 
-import {
-  Avatar,
-  AvatarFallback,
-  Badge,
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  cn,
-} from "@voyant-travel/ui/components"
-import { buttonVariants } from "@voyant-travel/ui/components/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@voyant-travel/ui/components"
 import {
   BriefcaseBusiness,
   Calendar,
@@ -31,27 +21,22 @@ import { InlineCurrencyField } from "./inline-currency-field.js"
 import { InlineField } from "./inline-field.js"
 import { InlineLanguageField } from "./inline-language-field.js"
 import { InlineSelectField } from "./inline-select-field.js"
-import { initialsFrom, personDisplayName } from "./person-detail-panels.js"
-import type { PersonData, PersonOrganization } from "./person-detail-types.js"
+import type { PersonData } from "./person-detail-types.js"
 import { TagsEditor } from "./tags-editor.js"
 
 export interface PersonSidebarProps {
   person: PersonData
-  organization: PersonOrganization | null
-  onOrganizationOpen?: (organizationId: string) => void
   onUpdateField: (patch: UpdatePersonInput) => Promise<void>
   children?: ReactNode
 }
 
-export function PersonSidebar({
-  person,
-  organization,
-  onOrganizationOpen,
-  onUpdateField,
-  children,
-}: PersonSidebarProps) {
+/**
+ * About + Tags rail. The standalone profile card is gone — its avatar, badges,
+ * job title and organization link now live in `PersonHeader` — leaving this
+ * rail as the single place every person field is read and inline-edited.
+ */
+export function PersonSidebar({ person, onUpdateField, children }: PersonSidebarProps) {
   const messages = useCrmUiMessagesOrDefault()
-  const displayName = personDisplayName(person, messages.personCard.unnamed)
   const websiteHref = person.website
     ? person.website.startsWith("http")
       ? person.website
@@ -70,44 +55,7 @@ export function PersonSidebar({
   ]
 
   return (
-    <aside className="col-span-12 flex flex-col gap-4 lg:col-span-3">
-      <Card>
-        <CardContent className="flex flex-col items-center gap-3 text-center">
-          <Avatar className="size-20">
-            <AvatarFallback className="text-xl">{initialsFrom(displayName)}</AvatarFallback>
-          </Avatar>
-          <div className="flex max-w-full flex-col gap-1">
-            <h2 className="truncate text-lg font-semibold leading-tight">{displayName}</h2>
-            {person.jobTitle ? (
-              <p className="truncate text-sm text-muted-foreground">{person.jobTitle}</p>
-            ) : null}
-            {organization ? (
-              <button
-                type="button"
-                onClick={() => onOrganizationOpen?.(organization.id)}
-                className="truncate text-sm text-primary hover:underline"
-              >
-                {organization.name}
-              </button>
-            ) : null}
-          </div>
-          <div className="flex flex-wrap justify-center gap-1">
-            {person.relation ? (
-              <Badge variant="secondary">
-                {messages.common.relationTypeLabels[
-                  person.relation as keyof typeof messages.common.relationTypeLabels
-                ] ?? person.relation}
-              </Badge>
-            ) : null}
-            <Badge variant="outline">
-              {messages.common.recordStatusLabels[
-                person.status as keyof typeof messages.common.recordStatusLabels
-              ] ?? person.status}
-            </Badge>
-          </div>
-        </CardContent>
-      </Card>
-
+    <aside className="flex flex-col gap-6">
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-sm font-semibold">
@@ -150,6 +98,7 @@ export function PersonSidebar({
             icon={Globe}
             label={messages.personDetail.sidebar.fields.website}
             kind="url"
+            href={websiteHref}
             value={person.website}
             onSave={(next) => onUpdateField({ website: next })}
           />
@@ -193,18 +142,6 @@ export function PersonSidebar({
           />
         </CardContent>
       </Card>
-
-      {websiteHref ? (
-        <a
-          href={websiteHref}
-          target="_blank"
-          rel="noreferrer"
-          className={cn(buttonVariants({ variant: "outline" }))}
-        >
-          <Globe className="size-4" aria-hidden="true" />
-          {messages.personDetail.sidebar.openWebsite}
-        </a>
-      ) : null}
 
       <Card>
         <CardHeader className="pb-3">

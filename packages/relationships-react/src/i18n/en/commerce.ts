@@ -55,6 +55,7 @@ export const crmUiEnCommerceMessages = {
     searchLanguagePlaceholder: "Search language...",
     noLanguagesFound: "No languages found.",
     addTemplate: "Add {label}",
+    editTemplate: "Edit {label}",
     addTagPlaceholder: "Add tag...",
     tagAlreadyAdded: "Tag already added.",
     addTagFailed: "Failed to add tag.",

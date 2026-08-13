@@ -5,7 +5,6 @@ export const crmUiRoDetailMessages = {
   },
   organizationDetail: {
     topBar: {
-      organizations: "Organizatii",
       merge: "Uneste",
       delete: "Sterge",
       deleteTitle: "Stergi aceasta organizatie?",
@@ -73,7 +72,6 @@ export const crmUiRoDetailMessages = {
       addPerson: "Adauga persoana",
       addActivity: "Adauga activitate",
     },
-    hint: "Treci cu mouse-ul peste un camp pentru a-l edita.",
   },
   personDetailPage: {
     notFound: "Persoana nu a fost gasita",
@@ -81,7 +79,6 @@ export const crmUiRoDetailMessages = {
   },
   personDetail: {
     topBar: {
-      people: "Persoane",
       edit: "Editeaza",
       merge: "Uneste",
       delete: "Sterge",
@@ -102,7 +99,6 @@ export const crmUiRoDetailMessages = {
     sidebar: {
       about: "Despre",
       tags: "Etichete",
-      openWebsite: "Deschide website",
       fields: {
         firstName: "Prenume",
         lastName: "Nume",
@@ -231,7 +227,6 @@ export const crmUiRoDetailMessages = {
       noCommunications: "Nu exista comunicari.",
       noTravelProfile: "Nu exista date de profil de calatorie.",
     },
-    hint: "Treci cu mouse-ul peste un camp pentru a-l edita.",
   },
   personDocument: {
     row: {

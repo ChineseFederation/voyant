@@ -25,13 +25,13 @@ export {
   type OrganizationData,
   type OrganizationDetailPageSlots,
   type OrganizationDetailTab,
+  OrganizationHeader,
+  type OrganizationHeaderProps,
   OrganizationMain,
   type OrganizationMainProps,
   type OrganizationPerson,
   OrganizationSidebar,
   type OrganizationSidebarProps,
-  OrganizationTopBar,
-  type OrganizationTopBarProps,
 } from "./components/organization-detail-sections.js"
 export {
   OrganizationDialog,
@@ -84,6 +84,8 @@ export {
   type PersonDocument,
   PersonDocumentsPanel,
   type PersonDocumentsPanelProps,
+  PersonHeader,
+  type PersonHeaderProps,
   PersonMain,
   type PersonMainProps,
   type PersonOrganization,
@@ -94,8 +96,6 @@ export {
   type PersonRelationshipsPanelProps,
   PersonSidebar,
   type PersonSidebarProps,
-  PersonTopBar,
-  type PersonTopBarProps,
   type PersonTravelSnapshot,
   personDisplayName,
 } from "./components/person-detail-page.js"
