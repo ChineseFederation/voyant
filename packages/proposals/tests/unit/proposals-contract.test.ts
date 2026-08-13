@@ -145,6 +145,7 @@ const proposalVersionRow: InferSelectModel<typeof proposalVersions> = {
   subtotalAmountCents: 100000,
   taxAmountCents: 20000,
   totalAmountCents: 120000,
+  paymentTerms: null,
   notes: null,
   sentAt: null,
   viewedAt: null,

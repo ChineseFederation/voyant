@@ -224,6 +224,7 @@ export function readPolicySourceFromInternalNotes(
       const value = trimmed.slice(POLICY_SOURCE_MARKER_PREFIX.length).trim()
       switch (value) {
         case "booking":
+        case "proposal":
         case "listing":
         case "category":
         case "supplier":

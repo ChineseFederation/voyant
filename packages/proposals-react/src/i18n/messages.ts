@@ -652,6 +652,15 @@ export type CrmUiMessages = {
     versionsTitle: string
     versionsEmpty: string
     versionsLoadFailed: string
+    paymentTerms: {
+      title: string
+      description: string
+      lockedAfterSend: string
+      save: string
+      saved: string
+      saveFailed: string
+      noVersion: string
+    }
     versionActive: string
     versionLabel: string
     sendToClient: string

@@ -32,6 +32,7 @@ import {
   financeInvoiceSettlementPollerRuntimePort,
   financeNotificationsRuntimePort,
   financeOperatorSettingsRuntimePort,
+  financeProposalsPaymentPolicyRuntimePort,
 } from "./runtime-port.js"
 import { financeVoyantAdmin } from "./voyant-admin.js"
 import {
@@ -885,6 +886,8 @@ export const financeBookingScheduleVoyantPlugin = defineExtension({
     requirePort(financeAccommodationsPaymentPolicyRuntimePort),
     requirePort(financeCruisesPaymentPolicyRuntimePort),
     requirePort(financeInventoryPaymentPolicyRuntimePort),
+    // Optional: the proposal layer only exists where proposals do.
+    requirePort(financeProposalsPaymentPolicyRuntimePort, { optional: true }),
   ],
   api: [
     {

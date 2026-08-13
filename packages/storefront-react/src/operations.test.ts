@@ -15,6 +15,9 @@ const storefrontSettingsResponse = {
       privacyUrl: null,
       cancellationUrl: null,
       defaultContractTemplateId: null,
+      // Required-but-nullable since #4590. Null is the safe reading: the
+      // operator has no authority to store an instrument.
+      storedInstrumentMandate: null,
     },
     localization: {
       defaultLocale: null,

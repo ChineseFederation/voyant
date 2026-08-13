@@ -198,6 +198,17 @@ export const crmUiEnCommerceMessages = {
     versionsTitle: "Proposal versions",
     versionsEmpty: "No versions yet. Create the first one.",
     versionsLoadFailed: "Failed to load proposal versions.",
+    paymentTerms: {
+      title: "Payment terms",
+      description:
+        "What this client pays and when. Shown on the proposal, and used for the booking's payment schedule once they accept.",
+      lockedAfterSend:
+        "These terms were sent to the client and can't be changed. Create a new version to renegotiate.",
+      save: "Save terms",
+      saved: "Saved",
+      saveFailed: "Couldn't save the payment terms",
+      noVersion: "Create a proposal version to set payment terms.",
+    },
     versionActive: "Active",
     versionLabel: "v{number}",
     sendToClient: "Send to client",

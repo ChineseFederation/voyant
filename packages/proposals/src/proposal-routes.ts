@@ -34,6 +34,7 @@ import { type TripSnapshot, TripsInvariantError, tripsService } from "@voyant-tr
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import { type Context, Hono } from "hono"
 import { z } from "zod"
+import { normalizeProposalPaymentTerms, proposalDepositAmountCents } from "./payment-terms.js"
 import { proposalsPresentationRuntimePort, proposalsSnapshotRuntimePort } from "./runtime-port.js"
 import type { ProposalVersion, ProposalVersionLine } from "./schema.js"
 import { ProposalVersionConflictError, proposalsService } from "./service/index.js"
@@ -131,6 +132,28 @@ export interface PublicProposalVersionProposal {
   media: PublicProposalVersionProposalMedia[]
   operator: unknown | null
   proposalUrl: string
+  /**
+   * Whether `POST /:id/accept` can succeed on this proposal right now.
+   *
+   * A version whose lines were typed by hand carries no frozen Trip snapshot,
+   * and acceptance refuses one (`snapshot_required`) for the life of the
+   * version. Without this a client can only discover that by rendering an
+   * Accept control and explaining the 409 afterwards.
+   */
+  acceptance: PublicProposalVersionAcceptance
+  /**
+   * The payment terms the customer is agreeing to, when the operator stated
+   * them on this version. `null` means the version carries none and the
+   * booking's schedule falls to the operator's own cascade — the offer then
+   * states nothing rather than stating a default it cannot guarantee.
+   */
+  paymentTerms: PublicProposalVersionPaymentTerms | null
+}
+
+export interface PublicProposalVersionAcceptance {
+  available: boolean
+  /** Why acceptance is unavailable. `null` when it is available. */
+  reason: "snapshot_required" | "not_open" | null
 }
 
 export interface PublicProposalVersionProposalMedia {
@@ -148,13 +171,44 @@ export interface PublicProposalVersionProposalLine {
   currency: string
 }
 
+/**
+ * The version's payment terms, stated in the currency and total the customer
+ * is looking at.
+ *
+ * The deposit is resolved to an amount here rather than left as a percentage:
+ * the customer is agreeing to pay a sum, and a percentage they have to apply to
+ * a total themselves is not a stated term. The balance keeps its rule
+ * (`daysBeforeDeparture`) because the proposal has no departure date to anchor
+ * it to — the Trip snapshot does, and the booking's schedule resolves it there.
+ */
+export interface PublicProposalVersionPaymentTerms {
+  currency: string
+  depositAmountCents: number
+  balanceAmountCents: number
+  balanceDueDaysBeforeDeparture: number
+}
+
+export interface ProposalVersionSendWarning {
+  code: "snapshot_required"
+  message: string
+}
+
 export interface SendProposalVersionResult {
   proposalVersion: ProposalVersion
   proposalUrl: string
+  /**
+   * Non-blocking problems with what was just sent. A version may legitimately
+   * be sent for review without a frozen Trip snapshot, but it can never be
+   * accepted in that state — the operator is the only party who can fix it, so
+   * the send response is where they are told.
+   */
+  warnings: ProposalVersionSendWarning[]
 }
 
 export interface DeclinePublicProposalResult {
   status: ProposalVersion["status"]
+  /** Id of the recorded decline reason, or `null` when none was sent. */
+  feedbackId: string | null
 }
 
 export interface PublicProposalFeedbackInput {
@@ -162,7 +216,15 @@ export interface PublicProposalFeedbackInput {
   proposalVersionId: string
   message: string
   proposalUrl: string
+  /**
+   * What the customer was doing when they wrote this. Both kinds are the same
+   * customer sentence about the same proposal, and both belong in CRM — but a
+   * decline reason is not an edit request and must not be filed as one.
+   */
+  kind: PublicProposalFeedbackKind
 }
+
+export type PublicProposalFeedbackKind = "edits_requested" | "declined"
 
 export interface PublicProposalFeedbackRecord {
   id: string
@@ -197,6 +259,15 @@ type ProposalVersionProposalReadModel = NonNullable<
 >
 const requestPublicProposalEditsSchema = z.object({
   message: z.string().trim().min(1).max(4000),
+})
+
+/**
+ * Decline takes the same message request-edits does, and it is optional: a
+ * customer may decline without saying why, and refusing the decline over a
+ * missing sentence would be worse than not asking for one.
+ */
+const declinePublicProposalSchema = z.object({
+  message: z.string().trim().min(1).max(4000).optional(),
 })
 
 const freezeProposalVersionSnapshotBodySchema = z.object({
@@ -253,6 +324,38 @@ function toPublicProposalVersionProposal(
     })),
     operator: options.operator,
     proposalUrl: options.proposalUrl,
+    acceptance: resolveProposalVersionAcceptance(proposalVersion),
+    paymentTerms: toPublicProposalVersionPaymentTerms(proposalVersion),
+  }
+}
+
+/**
+ * Whether this version can be accepted, and why not when it cannot.
+ *
+ * Mirrors the two gates `acceptProposalAndPrepareBooking` applies before it
+ * touches anything: the version has to still be open, and it has to carry a
+ * frozen Trip snapshot. Anything a client renders off this is exactly what the
+ * accept route would answer.
+ */
+export function resolveProposalVersionAcceptance(
+  proposalVersion: Pick<ProposalVersion, "status" | "tripSnapshotId">,
+): PublicProposalVersionAcceptance {
+  if (proposalVersion.status !== "sent") return { available: false, reason: "not_open" }
+  if (!proposalVersion.tripSnapshotId) return { available: false, reason: "snapshot_required" }
+  return { available: true, reason: null }
+}
+
+function toPublicProposalVersionPaymentTerms(
+  proposalVersion: ProposalVersion,
+): PublicProposalVersionPaymentTerms | null {
+  const terms = normalizeProposalPaymentTerms(proposalVersion.paymentTerms)
+  if (!terms) return null
+  const depositAmountCents = proposalDepositAmountCents(terms, proposalVersion.totalAmountCents)
+  return {
+    currency: proposalVersion.currency,
+    depositAmountCents,
+    balanceAmountCents: Math.max(0, proposalVersion.totalAmountCents - depositAmountCents),
+    balanceDueDaysBeforeDeparture: terms.balanceDueDaysBeforeDeparture,
   }
 }
 
@@ -363,6 +466,7 @@ async function handleSendProposalVersion(
         proposalUrl: buildProposalVersionProposalUrl(proposalVersion.id, {
           baseUrl: options.resolvePublicProposalBaseUrl(c),
         }),
+        warnings: sendProposalVersionWarnings(proposalVersion),
       } satisfies SendProposalVersionResult,
     })
   } catch (error) {
@@ -371,6 +475,28 @@ async function handleSendProposalVersion(
     }
     throw error
   }
+}
+
+/**
+ * What is wrong with a version that was nonetheless sent.
+ *
+ * Sending without a frozen Trip snapshot is deliberately allowed — a
+ * line-item proposal is a legitimate thing to put in front of a client for
+ * review. What is not allowed is letting the operator believe it can be
+ * accepted: `acceptProposalAndPrepareBooking` refuses one for the life of the
+ * version, and the operator is the only party who can freeze a snapshot.
+ */
+function sendProposalVersionWarnings(
+  proposalVersion: ProposalVersion,
+): ProposalVersionSendWarning[] {
+  if (proposalVersion.tripSnapshotId) return []
+  return [
+    {
+      code: "snapshot_required",
+      message:
+        "This proposal has no frozen Trip snapshot, so the customer cannot accept it. Freeze a snapshot from the Trip before they try.",
+    },
+  ]
 }
 
 async function handleGetProposalVersionProposalLink(
@@ -435,6 +561,7 @@ async function handleDeclinePublicProposal(
   const proposalVersionId = c.req.param("proposalVersionId")
   if (!proposalVersionId) return c.json({ error: "Proposal Version id is required" }, 400)
 
+  const body = (await parseOptionalJsonBody(c, declinePublicProposalSchema)) ?? {}
   const db = options.resolveDb(c)
   await proposalsService.expireProposalVersionIfPastValidUntil(db, proposalVersionId)
   const proposal = await proposalsService.getProposalVersionProposal(db, proposalVersionId)
@@ -449,8 +576,21 @@ async function handleDeclinePublicProposal(
   try {
     const proposalVersion = await proposalsService.declineProposalVersion(db, proposalVersionId)
     if (!proposalVersion) return c.json({ error: "Proposal not found" }, 404)
+    // "Too expensive" or "the dates no longer work" is the most useful
+    // sentence in the whole sales loop, and declining is exactly when a
+    // customer writes it. Recorded through the same hook request-edits uses
+    // so it reaches CRM the same way, only after the status actually moved.
+    const feedback = await recordPublicProposalFeedback(c, options, {
+      proposalId: proposal.proposal.id,
+      proposalVersionId,
+      message: body.message,
+      kind: "declined",
+    })
     return c.json({
-      data: { status: proposalVersion.status } satisfies DeclinePublicProposalResult,
+      data: {
+        status: proposalVersion.status,
+        feedbackId: feedback?.id ?? null,
+      } satisfies DeclinePublicProposalResult,
     })
   } catch (error) {
     if (error instanceof ProposalVersionConflictError) {
@@ -482,19 +622,12 @@ async function handleRequestPublicProposalEdits(
     return c.json({ error: "Proposal can no longer receive edit requests" }, 409)
   }
 
-  const feedback =
-    (await options.recordPublicProposalFeedback?.(
-      db,
-      {
-        proposalId: proposal.proposal.id,
-        proposalVersionId,
-        message: body.message,
-        proposalUrl: buildProposalVersionProposalUrl(proposalVersionId, {
-          baseUrl: options.resolvePublicProposalBaseUrl(c),
-        }),
-      },
-      c,
-    )) ?? null
+  const feedback = await recordPublicProposalFeedback(c, options, {
+    proposalId: proposal.proposal.id,
+    proposalVersionId,
+    message: body.message,
+    kind: "edits_requested",
+  })
 
   return c.json({
     data: {
@@ -502,6 +635,41 @@ async function handleRequestPublicProposalEdits(
       feedbackId: feedback?.id ?? null,
     } satisfies RequestPublicProposalEditsResult,
   })
+}
+
+/**
+ * Route a customer sentence to the deployment's feedback hook.
+ *
+ * Silent when the deployment wired no hook, and silent when the customer wrote
+ * nothing — an empty decline is a decline, not a failure.
+ */
+async function recordPublicProposalFeedback(
+  c: Context<OperatorProposalRouteEnv>,
+  options: ProposalPresentationRoutesOptions,
+  input: {
+    proposalId: string
+    proposalVersionId: string
+    message: string | undefined
+    kind: PublicProposalFeedbackKind
+  },
+): Promise<PublicProposalFeedbackRecord | null> {
+  const message = input.message?.trim()
+  if (!message || !options.recordPublicProposalFeedback) return null
+  return (
+    (await options.recordPublicProposalFeedback(
+      options.resolveDb(c),
+      {
+        proposalId: input.proposalId,
+        proposalVersionId: input.proposalVersionId,
+        message,
+        kind: input.kind,
+        proposalUrl: buildProposalVersionProposalUrl(input.proposalVersionId, {
+          baseUrl: options.resolvePublicProposalBaseUrl(c),
+        }),
+      },
+      c,
+    )) ?? null
+  )
 }
 
 async function handleAcceptPublicProposal(

@@ -18,6 +18,7 @@ export {
   pipelineListQuerySchema,
   proposalCoreSchema,
   proposalListQuerySchema,
+  proposalPaymentTermsSchema,
   proposalStatusSchema,
   proposalVersionCoreSchema,
   proposalVersionLineCoreSchema,

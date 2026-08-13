@@ -300,6 +300,140 @@ describe("proposal routes", () => {
     expect(mocks.declineProposalVersion).toHaveBeenCalledWith(fakeDb, "prvr_123")
   })
 
+  it("keeps the reason a customer sends with a decline", async () => {
+    mocks.getProposalVersionProposal.mockResolvedValue(proposal)
+    mocks.declineProposalVersion.mockResolvedValue({ ...proposalVersion, status: "declined" })
+    mocks.recordPublicProposalFeedback.mockResolvedValue({ id: "act_decline" })
+    const response = await makeApp().request("/v1/public/proposals/prvr_123/decline", {
+      method: "POST",
+      ...json({ message: "  Too expensive for this year.  " }),
+    })
+    expect(response.status).toBe(200)
+    expect(mocks.recordPublicProposalFeedback).toHaveBeenCalledWith(
+      fakeDb,
+      {
+        proposalId: "prps_123",
+        proposalVersionId: "prvr_123",
+        message: "Too expensive for this year.",
+        kind: "declined",
+        proposalUrl: "/proposal/prvr_123",
+      },
+      expect.anything(),
+    )
+    await expect(response.json()).resolves.toEqual({
+      data: { status: "declined", feedbackId: "act_decline" },
+    })
+  })
+
+  it("declines without a message without inventing feedback", async () => {
+    mocks.getProposalVersionProposal.mockResolvedValue(proposal)
+    mocks.declineProposalVersion.mockResolvedValue({ ...proposalVersion, status: "declined" })
+    const response = await makeApp().request("/v1/public/proposals/prvr_123/decline", {
+      method: "POST",
+      ...json({}),
+    })
+    expect(response.status).toBe(200)
+    expect(mocks.recordPublicProposalFeedback).not.toHaveBeenCalled()
+    await expect(response.json()).resolves.toEqual({
+      data: { status: "declined", feedbackId: null },
+    })
+  })
+
+  it("files an edit request as an edit request, not a decline", async () => {
+    mocks.getProposalVersionProposal.mockResolvedValue(proposal)
+    mocks.recordPublicProposalFeedback.mockResolvedValue({ id: "act_123" })
+    await makeApp().request("/v1/public/proposals/prvr_123/request-edits", {
+      method: "POST",
+      ...json({ message: "Please add a private transfer." }),
+    })
+    expect(mocks.recordPublicProposalFeedback).toHaveBeenCalledWith(
+      fakeDb,
+      expect.objectContaining({ kind: "edits_requested" }),
+      expect.anything(),
+    )
+  })
+
+  it("warns the operator when it sends a version nobody can accept", async () => {
+    mocks.sendProposalVersion.mockResolvedValue({ ...proposalVersion, tripSnapshotId: null })
+    const response = await makeApp().request("/v1/admin/proposal-versions/prvr_123/send", {
+      method: "POST",
+      ...json({}),
+    })
+    expect(response.status).toBe(200)
+    const body = (await response.json()) as {
+      data: { warnings: Array<{ code: string; message: string }> }
+    }
+    expect(body.data.warnings).toEqual([
+      { code: "snapshot_required", message: expect.stringContaining("Trip snapshot") },
+    ])
+  })
+
+  it("sends a snapshot-backed version with no warnings", async () => {
+    mocks.sendProposalVersion.mockResolvedValue(proposalVersion)
+    const response = await makeApp().request("/v1/admin/proposal-versions/prvr_123/send", {
+      method: "POST",
+      ...json({}),
+    })
+    await expect(response.json()).resolves.toMatchObject({ data: { warnings: [] } })
+  })
+
+  it("tells the public payload whether the proposal can be accepted at all", async () => {
+    const unacceptable = { ...proposalVersion, tripSnapshotId: null }
+    mocks.getProposalVersionProposal.mockResolvedValue({
+      ...proposal,
+      proposalVersion: unacceptable,
+    })
+    mocks.markProposalVersionViewed.mockResolvedValue(unacceptable)
+    const response = await makeApp().request("/v1/public/proposals/prvr_123")
+    await expect(response.json()).resolves.toMatchObject({
+      data: { acceptance: { available: false, reason: "snapshot_required" } },
+    })
+  })
+
+  it("marks a snapshot-backed sent proposal acceptable", async () => {
+    mocks.getProposalVersionProposal.mockResolvedValue(proposal)
+    mocks.markProposalVersionViewed.mockResolvedValue(proposalVersion)
+    const response = await makeApp().request("/v1/public/proposals/prvr_123")
+    await expect(response.json()).resolves.toMatchObject({
+      data: { acceptance: { available: true, reason: null } },
+    })
+  })
+
+  it("states the version's payment terms as amounts on the public payload", async () => {
+    const withTerms = {
+      ...proposalVersion,
+      paymentTerms: {
+        deposit: { kind: "percent", percent: 50 },
+        minDaysBeforeDepartureForDeposit: 30,
+        balanceDueDaysBeforeDeparture: 30,
+        balanceDueMinDaysFromNow: 7,
+      },
+    }
+    mocks.getProposalVersionProposal.mockResolvedValue({ ...proposal, proposalVersion: withTerms })
+    mocks.markProposalVersionViewed.mockResolvedValue(withTerms)
+    const response = await makeApp().request("/v1/public/proposals/prvr_123")
+    await expect(response.json()).resolves.toMatchObject({
+      data: {
+        paymentTerms: {
+          currency: "EUR",
+          // 50% of 10900 rounds to 5450, and the balance is the remainder —
+          // never a second rounding of the same percentage.
+          depositAmountCents: 5450,
+          balanceAmountCents: 5450,
+          balanceDueDaysBeforeDeparture: 30,
+        },
+      },
+    })
+  })
+
+  it("states no terms when the version carries none", async () => {
+    mocks.getProposalVersionProposal.mockResolvedValue(proposal)
+    mocks.markProposalVersionViewed.mockResolvedValue(proposalVersion)
+    const response = await makeApp().request("/v1/public/proposals/prvr_123")
+    const body = (await response.json()) as { data: { paymentTerms: unknown } }
+    expect(body.data.paymentTerms).toBeNull()
+  })
+
   it("accepts a snapshot-backed proposal with one Proposals-owned locked transaction", async () => {
     mocks.getProposalVersionProposal.mockResolvedValue(proposal)
     mocks.getTripSnapshotById.mockResolvedValue(tripSnapshot)

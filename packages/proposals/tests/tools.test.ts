@@ -215,6 +215,7 @@ const version = {
   subtotalAmountCents: 120_000,
   taxAmountCents: 0,
   totalAmountCents: 120_000,
+  paymentTerms: null,
   notes: null,
   sentAt: null,
   viewedAt: null,

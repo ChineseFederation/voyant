@@ -237,15 +237,39 @@ describe("resolveEffectivePaymentPolicy", () => {
     expect(result.source).toBe("listing")
   })
 
+  it("accepted-proposal terms beat every catalog layer", () => {
+    // What the customer agreed to when they accepted the offer outranks a
+    // listing's or supplier's default — a quoted trip is negotiated per client.
+    const result = resolveEffectivePaymentPolicy({
+      proposalPolicy: fiftyFifty,
+      listingPolicy: noDepositPolicy,
+      categoryPolicy: noDepositPolicy,
+      supplierPolicy: noDepositPolicy,
+      operatorDefault: noDepositPolicy,
+    })
+    expect(result.source).toBe("proposal")
+    expect(result.policy).toBe(fiftyFifty)
+  })
+
   it("booking override beats every other layer", () => {
     const result = resolveEffectivePaymentPolicy({
       bookingPolicy: fiftyFifty,
+      proposalPolicy: noDepositPolicy,
       listingPolicy: noDepositPolicy,
       categoryPolicy: noDepositPolicy,
       supplierPolicy: noDepositPolicy,
       operatorDefault: noDepositPolicy,
     })
     expect(result.source).toBe("booking")
+  })
+
+  it("falls past a proposal that stated no terms", () => {
+    const result = resolveEffectivePaymentPolicy({
+      proposalPolicy: null,
+      listingPolicy: fiftyFifty,
+      operatorDefault: noDepositPolicy,
+    })
+    expect(result.source).toBe("listing")
   })
 
   it("skips malformed policy layers and falls back to the next valid layer", () => {

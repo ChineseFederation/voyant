@@ -26,6 +26,7 @@
 import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi"
 import type { ActionLedgerRequestContextValues } from "@voyant-travel/action-ledger"
 import { appendActionLedgerMutation } from "@voyant-travel/action-ledger"
+import { getBookingOriginByBookingId } from "@voyant-travel/bookings"
 import { bookingActivityLog, bookings } from "@voyant-travel/bookings/schema"
 import { defineGraphRuntimeFactory } from "@voyant-travel/core/project"
 import { openApiValidationHook, parseJsonBody } from "@voyant-travel/hono"
@@ -51,6 +52,7 @@ import {
   financeHostRuntimePort,
   financeInventoryPaymentPolicyRuntimePort,
   financeOperatorSettingsRuntimePort,
+  financeProposalsPaymentPolicyRuntimePort,
 } from "../runtime-port.js"
 import { bookingPaymentSchedules } from "../schema/booking-billing.js"
 import { financeService } from "../service.js"
@@ -79,6 +81,21 @@ export interface BookingScheduleRoutesOptions {
   resolveCategoryPolicy(db: PostgresJsDatabase, bookingId: string): Promise<PaymentPolicy | null>
   /** Phase 4: per-listing override (first booking-item product policy). */
   resolveListingPolicy(db: PostgresJsDatabase, bookingId: string): Promise<PaymentPolicy | null>
+  /**
+   * Terms stated on one accepted Proposal Version.
+   *
+   * Keyed by the Proposal Version rather than the booking on purpose: finance
+   * already owns the walk from a booking to its origin (`booking_origins` is
+   * bookings', which finance depends on acyclically), so the injected reader
+   * only ever touches `proposal_versions` — the one table its own module owns.
+   *
+   * Optional. A deployment that composes no proposals module leaves it unset
+   * and the cascade is exactly what it was before the layer existed.
+   */
+  resolveProposalVersionPolicy?(
+    db: PostgresJsDatabase,
+    proposalVersionId: string,
+  ): Promise<PaymentPolicy | null>
 
   // ── Entity-keyed cascade (storefront resolve path) ────────────────────────
   resolveListingPolicyForEntity(
@@ -159,13 +176,19 @@ export async function generatePaymentScheduleForBooking(
   // layer — beats category, supplier, and operator default.
   const listingPolicy = await options.resolveListingPolicy(db, bookingId)
 
-  // Phase 5: booking-level override. The booking's own
+  // Phase 5: the terms on the accepted Proposal Version this booking came
+  // from, when it came from one. This is what the customer agreed to, so it
+  // outranks every catalog default underneath it.
+  const proposalPolicy = await resolveAcceptedProposalPolicy(db, bookingId, options)
+
+  // Phase 6: booking-level override. The booking's own
   // customerPaymentPolicy column wins over every catalog layer.
   // Reserved for ops adjustments — most bookings leave this null.
   const bookingPolicy = (booking.customerPaymentPolicy as PaymentPolicy | null | undefined) ?? null
 
   const { policy, source } = resolveEffectivePaymentPolicy({
     bookingPolicy,
+    proposalPolicy,
     listingPolicy,
     categoryPolicy,
     supplierPolicy,
@@ -210,6 +233,26 @@ export async function generatePaymentScheduleForBooking(
   })
 }
 
+/**
+ * The payment terms the customer agreed to, when this booking came from an
+ * accepted Proposal Version and that version stated any.
+ *
+ * `booking_origins` is the durable link, so this re-derives on every
+ * regeneration rather than depending on anything having been copied onto the
+ * booking at commit time.
+ */
+async function resolveAcceptedProposalPolicy(
+  db: PostgresJsDatabase,
+  bookingId: string,
+  options: BookingScheduleRoutesOptions,
+): Promise<PaymentPolicy | null> {
+  if (!options.resolveProposalVersionPolicy) return null
+  const origin = await getBookingOriginByBookingId(db, bookingId)
+  if (origin?.originSource !== "accepted_proposal_version") return null
+  if (!origin.proposalVersionId) return null
+  return options.resolveProposalVersionPolicy(db, origin.proposalVersionId)
+}
+
 // ─────────────────────────────────────────────────────────────────
 // Admin route: update booking-level policy + regenerate schedule
 // ─────────────────────────────────────────────────────────────────
@@ -237,10 +280,12 @@ const regenerateScheduleBodySchema = z.object({
   customerPaymentPolicy: policyApiSchema.nullable().optional(),
 })
 
-// Cascade source the resolver stamps on the response (booking → listing →
-// category → supplier → operator default). Mirrors `PaymentPolicySource`.
+// Cascade source the resolver stamps on the response (booking → proposal →
+// listing → category → supplier → operator default). Mirrors
+// `PaymentPolicySource`.
 const paymentPolicySourceSchema = z.enum([
   "booking",
+  "proposal",
   "listing",
   "category",
   "supplier",
@@ -517,7 +562,7 @@ export function createBookingScheduleApiExtension(
 }
 
 export const createBookingScheduleVoyantRuntime = defineGraphRuntimeFactory(
-  async ({ api, getPort }) => {
+  async ({ api, getPort, hasPort }) => {
     const operatorSettings = await getPort(financeOperatorSettingsRuntimePort)
     const provider = createFinanceBookingScheduleRuntime(
       await getPort(financeHostRuntimePort),
@@ -526,6 +571,11 @@ export const createBookingScheduleVoyantRuntime = defineGraphRuntimeFactory(
       await getPort(financeAccommodationsPaymentPolicyRuntimePort),
       await getPort(financeCruisesPaymentPolicyRuntimePort),
       await getPort(financeInventoryPaymentPolicyRuntimePort),
+      // Optional: a deployment that composes no proposals module has no
+      // proposal layer to read, and the cascade is unchanged without it.
+      hasPort(financeProposalsPaymentPolicyRuntimePort)
+        ? await getPort(financeProposalsPaymentPolicyRuntimePort)
+        : null,
     )
     const configured = createBookingScheduleApiExtension(provider.options)
     const selected: ApiExtension = {

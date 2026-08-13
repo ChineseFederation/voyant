@@ -192,7 +192,7 @@ export function computePaymentSchedule(
     ]
   }
 
-  const depositCents = clampCents(computeDepositCents(total, effectivePolicy.deposit), 0, total)
+  const depositCents = resolveDepositAmountCents(total, effectivePolicy.deposit)
   const balanceCents = total - depositCents
   if (depositCents <= 0 || balanceCents <= 0) {
     // Edge: a policy that resolves to 0% deposit or 100% deposit
@@ -222,6 +222,20 @@ export function computePaymentSchedule(
       dueDate: isoDate(balanceDue),
     },
   ]
+}
+
+/**
+ * What a deposit rule is worth against a total, clamped to `[0, total]`.
+ *
+ * Exported because a deposit has to be quotable before a schedule exists — a
+ * proposal states "50% now" as an amount the customer is agreeing to, and it
+ * has no departure date to build a schedule around. Sharing this with
+ * {@link computePaymentSchedule} keeps the quoted figure and the billed one
+ * from drifting apart.
+ */
+export function resolveDepositAmountCents(totalCents: number, rule: DepositRule): number {
+  const total = Math.max(0, Math.round(totalCents))
+  return clampCents(computeDepositCents(total, rule), 0, total)
 }
 
 function computeDepositCents(total: number, rule: DepositRule): number {
@@ -257,6 +271,7 @@ export function isPaymentPolicyEmpty(policy: PaymentPolicy | null | undefined): 
 
 export type PaymentPolicySource =
   | "booking"
+  | "proposal"
   | "listing"
   | "category"
   | "supplier"
@@ -264,6 +279,16 @@ export type PaymentPolicySource =
 
 export interface PaymentPolicyCascadeLayers {
   bookingPolicy?: PaymentPolicy | null
+  /**
+   * Terms stated on the accepted Proposal Version this booking came from.
+   *
+   * Sits directly under the booking-level override and above every catalog
+   * layer: a quoted trip is negotiated per client, and "50% now, the rest 30
+   * days out" is part of what the customer agreed to when they accepted. A
+   * listing's default cannot outrank an agreement. The booking layer still
+   * wins, because that one is an ops correction made after the fact.
+   */
+  proposalPolicy?: PaymentPolicy | null
   listingPolicy?: PaymentPolicy | null
   categoryPolicy?: PaymentPolicy | null
   supplierPolicy?: PaymentPolicy | null
@@ -276,7 +301,8 @@ export interface ResolvedPaymentPolicy {
 }
 
 /**
- * Most-specific-wins cascade. Returns both the policy and which
+ * Most-specific-wins cascade (booking → proposal → listing → category →
+ * supplier → operator default). Returns both the policy and which
  * layer it came from so contracts and ops UIs can show the trace.
  *
  * A layer is "set" when it's not null/undefined AND not effectively
@@ -296,6 +322,8 @@ export function resolveEffectivePaymentPolicy(
 ): ResolvedPaymentPolicy {
   const bookingPolicy = normalizePaymentPolicy(layers.bookingPolicy)
   if (bookingPolicy) return { policy: bookingPolicy, source: "booking" }
+  const proposalPolicy = normalizePaymentPolicy(layers.proposalPolicy)
+  if (proposalPolicy) return { policy: proposalPolicy, source: "proposal" }
   const listingPolicy = normalizePaymentPolicy(layers.listingPolicy)
   if (listingPolicy) return { policy: listingPolicy, source: "listing" }
   const categoryPolicy = normalizePaymentPolicy(layers.categoryPolicy)

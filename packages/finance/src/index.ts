@@ -402,6 +402,7 @@ export {
   noDepositPolicy,
   normalizePaymentPolicy,
   policyShouldRequireFullPayment,
+  resolveDepositAmountCents,
   resolveEffectivePaymentPolicy,
 } from "./payment-policy.js"
 export {

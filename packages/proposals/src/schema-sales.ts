@@ -1,5 +1,6 @@
 import type { NamespacedCustomFieldValues } from "@voyant-travel/core/custom-fields"
 import { typeId, typeIdRef } from "@voyant-travel/db/lib/typeid-column"
+import type { PaymentPolicy } from "@voyant-travel/finance/payment-policy"
 import {
   type AnyPgColumn,
   boolean,
@@ -186,6 +187,15 @@ export const proposalVersions = pgTable(
     subtotalAmountCents: integer("subtotal_amount_cents").notNull().default(0),
     taxAmountCents: integer("tax_amount_cents").notNull().default(0),
     totalAmountCents: integer("total_amount_cents").notNull().default(0),
+    /**
+     * Payment terms negotiated for THIS offer — a deposit and when the balance
+     * falls due. Null means the operator stated none on this version, and the
+     * booking's schedule falls through to the catalog/operator cascade as it
+     * always did. Same `PaymentPolicy` shape finance resolves everywhere else,
+     * so an accepted proposal's terms need no translation to become the
+     * booking's.
+     */
+    paymentTerms: jsonb("payment_terms").$type<PaymentPolicy>(),
     notes: text("notes"),
     sentAt: timestamp("sent_at", { withTimezone: true }),
     viewedAt: timestamp("viewed_at", { withTimezone: true }),

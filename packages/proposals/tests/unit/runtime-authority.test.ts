@@ -54,6 +54,7 @@ describe("proposals deployment authority", () => {
         ports: [
           { id: "proposals.checkout-inquiry.runtime" },
           { id: "proposals.runtime" },
+          { id: "finance.proposals-payment-policy.runtime" },
           { id: "custom-fields.value-lifecycle" },
           { id: "custom-fields.value-operations" },
         ],

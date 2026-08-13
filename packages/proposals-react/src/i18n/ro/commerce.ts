@@ -199,6 +199,17 @@ export const crmUiRoCommerceMessages = {
     versionsTitle: "Versiuni oferta",
     versionsEmpty: "Nicio versiune inca. Creeaza prima.",
     versionsLoadFailed: "Incarcarea versiunilor a esuat.",
+    paymentTerms: {
+      title: "Conditii de plata",
+      description:
+        "Cat plateste clientul si cand. Se afiseaza in oferta si genereaza scadentarul rezervarii dupa acceptare.",
+      lockedAfterSend:
+        "Aceste conditii au fost trimise clientului si nu mai pot fi modificate. Creeaza o versiune noua pentru renegociere.",
+      save: "Salveaza conditiile",
+      saved: "Salvat",
+      saveFailed: "Nu am putut salva conditiile de plata",
+      noVersion: "Creeaza o versiune de oferta pentru a stabili conditiile de plata.",
+    },
     versionActive: "Activa",
     versionLabel: "v{number}",
     sendToClient: "Trimite clientului",

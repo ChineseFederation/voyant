@@ -86,6 +86,11 @@ export const proposalVersionRecordSchema = z.object({
   subtotalAmountCents: z.number().int(),
   taxAmountCents: z.number().int(),
   totalAmountCents: z.number().int(),
+  // Finance's `PaymentPolicy`, or null when this version states no terms of
+  // its own. Kept permissive here rather than mirroring the deposit union a
+  // third time — the admin editor round-trips it through
+  // `normalizePaymentPolicy`, which is the shape's only authority.
+  paymentTerms: z.record(z.string(), z.unknown()).nullable().default(null),
   notes: z.string().nullable(),
   sentAt: z.string().nullable(),
   viewedAt: z.string().nullable(),

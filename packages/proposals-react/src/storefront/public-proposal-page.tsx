@@ -37,6 +37,13 @@ export interface PublicProposalPageMessages {
   requestEditsSent: string
   declineConfirm: string
   notSet: string
+  /** Shown in place of Accept when the operator has not finished the trip. */
+  acceptUnavailable: string
+  paymentTermsHeading: string
+  paymentTermsDepositDue: string
+  paymentTermsBalanceDue: string
+  paymentTermsFullOnAcceptance: string
+  paymentTermsBalanceOnAcceptance: string
   statuses: Record<string, string>
 }
 
@@ -77,11 +84,22 @@ interface PublicProposal {
     licenseAuthority: string
   } | null
   proposalUrl: string
+  acceptance: {
+    available: boolean
+    reason: "snapshot_required" | "not_open" | null
+  }
+  paymentTerms: {
+    currency: string
+    depositAmountCents: number
+    balanceAmountCents: number
+    balanceDueDaysBeforeDeparture: number
+  } | null
 }
 
 interface DeclineProposalResponse {
   data: {
     status: string
+    feedbackId: string | null
   }
 }
 
@@ -128,16 +146,24 @@ export function PublicProposalPage({
     },
   })
   const decline = useMutation({
-    mutationFn: async () => {
+    // Whatever the customer typed goes with the decline. "Too expensive" or
+    // "the dates no longer work" is the most useful thing the operator can
+    // learn from a lost deal, and this box is where they write it.
+    mutationFn: async (message: string) => {
       const res = await fetch(
         `${apiBaseUrl}/v1/public/proposals/${encodeURIComponent(proposalVersionId)}/decline`,
-        { method: "POST", headers: { Accept: "application/json" } },
+        {
+          method: "POST",
+          headers: { Accept: "application/json", "Content-Type": "application/json" },
+          body: JSON.stringify(message ? { message } : {}),
+        },
       )
       const body = (await res.json()) as Partial<DeclineProposalResponse> & { error?: string }
       if (!res.ok || !body.data) throw new Error(body.error ?? t.declineFailed)
       return body.data
     },
     onSuccess: ({ status }) => {
+      setFeedbackMessage("")
       void queryClient.setQueryData<PublicProposal>(
         ["public-proposal", proposalVersionId],
         (data) => (data ? { ...data, status } : data),
@@ -315,6 +341,8 @@ export function PublicProposalPage({
           </div>
         </section>
 
+        <PaymentTerms terms={proposal.paymentTerms} messages={t} locale={locale} />
+
         <footer className="flex flex-col gap-4 pb-8 sm:flex-row sm:items-end sm:justify-between">
           <OperatorContact operator={proposal.operator} messages={t} />
           <div className="flex flex-col items-stretch gap-2 sm:items-end">
@@ -355,15 +383,25 @@ export function PublicProposalPage({
                 {feedbackSubmitted ? (
                   <p className="text-[#3f4b26] text-sm">{t.requestEditsSent}</p>
                 ) : null}
+                {proposal.acceptance.available ? null : (
+                  <p className="text-[#52645d] text-sm">{t.acceptUnavailable}</p>
+                )}
                 <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
-                  <button
-                    type="button"
-                    className="h-10 bg-[#232826] px-5 font-medium text-sm text-white transition hover:bg-[#3a403d] disabled:cursor-not-allowed disabled:opacity-60"
-                    disabled={isMutating}
-                    onClick={() => void accept.mutateAsync()}
-                  >
-                    {accept.isPending ? t.accepting : t.accept}
-                  </button>
+                  {/* No Accept control when the server would refuse it. A
+                      proposal whose lines were typed by hand carries no frozen
+                      Trip snapshot, and acceptance fails for the life of the
+                      version — offering the button only produces a 409 the
+                      customer cannot act on. */}
+                  {proposal.acceptance.available ? (
+                    <button
+                      type="button"
+                      className="h-10 bg-[#232826] px-5 font-medium text-sm text-white transition hover:bg-[#3a403d] disabled:cursor-not-allowed disabled:opacity-60"
+                      disabled={isMutating}
+                      onClick={() => void accept.mutateAsync()}
+                    >
+                      {accept.isPending ? t.accepting : t.accept}
+                    </button>
+                  ) : null}
                   <button
                     type="submit"
                     className="inline-flex h-10 items-center justify-center border border-[#52645d] px-4 font-medium text-[#3a443f] text-sm transition hover:bg-[#eef4df] disabled:cursor-not-allowed disabled:opacity-60"
@@ -383,7 +421,9 @@ export function PublicProposalPage({
                     className="h-10 border border-[#9f3a2f] px-4 font-medium text-[#9f3a2f] text-sm transition hover:bg-[#fff1ef] disabled:cursor-not-allowed disabled:opacity-60"
                     disabled={isMutating}
                     onClick={async () => {
-                      if (await confirmDialog(t.declineConfirm)) void decline.mutateAsync()
+                      if (await confirmDialog(t.declineConfirm)) {
+                        void decline.mutateAsync(trimmedFeedback)
+                      }
                     }}
                   >
                     {decline.isPending ? t.declining : t.decline}
@@ -418,6 +458,48 @@ function StatusPill({
     >
       {formatStatus(status, statuses)}
     </span>
+  )
+}
+
+/**
+ * The terms the customer is agreeing to, when the operator stated any on this
+ * version. Silent otherwise — the alternative is stating the operator's own
+ * default, which is not what was negotiated for this deal and not what the
+ * booking would necessarily be billed on.
+ */
+function PaymentTerms({
+  terms,
+  messages: t,
+  locale,
+}: {
+  terms: PublicProposal["paymentTerms"]
+  messages: PublicProposalPageMessages
+  locale: string
+}) {
+  if (!terms) return null
+  const deposit = formatMoney(terms.depositAmountCents, terms.currency, locale)
+  const balance = formatMoney(terms.balanceAmountCents, terms.currency, locale)
+
+  return (
+    <section className="border-[#d8d2c3] border-b pb-6">
+      <p className="font-medium text-[#52645d] text-xs uppercase">{t.paymentTermsHeading}</p>
+      <ul className="mt-2 grid gap-1 text-[#3a443f] text-sm">
+        {terms.depositAmountCents > 0 ? (
+          <li>{t.paymentTermsDepositDue.replace("{amount}", deposit)}</li>
+        ) : (
+          <li>{t.paymentTermsFullOnAcceptance.replace("{amount}", balance)}</li>
+        )}
+        {terms.depositAmountCents > 0 && terms.balanceAmountCents > 0 ? (
+          <li>
+            {terms.balanceDueDaysBeforeDeparture > 0
+              ? t.paymentTermsBalanceDue
+                  .replace("{amount}", balance)
+                  .replace("{days}", String(terms.balanceDueDaysBeforeDeparture))
+              : t.paymentTermsBalanceOnAcceptance.replace("{amount}", balance)}
+          </li>
+        ) : null}
+      </ul>
+    </section>
   )
 }
 

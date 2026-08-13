@@ -24,6 +24,12 @@ export interface CreateProposalVersionInput {
   subtotalAmountCents?: number
   taxAmountCents?: number
   totalAmountCents?: number
+  /**
+   * Finance's `PaymentPolicy`; `null` states no terms on this version.
+   * Left `unknown` so this entry carries no type dependency on
+   * `@voyant-travel/finance`, which is an optional peer here.
+   */
+  paymentTerms?: unknown
   notes?: string | null
   sentAt?: string | null
   viewedAt?: string | null
@@ -133,7 +139,17 @@ export function useProposalVersionMutation() {
       const { data } = await fetchWithValidation(
         `/v1/admin/proposal-versions/${id}/send`,
         z.object({
-          data: z.object({ proposalVersion: proposalVersionRecordSchema, proposalUrl: z.string() }),
+          data: z.object({
+            proposalVersion: proposalVersionRecordSchema,
+            proposalUrl: z.string(),
+            // Sent, but not acceptable. The route allows a line-item proposal
+            // out for review and says so here; the caller is expected to show
+            // it rather than let the operator believe a live offer is out.
+            warnings: z
+              .array(z.object({ code: z.string(), message: z.string() }))
+              .optional()
+              .default([]),
+          }),
         }),
         { baseUrl, fetcher },
         { method: "POST", body: JSON.stringify({}) },

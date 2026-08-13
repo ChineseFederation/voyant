@@ -1,0 +1,13 @@
+-- Payment terms on a Proposal Version (voyant#4606).
+--
+-- Terms existed only on the operator profile — one deposit rule for every
+-- customer and every deal — so a negotiated "50% now, the rest 30 days before
+-- departure" had nowhere to live and an accepted proposal recorded agreement to
+-- a total with no terms attached.
+--
+-- Nullable with no default on purpose: null means this version states no terms
+-- of its own, and the booking's payment schedule falls through to the same
+-- catalog/operator cascade it used before the column existed. Backfilling the
+-- operator default here would instead freeze today's profile onto every
+-- historical proposal and make the offer claim terms nobody negotiated.
+ALTER TABLE "proposal_versions" ADD COLUMN IF NOT EXISTS "payment_terms" jsonb;

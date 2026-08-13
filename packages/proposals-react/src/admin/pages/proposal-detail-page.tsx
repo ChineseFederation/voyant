@@ -72,6 +72,7 @@ import {
   ProposalDetailsCard,
   ProposalTagsCard,
 } from "../proposal-detail-sections.js"
+import { ProposalPaymentTermsCard } from "../proposal-payment-terms-card.js"
 import { getProposalShareState } from "../proposal-share-state.js"
 
 interface DraftLineItem {
@@ -374,15 +375,23 @@ export default function ProposalDetailPage({ params }: AdminRoutePageProps) {
       // Always copy the deployment-resolved public proposal URL (the public
       // origin can differ from the admin origin). Draft → send returns it;
       // an already-sent version resolves it via the side-effect-free link route.
-      const result =
+      const sent =
         currentVersion.status === "draft"
           ? await versionMutation.sendProposal.mutateAsync({ id: currentVersion.id })
-          : await versionMutation.fetchProposalLink.mutateAsync({ id: currentVersion.id })
+          : null
+      const result =
+        sent ?? (await versionMutation.fetchProposalLink.mutateAsync({ id: currentVersion.id }))
       const url = result.proposalUrl?.startsWith("http")
         ? result.proposalUrl
         : `${window.location.origin}/proposal/${currentVersion.id}`
       await navigator.clipboard?.writeText(url).catch(() => {})
       toast.success(t.proposalLinkCopied)
+      // The link is live either way, but a version with no frozen Trip
+      // snapshot can never be accepted — say so now, to the only person who
+      // can fix it, rather than leaving the customer to hit a 409.
+      for (const warning of sent?.warnings ?? []) {
+        toast.warning(warning.message)
+      }
     } catch {
       toast.error(t.proposalSendFailed)
     }
@@ -797,6 +806,15 @@ export default function ProposalDetailPage({ params }: AdminRoutePageProps) {
               )}
             </CardContent>
           </Card>
+
+          <ProposalPaymentTermsCard
+            version={currentVersion ?? null}
+            isSaving={versionMutation.update.isPending}
+            onSave={({ id: versionId, paymentTerms }) =>
+              versionMutation.update.mutateAsync({ id: versionId, input: { paymentTerms } })
+            }
+            messages={t.paymentTerms}
+          />
 
           <ProposalActivitiesCard
             isPending={activitiesQuery.isPending}

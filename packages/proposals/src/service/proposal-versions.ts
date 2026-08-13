@@ -3,6 +3,7 @@ import { and, desc, eq, isNotNull, isNull, lt, ne, or, sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import type { z } from "zod"
 
+import { normalizeProposalPaymentTerms } from "../payment-terms.js"
 import {
   type Proposal,
   type ProposalVersion,
@@ -133,6 +134,22 @@ export const proposalVersionsService = {
       .where(eq(proposalVersions.id, id))
       .limit(1)
     return row ?? null
+  },
+
+  /**
+   * The payment terms one version states, or `null` when it states none.
+   *
+   * Narrow on purpose: this is what finance's payment-policy cascade asks for
+   * when a booking traces back to an accepted Proposal Version, and it has no
+   * business loading the rest of the proposal to get it.
+   */
+  async getProposalVersionPaymentTerms(db: PostgresJsDatabase, id: string) {
+    const [row] = await db
+      .select({ paymentTerms: proposalVersions.paymentTerms })
+      .from(proposalVersions)
+      .where(eq(proposalVersions.id, id))
+      .limit(1)
+    return normalizeProposalPaymentTerms(row?.paymentTerms)
   },
 
   async getProposalVersionProposal(

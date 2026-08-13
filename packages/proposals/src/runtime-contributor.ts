@@ -6,6 +6,10 @@ import {
   customFieldValueLifecycleRuntimePort,
   customFieldValueOperationsRuntimePort,
 } from "@voyant-travel/core/runtime-port"
+import {
+  type FinanceProposalsPaymentPolicyRuntime,
+  financeProposalsPaymentPolicyRuntimePort,
+} from "@voyant-travel/finance/runtime-port"
 import { checkoutInquiryRuntimePort } from "@voyant-travel/proposals-contracts/checkout-inquiry"
 import { sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
@@ -19,6 +23,7 @@ import {
   proposalsRuntimePort,
   proposalsSnapshotRuntimePort,
 } from "./runtime-port.js"
+import { proposalsService } from "./service/index.js"
 
 export interface ProposalsRuntimeContributorHost {
   primitives: VoyantRuntimeHostPrimitives
@@ -121,6 +126,10 @@ export function createProposalsRuntimePortContribution(
     [proposalsRuntimePort.id]: runtime.then((value) => value.proposals),
     [proposalsPresentationRuntimePort.id]: runtime.then((value) => value.proposal),
     [proposalsSnapshotRuntimePort.id]: runtime.then((value) => value.snapshot),
+    [financeProposalsPaymentPolicyRuntimePort.id]: {
+      resolveProposalVersionPolicy: (db, proposalVersionId) =>
+        proposalsService.getProposalVersionPaymentTerms(db, proposalVersionId),
+    } satisfies FinanceProposalsPaymentPolicyRuntime,
     [customFieldValueLifecycleRuntimePort.id]: proposalCustomFieldValues,
     [customFieldValueOperationsRuntimePort.id]: proposalCustomFieldValueOperations,
   }

@@ -70,6 +70,26 @@ export const insertProposalProductSchema = z.object({
 
 export const updateProposalProductSchema = insertProposalProductSchema.partial()
 
+/**
+ * Payment terms stated on one Proposal Version — the deposit the customer
+ * pays to accept, and when the balance falls due.
+ *
+ * Mirrors finance's `PaymentPolicy` field for field. Mirrored rather than
+ * imported because a contracts package carries no runtime dependency on a
+ * domain package; `packages/finance/src/payment-schedule/routes.ts` mirrors the
+ * same shape for the same reason.
+ */
+export const proposalPaymentTermsSchema = z.object({
+  deposit: z.object({
+    kind: z.enum(["none", "percent", "fixed_cents"]),
+    percent: z.number().min(0).max(100).optional(),
+    amountCents: z.number().int().min(0).optional(),
+  }),
+  minDaysBeforeDepartureForDeposit: z.number().int().min(0),
+  balanceDueDaysBeforeDeparture: z.number().int().min(0),
+  balanceDueMinDaysFromNow: z.number().int().min(0),
+})
+
 export const proposalVersionCoreSchema = z.object({
   proposalId: z.string(),
   label: z.string().nullable().optional(),
@@ -81,6 +101,7 @@ export const proposalVersionCoreSchema = z.object({
   subtotalAmountCents: z.number().int().default(0),
   taxAmountCents: z.number().int().default(0),
   totalAmountCents: z.number().int().default(0),
+  paymentTerms: proposalPaymentTermsSchema.nullable().optional(),
   notes: z.string().nullable().optional(),
   sentAt: z.string().datetime().nullable().optional(),
   viewedAt: z.string().datetime().nullable().optional(),

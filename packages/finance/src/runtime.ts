@@ -22,6 +22,7 @@ import type {
   FinanceInvoiceSettlementPollerProvider,
   FinanceNotificationsRuntime,
   FinanceOperatorSettingsRuntime,
+  FinanceProposalsPaymentPolicyRuntime,
 } from "./runtime-port.js"
 import { financeService } from "./service.js"
 import type { InvoiceSettlementPoller } from "./service-settlement.js"
@@ -176,6 +177,7 @@ export function createFinanceBookingScheduleRuntime(
   accommodations: FinanceAccommodationsPaymentPolicyRuntime,
   cruises: FinanceCruisesPaymentPolicyRuntime,
   inventory: FinanceInventoryPaymentPolicyRuntime,
+  proposals?: FinanceProposalsPaymentPolicyRuntime | null,
 ): FinanceBookingScheduleRuntime {
   const paymentPolicy = inventory.createPaymentPolicyRuntime({
     resolveSupplierPolicy: distribution.resolveSupplierPolicy,
@@ -196,6 +198,9 @@ export function createFinanceBookingScheduleRuntime(
       resolveDb: (context) => host.primitives.database.fromContext<PostgresJsDatabase>(context),
       resolveOperatorDefaultPaymentPolicy: settings.resolveOperatorDefaultPaymentPolicy,
       ...paymentPolicy,
+      ...(proposals
+        ? { resolveProposalVersionPolicy: proposals.resolveProposalVersionPolicy }
+        : {}),
       stampPolicySourceOnBooking: inventory.stampPolicySourceOnBooking,
       readPolicySourceFromInternalNotes: inventory.readPolicySourceFromInternalNotes,
     },

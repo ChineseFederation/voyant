@@ -38,6 +38,8 @@
     "@tanstack/react-router": "^1.0.0",
     "@voyant-travel/admin": "workspace:^",
     "@voyant-travel/auth-react": "workspace:^",
+    "@voyant-travel/finance": "workspace:^",
+    "@voyant-travel/finance-react": "workspace:^",
     "@voyant-travel/proposals": "workspace:^",
     "@voyant-travel/relationships-react": "workspace:^",
     "@voyant-travel/ui": "workspace:^",
@@ -51,6 +53,12 @@
       "optional": true
     },
     "@voyant-travel/auth-react": {
+      "optional": true
+    },
+    "@voyant-travel/finance": {
+      "optional": true
+    },
+    "@voyant-travel/finance-react": {
       "optional": true
     },
     "@voyant-travel/relationships-react": {
@@ -73,6 +81,8 @@
     "@types/react-dom": "^19.2.3",
     "@voyant-travel/admin": "workspace:^",
     "@voyant-travel/auth-react": "workspace:^",
+    "@voyant-travel/finance": "workspace:^",
+    "@voyant-travel/finance-react": "workspace:^",
     "@voyant-travel/i18n": "workspace:^",
     "@voyant-travel/proposals": "workspace:^",
     "@voyant-travel/react": "workspace:^",

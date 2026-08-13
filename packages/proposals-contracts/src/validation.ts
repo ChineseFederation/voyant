@@ -28,6 +28,7 @@ export {
   insertProposalVersionSchema,
   proposalCoreSchema,
   proposalListQuerySchema,
+  proposalPaymentTermsSchema,
   proposalVersionCoreSchema,
   proposalVersionLineCoreSchema,
   proposalVersionListQuerySchema,

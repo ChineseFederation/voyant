@@ -54,14 +54,23 @@ export {
   proposalsBookingExtension,
 } from "./booking-extension.js"
 export { createCheckoutInquiryRuntime } from "./checkout-inquiry-runtime.js"
+export type { ProposalPaymentTerms } from "./payment-terms.js"
+export {
+  normalizeProposalPaymentTerms,
+  proposalDepositAmountCents,
+} from "./payment-terms.js"
 export type {
   AcceptPublicProposalResult,
   ApplyTripSnapshotToProposalVersionResult,
   DeclinePublicProposalResult,
   ProposalPresentationRoutesOptions,
+  ProposalVersionSendWarning,
   ProposalVersionSnapshotRoutesOptions,
   PublicProposalFeedbackInput,
+  PublicProposalFeedbackKind,
   PublicProposalFeedbackRecord,
+  PublicProposalVersionAcceptance,
+  PublicProposalVersionPaymentTerms,
   PublicProposalVersionProposal,
   PublicProposalVersionProposalLine,
   RequestPublicProposalEditsResult,
@@ -76,6 +85,7 @@ export {
   createProposalVersionSnapshotApiExtension,
   createProposalVersionSnapshotRoutes,
   createProposalVersionSnapshotVoyantRuntime,
+  resolveProposalVersionAcceptance,
   tripSnapshotToProposalVersionApply,
 } from "./proposal-routes.js"
 export type {
@@ -136,6 +146,7 @@ export {
   participantRoleSchema,
   pipelineListQuerySchema,
   proposalListQuerySchema,
+  proposalPaymentTermsSchema,
   proposalStatusSchema,
   proposalVersionListQuerySchema,
   proposalVersionStatusSchema,

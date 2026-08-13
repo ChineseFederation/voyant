@@ -647,6 +647,9 @@ describe("finance deployment manifest", () => {
         { id: "finance.accommodations-payment-policy.runtime" },
         { id: "finance.cruises-payment-policy.runtime" },
         { id: "finance.inventory-payment-policy.runtime" },
+        // Optional: the accepted-proposal terms layer only exists on a
+        // deployment that composes proposals.
+        { id: "finance.proposals-payment-policy.runtime", optional: true },
       ],
       api: [
         {

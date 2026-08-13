@@ -114,6 +114,20 @@ export interface FinanceAccommodationsPaymentPolicyRuntime {
   resolveEntityPolicy: EntityPolicyReader
 }
 
+/**
+ * Terms carried by the accepted Proposal Version a booking came from.
+ *
+ * Optional in the graph: a deployment without the proposals module simply has
+ * no proposal layer, and the cascade falls through to the catalog layers as it
+ * always did.
+ */
+export interface FinanceProposalsPaymentPolicyRuntime {
+  resolveProposalVersionPolicy(
+    db: PostgresJsDatabase,
+    proposalVersionId: string,
+  ): Promise<PaymentPolicy | null>
+}
+
 export interface FinanceCruisesPaymentPolicyRuntime {
   resolveBookingPolicy: PolicyReader
   resolveEntityPolicy: EntityPolicyReader
@@ -269,6 +283,10 @@ export const financeDistributionPaymentPolicyRuntimePort =
     "finance.distribution-payment-policy.runtime",
     ["resolveSupplierPolicy", "resolveSupplierPolicyById"],
   )
+export const financeProposalsPaymentPolicyRuntimePort =
+  objectPort<FinanceProposalsPaymentPolicyRuntime>("finance.proposals-payment-policy.runtime", [
+    "resolveProposalVersionPolicy",
+  ])
 export const financeAccommodationsPaymentPolicyRuntimePort =
   objectPort<FinanceAccommodationsPaymentPolicyRuntime>(
     "finance.accommodations-payment-policy.runtime",

@@ -67,7 +67,10 @@ export async function createProposalsRuntime(
       recordPublicProposalFeedback: async (db, input, context) => {
         const activity = await db.transaction(async (tx) => {
           const row = await relationshipsService.createActivity(tx as never, {
-            subject: "Customer requested proposal edits",
+            subject:
+              input.kind === "declined"
+                ? "Customer declined proposal"
+                : "Customer requested proposal edits",
             type: "note",
             status: "done",
             completedAt: new Date().toISOString(),
@@ -83,7 +86,9 @@ export async function createProposalsRuntime(
         })
 
         await getEventBus(context)?.emit(
-          "proposal.proposal_feedback.requested",
+          input.kind === "declined"
+            ? "proposal.proposal_feedback.declined"
+            : "proposal.proposal_feedback.requested",
           {
             proposalId: input.proposalId,
             proposalVersionId: input.proposalVersionId,

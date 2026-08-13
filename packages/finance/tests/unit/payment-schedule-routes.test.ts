@@ -125,6 +125,86 @@ describe("generatePaymentScheduleForBooking", () => {
     expect(options.resolveListingPolicy).toHaveBeenCalledWith(stub.db, "bk_2")
     expect(options.stampPolicySourceOnBooking).toHaveBeenCalled()
   })
+
+  it("bills an accepted proposal on the terms it stated", async () => {
+    const stub = makeDbStub()
+    // reads: [booking], [existingSchedule empty], [booking origin].
+    stub.setReadQueue([
+      [{ id: "bk_3", sellAmountCents: 100_000, sellCurrency: "EUR", startDate: "2026-09-01" }],
+      [],
+      [
+        {
+          bookingId: "bk_3",
+          originSource: "accepted_proposal_version",
+          proposalVersionId: "prvr_1",
+        },
+      ],
+    ])
+    const halfNow: PaymentPolicy = {
+      deposit: { kind: "percent", percent: 50 },
+      minDaysBeforeDepartureForDeposit: 30,
+      balanceDueDaysBeforeDeparture: 30,
+      balanceDueMinDaysFromNow: 7,
+    }
+    const options = baseOptions({
+      resolveProposalVersionPolicy: vi.fn(async () => halfNow),
+    })
+
+    await generatePaymentScheduleForBooking(stub.db, "bk_3", options)
+
+    // Keyed by the Proposal Version, not the booking: finance walks
+    // `booking_origins` itself so the injected reader stays inside proposals.
+    expect(options.resolveProposalVersionPolicy).toHaveBeenCalledWith(stub.db, "prvr_1")
+    expect(options.stampPolicySourceOnBooking).toHaveBeenCalledWith(stub.db, "bk_3", "proposal")
+  })
+
+  it("ignores the proposal layer for a booking that came from somewhere else", async () => {
+    const stub = makeDbStub()
+    stub.setReadQueue([
+      [{ id: "bk_4", sellAmountCents: 100_000, sellCurrency: "EUR", startDate: "2026-09-01" }],
+      [],
+      [{ bookingId: "bk_4", originSource: "direct_b2c", proposalVersionId: null }],
+    ])
+    const options = baseOptions({
+      resolveProposalVersionPolicy: vi.fn(async () => null),
+    })
+
+    await generatePaymentScheduleForBooking(stub.db, "bk_4", options)
+
+    expect(options.resolveProposalVersionPolicy).not.toHaveBeenCalled()
+    expect(options.stampPolicySourceOnBooking).toHaveBeenCalledWith(
+      stub.db,
+      "bk_4",
+      "operator_default",
+    )
+  })
+
+  it("reads no origin at all when no proposals module is composed", async () => {
+    // Measured as a delta rather than an absolute count: the point is that the
+    // origin lookup is the ONLY read the proposal layer adds, and that an
+    // unwired deployment does not pay for it. An absolute number would also
+    // pin `applyComputedPaymentSchedule`'s internals, which are not the claim.
+    const booking = [
+      { id: "bk_5", sellAmountCents: 100_000, sellCurrency: "EUR", startDate: "2026-09-01" },
+    ]
+    const origin = [
+      { bookingId: "bk_5", originSource: "accepted_proposal_version", proposalVersionId: "prvr_5" },
+    ]
+
+    const unwired = makeDbStub()
+    unwired.setReadQueue([booking, []])
+    await generatePaymentScheduleForBooking(unwired.db, "bk_5", baseOptions())
+
+    const wired = makeDbStub()
+    wired.setReadQueue([booking, [], origin])
+    await generatePaymentScheduleForBooking(
+      wired.db,
+      "bk_5",
+      baseOptions({ resolveProposalVersionPolicy: vi.fn(async () => null) }),
+    )
+
+    expect(wired.readIndex).toBe(unwired.readIndex + 1)
+  })
 })
 
 describe("createBookingScheduleApiExtension", () => {

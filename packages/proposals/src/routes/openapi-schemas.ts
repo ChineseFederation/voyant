@@ -15,6 +15,7 @@ import { z } from "zod"
 import {
   entityTypeSchema,
   participantRoleSchema,
+  proposalPaymentTermsSchema,
   proposalStatusSchema,
   proposalVersionStatusSchema,
 } from "../validation.js"
@@ -150,6 +151,7 @@ export const proposalVersionSchema = z.object({
   subtotalAmountCents: z.number().int(),
   taxAmountCents: z.number().int(),
   totalAmountCents: z.number().int(),
+  paymentTerms: proposalPaymentTermsSchema.nullable(),
   notes: z.string().nullable(),
   sentAt: isoTimestamp.nullable(),
   viewedAt: isoTimestamp.nullable(),

@@ -11,6 +11,7 @@ import {
   customFieldValueLifecycleRuntimePort,
   customFieldValueOperationsRuntimePort,
 } from "@voyant-travel/core/runtime-port"
+import { financeProposalsPaymentPolicyRuntimePort } from "@voyant-travel/finance/runtime-port"
 import { checkoutInquiryRuntimePort } from "@voyant-travel/proposals-contracts/runtime-port"
 import {
   proposalsNotificationsRuntimePort,
@@ -63,6 +64,10 @@ export const proposalsVoyantModule = defineModule({
     ports: [
       providePort(checkoutInquiryRuntimePort),
       providePort(proposalsRuntimePort),
+      // Terms an accepted Proposal Version stated, for finance's payment-policy
+      // cascade. Provided from here rather than read by finance: the walk stops
+      // inside `proposal_versions`, and finance may not depend on proposals.
+      providePort(financeProposalsPaymentPolicyRuntimePort),
       providePort(customFieldValueLifecycleRuntimePort),
       providePort(customFieldValueOperationsRuntimePort),
     ],
@@ -593,6 +598,29 @@ export const proposalsPresentationVoyantExtension = defineExtension({
     {
       id: "@voyant-travel/proposals#event.proposal-feedback-requested",
       eventType: "proposal.proposal_feedback.requested",
+      version: "1.0.0",
+      payloadSchema: {
+        type: "object",
+        required: ["proposalId", "proposalVersionId", "activityId", "message", "proposalUrl"],
+        properties: {
+          proposalId: { type: "string", minLength: 1 },
+          proposalVersionId: { type: "string", minLength: 1 },
+          activityId: { type: "string", minLength: 1 },
+          message: { type: "string", minLength: 1, maxLength: 4000 },
+          proposalUrl: { type: "string", minLength: 1 },
+        },
+        additionalProperties: false,
+      },
+      visibility: "internal",
+      audit: { sourceModule: "proposals", category: "domain" },
+    },
+    {
+      // Its own event rather than a `kind` on the one above: a decline reason
+      // closes a deal and an edit request keeps it open, and a subscriber that
+      // notifies an owner should not have to inspect a payload to tell them
+      // apart.
+      id: "@voyant-travel/proposals#event.proposal-feedback-declined",
+      eventType: "proposal.proposal_feedback.declined",
       version: "1.0.0",
       payloadSchema: {
         type: "object",

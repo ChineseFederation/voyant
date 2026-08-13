@@ -34,17 +34,18 @@
     "@voyant-travel/action-ledger": "workspace:^",
     "@voyant-travel/catalog": "workspace:^",
     "@voyant-travel/core": "workspace:^",
-    "@voyant-travel/proposals-contracts": "workspace:^",
     "@voyant-travel/db": "workspace:^",
-    "@voyant-travel/types": "workspace:^",
+    "@voyant-travel/finance": "workspace:^",
     "@voyant-travel/hono": "workspace:^",
     "@voyant-travel/operator-settings": "workspace:^",
+    "@voyant-travel/proposals-contracts": "workspace:^",
     "@voyant-travel/relationships": "workspace:^",
+    "@voyant-travel/tools": "workspace:^",
     "@voyant-travel/trips": "workspace:^",
+    "@voyant-travel/types": "workspace:^",
     "drizzle-orm": "catalog:",
     "hono": "catalog:",
-    "zod": "catalog:",
-    "@voyant-travel/tools": "workspace:^"
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@voyant-travel/voyant-typescript-config": "workspace:^",

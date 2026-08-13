@@ -27,6 +27,7 @@ describe("proposals deployment manifests", () => {
         ports: [
           { id: "proposals.checkout-inquiry.runtime" },
           { id: "proposals.runtime" },
+          { id: "finance.proposals-payment-policy.runtime" },
           { id: "custom-fields.value-lifecycle" },
           { id: "custom-fields.value-operations" },
         ],
