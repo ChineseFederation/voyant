@@ -1,5 +1,45 @@
 # @voyant-travel/bookings
 
+## 0.241.0
+
+### Minor Changes
+
+- f60a572: Fold a confirmed booking into the customer's CRM record. Until now a customer booking created a person row carrying a name, an email and a phone number, and nothing else — Activities, Addresses, Relationships and Communications all stayed empty unless an operator filled them in by hand.
+
+  A `booking.confirmed` subscriber in relationships now writes a timeline activity linked to both the person and the booking, saves the billing address the checkout already collected (it was being parsed into the booking's contact columns and then dropped), and links co-travelers to the booker as travel companions. The pass is idempotent, so a redelivered event is a no-op, and it runs off the commit transaction so a CRM failure can never roll back a paid booking.
+
+  The Communications tab now also lists messages the deployment actually delivered to the person, read from the notification delivery record rather than copied into `communication_log`, and each entry reports whether it was logged by staff or sent automatically.
+
+  Bookings gains a `bookings.crm-snapshot.runtime` port so CRM can read a booking without importing its tables, and `entity_type` gains a `booking` member so an activity can name the booking it came from.
+
+- 8c38592: Stop three admin screens from reporting something that is not true.
+
+  A custom report widget summing a money column rendered `$351,533.00` on a row whose own grouping column said `EUR`. Two separate inventions: the renderer defaulted an absent currency to `USD`, and it attached a symbol and two decimals to an integer it had not scaled — the real balance was €3,515.33. Every money field these datasets expose is a `*Cents` measure with no major-unit alternative to select, so an unscaled currency format was wrong on all of them, and the symbol is what made it believable.
+
+  A report column now carries the two presentation facts only the dataset that produced it can know — `minorUnit`, and the output column holding the row's ISO currency code — and Finance declares both. Where they are absent the amount is written as a plain number rather than borrowing a symbol from a default. This applies to the widget renderer and to PDF export, which had the same `|| "USD"` fallback.
+
+  The same widget's header showed `Outstanding balance` for a column the query named `as owed`. Finance and Bookings now honour a selection's alias as its header. An alias that merely restates the field id is the query language's mandatory output name rather than a name the author chose, so those keep the dataset's own label and the preset widgets read as before.
+
+  In the supplier invoice **Add allocation** dialog, the Departure picker returned an empty list until something was typed: its resolver closes over the chosen product, but the combobox only re-ran on the query, so it kept results resolved before a product existed. `AsyncCombobox` takes a `searchKey` for whatever else its resolver depends on, and drops stale options the moment it changes.
+
+  Supplier invoices showed `supp_01kz…` where the supplier's name belongs, in the list column and the detail header. The name is resolved on read and the id stays available on hover.
+
+### Patch Changes
+
+- f9ff2da: Specify the format of `ToolActionPolicyBinding.id` and normalize the six graph action ids that diverged from it.
+
+  `id` is an opaque key of the selected graph action, matched by exact equality against that action's own `id`. It is not an owner-scoped identity: a manifest consumer must not parse it, require a package prefix on it, or infer an owner from it. No field of the action policy is an ownership claim: the owning module names the Tool capabilities permitted to select an action in its `from.tools`, and the gate enforces that binding — nothing is string-matched against `owner`. It is not an audit identity either — the ledger records `capabilityId ?? id` as its `action_name`, so for any action declaring a capability the key never reaches a persisted row.
+
+  Six of 277 first-party graph actions were not qualified by their own package, which is what invited a client to read the prefix as meaningful and reject `cancel_booking`. They now are: bookings' `booking.status.{cancel,start,complete,override}` and `booking.pii.read` become `@voyant-travel/bookings#action.{cancel,start,complete}-booking`, `#action.override-booking-status` and `#action.read-booking-pii`; `relationships.person_document.reveal` becomes `@voyant-travel/relationships#action.reveal-person-document`. `cancel_booking`'s `actionPolicy.id` and the `bookings.cancel` admin operation's `capabilityKey` move in lockstep.
+
+  No persisted identity moves. Each renamed action either declares a `capabilityId` — which is what the gate records as `action_name` — or is recorded by a package-local route path under its own constant. The `booking.status.*` literals in bookings' admin routes and status service, and `PERSON_DOCUMENT_REVEAL_ACTION_NAME` in relationships, are ledger identity and are unchanged.
+
+- Updated dependencies [8c38592]
+- Updated dependencies [f9ff2da]
+  - @voyant-travel/reporting-contracts@0.4.0
+  - @voyant-travel/tools@0.10.3
+  - @voyant-travel/products-contracts@0.111.4
+
 ## 0.240.12
 
 ### Patch Changes

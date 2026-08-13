@@ -1,5 +1,54 @@
 # @voyant-travel/crm-react
 
+## 0.279.0
+
+### Minor Changes
+
+- f60a572: Fold a confirmed booking into the customer's CRM record. Until now a customer booking created a person row carrying a name, an email and a phone number, and nothing else — Activities, Addresses, Relationships and Communications all stayed empty unless an operator filled them in by hand.
+
+  A `booking.confirmed` subscriber in relationships now writes a timeline activity linked to both the person and the booking, saves the billing address the checkout already collected (it was being parsed into the booking's contact columns and then dropped), and links co-travelers to the booker as travel companions. The pass is idempotent, so a redelivered event is a no-op, and it runs off the commit transaction so a CRM failure can never roll back a paid booking.
+
+  The Communications tab now also lists messages the deployment actually delivered to the person, read from the notification delivery record rather than copied into `communication_log`, and each entry reports whether it was logged by staff or sent automatically.
+
+  Bookings gains a `bookings.crm-snapshot.runtime` port so CRM can read a booking without importing its tables, and `entity_type` gains a `booking` member so an activity can name the booking it came from.
+
+- c911139: Stop serving the processor token, and define what a person merge does to a
+  stored instrument.
+
+  `processor_token` is the one column on `person_payment_methods` that can charge
+  a customer, and it was included in every list and read response, so any
+  authenticated admin client received it to render a brand and four digits. It is
+  now projected out server-side. Callers that mean to charge name the method by
+  id and let the server resolve the token.
+
+  The saved-method arm of the flights `PaymentIntent` follows: it carries a
+  `methodId` instead of a token, which removes the synthesized `acct:` placeholder
+  that existed only because no real token was available client-side. It is a
+  distinct arm rather than a variant of `card` because the two are different
+  facts, and collapsing them would put a chargeable credential back on every
+  client that renders a saved card.
+
+  Merging two people reparents their payment methods but does not merge the
+  customer records those methods are bound to at the provider. A projected method
+  from the losing person therefore rests on an agreement given by a record that no
+  longer exists, so it is retired to `requires_new_agreement` rather than silently
+  carried over. The row stays visible to the operator, which makes the state
+  explainable instead of a card vanishing mid-merge. Manual rows carry no provider
+  binding and no authorization to lose, so they move unchanged.
+
+  The response now also carries `source`, `providerId`, `authorizedReuses` and
+  `status`, which is what a future storefront read path checks before offering a
+  stored method back to a shopper.
+
+### Patch Changes
+
+- Updated dependencies [f60a572]
+- Updated dependencies [c911139]
+- Updated dependencies [c911139]
+- Updated dependencies [f9ff2da]
+  - @voyant-travel/relationships@0.134.0
+  - @voyant-travel/identity-react@0.279.0
+
 ## 0.278.0
 
 ### Patch Changes

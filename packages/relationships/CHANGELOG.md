@@ -1,5 +1,83 @@
 # @voyant-travel/crm
 
+## 0.134.0
+
+### Minor Changes
+
+- f60a572: Fold a confirmed booking into the customer's CRM record. Until now a customer booking created a person row carrying a name, an email and a phone number, and nothing else — Activities, Addresses, Relationships and Communications all stayed empty unless an operator filled them in by hand.
+
+  A `booking.confirmed` subscriber in relationships now writes a timeline activity linked to both the person and the booking, saves the billing address the checkout already collected (it was being parsed into the booking's contact columns and then dropped), and links co-travelers to the booker as travel companions. The pass is idempotent, so a redelivered event is a no-op, and it runs off the commit transaction so a CRM failure can never roll back a paid booking.
+
+  The Communications tab now also lists messages the deployment actually delivered to the person, read from the notification delivery record rather than copied into `communication_log`, and each entry reports whether it was logged by staff or sent automatically.
+
+  Bookings gains a `bookings.crm-snapshot.runtime` port so CRM can read a booking without importing its tables, and `entity_type` gains a `booking` member so an activity can name the booking it came from.
+
+- c911139: Record instruments a payment provider stored against the person who paid.
+
+  `person_payment_methods` promised processor-issued tokens the booking flow could
+  charge and held free text an operator typed by hand, because nothing in the
+  payment path could write to it. It now carries a `source`, the provider that
+  issued the token, what the customer authorized it for, and whether it is still
+  usable, with a partial unique index on (provider, token) that makes projection
+  idempotent across a callback and a reconciliation poll reporting the same card.
+
+  Finance defines `finance.stored-instrument.runtime` and relationships provides
+  it, so the payment path can hand an instrument to the CRM without either module
+  depending on the other. A deployment that does not wire it takes payments
+  exactly as before and records no instruments.
+
+  Existing rows are all hand-entered and become `source = 'manual'` with no
+  authorized reuse, which is what they are: on the operator's own records,
+  chargeable by nobody.
+
+- c911139: Stop serving the processor token, and define what a person merge does to a
+  stored instrument.
+
+  `processor_token` is the one column on `person_payment_methods` that can charge
+  a customer, and it was included in every list and read response, so any
+  authenticated admin client received it to render a brand and four digits. It is
+  now projected out server-side. Callers that mean to charge name the method by
+  id and let the server resolve the token.
+
+  The saved-method arm of the flights `PaymentIntent` follows: it carries a
+  `methodId` instead of a token, which removes the synthesized `acct:` placeholder
+  that existed only because no real token was available client-side. It is a
+  distinct arm rather than a variant of `card` because the two are different
+  facts, and collapsing them would put a chargeable credential back on every
+  client that renders a saved card.
+
+  Merging two people reparents their payment methods but does not merge the
+  customer records those methods are bound to at the provider. A projected method
+  from the losing person therefore rests on an agreement given by a record that no
+  longer exists, so it is retired to `requires_new_agreement` rather than silently
+  carried over. The row stays visible to the operator, which makes the state
+  explainable instead of a card vanishing mid-merge. Manual rows carry no provider
+  binding and no authorization to lose, so they move unchanged.
+
+  The response now also carries `source`, `providerId`, `authorizedReuses` and
+  `status`, which is what a future storefront read path checks before offering a
+  stored method back to a shopper.
+
+### Patch Changes
+
+- f9ff2da: Specify the format of `ToolActionPolicyBinding.id` and normalize the six graph action ids that diverged from it.
+
+  `id` is an opaque key of the selected graph action, matched by exact equality against that action's own `id`. It is not an owner-scoped identity: a manifest consumer must not parse it, require a package prefix on it, or infer an owner from it. No field of the action policy is an ownership claim: the owning module names the Tool capabilities permitted to select an action in its `from.tools`, and the gate enforces that binding — nothing is string-matched against `owner`. It is not an audit identity either — the ledger records `capabilityId ?? id` as its `action_name`, so for any action declaring a capability the key never reaches a persisted row.
+
+  Six of 277 first-party graph actions were not qualified by their own package, which is what invited a client to read the prefix as meaningful and reject `cancel_booking`. They now are: bookings' `booking.status.{cancel,start,complete,override}` and `booking.pii.read` become `@voyant-travel/bookings#action.{cancel,start,complete}-booking`, `#action.override-booking-status` and `#action.read-booking-pii`; `relationships.person_document.reveal` becomes `@voyant-travel/relationships#action.reveal-person-document`. `cancel_booking`'s `actionPolicy.id` and the `bookings.cancel` admin operation's `capabilityKey` move in lockstep.
+
+  No persisted identity moves. Each renamed action either declares a `capabilityId` — which is what the gate records as `action_name` — or is recorded by a package-local route path under its own constant. The `booking.status.*` literals in bookings' admin routes and status service, and `PERSON_DOCUMENT_REVEAL_ACTION_NAME` in relationships, are ledger identity and are unchanged.
+
+- Updated dependencies [f60a572]
+- Updated dependencies [c911139]
+- Updated dependencies [8c38592]
+- Updated dependencies [c911139]
+- Updated dependencies [f9ff2da]
+  - @voyant-travel/relationships-contracts@0.111.0
+  - @voyant-travel/bookings@0.241.0
+  - @voyant-travel/finance@0.247.0
+  - @voyant-travel/tools@0.10.3
+
 ## 0.133.21
 
 ### Patch Changes

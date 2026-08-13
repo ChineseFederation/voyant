@@ -1,5 +1,60 @@
 # @voyant-travel/storefront
 
+## 0.256.0
+
+### Minor Changes
+
+- c911139: Authorize stored instruments from the operator's booking terms.
+
+  Keeping a shopper's card and charging it later while they are away is a
+  merchant-initiated transaction. Card network rules authorize it through the
+  merchant's own terms, which the shopper accepts at checkout, and require the
+  merchant to keep a record of that acceptance. It is not a checkbox beside the
+  card field.
+
+  Storefront settings gain `legal.storedInstrumentMandate` with an `enabled` flag
+  and a `revision`. The revision is what makes the record meaningful: without it
+  an acceptance says only that some terms were agreed at some point. The Booking
+  Session derives the storage intent from the mandate plus its existing contract
+  acceptance, and passes an `agreementReference` naming both.
+
+  Absent settings mean nothing is stored. Fail closed is the only safe default:
+  the operator is the merchant of record and carries the liability for an
+  agreement they never wrote.
+
+  The mandate is operator configuration and is omitted from the public storefront
+  settings projection. What a shopper reads is the booking terms themselves,
+  through the contract template.
+
+### Patch Changes
+
+- ab7133f: Stop stamping `netopia` on operator-generated payment links, so they are payable on whatever processor the deployment actually runs. `useCollectPayment` defaulted `cardProvider` to `"netopia"` back when that was the only processor in tree, and every "Generate payment link" wrote it to `payment_sessions.provider`. On a deployment running any other processor the shopper could never pay: the card start reached the real adapter and created a live checkout session there, then the initiation result's `processorIdentity` failed the stored-provider guard, and the public route turned that into a bare 502 — leaving a live processor session attached to a payment session still marked `pending`.
+
+  The provider now stays unset until the processor claims it on start, which is what `createOrderPaymentSessions` already documents and what the payment-link retry route already did. Because an unstarted session then has neither a provider nor a redirect URL, the landing page can no longer read "card is on offer" off the session record: `payment-link-config` publishes a `cardPayments.available` flag (the card counterpart of its bank-transfer block, sourced from whether the deployment selected a payment adapter), and `PaymentLinkLandingPage` takes it as `cardPaymentAvailable`. This also restores the card option on sessions created by "Try again", which never carried a provider either. Deployments that supply no flag keep offering card, as they did before it existed.
+
+  The public start-card handler also logs the error it swallows — session id, stored provider, and the error's own code — instead of discarding it. The response stays deliberately opaque to the shopper; diagnosing this one otherwise meant reading platform logs and the session row by hand.
+
+- Updated dependencies [f60a572]
+- Updated dependencies [3d7ed59]
+- Updated dependencies [c911139]
+- Updated dependencies [8c38592]
+- Updated dependencies [c911139]
+- Updated dependencies [c911139]
+- Updated dependencies [c911139]
+- Updated dependencies [f9ff2da]
+  - @voyant-travel/relationships@0.134.0
+  - @voyant-travel/relationships-contracts@0.111.0
+  - @voyant-travel/bookings@0.241.0
+  - @voyant-travel/catalog-contracts@0.133.0
+  - @voyant-travel/catalog@0.254.0
+  - @voyant-travel/commerce@0.50.0
+  - @voyant-travel/finance@0.247.0
+  - @voyant-travel/payments@0.13.0
+  - @voyant-travel/tools@0.10.3
+  - @voyant-travel/legal@0.250.0
+  - @voyant-travel/flights@0.237.4
+  - @voyant-travel/cruises@0.238.20
+
 ## 0.255.8
 
 ### Patch Changes

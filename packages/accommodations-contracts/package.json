@@ -1,6 +1,6 @@
 {
   "name": "@voyant-travel/accommodations-contracts",
-  "version": "0.105.29",
+  "version": "0.105.30",
   "description": "Accommodation content contracts for adapter authors — validate accommodations/v1 payloads without the runtime.",
   "license": "Apache-2.0",
   "type": "module",

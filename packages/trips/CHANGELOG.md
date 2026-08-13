@@ -1,5 +1,55 @@
 # @voyant-travel/trips
 
+## 0.235.0
+
+### Minor Changes
+
+- 1567d3f: Restore the composer pricing and reservation legs on the Trips HTTP surface.
+
+  `POST /{envelopeId}/price` and `POST /{envelopeId}/reserve` are the
+  staff/storefront composer lifecycle, dependency-injected exactly like checkout
+  and cancellation. Removing them left the admin and storefront composers calling
+  routes that did not exist — trip creation failed with a bare `404` after the
+  envelope and its components had already been persisted — and the durable
+  replacement cannot run at all on a deployment that selects no
+  `trips.durable-action-runtime` provider.
+
+  The agent-facing `price_trip` / `reserve_trip` tools are unchanged: they remain
+  admitted, asynchronous durable operations behind that port.
+
+  Also add `packages/trips/scripts/generate-openapi.ts` and register both Trips
+  documents with `verify:openapi-drift`. They had no generator, so the checked-in
+  specs had drifted from the routes — the storefront and admin documents still
+  advertised `hold` and `inquiry` checkout intents that were removed in #4100.
+
+### Patch Changes
+
+- ab7133f: Stop stamping `netopia` on operator-generated payment links, so they are payable on whatever processor the deployment actually runs. `useCollectPayment` defaulted `cardProvider` to `"netopia"` back when that was the only processor in tree, and every "Generate payment link" wrote it to `payment_sessions.provider`. On a deployment running any other processor the shopper could never pay: the card start reached the real adapter and created a live checkout session there, then the initiation result's `processorIdentity` failed the stored-provider guard, and the public route turned that into a bare 502 — leaving a live processor session attached to a payment session still marked `pending`.
+
+  The provider now stays unset until the processor claims it on start, which is what `createOrderPaymentSessions` already documents and what the payment-link retry route already did. Because an unstarted session then has neither a provider nor a redirect URL, the landing page can no longer read "card is on offer" off the session record: `payment-link-config` publishes a `cardPayments.available` flag (the card counterpart of its bank-transfer block, sourced from whether the deployment selected a payment adapter), and `PaymentLinkLandingPage` takes it as `cardPaymentAvailable`. This also restores the card option on sessions created by "Try again", which never carried a provider either. Deployments that supply no flag keep offering card, as they did before it existed.
+
+  The public start-card handler also logs the error it swallows — session id, stored provider, and the error's own code — instead of discarding it. The response stays deliberately opaque to the shopper; diagnosing this one otherwise meant reading platform logs and the session row by hand.
+
+- Updated dependencies [f60a572]
+- Updated dependencies [3d7ed59]
+- Updated dependencies [ab7133f]
+- Updated dependencies [c911139]
+- Updated dependencies [8c38592]
+- Updated dependencies [c911139]
+- Updated dependencies [c911139]
+- Updated dependencies [f9ff2da]
+  - @voyant-travel/bookings@0.241.0
+  - @voyant-travel/catalog-contracts@0.133.0
+  - @voyant-travel/catalog@0.254.0
+  - @voyant-travel/commerce@0.50.0
+  - @voyant-travel/storefront@0.256.0
+  - @voyant-travel/finance@0.247.0
+  - @voyant-travel/payments@0.13.0
+  - @voyant-travel/tools@0.10.3
+  - @voyant-travel/inventory@0.41.0
+  - @voyant-travel/flights@0.237.4
+  - @voyant-travel/operator-settings@0.17.32
+
 ## 0.234.6
 
 ### Patch Changes

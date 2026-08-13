@@ -1,5 +1,73 @@
 # @voyant-travel/finance
 
+## 0.247.0
+
+### Minor Changes
+
+- c911139: Record instruments a payment provider stored against the person who paid.
+
+  `person_payment_methods` promised processor-issued tokens the booking flow could
+  charge and held free text an operator typed by hand, because nothing in the
+  payment path could write to it. It now carries a `source`, the provider that
+  issued the token, what the customer authorized it for, and whether it is still
+  usable, with a partial unique index on (provider, token) that makes projection
+  idempotent across a callback and a reconciliation poll reporting the same card.
+
+  Finance defines `finance.stored-instrument.runtime` and relationships provides
+  it, so the payment path can hand an instrument to the CRM without either module
+  depending on the other. A deployment that does not wire it takes payments
+  exactly as before and records no instruments.
+
+  Existing rows are all hand-entered and become `source = 'manual'` with no
+  authorized reuse, which is what they are: on the operator's own records,
+  chargeable by nobody.
+
+- 8c38592: Stop three admin screens from reporting something that is not true.
+
+  A custom report widget summing a money column rendered `$351,533.00` on a row whose own grouping column said `EUR`. Two separate inventions: the renderer defaulted an absent currency to `USD`, and it attached a symbol and two decimals to an integer it had not scaled — the real balance was €3,515.33. Every money field these datasets expose is a `*Cents` measure with no major-unit alternative to select, so an unscaled currency format was wrong on all of them, and the symbol is what made it believable.
+
+  A report column now carries the two presentation facts only the dataset that produced it can know — `minorUnit`, and the output column holding the row's ISO currency code — and Finance declares both. Where they are absent the amount is written as a plain number rather than borrowing a symbol from a default. This applies to the widget renderer and to PDF export, which had the same `|| "USD"` fallback.
+
+  The same widget's header showed `Outstanding balance` for a column the query named `as owed`. Finance and Bookings now honour a selection's alias as its header. An alias that merely restates the field id is the query language's mandatory output name rather than a name the author chose, so those keep the dataset's own label and the preset widgets read as before.
+
+  In the supplier invoice **Add allocation** dialog, the Departure picker returned an empty list until something was typed: its resolver closes over the chosen product, but the combobox only re-ran on the query, so it kept results resolved before a product existed. `AsyncCombobox` takes a `searchKey` for whatever else its resolver depends on, and drops stale options the moment it changes.
+
+  Supplier invoices showed `supp_01kz…` where the supplier's name belongs, in the list column and the detail header. The name is resolved on read and the id stays available on hover.
+
+- c911139: Authorize stored instruments from the operator's booking terms.
+
+  Keeping a shopper's card and charging it later while they are away is a
+  merchant-initiated transaction. Card network rules authorize it through the
+  merchant's own terms, which the shopper accepts at checkout, and require the
+  merchant to keep a record of that acceptance. It is not a checkbox beside the
+  card field.
+
+  Storefront settings gain `legal.storedInstrumentMandate` with an `enabled` flag
+  and a `revision`. The revision is what makes the record meaningful: without it
+  an acceptance says only that some terms were agreed at some point. The Booking
+  Session derives the storage intent from the mandate plus its existing contract
+  acceptance, and passes an `agreementReference` naming both.
+
+  Absent settings mean nothing is stored. Fail closed is the only safe default:
+  the operator is the merchant of record and carries the liability for an
+  agreement they never wrote.
+
+  The mandate is operator configuration and is omitted from the public storefront
+  settings projection. What a shopper reads is the booking terms themselves,
+  through the contract template.
+
+### Patch Changes
+
+- Updated dependencies [f60a572]
+- Updated dependencies [8c38592]
+- Updated dependencies [c911139]
+- Updated dependencies [f9ff2da]
+  - @voyant-travel/bookings@0.241.0
+  - @voyant-travel/reporting-contracts@0.4.0
+  - @voyant-travel/payments@0.13.0
+  - @voyant-travel/tools@0.10.3
+  - @voyant-travel/products-contracts@0.111.4
+
 ## 0.246.2
 
 ### Patch Changes

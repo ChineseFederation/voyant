@@ -1,5 +1,40 @@
 # @voyant-travel/finance-react
 
+## 0.279.0
+
+### Minor Changes
+
+- 8c38592: Stop three admin screens from reporting something that is not true.
+
+  A custom report widget summing a money column rendered `$351,533.00` on a row whose own grouping column said `EUR`. Two separate inventions: the renderer defaulted an absent currency to `USD`, and it attached a symbol and two decimals to an integer it had not scaled — the real balance was €3,515.33. Every money field these datasets expose is a `*Cents` measure with no major-unit alternative to select, so an unscaled currency format was wrong on all of them, and the symbol is what made it believable.
+
+  A report column now carries the two presentation facts only the dataset that produced it can know — `minorUnit`, and the output column holding the row's ISO currency code — and Finance declares both. Where they are absent the amount is written as a plain number rather than borrowing a symbol from a default. This applies to the widget renderer and to PDF export, which had the same `|| "USD"` fallback.
+
+  The same widget's header showed `Outstanding balance` for a column the query named `as owed`. Finance and Bookings now honour a selection's alias as its header. An alias that merely restates the field id is the query language's mandatory output name rather than a name the author chose, so those keep the dataset's own label and the preset widgets read as before.
+
+  In the supplier invoice **Add allocation** dialog, the Departure picker returned an empty list until something was typed: its resolver closes over the chosen product, but the combobox only re-ran on the query, so it kept results resolved before a product existed. `AsyncCombobox` takes a `searchKey` for whatever else its resolver depends on, and drops stale options the moment it changes.
+
+  Supplier invoices showed `supp_01kz…` where the supplier's name belongs, in the list column and the detail header. The name is resolved on read and the id stays available on hover.
+
+### Patch Changes
+
+- ab7133f: Stop stamping `netopia` on operator-generated payment links, so they are payable on whatever processor the deployment actually runs. `useCollectPayment` defaulted `cardProvider` to `"netopia"` back when that was the only processor in tree, and every "Generate payment link" wrote it to `payment_sessions.provider`. On a deployment running any other processor the shopper could never pay: the card start reached the real adapter and created a live checkout session there, then the initiation result's `processorIdentity` failed the stored-provider guard, and the public route turned that into a bare 502 — leaving a live processor session attached to a payment session still marked `pending`.
+
+  The provider now stays unset until the processor claims it on start, which is what `createOrderPaymentSessions` already documents and what the payment-link retry route already did. Because an unstarted session then has neither a provider nor a redirect URL, the landing page can no longer read "card is on offer" off the session record: `payment-link-config` publishes a `cardPayments.available` flag (the card counterpart of its bank-transfer block, sourced from whether the deployment selected a payment adapter), and `PaymentLinkLandingPage` takes it as `cardPaymentAvailable`. This also restores the card option on sessions created by "Try again", which never carried a provider either. Deployments that supply no flag keep offering card, as they did before it existed.
+
+  The public start-card handler also logs the error it swallows — session id, stored provider, and the error's own code — instead of discarding it. The response stays deliberately opaque to the shopper; diagnosing this one otherwise meant reading platform logs and the session row by hand.
+
+- Updated dependencies [3ebde50]
+- Updated dependencies [3d7ed59]
+- Updated dependencies [c911139]
+- Updated dependencies [8c38592]
+- Updated dependencies [c911139]
+  - @voyant-travel/bookings-react@0.279.0
+  - @voyant-travel/finance@0.247.0
+  - @voyant-travel/distribution-react@0.269.0
+  - @voyant-travel/operations-react@0.160.0
+  - @voyant-travel/inventory-react@0.161.0
+
 ## 0.278.0
 
 ### Patch Changes

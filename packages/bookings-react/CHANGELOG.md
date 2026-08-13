@@ -1,5 +1,77 @@
 # @voyant-travel/bookings-react
 
+## 0.279.0
+
+### Minor Changes
+
+- 3d7ed59: Honour promotion codes on the Booking Session v1 quote.
+
+  `promotionCode` had been declared on the public booking selection and accepted
+  by the offer-preview and create-session routes since the beta quote path, but
+  `normalizeBookingSelection` projected it away before any handler saw it — so a
+  code could never change a price, and `createCatalogPromotionEvaluator`, the
+  adapter written for exactly this hook, had no call sites at all after
+  voyant#4188 deleted the beta `quoteEntity`.
+
+  The code now survives normalization and `composeQuote` evaluates promotions
+  through a new optional `CatalogCommerceRuntimeExtension.createPromotionEvaluator`
+  seam. Auto-applied offers are evaluated too, not only code-gated ones: the
+  catalog plane already advertises their discounted price, so quoting without
+  them left the listing and the quote disagreeing. The discount lands as negative
+  `discount` lines with `subtotal`/`taxTotal` scaled to preserve both the
+  effective tax rate and `subtotal + taxTotal === total`; base lines are left
+  alone so `fillMissingBookingItemSellAmounts` reconciles the booking to the
+  discounted total at commit. A deployment with no promotions module wired quotes
+  exactly as before.
+
+  `pricingBreakdownV1` gains `appliedOffers` and `promotionCodeStatus`. The
+  second is the missing piece behind voyant#4615: a rejected code does not make a
+  departure unbookable, so a valid quote needs somewhere to say the code was
+  wrong. Without it the operator's New booking form had to infer rejection from
+  `available === false` and told them a departure with 13 places left was invalid.
+
+  Redemption recording is live again. The `booking.confirmed` subscriber reads
+  the applied offers through catalog's new `readAppliedOffersForBooking`, which
+  spans `booking_session_quotes` and the legacy `catalog_quotes`, replacing a
+  direct cross-module select that only ever saw the dead legacy table.
+
+  On the manual booking form, `submitBlocked` no longer contains a bare
+  `hasPromotionCode` (with an unreachable guard beneath it) and the persistent
+  "not authoritative in Booking Session v1" alert is gone. A valid code applies
+  and reprices; a rejected one blocks submission with copy that names why —
+  unrecognised, expired, not yet valid, or not applicable — rather than a single
+  generic "not valid for this booking".
+
+### Patch Changes
+
+- 3ebde50: Stop labelling person-priced booking options as sold out. The manual booking create form showed "room is full" on an option whose per-unit capacity is uncapped but whose departure has finite capacity, so operators never touched the stepper and Create booking stayed disabled behind an unclearable "Select at least one option.". The label now states that the row draws on the departure's capacity, the Options section is marked required and carries the validation message and focus on a failed submit, blocking messages clear as soon as submit is possible again, and unit quantities are reset on the selected departure/option rather than on every refetch of the slots query.
+- Updated dependencies [f60a572]
+- Updated dependencies [3d7ed59]
+- Updated dependencies [821d147]
+- Updated dependencies [ab7133f]
+- Updated dependencies [c911139]
+- Updated dependencies [8c38592]
+- Updated dependencies [c911139]
+- Updated dependencies [c911139]
+- Updated dependencies [f9ff2da]
+  - @voyant-travel/relationships-react@0.279.0
+  - @voyant-travel/bookings@0.241.0
+  - @voyant-travel/catalog-contracts@0.133.0
+  - @voyant-travel/catalog@0.254.0
+  - @voyant-travel/legal-react@0.279.0
+  - @voyant-travel/finance-react@0.279.0
+  - @voyant-travel/finance@0.247.0
+  - @voyant-travel/distribution-react@0.269.0
+  - @voyant-travel/identity-react@0.279.0
+  - @voyant-travel/operations-react@0.160.0
+  - @voyant-travel/inventory@0.41.0
+  - @voyant-travel/accommodations@0.206.0
+  - @voyant-travel/catalog-react@0.277.0
+  - @voyant-travel/inventory-react@0.161.0
+  - @voyant-travel/products-contracts@0.111.4
+  - @voyant-travel/storefront-react@0.281.0
+  - @voyant-travel/commerce-react@0.161.0
+
 ## 0.278.0
 
 ### Patch Changes

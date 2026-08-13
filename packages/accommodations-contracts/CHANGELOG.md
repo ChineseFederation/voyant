@@ -1,5 +1,12 @@
 # @voyant-travel/accommodations-contracts
 
+## 0.105.30
+
+### Patch Changes
+
+- Updated dependencies [3d7ed59]
+  - @voyant-travel/catalog-contracts@0.133.0
+
 ## 0.105.29
 
 ### Patch Changes
