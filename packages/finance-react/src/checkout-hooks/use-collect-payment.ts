@@ -11,8 +11,16 @@ import { useVoyantFinanceContext } from "../provider.js"
 export interface UseCollectPaymentOptions {
   /**
    * Provider id registered in checkout's `paymentStarters` map. Only used
-   * when the choice is `send_link`. Defaults to `"netopia"` since that's
-   * the only processor in tree today; pass explicitly when adding others.
+   * when the choice is `send_link`.
+   *
+   * Leave it unset — which is the normal case. Processor selection is
+   * deployment-owned, and a link generated here does not start a processor:
+   * the customer-facing landing page does that later, and whichever adapter
+   * the deployment selected claims the session then. Stamping a provider up
+   * front mislabels every deployment that runs a different one, and the
+   * identity guard on the initiation result then rejects the real processor
+   * (voyant#4599). Pass this only to pin a specific starter from the
+   * `paymentStarters` map.
    */
   cardProvider?: string
   /** Payer email — used as the recipient for the payment-link notification. */
@@ -65,15 +73,8 @@ export interface CollectPaymentInput {
 export function useCollectPayment(bookingId: string, options: UseCollectPaymentOptions = {}) {
   const { baseUrl, fetcher } = useVoyantFinanceContext()
   const qc = useQueryClient()
-  const {
-    cardProvider = "netopia",
-    payerEmail,
-    payerName,
-    payerLanguage,
-    returnUrl,
-    cancelUrl,
-    notes,
-  } = options
+  const { cardProvider, payerEmail, payerName, payerLanguage, returnUrl, cancelUrl, notes } =
+    options
 
   return useMutation({
     mutationFn: async ({
@@ -117,7 +118,7 @@ function mapChoiceToRequest(
   choice: PaymentChoice,
   amountCents: number,
   ctx: {
-    cardProvider: string
+    cardProvider?: string
     payerEmail?: string | null
     payerName?: string | null
     payerLanguage?: string | null
@@ -134,6 +135,10 @@ function mapChoiceToRequest(
     // template's `POST /v1/public/payment-link/:sessionId/start-card`
     // endpoint) with synthesized placeholder billing — the processor's
     // hosted form then collects the real billing from the customer.
+    //
+    // `provider` therefore stays unset unless the caller pinned one: the
+    // session is provider-agnostic until that lazy start, and the adapter
+    // that actually runs is the one that claims it.
     return {
       method: "card",
       stage: "manual",

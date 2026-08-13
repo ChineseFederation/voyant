@@ -144,6 +144,55 @@ describe("PaymentLinkLandingPage", () => {
     expect(container.innerHTML).not.toContain("seti_secret_1")
   })
 
+  // voyant#4599: an operator-generated link is pending with no provider and no
+  // redirect URL until the customer presses Pay. Deriving "card is on offer"
+  // from those columns removed the only button on the page.
+  it("offers card on an unstarted session that has claimed no processor yet", async () => {
+    const unstarted = {
+      ...baseSession,
+      status: "pending" as const,
+      provider: null,
+      redirectUrl: null,
+      providerSessionId: null,
+    }
+    fetcher.mockResolvedValue(
+      Response.json({ data: { redirectUrl: "https://pay.example.com/go", checkout: null } }),
+    )
+
+    await act(async () => {
+      root.render(
+        <VoyantFinanceProvider baseUrl="https://api.example.test/api/" fetcher={fetcher}>
+          <PaymentLinkLandingPage session={unstarted} />
+        </VoyantFinanceProvider>,
+      )
+    })
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>("button")?.click()
+    })
+
+    expect(fetcher).toHaveBeenCalledOnce()
+    expect(String(fetcher.mock.calls[0]?.[0])).toContain("/payment-link/ps_123/start-card")
+  })
+
+  it("offers nothing when the deployment has neither a card processor nor bank transfer", async () => {
+    const unstarted = {
+      ...baseSession,
+      status: "pending" as const,
+      provider: null,
+      redirectUrl: null,
+    }
+
+    await act(async () => {
+      root.render(
+        <VoyantFinanceProvider baseUrl="https://api.example.test/api/" fetcher={fetcher}>
+          <PaymentLinkLandingPage cardPaymentAvailable={false} session={unstarted} />
+        </VoyantFinanceProvider>,
+      )
+    })
+
+    expect(container.querySelector("button")).toBeNull()
+  })
+
   it("falls back to a message rather than a blank panel when the client is missing", async () => {
     const embedded = {
       ...baseSession,

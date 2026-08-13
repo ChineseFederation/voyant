@@ -37,6 +37,12 @@ interface PaymentLinkConfigResponse {
       currency?: string | null
       notes?: string | null
     } | null
+    /**
+     * Absent on deployments running an older payment-link route module —
+     * treated as available, which is what those deployments did before the
+     * field existed.
+     */
+    cardPayments?: { available: boolean } | null
   }
 }
 
@@ -152,6 +158,7 @@ export function PublicPaymentLinkPage({
     <PaymentLinkLandingPage
       session={session}
       bankTransferInstructions={bankTransferInstructions}
+      cardPaymentAvailable={configQuery.data?.cardPayments?.available ?? true}
       summary={summaryNode}
       suppressNotes={suppressNotes}
       onRetry={async () => {

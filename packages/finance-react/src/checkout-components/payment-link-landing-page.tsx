@@ -182,6 +182,19 @@ export interface PaymentLinkLandingPageProps {
   session: PublicPaymentSession
   /** Bank-transfer instructions block — template-supplied per deployment. */
   bankTransferInstructions?: BankTransferInstructions
+  /**
+   * Whether this deployment has a card processor wired at all — the card
+   * counterpart of `bankTransferInstructions`, and template-supplied the
+   * same way (from `GET /v1/public/payment-link-config`).
+   *
+   * It cannot be read off the session. A link the operator generates carries
+   * no provider and no redirect URL: the processor is claimed lazily when the
+   * customer presses Pay, so an unstarted session looks identical on a
+   * card-enabled deployment and a bank-transfer-only one (voyant#4599).
+   * Defaults to `true` — a deployment that says nothing gets the card option
+   * and, if no processor answers, an inline error rather than a hidden button.
+   */
+  cardPaymentAvailable?: boolean
   /** Header slot (logo, brand name, optional support contact). */
   brandHeader?: ReactNode
   /** Footer slot (T&Cs link, support contact, privacy). */
@@ -245,6 +258,7 @@ export interface BankTransferInstructions {
 export function PaymentLinkLandingPage({
   session,
   bankTransferInstructions,
+  cardPaymentAvailable = true,
   brandHeader,
   brandFooter,
   embeddedCheckoutClient,
@@ -265,6 +279,7 @@ export function PaymentLinkLandingPage({
       <Body
         session={session}
         bankTransferInstructions={bankTransferInstructions}
+        cardPaymentAvailable={cardPaymentAvailable}
         embeddedCheckoutClient={embeddedCheckoutClient}
         onPayByCard={onPayByCard}
         onRetry={onRetry}
@@ -321,12 +336,14 @@ function Body({
   session,
   embeddedCheckoutClient,
   bankTransferInstructions,
+  cardPaymentAvailable,
   onPayByCard,
   onRetry,
   apiClient,
 }: {
   session: PublicPaymentSession
   bankTransferInstructions?: BankTransferInstructions
+  cardPaymentAvailable: boolean
   embeddedCheckoutClient?: PaymentEmbeddedCheckoutClient
   onPayByCard?: () => void
   onRetry?: () => Promise<void> | void
@@ -346,14 +363,18 @@ function Body({
     return <ProcessingState />
   }
 
-  const cardAvailable =
-    Boolean(session.redirectUrl) ||
-    Boolean(session.provider) ||
-    session.status === "requires_redirect"
+  // Only `pending` and `requires_redirect` reach here — every other status
+  // short-circuited above — and both can start or continue a card payment.
+  // So whether card is on offer is a fact about the deployment, not about
+  // the session: an operator-generated link carries no provider and no
+  // redirect URL until the customer presses Pay and a processor claims it
+  // (voyant#4599). Reading either off the session hid the button on every
+  // deployment that did not stamp one up front.
+  const cardAvailable = cardPaymentAvailable
   const bankAvailable = Boolean(bankTransferInstructions)
 
-  // No method available — soft fallback (rare; signals a misconfigured
-  // session that has neither a redirect URL nor a bank-transfer block).
+  // No method available — soft fallback (a deployment with neither a card
+  // processor nor a bank-transfer block).
   if (!cardAvailable && !bankAvailable) {
     return (
       <div className="rounded-xl border border-amber-500/40 bg-amber-500/5 p-6 text-sm">

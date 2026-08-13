@@ -171,6 +171,19 @@ export interface PaymentLinkRoutesOptions {
   /** Resolve the public checkout base URL from the deployment bindings. */
   resolvePublicCheckoutBaseUrl(c: Context): string | null
   /**
+   * Whether a card processor is wired for this deployment — the card
+   * counterpart of `resolveBankTransferDetails`, published on
+   * `payment-link-config` so the landing page knows whether to offer card.
+   *
+   * Static, because adapter selection happens once at graph composition. It
+   * says nothing about whether a given start will succeed; `startCardPayment`
+   * still answers `{ configured: false }` at the point of use.
+   *
+   * Omitted means "assume yes", which is how every deployment behaved before
+   * the flag existed.
+   */
+  cardPaymentsConfigured?: boolean
+  /**
    * Best-effort: ensure a fresh payment session can be started on the card
    * provider, returning the handoff it chose. `redirectUrl` is the redirect
    * arm's projection and stays `null` for an embedded handoff. Returns
@@ -235,6 +248,13 @@ const bankTransferDetailsSchema = z.object({
 const paymentLinkConfigSchema = z.object({
   publicCheckoutBaseUrl: z.string().nullable(),
   bankTransfer: bankTransferDetailsSchema.nullable(),
+  /**
+   * Whether this deployment can take a card at all. The landing page needs
+   * this before it renders a method: an unstarted payment-link session has
+   * no provider and no redirect URL, so the session record alone cannot tell
+   * a card deployment from a bank-transfer-only one (voyant#4599).
+   */
+  cardPayments: z.object({ available: z.boolean() }),
 })
 
 const tripComponentSchema = z.object({
@@ -550,6 +570,17 @@ function canReuseCardHandoff(status: string): boolean {
 }
 
 /**
+ * Finance's payment errors carry a `code` (`payment_processor_identity_mismatch`
+ * and friends). Read it structurally rather than importing the error class:
+ * the code is the useful half of the log line, and anything thrown from an
+ * adapter or the transport still gets its own if it has one.
+ */
+function errorCode(err: unknown): string | undefined {
+  const code = (err as { code?: unknown } | null)?.code
+  return typeof code === "string" ? code : undefined
+}
+
+/**
  * A stored handoff the caller can still act on.
  *
  * An embedded handoff is only reusable by a page that says it can mount one;
@@ -657,6 +688,7 @@ export function createPaymentLinkRoutes(options: PaymentLinkRoutesOptions): Open
           data: {
             publicCheckoutBaseUrl: options.resolvePublicCheckoutBaseUrl(c),
             bankTransfer,
+            cardPayments: { available: options.cardPaymentsConfigured !== false },
           },
         },
         200,
@@ -812,7 +844,19 @@ export function createPaymentLinkRoutes(options: PaymentLinkRoutesOptions): Open
           },
           200,
         )
-      } catch {
+      } catch (err) {
+        // The response stays deliberately opaque — a public endpoint must not
+        // relay processor internals to the shopper. But swallowing the error
+        // entirely left a 502 with nothing behind it: diagnosing voyant#4599
+        // meant tracing platform logs and reading the session row by hand.
+        // Log it with the session and the error's own code so the next one
+        // explains itself.
+        console.error("[storefront] payment-link start-card failed", {
+          paymentSessionId: session.id,
+          sessionProvider: session.provider,
+          code: errorCode(err),
+          error: err,
+        })
         return c.json({ error: "Card processor failed to start the payment" }, 502)
       }
     })

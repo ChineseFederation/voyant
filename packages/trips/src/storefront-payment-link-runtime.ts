@@ -380,6 +380,10 @@ export function createStandardPaymentLinkRouteOptions(
     startCardPayment: adapter
       ? createAdapterStartCardPayment(adapter)
       : unconfiguredStartCardPayment,
+    // Published on `payment-link-config` so the landing page can offer card on
+    // a session that has not started one yet — which is every link the
+    // operator generates (voyant#4599).
+    cardPaymentsConfigured: Boolean(adapter),
     resolveTripData,
   }
 }

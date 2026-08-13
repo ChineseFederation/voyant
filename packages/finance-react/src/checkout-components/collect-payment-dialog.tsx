@@ -72,7 +72,12 @@ export interface CollectPaymentDialogProps {
    */
   returnUrl?: string | null
   cancelUrl?: string | null
-  /** Card processor id registered in checkout's `paymentStarters`. */
+  /**
+   * Card processor id registered in checkout's `paymentStarters`. Normally
+   * omitted — the generated link claims whichever processor the deployment
+   * selected when the customer starts the payment. See the `cardProvider`
+   * option on {@link useCollectPayment}.
+   */
   cardProvider?: string
 }
 

@@ -306,7 +306,19 @@ describe("createPaymentLinkRoutes", () => {
           iban: "RO49AAAA1B31007593840000",
           bankName: "Acme Bank",
         },
+        cardPayments: { available: true },
       },
+    })
+  })
+
+  it("payment-link-config reports card as unavailable when no processor is wired", async () => {
+    const app = mountApp(stubOptions({ cardPaymentsConfigured: false }), makeDb([]))
+
+    const res = await app.request("/v1/public/payment-link-config")
+
+    expect(res.status).toBe(200)
+    expect(((await res.json()) as { data: { cardPayments: unknown } }).data.cardPayments).toEqual({
+      available: false,
     })
   })
 
@@ -389,11 +401,60 @@ describe("createPaymentLinkRoutes", () => {
       }),
       db,
     )
+    const logged = vi.spyOn(console, "error").mockImplementation(() => undefined)
 
     const res = await app.request("/v1/public/payment-link/ps_1/start-card", { method: "POST" })
 
     expect(res.status).toBe(502)
     expect(await res.json()).toEqual({ error: "Card processor failed to start the payment" })
+    // Opaque to the shopper, legible to whoever has to diagnose it.
+    expect(logged).toHaveBeenCalledWith(
+      "[storefront] payment-link start-card failed",
+      expect.objectContaining({ paymentSessionId: "ps_1" }),
+    )
+  })
+
+  it("start-card logs the processor error code that the response withholds", async () => {
+    const db = makeDb([
+      [
+        {
+          id: "ps_1",
+          status: "pending",
+          provider: "netopia",
+          redirectUrl: null,
+          returnUrl: null,
+          amountCents: 12000,
+          currency: "RON",
+          payerName: null,
+          payerEmail: null,
+          notes: null,
+        },
+      ],
+    ])
+    const mismatch = Object.assign(new Error("processor identity does not match"), {
+      code: "payment_processor_identity_mismatch",
+    })
+    const app = mountApp(
+      stubOptions({
+        startCardPayment: vi.fn(async () => {
+          throw mismatch
+        }),
+      }),
+      db,
+    )
+    const logged = vi.spyOn(console, "error").mockImplementation(() => undefined)
+
+    const res = await app.request("/v1/public/payment-link/ps_1/start-card", { method: "POST" })
+
+    expect(res.status).toBe(502)
+    expect(logged).toHaveBeenCalledWith(
+      "[storefront] payment-link start-card failed",
+      expect.objectContaining({
+        paymentSessionId: "ps_1",
+        sessionProvider: "netopia",
+        code: "payment_processor_identity_mismatch",
+      }),
+    )
   })
 
   it("retry keeps an active processor attempt on the same Voyant session", async () => {
