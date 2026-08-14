@@ -67,6 +67,7 @@ async function cleanupNotificationsTestData(
       contracts,
       booking_payment_schedules,
       booking_travelers,
+      booking_items,
       bookings
     CASCADE
   `)
@@ -260,12 +261,17 @@ export function createNotificationsTestContext(options?: {
         description text,
         quantity integer,
         item_type text,
+        status text NOT NULL DEFAULT 'confirmed',
         service_date date,
         sell_currency text,
         unit_sell_amount_cents integer,
         total_sell_amount_cents integer,
         created_at timestamp with time zone DEFAULT now() NOT NULL
       )
+    `)
+    await db.execute(sql`ALTER TABLE booking_items ADD COLUMN IF NOT EXISTS product_id text`)
+    await db.execute(sql`
+      ALTER TABLE booking_items ADD COLUMN IF NOT EXISTS product_name_snapshot text
     `)
     await db.execute(sql`
       CREATE TABLE IF NOT EXISTS booking_payment_schedules (

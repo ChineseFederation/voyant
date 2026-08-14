@@ -200,6 +200,47 @@ describe("renderNotificationTemplate", () => {
     ).toBe("Paid")
   })
 
+  it("resolves product.title from the catalog snapshot, not the item's unit label", () => {
+    expect(
+      renderNotificationTemplate("Rezervarea ta pentru {{ product.title }}", {
+        items: [
+          {
+            title: "Adult",
+            productNameSnapshot: "Excursie de 1 Zi în Bulgaria",
+          },
+        ],
+      }),
+    ).toBe("Rezervarea ta pentru Excursie de 1 Zi în Bulgaria")
+  })
+
+  it("falls back to the item label when no product snapshot was stamped", () => {
+    expect(
+      renderNotificationTemplate("{{ product.title }}", {
+        items: [{ title: "Transfer aeroport", productNameSnapshot: null }],
+      }),
+    ).toBe("Transfer aeroport")
+    expect(
+      renderNotificationTemplate("{{ product.title }}", {
+        items: [{ title: "  ", description: "Croazieră Dunăre" }],
+      }),
+    ).toBe("Croazieră Dunăre")
+  })
+
+  it("keeps caller-supplied product data instead of overwriting it from the first item", () => {
+    expect(
+      renderNotificationTemplate("{{ product.title }}", {
+        product: { title: "Circuit Maroc 7 zile" },
+        items: [{ title: "Adult", productNameSnapshot: "Excursie de 1 Zi în Bulgaria" }],
+      }),
+    ).toBe("Circuit Maroc 7 zile")
+    expect(
+      renderNotificationTemplate("{{ product.title }}", {
+        product: { title: "Circuit Maroc 7 zile" },
+        items: [],
+      }),
+    ).toBe("Circuit Maroc 7 zile")
+  })
+
   it("renders configured customer portal URLs in Liquid templates", () => {
     const portal = buildNotificationPortalContext(" https://portal.example.test/ ", "book 123")
 

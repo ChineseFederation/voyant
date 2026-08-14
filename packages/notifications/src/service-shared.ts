@@ -280,6 +280,11 @@ export async function listBookingNotificationItems(db: PostgresJsDatabase, booki
       unitSellAmountCents: bookingItems.unitSellAmountCents,
       totalSellAmountCents: bookingItems.totalSellAmountCents,
       productId: bookingItems.productId,
+      // Server-stamped catalog snapshot. `title` is a unit/option label and
+      // may be caller-supplied free text, so templates that want the product
+      // name must read this instead — see `product.title` in
+      // `normalizeNotificationTemplateData`.
+      productNameSnapshot: bookingItems.productNameSnapshot,
     })
     .from(bookingItems)
     .where(eq(bookingItems.bookingId, bookingId))

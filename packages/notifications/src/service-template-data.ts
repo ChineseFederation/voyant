@@ -16,6 +16,13 @@ function parseDate(value: unknown) {
   return Number.isNaN(date.getTime()) ? null : date
 }
 
+function firstNonEmptyString(...values: unknown[]) {
+  for (const value of values) {
+    if (typeof value === "string" && value.trim().length > 0) return value
+  }
+  return null
+}
+
 function toRecord(value: unknown): Record<string, unknown> | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null
   return value as Record<string, unknown>
@@ -282,15 +289,22 @@ export function normalizeNotificationTemplateData(data: Record<string, unknown>)
       }
     : suppliedPayment
 
-  const product =
-    items.length > 0 && items[0] && typeof items[0] === "object"
-      ? {
-          title:
-            (items[0] as Record<string, unknown>).title ??
-            (items[0] as Record<string, unknown>).description ??
-            null,
-        }
-      : null
+  const suppliedProduct = toRecord(data.product)
+  const primaryItem = toRecord(items[0])
+  // `title` on a booking item is a unit/option label ("Adult", "Single") and
+  // can be caller-supplied free text; `productNameSnapshot` is stamped from
+  // the catalog at creation time. Prefer the snapshot, as the legal and
+  // storefront packages already do for the same variable.
+  const derivedProduct = primaryItem
+    ? {
+        title: firstNonEmptyString(
+          primaryItem.productNameSnapshot,
+          primaryItem.title,
+          primaryItem.description,
+        ),
+      }
+    : null
+  const product = derivedProduct ? { ...derivedProduct, ...suppliedProduct } : suppliedProduct
 
   return {
     ...data,

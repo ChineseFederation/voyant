@@ -347,7 +347,9 @@ export const notificationTemplateVariableCatalog: NotificationTemplateVariableCa
   {
     id: "product",
     label: "Product",
-    description: "Convenience alias to the first booking item title when available.",
+    description:
+      "What's being booked, taken from the first booking item's catalog snapshot. " +
+      "Falls back to that item's label when the booking carries no product snapshot.",
     variables: [
       { key: "product.title", label: "Title", example: "Circuit Maroc 7 zile", type: "string" },
     ],
