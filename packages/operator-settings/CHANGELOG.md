@@ -1,5 +1,13 @@
 # @voyant-travel/operator-settings
 
+## 0.17.33
+
+### Patch Changes
+
+- Updated dependencies [8413c21]
+  - @voyant-travel/finance@0.248.0
+  - @voyant-travel/commerce@0.50.1
+
 ## 0.17.32
 
 ### Patch Changes

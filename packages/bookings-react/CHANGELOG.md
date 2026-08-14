@@ -1,5 +1,33 @@
 # @voyant-travel/bookings-react
 
+## 0.280.0
+
+### Patch Changes
+
+- d25f047: Fix record pickers reporting their empty state for records the API returned.
+
+  base-ui matches the typed query against an item's label string, resolved
+  through `itemToStringLabel`. These comboboxes passed only `itemToStringValue`,
+  so base-ui stringified the item itself — a record id — and typing a product,
+  market, facility or price-catalog name filtered every option out. Twenty-seven
+  call sites were affected across products, pricing, sellability, extras,
+  facilities and the finance async picker.
+
+- Updated dependencies [d25f047]
+- Updated dependencies [8413c21]
+  - @voyant-travel/commerce-react@0.162.0
+  - @voyant-travel/finance-react@0.280.0
+  - @voyant-travel/inventory-react@0.162.0
+  - @voyant-travel/operations-react@0.161.0
+  - @voyant-travel/finance@0.248.0
+  - @voyant-travel/storefront-react@0.282.0
+  - @voyant-travel/accommodations@0.207.0
+  - @voyant-travel/distribution-react@0.270.0
+  - @voyant-travel/identity-react@0.280.0
+  - @voyant-travel/legal-react@0.280.0
+  - @voyant-travel/catalog-react@0.278.0
+  - @voyant-travel/relationships-react@0.280.0
+
 ## 0.279.0
 
 ### Minor Changes
