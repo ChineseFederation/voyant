@@ -61,6 +61,7 @@ export const financeVoyantModule = defineModule({
     requirePort(financeHostRuntimePort),
     requirePort(customFieldsRuntimePort),
     requirePort(financeNotificationsRuntimePort),
+    requirePort(financeOperatorSettingsRuntimePort),
     requirePort(financeCheckoutPaymentStartersRuntimePort, { optional: true }),
     { ...paymentAdapterRuntimePortReference, optional: true },
     requirePort(financeInvoiceSettlementPollerRuntimePort, {

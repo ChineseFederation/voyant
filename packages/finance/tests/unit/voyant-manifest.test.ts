@@ -17,6 +17,8 @@ import {
   financeVoyantModule,
 } from "../../src/voyant.js"
 
+const declaredRuntimePorts = new Set(financeVoyantModule.runtimePorts.map(({ id }) => id))
+
 describe("finance deployment manifest", () => {
   it("owns the module deployment surfaces", () => {
     expect(financeVoyantModule).toMatchObject({
@@ -39,6 +41,7 @@ describe("finance deployment manifest", () => {
         { id: "finance.host.runtime" },
         { id: "custom-fields.runtime" },
         { id: "finance.notifications.runtime" },
+        { id: "finance.operator-settings.runtime" },
         { id: "finance.checkout-payment-starters.runtime", optional: true },
         { id: "payments.adapter.runtime", optional: true },
         { id: "finance.invoice-settlement-poller", optional: true, cardinality: "many" },
@@ -451,8 +454,14 @@ describe("finance deployment manifest", () => {
       getUnitProjectConfig: () => undefined,
       hostOptions: {},
       api: [{ id: "finance.admin", surface: "admin" }],
-      hasPort: () => true,
+      hasPort: (port: { id: string }) => declaredRuntimePorts.has(port.id),
+      // The composer refuses a port the manifest does not declare, so a fake
+      // that answers every id would pass here and fail at boot. Refuse the
+      // same way it does.
       getPort: async <TProvider>(port: { id: string }) => {
+        if (!declaredRuntimePorts.has(port.id)) {
+          throw new Error(`requested undeclared port "${port.id}"`)
+        }
         const providers: Record<string, unknown> = {
           "finance.host.runtime": {
             primitives: {
@@ -478,6 +487,15 @@ describe("finance deployment manifest", () => {
           "finance.notifications.runtime": {
             resolveNotificationDispatcher: () => undefined,
             listBookingReminderRuns: async () => [],
+          },
+          "finance.operator-settings.runtime": {
+            resolveOperatorDefaultPaymentPolicy: async () => undefined,
+            resolveInvoicePayUrlTemplate: async () => null,
+            resolveBookingTaxSettings: async () => undefined,
+            updateBookingTaxSettings: async () => undefined,
+            resolveInvoicingMode: async () => undefined,
+            resolveInvoiceFxSettings: async () => undefined,
+            updateInvoiceFxSettings: async () => undefined,
           },
           "finance.checkout-payment-starters.runtime": { resolvePaymentStarters: () => ({}) },
           "payments.adapter.runtime": {
