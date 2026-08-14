@@ -14,6 +14,7 @@ import {
 import { dispatchToResult } from "./dispatch.js"
 import { DEFAULT_RESPONSE_BUDGET_BYTES, isListShapedOutput } from "./response-budget.js"
 import { toMcpInputSchema, toMcpOutputContract } from "./schema-projection.js"
+import { VOYANT_TOOL_META_KEY } from "./tool-meta.js"
 
 export function registerMcpTool(
   server: McpServer,
@@ -52,7 +53,7 @@ export function registerMcpTool(
 
 export function toMcpMeta(entry: ToolManifestEntry, aliasFor?: string): Record<string, unknown> {
   return {
-    "voyant.travel/tool": {
+    [VOYANT_TOOL_META_KEY]: {
       contractVersion: TOOL_CONTRACT_VERSION,
       capabilityId: entry.capabilityId,
       owner: entry.owner,

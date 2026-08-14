@@ -21,3 +21,9 @@ export {
   type McpApiRoutesOptions,
   type McpServerInfo,
 } from "./server.js"
+export {
+  SERVER_TOOL_META_KEY,
+  type ServerToolKind,
+  serverToolMeta,
+  VOYANT_TOOL_META_KEY,
+} from "./tool-meta.js"

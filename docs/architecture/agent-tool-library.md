@@ -401,8 +401,9 @@ bindings and outbound webhook plans. Separate `tools.json`, `actions.json`, and
 separate MCP service or Durable Object is required. `GET /v1/admin/mcp/manifest`
 serves a contract-versioned discovery manifest for remote agents.
 
-Standard `tools/list` is also a complete discovery surface. It includes input and
-structured-output schemas, derived standard MCP annotations, and exact framework
+A registry Tool advertised over MCP — eagerly in `tools/list`, or on demand through
+`describe_tool` — carries input and structured-output schemas, derived standard MCP
+annotations, and exact framework
 metadata under `_meta["voyant.travel/tool"]`. Aliases are registered as callable MCP
 names with `aliasFor` metadata, while the canonical manifest contains one entry per
 capability. Consumers resolve capabilities by `capabilityId` plus an exact supported
@@ -415,6 +416,41 @@ reason code. For those actions the MCP adapter never accepts client-authored tar
 fingerprints. Approval preflight is server-owned and returns stable
 structured error metadata; an approved retry is admitted only after the action ledger matches the
 recomputed action, target, command, principal, organization, and request id.
+
+### Classifying a `tools/list` entry
+
+`tools/list` is no longer a wholesale catalog. Progressive disclosure (voyant#3927)
+reduced it to a tier-0, and some of what remains is owned by the **server**, not by
+the tenant registry: the guide Tools (`voyant_guide`, `voyant_glossary`), the
+meta-tools (`search_tools`, `describe_tool`, `call_tool`), and the synthetic
+`<domain>_query` groups the flat reads were folded into. None of them are registry
+Tools, so none can carry `voyant.travel/tool`.
+
+A client therefore has to classify each entry, and it classifies on a **positive
+marker** — never on absence, which cannot distinguish a server-owned tool from a
+registry Tool whose metadata is missing or malformed:
+
+| `_meta` | meaning | client action |
+| --- | --- | --- |
+| `voyant.travel/tool` | registry Tool | parse strictly |
+| `voyant.travel/server-tool` | server-owned; `kind` is `guide`, `meta`, or `read-query` | classify by `kind` |
+| neither | contract break | fail closed |
+
+Both keys are exported from `@voyant-travel/mcp` as `VOYANT_TOOL_META_KEY` and
+`SERVER_TOOL_META_KEY`. Every advertised entry carries exactly one of them, and a
+test in that package holds the property for whatever gets registered next.
+
+A `read-query` group is deliberately **not** advertised as a registry Tool: it
+stands in for several capabilities and has none of its own, so a client parsing
+`voyant.travel/tool` strictly would reject it for incomplete metadata. It is
+callable, and `describe_tool` returns its discriminated-union schema along with the
+capability ids and scopes it absorbed — which is how a client knows which flat read
+names to stop offering.
+
+Reading absence as "not a registry Tool" is the failure this replaced: Max's
+discovery required `voyant.travel/tool` on every entry and threw on the first one
+without it, so a single unrecognized entry discarded the whole tenant catalog on
+every managed deployment from `@voyant-travel/mcp` 0.13 (voyant#4592).
 
 ## Migration status
 

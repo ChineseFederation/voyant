@@ -24,6 +24,8 @@
 import { z } from "@hono/zod-openapi"
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"
 
+import { serverToolMeta } from "./tool-meta.js"
+
 export interface GuideScope {
   /** Whether the caller can reach any state-mutating Tool with its granted key. */
   writeEnabled: boolean
@@ -121,6 +123,9 @@ export function registerGuideTools(server: McpServer, scope: GuideScope): readon
         readOnlyHint: true,
         openWorldHint: false,
       },
+      // Server-owned, never a registry Tool: without the marker a client cannot
+      // tell this entry from a tenant Tool that lost its metadata (voyant#4592).
+      _meta: serverToolMeta("guide"),
     },
     ({ topic }) => textResult(guideSection(topic ?? "overview", scope)),
   )
@@ -147,6 +152,7 @@ export function registerGuideTools(server: McpServer, scope: GuideScope): readon
         readOnlyHint: true,
         openWorldHint: false,
       },
+      _meta: serverToolMeta("guide"),
     },
     ({ term }) => textResult(glossary(term)),
   )

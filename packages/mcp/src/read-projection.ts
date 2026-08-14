@@ -43,6 +43,7 @@ import { isRecord } from "./guards.js"
 import type { AuthorizedSurface } from "./meta-tools.js"
 import { DEFAULT_RESPONSE_BUDGET_BYTES, isListShapedOutput } from "./response-budget.js"
 import { toMcpInputSchema, toMcpOutputContract } from "./schema-projection.js"
+import { serverToolMeta, VOYANT_TOOL_META_KEY } from "./tool-meta.js"
 
 /** Read verbs that collapse into a per-domain query tool. Matches the 133 reads. */
 const READ_VERB = /^(?:get|list|search)_/
@@ -282,7 +283,11 @@ export function advertiseQueryTool(
     outputSchema: QUERY_OUTPUT_SCHEMA,
     annotations: { readOnlyHint: true, openWorldHint: false },
     _meta: {
-      "voyant.travel/tool": {
+      // The server-owned marker a client classifies BY; the block below stays for
+      // the descriptor's existing consumers, which read the absorbed capabilities
+      // out of `voyant.travel/tool` (voyant#4592).
+      ...queryToolServerMeta(queryTool),
+      [VOYANT_TOOL_META_KEY]: {
         contractVersion: TOOL_CONTRACT_VERSION,
         kind: "read-query",
         domain: queryTool.domain,
@@ -300,6 +305,21 @@ export function advertiseQueryTool(
       },
     },
   }
+}
+
+/**
+ * The server-owned marker for a `<domain>_query` group.
+ *
+ * A group is not a registry Tool — it stands in for several, and has no
+ * capability identity of its own — so it takes the `server-tool` marker rather
+ * than pretending to metadata it cannot fill in. It carries identity and
+ * classification only: the resources it serves are named in its description and
+ * described in full by `describe_tool`, and repeating every resource's
+ * capability id and scopes here would put the eager-serialization cost
+ * voyant#3927 removed straight back onto every `tools/list`.
+ */
+export function queryToolServerMeta(queryTool: QueryTool): Record<string, unknown> {
+  return serverToolMeta("read-query", { domain: queryTool.domain, tier: "read" })
 }
 
 export interface DispatchQueryToolInput {
@@ -371,6 +391,7 @@ export function registerQueryTool(
       description: `Query ${queryTool.domain} read data by \`resource\`.`,
       inputSchema: z.looseObject({ resource: z.string() }),
       annotations: { readOnlyHint: true, openWorldHint: false },
+      _meta: queryToolServerMeta(queryTool),
     },
     async (args): Promise<CallToolResult> => {
       const { result } = await dispatchQueryTool({

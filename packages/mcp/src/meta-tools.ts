@@ -43,6 +43,7 @@ import {
 import { toMcpMeta } from "./register.js"
 import { DEFAULT_RESPONSE_BUDGET_BYTES, isListShapedOutput } from "./response-budget.js"
 import { toMcpInputSchema, toMcpOutputContract } from "./schema-projection.js"
+import { serverToolMeta } from "./tool-meta.js"
 import { expandSearchTerm } from "./vocabulary.js"
 
 export { toolDomain } from "./read-projection.js"
@@ -200,6 +201,10 @@ function registerSearchTools({ server, surface, projection }: RegisterMetaToolsI
         limit: z.number().int().min(1).max(MAX_SEARCH_LIMIT).optional(),
       }),
       annotations: { readOnlyHint: true, openWorldHint: false },
+      // The tier-0 surface is the server's own, not the tenant registry's
+      // (voyant#4592): mark it positively so a client skips it knowingly rather
+      // than inferring "no metadata" and having to guess what that means.
+      _meta: serverToolMeta("meta"),
     },
     (args) => searchTools(surface, projection, args),
   )
@@ -441,6 +446,7 @@ function registerDescribeTool({
         ),
       }),
       annotations: { readOnlyHint: true, openWorldHint: false },
+      _meta: serverToolMeta("meta"),
     },
     (args) => describeTool(registry, surface, projection, args.name, args.resource),
   )
@@ -462,6 +468,9 @@ function describeTool(
         unrepresentable: "any",
       }),
       annotations: { openWorldHint: true },
+      // Same marker `tools/list` carries, so a client classifying a descriptor
+      // and one classifying a listing reach the same answer.
+      _meta: serverToolMeta("meta"),
     }
     return {
       content: [{ type: "text", text: JSON.stringify(descriptor, null, 2) }],
@@ -534,6 +543,7 @@ function registerCallTool(input: RegisterMetaToolsInput): void {
       description: CALL_TOOL_DESCRIPTION,
       inputSchema: callToolInputSchema,
       annotations: { openWorldHint: true },
+      _meta: serverToolMeta("meta"),
     },
     async (args) => {
       // Tolerate a client namespace prefix before anything else, so both the
