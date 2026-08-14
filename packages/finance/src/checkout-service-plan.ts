@@ -116,13 +116,19 @@ export interface CheckoutNotificationDispatcher {
     db: PostgresJsDatabase,
     invoiceId: string,
     input: CheckoutInvoiceNotificationInput,
-    options?: { paymentLinkBaseUrl?: string | null },
+    options?: {
+      paymentLinkBaseUrl?: string | null
+      paymentLinkUrlTemplate?: string | null
+    },
   ) => Promise<CheckoutNotificationDelivery | null>
   sendPaymentSessionNotification?: (
     db: PostgresJsDatabase,
     paymentSessionId: string,
     input: CheckoutPaymentSessionNotificationInput,
-    options?: { paymentLinkBaseUrl?: string | null },
+    options?: {
+      paymentLinkBaseUrl?: string | null
+      paymentLinkUrlTemplate?: string | null
+    },
   ) => Promise<CheckoutNotificationDelivery | null>
 }
 
@@ -134,6 +140,7 @@ export interface InitiatedCheckoutCollection {
   paymentSessionNotification: CheckoutNotificationDelivery | null
   bankTransferInstructions: CheckoutBankTransferInstructionsRecord | null
   providerStart: CheckoutProviderStartResult | null
+  paymentLinkUrl: string | null
 }
 
 export interface BootstrappedCheckoutCollection extends InitiatedCheckoutCollection {
@@ -151,6 +158,7 @@ export interface CheckoutRuntimeOptions {
   selectedPaymentStarter?: CheckoutPaymentStarter | null
   paymentStarters?: Record<string, CheckoutPaymentStarter>
   publicCheckoutBaseUrl?: string | null
+  paymentLinkUrlTemplate?: string | null
 }
 
 export const OUTSTANDING_SCHEDULE_STATUSES: Array<

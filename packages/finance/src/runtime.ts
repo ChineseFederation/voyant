@@ -10,6 +10,7 @@ import {
   type ResolveInvoiceExchangeRate,
 } from "./invoice-fx.js"
 import { refreshPaymentAdapterStatus } from "./payment-adapter-status.js"
+import { resolveEffectivePaymentLinkUrlTemplate } from "./payment-link.js"
 import { executeAdapterRefundSettlement } from "./refund-settlement-execution.js"
 import type {
   FinanceAccommodationsPaymentPolicyRuntime,
@@ -32,6 +33,7 @@ export function createFinanceRuntime(
   host: FinanceHostRuntime,
   customFields: CustomFieldsRuntime,
   notifications: FinanceNotificationsRuntime,
+  operatorSettings: FinanceOperatorSettingsRuntime,
   checkoutPaymentStarters?: FinanceCheckoutPaymentStartersRuntime,
   invoiceSettlementPollerProviders: readonly FinanceInvoiceSettlementPollerProvider[] = [],
   selectedPaymentAdapter?: PaymentAdapter,
@@ -69,6 +71,11 @@ export function createFinanceRuntime(
     resolveBankTransferDetails: (bindings) => resolveBankTransferDetails(primitives.env(bindings)),
     resolvePublicCheckoutBaseUrl: (bindings) =>
       resolvePublicCheckoutBaseUrl(primitives.env(bindings)),
+    resolvePaymentLinkUrlTemplate: async (db, bindings) =>
+      resolveEffectivePaymentLinkUrlTemplate(
+        await operatorSettings.resolveInvoicePayUrlTemplate(db),
+        nonEmpty(primitives.env(bindings).PUBLIC_PAYMENT_LINK_URL_TEMPLATE),
+      ),
     refreshPaymentSessionStatus: selectedPaymentAdapter
       ? ({ bindings, db, paymentSessionId, eventBus }) =>
           refreshPaymentAdapterStatus(selectedPaymentAdapter, db, paymentSessionId, {
@@ -267,13 +274,10 @@ function resolveBankTransferDetails(env: Readonly<Record<string, unknown>>) {
   }
 }
 
-function resolvePublicCheckoutBaseUrl(env: Readonly<Record<string, unknown>>): string | null {
-  return (
-    nonEmpty(env.PUBLIC_CHECKOUT_BASE_URL) ??
-    nonEmpty(env.DASH_BASE_URL) ??
-    nonEmpty(env.APP_URL)?.replace(/\/api\/?$/, "") ??
-    null
-  )
+export function resolvePublicCheckoutBaseUrl(
+  env: Readonly<Record<string, unknown>>,
+): string | null {
+  return nonEmpty(env.PUBLIC_CHECKOUT_BASE_URL) ?? null
 }
 
 function nonEmpty(value: unknown): string | undefined {

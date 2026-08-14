@@ -5,7 +5,7 @@ import {
   useOperatorAdminMessages as useAdminMessages,
   useAdminNavigate,
 } from "@voyant-travel/admin"
-import { buildPaymentLinkUrl } from "@voyant-travel/finance/payment-link"
+import { buildConfiguredPaymentLinkUrl } from "@voyant-travel/finance/payment-link"
 import { formatMessage } from "@voyant-travel/i18n"
 import { useOrganization, usePerson } from "@voyant-travel/relationships-react"
 import type { Trip, TripComponent } from "@voyant-travel/trips"
@@ -264,11 +264,10 @@ export function TripRecordPage({ trip, onEdit }: { trip: Trip; onEdit(): void })
 }
 
 async function copyPaymentLink(paymentSessionId: string, apiBaseUrl: string): Promise<boolean> {
-  if (!paymentSessionId || typeof window === "undefined") return false
-  const publicCheckoutBaseUrl = await fetchPublicCheckoutBaseUrl(apiBaseUrl)
-  const url = buildPaymentLinkUrl(paymentSessionId, {
-    baseUrl: publicCheckoutBaseUrl ?? window.location.origin,
-  })
+  if (!paymentSessionId) return false
+  const config = await fetchPaymentLinkConfig(apiBaseUrl)
+  const url = buildConfiguredPaymentLinkUrl(paymentSessionId, config ?? {})
+  if (!url) return false
   try {
     await navigator.clipboard.writeText(url)
     return true
@@ -277,16 +276,22 @@ async function copyPaymentLink(paymentSessionId: string, apiBaseUrl: string): Pr
   }
 }
 
-async function fetchPublicCheckoutBaseUrl(apiBaseUrl: string): Promise<string | null> {
+async function fetchPaymentLinkConfig(apiBaseUrl: string): Promise<{
+  paymentLinkUrlTemplate?: string | null
+  publicCheckoutBaseUrl?: string | null
+} | null> {
   try {
     const res = await fetch(`${apiBaseUrl}/v1/public/payment-link-config`, {
       headers: { Accept: "application/json" },
     })
     if (!res.ok) return null
     const body = (await res.json()) as {
-      data?: { publicCheckoutBaseUrl?: string | null }
+      data?: {
+        paymentLinkUrlTemplate?: string | null
+        publicCheckoutBaseUrl?: string | null
+      }
     }
-    return body.data?.publicCheckoutBaseUrl ?? null
+    return body.data ?? null
   } catch {
     return null
   }

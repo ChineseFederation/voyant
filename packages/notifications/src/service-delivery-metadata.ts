@@ -1,4 +1,4 @@
-import { buildPaymentLinkUrl } from "@voyant-travel/finance/payment-link"
+import { buildConfiguredPaymentLinkUrl } from "@voyant-travel/finance/payment-link"
 
 import type { NotificationAttachment } from "./types.js"
 
@@ -84,11 +84,17 @@ export function serializeNotificationError(error: unknown) {
 
 export function resolveNotificationPaymentUrl(
   paymentSessionId: string,
-  options: { paymentLinkBaseUrl?: string | null; redirectUrl?: string | null } = {},
+  options: {
+    paymentLinkBaseUrl?: string | null
+    paymentLinkUrlTemplate?: string | null
+    redirectUrl?: string | null
+  } = {},
 ) {
-  if (options.paymentLinkBaseUrl?.trim()) {
-    return buildPaymentLinkUrl(paymentSessionId, { baseUrl: options.paymentLinkBaseUrl })
-  }
+  const configured = buildConfiguredPaymentLinkUrl(paymentSessionId, {
+    paymentLinkUrlTemplate: options.paymentLinkUrlTemplate,
+    publicCheckoutBaseUrl: options.paymentLinkBaseUrl,
+  })
+  if (configured) return configured
 
   return normalizeAbsolutePaymentUrl(options.redirectUrl)
 }

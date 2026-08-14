@@ -1,7 +1,7 @@
 "use client"
 
 import type { InitiatedCheckoutCollectionRecord } from "@voyant-travel/finance/checkout"
-import { buildPaymentLinkUrl } from "@voyant-travel/finance/payment-link"
+import { buildConfiguredPaymentLinkUrl } from "@voyant-travel/finance/payment-link"
 import { formatMessage } from "@voyant-travel/i18n"
 import { Button } from "@voyant-travel/ui/components/button"
 import { CurrencyCombobox } from "@voyant-travel/ui/components/currency-combobox"
@@ -303,11 +303,13 @@ function ResultPanel({ result }: { result: InitiatedCheckoutCollectionRecord }) 
   const configQuery = useCheckoutPaymentLinkConfig()
   const sessionId = result.paymentSession?.id ?? null
   const landingUrl =
-    sessionId && typeof window !== "undefined"
-      ? buildPaymentLinkUrl(sessionId, {
-          baseUrl: configQuery.data?.publicCheckoutBaseUrl ?? window.location.origin,
+    result.paymentLinkUrl ??
+    (sessionId
+      ? buildConfiguredPaymentLinkUrl(sessionId, {
+          paymentLinkUrlTemplate: configQuery.data?.paymentLinkUrlTemplate,
+          publicCheckoutBaseUrl: configQuery.data?.publicCheckoutBaseUrl,
         })
-      : null
+      : null)
 
   if (!landingUrl) {
     return (

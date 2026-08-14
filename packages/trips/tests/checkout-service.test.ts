@@ -1,13 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 const createPaymentSession = vi.fn()
-const buildPaymentLinkUrl = vi.fn()
+const buildConfiguredPaymentLinkUrl = vi.fn()
 
 vi.mock("@voyant-travel/finance", () => ({
   financeService: {
     createPaymentSession: (...args: unknown[]) => createPaymentSession(...args),
   },
-  buildPaymentLinkUrl: (...args: unknown[]) => buildPaymentLinkUrl(...args),
+  buildConfiguredPaymentLinkUrl: (...args: unknown[]) => buildConfiguredPaymentLinkUrl(...args),
 }))
 
 import {
@@ -71,15 +71,16 @@ function makeDeps(overrides?: Partial<TripCheckoutDeps>): TripCheckoutDeps {
     db: {},
     quoteFx: vi.fn(async () => ({ rate: 1, quotedAt: "2026-01-01T00:00:00Z", validUntil: null })),
     resolveCheckoutBaseUrl: () => "https://pay.example.com",
+    resolvePaymentLinkUrlTemplate: async () => "https://pay.example.com/pay?session={sessionId}",
     ...overrides,
   }
 }
 
 beforeEach(() => {
   createPaymentSession.mockReset()
-  buildPaymentLinkUrl.mockReset()
+  buildConfiguredPaymentLinkUrl.mockReset()
   createPaymentSession.mockResolvedValue({ id: "ps_1", status: "pending" })
-  buildPaymentLinkUrl.mockReturnValue("https://pay.example.com/pay/ps_1")
+  buildConfiguredPaymentLinkUrl.mockReturnValue("https://pay.example.com/pay?session=ps_1")
 })
 
 describe("startTripCheckout", () => {
@@ -92,7 +93,7 @@ describe("startTripCheckout", () => {
     expect(result).toEqual({
       kind: "payment_session",
       paymentSessionId: "ps_1",
-      checkoutUrl: "https://pay.example.com/pay/ps_1",
+      checkoutUrl: "https://pay.example.com/pay?session=ps_1",
     })
 
     expect(createPaymentSession).toHaveBeenCalledTimes(1)
@@ -112,8 +113,9 @@ describe("startTripCheckout", () => {
     const providerArg = startProviderPayment.mock.calls[0][0] as { paymentSessionId: string }
     expect(providerArg.paymentSessionId).toBe("ps_1")
 
-    expect(buildPaymentLinkUrl).toHaveBeenCalledWith("ps_1", {
-      baseUrl: "https://pay.example.com",
+    expect(buildConfiguredPaymentLinkUrl).toHaveBeenCalledWith("ps_1", {
+      paymentLinkUrlTemplate: "https://pay.example.com/pay?session={sessionId}",
+      publicCheckoutBaseUrl: "https://pay.example.com",
     })
   })
 

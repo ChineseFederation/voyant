@@ -195,6 +195,7 @@ export const initiatedCheckoutCollectionSchema = z.object({
   paymentSessionNotification: checkoutNotificationDeliverySchema.nullable(),
   bankTransferInstructions: checkoutBankTransferInstructionsSchema.nullable(),
   providerStart: checkoutProviderStartResultSchema.nullable(),
+  paymentLinkUrl: z.string().nullable(),
 })
 
 export const bootstrappedCheckoutCollectionSchema = initiatedCheckoutCollectionSchema.extend({

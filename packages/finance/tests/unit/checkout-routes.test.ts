@@ -66,6 +66,7 @@ describe("createFinanceCheckoutRoutes", () => {
       paymentSessionNotification: null,
       bankTransferInstructions: null,
       providerStart: null,
+      paymentLinkUrl: "https://book.example/pay?session=ps_123",
     })
 
     const notificationDispatcher = {
@@ -78,6 +79,7 @@ describe("createFinanceCheckoutRoutes", () => {
       resolveSelectedPaymentStarter: () => paymentStarter,
       resolvePaymentStarters: () => ({ netopia: paymentStarter }),
       resolvePublicCheckoutBaseUrl: () => "https://brand.example.com",
+      resolvePaymentLinkUrlTemplate: async () => "https://book.example/pay?session={sessionId}",
       resolveBankTransferDetails: () => ({
         provider: "manual",
         beneficiary: "Program Travel",
@@ -97,7 +99,10 @@ describe("createFinanceCheckoutRoutes", () => {
       "/bookings/book_123/initiate-collection",
       {
         method: "POST",
-        headers: { "content-type": "application/json", ...(await capabilityHeaders()) },
+        headers: {
+          "content-type": "application/json",
+          ...(await capabilityHeaders()),
+        },
         body: JSON.stringify({
           method: "card",
           startProvider: {
@@ -121,6 +126,11 @@ describe("createFinanceCheckoutRoutes", () => {
     )
 
     expect(res.status).toBe(201)
+    await expect(res.json()).resolves.toMatchObject({
+      data: {
+        paymentLinkUrl: "https://book.example/pay?session=ps_123",
+      },
+    })
     expect(serviceMocks.initiateCheckoutCollection).toHaveBeenCalledTimes(1)
 
     const runtime = serviceMocks.initiateCheckoutCollection.mock.calls[0]?.[4]
@@ -132,6 +142,7 @@ describe("createFinanceCheckoutRoutes", () => {
       },
       notificationDispatcher,
       publicCheckoutBaseUrl: "https://brand.example.com",
+      paymentLinkUrlTemplate: "https://book.example/pay?session={sessionId}",
     })
     expect(runtime.paymentStarters.netopia).toBe(paymentStarter)
   })
@@ -166,7 +177,10 @@ describe("createFinanceCheckoutRoutes", () => {
       "/bookings/book_123/initiate-collection",
       {
         method: "POST",
-        headers: { "content-type": "application/json", ...(await capabilityHeaders()) },
+        headers: {
+          "content-type": "application/json",
+          ...(await capabilityHeaders()),
+        },
         body: JSON.stringify({
           method: "card",
           startProvider: {
@@ -207,7 +221,10 @@ describe("createFinanceCheckoutRoutes", () => {
       "/bookings/book_123/initiate-collection",
       {
         method: "POST",
-        headers: { "content-type": "application/json", ...(await capabilityHeaders()) },
+        headers: {
+          "content-type": "application/json",
+          ...(await capabilityHeaders()),
+        },
         body: JSON.stringify({
           method: "card",
           startProvider: {
@@ -258,7 +275,10 @@ describe("createFinanceCheckoutRoutes", () => {
       "/bookings/book_123/initiate-collection",
       {
         method: "POST",
-        headers: { "content-type": "application/json", ...(await capabilityHeaders()) },
+        headers: {
+          "content-type": "application/json",
+          ...(await capabilityHeaders()),
+        },
         body: JSON.stringify({
           method: "card",
           startProvider: {
@@ -295,7 +315,10 @@ describe("createFinanceCheckoutRoutes", () => {
       "/bookings/book_123/initiate-collection",
       {
         method: "POST",
-        headers: { "content-type": "application/json", ...(await capabilityHeaders()) },
+        headers: {
+          "content-type": "application/json",
+          ...(await capabilityHeaders()),
+        },
         body: JSON.stringify({
           method: "card",
           stage: "manual",
@@ -308,7 +331,9 @@ describe("createFinanceCheckoutRoutes", () => {
     )
 
     expect(res.status).toBe(501)
-    expect(await res.json()).toEqual({ error: CHECKOUT_ROUTE_RUNTIME_NOT_CONFIGURED_MESSAGE })
+    expect(await res.json()).toEqual({
+      error: CHECKOUT_ROUTE_RUNTIME_NOT_CONFIGURED_MESSAGE,
+    })
     expect(serviceMocks.initiateCheckoutCollection).not.toHaveBeenCalled()
   })
 
@@ -334,7 +359,10 @@ describe("createFinanceCheckoutRoutes", () => {
       "/bookings/book_123/initiate-collection",
       {
         method: "POST",
-        headers: { "content-type": "application/json", ...(await capabilityHeaders()) },
+        headers: {
+          "content-type": "application/json",
+          ...(await capabilityHeaders()),
+        },
         body: JSON.stringify({
           method: "card",
           stage: "manual",
@@ -347,7 +375,9 @@ describe("createFinanceCheckoutRoutes", () => {
     )
 
     expect(res.status).toBe(501)
-    expect(await res.json()).toEqual({ error: CHECKOUT_ROUTE_RUNTIME_NOT_CONFIGURED_MESSAGE })
+    expect(await res.json()).toEqual({
+      error: CHECKOUT_ROUTE_RUNTIME_NOT_CONFIGURED_MESSAGE,
+    })
     expect(serviceMocks.initiateCheckoutCollection).not.toHaveBeenCalled()
   })
 
@@ -395,7 +425,10 @@ describe("createFinanceCheckoutRoutes", () => {
       "/bookings/book_123/initiate-collection",
       {
         method: "POST",
-        headers: { "content-type": "application/json", ...(await capabilityHeaders()) },
+        headers: {
+          "content-type": "application/json",
+          ...(await capabilityHeaders()),
+        },
         body: JSON.stringify({
           method: "bank_transfer",
           stage: "manual",
@@ -465,7 +498,10 @@ describe("createFinanceCheckoutRoutes", () => {
       "/bookings/book_123/collection-plan",
       {
         method: "POST",
-        headers: { "content-type": "application/json", ...(await guestAccessHeaders()) },
+        headers: {
+          "content-type": "application/json",
+          ...(await guestAccessHeaders()),
+        },
         body: JSON.stringify({ method: "card" }),
       },
       TEST_CAPABILITY_ENV,

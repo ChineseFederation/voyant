@@ -61,6 +61,10 @@ export type CheckoutRoutesOptions = {
   ) => CheckoutBankTransferDetails | null
   publicCheckoutBaseUrl?: string | null
   resolvePublicCheckoutBaseUrl?: (bindings: Record<string, unknown>) => string | null | undefined
+  resolvePaymentLinkUrlTemplate?: (
+    db: PostgresJsDatabase,
+    bindings: Record<string, unknown>,
+  ) => Promise<string | null>
   listBookingReminderRuns?: (
     db: PostgresJsDatabase,
     bookingId: string,
@@ -152,7 +156,12 @@ function attachCollectionRoutes<TEnv extends Env>(app: Hono<TEnv>, options: Chec
       .post("/bookings/:bookingId/initiate-collection", collectionIdempotency(), async (c) => {
         try {
           const input = await parseJsonBody(c, initiateCheckoutCollectionSchema)
-          const runtime = getRuntime(c.env, c.var.container)
+          const baseRuntime = getRuntime(c.env, c.var.container)
+          const runtime = {
+            ...baseRuntime,
+            paymentLinkUrlTemplate:
+              (await options.resolvePaymentLinkUrlTemplate?.(c.get("db"), c.env)) ?? null,
+          }
           assertCheckoutRuntimeSupportsCollection(runtime, input)
           const result = await initiateCheckoutCollection(
             c.get("db"),
@@ -182,7 +191,12 @@ function attachCollectionRoutes<TEnv extends Env>(app: Hono<TEnv>, options: Chec
       .post("/collections/bootstrap", collectionIdempotency(), async (c) => {
         try {
           const input = await parseJsonBody(c, bootstrapCheckoutCollectionSchema)
-          const runtime = getRuntime(c.env, c.var.container)
+          const baseRuntime = getRuntime(c.env, c.var.container)
+          const runtime = {
+            ...baseRuntime,
+            paymentLinkUrlTemplate:
+              (await options.resolvePaymentLinkUrlTemplate?.(c.get("db"), c.env)) ?? null,
+          }
           assertCheckoutRuntimeSupportsCollection(runtime, input)
           const result = await bootstrapCheckoutCollection(
             c.get("db"),

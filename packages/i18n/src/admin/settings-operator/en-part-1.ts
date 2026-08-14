@@ -331,10 +331,10 @@ export const operatorAdminSettingsMessagesEnPart1 = {
       bookingCheckoutUrlTemplatePlaceholder: "https://travel.example.com/booking/pay/{bookingCode}",
       bookingCheckoutUrlTemplateHelp:
         "Use {bookingCode} or {bookingId} for booking-level checkout links.",
-      invoicePayUrlTemplateLabel: "Invoice payment URL template",
-      invoicePayUrlTemplatePlaceholder: "https://travel.example.com/pay/{sessionId}",
+      invoicePayUrlTemplateLabel: "Payment link URL template",
+      invoicePayUrlTemplatePlaceholder: "https://travel.example.com/pay?session={sessionId}",
       invoicePayUrlTemplateHelp:
-        "Optional. Use {sessionId}; leave empty to use the default /pay/{sessionId} route.",
+        "Optional. Use exactly one {sessionId}. Example: https://travel.example.com/pay?session={sessionId}.",
     },
   },
   priceCatalogsPage: {

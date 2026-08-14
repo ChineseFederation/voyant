@@ -1,5 +1,7 @@
 import type { VoyantRuntimeHostPrimitives } from "@voyant-travel/core"
 import { createPostgresAdvisoryLockManager } from "@voyant-travel/db/runtime"
+import { resolveEffectivePaymentLinkUrlTemplate } from "@voyant-travel/finance/payment-link"
+import { resolveInvoicePayUrlTemplate } from "@voyant-travel/operator-settings/service"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import {
   buildNotificationTaskRuntime,
@@ -18,6 +20,11 @@ export function createNotificationsRuntime(
   return {
     resolveProviders,
     resolvePublicCheckoutBaseUrl: (bindings) => resolvePublicBaseUrl(primitives.env(bindings)),
+    resolvePaymentLinkUrlTemplate: async (db, bindings) =>
+      resolveEffectivePaymentLinkUrlTemplate(
+        await resolveInvoicePayUrlTemplate(db),
+        nonEmpty(primitives.env(bindings).PUBLIC_PAYMENT_LINK_URL_TEMPLATE),
+      ),
     resolvePublicCustomerPortalBaseUrl: (bindings) =>
       resolvePublicCustomerPortalBaseUrl(primitives.env(bindings)),
     resolveDocumentAttachmentResolver: (bindings) => async (document) => {
@@ -74,12 +81,7 @@ function resolveReminderSweepLockManager(env: Readonly<Record<string, unknown>>)
 }
 
 function resolvePublicBaseUrl(env: Readonly<Record<string, unknown>>): string | null {
-  for (const key of ["PUBLIC_CHECKOUT_BASE_URL", "DASH_BASE_URL", "APP_URL"] as const) {
-    const value = nonEmpty(env[key])
-    if (!value) continue
-    return key === "APP_URL" ? value.replace(/\/api\/?$/, "") : value
-  }
-  return null
+  return nonEmpty(env.PUBLIC_CHECKOUT_BASE_URL) ?? null
 }
 
 function resolvePublicCustomerPortalBaseUrl(env: Readonly<Record<string, unknown>>): string | null {

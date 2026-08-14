@@ -68,9 +68,12 @@ export interface TripCheckoutDeps {
   quoteFx(sourceCurrency: string, targetCurrency: string): Promise<FxQuote>
   /**
    * Resolve the customer-facing checkout base URL used to build the payment
-   * link. May return `null` (the helper falls back to a root-relative URL).
+   * link. May return `null`; without a template or this compatibility base,
+   * checkout returns no customer URL.
    */
   resolveCheckoutBaseUrl(): string | null
+  /** Resolve the organization override or host-provided payment-link template. */
+  resolvePaymentLinkUrlTemplate(): Promise<string | null>
   /**
    * Start the payment-provider session for a non-bank-transfer checkout. This
    * is best-effort; the orchestration logs and continues on failure. Omit to

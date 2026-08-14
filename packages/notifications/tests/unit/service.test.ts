@@ -132,6 +132,12 @@ describe("renderNotificationTemplate", () => {
   it("resolves absolute payment URLs for outbound notification context", () => {
     expect(
       resolveNotificationPaymentUrl("pmss_123", {
+        paymentLinkUrlTemplate: "https://brand.example.test/pay?session={sessionId}",
+        paymentLinkBaseUrl: "https://checkout.example.test/",
+      }),
+    ).toBe("https://brand.example.test/pay?session=pmss_123")
+    expect(
+      resolveNotificationPaymentUrl("pmss_123", {
         paymentLinkBaseUrl: "https://checkout.example.test/",
         redirectUrl: "https://processor.example.test/session",
       }),

@@ -8,7 +8,11 @@
  * booking-tax). The schema lives in `./schema`.
  */
 
-import type { BookingTaxSettings, PaymentPolicy } from "@voyant-travel/finance"
+import {
+  type BookingTaxSettings,
+  normalizePaymentLinkUrlTemplate,
+  type PaymentPolicy,
+} from "@voyant-travel/finance"
 import { desc, eq } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import { z } from "zod"
@@ -129,10 +133,18 @@ export const updateOperatorPaymentInstructionsSchema = z.object({
   notes: z.string().nullable().optional(),
 })
 
+const invoicePaymentLinkTemplateSchema = z
+  .string()
+  .trim()
+  .refine(
+    (value) => value.length === 0 || normalizePaymentLinkUrlTemplate(value),
+    "Payment link URL template must be an absolute HTTP(S) URL containing exactly one {sessionId} placeholder.",
+  )
+
 export const updateOperatorPaymentDefaultsSchema = z.object({
   customerPaymentPolicy: paymentPolicySchema.nullable().optional(),
   bookingCheckoutUrlTemplate: z.string().trim().nullable().optional(),
-  invoicePayUrlTemplate: z.string().trim().nullable().optional(),
+  invoicePayUrlTemplate: invoicePaymentLinkTemplateSchema.nullable().optional(),
 })
 
 export const updateOperatorSettingsSchema = updateOperatorProfileObjectSchema
@@ -254,6 +266,10 @@ export async function resolveOperatorDefaultPaymentPolicy(
 ): Promise<PaymentPolicy | null> {
   const defaults = await getOperatorPaymentDefaults(db)
   return parseStoredPaymentPolicy(defaults?.customerPaymentPolicy)
+}
+
+export async function resolveInvoicePayUrlTemplate(db: PostgresJsDatabase): Promise<string | null> {
+  return (await getOperatorPaymentDefaults(db))?.invoicePayUrlTemplate ?? null
 }
 
 export async function resolveBookingTaxSettings(

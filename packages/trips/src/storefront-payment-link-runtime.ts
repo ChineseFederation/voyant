@@ -19,6 +19,7 @@ import type {
 import { and, asc, desc, eq, inArray } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import type { Context } from "hono"
+import { resolveOperatorPaymentLinkUrlTemplate } from "./payment-link-template.js"
 import { tripComponents, tripEnvelopes } from "./schema.js"
 import { tripsService } from "./service.js"
 
@@ -119,6 +120,7 @@ interface PaymentConfigBindings {
   DASH_BASE_URL?: string
   PAYMENT_CALLBACK_BASE_URL?: string
   PUBLIC_CHECKOUT_BASE_URL?: string
+  PUBLIC_PAYMENT_LINK_URL_TEMPLATE?: string
 }
 
 function resolvePaymentCallbackOrigin(bindings: Record<string, unknown>): string | undefined {
@@ -161,12 +163,11 @@ function requireHttpOrigin(value: string, key: string): string {
 
 function resolvePublicCheckoutBaseUrl(bindings: Record<string, unknown>): string | null {
   const env = bindings as PaymentConfigBindings
-  return (
-    env.PUBLIC_CHECKOUT_BASE_URL?.trim() ||
-    env.DASH_BASE_URL?.trim() ||
-    env.APP_URL?.trim().replace(/\/api\/?$/, "") ||
-    null
-  )
+  return env.PUBLIC_CHECKOUT_BASE_URL?.trim() || null
+}
+
+async function resolvePaymentLinkUrlTemplate(c: Context): Promise<string | null> {
+  return resolveOperatorPaymentLinkUrlTemplate(getDb(c), c.env as Readonly<Record<string, unknown>>)
 }
 
 function resolveEnvironmentBankTransferDetails(bindings: Record<string, unknown>) {
@@ -377,6 +378,7 @@ export function createStandardPaymentLinkRouteOptions(
     resolveBankTransferDetails,
     resolvePublicCheckoutBaseUrl: (c) =>
       resolvePublicCheckoutBaseUrl(c.env as Record<string, unknown>),
+    resolvePaymentLinkUrlTemplate,
     startCardPayment: adapter
       ? createAdapterStartCardPayment(adapter)
       : unconfiguredStartCardPayment,

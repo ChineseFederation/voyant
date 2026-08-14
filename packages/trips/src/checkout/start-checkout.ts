@@ -1,4 +1,4 @@
-import { buildPaymentLinkUrl, financeService } from "@voyant-travel/finance"
+import { buildConfiguredPaymentLinkUrl, financeService } from "@voyant-travel/finance"
 
 import type { TripCheckoutInput, TripCheckoutResult } from "../service.js"
 import { formatTripBillingName, readTripBilling, synthesizeTripBilling } from "./billing.js"
@@ -76,8 +76,9 @@ export async function startTripCheckout(
   return {
     kind: input.intent === "bank_transfer" ? "bank_transfer_instructions" : "payment_session",
     paymentSessionId: session.id,
-    checkoutUrl: buildPaymentLinkUrl(session.id, {
-      baseUrl: deps.resolveCheckoutBaseUrl(),
+    checkoutUrl: buildConfiguredPaymentLinkUrl(session.id, {
+      paymentLinkUrlTemplate: await deps.resolvePaymentLinkUrlTemplate(),
+      publicCheckoutBaseUrl: deps.resolveCheckoutBaseUrl(),
     }),
   }
 }

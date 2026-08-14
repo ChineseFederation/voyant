@@ -123,6 +123,26 @@ describe("toPublicOperatorProfile", () => {
 })
 
 describe("validation schemas", () => {
+  it("requires one canonical session placeholder in an absolute payment template", () => {
+    expect(
+      updateOperatorPaymentDefaultsSchema.safeParse({
+        invoicePayUrlTemplate: "https://book.example/pay?session={sessionId}",
+      }).success,
+    ).toBe(true)
+    for (const invoicePayUrlTemplate of [
+      "/pay?session={sessionId}",
+      "https://book.example/pay?session={paymentId}",
+      "https://book.example/{sessionId}/{sessionId}",
+      "https://book.example/{sessionId}?payment={paymentId}",
+    ]) {
+      expect(
+        updateOperatorPaymentDefaultsSchema.safeParse({
+          invoicePayUrlTemplate,
+        }).success,
+      ).toBe(false)
+    }
+  })
+
   it("accepts a valid profile patch and an empty email/website", () => {
     expect(updateOperatorProfileSchema.safeParse({ name: "X", email: "" }).success).toBe(true)
     expect(updateOperatorProfileSchema.safeParse({ email: "a@b.test" }).success).toBe(true)

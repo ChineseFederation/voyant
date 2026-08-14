@@ -15,6 +15,7 @@ import type { Context } from "hono"
 import { createCatalogComponentAdapter } from "./catalog-component.js"
 import { createVoyantFxQuoter, type TripCheckoutDeps } from "./checkout/index.js"
 import { createFlightComponentAdapter } from "./flight-component.js"
+import { resolveOperatorPaymentLinkUrlTemplate } from "./payment-link-template.js"
 import { catalogCheckoutResultToComponentResult, createTripsRouteRuntime } from "./route-runtime.js"
 import type { TripsRoutesOptionsProvider } from "./routes.js"
 import type { ComponentCheckoutInput, ComponentCheckoutResult } from "./service-types.js"
@@ -79,6 +80,8 @@ function createCheckoutDeps(
           throw new Error("trip_checkout_fx_requires_voyant_data_api_key")
         },
     resolveCheckoutBaseUrl: () => resolveCheckoutBaseUrl(env),
+    resolvePaymentLinkUrlTemplate: async () =>
+      resolveOperatorPaymentLinkUrlTemplate(getDb(primitives, context) as PostgresJsDatabase, env),
     startProviderPayment: async ({ paymentSessionId, billing, description }) => {
       await dependencies.cardPayment.createStartCardPayment(context)?.({
         db: getDb(primitives, context) as PostgresJsDatabase,
@@ -145,12 +148,7 @@ function resolveVoyantDataApiKey(env: Readonly<Record<string, unknown>>): string
 }
 
 function resolveCheckoutBaseUrl(env: Readonly<Record<string, unknown>>): string | null {
-  return (
-    nonEmpty(env.PUBLIC_CHECKOUT_BASE_URL) ??
-    nonEmpty(env.DASH_BASE_URL) ??
-    nonEmpty(env.APP_URL)?.replace(/\/api\/?$/, "") ??
-    null
-  )
+  return nonEmpty(env.PUBLIC_CHECKOUT_BASE_URL) ?? null
 }
 
 function nonEmpty(value: unknown): string | undefined {

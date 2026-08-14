@@ -98,6 +98,17 @@ export type NotificationsRoutesOptions = {
   resolveProviders?: (bindings: Record<string, unknown>) => ReadonlyArray<NotificationProvider>
   publicCheckoutBaseUrl?: string | null
   resolvePublicCheckoutBaseUrl?: (bindings: Record<string, unknown>) => string | null | undefined
+  /**
+   * The customer-facing payment-link URL template this deployment resolves —
+   * the organization's own template when set, otherwise the Cloud-provided
+   * default. Notification-owned sends need the same answer the checkout path
+   * gets, or a deployment that configures only the managed default would send
+   * the processor redirect URL (or no URL at all).
+   */
+  resolvePaymentLinkUrlTemplate?: (
+    db: PostgresJsDatabase,
+    bindings: Record<string, unknown>,
+  ) => Promise<string | null>
   publicCustomerPortalBaseUrl?: string | null
   resolvePublicCustomerPortalBaseUrl?: (
     bindings: Record<string, unknown>,
@@ -113,6 +124,10 @@ export type NotificationsRoutesOptions = {
 export type NotificationsRouteRuntime = {
   providers: ReadonlyArray<NotificationProvider>
   publicCheckoutBaseUrl?: string | null
+  resolvePaymentLinkUrlTemplate?: (
+    db: PostgresJsDatabase,
+    bindings: Record<string, unknown>,
+  ) => Promise<string | null>
   publicCustomerPortalBaseUrl?: string | null
   documentAttachmentResolver?: BookingDocumentAttachmentResolver
   eventBus?: EventBus
@@ -128,6 +143,7 @@ export function buildNotificationsRouteRuntime(
     providers: options?.resolveProviders?.(bindings) ?? options?.providers ?? [],
     publicCheckoutBaseUrl:
       options?.resolvePublicCheckoutBaseUrl?.(bindings) ?? options?.publicCheckoutBaseUrl ?? null,
+    resolvePaymentLinkUrlTemplate: options?.resolvePaymentLinkUrlTemplate,
     publicCustomerPortalBaseUrl:
       options?.resolvePublicCustomerPortalBaseUrl?.(bindings) ??
       options?.publicCustomerPortalBaseUrl ??
@@ -1169,6 +1185,8 @@ export function createNotificationsRoutes(options?: NotificationsRoutesOptions) 
           c.req.valid("json"),
           {
             paymentLinkBaseUrl: runtime.publicCheckoutBaseUrl,
+            paymentLinkUrlTemplate:
+              (await runtime.resolvePaymentLinkUrlTemplate?.(c.get("db"), c.env)) ?? null,
             publicCustomerPortalBaseUrl: runtime.publicCustomerPortalBaseUrl,
           },
         )
@@ -1191,6 +1209,8 @@ export function createNotificationsRoutes(options?: NotificationsRoutesOptions) 
           c.req.valid("json"),
           {
             paymentLinkBaseUrl: runtime.publicCheckoutBaseUrl,
+            paymentLinkUrlTemplate:
+              (await runtime.resolvePaymentLinkUrlTemplate?.(c.get("db"), c.env)) ?? null,
             publicCustomerPortalBaseUrl: runtime.publicCustomerPortalBaseUrl,
           },
         )

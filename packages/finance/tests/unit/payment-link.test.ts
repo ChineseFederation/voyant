@@ -1,12 +1,19 @@
 import { describe, expect, it } from "vitest"
 
-import { buildBookingCheckoutUrl, buildPaymentLinkUrl } from "../../src/payment-link.js"
+import {
+  buildBookingCheckoutUrl,
+  buildConfiguredPaymentLinkUrl,
+  buildPaymentLinkUrl,
+  resolveEffectivePaymentLinkUrlTemplate,
+} from "../../src/payment-link.js"
 
 describe("buildPaymentLinkUrl", () => {
   it("builds a customer-facing payment URL from a configured base", () => {
-    expect(buildPaymentLinkUrl("pmss_123", { baseUrl: "https://travel.example.com/" })).toBe(
-      "https://travel.example.com/pay/pmss_123",
-    )
+    expect(
+      buildPaymentLinkUrl("pmss_123", {
+        baseUrl: "https://travel.example.com/",
+      }),
+    ).toBe("https://travel.example.com/pay/pmss_123")
   })
 
   it("preserves base URL path prefixes", () => {
@@ -25,12 +32,16 @@ describe("buildPaymentLinkUrl", () => {
   })
 
   it("keeps search and fragment suffixes after the payment session path", () => {
-    expect(buildPaymentLinkUrl("pmss_123", { baseUrl: "https://example.com/pay?lang=ro" })).toBe(
-      "https://example.com/pay/pmss_123?lang=ro",
-    )
-    expect(buildPaymentLinkUrl("pmss_123", { baseUrl: "https://example.com/ro#checkout" })).toBe(
-      "https://example.com/ro/pay/pmss_123#checkout",
-    )
+    expect(
+      buildPaymentLinkUrl("pmss_123", {
+        baseUrl: "https://example.com/pay?lang=ro",
+      }),
+    ).toBe("https://example.com/pay/pmss_123?lang=ro")
+    expect(
+      buildPaymentLinkUrl("pmss_123", {
+        baseUrl: "https://example.com/ro#checkout",
+      }),
+    ).toBe("https://example.com/ro/pay/pmss_123#checkout")
     expect(
       buildPaymentLinkUrl("pmss_123", {
         baseUrl: "https://example.com/ro?lang=ro#checkout",
@@ -39,12 +50,16 @@ describe("buildPaymentLinkUrl", () => {
   })
 
   it("preserves trailing slashes inside search and fragment data", () => {
-    expect(buildPaymentLinkUrl("pmss_123", { baseUrl: "https://example.com/pay?next=/" })).toBe(
-      "https://example.com/pay/pmss_123?next=/",
-    )
-    expect(buildPaymentLinkUrl("pmss_123", { baseUrl: "https://example.com/ro#return/" })).toBe(
-      "https://example.com/ro/pay/pmss_123#return/",
-    )
+    expect(
+      buildPaymentLinkUrl("pmss_123", {
+        baseUrl: "https://example.com/pay?next=/",
+      }),
+    ).toBe("https://example.com/pay/pmss_123?next=/")
+    expect(
+      buildPaymentLinkUrl("pmss_123", {
+        baseUrl: "https://example.com/ro#return/",
+      }),
+    ).toBe("https://example.com/ro/pay/pmss_123#return/")
   })
 
   it("supports relative bases with suffixes", () => {
@@ -63,6 +78,67 @@ describe("buildPaymentLinkUrl", () => {
         invoicePayUrlTemplate: "https://pay.example.com/session/{sessionId}",
       }),
     ).toBe("https://pay.example.com/session/pmss%20123")
+  })
+})
+
+describe("buildConfiguredPaymentLinkUrl", () => {
+  it("fails closed instead of inventing a link from the browser origin", () => {
+    expect(buildConfiguredPaymentLinkUrl("pmss_123", {})).toBeNull()
+    expect(
+      buildConfiguredPaymentLinkUrl("pmss_123", {
+        paymentLinkUrlTemplate: "https://pay.example/{paymentId}",
+      }),
+    ).toBeNull()
+    expect(
+      buildConfiguredPaymentLinkUrl("pmss_123", {
+        paymentLinkUrlTemplate: "https://pay.example/{sessionId}?payment={paymentId}",
+      }),
+    ).toBeNull()
+  })
+
+  it("keeps the legacy base compatible when a newer server reports no template", () => {
+    expect(
+      buildConfiguredPaymentLinkUrl("pmss_123", {
+        paymentLinkUrlTemplate: null,
+        publicCheckoutBaseUrl: "https://booking.example.com",
+      }),
+    ).toBe("https://booking.example.com/pay/pmss_123")
+  })
+
+  it("uses the canonical configured template", () => {
+    expect(
+      buildConfiguredPaymentLinkUrl("pmss_123", {
+        paymentLinkUrlTemplate: "https://booking.example.com/pay?session={sessionId}",
+      }),
+    ).toBe("https://booking.example.com/pay?session=pmss_123")
+  })
+
+  it("keeps an older server's base-url response compatible", () => {
+    expect(
+      buildConfiguredPaymentLinkUrl("pmss_123", {
+        publicCheckoutBaseUrl: "https://booking.example.com",
+      }),
+    ).toBe("https://booking.example.com/pay/pmss_123")
+  })
+})
+
+describe("resolveEffectivePaymentLinkUrlTemplate", () => {
+  it("prefers the organization's stored template over the managed default", () => {
+    expect(
+      resolveEffectivePaymentLinkUrlTemplate(
+        "https://brand.example/pay/{sessionId}",
+        "https://book.example/pay?session={sessionId}",
+      ),
+    ).toBe("https://brand.example/pay/{sessionId}")
+  })
+
+  it("fails closed for an invalid configured override", () => {
+    expect(() =>
+      resolveEffectivePaymentLinkUrlTemplate(
+        "https://brand.example/pay/{paymentId}",
+        "https://book.example/pay?session={sessionId}",
+      ),
+    ).toThrow("Configured payment link URL template is invalid")
   })
 })
 

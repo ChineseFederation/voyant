@@ -40,6 +40,7 @@ export interface FinanceHostRuntime {
 
 export interface FinanceOperatorSettingsRuntime {
   resolveOperatorDefaultPaymentPolicy: BookingScheduleRoutesOptions["resolveOperatorDefaultPaymentPolicy"]
+  resolveInvoicePayUrlTemplate: (db: PostgresJsDatabase) => Promise<string | null>
   resolveBookingTaxSettings: NonNullable<BookingTaxRouteOptions["resolveBookingTaxSettings"]>
   updateBookingTaxSettings: NonNullable<BookingTaxRouteOptions["updateBookingTaxSettings"]>
   /**
@@ -220,6 +221,7 @@ export const financeOperatorSettingsRuntimePort = objectPort<FinanceOperatorSett
   "finance.operator-settings.runtime",
   [
     "resolveOperatorDefaultPaymentPolicy",
+    "resolveInvoicePayUrlTemplate",
     "resolveBookingTaxSettings",
     "updateBookingTaxSettings",
     "resolveInvoicingMode",

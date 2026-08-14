@@ -72,6 +72,9 @@ function stubOptions(overrides: Partial<PaymentLinkRoutesOptions> = {}): Payment
       bankName: "Acme Bank",
     })),
     resolvePublicCheckoutBaseUrl: vi.fn(() => "https://checkout.example.com"),
+    resolvePaymentLinkUrlTemplate: vi.fn(
+      async () => "https://checkout.example.com/pay?session={sessionId}",
+    ),
     startCardPayment: vi.fn(async () => ({ configured: false }) as const),
     resolveTripData: vi.fn(async () => null),
     ...overrides,
@@ -300,6 +303,7 @@ describe("createPaymentLinkRoutes", () => {
     )
     expect(await res.json()).toEqual({
       data: {
+        paymentLinkUrlTemplate: "https://checkout.example.com/pay?session={sessionId}",
         publicCheckoutBaseUrl: "https://checkout.example.com",
         bankTransfer: {
           beneficiary: "Acme Travel SRL",
@@ -851,8 +855,8 @@ describe("createPaymentLinkRoutes", () => {
           details: "Line 1",
         },
         description: "Body description",
-        returnUrl: "https://checkout.example.com/pay/ps_1",
-        cancelUrl: "https://checkout.example.com/pay/ps_1",
+        returnUrl: "https://checkout.example.com/pay?session=ps_1",
+        cancelUrl: "https://checkout.example.com/pay?session=ps_1",
         shipping: { method: "courier" },
       }),
     )
@@ -893,7 +897,7 @@ describe("createPaymentLinkRoutes", () => {
     expect(startCardPayment).not.toHaveBeenCalled()
   })
 
-  it("start-card falls back to the request origin for its canonical landing URL", async () => {
+  it("start-card never falls back to the request origin when config is absent", async () => {
     const db = makeDb([
       [
         {
@@ -922,7 +926,11 @@ describe("createPaymentLinkRoutes", () => {
     ])
     const startCardPayment = vi.fn(async () => ({ configured: true, redirectUrl: null }) as const)
     const app = mountApp(
-      stubOptions({ resolvePublicCheckoutBaseUrl: () => null, startCardPayment }),
+      stubOptions({
+        resolvePublicCheckoutBaseUrl: () => null,
+        resolvePaymentLinkUrlTemplate: async () => null,
+        startCardPayment,
+      }),
       db,
     )
 
@@ -935,12 +943,12 @@ describe("createPaymentLinkRoutes", () => {
     expect(startCardPayment).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({
-        returnUrl: "https://operator.example.com/pay/ps_origin",
-        cancelUrl: "https://operator.example.com/pay/ps_origin",
+        returnUrl: undefined,
+        cancelUrl: undefined,
       }),
     )
     expect(await res.json()).toMatchObject({
-      data: { redirectUrl: "https://operator.example.com/pay/ps_origin" },
+      data: { session: { redirectUrl: null } },
     })
   })
 

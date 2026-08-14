@@ -10,7 +10,7 @@ import {
   StatusBadge,
   useBookingsUiI18nOrDefault,
 } from "@voyant-travel/bookings-react/ui"
-import { buildPaymentLinkUrl } from "@voyant-travel/finance/payment-link"
+import { buildConfiguredPaymentLinkUrl } from "@voyant-travel/finance/payment-link"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -58,7 +58,7 @@ export type BookingPendingPaymentSessionsWidgetProps = BookingDetailHostSlotCont
  *
  * The copy action resolves the public checkout origin from the
  * starter-level `/v1/public/payment-link-config` route through the shared
- * finance provider context, falling back to the dashboard origin.
+ * finance provider context. Missing configuration fails closed.
  */
 export function BookingPendingPaymentSessionsWidget({
   booking,
@@ -77,12 +77,20 @@ export function BookingPendingPaymentSessionsWidget({
   // Finance checkout collection uses the same endpoint and query key.
   const { data: paymentLinkConfig } = useQuery({
     queryKey: ["checkout-payment-link-config"],
-    queryFn: async (): Promise<{ publicCheckoutBaseUrl?: string | null }> => {
+    queryFn: async (): Promise<{
+      paymentLinkUrlTemplate?: string | null
+      publicCheckoutBaseUrl?: string | null
+    }> => {
       const response = await fetcher(`${baseUrl}/v1/public/payment-link-config`, {
         headers: { Accept: "application/json" },
       })
       if (!response.ok) throw new Error(`config fetch failed: ${response.status}`)
-      const body = (await response.json()) as { data: { publicCheckoutBaseUrl?: string | null } }
+      const body = (await response.json()) as {
+        data: {
+          paymentLinkUrlTemplate?: string | null
+          publicCheckoutBaseUrl?: string | null
+        }
+      }
       return body.data
     },
     staleTime: 5 * 60 * 1000,
@@ -173,9 +181,7 @@ export function BookingPendingPaymentSessionsWidget({
               <IconActionButton
                 label={t.copyPaymentLink}
                 icon={<Copy className="h-3.5 w-3.5" />}
-                onClick={() =>
-                  void copyPaymentLink(session.id, paymentLinkConfig?.publicCheckoutBaseUrl, t)
-                }
+                onClick={() => void copyPaymentLink(session.id, paymentLinkConfig, t)}
               />
               <IconActionButton
                 label={t.markReceived}
@@ -278,13 +284,19 @@ export function BookingPendingPaymentSessionsWidget({
 
 async function copyPaymentLink(
   paymentSessionId: string,
-  publicCheckoutBaseUrl: string | null | undefined,
+  config:
+    | {
+        paymentLinkUrlTemplate?: string | null
+        publicCheckoutBaseUrl?: string | null
+      }
+    | undefined,
   messages: PaymentSessionsMessages,
 ): Promise<void> {
-  if (typeof window === "undefined") return
-  const url = buildPaymentLinkUrl(paymentSessionId, {
-    baseUrl: publicCheckoutBaseUrl ?? window.location.origin,
-  })
+  const url = buildConfiguredPaymentLinkUrl(paymentSessionId, config ?? {})
+  if (!url) {
+    toast.error(messages.paymentLinkCopyFailed)
+    return
+  }
   try {
     await navigator.clipboard.writeText(url)
     toast.success(messages.paymentLinkCopied)

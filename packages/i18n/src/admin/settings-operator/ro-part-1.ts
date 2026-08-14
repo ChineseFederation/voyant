@@ -337,10 +337,10 @@ export const operatorAdminSettingsMessagesRoPart1 = {
       bookingCheckoutUrlTemplatePlaceholder: "https://travel.example.com/booking/pay/{bookingCode}",
       bookingCheckoutUrlTemplateHelp:
         "Foloseste {bookingCode} sau {bookingId} pentru linkuri de checkout la nivel de rezervare.",
-      invoicePayUrlTemplateLabel: "Sablon URL plata factura",
-      invoicePayUrlTemplatePlaceholder: "https://travel.example.com/pay/{sessionId}",
+      invoicePayUrlTemplateLabel: "Sablon URL link de plata",
+      invoicePayUrlTemplatePlaceholder: "https://travel.example.com/pay?session={sessionId}",
       invoicePayUrlTemplateHelp:
-        "Optional. Foloseste {sessionId}; lasa gol pentru ruta implicita /pay/{sessionId}.",
+        "Optional. Foloseste exact un {sessionId}. Exemplu: https://travel.example.com/pay?session={sessionId}.",
     },
   },
   priceCatalogsPage: {

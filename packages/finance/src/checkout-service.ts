@@ -29,6 +29,7 @@ import type {
   InitiateCheckoutCollectionInput,
   PreviewCheckoutCollectionInput,
 } from "./checkout-validation.js"
+import { buildConfiguredPaymentLinkUrl } from "./payment-link.js"
 import {
   bookingPaymentSchedules,
   invoiceLineItems,
@@ -381,7 +382,10 @@ export async function initiateCheckoutCollection(
         db,
         invoice.id,
         input.invoiceNotification,
-        { paymentLinkBaseUrl: runtime.publicCheckoutBaseUrl },
+        {
+          paymentLinkBaseUrl: runtime.publicCheckoutBaseUrl,
+          paymentLinkUrlTemplate: runtime.paymentLinkUrlTemplate,
+        },
       )
     }
   } else if (plan.paymentSessionTarget === "invoice") {
@@ -403,7 +407,10 @@ export async function initiateCheckoutCollection(
         db,
         invoice.id,
         input.invoiceNotification,
-        { paymentLinkBaseUrl: runtime.publicCheckoutBaseUrl },
+        {
+          paymentLinkBaseUrl: runtime.publicCheckoutBaseUrl,
+          paymentLinkUrlTemplate: runtime.paymentLinkUrlTemplate,
+        },
       )
     }
 
@@ -416,7 +423,10 @@ export async function initiateCheckoutCollection(
           db,
           paymentSession.id,
           input.paymentSessionNotification,
-          { paymentLinkBaseUrl: runtime.publicCheckoutBaseUrl },
+          {
+            paymentLinkBaseUrl: runtime.publicCheckoutBaseUrl,
+            paymentLinkUrlTemplate: runtime.paymentLinkUrlTemplate,
+          },
         )
     }
   } else {
@@ -490,7 +500,10 @@ export async function initiateCheckoutCollection(
           db,
           paymentSession.id,
           input.paymentSessionNotification,
-          { paymentLinkBaseUrl: runtime.publicCheckoutBaseUrl },
+          {
+            paymentLinkBaseUrl: runtime.publicCheckoutBaseUrl,
+            paymentLinkUrlTemplate: runtime.paymentLinkUrlTemplate,
+          },
         )
     }
   }
@@ -535,6 +548,12 @@ export async function initiateCheckoutCollection(
     paymentSessionNotification,
     bankTransferInstructions,
     providerStart,
+    paymentLinkUrl: paymentSession
+      ? buildConfiguredPaymentLinkUrl(paymentSession.id, {
+          paymentLinkUrlTemplate: runtime.paymentLinkUrlTemplate,
+          publicCheckoutBaseUrl: runtime.publicCheckoutBaseUrl,
+        })
+      : null,
   }
 }
 

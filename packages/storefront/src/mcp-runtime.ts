@@ -1,6 +1,6 @@
 import { executeAdmittedExistingTargetCommand } from "@voyant-travel/action-ledger"
 import type { ActionLedgerRequestContextValues } from "@voyant-travel/action-ledger/request-context"
-import { buildPaymentLinkUrl, financeService } from "@voyant-travel/finance"
+import { buildConfiguredPaymentLinkUrl, financeService } from "@voyant-travel/finance"
 import {
   type CustomerBuyerContext,
   type CustomerIdentityContext,
@@ -309,8 +309,16 @@ export function createPaymentLinkToolServices(input: {
   request: Context
   runtime: PaymentLinkRoutesOptions
 }): StorefrontPaymentLinkToolServices {
-  const toDto = (row: Awaited<ReturnType<typeof financeService.getPaymentSessionById>>) => {
+  const toDto = async (row: Awaited<ReturnType<typeof financeService.getPaymentSessionById>>) => {
     if (!row) throw new ToolError("Payment link was not found.", "NOT_FOUND")
+    const paymentUrl = buildConfiguredPaymentLinkUrl(row.id, {
+      paymentLinkUrlTemplate:
+        (await input.runtime.resolvePaymentLinkUrlTemplate?.(input.request)) ?? null,
+      publicCheckoutBaseUrl: input.runtime.resolvePublicCheckoutBaseUrl(input.request),
+    })
+    if (!paymentUrl) {
+      throw new ToolError("The customer payment-link URL is not configured.", "MISSING_SERVICE")
+    }
     return {
       id: row.id,
       status: row.status,
@@ -324,9 +332,7 @@ export function createPaymentLinkToolServices(input: {
       expiresAt: row.expiresAt?.toISOString() ?? null,
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
-      paymentUrl: buildPaymentLinkUrl(row.id, {
-        baseUrl: input.runtime.resolvePublicCheckoutBaseUrl(input.request),
-      }),
+      paymentUrl,
     }
   }
 
@@ -356,7 +362,7 @@ export function createPaymentLinkToolServices(input: {
           },
           execute() {
             if (!created) throw new Error("Payment link creation produced no session")
-            return Promise.resolve(toDto(created))
+            return toDto(created)
           },
           async replay() {
             const page = await financeService.listPaymentSessions(input.db, {

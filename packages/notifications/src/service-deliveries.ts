@@ -46,6 +46,7 @@ interface InternalDomainNotificationInput {
   reminderRunId?: string | null
   scheduledFor?: string | null
   paymentLinkBaseUrl?: string | null
+  paymentLinkUrlTemplate?: string | null
   publicCustomerPortalBaseUrl?: string | null
 }
 
@@ -154,7 +155,11 @@ export async function sendPaymentSessionNotification(
   dispatcher: NotificationService,
   sessionId: string,
   input: SendPaymentSessionNotificationInput,
-  options: { paymentLinkBaseUrl?: string | null; publicCustomerPortalBaseUrl?: string | null } = {},
+  options: {
+    paymentLinkBaseUrl?: string | null
+    paymentLinkUrlTemplate?: string | null
+    publicCustomerPortalBaseUrl?: string | null
+  } = {},
 ) {
   const request: InternalDomainNotificationInput = { ...input, ...options }
   const [session] = await db
@@ -211,6 +216,7 @@ export async function sendPaymentSessionNotification(
           amountCents: session.amountCents,
           paymentUrl: resolveNotificationPaymentUrl(session.id, {
             paymentLinkBaseUrl: request.paymentLinkBaseUrl,
+            paymentLinkUrlTemplate: request.paymentLinkUrlTemplate,
             redirectUrl: session.redirectUrl,
           }),
           redirectUrl: session.redirectUrl,
@@ -276,7 +282,11 @@ export async function sendInvoiceNotification(
   dispatcher: NotificationService,
   invoiceId: string,
   input: SendInvoiceNotificationInput,
-  options: { paymentLinkBaseUrl?: string | null; publicCustomerPortalBaseUrl?: string | null } = {},
+  options: {
+    paymentLinkBaseUrl?: string | null
+    paymentLinkUrlTemplate?: string | null
+    publicCustomerPortalBaseUrl?: string | null
+  } = {},
 ) {
   return sendInvoiceNotificationInternal(db, dispatcher, invoiceId, { ...input, ...options })
 }
@@ -372,6 +382,7 @@ async function sendInvoiceNotificationInternal(
               provider: latestSession.provider,
               paymentUrl: resolveNotificationPaymentUrl(latestSession.id, {
                 paymentLinkBaseUrl: input.paymentLinkBaseUrl,
+                paymentLinkUrlTemplate: input.paymentLinkUrlTemplate,
                 redirectUrl: latestSession.redirectUrl,
               }),
               redirectUrl: latestSession.redirectUrl,

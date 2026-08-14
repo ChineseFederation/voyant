@@ -33,7 +33,7 @@ import type { EventBus } from "@voyant-travel/core"
 import { defineGraphRuntimeFactory } from "@voyant-travel/core/project"
 import {
   applyPaymentAdapterCallbackEvent,
-  buildPaymentLinkUrl,
+  buildConfiguredPaymentLinkUrl,
   financeService,
   refreshPaymentAdapterStatus,
 } from "@voyant-travel/finance"
@@ -170,6 +170,8 @@ export interface PaymentLinkRoutesOptions {
   resolveBankTransferDetails(c: Context): Promise<PaymentLinkBankTransferDetails | null>
   /** Resolve the public checkout base URL from the deployment bindings. */
   resolvePublicCheckoutBaseUrl(c: Context): string | null
+  /** Resolve the effective full payment-link template for this organization. */
+  resolvePaymentLinkUrlTemplate?(c: Context): Promise<string | null>
   /**
    * Whether a card processor is wired for this deployment — the card
    * counterpart of `resolveBankTransferDetails`, published on
@@ -246,6 +248,7 @@ const bankTransferDetailsSchema = z.object({
 })
 
 const paymentLinkConfigSchema = z.object({
+  paymentLinkUrlTemplate: z.string().nullable(),
   publicCheckoutBaseUrl: z.string().nullable(),
   bankTransfer: bankTransferDetailsSchema.nullable(),
   /**
@@ -681,11 +684,15 @@ async function buildPublicBankTransferInstructions(
 export function createPaymentLinkRoutes(options: PaymentLinkRoutesOptions): OpenAPIHono {
   const sessionActionRoutes = new OpenAPIHono({ defaultHook: openApiValidationHook })
     .openapi(paymentLinkConfigRoute, async (c) => {
-      const bankTransfer = await options.resolveBankTransferDetails(c)
+      const [bankTransfer, paymentLinkUrlTemplate] = await Promise.all([
+        options.resolveBankTransferDetails(c),
+        options.resolvePaymentLinkUrlTemplate?.(c) ?? Promise.resolve(null),
+      ])
       cachePublicPaymentLinkConfig(c)
       return c.json(
         {
           data: {
+            paymentLinkUrlTemplate,
             publicCheckoutBaseUrl: options.resolvePublicCheckoutBaseUrl(c),
             bankTransfer,
             cardPayments: { available: options.cardPaymentsConfigured !== false },
@@ -795,11 +802,12 @@ export function createPaymentLinkRoutes(options: PaymentLinkRoutesOptions): Open
           200,
         )
       }
-      const paymentLinkUrl = buildPaymentLinkUrl(session.id, {
-        baseUrl: options.resolvePublicCheckoutBaseUrl(c) ?? new URL(c.req.url).origin,
+      const paymentLinkUrl = buildConfiguredPaymentLinkUrl(session.id, {
+        paymentLinkUrlTemplate: (await options.resolvePaymentLinkUrlTemplate?.(c)) ?? null,
+        publicCheckoutBaseUrl: options.resolvePublicCheckoutBaseUrl(c),
       })
-      const returnUrl = session.returnUrl ?? paymentLinkUrl
-      const cancelUrl = session.cancelUrl ?? paymentLinkUrl
+      const returnUrl = session.returnUrl ?? paymentLinkUrl ?? undefined
+      const cancelUrl = session.cancelUrl ?? paymentLinkUrl ?? undefined
       try {
         const started = await options.startCardPayment(c, {
           id: session.id,
@@ -832,7 +840,7 @@ export function createPaymentLinkRoutes(options: PaymentLinkRoutesOptions): Open
           ? null
           : (started.redirectUrl ??
             (canUseCardContinuation(responseSession.status)
-              ? (responseSession.returnUrl ?? returnUrl)
+              ? (responseSession.returnUrl ?? returnUrl ?? null)
               : null))
         return c.json(
           {

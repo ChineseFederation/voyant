@@ -68,11 +68,15 @@ describe("finance checkout service", () => {
         paymentSessionTarget: "invoice",
       },
       { defaultCardCollectionDocumentType: "proforma" },
+      {
+        paymentLinkUrlTemplate: "https://booking.example/pay?session={sessionId}",
+      },
     )
 
     expect(result?.plan.documentType).toBe("proforma")
     expect(result?.invoice?.invoiceType).toBe("proforma")
     expect(result?.paymentSession).toBe(paymentSession)
+    expect(result?.paymentLinkUrl).toBe("https://booking.example/pay?session=ps_123")
     expect(insertedInvoices).toHaveLength(1)
     expect(insertedInvoices[0]?.invoiceType).toBe("proforma")
     expect(financeService.createPaymentSessionFromInvoice).toHaveBeenCalledWith(

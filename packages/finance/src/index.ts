@@ -35,6 +35,7 @@ import {
   financeHostRuntimePort,
   financeInvoiceSettlementPollerRuntimePort,
   financeNotificationsRuntimePort,
+  financeOperatorSettingsRuntimePort,
 } from "./runtime-port.js"
 
 export { FINANCE_BOOKING_CREATE_SELF_SERVICE_ROUTE_ACTION } from "./booking-create-policy.js"
@@ -139,7 +140,10 @@ export {
   type BuildBookingCheckoutUrlOptions,
   type BuildPaymentLinkUrlOptions,
   buildBookingCheckoutUrl,
+  buildConfiguredPaymentLinkUrl,
   buildPaymentLinkUrl,
+  normalizePaymentLinkUrlTemplate,
+  resolveEffectivePaymentLinkUrlTemplate,
 } from "./payment-link.js"
 export type { FinanceRoutes } from "./routes.js"
 export type { PublicFinanceRoutes } from "./routes-public.js"
@@ -226,6 +230,7 @@ export const createFinanceVoyantRuntime = defineGraphRuntimeFactory(
         await getPort(financeHostRuntimePort),
         await getPort(customFieldsRuntimePort),
         await getPort(financeNotificationsRuntimePort),
+        await getPort(financeOperatorSettingsRuntimePort),
         hasPort(financeCheckoutPaymentStartersRuntimePort)
           ? await getPort(financeCheckoutPaymentStartersRuntimePort)
           : undefined,

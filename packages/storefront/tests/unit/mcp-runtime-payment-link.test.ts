@@ -58,10 +58,13 @@ describe("invoice payment-link durable command", () => {
       } as never,
       runtime: {
         resolvePublicCheckoutBaseUrl: () => "https://pay.example.test",
+        resolvePaymentLinkUrlTemplate: async () =>
+          "https://pay.example.test/pay?session={sessionId}",
       } as never,
     })
     const command = {
       invoiceId: "inv_1",
+      paymentUrl: "https://pay.example.test/pay?session=pays_1",
       idempotencyKey: "invoice-inv_1-v1",
       paymentMethod: "credit_card" as const,
     }
