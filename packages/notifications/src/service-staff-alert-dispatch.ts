@@ -110,6 +110,15 @@ function targetFor(
         paymentSessionId: typed.paymentSessionId,
       }
     }
+    case "staff.payment.settlement-stranded": {
+      const typed = context as StaffAlertContextMap["staff.payment.settlement-stranded"]
+      return {
+        ...empty,
+        targetType: "payment_session",
+        targetId: typed.paymentSessionId,
+        paymentSessionId: typed.paymentSessionId,
+      }
+    }
     case "staff.invoice.settled": {
       const typed = context as StaffAlertContextMap["staff.invoice.settled"]
       return {

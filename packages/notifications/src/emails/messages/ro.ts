@@ -53,6 +53,21 @@ export const staffAlertEmailMessagesRo: StaffAlertEmailMessages = {
     paidInFull: "Rezervarea este achitată integral.",
     partialPayment: "Rezervarea are în continuare sold de încasat.",
   },
+  paymentSettlementStranded: {
+    eyebrow: "Plată fără rezervare",
+    subject: (amount) => `Necesită intervenție — ${amount} plătiți fără rezervare`,
+    preview: (amount) => `${amount} au fost încasați, dar nu s-a creat nicio rezervare.`,
+    headline: (amount) => `${amount} încasați fără rezervare`,
+    lead: "Plata a fost procesată, dar rezervarea nu a putut fi creată, așa că clientul a plătit și nu are nimic.",
+    captured: "Încasați de la client",
+    action:
+      "Contactați clientul, apoi fie creați rezervarea manual, fie returnați plata. Nu se va mai încerca automat nimic.",
+    paymentSession: "Plată",
+    bookingSession: "Checkout",
+    provider: "Procesator",
+    attempts: "Încercări",
+    reason: "Motiv",
+  },
   invoiceSettled: {
     eyebrow: "Factură achitată",
     subject: (invoiceNumber) => `Factura ${invoiceNumber} a fost achitată`,

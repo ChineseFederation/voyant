@@ -15,6 +15,7 @@ import {
   resolveFacetBucketLimit,
   resolveSearchSort,
 } from "@voyant-travel/catalog-contracts/indexer/contract"
+import { PermanentSubscriberError } from "@voyant-travel/core"
 import type { AnyDrizzleDb } from "@voyant-travel/db"
 import { withOptionalTransaction } from "@voyant-travel/db/transaction"
 import { dbSupportsTransactions } from "@voyant-travel/db/transaction-capability"
@@ -1773,7 +1774,10 @@ function resolveVectorDimensions(
 ): number | null {
   if (strategy === "none") return null
   if (!Number.isInteger(dimensions) || (dimensions ?? 0) <= 0) {
-    throw new Error(
+    // Permanent by construction: the setting is the same on every retry, so
+    // the eight attempts the outbox would spend on it buy nothing and bury the
+    // real error under whatever the last attempt reported (voyant#4639).
+    throw new PermanentSubscriberError(
       "Postgres catalog indexer vector strategy requires a positive vectorDimensions deployment setting.",
     )
   }

@@ -96,6 +96,23 @@ export interface SubscribeOptions {
    * same request). Default `false` — handlers are deferrable.
    */
   inline?: boolean
+  /**
+   * How long to await THIS handler, overriding the bus default. `false`
+   * disables the bound entirely.
+   *
+   * The default exists to stop one wedged subscriber holding an emit open, and
+   * it is sized for a subscriber that writes a row or posts a webhook. A
+   * subscriber whose work is legitimately longer — reindexing every locale of a
+   * product, say — is not wedged, but it blows the same budget every time, so
+   * the bus records a failure, the outbox retries into the identical wall, and
+   * eight attempts later the event is dead-lettered while the work was probably
+   * finishing all along. That accounted for 29 of one tenant's 32 dead events
+   * ([#4639](https://github.com/voyant-travel/voyant/issues/4639)).
+   *
+   * Set it to what the handler actually needs. A budget that the work cannot
+   * meet is not a safety bound, it is a scheduled failure.
+   */
+  timeoutMs?: number | false
 }
 
 /**
@@ -147,11 +164,73 @@ export interface OutboxEventStore {
 
 /** Outcome of delivering one envelope to all its subscribers. */
 export interface DeliveryResult {
-  /** Handlers invoked. */
+  /**
+   * Handlers invoked. **Zero is not success.** An event nobody subscribes to
+   * produces no errors, so a durable delivery records it exactly like one every
+   * subscriber handled — which is how an event type can be emitted in
+   * production for months with a clean delivery record and no consumer
+   * ([#4640](https://github.com/voyant-travel/voyant/issues/4640)). Callers
+   * that care must read this, not just `failed`.
+   */
   attempted: number
   /** Handlers that threw or timed out. */
   failed: number
+  /**
+   * How many of `failed` were timeouts rather than throws.
+   *
+   * Worth separating because they mean opposite things about a retry. A
+   * handler that threw is finished and did nothing, so redelivering it is a
+   * retry. A handler that timed out is **still running** — the bus only
+   * stopped waiting — so redelivering it runs the same work a second time
+   * alongside the first. Both are counted as failures, because a detached
+   * handler may still fail and dropping the event would be worse, but they
+   * should not read as the same event in diagnostics.
+   *
+   * Optional for the same reason `deliver` itself is: a third-party bus stays
+   * assignable without knowing about it. Absent reads as zero.
+   */
+  timedOut?: number
+  /**
+   * How many failures declared themselves permanent — see
+   * {@link PermanentSubscriberError}. Non-zero means retrying cannot help and
+   * the caller should dead-letter rather than reschedule.
+   */
+  permanent?: number
   errors: string[]
+}
+
+/**
+ * A subscriber failure that no retry can fix.
+ *
+ * The outbox retries on the assumption that a failure might be transient — a
+ * lock, a timeout, a provider blip. A deployment misconfiguration is none of
+ * those: it fails identically on every attempt, so the retries are pure waste,
+ * and worse, the eighth attempt's error is the one that survives in
+ * `last_error`, so a later timeout quietly overwrites the configuration fault
+ * that is the actual cause (voyant#4639).
+ *
+ * Throw this when the handler can state that the event will never be delivered
+ * as configured. Delivery is dead-lettered on the spot, which surfaces the real
+ * error immediately through the dead-letter announcement instead of eight
+ * attempts later under a different message.
+ */
+export class PermanentSubscriberError extends Error {
+  readonly permanent = true as const
+
+  constructor(message: string, options?: { cause?: unknown }) {
+    super(message, options)
+    this.name = "PermanentSubscriberError"
+  }
+}
+
+/** True for an error that declares itself unfixable by retrying. */
+export function isPermanentSubscriberError(error: unknown): boolean {
+  return (
+    error instanceof PermanentSubscriberError ||
+    (typeof error === "object" &&
+      error !== null &&
+      (error as { permanent?: unknown }).permanent === true)
+  )
 }
 
 /** Stable, unique event id for envelope metadata / outbox dedup. */
@@ -210,6 +289,15 @@ const DEFAULT_HANDLER_TIMEOUT_MS = 15_000
 
 interface RegisteredHandler {
   inline: boolean
+  /** Per-subscription override of the bus timeout; absent means the default. */
+  timeoutMs?: number | false
+}
+
+/** What one handler run produced. `null` message means it succeeded. */
+interface HandlerOutcome {
+  message: string | null
+  timedOut: boolean
+  permanent: boolean
 }
 
 /**
@@ -242,24 +330,28 @@ export function createEventBus(options: EventBusOptions = {}): EventBus {
   }
 
   /**
-   * Runs one handler; never rejects. Returns the error message when the
-   * handler threw or timed out, `null` on success. Errors are always
-   * logged here so non-durable emits keep today's observability.
+   * Runs one handler; never rejects. Reports whether it failed and whether the
+   * failure was a timeout — a distinction the caller needs, because a timed-out
+   * handler is still running. Errors are always logged here so non-durable
+   * emits keep today's observability.
    */
   async function runHandler(
     event: string,
     handler: EventHandler,
     envelope: EventEnvelope,
     context?: EventHandlerContext,
-  ): Promise<string | null> {
+    registered?: RegisteredHandler,
+  ): Promise<HandlerOutcome> {
+    // The subscription's own budget wins, including `false` for "unbounded".
+    const effectiveTimeoutMs = registered?.timeoutMs ?? timeoutMs
     try {
-      if (timeoutMs === false) {
+      if (effectiveTimeoutMs === false) {
         await (context ? handler(envelope, context) : handler(envelope))
-        return null
+        return { message: null, timedOut: false, permanent: false }
       }
       let timer: ReturnType<typeof setTimeout> | null = null
       const timedOut = new Promise<"timeout">((resolve) => {
-        timer = setTimeout(() => resolve("timeout"), timeoutMs)
+        timer = setTimeout(() => resolve("timeout"), effectiveTimeoutMs)
       })
       try {
         const result = await Promise.race([
@@ -270,14 +362,16 @@ export function createEventBus(options: EventBusOptions = {}): EventBus {
         ])
         if (result === "timeout") {
           // The handler keeps running detached — we just stop waiting.
-          // Counted as a failure for durable delivery: the retry relies
-          // on subscriber idempotency.
-          const message = `subscriber for "${event}" exceeded ${timeoutMs}ms; not awaited`
+          // Counted as a failure for durable delivery: dropping the event would
+          // be worse if the detached run also fails. Reported as a timeout so
+          // the retry is not mistaken for a clean one — it will run alongside
+          // the attempt still in flight (voyant#4640).
+          const message = `subscriber for "${event}" exceeded ${effectiveTimeoutMs}ms; not awaited`
           console.error(`[events] ${message}`)
           notifySubscriberError(event, new Error(message))
-          return message
+          return { message, timedOut: true, permanent: false }
         }
-        return null
+        return { message: null, timedOut: false, permanent: false }
       } finally {
         if (timer !== null) clearTimeout(timer)
       }
@@ -285,20 +379,29 @@ export function createEventBus(options: EventBusOptions = {}): EventBus {
       // Subscribers are fire-and-forget — log and continue.
       console.error(`[events] subscriber error for "${event}":`, err)
       notifySubscriberError(event, err)
-      return err instanceof Error ? err.message : String(err)
+      return {
+        message: err instanceof Error ? err.message : String(err),
+        timedOut: false,
+        permanent: isPermanentSubscriberError(err),
+      }
     }
   }
 
-  /** Runs a batch in parallel; resolves with the error messages. */
+  /** Runs a batch in parallel; resolves with each run's outcome. */
   function runBatch(
     event: string,
     batch: EventHandler[],
     envelope: EventEnvelope,
     context?: EventHandlerContext,
-  ): Promise<string[]> {
-    return Promise.all(batch.map((h) => runHandler(event, h, envelope, context))).then((results) =>
-      results.filter((r): r is string => r !== null),
+  ): Promise<HandlerOutcome[]> {
+    return Promise.all(
+      batch.map((h) => runHandler(event, h, envelope, context, handlers.get(event)?.get(h))),
     )
+  }
+
+  /** Just the messages, for the emit paths that only log. */
+  function batchErrors(outcomes: HandlerOutcome[]): string[] {
+    return outcomes.map((outcome) => outcome.message).filter((m): m is string => m !== null)
   }
 
   function partition(event: string): { inline: EventHandler[]; deferrable: EventHandler[] } {
@@ -408,24 +511,35 @@ export function createEventBus(options: EventBusOptions = {}): EventBus {
       }
 
       if (emitOptions.schedule && deferrable.length > 0) {
-        const inlineErrors = inline.length > 0 ? await run(inline) : []
+        const inlineErrors = inline.length > 0 ? batchErrors(await run(inline)) : []
         await scheduleOrAwait(
           emitOptions.schedule,
-          run(deferrable).then((deferredErrors) => settle([...inlineErrors, ...deferredErrors])),
+          run(deferrable).then((deferred) => settle([...inlineErrors, ...batchErrors(deferred)])),
         )
         return
       }
 
-      const errors = await run([...inline, ...deferrable])
-      await settle(errors)
+      await settle(batchErrors(await run([...inline, ...deferrable])))
     },
 
     async deliver(envelope: EventEnvelope): Promise<DeliveryResult> {
       const { inline, deferrable } = partition(envelope.name)
       const all = [...inline, ...deferrable]
-      if (all.length === 0) return { attempted: 0, failed: 0, errors: [] }
-      const errors = await runBatch(envelope.name, all, envelope)
-      return { attempted: all.length, failed: errors.length, errors }
+      // `attempted: 0` is the caller's to interpret. Reporting it as a clean
+      // delivery here is what let an unconsumed event look identical to a
+      // handled one (voyant#4640).
+      if (all.length === 0) {
+        return { attempted: 0, failed: 0, timedOut: 0, permanent: 0, errors: [] }
+      }
+      const outcomes = await runBatch(envelope.name, all, envelope)
+      const errors = batchErrors(outcomes)
+      return {
+        attempted: all.length,
+        failed: errors.length,
+        timedOut: outcomes.filter((outcome) => outcome.timedOut).length,
+        permanent: outcomes.filter((outcome) => outcome.permanent).length,
+        errors,
+      }
     },
     subscribe<TData, TMetadata extends EventMetadata | undefined = EventMetadata | undefined>(
       event: string,
@@ -437,7 +551,12 @@ export function createEventBus(options: EventBusOptions = {}): EventBus {
         registered = new Map()
         handlers.set(event, registered)
       }
-      registered.set(handler as EventHandler, { inline: subscribeOptions?.inline ?? false })
+      registered.set(handler as EventHandler, {
+        inline: subscribeOptions?.inline ?? false,
+        ...(subscribeOptions?.timeoutMs === undefined
+          ? {}
+          : { timeoutMs: subscribeOptions.timeoutMs }),
+      })
       return {
         unsubscribe() {
           registered?.delete(handler as EventHandler)

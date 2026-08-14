@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest"
 
-import { createEventBus } from "../../src/events.js"
+import { createEventBus, PermanentSubscriberError } from "../../src/events.js"
 
 describe("createEventBus", () => {
   it("delivers emitted events to subscribers", async () => {
@@ -409,7 +409,7 @@ describe("deliver — redelivery with failure reporting", () => {
       emittedAt: new Date().toISOString(),
     })
 
-    expect(result).toEqual({ attempted: 2, failed: 1, errors: ["nope"] })
+    expect(result).toEqual({ attempted: 2, failed: 1, timedOut: 0, permanent: 0, errors: ["nope"] })
     errorSpy.mockRestore()
   })
 
@@ -420,7 +420,86 @@ describe("deliver — redelivery with failure reporting", () => {
       data: {},
       emittedAt: new Date().toISOString(),
     })
-    expect(result).toEqual({ attempted: 0, failed: 0, errors: [] })
+    // `attempted: 0` is the only thing separating "nobody consumes this" from
+    // "everybody handled it" — a durable drain that reads `failed` alone
+    // records an unconsumed event as a clean delivery (voyant#4640).
+    expect(result).toEqual({ attempted: 0, failed: 0, timedOut: 0, permanent: 0, errors: [] })
+  })
+
+  it("reports a timeout separately from a throw", async () => {
+    // They mean opposite things about a retry: a thrown handler is finished
+    // and did nothing, a timed-out one is still running (voyant#4640).
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {})
+    const bus = createEventBus({ handlerTimeoutMs: 10 })
+    bus.subscribe("x", () => new Promise<void>(() => {}))
+    bus.subscribe("x", () => {
+      throw new Error("nope")
+    })
+
+    const result = await bus.deliver?.({
+      name: "x",
+      data: {},
+      emittedAt: new Date().toISOString(),
+    })
+
+    expect(result).toMatchObject({ attempted: 2, failed: 2, timedOut: 1, permanent: 0 })
+    errorSpy.mockRestore()
+  })
+
+  it("reports a permanent failure so the caller can stop retrying", async () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {})
+    const bus = createEventBus()
+    bus.subscribe("x", () => {
+      throw new PermanentSubscriberError("vectorDimensions is not configured")
+    })
+
+    const result = await bus.deliver?.({
+      name: "x",
+      data: {},
+      emittedAt: new Date().toISOString(),
+    })
+
+    expect(result).toMatchObject({ attempted: 1, failed: 1, permanent: 1 })
+    errorSpy.mockRestore()
+  })
+})
+
+describe("per-subscription handler timeout (voyant#4639)", () => {
+  it("gives a slow subscriber its own budget instead of the bus default", async () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {})
+    const bus = createEventBus({ handlerTimeoutMs: 10 })
+    const slow = vi.fn(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 40))
+    })
+    bus.subscribe("indexing", slow, { timeoutMs: 500 })
+
+    const result = await bus.deliver?.({
+      name: "indexing",
+      data: {},
+      emittedAt: new Date().toISOString(),
+    })
+
+    // Would have been a deterministic failure on the bus default, retried into
+    // the identical wall until the outbox gave up.
+    expect(result).toMatchObject({ attempted: 1, failed: 0, timedOut: 0 })
+    expect(slow).toHaveBeenCalledOnce()
+    errorSpy.mockRestore()
+  })
+
+  it("still bounds a subscription that asks for a shorter budget", async () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {})
+    const bus = createEventBus({ handlerTimeoutMs: 5_000 })
+    bus.subscribe("wedged", () => new Promise<void>(() => {}), { timeoutMs: 10 })
+
+    const result = await bus.deliver?.({
+      name: "wedged",
+      data: {},
+      emittedAt: new Date().toISOString(),
+    })
+
+    expect(result).toMatchObject({ failed: 1, timedOut: 1 })
+    expect(result?.errors[0]).toContain("exceeded 10ms")
+    errorSpy.mockRestore()
   })
 })
 

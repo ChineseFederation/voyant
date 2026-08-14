@@ -119,6 +119,73 @@ test("onlyIn patterns support * within a segment and ** across segments", () => 
   )
 })
 
+/**
+ * The polarity for a sentinel — a value that must have one definition because
+ * every copy is a place its meaning can drift (voyant#4637). A sentinel is a
+ * string literal, so none of the identifier polarities can see it.
+ */
+const sentinelSources = new Map([
+  [
+    "packages/core/src/env.ts",
+    parse("packages/core/src/env.ts", 'export const ANON = "anonymous-storefront"'),
+  ],
+  [
+    "packages/other/src/copy.ts",
+    parse("packages/other/src/copy.ts", 'const x = userId === "anonymous-storefront"'),
+  ],
+  [
+    "packages/other/src/prose.ts",
+    parse(
+      "packages/other/src/prose.ts",
+      "// the anonymous-storefront principal is not a person\nconst anonymousStorefront = 1",
+    ),
+  ],
+])
+
+test("a literal confined to its owning file produces no literalsOnlyIn violation", () => {
+  assert.deepEqual(
+    checkSymbolPolicy(
+      new Map([...sentinelSources].filter(([file]) => file !== "packages/other/src/copy.ts")),
+      { literalsOnlyIn: { "anonymous-storefront": ["packages/core/src/env.ts"] } },
+    ),
+    [],
+  )
+})
+
+test("a copy of an owned literal is caught", () => {
+  const violations = checkSymbolPolicy(sentinelSources, {
+    literalsOnlyIn: { "anonymous-storefront": ["packages/core/src/env.ts"] },
+  })
+  assert.deepEqual(violations, [
+    'packages/other/src/copy.ts: the literal "anonymous-storefront" is owned by this authority and may only be written in packages/core/src/env.ts',
+  ])
+})
+
+test("naming an owned literal in a comment or an identifier is not a copy of it", () => {
+  // Otherwise the rule would forbid explaining itself, which is how a guard
+  // gets deleted rather than obeyed.
+  assert.deepEqual(
+    checkSymbolPolicy(new Map([...sentinelSources].filter(([file]) => file.endsWith("prose.ts"))), {
+      literalsOnlyIn: { "anonymous-storefront": [] },
+    }),
+    [],
+  )
+})
+
+test("a literalsOnlyIn pattern that matches nothing is caught as stale", () => {
+  const violations = checkSymbolPolicy(sentinelSources, {
+    literalsOnlyIn: {
+      "anonymous-storefront": ["packages/core/src/env.ts", "packages/gone/src/index.ts"],
+    },
+  })
+  assert.ok(
+    violations.includes(
+      'packages/gone/src/index.ts: stale literalsOnlyIn entry — no source here writes "anonymous-storefront"',
+    ),
+    violations.join("\n"),
+  )
+})
+
 test("absentFrom accepts a glob, so a whole package family can be denied", () => {
   const reactSources = new Map([
     [

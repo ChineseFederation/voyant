@@ -228,6 +228,7 @@ describe("notifications deployment manifest", () => {
       "notificationsStaffBookingCancelledAlertSubscriber",
       "notificationsStaffBookingInquiryCreatedAlertSubscriber",
       "notificationsStaffPaymentCompletedAlertSubscriber",
+      "notificationsStaffPaymentSettlementStrandedAlertSubscriber",
       "notificationsStaffInvoiceSettledAlertSubscriber",
       "notificationsStaffContractSignedAlertSubscriber",
       "notificationsStaffCustomerSignalCreatedAlertSubscriber",

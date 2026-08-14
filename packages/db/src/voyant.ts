@@ -1,4 +1,5 @@
 import { defineModule, providePort, requirePort } from "@voyant-travel/core/project"
+import { eventDeadLetteredPayloadSchema } from "./outbox-events.js"
 import { eventOutboxJobRuntimePort } from "./outbox-job-runtime-port.js"
 
 /** Import-cheap deployment declaration owned by the database package. */
@@ -56,6 +57,23 @@ export const dbVoyantModule = defineModule({
         export: "createGraphDbProvider",
       },
       config: { adapter: "node" },
+    },
+  ],
+  events: [
+    {
+      // Emitted by the outbox drain below, which is why the database module
+      // declares it: the loss is a fact about delivery, not about any domain.
+      id: "@voyant-travel/db#event.dead-lettered",
+      // Spelled out rather than referenced: the event authority reads this
+      // manifest as source text, so an identifier here reads as "no eventType".
+      // Drift is caught by the graph build, which rejects a subscriber whose
+      // event type no module declares — that is what `EVENT_DEAD_LETTERED` in
+      // ./outbox-events.ts is checked against.
+      eventType: "event.dead_lettered",
+      version: "1.0.0",
+      payloadSchema: eventDeadLetteredPayloadSchema,
+      visibility: "internal",
+      audit: { sourceModule: "db", category: "internal" },
     },
   ],
   jobs: [

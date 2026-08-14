@@ -2,6 +2,7 @@ import type { EventBus, EventEnvelope, EventMetadata, OutboxEventStore } from "@
 import { generateEventId } from "@voyant-travel/core"
 import { eq, sql } from "drizzle-orm"
 
+import { EVENT_DEAD_LETTERED, type EventDeadLetteredEvent } from "./outbox-events.js"
 import { type EventOutboxRow, eventOutboxTable } from "./schema/infra/event_outbox.js"
 import type { DrizzleClient } from "./types.js"
 
@@ -38,12 +39,29 @@ export interface DrainOutboxOptions {
 export interface DrainOutboxResult {
   claimed: number
   delivered: number
+  /**
+   * Rows delivered to nobody — no subscriber was registered for the event.
+   *
+   * Counted within `delivered`, because there is nothing to retry: another
+   * attempt cannot summon a subscriber. Counted separately because it is not
+   * the same thing as being handled, and reporting only `delivered` is how an
+   * event type nobody consumes keeps a clean record indefinitely
+   * (voyant#4640).
+   */
+  unconsumed: number
   retried: number
+  /** Failures that were a subscriber timeout rather than a throw. */
+  timedOut: number
   deadLettered: number
   batches: number
   durationMs: number
   budgetExhausted: boolean
 }
+
+export {
+  EVENT_DEAD_LETTERED,
+  type EventDeadLetteredEvent,
+} from "./outbox-events.js"
 
 /** Minimal delivery surface needed by the durable outbox drain. */
 export type OutboxEventDelivery = Pick<EventBus, "deliver"> & Partial<Pick<EventBus, "emit">>
@@ -129,16 +147,22 @@ export async function failOutboxEvent(
   db: DrizzleClient,
   id: string,
   error: string,
+  options: { permanent?: boolean } = {},
 ): Promise<"pending" | "failed" | null> {
   // Truncate pathological error strings — this is a diagnostic, not a log sink.
   const lastError = error.length > 2000 ? `${error.slice(0, 2000)}…` : error
+  // A permanent failure skips the remaining attempts. They would fail
+  // identically, and the last one's message is the one that survives in
+  // `last_error` — which is how a configuration fault ends up reported as a
+  // timeout (voyant#4639).
+  const permanent = options.permanent === true
   const rows = (await (db as AnyDb).execute(sql`
     UPDATE ${eventOutboxTable}
     SET
       "last_error" = ${lastError},
-      "status" = CASE WHEN "attempts" >= "max_attempts" THEN 'failed' ELSE "status" END,
+      "status" = CASE WHEN ${permanent} OR "attempts" >= "max_attempts" THEN 'failed' ELSE "status" END,
       "next_attempt_at" = CASE
-        WHEN "attempts" >= "max_attempts" THEN "next_attempt_at"
+        WHEN ${permanent} OR "attempts" >= "max_attempts" THEN "next_attempt_at"
         ELSE now() + (
           least(${BACKOFF_BASE_MS} * power(2, "attempts"), ${BACKOFF_CAP_MS})
           * (0.8 + random() * 0.4)
@@ -243,7 +267,9 @@ export async function drainOutbox(
   const result: DrainOutboxResult = {
     claimed: 0,
     delivered: 0,
+    unconsumed: 0,
     retried: 0,
+    timedOut: 0,
     deadLettered: 0,
     batches: 0,
     durationMs: 0,
@@ -268,11 +294,17 @@ export async function drainOutbox(
       const envelope = outboxRowToEnvelope(row)
       let failedCount = 0
       let errors: string[] = []
+      let attempted = -1
+      let timedOutCount = 0
+      let permanentCount = 0
       try {
         if (bus.deliver) {
           const delivery = await bus.deliver(envelope)
           failedCount = delivery.failed
           errors = delivery.errors
+          attempted = delivery.attempted
+          timedOutCount = delivery.timedOut ?? 0
+          permanentCount = delivery.permanent ?? 0
         } else if (bus.emit) {
           // Third-party bus without failure reporting: emit is
           // fire-and-forget; count as success.
@@ -288,11 +320,52 @@ export async function drainOutbox(
       if (failedCount === 0) {
         await completeOutboxEvent(db, row.id)
         result.delivered += 1
+        if (attempted === 0) {
+          result.unconsumed += 1
+          console.warn(
+            `[outbox] "${envelope.name}" has no subscriber; delivered to nobody (${row.id})`,
+          )
+        }
         return
       }
-      const status = await failOutboxEvent(db, row.id, errors.join("; "))
-      if (status === "failed") result.deadLettered += 1
-      else result.retried += 1
+      result.timedOut += timedOutCount
+      const error = errors.join("; ")
+      const status = await failOutboxEvent(db, row.id, error, { permanent: permanentCount > 0 })
+      if (status !== "failed") {
+        result.retried += 1
+        return
+      }
+      result.deadLettered += 1
+      // Announce the loss. Never for the announcement itself, which would
+      // dead-letter in turn and re-announce forever.
+      if (envelope.name === EVENT_DEAD_LETTERED) return
+      const announcement: EventEnvelope<EventDeadLetteredEvent> = {
+        name: EVENT_DEAD_LETTERED,
+        data: {
+          outboxId: row.id,
+          eventId: row.eventId,
+          name: envelope.name,
+          // The claim already bumped `attempts`, so this is the count
+          // including the delivery that just failed.
+          attempts: Number(row.attempts ?? 0),
+          error,
+          payload: envelope.data,
+        },
+        metadata: { category: "internal", source: "system", eventId: generateEventId() },
+        emittedAt: new Date().toISOString(),
+      }
+      try {
+        // `deliver` first: the drain runtime supplies only that, so announcing
+        // through `emit` alone would have been a subscriber nothing ever calls.
+        // Delivered rather than emitted on purpose — the announcement must not
+        // enter the outbox it is reporting on.
+        if (bus.deliver) await bus.deliver(announcement as EventEnvelope)
+        else await bus.emit?.(announcement.name, announcement.data, announcement.metadata)
+      } catch (err) {
+        // The drain's job is the queue, not the announcement. A subscriber that
+        // cannot be told must not turn a dead-lettered row into a stuck drain.
+        console.error("[outbox] dead-letter announcement failed", err)
+      }
     })
   }
 

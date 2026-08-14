@@ -10289,6 +10289,20 @@
                     "properties": {
                       "kind": {
                         "type": "string",
+                        "enum": ["payment_in_flight"]
+                      },
+                      "nextAction": {
+                        "type": "string",
+                        "enum": ["await_payment_outcome"]
+                      }
+                    },
+                    "required": ["kind", "nextAction"]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
                         "enum": ["quote_unavailable"]
                       },
                       "requirements": {
@@ -12496,6 +12510,20 @@
                       "nextAction": {
                         "type": "string",
                         "enum": ["reconcile_supplier_operation"]
+                      }
+                    },
+                    "required": ["kind", "nextAction"]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": ["payment_in_flight"]
+                      },
+                      "nextAction": {
+                        "type": "string",
+                        "enum": ["await_payment_outcome"]
                       }
                     },
                     "required": ["kind", "nextAction"]

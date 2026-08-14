@@ -53,6 +53,7 @@ export {
   createOrReuseBookingSessionPayment,
   expirePendingBookingSessionPayments,
   findEstablishedBookingSessionPayment,
+  hasInFlightBookingSessionPayment,
   transferBookingSessionPaymentToBooking,
 } from "./booking-session-payment.js"
 export type {

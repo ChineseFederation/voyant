@@ -1,4 +1,4 @@
-import { and, eq, inArray, sql } from "drizzle-orm"
+import { and, eq, gt, inArray, isNull, or, sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import { paymentAuthorizations } from "./schema/payment-processing.js"
 import { paymentSessions } from "./schema/payment-sessions.js"
@@ -120,6 +120,65 @@ export async function findEstablishedBookingSessionPayment(
     .orderBy(paymentSessions.createdAt)
     .limit(1)
   return session ?? null
+}
+
+/**
+ * Money that is settled. The processor has it, and no clock releases the
+ * Session from that — only committing it or refunding does.
+ */
+const SETTLED_BOOKING_SESSION_PAYMENT_STATES = ["authorized", "paid"] as const
+
+/**
+ * A handoff the shopper may still be standing in front of: a checkout page
+ * open, or a capture the processor has not answered yet.
+ *
+ * `pending` is deliberately absent — a payment session exists from the moment
+ * the Commit asks for one, before the shopper has been handed anywhere, so
+ * counting it would freeze a Session nobody has paid against.
+ */
+const HANDED_OFF_BOOKING_SESSION_PAYMENT_STATES = ["requires_redirect", "processing"] as const
+
+/**
+ * Whether this Booking Session has money with a processor right now.
+ *
+ * The Booking Session's Quote and Hold are what the shopper is being charged
+ * for, so anything that would tear them down has to know this first: while a
+ * payment is in flight the shopper is no longer shopping, and a re-quote that
+ * releases the Hold gives away the seat the money was collected for
+ * (voyant#4636).
+ *
+ * A handoff only counts until it expires. Otherwise a shopper who opened the
+ * checkout page and changed their mind would be locked out of their own Session
+ * for its whole lifetime, unable to re-quote or reselect, with nothing to wait
+ * for — freezing a Session against a payment that is never coming is the same
+ * class of bug in the other direction. The expiry is the earliest of the
+ * Session, Quote and Hold, so it lapses on the same clock as the seat it is
+ * protecting. Settled money has no such escape: it is real until somebody
+ * commits or refunds it.
+ */
+export async function hasInFlightBookingSessionPayment(
+  db: PostgresJsDatabase,
+  bookingSessionId: string,
+  now = new Date(),
+): Promise<boolean> {
+  const [session] = await db
+    .select({ id: paymentSessions.id })
+    .from(paymentSessions)
+    .where(
+      and(
+        eq(paymentSessions.targetType, "booking_session"),
+        eq(paymentSessions.targetId, bookingSessionId),
+        or(
+          inArray(paymentSessions.status, [...SETTLED_BOOKING_SESSION_PAYMENT_STATES]),
+          and(
+            inArray(paymentSessions.status, [...HANDED_OFF_BOOKING_SESSION_PAYMENT_STATES]),
+            or(isNull(paymentSessions.expiresAt), gt(paymentSessions.expiresAt, now)),
+          ),
+        ),
+      ),
+    )
+    .limit(1)
+  return session !== undefined
 }
 
 /** Must run inside the root Booking transaction. */

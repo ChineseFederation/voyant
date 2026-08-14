@@ -52,6 +52,21 @@ export const staffAlertEmailMessagesEn: StaffAlertEmailMessages = {
     paidInFull: "This booking is now paid in full.",
     partialPayment: "A balance remains on this booking.",
   },
+  paymentSettlementStranded: {
+    eyebrow: "Payment not booked",
+    subject: (amount) => `Action needed — ${amount} paid with no booking`,
+    preview: (amount) => `${amount} was charged and no booking was created.`,
+    headline: (amount) => `${amount} was charged with no booking`,
+    lead: "The payment went through but the booking could not be created, so the customer has paid and holds nothing.",
+    captured: "Charged to the customer",
+    action:
+      "Contact the customer, then either complete the booking manually or refund the payment. Nothing further will be retried automatically.",
+    paymentSession: "Payment",
+    bookingSession: "Checkout",
+    provider: "Provider",
+    attempts: "Attempts",
+    reason: "Reason",
+  },
   invoiceSettled: {
     eyebrow: "Invoice settled",
     subject: (invoiceNumber) => `Invoice ${invoiceNumber} settled`,

@@ -424,6 +424,11 @@ export const notificationsUiRo: NotificationsUiMessages = {
         title: "Plată încasată",
         description: "O plată a clientului a fost procesată cu succes.",
       },
+      "staff.payment.settlement-stranded": {
+        title: "Plată fără rezervare",
+        description:
+          "Un client a fost taxat, dar nu s-a creat nicio rezervare, deci a plătit și nu are nimic. Necesită o rezervare manuală sau o returnare.",
+      },
       "staff.invoice.settled": {
         title: "Factură achitată",
         description: "O factură a fost achitată integral și nu mai necesită urmărire.",

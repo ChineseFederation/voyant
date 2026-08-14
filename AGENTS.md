@@ -62,6 +62,17 @@ it names the only paths (globs allowed) that may reference the symbol, so a new
 file anywhere else fails on its own. An authority wants `onlyIn`: it is the
 difference between guarding the meaning and guarding a list of filenames.
 
+Those match **identifiers** through the AST. A **sentinel** — a magic string
+that means something, like the `anonymous-storefront` principal — is a string
+literal, so none of them can see it, and it gets copied instead of imported.
+`literalsOnlyIn` is `onlyIn` for a literal's text: it pins the value to its one
+definition and fires on any other file that writes it, while ignoring the name
+in a comment or an identifier. Copies are not cosmetic. Three files had
+independently agreed that `anonymous-storefront` is not a person; a fourth
+handed it to a payment processor as a stable customer key, which pooled every
+guest checkout into one Stripe Customer
+([#4637](https://github.com/voyant-travel/voyant/issues/4637)).
+
 Three run as ratchets, holding a line rather than demanding it be clean today:
 `verify:table-privacy` (cross-module table reach-ins),
 `verify:package-descriptions`, and `verify:typecheck-coverage`. **Their

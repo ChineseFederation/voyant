@@ -178,7 +178,9 @@ export function createInMemoryBookingSessionRepository(): InMemoryBookingSession
       ) {
         throw new Error("booking_session_commit_session_consumed")
       }
-      if (quote?.state !== "active") throw new Error("booking_session_commit_quote_consumed")
+      const quoteClaimable =
+        quote?.state === "active" || (input.settling === true && quote?.state === "superseded")
+      if (!quoteClaimable) throw new Error("booking_session_commit_quote_consumed")
       if (input.holdId && hold?.state !== "active") {
         throw new Error("booking_session_commit_hold_consumed")
       }

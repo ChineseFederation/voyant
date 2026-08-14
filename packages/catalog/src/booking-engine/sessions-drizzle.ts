@@ -407,6 +407,9 @@ export function createDrizzleBookingSessionRepository(
         )
         .returning()
       if (!session) throw new Error("booking_session_commit_session_consumed")
+      const claimableStates = input.settling
+        ? (["active", "superseded"] as const)
+        : (["active"] as const)
       const [quote] = await resolveDb()
         .update(bookingSessionQuotesTable)
         .set({ state: "consumed", consumedAt: at })
@@ -414,7 +417,7 @@ export function createDrizzleBookingSessionRepository(
           and(
             eq(bookingSessionQuotesTable.id, input.quoteId),
             eq(bookingSessionQuotesTable.sessionId, input.sessionId),
-            eq(bookingSessionQuotesTable.state, "active"),
+            inArray(bookingSessionQuotesTable.state, [...claimableStates]),
           ),
         )
         .returning()

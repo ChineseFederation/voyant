@@ -420,6 +420,11 @@ export const notificationsUiEn: NotificationsUiMessages = {
         title: "Payment received",
         description: "A customer payment settled successfully.",
       },
+      "staff.payment.settlement-stranded": {
+        title: "Payment not booked",
+        description:
+          "A customer was charged but no booking was created, so they have paid and hold nothing. Needs a manual booking or a refund.",
+      },
       "staff.invoice.settled": {
         title: "Invoice settled",
         description: "An invoice was paid in full and needs no further collection.",

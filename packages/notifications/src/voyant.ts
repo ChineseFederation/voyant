@@ -513,6 +513,15 @@ export const notificationsReminderSubscribersVoyantPlugin = defineExtension({
       },
     },
     {
+      id: "@voyant-travel/notifications#subscriber.staff.payment.settlement-stranded",
+      eventType: "event.dead_lettered",
+      source: "@voyant-travel/notifications/staff-alert-subscriber",
+      runtime: {
+        entry: "@voyant-travel/notifications/staff-alert-subscriber",
+        export: "notificationsStaffPaymentSettlementStrandedAlertSubscriber",
+      },
+    },
+    {
       id: "@voyant-travel/notifications#subscriber.staff.invoice.settled",
       eventType: "invoice.settled",
       source: "@voyant-travel/notifications/staff-alert-subscriber",

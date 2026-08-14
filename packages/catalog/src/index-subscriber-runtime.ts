@@ -60,6 +60,23 @@ function resolveRuntime(context: BootstrapContext): CatalogProjectionRuntime {
   )
 }
 
+/**
+ * Reindexing a product touches every locale, audience and market slice it is
+ * published to, so it is legitimately slower than the bus default of 15s — and
+ * a budget the work cannot meet is not a bound, it is a scheduled failure. On
+ * one tenant this dead-lettered 29 product events in six days while the
+ * indexing itself was very likely completing, because the bus stopped waiting,
+ * the outbox retried into the identical wall, and each retry re-ran work the
+ * previous attempt had left running (voyant#4639).
+ *
+ * Bounded above by the outbox's `visibilityTimeoutMs` (120s by default), which
+ * has to exceed the slowest subscriber or a second drain reclaims the row while
+ * the first is still delivering it — trading a self-inflicted timeout for a
+ * self-inflicted duplicate. 60s keeps clear of that ceiling and is four times
+ * the budget these events were being failed at.
+ */
+const CATALOG_REINDEX_TIMEOUT_MS = 60_000
+
 export function createCatalogReindexSubscriberDescriptor(
   options: CatalogIndexSubscriberDescriptorOptions,
 ): CatalogIndexSubscriberRuntimeDescriptor {
@@ -77,7 +94,7 @@ export function createCatalogReindexSubscriberDescriptor(
             await runtime.reindexEntity(target)
           }
         },
-        { inline: false },
+        { inline: false, timeoutMs: CATALOG_REINDEX_TIMEOUT_MS },
       )
     },
   }
@@ -100,7 +117,7 @@ export function createCatalogDeleteSubscriberDescriptor(
             await runtime.deleteEntity(target)
           }
         },
-        { inline: false },
+        { inline: false, timeoutMs: CATALOG_REINDEX_TIMEOUT_MS },
       )
     },
   }

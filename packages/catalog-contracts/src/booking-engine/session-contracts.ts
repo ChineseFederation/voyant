@@ -405,6 +405,21 @@ export const bookingSessionLifecycleErrorV1 = z.discriminatedUnion("kind", [
     kind: z.literal("supplier_operation_active"),
     nextAction: z.literal("reconcile_supplier_operation"),
   }),
+  /**
+   * The shopper's money is with a processor and the outcome is not known yet,
+   * so the Quote and Hold it was collected against may not be torn down.
+   *
+   * A shopper waiting on a "confirming" screen is not shopping, but a storefront
+   * that keeps polling looks exactly like one that is: each re-quote superseded
+   * the paid Quote and released its Hold, which gave the seat back seconds
+   * before the money landed and left settlement with nothing to commit
+   * (voyant#4636). Recoverable by waiting — the payment resolves either way,
+   * and a failed or cancelled one frees the Session to be quoted again.
+   */
+  z.object({
+    kind: z.literal("payment_in_flight"),
+    nextAction: z.literal("await_payment_outcome"),
+  }),
   z.object({
     kind: z.literal("quote_unavailable"),
     /**

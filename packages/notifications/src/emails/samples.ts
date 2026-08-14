@@ -57,6 +57,17 @@ const SAMPLES: { [K in StaffAlertEventKey]: StaffAlertContextMap[K] } = {
     provider: "netopia",
     paidInFull: false,
   },
+  "staff.payment.settlement-stranded": {
+    adminPath: "/finance/payments/ps_sample",
+    assigneeUserId: null,
+    actorUserId: null,
+    paymentSessionId: "ps_sample",
+    bookingSessionId: "bses_sample",
+    amount: { amountCents: 16000, currency: "RON" },
+    provider: "voyant-pay",
+    error: "booking_session_settlement_commit_rejected:hold_failure",
+    attempts: 8,
+  },
   "staff.invoice.settled": {
     adminPath: "/finance/invoices/inv_sample",
     assigneeUserId: null,

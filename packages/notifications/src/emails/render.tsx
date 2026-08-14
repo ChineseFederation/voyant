@@ -12,6 +12,7 @@ import { StaffContractSignedEmail } from "./staff/contract-signed.js"
 import { StaffCustomerSignalCreatedEmail } from "./staff/customer-signal-created.js"
 import { StaffInvoiceSettledEmail } from "./staff/invoice-settled.js"
 import { StaffPaymentCompletedEmail } from "./staff/payment-completed.js"
+import { StaffPaymentSettlementStrandedEmail } from "./staff/payment-settlement-stranded.js"
 
 export interface RenderStaffAlertEmailInput<K extends StaffAlertEventKey = StaffAlertEventKey> {
   eventKey: K
@@ -83,6 +84,21 @@ function selectTemplate<K extends StaffAlertEventKey>(
       return {
         element: <StaffPaymentCompletedEmail context={context} brand={brand} messages={messages} />,
         subject: messages.paymentCompleted.subject(formatMoney(context.amount, brand.locale)),
+      }
+    }
+    case "staff.payment.settlement-stranded": {
+      const context = input.context as StaffAlertContextMap["staff.payment.settlement-stranded"]
+      return {
+        element: (
+          <StaffPaymentSettlementStrandedEmail
+            context={context}
+            brand={brand}
+            messages={messages}
+          />
+        ),
+        subject: messages.paymentSettlementStranded.subject(
+          formatMoney(context.amount, brand.locale),
+        ),
       }
     }
     case "staff.invoice.settled": {

@@ -104,6 +104,8 @@ export const notificationsStaffBookingInquiryCreatedAlertSubscriber =
   createStaffAlertSubscriberRuntime("staff.booking.inquiry-created")
 export const notificationsStaffPaymentCompletedAlertSubscriber =
   createStaffAlertSubscriberRuntime("staff.payment.completed")
+export const notificationsStaffPaymentSettlementStrandedAlertSubscriber =
+  createStaffAlertSubscriberRuntime("staff.payment.settlement-stranded")
 export const notificationsStaffInvoiceSettledAlertSubscriber =
   createStaffAlertSubscriberRuntime("staff.invoice.settled")
 export const notificationsStaffContractSignedAlertSubscriber =
@@ -116,6 +118,7 @@ export const staffAlertSubscriberRuntimeDescriptors = [
   notificationsStaffBookingCancelledAlertSubscriber,
   notificationsStaffBookingInquiryCreatedAlertSubscriber,
   notificationsStaffPaymentCompletedAlertSubscriber,
+  notificationsStaffPaymentSettlementStrandedAlertSubscriber,
   notificationsStaffInvoiceSettledAlertSubscriber,
   notificationsStaffContractSignedAlertSubscriber,
   notificationsStaffCustomerSignalCreatedAlertSubscriber,

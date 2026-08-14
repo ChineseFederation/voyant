@@ -23,12 +23,15 @@
  * resolvers that satisfy it. Notifications' schema imports do not change.
  */
 
+import { EVENT_DEAD_LETTERED } from "@voyant-travel/db/outbox"
+
 /** Stable identifiers for staff alerts. Also the `event_key` column value. */
 export const STAFF_ALERT_EVENT_KEYS = [
   "staff.booking.confirmed",
   "staff.booking.cancelled",
   "staff.booking.inquiry-created",
   "staff.payment.completed",
+  "staff.payment.settlement-stranded",
   "staff.invoice.settled",
   "staff.contract.signed",
   "staff.customer-signal.created",
@@ -113,6 +116,25 @@ export interface StaffPaymentCompletedContext extends StaffAlertContextBase {
   paidInFull: boolean | null
 }
 
+/**
+ * A payment that was captured and then never became a Booking.
+ *
+ * The worst state the system can be in: the shopper has been charged, no seat
+ * is held, and until this alert existed nobody was told — the settlement
+ * retried, exhausted its attempts, and left a `failed` outbox row that no
+ * surface reads (voyant#4636). Always actionable, so unlike every other staff
+ * alert it defaults to on.
+ */
+export interface StaffPaymentSettlementStrandedContext extends StaffAlertContextBase {
+  paymentSessionId: string
+  bookingSessionId: string | null
+  amount: StaffAlertMoney
+  provider: string
+  /** Why the last settlement attempt was refused, verbatim. */
+  error: string
+  attempts: number
+}
+
 export interface StaffInvoiceSettledContext extends StaffAlertContextBase {
   invoiceId: string
   invoiceNumber: string | null
@@ -146,6 +168,7 @@ export interface StaffAlertContextMap {
   "staff.booking.cancelled": StaffBookingCancelledContext
   "staff.booking.inquiry-created": StaffBookingInquiryCreatedContext
   "staff.payment.completed": StaffPaymentCompletedContext
+  "staff.payment.settlement-stranded": StaffPaymentSettlementStrandedContext
   "staff.invoice.settled": StaffInvoiceSettledContext
   "staff.contract.signed": StaffContractSignedContext
   "staff.customer-signal.created": StaffCustomerSignalCreatedContext
@@ -222,6 +245,18 @@ export const STAFF_ALERT_DEFINITIONS = [
     supportsAssigneeRouting: false,
     defaultRoles: ["owner", "admin"],
     templateSlug: "staff.payment.completed",
+  },
+  {
+    key: "staff.payment.settlement-stranded",
+    eventType: EVENT_DEAD_LETTERED,
+    group: "finance",
+    // The only alert that is on by default. The others tell an operator
+    // something went right; this one tells them a customer has paid for
+    // nothing, which is not a preference.
+    defaultEnabled: true,
+    supportsAssigneeRouting: false,
+    defaultRoles: ["owner", "admin"],
+    templateSlug: "staff.payment.settlement-stranded",
   },
   {
     key: "staff.invoice.settled",

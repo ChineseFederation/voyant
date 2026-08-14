@@ -229,6 +229,18 @@ export interface BookingSessionRepository {
     outcome: BookingCommitInternalRecord["outcome"]
     bookingId: string
     now: Date
+    /**
+     * Settling a captured payment, which may claim a `superseded` Quote as well
+     * as an `active` one.
+     *
+     * The claim is what makes concurrent Commits safe: it moves the Quote to
+     * `consumed` only from an expected state, so of two racing Commits exactly
+     * one wins. `superseded` is not a competing claim though — it means the
+     * shopper re-quoted, which is what they do while a processor holds their
+     * money, and refusing on it is what left captured payments with no Booking
+     * (voyant#4636). `consumed` still loses, so the race this guards is intact.
+     */
+    settling?: boolean
   }): Promise<void>
   withTransactionContext<T>(tx: unknown, operation: () => Promise<T>): Promise<T>
   withSessionTransaction<T>(
@@ -487,6 +499,32 @@ export interface BookingSessionPaymentPorts {
     bookingId: string
   }): Promise<void>
   expirePending(input: { tx: unknown; bookingSessionId: string; at: Date }): Promise<void>
+  /**
+   * Which Quote and Hold this payment was established against.
+   *
+   * Settlement runs after the shopper has been sent away to a processor, and a
+   * shopper waiting on a "confirming" screen goes on quoting: each refresh
+   * supersedes the previous Quote and bumps the Session revision. So "the
+   * Session's one active Quote" names a different row by the time the money
+   * lands, and settling against it settles against something nobody paid for
+   * (voyant#4636).
+   *
+   * The payment records what it collected for. Optional because a host may not
+   * keep it — settlement falls back to the single active Quote, which is
+   * correct whenever the shopper has stopped quoting.
+   */
+  describeEstablished?(input: {
+    paymentSessionId: string
+  }): Promise<{ quoteId: string | null; holdId: string | null } | null>
+  /**
+   * Whether this Session's money is with a processor and the outcome is not
+   * known yet.
+   *
+   * Asked before anything that would tear the Quote and Hold down. Optional,
+   * and absent means "no" — a deployment with no payments port has no in-flight
+   * payment to protect.
+   */
+  hasInFlight?(input: { bookingSessionId: string }): Promise<boolean>
 }
 
 export interface BookingSessionAccessContext {
@@ -700,6 +738,33 @@ export function createBookingSessionModule(
     if (session.state !== "active" || session.purgedAt) return undefined
     const resolved = await options.ports.composeRequirements({ session, now: at, tx })
     return resolved.status === "available" ? resolved.requirements : undefined
+  }
+
+  /**
+   * A Session whose money is with a processor is frozen against anything that
+   * would release its Holds.
+   *
+   * Quoting, renewing, re-selecting and re-holding all tear the live Holds down
+   * so the shopper can start again — correct while they are shopping, and
+   * exactly wrong once they are paying. The Hold is the seat the payment is
+   * being collected for, and a storefront polling its "payment is confirming"
+   * screen is indistinguishable from a shopper still browsing: in voyant#4636
+   * that gave the seat back three seconds before the money landed, and the
+   * settlement that arrived after had nothing left to commit.
+   *
+   * Not a hazard for the shopper to route around — it resolves by itself the
+   * moment the payment does, in either direction.
+   */
+  async function rejectWhilePaymentInFlight(
+    session: BookingSessionInternalRecord,
+  ): Promise<BookingSessionOutcomeV1 | null> {
+    const inFlight = await options.ports.payments?.hasInFlight?.({ bookingSessionId: session.id })
+    return inFlight
+      ? {
+          kind: "rejected",
+          error: { kind: "payment_in_flight", nextAction: "await_payment_outcome" },
+        }
+      : null
   }
 
   function rejectRevision(
@@ -989,6 +1054,8 @@ export function createBookingSessionModule(
             error: { kind: "renewal_not_allowed", reason: "absolute_lifetime_exceeded" },
           })
         }
+        const renewingWhilePaying = await rejectWhilePaymentInFlight(session)
+        if (renewingWhilePaying) return completeAndReturn(repository, claim.id, renewingWhilePaying)
 
         await releaseLiveHolds(repository, options.ports, session, access, at, tx)
         await supersedeActiveQuotes(repository, session.id)
@@ -1042,6 +1109,10 @@ export function createBookingSessionModule(
           if (rejection) return completeAndReturn(repository, claim.id, rejection)
           throw error
         }
+        const reselectingWhilePaying = await rejectWhilePaymentInFlight(session)
+        if (reselectingWhilePaying) {
+          return completeAndReturn(repository, claim.id, reselectingWhilePaying)
+        }
         await releaseLiveHolds(repository, options.ports, session, access, at, tx)
         session.statePayload = statePayload
         session.revision += 1
@@ -1078,6 +1149,9 @@ export function createBookingSessionModule(
         if (claim.status === "conflict") return idempotencyConflict()
         const revisionRejected = rejectRevision(input.expectedRevision, session)
         if (revisionRejected) return completeAndReturn(repository, claim.id, revisionRejected)
+
+        const quotingWhilePaying = await rejectWhilePaymentInFlight(session)
+        if (quotingWhilePaying) return completeAndReturn(repository, claim.id, quotingWhilePaying)
 
         await releaseLiveHolds(repository, options.ports, session, access, at, tx)
         await supersedeActiveQuotes(repository, session.id)
@@ -1142,6 +1216,9 @@ export function createBookingSessionModule(
         if (claim.status === "conflict") return idempotencyConflict()
         const revisionRejected = rejectRevision(input.expectedRevision, session)
         if (revisionRejected) return completeAndReturn(repository, claim.id, revisionRejected)
+
+        const holdingWhilePaying = await rejectWhilePaymentInFlight(session)
+        if (holdingWhilePaying) return completeAndReturn(repository, claim.id, holdingWhilePaying)
 
         const quote = await loadUsableQuote(repository, input.quoteId, session, at)
         if (quote === "expired") {
@@ -1280,6 +1357,11 @@ export function createBookingSessionModule(
     },
 
     async commitSession(sessionId, input, access) {
+      // Finishing a Commit whose money already landed, rather than starting
+      // one. What the shopper's Session looks like *now* is not evidence about
+      // a payment that was captured against how it looked then — see
+      // `loadSettledQuote` and voyant#4636.
+      const settling = access.settlementAuthority?.admitted === true
       const initialSession = await loadSession(sessionId)
       if (!initialSession) return { kind: "rejected", error: { kind: "session_expired" } }
       const authorized = await authorizeSessionAccess(initialSession, access, "commit")
@@ -1327,14 +1409,20 @@ export function createBookingSessionModule(
                 : ({ kind: "rejected", error: { kind: "session_expired" } } as const),
           }
         }
-        const revisionRejected = rejectRevision(input.expectedRevision, session)
+        // The revision guards the shopper against committing a Session that
+        // moved under them. A settlement is not the shopper and has nothing to
+        // be protected from: the revision it read is stale by design, because
+        // the shopper went on quoting while the processor held the money.
+        const revisionRejected = settling ? null : rejectRevision(input.expectedRevision, session)
         if (revisionRejected) return { status: "outcome" as const, outcome: revisionRejected }
 
-        const quote = durableContinuation
-          ? await loadPersistedSourcedQuote(repository, input.quoteId, session)
-          : await loadUsableQuote(repository, input.quoteId, session, at)
+        const quote = settling
+          ? await loadSettledQuote(repository, input.quoteId, session)
+          : durableContinuation
+            ? await loadPersistedSourcedQuote(repository, input.quoteId, session)
+            : await loadUsableQuote(repository, input.quoteId, session, at)
         if (quote === "expired" || quote === "superseded") {
-          await releaseLiveHolds(repository, options.ports, session, access, at, tx)
+          if (!settling) await releaseLiveHolds(repository, options.ports, session, access, at, tx)
           return {
             status: "outcome" as const,
             outcome: {
@@ -1361,7 +1449,7 @@ export function createBookingSessionModule(
               } as const,
             }
           }
-          await releaseLiveHolds(repository, options.ports, session, access, at, tx)
+          if (!settling) await releaseLiveHolds(repository, options.ports, session, access, at, tx)
           return {
             status: "outcome" as const,
             outcome: {
@@ -1392,15 +1480,17 @@ export function createBookingSessionModule(
         }
 
         const hold = input.holdId
-          ? durableContinuation
-            ? await loadPersistedSourcedHold(repository, input.holdId, session, quote)
-            : await loadUsableHold(repository, input.holdId, session, quote, at)
+          ? settling
+            ? await loadSettledHold(repository, input.holdId, session, quote, at)
+            : durableContinuation
+              ? await loadPersistedSourcedHold(repository, input.holdId, session, quote)
+              : await loadUsableHold(repository, input.holdId, session, quote, at)
           : null
         if (
           hold === "expired" ||
           (!hold && (session.target.kind === "product" || session.target.kind === "owned_entity"))
         ) {
-          await releaseLiveHolds(repository, options.ports, session, access, at, tx)
+          if (!settling) await releaseLiveHolds(repository, options.ports, session, access, at, tx)
           return {
             status: "outcome" as const,
             outcome: {
@@ -1414,7 +1504,11 @@ export function createBookingSessionModule(
           }
         }
 
-        if (durableContinuation) {
+        // Both skip the re-quote below, for the same reason: the price this
+        // Commit rests on was already settled elsewhere — by the supplier for a
+        // durable continuation, by the shopper's captured payment for a
+        // settlement — so re-deriving it can only invent a disagreement.
+        if (durableContinuation || settling) {
           return { status: "ready" as const, session, quote, hold, at, checkoutIntent }
         }
 
@@ -1651,7 +1745,10 @@ export function createBookingSessionModule(
                 requestFingerprint,
                 bookingId,
                 allocationIds,
-                recomposeQuote: true,
+                // Never for a settlement: the shopper is still quoting behind
+                // this Commit, so re-deriving inside the transaction supersedes
+                // the very Quote the money was collected for (voyant#4636).
+                recomposeQuote: !settling,
                 tx,
                 now,
               })
@@ -1768,14 +1865,35 @@ export function createBookingSessionModule(
 
       const session = await repository.getSession(bookingSessionId)
       if (!session) throw new Error("booking_session_settlement_session_not_found")
-      const quotes = await repository.listActiveQuotes(bookingSessionId)
-      if (quotes.length !== 1) {
-        throw new Error(`booking_session_settlement_expected_one_quote:${quotes.length}`)
+
+      // What the money was actually collected for. Asking the Session for its
+      // one active Quote answers a different question — "what is this shopper
+      // looking at now" — and a shopper parked on a "confirming" screen goes on
+      // refreshing, so by the time a callback lands the active Quote is one the
+      // processor never saw, and the paid Quote has been superseded behind it
+      // (voyant#4636). Fall back to the active Quote only when the payment does
+      // not record one.
+      const established = await options.ports.payments?.describeEstablished?.({ paymentSessionId })
+      const settledQuote = established?.quoteId
+        ? await repository.getQuote(established.quoteId)
+        : null
+      if (established?.quoteId && settledQuote?.sessionId !== bookingSessionId) {
+        throw new Error(`booking_session_settlement_quote_not_found:${established.quoteId}`)
       }
-      const quote = quotes[0]!
-      const holds = await repository.listActiveHolds(bookingSessionId)
-      if (holds.length > 1) {
-        throw new Error(`booking_session_settlement_expected_at_most_one_hold:${holds.length}`)
+
+      let quote = settledQuote
+      let holdId = settledQuote ? (established?.holdId ?? null) : null
+      if (!quote) {
+        const quotes = await repository.listActiveQuotes(bookingSessionId)
+        if (quotes.length !== 1) {
+          throw new Error(`booking_session_settlement_expected_one_quote:${quotes.length}`)
+        }
+        quote = quotes[0]!
+        const holds = await repository.listActiveHolds(bookingSessionId)
+        if (holds.length > 1) {
+          throw new Error(`booking_session_settlement_expected_at_most_one_hold:${holds.length}`)
+        }
+        holdId = holds[0]?.id ?? null
       }
 
       const outcome = await bookingSessionModule.commitSession(
@@ -1784,7 +1902,7 @@ export function createBookingSessionModule(
           expectedRevision: session.revision,
           quoteId: quote.id,
           requirementsFingerprint: quote.requirementsFingerprint,
-          ...(holds[0] ? { holdId: holds[0].id } : {}),
+          ...(holdId ? { holdId } : {}),
           idempotencyKey: `payment-settlement:${paymentSessionId}`,
         },
         {
@@ -1901,6 +2019,10 @@ async function consumeCommittedSources(input: {
   await input.repository.withTransactionContext(input.tx, async () => {
     const currentAt = input.now()
     const currentSession = await input.repository.getSession(input.session.id)
+    // Re-read under the same rule the preflight used. The rows are re-loaded
+    // here because they can move between the two, which for a settlement is
+    // exactly what happens — and exactly what must not reject it (voyant#4636).
+    const settling = input.access.settlementAuthority?.admitted === true
     const persistedSourcedCommit =
       !input.recomposeQuote && currentSession?.state === "supplier_pending"
     if (currentSession?.state !== "active" && !persistedSourcedCommit) {
@@ -1911,9 +2033,11 @@ async function consumeCommittedSources(input: {
     if (!persistedSourcedCommit && currentSession.expiresAt <= currentAt) {
       throw new CommitSessionStateError("expired")
     }
-    const currentQuote = persistedSourcedCommit
-      ? await loadPersistedSourcedQuote(input.repository, input.quote.id, currentSession)
-      : await loadUsableQuote(input.repository, input.quote.id, currentSession, currentAt)
+    const currentQuote = settling
+      ? await loadSettledQuote(input.repository, input.quote.id, currentSession)
+      : persistedSourcedCommit
+        ? await loadPersistedSourcedQuote(input.repository, input.quote.id, currentSession)
+        : await loadUsableQuote(input.repository, input.quote.id, currentSession, currentAt)
     if (currentQuote === "expired") {
       throw new CommitOutcomeError({
         kind: "quote_failure",
@@ -1930,20 +2054,28 @@ async function consumeCommittedSources(input: {
     }
     let currentHold: BookingHoldInternalRecord | null = null
     if (input.hold) {
-      const loaded = persistedSourcedCommit
-        ? await loadPersistedSourcedHold(
-            input.repository,
-            input.hold.id,
-            currentSession,
-            currentQuote,
-          )
-        : await loadUsableHold(
+      const loaded = settling
+        ? await loadSettledHold(
             input.repository,
             input.hold.id,
             currentSession,
             currentQuote,
             currentAt,
           )
+        : persistedSourcedCommit
+          ? await loadPersistedSourcedHold(
+              input.repository,
+              input.hold.id,
+              currentSession,
+              currentQuote,
+            )
+          : await loadUsableHold(
+              input.repository,
+              input.hold.id,
+              currentSession,
+              currentQuote,
+              currentAt,
+            )
       if (loaded === "expired") {
         throw new CommitOutcomeError({
           kind: "hold_failure",
@@ -2018,6 +2150,7 @@ async function consumeCommittedSources(input: {
       outcome,
       bookingId: input.bookingId,
       now: currentAt,
+      ...(settling ? { settling } : {}),
     })
     if (input.paymentSessionId && input.ports.payments) {
       await input.ports.payments.transferToBooking({
@@ -2078,6 +2211,9 @@ async function consumeCompositeCommittedSources(input: {
   await input.repository.withTransactionContext(input.tx, async () => {
     const currentAt = input.now()
     const currentSession = await input.repository.getSession(input.session.id)
+    // Same rule as the single-Booking path: a settlement re-reads the rows the
+    // payment names, not the ones the shopper has moved on to (voyant#4636).
+    const settling = input.access.settlementAuthority?.admitted === true
     const continuing =
       currentSession?.state === "supplier_pending" || currentSession?.state === "component_pending"
     if (currentSession?.state !== "active" && !continuing) {
@@ -2088,9 +2224,11 @@ async function consumeCompositeCommittedSources(input: {
     if (!continuing && currentSession.expiresAt <= currentAt) {
       throw new CommitSessionStateError("expired")
     }
-    const currentQuote = continuing
-      ? await loadPersistedSourcedQuote(input.repository, input.quote.id, currentSession)
-      : await loadUsableQuote(input.repository, input.quote.id, currentSession, currentAt)
+    const currentQuote = settling
+      ? await loadSettledQuote(input.repository, input.quote.id, currentSession)
+      : continuing
+        ? await loadPersistedSourcedQuote(input.repository, input.quote.id, currentSession)
+        : await loadUsableQuote(input.repository, input.quote.id, currentSession, currentAt)
     if (!currentQuote || currentQuote === "expired" || currentQuote === "superseded") {
       throw new CommitOutcomeError({
         kind: "quote_failure",
@@ -2104,20 +2242,28 @@ async function consumeCompositeCommittedSources(input: {
       })
     }
     const currentHold = input.hold
-      ? continuing
-        ? await loadPersistedSourcedHold(
-            input.repository,
-            input.hold.id,
-            currentSession,
-            currentQuote,
-          )
-        : await loadUsableHold(
+      ? settling
+        ? await loadSettledHold(
             input.repository,
             input.hold.id,
             currentSession,
             currentQuote,
             currentAt,
           )
+        : continuing
+          ? await loadPersistedSourcedHold(
+              input.repository,
+              input.hold.id,
+              currentSession,
+              currentQuote,
+            )
+          : await loadUsableHold(
+              input.repository,
+              input.hold.id,
+              currentSession,
+              currentQuote,
+              currentAt,
+            )
       : null
     if (currentHold === "expired" || (input.hold && !currentHold)) {
       throw new CommitOutcomeError({
@@ -2165,6 +2311,7 @@ async function consumeCompositeCommittedSources(input: {
       outcome,
       bookingId: primary.bookingId,
       now: currentAt,
+      ...(settling ? { settling } : {}),
     })
     if (input.paymentSessionId && input.ports.payments) {
       await input.ports.payments.transferToBooking({
@@ -2315,6 +2462,13 @@ async function persistCommitFailureState(
   now: Date,
   outcome: FailedCommitOutcome,
 ): Promise<void> {
+  // A failed settlement leaves the Session exactly as it found it. Tearing the
+  // Quote and Holds down is the right response to a shopper whose Commit was
+  // refused — they will quote again — but a settlement has already taken the
+  // money, and this runs on a retry path: the first attempt would strip the
+  // Hold the payment was collected for, and every retry after it would then
+  // fail for a second, self-inflicted reason (voyant#4636).
+  if (access.settlementAuthority?.admitted) return
   await repository.withSessionTransaction(sessionId, async (tx) => {
     const session = await repository.getSession(sessionId)
     if (session?.state !== "active") return
@@ -2482,6 +2636,52 @@ async function loadUsableQuote(
     return "expired"
   }
   return quote
+}
+
+/**
+ * The Quote a captured payment is settled against.
+ *
+ * Deliberately blind to `superseded` and to the Session revision, which the two
+ * live loaders both refuse. Neither says anything about this Quote: a shopper
+ * left on a "confirming" screen keeps refreshing, and every refresh supersedes
+ * the Quote behind them and bumps the revision. The row that was superseded is
+ * still the row the money was collected for, and its price is not in question —
+ * `prepare` already re-checked the captured amount against it before admitting
+ * the settlement (voyant#4636).
+ *
+ * Still refuses a Quote belonging to another Session, and still refuses an
+ * `expired` one: a Quote that timed out before the money arrived is a real
+ * failure to surface, not a race to absorb.
+ */
+async function loadSettledQuote(
+  repository: BookingSessionRepository,
+  quoteId: string,
+  session: BookingSessionInternalRecord,
+): Promise<BookingQuoteInternalRecord | "expired" | null> {
+  const quote = await repository.getQuote(quoteId)
+  if (!quote || quote.sessionId !== session.id) return null
+  if (quote.state === "expired") return "expired"
+  return quote
+}
+
+/**
+ * The Hold a captured payment is settled against. Same reasoning as
+ * {@link loadSettledQuote} for the Quote binding: the Hold was taken against
+ * the Quote the shopper paid for, which by settlement time is no longer the
+ * Session's newest. An inactive Hold is still refused — capacity is the one
+ * thing settlement may not assume.
+ */
+async function loadSettledHold(
+  repository: BookingSessionRepository,
+  holdId: string,
+  session: BookingSessionInternalRecord,
+  quote: BookingQuoteInternalRecord,
+  now: Date,
+): Promise<BookingHoldInternalRecord | "expired" | null> {
+  const hold = await repository.getHold(holdId)
+  if (!hold || hold.sessionId !== session.id || hold.quoteId !== quote.id) return null
+  if (hold.state !== "active") return hold.state === "expired" ? "expired" : null
+  return hold.expiresAt <= now ? "expired" : hold
 }
 
 async function loadPersistedSourcedQuote(

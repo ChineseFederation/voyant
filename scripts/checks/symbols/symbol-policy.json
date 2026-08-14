@@ -203,6 +203,28 @@
         "VoyantSuppliersProvider": ["packages/operator-standard/src/standard-frontend.tsx"],
         "VoyantTripsProvider": ["packages/operator-standard/src/standard-frontend.tsx"]
       }
+    },
+    "anonymous-storefront-principal-authority": {
+      "$comment": [
+        "\"anonymous-storefront\" is the userId auth mints for a storefront guest.",
+        "It means \"admitted as a public shopper\", not \"this person\", and it is the",
+        "same value for every guest on every deployment.",
+        "",
+        "It is also a non-empty string, so anything doing `if (userId)` or",
+        "\"resolve the customer for this reference\" reads it as a real, stable",
+        "identity. voyant#4637: the booking-engine checkout passed it to the",
+        "payment processor as the customer reference, which minted ONE Stripe",
+        "Customer under it and attached every subsequent guest checkout to that",
+        "same record — pooling unrelated shoppers' payment history and pinning the",
+        "first shopper's billing email on all of them.",
+        "",
+        "Three files already normalised it away and a fourth did not, which is",
+        "what a copied sentinel costs. Pinned to its single definition in",
+        "core/env.ts; every consumer goes through `identifiedUserId`."
+      ],
+      "literalsOnlyIn": {
+        "anonymous-storefront": ["packages/core/src/env.ts"]
+      }
     }
   }
 }

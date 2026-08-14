@@ -1,3 +1,4 @@
+import { ANONYMOUS_STOREFRONT_USER_ID } from "@voyant-travel/core"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 import { createProductionBookingSessionPaymentPorts } from "./sessions-payment-production.js"
@@ -246,6 +247,38 @@ describe("production Booking Session hosted-checkout initiation", () => {
     })
 
     expect(startArgs().customerReference).toBe("usr_shopper")
+  })
+
+  it("does not reference the anonymous placeholder a guest Session owns", async () => {
+    // voyant#4637. A guest Session is `actorKind: "customer"` whose principal
+    // is the placeholder auth mints for every guest on every deployment. A
+    // customer reference is a *stable customer key*: the processor mints a
+    // Customer under it on first use and matches every later checkout to that
+    // same record, so handing over a shared value pooled unrelated shoppers'
+    // payment history into one Customer and left the first shopper's billing
+    // email on all of them. Absent is the answer — an anonymous shopper pays
+    // as a guest.
+    await prepare({
+      locale: "en-GB",
+      departureDate: null,
+      actorKind: "customer",
+      ownerPrincipalId: ANONYMOUS_STOREFRONT_USER_ID,
+    })
+
+    expect(startArgs().customerReference).toBeUndefined()
+  })
+
+  it("stores no instrument for a guest, who has no customer record to hold one", async () => {
+    await prepare({
+      locale: "en-GB",
+      departureDate: null,
+      actorKind: "customer",
+      ownerPrincipalId: ANONYMOUS_STOREFRONT_USER_ID,
+      mandate: { enabled: true, revision: "v3" },
+      contractAcceptedAt: "2026-08-12T09:00:00.000Z",
+    })
+
+    expect(startArgs().storeInstrument).toBeUndefined()
   })
 
   it("does not reference the agent's principal on a staff-created Session", async () => {

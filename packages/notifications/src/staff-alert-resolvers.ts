@@ -284,12 +284,57 @@ const customerSignalCreatedResolver: StaffAlertContextResolver<"staff.customer-s
   },
 }
 
+/**
+ * Turn a dead-lettered delivery into a stranded-payment alert, or decline.
+ *
+ * `event.dead_lettered` fires for every event that exhausts its attempts, so
+ * this is the filter: only a `payment.completed` that never became a Booking
+ * means a customer has paid for nothing. Anything else is somebody else's
+ * problem and resolves to `null`.
+ *
+ * Deliberately trusts the undelivered payload rather than re-reading the
+ * payment session. The payload is what the settlement was given and it is
+ * exactly what an operator needs to find the row; re-reading would add a
+ * `notifications->finance` table reach the boundary check does not permit for
+ * a lookup this alert does not need.
+ */
+const paymentSettlementStrandedResolver: StaffAlertContextResolver<"staff.payment.settlement-stranded"> =
+  {
+    eventKey: "staff.payment.settlement-stranded",
+    async resolve({ payload }) {
+      if (asString(payload.name) !== "payment.completed") return null
+      const stranded = (payload.payload ?? {}) as Record<string, unknown>
+      const paymentSessionId = asString(stranded.paymentSessionId)
+      const amountCents = asNumber(stranded.amountCents)
+      const currency = asString(stranded.currency)
+      if (!paymentSessionId || amountCents === null || !currency) return null
+      // A `payment.completed` that already carries a Booking is not stranded —
+      // the money found its Booking and something else about the delivery
+      // failed.
+      if (asString(stranded.bookingId)) return null
+
+      return {
+        adminPath: `/finance/payments/${paymentSessionId}`,
+        assigneeUserId: null,
+        actorUserId: null,
+        paymentSessionId,
+        bookingSessionId:
+          asString(stranded.targetType) === "booking_session" ? asString(stranded.targetId) : null,
+        amount: { amountCents, currency },
+        provider: asString(stranded.provider) ?? "unknown",
+        error: asString(payload.error) ?? "unknown",
+        attempts: asNumber(payload.attempts) ?? 0,
+      }
+    },
+  }
+
 /** Every resolver, ready to register on the staff alert runtime. */
 export const staffAlertContextResolvers: StaffAlertContextResolverRegistry = {
   "staff.booking.confirmed": bookingConfirmedResolver,
   "staff.booking.cancelled": bookingCancelledResolver,
   "staff.booking.inquiry-created": bookingInquiryCreatedResolver,
   "staff.payment.completed": paymentCompletedResolver,
+  "staff.payment.settlement-stranded": paymentSettlementStrandedResolver,
   "staff.invoice.settled": invoiceSettledResolver,
   "staff.contract.signed": contractSignedResolver,
   "staff.customer-signal.created": customerSignalCreatedResolver,

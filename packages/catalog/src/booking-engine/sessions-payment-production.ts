@@ -1,4 +1,5 @@
 import type { BookingPaymentCheckoutV1 } from "@voyant-travel/catalog-contracts/booking-engine/lifecycle-conformance"
+import { identifiedUserId } from "@voyant-travel/core"
 import type { PaymentAdapter, PaymentAdapterRuntimeContext } from "@voyant-travel/finance"
 import {
   computePaymentSchedule,
@@ -6,6 +7,7 @@ import {
   expirePendingBookingSessionPayments,
   financeService,
   findEstablishedBookingSessionPayment,
+  hasInFlightBookingSessionPayment,
   noDepositPolicy,
   resolveEffectivePaymentPolicy,
   resolvePaymentCallbackUrl,
@@ -247,6 +249,21 @@ export function createProductionBookingSessionPaymentPorts(
         paymentSession: projectPaymentSession(paymentSession),
       }
     },
+    async hasInFlight({ bookingSessionId }) {
+      return hasInFlightBookingSessionPayment(deps.db, bookingSessionId)
+    },
+    async describeEstablished({ paymentSessionId }) {
+      const session = await financeService.getPaymentSessionById(deps.db, paymentSessionId)
+      if (!session) return null
+      // Written by `prepare` above, into the same metadata the idempotency key
+      // is derived from. Absent on a payment established before this was
+      // recorded, which settlement reads as "no recorded Quote" and falls back.
+      const metadata = session.metadata ?? {}
+      return {
+        quoteId: stringValue(metadata.quoteId),
+        holdId: stringValue(metadata.holdId),
+      }
+    },
     async transferToBooking({ tx, ...input }) {
       await transferBookingSessionPaymentToBooking(tx as PostgresJsDatabase, input)
     },
@@ -304,6 +321,15 @@ function formatDepartureDate(departureDate: string | null, locale: string): stri
  * customer to. Prefers the CRM person the buyer was identified as; falls back
  * to the owning principal only for a customer-actor Session, because on a
  * staff-created Session the principal is the agent, not the shopper.
+ *
+ * The principal has to survive `identifiedUserId` first. A guest Session is
+ * `actorKind: "customer"` with the anonymous placeholder as its principal, and
+ * a reference is a *stable customer key* — the provider mints a Customer under
+ * it on first use and matches every later checkout to that same record. Handing
+ * over a value every guest shares therefore pools unrelated shoppers into one
+ * Customer, keeping the first shopper's billing email on all of them
+ * (voyant#4637). Absent is the correct answer: an anonymous shopper pays as a
+ * guest, which is what the resolution contract asks for.
  */
 function customerReference(session: {
   actorKind: string
@@ -314,7 +340,7 @@ function customerReference(session: {
   const personId = stringValue(record(billing?.contact)?.personId)
   if (personId) return personId
   if (session.actorKind !== "customer") return undefined
-  return stringValue(session.ownerPrincipalId) ?? undefined
+  return identifiedUserId(session.ownerPrincipalId) ?? undefined
 }
 
 function hasStaffPaymentSchedule(payload: Record<string, unknown>): boolean {

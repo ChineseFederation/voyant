@@ -126,6 +126,12 @@ export const ANALYTICS_FAILURE_REASONS = [
   "availability_changed",
   "hold_quantity_mismatch",
   "commit_already_consumed",
+  // Worth watching rather than fixing: it means a storefront kept quoting while
+  // a processor held the shopper's money. Refusing is correct — the alternative
+  // released the seat the payment was collected for (voyant#4636) — but a
+  // storefront producing many of these is polling a Session it should be
+  // leaving alone.
+  "payment_in_flight",
   // Where a rejection carries a nested `reason`, that reason *is* the failure
   // reason: the wrapping kind says only "it did not work". The nested
   // vocabularies do not collide with each other or with the kinds above, so

@@ -7,6 +7,7 @@ import {
   BookingSessionPaymentIdempotencyConflictError,
   createOrReuseBookingSessionPayment,
   expirePendingBookingSessionPayments,
+  hasInFlightBookingSessionPayment,
   transferBookingSessionPaymentToBooking,
 } from "../../src/booking-session-payment.js"
 import { applyPaymentAdapterCallbackEvent } from "../../src/payment-adapter-events.js"
@@ -47,6 +48,62 @@ describe.skipIf(!DB_AVAILABLE)("Booking Session payment continuity", () => {
 
     expect(first?.id).toBe(retry?.id)
     await expect(db.select().from(paymentSessions)).resolves.toHaveLength(1)
+  })
+
+  it("reports a Session's money as in flight only while it can still arrive", async () => {
+    // voyant#4636: while a processor holds the shopper's money, nothing may
+    // release the Hold it was collected against — but a handoff the shopper
+    // walked away from must stop freezing the Session, or the same guard locks
+    // them out of their own checkout with nothing to wait for.
+    const base = {
+      bookingSessionId: "bses_in_flight_probe",
+      amountCents: 5_000,
+      currency: "EUR",
+    }
+    const now = new Date("2026-08-14T12:00:00.000Z")
+    const past = new Date("2026-08-14T11:00:00.000Z")
+    const future = new Date("2026-08-14T13:00:00.000Z")
+
+    const created = await createOrReuseBookingSessionPayment(db, {
+      ...base,
+      commitIdempotencyKey: "commit_in_flight_probe",
+      expiresAt: future,
+    })
+    if (!created) throw new Error("payment session not created")
+
+    // `pending` is not a handoff — nobody has been sent anywhere yet.
+    await expect(hasInFlightBookingSessionPayment(db, base.bookingSessionId, now)).resolves.toBe(
+      false,
+    )
+
+    const setStatus = async (status: string, expiresAt: Date | null) => {
+      await db
+        .update(paymentSessions)
+        .set({ status: status as never, expiresAt })
+        .where(eq(paymentSessions.id, created.id))
+    }
+
+    await setStatus("requires_redirect", future)
+    await expect(hasInFlightBookingSessionPayment(db, base.bookingSessionId, now)).resolves.toBe(
+      true,
+    )
+
+    // The shopper opened the checkout page and never came back.
+    await setStatus("requires_redirect", past)
+    await expect(hasInFlightBookingSessionPayment(db, base.bookingSessionId, now)).resolves.toBe(
+      false,
+    )
+
+    // Settled money does not lapse on a clock.
+    await setStatus("paid", past)
+    await expect(hasInFlightBookingSessionPayment(db, base.bookingSessionId, now)).resolves.toBe(
+      true,
+    )
+
+    await setStatus("failed", null)
+    await expect(hasInFlightBookingSessionPayment(db, base.bookingSessionId, now)).resolves.toBe(
+      false,
+    )
   })
 
   it("rejects a reused Commit key when the required amount or currency changed", async () => {

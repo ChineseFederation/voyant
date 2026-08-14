@@ -10,7 +10,7 @@
  */
 
 import { oauthProvider } from "@better-auth/oauth-provider"
-import type { VoyantAuthContext } from "@voyant-travel/core"
+import { ANONYMOUS_STOREFRONT_USER_ID, type VoyantAuthContext } from "@voyant-travel/core"
 import { type NodeDatabaseEnv, openNodeDatabase } from "@voyant-travel/db/runtime"
 import {
   authUser,
@@ -1214,7 +1214,7 @@ export function createOperatorAuthNodeRuntime<Env extends OperatorAuthNodeEnv>(
         if (customerSurface && customerContext?.storefrontChannel) {
           return {
             isAnonymousRequest: true,
-            userId: "anonymous-storefront",
+            userId: ANONYMOUS_STOREFRONT_USER_ID,
             organizationId: null,
             callerType: "session",
             actor: "customer",

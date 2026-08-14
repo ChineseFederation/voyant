@@ -90,6 +90,35 @@ export interface VoyantAuthContext {
   email?: string | null
 }
 
+/**
+ * The `userId` auth mints for a storefront guest.
+ *
+ * It says "admitted as a public shopper", not "this person". Auth needs *a*
+ * principal on the context to admit the request at all, so it uses a fixed
+ * placeholder — which means every guest on every deployment carries the same
+ * one.
+ *
+ * That is safe only for as long as nothing treats it as an identity. It is a
+ * non-empty string, so every `if (userId)` and every "look this customer up by
+ * reference" reads it as a real, stable person and collapses every guest into
+ * one. Pass it through {@link identifiedUserId} at any boundary that binds to a
+ * customer.
+ */
+export const ANONYMOUS_STOREFRONT_USER_ID = "anonymous-storefront"
+
+/**
+ * The user id when the request represents somebody, and `null` when it does not.
+ *
+ * Blank and the anonymous-storefront placeholder both mean "nobody in
+ * particular" and collapse to `null`, so a caller cannot accidentally bind a
+ * customer record, a stored instrument or a session owner to a shared
+ * placeholder.
+ */
+export function identifiedUserId(userId: string | null | undefined): string | null {
+  const normalized = userId?.trim()
+  return !normalized || normalized === ANONYMOUS_STOREFRONT_USER_ID ? null : normalized
+}
+
 export interface VoyantPermission {
   resource: string
   action: string

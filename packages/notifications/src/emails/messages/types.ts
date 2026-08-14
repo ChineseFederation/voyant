@@ -60,6 +60,20 @@ export interface StaffAlertEmailMessages {
     paidInFull: string
     partialPayment: string
   }
+  paymentSettlementStranded: {
+    eyebrow: string
+    subject: (amount: string) => string
+    preview: (amount: string) => string
+    headline: (amount: string) => string
+    lead: string
+    captured: string
+    action: string
+    paymentSession: string
+    bookingSession: string
+    provider: string
+    attempts: string
+    reason: string
+  }
   invoiceSettled: {
     eyebrow: string
     subject: (invoiceNumber: string) => string

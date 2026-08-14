@@ -40,6 +40,24 @@ export interface SymbolPolicy {
    * rots into a permanent false negative.
    */
   onlyIn?: Record<string, readonly string[]>
+  /**
+   * string-literal text -> the only paths allowed to write that literal, as
+   * globs or exact paths. Empty means nowhere.
+   *
+   * The `onlyIn` polarity for values that are not identifiers. A sentinel — the
+   * anonymous-storefront principal, a magic status string — has to be one
+   * constant with one definition, or every copy is a place the meaning can
+   * drift. Copies are exactly how voyant#4637 happened: three files agreed the
+   * placeholder is not a person and a fourth handed it to a payment processor
+   * as a stable customer key.
+   *
+   * Matches the literal's *text*, so it fires on the value however it is
+   * spelled or quoted, and only on real string literals — the name in a comment
+   * or in this rule file is not a copy of the constant. Like `onlyIn`, a
+   * pattern that matches nothing fails: a pin that has quietly stopped matching
+   * is indistinguishable from one that holds.
+   */
+  literalsOnlyIn?: Record<string, readonly string[]>
   /** identifier -> globs or exact paths it must not appear in. */
   absentFrom?: Record<string, readonly string[]>
   /** file -> identifiers that must be referenced in it. */
@@ -86,6 +104,22 @@ function referencesIdentifier(source: ts.SourceFile, identifier: string): boolea
   let found = false
   walk(source, (node) => {
     if (!found && ts.isIdentifier(node) && node.text === identifier) found = true
+  })
+  return found
+}
+
+/**
+ * True when the source writes `text` as a string literal — quoted or as a
+ * no-substitution template. Comments and identifiers are not literals, so
+ * naming the value in prose is not a copy of it.
+ */
+function writesStringLiteral(source: ts.SourceFile, text: string): boolean {
+  let found = false
+  walk(source, (node) => {
+    if (found) return
+    if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) {
+      if (node.text === text) found = true
+    }
   })
   return found
 }
@@ -165,6 +199,28 @@ export function checkSymbolPolicy(sources: SourceMap, policy: SymbolPolicy): str
     for (const [index, pattern] of patterns.entries()) {
       if (matched.has(index)) continue
       violations.push(`${pattern}: stale onlyIn entry — no source here references ${identifier}`)
+    }
+  }
+
+  for (const [literal, patterns] of Object.entries(policy.literalsOnlyIn ?? {})) {
+    const matchers = patterns.map(globToRegExp)
+    const matched = new Set<number>()
+    for (const [file, source] of sources) {
+      if (!writesStringLiteral(source, literal)) continue
+      const index = matchers.findIndex((matcher) => matcher.test(file))
+      if (index === -1) {
+        violations.push(
+          patterns.length === 0
+            ? `${file}: the literal "${literal}" must not appear anywhere, but is written here`
+            : `${file}: the literal "${literal}" is owned by this authority and may only be written in ${patterns.join(", ")}`,
+        )
+        continue
+      }
+      matched.add(index)
+    }
+    for (const [index, pattern] of patterns.entries()) {
+      if (matched.has(index)) continue
+      violations.push(`${pattern}: stale literalsOnlyIn entry — no source here writes "${literal}"`)
     }
   }
 
