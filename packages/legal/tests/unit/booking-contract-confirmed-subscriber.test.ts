@@ -1,12 +1,21 @@
 import type { EventEnvelope } from "@voyant-travel/core"
 import { createContainer, createEventBus } from "@voyant-travel/core"
 import { createDbClient } from "@voyant-travel/db"
-import { describe, expect, it, vi } from "vitest"
+import { beforeEach, describe, expect, it, vi } from "vitest"
 
+import {
+  generateBookingContractOnConfirmation,
+  recordUnfulfilledBookingContract,
+} from "../../src/booking-contract-confirmed.js"
 import {
   createLegalBookingContractConfirmedSubscriber,
   LEGAL_BOOKING_CONTRACT_CONFIRMED_SUBSCRIBER_ID,
 } from "../../src/booking-contract-confirmed-subscriber.js"
+
+vi.mock("../../src/booking-contract-confirmed.js", () => ({
+  generateBookingContractOnConfirmation: vi.fn(async () => ({ status: "generated" as const })),
+  recordUnfulfilledBookingContract: vi.fn(async () => ({ recorded: true })),
+}))
 
 const UNIT_DATABASE_URL = ["postgres", "://", "unit", "@", "127.0.0.1:1/unit"].join("")
 
@@ -37,6 +46,8 @@ function captureHandler() {
 }
 
 describe("Legal booking contract confirmation subscriber", () => {
+  beforeEach(() => vi.clearAllMocks())
+
   it("runs generation for every delivery and relies on the command's durable replay", async () => {
     const db = createDbClient(UNIT_DATABASE_URL, { adapter: "node" })
     const resolveDb = vi.fn(async () => db)
@@ -58,6 +69,25 @@ describe("Legal booking contract confirmation subscriber", () => {
       db,
       event: confirmed,
     })
+  })
+
+  // voyant#4634: this used to be a bare `return`, so a deployment that had
+  // never once generated a contract looked exactly like one that always does.
+  it("records the unfulfilled contract when the graph selected no renderer", async () => {
+    const db = createDbClient(UNIT_DATABASE_URL, { adapter: "node" })
+    const { eventBus, handler } = captureHandler()
+    const descriptor = createLegalBookingContractConfirmedSubscriber({
+      resolveDb: async () => db,
+    })
+    await descriptor.register({ bindings: {}, container: createContainer(), eventBus })
+
+    await handler()?.(confirmed)
+
+    expect(recordUnfulfilledBookingContract).toHaveBeenCalledWith(db, {
+      event: confirmed,
+      reason: "document_renderer_unavailable",
+    })
+    expect(generateBookingContractOnConfirmation).not.toHaveBeenCalled()
   })
 
   it("lets durable delivery observe generation failures", async () => {

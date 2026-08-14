@@ -32,8 +32,23 @@ if (TEST_DATABASE_URL) {
 
 describe.skipIf(!DB_AVAILABLE)("event outbox", () => {
   const db = createTestDb()
+  /**
+   * Whether this file created `event_outbox` rather than finding it.
+   *
+   * Standalone this suite runs against a bare database and cleans up after
+   * itself. In CI's `db-integration` lane it runs against a migrated one, where
+   * the table is real and every later test in the lane emits through it — so an
+   * unconditional `DROP TABLE` takes the outbox out from under them, which is
+   * exactly what happened when this file was first added to that lane. Drop
+   * only what we created.
+   */
+  let createdTable = false
 
   beforeAll(async () => {
+    const existing = await db.execute(
+      sql`SELECT to_regclass('public.event_outbox')::text AS "tableName"`,
+    )
+    createdTable = existing[0]?.tableName == null
     await db.execute(/* sql */ `
       CREATE TABLE IF NOT EXISTS "event_outbox" (
         "id" text PRIMARY KEY,
@@ -68,6 +83,7 @@ describe.skipIf(!DB_AVAILABLE)("event outbox", () => {
   })
 
   afterAll(async () => {
+    if (!createdTable) return
     await db.execute(/* sql */ `DROP TABLE IF EXISTS "event_outbox"`)
   })
 
@@ -310,6 +326,33 @@ describe.skipIf(!DB_AVAILABLE)("event outbox", () => {
       const stats = await getOutboxStats(db)
       expect(stats.pending).toBe(1)
       errorSpy.mockRestore()
+    })
+
+    // voyant#4634: a tenant outbox showed `booking.contract_document.requested`
+    // delivered, attempts 1, no error — while nothing in the repository
+    // subscribed to it. `Promise.all([])` resolves to `[]`, so "consumed by
+    // every subscriber" and "consumed by nobody" were the same recorded row.
+    it("names the events it delivered to nobody", async () => {
+      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {})
+      const bus = createEventBus()
+      bus.subscribe("heard", vi.fn())
+      await insertOutboxEvents(db, [
+        { name: "heard", data: {}, metadata: { eventId: "evt_heard" } },
+        { name: "unheard", data: {}, metadata: { eventId: "evt_unheard_1" } },
+        { name: "unheard", data: {}, metadata: { eventId: "evt_unheard_2" } },
+      ])
+
+      const result = await drainOutbox(db, bus)
+
+      // Still delivered — the point is that the count now says so out loud.
+      expect(result).toMatchObject({
+        claimed: 3,
+        delivered: 3,
+        unconsumed: 2,
+        unconsumedEventTypes: ["unheard"],
+      })
+      expect((await getOutboxStats(db)).delivered).toBe(3)
+      warnSpy.mockRestore()
     })
 
     it("returns an empty result when nothing is due", async () => {

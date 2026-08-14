@@ -56,6 +56,18 @@ export interface DrainOutboxResult {
   batches: number
   durationMs: number
   budgetExhausted: boolean
+  /**
+   * The distinct event names behind `unconsumed`, so the count names the
+   * events rather than only sizing the silence. Bounded by the event types in
+   * one drain, not by row count.
+   *
+   * voyant#4634: a checked-in tenant outbox showed
+   * `booking.contract_document.requested` delivered with 0 errors while
+   * nothing in the repository subscribed to it. The per-row warning names it
+   * in the log; this puts the same names on the drain's own result, which is
+   * what the drain job reports.
+   */
+  unconsumedEventTypes: string[]
 }
 
 export {
@@ -274,7 +286,9 @@ export async function drainOutbox(
     batches: 0,
     durationMs: 0,
     budgetExhausted: false,
+    unconsumedEventTypes: [],
   }
+  const unconsumedEventTypes = new Set<string>()
 
   while (result.batches < maxBatches && result.claimed < maxEvents) {
     if (Date.now() >= claimDeadline) {
@@ -322,6 +336,7 @@ export async function drainOutbox(
         result.delivered += 1
         if (attempted === 0) {
           result.unconsumed += 1
+          unconsumedEventTypes.add(envelope.name)
           console.warn(
             `[outbox] "${envelope.name}" has no subscriber; delivered to nobody (${row.id})`,
           )
@@ -371,6 +386,7 @@ export async function drainOutbox(
 
   result.budgetExhausted ||=
     result.claimed >= maxEvents || result.batches >= maxBatches || Date.now() >= claimDeadline
+  result.unconsumedEventTypes = [...unconsumedEventTypes].sort()
   result.durationMs = Date.now() - startedAt
   return result
 }

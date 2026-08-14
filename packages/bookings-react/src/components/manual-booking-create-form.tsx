@@ -76,6 +76,7 @@ import {
   type BookingCreateExtraLineInput,
   type BookingCreateGroupMembershipInput,
   type BookingCreateTravelCreditRedemptionInput,
+  useBookingContractGenerationCapability,
   usePricingPreview,
 } from "../index.js"
 import { describeUnsatisfiedRequirements } from "../journey/lib/unsatisfied-requirements.js"
@@ -626,6 +627,34 @@ export function clearUnblockedManualBookingError(
   return previous?.blocksSubmit ? null : previous
 }
 
+/**
+ * The documents this booking asks the server to produce, given what the
+ * deployment can actually produce.
+ *
+ * voyant#4634: `contractAvailable` is optimistic — the capability query answers
+ * after the form has already rendered, so the contract box can be ticked before
+ * the deployment says it has no customer contract template. Disabling the
+ * control at that point is not enough: the tick is still standing and the
+ * request would still carry `contractDocument: true`, which is the same silent
+ * drop this change exists to end. The selection is therefore resolved here,
+ * from the same value the checkbox renders.
+ */
+export function resolveManualBookingDocumentGeneration(input: {
+  generateProforma: boolean
+  generateInvoiceAndContract: boolean
+  contractAvailable: boolean
+}):
+  | { contractDocument: boolean; invoiceDocument: true; invoiceType: "proforma" | "invoice" }
+  | { contractDocument: false; invoiceDocument: false } {
+  if (input.generateProforma) {
+    return { contractDocument: false, invoiceDocument: true, invoiceType: "proforma" }
+  }
+  if (input.generateInvoiceAndContract && input.contractAvailable) {
+    return { contractDocument: true, invoiceDocument: true, invoiceType: "invoice" }
+  }
+  return { contractDocument: false, invoiceDocument: false }
+}
+
 export function ManualBookingCreateForm({
   defaultProductId,
   defaultSlotId,
@@ -679,6 +708,17 @@ export function ManualBookingCreateForm({
     setGenerateInvoiceAndContractState(next)
     if (next) setGenerateProformaState(false)
   }
+  // voyant#4634: the contract half of this option is only real where the
+  // deployment can render one. It used to be offered unconditionally and drop
+  // the contract in silence.
+  const contractGeneration = useBookingContractGenerationCapability()
+  // The capability is optimistic while it resolves, so the box can be ticked
+  // before the deployment answers that it cannot honour it — and a `disabled`
+  // that arrives afterwards leaves the tick standing and still submits it.
+  // Derived rather than cleared in an effect so the checkbox and the request
+  // read the same value and cannot disagree for a render.
+  const generateInvoiceAndContractSelected =
+    generateInvoiceAndContract && contractGeneration.available
   const [notifyTraveler, setNotifyTraveler] = React.useState(true)
   const [contact, setContact] = React.useState({
     firstName: "",
@@ -1721,11 +1761,11 @@ export function ManualBookingCreateForm({
       paymentSchedules: paymentRows.length > 0 ? paymentRows : undefined,
       travelCreditRedemption,
       groupMembership,
-      documentGeneration: generateProforma
-        ? { contractDocument: false, invoiceDocument: true, invoiceType: "proforma" as const }
-        : generateInvoiceAndContract
-          ? { contractDocument: true, invoiceDocument: true, invoiceType: "invoice" as const }
-          : { contractDocument: false, invoiceDocument: false },
+      documentGeneration: resolveManualBookingDocumentGeneration({
+        generateProforma,
+        generateInvoiceAndContract,
+        contractAvailable: contractGeneration.available,
+      }),
       suppressNotifications: !notifyTraveler ? true : undefined,
       allowDuplicate: false,
       ...contactPayload,
@@ -2126,18 +2166,30 @@ export function ManualBookingCreateForm({
                     {messages.bookingCreateDialog.labels.generateProforma}
                   </Label>
                 </div>
-                <div className="flex items-center gap-2 text-sm">
-                  <Checkbox
-                    id="manual-booking-generate-invoice-and-contract"
-                    checked={generateInvoiceAndContract}
-                    onCheckedChange={(value) => setGenerateInvoiceAndContract(value === true)}
-                  />
-                  <Label
-                    htmlFor="manual-booking-generate-invoice-and-contract"
-                    className="cursor-pointer"
-                  >
-                    {messages.bookingCreateDialog.labels.generateInvoiceAndContract}
-                  </Label>
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-center gap-2 text-sm">
+                    <Checkbox
+                      id="manual-booking-generate-invoice-and-contract"
+                      checked={generateInvoiceAndContractSelected}
+                      disabled={!contractGeneration.available}
+                      onCheckedChange={(value) => setGenerateInvoiceAndContract(value === true)}
+                    />
+                    <Label
+                      htmlFor="manual-booking-generate-invoice-and-contract"
+                      className={
+                        contractGeneration.available
+                          ? "cursor-pointer"
+                          : "cursor-not-allowed text-muted-foreground"
+                      }
+                    >
+                      {messages.bookingCreateDialog.labels.generateInvoiceAndContract}
+                    </Label>
+                  </div>
+                  {contractGeneration.available ? null : (
+                    <p className="pl-6 text-muted-foreground text-xs">
+                      {messages.bookingCreateDialog.labels.generateInvoiceAndContractUnavailable}
+                    </p>
+                  )}
                 </div>
                 <div className="flex items-start gap-2 border-t pt-2 text-sm">
                   <Checkbox

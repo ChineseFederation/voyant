@@ -258,6 +258,8 @@ export const bookingsUiEnCreateList = {
       generateInvoiceDocument: "Generate invoice document",
       generateProforma: "Generate proforma",
       generateInvoiceAndContract: "Generate invoice and contract",
+      generateInvoiceAndContractUnavailable:
+        "No customer contract template is active, so no contract can be generated. Add one under Legal → Templates first.",
       breakdownHeading: "Price breakdown",
       breakdownTotal: "Total",
       breakdownOnRequest: "On request",

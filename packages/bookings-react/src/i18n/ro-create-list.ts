@@ -260,6 +260,8 @@ export const bookingsUiRoCreateList = {
       generateInvoiceDocument: "Genereaza factura",
       generateProforma: "Genereaza proforma",
       generateInvoiceAndContract: "Genereaza factura si contract",
+      generateInvoiceAndContractUnavailable:
+        "Niciun sablon de contract pentru clienti nu este activ, deci nu se poate genera niciun contract. Adauga unul in Legal → Sabloane.",
       breakdownHeading: "Descompunere pret",
       breakdownTotal: "Total",
       breakdownOnRequest: "La cerere",

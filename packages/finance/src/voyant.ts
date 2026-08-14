@@ -36,7 +36,6 @@ import {
 } from "./runtime-port.js"
 import { financeVoyantAdmin } from "./voyant-admin.js"
 import {
-  bookingContractDocumentRequestedPayloadSchema,
   bookingCreatedPayloadSchema,
   bookingPaymentSchedulePaidPayloadSchema,
   invoiceDocumentGeneratedPayloadSchema,
@@ -298,14 +297,6 @@ export const financeVoyantModule = defineModule({
       eventType: "booking.created",
       version: "1.0.0",
       payloadSchema: bookingCreatedPayloadSchema,
-      visibility: "internal",
-      audit: { sourceModule: "finance", category: "domain" },
-    },
-    {
-      id: "@voyant-travel/finance#event.booking.contract-document.requested",
-      eventType: "booking.contract_document.requested",
-      version: "1.0.0",
-      payloadSchema: bookingContractDocumentRequestedPayloadSchema,
       visibility: "internal",
       audit: { sourceModule: "finance", category: "domain" },
     },

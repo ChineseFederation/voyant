@@ -193,6 +193,15 @@ export async function generateBookingContractOnConfirmation(
     if (prepared.status === "already_generated") {
       await promotePaidAcceptedBookingContract(input.db, prepared.contractId, input.eventBus)
     }
+    if (prepared.status === "skipped" && prepared.reason !== "booking_not_found") {
+      await recordUnfulfilledBookingContract(input.db, {
+        event: input.event,
+        reason: prepared.reason,
+        ...(prepared.missingPrerequisites
+          ? { missingPrerequisites: prepared.missingPrerequisites }
+          : {}),
+      })
+    }
     return prepared
   }
   const result = await engine.run(input.db, prepared.operationId)
@@ -212,6 +221,135 @@ export async function generateBookingContractOnConfirmation(
         operationId: prepared.operationId,
         replayed: prepared.replayed,
       }
+}
+
+/**
+ * Why a booking that was confirmed did not end up with a customer contract.
+ *
+ * `document_renderer_unavailable` is the subscriber's own case — the resolved
+ * graph selected no artifact provider, so generation never started. The rest
+ * are the outcomes `prepareBookingContractTarget` returns before a contract row
+ * exists, which is why the booking's Documents tab is empty rather than showing
+ * a contract stuck in draft.
+ */
+export type UnfulfilledBookingContractReason =
+  | Exclude<
+      Extract<BookingContractConfirmationResult, { status: "skipped" }>["reason"],
+      "booking_not_found"
+    >
+  | "document_renderer_unavailable"
+
+const UNFULFILLED_BOOKING_CONTRACT_SUMMARIES: Record<UnfulfilledBookingContractReason, string> = {
+  document_renderer_unavailable:
+    "No customer contract was generated: this deployment selected no legal document renderer, so nothing can produce the PDF.",
+  template_not_found:
+    "No customer contract was generated: no active customer contract template applies to this booking's language and channel.",
+  template_version_missing:
+    "No customer contract was generated: the applicable customer contract template has no current version.",
+  series_not_found:
+    "No customer contract was generated: no active customer contract number series is configured.",
+  contract_not_mutable:
+    "No customer contract was generated: the draft contract for this booking could not be written.",
+  missing_prerequisites:
+    "No customer contract was generated: the booking does not yet satisfy the contract's prerequisites.",
+}
+
+/**
+ * Record one ledgered, booking-scoped failure for a contract the deployment
+ * implied it would produce and did not.
+ *
+ * voyant#4634: every one of these paths used to be a bare `return`. An operator
+ * ticked "Generate invoice and contract", got the invoice, and had no signal
+ * anywhere — not in the UI, not in the action ledger, not in the activity
+ * timeline — that the contract half had been dropped; the absence surfaced when
+ * the customer asked where their contract was. A `failed` entry against the
+ * generation action puts it on the booking's own timeline, and the reason
+ * travels on the mutation detail for whoever reads the entry.
+ *
+ * Keyed per booking AND per reason, so redelivery replays instead of appending,
+ * while a later confirmation that fails differently still records. The
+ * fingerprint carries exactly what the key carries — booking and reason — and
+ * nothing that varies per delivery. `missingPrerequisites` can shift between
+ * deliveries of the same reason, and the source event id is a fresh value on
+ * every emission: `bookingsService.overrideBookingStatus` re-emits
+ * `booking.confirmed` when a booking is corrected back to confirmed — and
+ * durable redelivery is not the only replay — so a second confirmation
+ * would arrive under the same key with a moved fingerprint and make
+ * `appendEntry` throw instead of replaying — which in durable delivery is a
+ * retry loop ending in a dead letter, not an idempotent no-op. The event id
+ * still travels, on the entry's `correlationId`, where it does not key anything.
+ */
+export async function recordUnfulfilledBookingContract(
+  db: PostgresJsDatabase,
+  input: {
+    event: LegalBookingConfirmedEvent
+    reason: UnfulfilledBookingContractReason
+    missingPrerequisites?: readonly string[]
+  },
+): Promise<{ recorded: boolean }> {
+  const bookingId = input.event.data.bookingId
+  const booking = await bookingsService.getBookingById(db, bookingId)
+  // A confirmation for a booking that is gone has nothing to surface on.
+  if (!booking) return { recorded: false }
+
+  const sourceEventId = resolveSourceEventId(input.event)
+  const commandPayload = { bookingId, reason: input.reason }
+  const idempotencyKey = `booking-confirmed-unfulfilled:${bookingId}:${input.reason}`
+  const idempotencyFingerprint = await buildActionApprovalCommandFingerprint({
+    actionName: LEGAL_BOOKING_CONTRACT_CONFIRMED_ACTION_ID,
+    actionVersion: "v1",
+    targetType: "booking",
+    targetId: bookingId,
+    commandInput: commandPayload,
+    approvalPolicy: "none",
+    capabilityId: LEGAL_BOOKING_CONTRACT_CONFIRMED_ACTION_ID,
+    capabilityVersion: "v1",
+    evaluatedRisk: "high",
+    reasonCode: input.reason,
+  })
+  const idempotencyScope = await buildExistingTargetIdempotencyScope({
+    actionName: LEGAL_BOOKING_CONTRACT_CONFIRMED_ACTION_ID,
+    actionVersion: "v1",
+    principalType: "system",
+    principalId: SYSTEM_PRINCIPAL_ID,
+    organizationId: booking.organizationId,
+  })
+  const missing = input.missingPrerequisites?.length
+    ? ` Missing: ${input.missingPrerequisites.join(", ")}.`
+    : ""
+
+  await actionLedgerService.appendEntry(
+    db,
+    buildActionLedgerMutationEntryInput({
+      context: {
+        userId: SYSTEM_PRINCIPAL_ID,
+        actor: "system",
+        callerType: "internal",
+        isInternalRequest: true,
+        organizationId: booking.organizationId,
+        correlationId: sourceEventId,
+      },
+      actionName: LEGAL_BOOKING_CONTRACT_CONFIRMED_ACTION_ID,
+      actionVersion: "v1",
+      actionKind: "execute",
+      status: "failed",
+      evaluatedRisk: "high",
+      targetType: "booking",
+      targetId: bookingId,
+      routeOrToolName: BOOKING_CONFIRMED_EVENT_ID,
+      capabilityId: LEGAL_BOOKING_CONTRACT_CONFIRMED_ACTION_ID,
+      capabilityVersion: "v1",
+      authorizationSource: "selected_graph_event",
+      idempotencyScope,
+      idempotencyKey,
+      idempotencyFingerprint,
+      mutationDetail: {
+        summary: `${UNFULFILLED_BOOKING_CONTRACT_SUMMARIES[input.reason]}${missing}`,
+        reversalKind: "none",
+      },
+    }),
+  )
+  return { recorded: true }
 }
 
 async function prepareBookingContractTarget(

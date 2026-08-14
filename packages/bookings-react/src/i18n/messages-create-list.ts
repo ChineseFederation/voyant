@@ -248,6 +248,12 @@ export type BookingsUiCreateListMessages = {
       generateProforma: string
       /** Mutually exclusive with `generateProforma`. */
       generateInvoiceAndContract: string
+      /**
+       * Shown in place of the contract option when the deployment has no
+       * customer contract template to render, so ticking it could only ever
+       * produce the invoice half. See voyant#4634.
+       */
+      generateInvoiceAndContractUnavailable: string
       breakdownHeading: string
       breakdownTotal: string
       breakdownOnRequest: string

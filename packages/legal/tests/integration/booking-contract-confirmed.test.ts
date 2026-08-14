@@ -1,4 +1,4 @@
-import { actionLedgerEntries } from "@voyant-travel/action-ledger/schema"
+import { actionLedgerEntries, actionMutationDetails } from "@voyant-travel/action-ledger/schema"
 import { bookingItems, bookings, bookingTravelers } from "@voyant-travel/bookings/schema"
 import { createEventBus } from "@voyant-travel/core"
 import { createDbClient } from "@voyant-travel/db"
@@ -302,5 +302,82 @@ describe.skipIf(!DB_AVAILABLE)("booking-confirmed contract generation", () => {
         .from(contractSignatures)
         .where(eq(contractSignatures.contractId, contractRows[0]!.id)),
     ).toHaveLength(1)
+  })
+
+  // voyant#4634: with no template to render, generation used to return a
+  // `skipped` result the subscriber threw away. The booking ended up with no
+  // contract, no contract row, an empty Documents tab, and nothing in the
+  // action ledger — indistinguishable from a deployment where it works.
+  it("records a failed ledger entry when no template can produce the contract", async () => {
+    const [booking] = await db
+      .insert(bookings)
+      .values({
+        bookingNumber: "BK-AUTO-CONTRACT-2",
+        status: "confirmed",
+        contactFirstName: "Ana",
+        contactLastName: "Pop",
+        contactEmail: "ana@example.test",
+        contactPreferredLanguage: "en",
+        sellCurrency: "EUR",
+        sellAmountCents: 120_00,
+        startDate: "2026-09-01",
+        endDate: "2026-09-07",
+        pax: 2,
+      })
+      .returning()
+
+    const eventBus = createEventBus({ handlerTimeoutMs: false })
+    await createLegalBookingContractConfirmedSubscriber({
+      resolveDb: async () => db,
+      provider: provider(),
+    }).register({ bindings: {}, container: {} as never, eventBus })
+    const payload: LegalBookingConfirmedPayload = {
+      bookingId: booking!.id,
+      bookingNumber: booking!.bookingNumber,
+      actorId: null,
+    }
+    const metadata = {
+      eventId: `evt_finance_booking_confirmed_${booking!.id}`,
+      category: "domain" as const,
+      source: "service" as const,
+    }
+
+    await eventBus.emit("booking.confirmed", payload, metadata)
+    // Redelivery must replay the entry rather than append a second one.
+    await eventBus.emit("booking.confirmed", payload, metadata)
+    // And so must a *fresh* confirmation of the same booking failing the same
+    // way — `overrideBookingStatus` re-emits `booking.confirmed` on a
+    // correction back to confirmed, with a new event id. That id must not
+    // reach the fingerprint: the key is booking-and-reason, so a fingerprint
+    // that moved under it would throw instead of replaying, and durable
+    // delivery would retry a legitimate confirmation into a dead letter.
+    await eventBus.emit("booking.confirmed", payload, {
+      ...metadata,
+      eventId: `evt_finance_booking_reconfirmed_${booking!.id}`,
+    })
+
+    const ledgerRows = await db
+      .select()
+      .from(actionLedgerEntries)
+      .where(eq(actionLedgerEntries.targetId, booking!.id))
+    expect(ledgerRows).toHaveLength(1)
+    expect(ledgerRows[0]).toMatchObject({
+      actionName: LEGAL_BOOKING_CONTRACT_CONFIRMED_ACTION_ID,
+      targetType: "booking",
+      targetId: booking!.id,
+      principalType: "system",
+      status: "failed",
+      authorizationSource: "selected_graph_event",
+      idempotencyKey: `booking-confirmed-unfulfilled:${booking!.id}:template_not_found`,
+    })
+    expect(
+      await db
+        .select()
+        .from(actionMutationDetails)
+        .where(eq(actionMutationDetails.actionId, ledgerRows[0]!.id)),
+    ).toMatchObject([{ summary: expect.stringContaining("no active customer contract template") }])
+    expect(
+      await db.select().from(contracts).where(eq(contracts.bookingId, booking!.id)),
+    ).toHaveLength(0)
   })
 })

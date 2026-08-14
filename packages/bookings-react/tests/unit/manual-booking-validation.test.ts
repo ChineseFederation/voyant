@@ -7,6 +7,7 @@ import {
   formatManualBookingAmount,
   manualBookingTravelersToRows,
   normalizeCatalogBookingSlot,
+  resolveManualBookingDocumentGeneration,
   resolveManualBookingPricing,
   resolveSourcedOptionUnits,
   resolveSourcedProductOptions,
@@ -511,5 +512,52 @@ describe("manual booking error banner lifecycle (#4588)", () => {
 
     expect(clearUnblockedManualBookingError(recoverable, false)).toBe(recoverable)
     expect(clearUnblockedManualBookingError(null, false)).toBeNull()
+  })
+})
+
+// voyant#4634: "Generate invoice and contract" produced an invoice and no
+// contract, silently, on a deployment with no customer contract template.
+describe("manual booking document generation (#4634)", () => {
+  it("asks for a contract when the deployment can produce one", () => {
+    expect(
+      resolveManualBookingDocumentGeneration({
+        generateProforma: false,
+        generateInvoiceAndContract: true,
+        contractAvailable: true,
+      }),
+    ).toEqual({ contractDocument: true, invoiceDocument: true, invoiceType: "invoice" })
+  })
+
+  it("does not ask for a contract ticked before the deployment answered it cannot", () => {
+    // The capability query is optimistic while it resolves, so the box can be
+    // ticked and only then answered with a 404. Disabling the control at that
+    // point leaves the tick standing; the request must not carry it.
+    expect(
+      resolveManualBookingDocumentGeneration({
+        generateProforma: false,
+        generateInvoiceAndContract: true,
+        contractAvailable: false,
+      }),
+    ).toEqual({ contractDocument: false, invoiceDocument: false })
+  })
+
+  it("keeps the proforma option independent of contract capability", () => {
+    expect(
+      resolveManualBookingDocumentGeneration({
+        generateProforma: true,
+        generateInvoiceAndContract: false,
+        contractAvailable: false,
+      }),
+    ).toEqual({ contractDocument: false, invoiceDocument: true, invoiceType: "proforma" })
+  })
+
+  it("asks for nothing when neither option is selected", () => {
+    expect(
+      resolveManualBookingDocumentGeneration({
+        generateProforma: false,
+        generateInvoiceAndContract: false,
+        contractAvailable: true,
+      }),
+    ).toEqual({ contractDocument: false, invoiceDocument: false })
   })
 })

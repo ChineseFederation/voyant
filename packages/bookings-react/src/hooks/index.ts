@@ -70,6 +70,10 @@ export {
   useBookingTaxPreview,
 } from "./use-booking-tax-preview.js"
 export { type UseBookingsOptions, useBookings } from "./use-bookings.js"
+export {
+  type BookingContractGenerationCapability,
+  useBookingContractGenerationCapability,
+} from "./use-contract-generation-capability.js"
 export { type UsePricingPreviewOptions, usePricingPreview } from "./use-pricing-preview.js"
 export { type UseRevealTravelerOptions, useRevealTraveler } from "./use-reveal-traveler.js"
 export {

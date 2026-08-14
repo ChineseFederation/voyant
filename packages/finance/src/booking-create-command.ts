@@ -220,22 +220,11 @@ async function insertBookingCreatedOutbox(
       eventId: `evt_finance_booking_confirmed_${result.booking.id}`,
     },
   })
-  if (command.documentGeneration?.contractDocument) {
-    events.push({
-      name: "booking.contract_document.requested",
-      data: {
-        bookingId: result.booking.id,
-        bookingNumber: result.booking.bookingNumber,
-        createdByUserId: context.userId ?? null,
-        occurredAt: new Date(),
-      },
-      metadata: {
-        category: "internal",
-        source: "service",
-        eventId: `evt_finance_booking_contract_requested_${result.booking.id}`,
-      },
-    })
-  }
+  // voyant#4634: `booking.contract_document.requested` was pushed here when the
+  // operator ticked "Generate invoice and contract", and nothing ever
+  // subscribed to it. Legal generates the contract off `booking.confirmed`
+  // above, so the request event was retired rather than given a second trigger
+  // for the same idempotent operation. See scripts/checks/symbols.
   await insertOutboxEvents(tx, events)
 }
 

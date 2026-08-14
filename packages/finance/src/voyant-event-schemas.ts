@@ -526,18 +526,6 @@ export const bookingCreateRejectedPayloadSchema = {
   additionalProperties: false,
 } as const
 
-export const bookingContractDocumentRequestedPayloadSchema = {
-  type: "object",
-  required: ["bookingId", "bookingNumber", "createdByUserId", "occurredAt"],
-  properties: {
-    bookingId: { type: "string" },
-    bookingNumber: { type: "string" },
-    createdByUserId: nullableStringSchema,
-    occurredAt: { type: "string", format: "date-time" },
-  },
-  additionalProperties: false,
-} as const
-
 export const bookingPaymentSchedulePaidPayloadSchema = {
   type: "object",
   required: [
