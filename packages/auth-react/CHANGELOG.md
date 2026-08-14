@@ -1,5 +1,69 @@
 # @voyant-travel/auth-react
 
+## 0.155.0
+
+### Minor Changes
+
+- df9f45b: Provision the Direct channel, and let the public surface resolve to it without being configured.
+
+  Publication is default-deny per channel and every public catalog read resolves a channel before it answers, so serving your own website meant hand-creating a row in `channels` — a table of commercial counterparties, sitting next to `suppliers`, carrying contracts, rate limits and contact projections — that represents yourself, then binding a storefront to it. Nothing provisioned that row on an ongoing basis: a one-shot setup cutover backfilled the storefronts that existed when it ran, and every storefront created afterwards got a 403 on `/settings`, `/departures/*`, `/products/*`, `/offers/*`, `/leads`, `/newsletter/*`, on the anonymous booking-session routes, and on checkout start.
+
+  `channels` now carries a `system_key`, and a migration provisions exactly one row marked `direct`. It adopts before it inserts — the cutover's own `chan_storefront_direct` row first, then the oldest active `direct` channel — because publication rules and storefront bindings are keyed by channel id, and a fresh row beside an existing one would silently unpublish everything already published.
+
+  A storefront with no explicit binding now resolves to that channel instead of to nothing, and so does one whose explicitly bound channel has gone inactive. `StorefrontChannelBindingDto` gains `implicit`, so an admin surface can show the default as a default; clearing a binding means "back to Direct" rather than "off the air". A binding that names another channel still wins, so `affiliate` / `reseller` / `api_partner` keep working.
+
+  The system channel cannot be deleted or moved off `active` through the API (409, not a 404 that reads like the row is gone), and its `kind` is fixed; its name and contact details stay the operator's to edit. `GET /v1/admin/distribution/channels` takes `system=include|exclude|only`, defaulting to `include` — publication and product-mapping pickers read that endpoint and must still be able to target Direct. Only the Distribution counterparty list passes `exclude`.
+
+  Batch update and batch delete now isolate failures per id rather than rejecting the whole batch when one id is refused.
+
+  The storefront admin's channel section stops warning about something that is no longer true. It said "Default-deny is enforced: customer requests are rejected until this storefront is bound to an active channel", in an amber alert, and offered "Clear binding" with a confirmation warning that customer API access would be denied. It now states the default plainly, shows "Publishing to Direct (default)" for an implicit binding, and the clear action reads "Use Direct" and is disabled when Direct is already what you have.
+
+- 36f3085: Enforce the PK/SK capability line on the public API, and give secret keys scopes.
+
+  `vpk_`/`vsk_` existed at issuance, in storage and on an admin label, and nothing
+  branched on them for authorization: no route required a secret key and none was
+  denied to a publishable one, so a leaked `vpk_` could commit bookings and open
+  payment sessions — bounded only by an `Origin` header, which any non-browser
+  client sets freely.
+
+  - Every `/v1/public/*` API bundle now declares `publishable` (and
+    `guardedIntake`, for routes that capture person data with nothing challenging
+    the submitter). One middleware enforces it, and **an undeclared route is
+    secret-key-only** — silence is a denial, not an omission.
+  - Every published operation carries `x-voyant-key-kind: publishable | secret`,
+    derived from the same declaration the middleware reads.
+  - Origin handling is split by kind: a publishable key still requires an origin
+    (it is the only thing narrowing where a browser-resident credential may be
+    used); a secret key no longer does, so a genuine server-to-server caller can
+    use the API without a BFF forwarding a synthetic header. An origin that IS
+    presented is still checked, whichever kind sent it. Dynamic CORS applies to
+    the publishable path only.
+  - A secret key now authenticates `/v1/admin/*` and carries a scope grant in the
+    deployment's own access-catalog vocabulary, defaulting to a commerce-shaped
+    set at mint. `{"*": ["*"]}` is an explicit opt-in and is called out in the
+    admin surface.
+  - The `voy_` deployment API key on `/v1/admin/*` is deprecated. It still works
+    and now logs on use; close the window with
+    `VOYANT_DEPLOYMENT_API_KEY_MODE=disabled`, which stops minting as well as
+    authenticating. Admin sessions are unaffected, as are `voy_` keys with a
+    customer, partner or supplier audience.
+
+  **Breaking for custom public routes.** A deployment-authored `ApiModule` that
+  mounts `/v1/public/*` routes must declare `publishable` for browser clients to
+  reach them; without it the routes are secret-key-only. First-party modules are
+  already declared. See `docs/architecture/storefront-key-capability-line.md`.
+
+### Patch Changes
+
+- Updated dependencies [1a3ba50]
+- Updated dependencies [df9f45b]
+- Updated dependencies [c805276]
+- Updated dependencies [36f3085]
+  - @voyant-travel/i18n@0.123.1
+  - @voyant-travel/auth@0.152.0
+  - @voyant-travel/types@0.110.0
+  - @voyant-travel/react@0.106.1
+
 ## 0.154.0
 
 ### Minor Changes

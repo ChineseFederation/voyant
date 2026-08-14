@@ -1,5 +1,29 @@
 # @voyant-travel/identity-contracts
 
+## 0.104.17
+
+### Patch Changes
+
+- 38531e2: Advertise email fields with a regex a strict-schema LLM client can parse.
+
+  Zod's default `z.email()` pattern opens with `^(?!\.)(?!.*\.\.)`, and providers
+  that validate tool schemas with an RE2-style engine reject regex lookaround
+  outright. A client sends every authorized tool schema in one model call, so the
+  18 affected fields took down every turn of a conversation, including questions
+  that never touched the Tools carrying them.
+
+  `@voyant-travel/schema-kit/email` now exports `emailAddress()`, which says
+  exactly what zod's default says but structurally: the local part is
+  dot-separated runs of non-dot characters, which is what "no leading dot, no
+  consecutive dots, no trailing dot" means. A differential fuzz against
+  `z.regexes.email` over 700k inputs found zero classification differences, so no
+  field's verdict changes. At 84 characters it is also shorter than the 96-char
+  default it replaces, which matters because these patterns ship inside every
+  advertised Tool schema.
+
+- Updated dependencies [38531e2]
+  - @voyant-travel/schema-kit@0.118.9
+
 ## 0.104.16
 
 ### Patch Changes

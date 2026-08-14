@@ -1,5 +1,22 @@
 # @voyant-travel/storage
 
+## 0.115.6
+
+### Patch Changes
+
+- 36f3085: Stamp `x-voyant-key-kind` on every published operation in this package's OpenAPI
+  documents.
+
+  These packages own admin-surface documents only, so every operation reads
+  `secret`: a publishable storefront key never reaches `/v1/admin/*`. Stating it
+  per operation is the point — "which credential does this accept" should not be
+  something a reader has to infer from a path prefix.
+
+- Updated dependencies [c805276]
+- Updated dependencies [c805276]
+- Updated dependencies [36f3085]
+  - @voyant-travel/core@0.141.0
+
 ## 0.115.5
 
 ### Patch Changes

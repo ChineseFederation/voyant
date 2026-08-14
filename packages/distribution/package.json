@@ -1,6 +1,6 @@
 {
   "name": "@voyant-travel/distribution",
-  "version": "0.227.29",
+  "version": "0.228.0",
   "license": "Apache-2.0",
   "type": "module",
   "exports": {

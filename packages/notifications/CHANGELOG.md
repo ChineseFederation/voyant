@@ -1,5 +1,63 @@
 # @voyant-travel/notifications
 
+## 0.149.2
+
+### Patch Changes
+
+- 1a3ba50: Resolve payment links from a validated organization template, fail closed when
+  customer-link configuration is unavailable, and expose the effective template
+  consistently to checkout and admin copy flows.
+- 05e6bb4: Resolve `product.title` in notification templates from the booking item's catalog
+  snapshot instead of its unit/option label, and stop overwriting a caller-supplied
+  `product`.
+- 36f3085: Stamp `x-voyant-key-kind` on every published operation in this package's OpenAPI
+  documents.
+
+  These packages own admin-surface documents only, so every operation reads
+  `secret`: a publishable storefront key never reaches `/v1/admin/*`. Stating it
+  per operation is the point — "which credential does this accept" should not be
+  something a reader has to infer from a path prefix.
+
+- c805276: Settle a paid Booking Session against the Quote its payment was collected for.
+
+  A shopper left on the "payment is confirming" screen goes on quoting, and every
+  refresh superseded the Quote behind them and released its Hold. Settlement then
+  looked for "the Session's one active Quote", found one nobody had paid for, and
+  was refused — on all eight retries — leaving a captured card payment with no
+  booking and no seat.
+
+  Re-quoting is now refused outright while a processor holds the shopper's money,
+  settlement replays the Quote and Hold recorded on the payment rather than
+  re-deriving today's, and a refused settlement no longer releases the Hold it was
+  collected against. When a delivery does exhaust its attempts, `event.dead_lettered`
+  now announces it and raises a stranded-payment staff alert instead of leaving a
+  `failed` outbox row nobody reads.
+
+  Also stops every anonymous storefront checkout resolving to the same payment
+  processor Customer: the `anonymous-storefront` placeholder is no longer passed as
+  a customer reference, and `verify:symbol-policy` now pins the sentinel to its one
+  definition.
+
+- Updated dependencies [1a3ba50]
+- Updated dependencies [c805276]
+- Updated dependencies [599ffed]
+- Updated dependencies [36f3085]
+- Updated dependencies [c805276]
+- Updated dependencies [36f3085]
+- Updated dependencies [38531e2]
+  - @voyant-travel/finance@0.249.0
+  - @voyant-travel/operator-settings@0.18.0
+  - @voyant-travel/storefront@0.257.0
+  - @voyant-travel/core@0.141.0
+  - @voyant-travel/db@0.122.0
+  - @voyant-travel/action-ledger@0.115.18
+  - @voyant-travel/relationships@0.134.2
+  - @voyant-travel/bookings@0.242.0
+  - @voyant-travel/hono@0.143.0
+  - @voyant-travel/legal@0.251.0
+  - @voyant-travel/proposals@0.140.0
+  - @voyant-travel/types@0.110.0
+
 ## 0.149.1
 
 ### Patch Changes

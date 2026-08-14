@@ -1,6 +1,6 @@
 {
   "name": "@voyant-travel/operator-settings",
-  "version": "0.17.33",
+  "version": "0.18.0",
   "license": "Apache-2.0",
   "type": "module",
   "exports": {

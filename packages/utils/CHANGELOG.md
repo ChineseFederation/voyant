@@ -1,5 +1,12 @@
 # @voyant-travel/utils
 
+## 0.111.1
+
+### Patch Changes
+
+- Updated dependencies [36f3085]
+  - @voyant-travel/types@0.110.0
+
 ## 0.111.0
 
 ### Minor Changes

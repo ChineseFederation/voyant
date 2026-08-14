@@ -1,5 +1,27 @@
 # @voyant-travel/finance-react
 
+## 0.281.0
+
+### Patch Changes
+
+- 1a3ba50: Resolve payment links from a validated organization template, fail closed when
+  customer-link configuration is unavailable, and expose the effective template
+  consistently to checkout and admin copy flows.
+- Updated dependencies [1a3ba50]
+- Updated dependencies [1f4e14c]
+- Updated dependencies [df9f45b]
+- Updated dependencies [599ffed]
+- Updated dependencies [c805276]
+- Updated dependencies [36f3085]
+- Updated dependencies [38531e2]
+  - @voyant-travel/finance@0.249.0
+  - @voyant-travel/i18n@0.123.1
+  - @voyant-travel/distribution-react@0.271.0
+  - @voyant-travel/bookings-react@0.281.0
+  - @voyant-travel/inventory-react@0.163.0
+  - @voyant-travel/react@0.106.1
+  - @voyant-travel/operations-react@0.162.0
+
 ## 0.280.0
 
 ### Patch Changes

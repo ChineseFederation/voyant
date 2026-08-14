@@ -1,5 +1,36 @@
 # @voyant-travel/crm
 
+## 0.134.2
+
+### Patch Changes
+
+- 36f3085: Stamp `x-voyant-key-kind` on every published operation in this package's OpenAPI
+  documents.
+
+  These packages own admin-surface documents only, so every operation reads
+  `secret`: a publishable storefront key never reaches `/v1/admin/*`. Stating it
+  per operation is the point — "which credential does this accept" should not be
+  something a reader has to infer from a path prefix.
+
+- Updated dependencies [1a3ba50]
+- Updated dependencies [c805276]
+- Updated dependencies [599ffed]
+- Updated dependencies [36f3085]
+- Updated dependencies [c805276]
+- Updated dependencies [36f3085]
+- Updated dependencies [38531e2]
+  - @voyant-travel/finance@0.249.0
+  - @voyant-travel/core@0.141.0
+  - @voyant-travel/db@0.122.0
+  - @voyant-travel/action-ledger@0.115.18
+  - @voyant-travel/custom-fields@0.3.1
+  - @voyant-travel/identity@0.236.8
+  - @voyant-travel/bookings@0.242.0
+  - @voyant-travel/hono@0.143.0
+  - @voyant-travel/types@0.110.0
+  - @voyant-travel/relationships-contracts@0.111.1
+  - @voyant-travel/utils@0.111.1
+
 ## 0.134.1
 
 ### Patch Changes

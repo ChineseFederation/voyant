@@ -1,5 +1,107 @@
 # @voyant-travel/finance
 
+## 0.249.0
+
+### Minor Changes
+
+- 36f3085: Enforce the PK/SK capability line on the public API, and give secret keys scopes.
+
+  `vpk_`/`vsk_` existed at issuance, in storage and on an admin label, and nothing
+  branched on them for authorization: no route required a secret key and none was
+  denied to a publishable one, so a leaked `vpk_` could commit bookings and open
+  payment sessions — bounded only by an `Origin` header, which any non-browser
+  client sets freely.
+
+  - Every `/v1/public/*` API bundle now declares `publishable` (and
+    `guardedIntake`, for routes that capture person data with nothing challenging
+    the submitter). One middleware enforces it, and **an undeclared route is
+    secret-key-only** — silence is a denial, not an omission.
+  - Every published operation carries `x-voyant-key-kind: publishable | secret`,
+    derived from the same declaration the middleware reads.
+  - Origin handling is split by kind: a publishable key still requires an origin
+    (it is the only thing narrowing where a browser-resident credential may be
+    used); a secret key no longer does, so a genuine server-to-server caller can
+    use the API without a BFF forwarding a synthetic header. An origin that IS
+    presented is still checked, whichever kind sent it. Dynamic CORS applies to
+    the publishable path only.
+  - A secret key now authenticates `/v1/admin/*` and carries a scope grant in the
+    deployment's own access-catalog vocabulary, defaulting to a commerce-shaped
+    set at mint. `{"*": ["*"]}` is an explicit opt-in and is called out in the
+    admin surface.
+  - The `voy_` deployment API key on `/v1/admin/*` is deprecated. It still works
+    and now logs on use; close the window with
+    `VOYANT_DEPLOYMENT_API_KEY_MODE=disabled`, which stops minting as well as
+    authenticating. Admin sessions are unaffected, as are `voy_` keys with a
+    customer, partner or supplier audience.
+
+  **Breaking for custom public routes.** A deployment-authored `ApiModule` that
+  mounts `/v1/public/*` routes must declare `publishable` for browser clients to
+  reach them; without it the routes are secret-key-only. First-party modules are
+  already declared. See `docs/architecture/storefront-key-capability-line.md`.
+
+### Patch Changes
+
+- 1a3ba50: Resolve payment links from a validated organization template, fail closed when
+  customer-link configuration is unavailable, and expose the effective template
+  consistently to checkout and admin copy flows.
+- 599ffed: Declare the operator-settings runtime port the Finance module's runtime factory
+  requests, so the graph composes on packaged and image deployments.
+- c805276: Settle a paid Booking Session against the Quote its payment was collected for.
+
+  A shopper left on the "payment is confirming" screen goes on quoting, and every
+  refresh superseded the Quote behind them and released its Hold. Settlement then
+  looked for "the Session's one active Quote", found one nobody had paid for, and
+  was refused — on all eight retries — leaving a captured card payment with no
+  booking and no seat.
+
+  Re-quoting is now refused outright while a processor holds the shopper's money,
+  settlement replays the Quote and Hold recorded on the payment rather than
+  re-deriving today's, and a refused settlement no longer releases the Hold it was
+  collected against. When a delivery does exhaust its attempts, `event.dead_lettered`
+  now announces it and raises a stranded-payment staff alert instead of leaving a
+  `failed` outbox row nobody reads.
+
+  Also stops every anonymous storefront checkout resolving to the same payment
+  processor Customer: the `anonymous-storefront` placeholder is no longer passed as
+  a customer reference, and `verify:symbol-policy` now pins the sentinel to its one
+  definition.
+
+- 38531e2: Advertise email fields with a regex a strict-schema LLM client can parse.
+
+  Zod's default `z.email()` pattern opens with `^(?!\.)(?!.*\.\.)`, and providers
+  that validate tool schemas with an RE2-style engine reject regex lookaround
+  outright. A client sends every authorized tool schema in one model call, so the
+  18 affected fields took down every turn of a conversation, including questions
+  that never touched the Tools carrying them.
+
+  `@voyant-travel/schema-kit/email` now exports `emailAddress()`, which says
+  exactly what zod's default says but structurally: the local part is
+  dot-separated runs of non-dot characters, which is what "no leading dot, no
+  consecutive dots, no trailing dot" means. A differential fuzz against
+  `z.regexes.email` over 700k inputs found zero classification differences, so no
+  field's verdict changes. At 84 characters it is also shorter than the 96-char
+  default it replaces, which matters because these patterns ship inside every
+  advertised Tool schema.
+
+- Updated dependencies [c805276]
+- Updated dependencies [36f3085]
+- Updated dependencies [c805276]
+- Updated dependencies [36f3085]
+- Updated dependencies [38531e2]
+  - @voyant-travel/core@0.141.0
+  - @voyant-travel/db@0.122.0
+  - @voyant-travel/action-ledger@0.115.18
+  - @voyant-travel/storage@0.115.6
+  - @voyant-travel/bookings@0.242.0
+  - @voyant-travel/hono@0.143.0
+  - @voyant-travel/public-document-delivery@0.5.0
+  - @voyant-travel/types@0.110.0
+  - @voyant-travel/bookings-contracts@0.114.2
+  - @voyant-travel/schema-kit@0.118.9
+  - @voyant-travel/reporting-contracts@0.4.1
+  - @voyant-travel/payments@0.13.1
+  - @voyant-travel/utils@0.111.1
+
 ## 0.248.0
 
 ### Minor Changes

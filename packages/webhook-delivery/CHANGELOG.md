@@ -1,5 +1,25 @@
 # @voyant-travel/webhook-delivery
 
+## 0.6.2
+
+### Patch Changes
+
+- 36f3085: Stamp `x-voyant-key-kind` on every published operation in this package's OpenAPI
+  documents.
+
+  These packages own admin-surface documents only, so every operation reads
+  `secret`: a publishable storefront key never reaches `/v1/admin/*`. Stating it
+  per operation is the point — "which credential does this accept" should not be
+  something a reader has to infer from a path prefix.
+
+- Updated dependencies [c805276]
+- Updated dependencies [c805276]
+- Updated dependencies [36f3085]
+  - @voyant-travel/core@0.141.0
+  - @voyant-travel/db@0.122.0
+  - @voyant-travel/hono@0.143.0
+  - @voyant-travel/types@0.110.0
+
 ## 0.6.1
 
 ### Patch Changes

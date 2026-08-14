@@ -1,5 +1,13 @@
 # @voyant-travel/i18n
 
+## 0.123.1
+
+### Patch Changes
+
+- 1a3ba50: Resolve payment links from a validated organization template, fail closed when
+  customer-link configuration is unavailable, and expose the effective template
+  consistently to checkout and admin copy flows.
+
 ## 0.123.0
 
 ### Minor Changes
