@@ -86,6 +86,12 @@ const channelBaseSchema = z.object({
   kind: channelKindSchema,
   status: channelStatusSchema,
   metadata: jsonRecord.nullable(),
+  /**
+   * Non-null on a channel the deployment provisions for itself — `direct` is
+   * the only one today. Such a channel cannot be deleted or deactivated, and
+   * the counterparty list leaves it out.
+   */
+  systemKey: z.string().nullable(),
   rateLimitRps: z.number().int().nullable(),
   rateLimitBurst: z.number().int().nullable(),
   rateLimitPriorityGates: numberRecord.nullable(),

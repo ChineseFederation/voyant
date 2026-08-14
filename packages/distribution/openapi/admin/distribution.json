@@ -66,6 +66,16 @@
             "required": false,
             "name": "status",
             "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": ["include", "exclude", "only"]
+            },
+            "required": false,
+            "name": "system",
+            "in": "query",
+            "description": "How to treat system-provisioned channels (today: Direct). Defaults to `include` \u2014 publication and product-mapping pickers must be able to target Direct. The counterparty list passes `exclude`."
           }
         ],
         "responses": {
@@ -110,6 +120,10 @@
                             "type": ["object", "null"],
                             "additionalProperties": {}
                           },
+                          "systemKey": {
+                            "type": ["string", "null"],
+                            "description": "Non-null on a channel the deployment provisions for itself. `direct` is the only one today: it cannot be deleted or deactivated, and the counterparty list leaves it out."
+                          },
                           "rateLimitRps": {
                             "type": ["integer", "null"]
                           },
@@ -145,6 +159,7 @@
                           "kind",
                           "status",
                           "metadata",
+                          "systemKey",
                           "rateLimitRps",
                           "rateLimitBurst",
                           "rateLimitPriorityGates",
@@ -278,6 +293,10 @@
                           "type": ["object", "null"],
                           "additionalProperties": {}
                         },
+                        "systemKey": {
+                          "type": ["string", "null"],
+                          "description": "Non-null on a channel the deployment provisions for itself. `direct` is the only one today: it cannot be deleted or deactivated, and the counterparty list leaves it out."
+                        },
                         "rateLimitRps": {
                           "type": ["integer", "null"]
                         },
@@ -313,6 +332,7 @@
                         "kind",
                         "status",
                         "metadata",
+                        "systemKey",
                         "rateLimitRps",
                         "rateLimitBurst",
                         "rateLimitPriorityGates",
@@ -469,6 +489,10 @@
                             "type": ["object", "null"],
                             "additionalProperties": {}
                           },
+                          "systemKey": {
+                            "type": ["string", "null"],
+                            "description": "Non-null on a channel the deployment provisions for itself. `direct` is the only one today: it cannot be deleted or deactivated, and the counterparty list leaves it out."
+                          },
                           "rateLimitRps": {
                             "type": ["integer", "null"]
                           },
@@ -504,6 +528,7 @@
                           "kind",
                           "status",
                           "metadata",
+                          "systemKey",
                           "rateLimitRps",
                           "rateLimitBurst",
                           "rateLimitPriorityGates",
@@ -698,6 +723,10 @@
                           "type": ["object", "null"],
                           "additionalProperties": {}
                         },
+                        "systemKey": {
+                          "type": ["string", "null"],
+                          "description": "Non-null on a channel the deployment provisions for itself. `direct` is the only one today: it cannot be deleted or deactivated, and the counterparty list leaves it out."
+                        },
                         "rateLimitRps": {
                           "type": ["integer", "null"]
                         },
@@ -733,6 +762,7 @@
                         "kind",
                         "status",
                         "metadata",
+                        "systemKey",
                         "rateLimitRps",
                         "rateLimitBurst",
                         "rateLimitPriorityGates",
@@ -881,6 +911,10 @@
                           "type": ["object", "null"],
                           "additionalProperties": {}
                         },
+                        "systemKey": {
+                          "type": ["string", "null"],
+                          "description": "Non-null on a channel the deployment provisions for itself. `direct` is the only one today: it cannot be deleted or deactivated, and the counterparty list leaves it out."
+                        },
                         "rateLimitRps": {
                           "type": ["integer", "null"]
                         },
@@ -916,6 +950,7 @@
                         "kind",
                         "status",
                         "metadata",
+                        "systemKey",
                         "rateLimitRps",
                         "rateLimitBurst",
                         "rateLimitPriorityGates",
@@ -950,6 +985,22 @@
           },
           "404": {
             "description": "Channel not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Patch is not permitted on a system-provisioned channel",
             "content": {
               "application/json": {
                 "schema": {
@@ -998,6 +1049,22 @@
           },
           "404": {
             "description": "Channel not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Channel is system-provisioned and cannot be deleted",
             "content": {
               "application/json": {
                 "schema": {

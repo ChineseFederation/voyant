@@ -51,10 +51,22 @@ const API_KEY: StorefrontApiKeyDto = {
 const CHANNEL_BINDING = {
   storefrontId: "storefront_1",
   channelId: "channel_1",
-  channelName: "Website",
+  channelName: "Partner OTA",
   channelStatus: "active",
   createdAt: "2026-07-15T00:00:00.000Z",
   updatedAt: "2026-07-15T00:00:00.000Z",
+  implicit: false,
+}
+
+/** What an unconfigured storefront resolves to: the deployment's Direct channel. */
+const IMPLICIT_DIRECT_BINDING = {
+  storefrontId: "storefront_1",
+  channelId: "chan_system_direct",
+  channelName: "Direct",
+  channelStatus: "active",
+  createdAt: null,
+  updatedAt: null,
+  implicit: true,
 }
 
 describe("storefront admin surface", () => {
@@ -215,21 +227,22 @@ describe("storefront admin surface", () => {
     await act(async () => root.unmount())
   })
 
-  it("sets a storefront channel binding with default-deny copy", async () => {
+  it("overrides the implicit Direct default with an explicit channel", async () => {
     const queryClient = seededQueryClient({
       businessAccounts: true,
       manageProviders: true,
       channelBinding: true,
     })
     const api = pageApi()
-    let currentBinding: typeof CHANNEL_BINDING | null = null
+    let currentBinding: typeof CHANNEL_BINDING | typeof IMPLICIT_DIRECT_BINDING =
+      IMPLICIT_DIRECT_BINDING
     api.getChannelBinding = vi.fn(async () => currentBinding)
     api.setChannelBinding = vi.fn(async () => {
       currentBinding = CHANNEL_BINDING
       return CHANNEL_BINDING
     })
     api.clearChannelBinding = vi.fn(async () => {
-      currentBinding = null
+      currentBinding = IMPLICIT_DIRECT_BINDING
     })
     const container = document.createElement("div")
     const root = createRoot(container)
@@ -243,7 +256,10 @@ describe("storefront admin surface", () => {
     })
     await clickButton(container, "Web store")
 
-    expect(container.textContent).toContain("Default-deny is enforced")
+    expect(container.textContent).toContain("publishes to Direct")
+    await vi.waitFor(() =>
+      expect(container.textContent).toContain("Publishing to Direct (default)"),
+    )
     const select = container.querySelector<HTMLSelectElement>("#storefront-channel-storefront_1")
     expect(select).not.toBeNull()
     await vi.waitFor(() => expect(select!.options.length).toBeGreaterThan(1))
@@ -257,12 +273,12 @@ describe("storefront admin surface", () => {
         channelId: "channel_1",
       }),
     )
-    await vi.waitFor(() => expect(container.textContent).toContain("Bound to Website"))
+    await vi.waitFor(() => expect(container.textContent).toContain("Publishing to Partner OTA"))
 
     await act(async () => root.unmount())
   })
 
-  it("clears a storefront channel binding after confirmation", async () => {
+  it("returns an explicitly bound storefront to Direct after confirmation", async () => {
     const queryClient = seededQueryClient({
       businessAccounts: true,
       manageProviders: true,
@@ -281,21 +297,21 @@ describe("storefront admin surface", () => {
       )
     })
     await clickButton(container, "Web store")
-    await vi.waitFor(() => expect(container.textContent).toContain("Bound to Website"))
+    await vi.waitFor(() => expect(container.textContent).toContain("Publishing to Partner OTA"))
 
     const clearButton = Array.from(container.querySelectorAll("button")).find(
-      (button) => button.textContent?.includes("Clear binding") && !button.disabled,
+      (button) => button.textContent?.includes("Use Direct") && !button.disabled,
     )
     expect(clearButton).toBeDefined()
     await act(async () => {
       clearButton?.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }))
     })
     await vi.waitFor(() =>
-      expect(document.body.textContent).toContain("Customer API access will be denied"),
+      expect(document.body.textContent).toContain("Publish this storefront to Direct again?"),
     )
     const clearDialogButton = Array.from(document.body.querySelectorAll("button"))
       .reverse()
-      .find((button) => button.textContent?.includes("Clear binding"))
+      .find((button) => button.textContent?.includes("Use Direct"))
     await act(async () => {
       clearDialogButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }))
     })
@@ -379,7 +395,7 @@ function pageApi(): StorefrontsAdminApi {
     deleteStorefront: vi.fn(async () => undefined),
     setAllowedOrigins: vi.fn(async () => STOREFRONT),
     listChannels: vi.fn(async () => [
-      { id: "channel_1", name: "Website", status: "active" as const },
+      { id: "channel_1", name: "Partner OTA", status: "active" as const },
     ]),
     getChannelBinding: vi.fn(async () => CHANNEL_BINDING),
     setChannelBinding: vi.fn(async () => CHANNEL_BINDING),

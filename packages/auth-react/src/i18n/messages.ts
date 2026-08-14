@@ -459,12 +459,13 @@ export interface StorefrontsPageMessages {
     title: string
     description: string
     unavailable: string
-    defaultDeny: string
+    directDefault: string
     selectLabel: string
     selectPlaceholder: string
     loading: string
     noActiveChannels: string
     boundStatus: string
+    implicitStatus: string
     unboundStatus: string
     inactiveWarning: string
     save: string

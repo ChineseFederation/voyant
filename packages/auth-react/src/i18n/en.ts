@@ -508,24 +508,25 @@ export const authUiEn: AuthUiMessages = {
       localhostHint: "HTTP is allowed only for localhost; every other origin must use HTTPS.",
     },
     channel: {
-      title: "Active channel",
-      description: "Bind this storefront to exactly one active distribution channel.",
+      title: "Sales channel",
+      description:
+        "Everything you sell through your own surfaces publishes to Direct. Choose another channel only to sell this storefront through a partner.",
       unavailable:
         "Channel binding is not configured for this deployment, so storefront access fails closed.",
-      defaultDeny:
-        "Default-deny is enforced: customer requests are rejected until this storefront is bound to an active channel.",
+      directDefault:
+        "This storefront publishes to Direct. You do not need to configure anything for your own website, checkout or customer portal.",
       selectLabel: "Channel",
-      selectPlaceholder: "Select an active channel",
+      selectPlaceholder: "Direct (default)",
       loading: "Loading channel status",
-      noActiveChannels: "No active channels are available. Activate a channel in Settings first.",
-      boundStatus: "Bound to {channel} ({status})",
-      unboundStatus: "No channel bound",
-      inactiveWarning: "The bound channel is not active; storefront access is denied.",
+      noActiveChannels: "No other active channels are available.",
+      boundStatus: "Publishing to {channel} ({status})",
+      implicitStatus: "Publishing to Direct (default)",
+      unboundStatus: "No channel available",
+      inactiveWarning: "The bound channel is not active; this storefront falls back to Direct.",
       save: "Save channel",
       saving: "Saving…",
-      clear: "Clear binding",
-      clearConfirm:
-        "Clear this storefront channel binding? Customer API access will be denied until another active channel is saved.",
+      clear: "Use Direct",
+      clearConfirm: "Publish this storefront to Direct again?",
     },
     keys: {
       title: "Access keys",

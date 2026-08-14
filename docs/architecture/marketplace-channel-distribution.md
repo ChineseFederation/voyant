@@ -507,18 +507,23 @@ Direct Storefronts and external marketplace Channels use the same Channel
 assortment authority.
 
 The marketplace is the customer-facing surface for channel bookings. Voyant may
-also run one or more direct Storefronts in parallel. Each active Storefront binds
-to exactly one active Channel through deployment-composed link data; a Channel
-may serve many Storefronts. Public Storefront requests derive Channel from the
-resolved Storefront API key or approved origin, not from caller-submitted
-Channel input.
+also run one or more direct Storefronts in parallel. Each active Storefront
+resolves to exactly one active Channel; a Channel may serve many Storefronts.
+Public Storefront requests derive Channel from the resolved Storefront API key or
+approved origin, not from caller-submitted Channel input.
+
+**Direct is the default and needs no binding.** Distribution provisions one
+system Channel per deployment (`system_key = 'direct'`) and a Storefront resolves
+to it unless deployment-composed link data binds it elsewhere. Binding is how you
+sell a Storefront through a *counterparty*; it is not a prerequisite for selling
+through yourself. See `docs/architecture/storefront-architecture.md` §6.
 
 The DB package migration owns only the link-table DDL and Storefront-local
-origin-overlap validation. Channel creation, binding backfill, and the
-fail-closed active-binding check run as a Distribution-owned setup migration
-after the DB, Storefront, and Distribution schema migration facets. This keeps
-fresh installs independent of package migration ordering while preserving one
-transactional, idempotent cutover.
+origin-overlap validation. The original binding backfill ran as a
+Distribution-owned setup migration after the DB, Storefront, and Distribution
+schema migration facets; the Direct Channel itself is provisioned by an ordinary
+Distribution schema migration, which is what makes it present on a fresh install
+with no storefronts yet.
 
 The prior-visible publication snapshot is also a Distribution-owned setup
 migration, never a hard `requiresSchemas` edge to operated Inventory. It runs

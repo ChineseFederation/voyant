@@ -159,6 +159,7 @@ export function getChannelsQueryOptions(
     queryFn: () => {
       const params = new URLSearchParams()
       appendPagination(params, filters)
+      if (filters.system) params.set("system", filters.system)
       const qs = params.toString()
       return fetchWithValidation(
         `/v1/admin/distribution/channels${qs ? `?${qs}` : ""}`,

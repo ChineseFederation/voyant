@@ -176,17 +176,21 @@ export function createLocalStorefrontCustomerAuthResolver<Env>(
         storefront.id,
         enabledProviders,
       )
+      // A storefront resolves to the deployment's Direct channel unless
+      // something binds it elsewhere, so reaching either branch below means the
+      // deployment has no active Direct channel at all — a migration that has
+      // not run, not an operator who forgot to configure something.
       if (!config.resolveStorefrontChannelBinding) {
         throw new StorefrontCustomerAuthResolutionError(
           "missing_channel_binding",
-          "The storefront is not bound to an active sales channel.",
+          "This runtime resolves no sales channel for the public surface.",
         )
       }
       const channelBinding = await config.resolveStorefrontChannelBinding(context, storefront.id)
       if (!channelBinding || channelBinding.channelStatus !== "active") {
         throw new StorefrontCustomerAuthResolutionError(
           "missing_channel_binding",
-          "The storefront is not bound to an active sales channel.",
+          "The deployment has no active Direct channel to serve the public surface from.",
         )
       }
 

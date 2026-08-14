@@ -71,6 +71,13 @@
       "when": 1785715800000,
       "tag": "20260803121000_channel_source_publications",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1786708800000,
+      "tag": "20260814120000_direct_channel_system_key",
+      "breakpoints": true
     }
   ]
 }

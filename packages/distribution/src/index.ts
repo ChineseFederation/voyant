@@ -169,6 +169,11 @@ export {
   channels,
   channelWebhookEvents,
 } from "./schema.js"
+export {
+  CHANNEL_SYSTEM_KEYS,
+  type ChannelSystemKey,
+  DIRECT_CHANNEL_SYSTEM_KEY,
+} from "./schema-core.js"
 export type {
   ChannelAvailabilityPushIntent,
   ChannelContentPushIntent,
@@ -179,6 +184,7 @@ export {
   channelAvailabilityPushIntents,
   channelContentPushIntents,
 } from "./schema-push-intents.js"
+export { SystemChannelProtectedError } from "./service/channels.js"
 export * from "./suppliers/index.js"
 export {
   channelBookingLinkListQuerySchema,

@@ -77,6 +77,7 @@ import {
   supplierPublicationPreviewResponseSchema,
 } from "./routes/openapi-schemas.js"
 import { settlementRoutes } from "./routes/settlements.js"
+import { SystemChannelProtectedError } from "./service/channels.js"
 import { distributionService } from "./service.js"
 import {
   channelBookingLinkListQuerySchema,
@@ -182,6 +183,10 @@ const updateChannelRoute = createRoute({
     200: { description: "The updated channel", ...jsonContent(z.object({ data: channelSchema })) },
     400: { description: "invalid_request", ...jsonContent(errorResponseSchema) },
     404: { description: "Channel not found", ...jsonContent(errorResponseSchema) },
+    409: {
+      description: "Patch is not permitted on a system-provisioned channel",
+      ...jsonContent(errorResponseSchema),
+    },
   },
 })
 
@@ -192,6 +197,10 @@ const deleteChannelRoute = createRoute({
   responses: {
     200: { description: "Channel deleted", ...jsonContent(successResponseSchema) },
     404: { description: "Channel not found", ...jsonContent(errorResponseSchema) },
+    409: {
+      description: "Channel is system-provisioned and cannot be deleted",
+      ...jsonContent(errorResponseSchema),
+    },
   },
 })
 
@@ -234,23 +243,37 @@ const channelRoutes = new OpenAPIHono<DistributionRouteEnv>({ defaultHook: openA
     return row ? c.json({ data: row }, 200) : c.json({ error: "Channel not found" }, 404)
   })
   .openapi(updateChannelRoute, async (c) => {
-    const row = await distributionService.updateChannel(
-      c.get("db"),
-      c.req.valid("param").id,
-      c.req.valid("json"),
-      c.get("eventBus"),
-    )
-    return row ? c.json({ data: row }, 200) : c.json({ error: "Channel not found" }, 404)
+    try {
+      const row = await distributionService.updateChannel(
+        c.get("db"),
+        c.req.valid("param").id,
+        c.req.valid("json"),
+        c.get("eventBus"),
+      )
+      return row ? c.json({ data: row }, 200) : c.json({ error: "Channel not found" }, 404)
+    } catch (error) {
+      if (error instanceof SystemChannelProtectedError) {
+        return c.json({ error: error.message }, 409)
+      }
+      throw error
+    }
   })
   .openapi(deleteChannelRoute, async (c) => {
-    const row = await distributionService.deleteChannel(
-      c.get("db"),
-      c.req.valid("param").id,
-      c.get("eventBus"),
-    )
-    return row
-      ? c.json({ success: true } as const, 200)
-      : c.json({ error: "Channel not found" }, 404)
+    try {
+      const row = await distributionService.deleteChannel(
+        c.get("db"),
+        c.req.valid("param").id,
+        c.get("eventBus"),
+      )
+      return row
+        ? c.json({ success: true } as const, 200)
+        : c.json({ error: "Channel not found" }, 404)
+    } catch (error) {
+      if (error instanceof SystemChannelProtectedError) {
+        return c.json({ error: error.message }, 409)
+      }
+      throw error
+    }
   })
 
 // --- channel contact points / named contacts --------------------------------

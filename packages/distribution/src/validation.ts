@@ -114,6 +114,13 @@ export const updateChannelSchema = channelCoreSchema.partial()
 export const channelListQuerySchema = paginationSchema.extend({
   kind: channelKindSchema.optional(),
   status: channelStatusSchema.optional(),
+  /**
+   * How to treat system-provisioned channels (today: Direct). Defaults to
+   * `include` — publication and product-mapping pickers read this endpoint and
+   * must be able to target Direct. The counterparty list passes `exclude`,
+   * because Direct is the deployment itself and not a party it trades with.
+   */
+  system: z.enum(["include", "exclude", "only"]).optional(),
 })
 
 export const channelContractCoreSchema = z.object({

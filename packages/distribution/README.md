@@ -8,6 +8,35 @@ tour-operator, and DMC deployments.
 Distribution is cross-cutting channel support. It is not a separate
 implementation scenario or user base.
 
+## The Direct channel is not a counterparty
+
+`channels` is a table of parties an operator distributes through — it carries
+contracts, commissions, rate limits and contact projections, and it sits next to
+`suppliers`. Exactly one row is not like that: the one the deployment publishes
+its own surfaces to.
+
+A migration provisions it and marks it `system_key = 'direct'`. It is the
+channel a public request resolves to when nothing names another one, which is
+why it cannot be deleted or moved off `active` (both answer `409`) and why its
+`kind` is fixed. Its name and contact details remain the operator's to edit.
+
+The marker is a column rather than a `metadata` key because it has to be
+unforgeable: `metadata` is editable through the ordinary channel `PATCH`, so a
+flag there could be cleared and the row the public API depends on then deleted.
+
+`GET /channels` takes `system=include|exclude|only` and **defaults to
+`include`**. Publication and product-mapping surfaces read the same endpoint and
+must be able to target Direct — default-hiding it would make the channel
+everything publishes to the one channel nothing can be published to. Only the
+counterparty list passes `exclude`.
+
+Resolution lives with the consumer, not here: `@voyant-travel/auth` reads the
+row directly in `storefront-channel-binding-provider.ts` (raw SQL, so
+Distribution's tables are not imported into Auth). It prefers the system row and
+falls back to the oldest active `direct` channel, so a deployment whose operator
+hand-created a self-representing channel before this existed keeps resolving to
+the row its publication rules are already keyed by.
+
 ## Install
 
 ```bash

@@ -6,12 +6,29 @@ import type {
   UpdateContactPoint as UpdateIdentityContactPoint,
   UpdateNamedContact as UpdateIdentityNamedContact,
 } from "@voyant-travel/identity/validation"
-import { and, eq, inArray, sql } from "drizzle-orm"
+import { and, eq, inArray, isNotNull, isNull, sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
-
 import { channelContactProjections, channels } from "../schema.js"
+import { DistributionServiceRefusalError } from "./errors.js"
 import { publicationServiceOperations } from "./publications.js"
 import type { ChannelListQuery, CreateChannelInput, UpdateChannelInput } from "./types.js"
+
+/**
+ * Refusal to mutate a system-provisioned channel in a way that would break the
+ * surface depending on it. Distinct from "not found" so the route answers 409
+ * rather than a 404 that reads like the row is gone.
+ */
+export class SystemChannelProtectedError extends DistributionServiceRefusalError {
+  readonly channelId: string
+  readonly systemKey: string
+
+  constructor(channelId: string, systemKey: string, message: string) {
+    super(message)
+    this.name = "SystemChannelProtectedError"
+    this.channelId = channelId
+    this.systemKey = systemKey
+  }
+}
 
 const channelEntityType = "channel"
 const channelBaseIdentitySource = "distribution.base"
@@ -238,6 +255,11 @@ export const channelServiceOperations = {
     const conditions = []
     if (query.kind) conditions.push(eq(channels.kind, query.kind))
     if (query.status) conditions.push(eq(channels.status, query.status))
+    // Defaults to `include`: publication pickers and product-mapping surfaces
+    // read this same endpoint and must keep seeing Direct, or nothing could be
+    // published to it. Only the counterparty list asks to drop it.
+    if (query.system === "exclude") conditions.push(isNull(channels.systemKey))
+    if (query.system === "only") conditions.push(isNotNull(channels.systemKey))
     const where = conditions.length ? and(...conditions) : undefined
     const [rows, countResult] = await Promise.all([
       db
@@ -287,6 +309,25 @@ export const channelServiceOperations = {
     if (!existing) {
       return null
     }
+    // A system channel stays editable — its name and contact details are the
+    // operator's to set — but not in the two ways that would take the public
+    // surface down: re-kinding it, or moving it off `active`.
+    if (existing.systemKey) {
+      if (data.kind !== undefined && data.kind !== existing.kind) {
+        throw new SystemChannelProtectedError(
+          id,
+          existing.systemKey,
+          "The Direct channel's kind cannot be changed.",
+        )
+      }
+      if (data.status !== undefined && data.status !== "active") {
+        throw new SystemChannelProtectedError(
+          id,
+          existing.systemKey,
+          "The Direct channel cannot be deactivated — every public surface resolves to it.",
+        )
+      }
+    }
     await db
       .update(channels)
       .set({ ...toUpdateChannelBaseValues(data), updatedAt: new Date() })
@@ -304,6 +345,18 @@ export const channelServiceOperations = {
   },
 
   async deleteChannel(db: PostgresJsDatabase, id: string, eventBus?: EventBus) {
+    const [existing] = await db
+      .select({ systemKey: channels.systemKey })
+      .from(channels)
+      .where(eq(channels.id, id))
+      .limit(1)
+    if (existing?.systemKey) {
+      throw new SystemChannelProtectedError(
+        id,
+        existing.systemKey,
+        "The Direct channel cannot be deleted — every public surface resolves to it.",
+      )
+    }
     const row = await db.transaction(async (tx) => {
       const affectedProductIds = await publicationServiceOperations.captureChannelDeletionReindex(
         tx,

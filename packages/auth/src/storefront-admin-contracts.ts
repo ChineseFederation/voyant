@@ -95,6 +95,12 @@ export const storefrontSchema = z.object({
       channelStatus: z.string(),
       createdAt: z.string().nullable(),
       updatedAt: z.string().nullable(),
+      /**
+       * True when nothing binds this storefront explicitly and it resolved to
+       * the deployment's Direct channel. Optional so a client keeps parsing
+       * responses from a runtime that predates the field.
+       */
+      implicit: z.boolean().optional(),
     })
     .nullable()
     .optional(),

@@ -64,6 +64,12 @@ export const channelRecordSchema = z.object({
   contactName: z.string().nullable(),
   contactEmail: z.string().nullable(),
   metadata: z.record(z.string(), z.unknown()).nullable(),
+  /**
+   * Non-null on a channel the deployment provisions for itself — `"direct"` is
+   * the only one. Optional here so a client built against this schema keeps
+   * parsing responses from a server that predates the column.
+   */
+  systemKey: z.string().nullable().optional(),
 })
 
 export type ChannelRow = z.infer<typeof channelRecordSchema>

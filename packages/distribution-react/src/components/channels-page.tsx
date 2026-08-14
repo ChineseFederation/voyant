@@ -72,6 +72,13 @@ export function ChannelsPage({ className, pageSize = PAGE_SIZE }: ChannelsPagePr
   const { data, isPending, refetch } = useChannels({
     limit: pageSize,
     offset: pageIndex * pageSize,
+    // This page is the list of parties the operator distributes through. Direct
+    // is the deployment selling through its own surfaces, not a counterparty —
+    // it has no contract, no commission and no contact, and it cannot be
+    // deleted, so every row action here is inapplicable to it. Publication and
+    // product-mapping pickers read the same endpoint without this filter and do
+    // still target Direct.
+    system: "exclude",
   })
   const { remove } = useChannelMutation()
 

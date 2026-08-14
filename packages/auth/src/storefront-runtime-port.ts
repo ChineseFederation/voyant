@@ -30,6 +30,18 @@ export interface StorefrontChannelBindingDto {
   channelStatus: string
   createdAt: string | null
   updatedAt: string | null
+  /**
+   * True when nothing binds this storefront to a channel explicitly and it
+   * resolved to the deployment's Direct channel — the default every public
+   * surface gets without an operator configuring anything. False when an
+   * explicit binding row selected the channel.
+   *
+   * The distinction is for display and diagnostics only; both are equally
+   * valid to serve on. An admin surface should show an implicit binding as the
+   * default rather than as a configured choice, so clearing it reads as
+   * "back to Direct" and not as "breaks the public API".
+   */
+  implicit: boolean
 }
 
 export interface SetStorefrontChannelBindingInput {

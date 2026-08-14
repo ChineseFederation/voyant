@@ -515,25 +515,25 @@ export const authUiRo: AuthUiMessages = {
         "HTTP este permis doar pentru localhost; orice alta origine trebuie sa foloseasca HTTPS.",
     },
     channel: {
-      title: "Canal activ",
-      description: "Leaga acest magazin de exact un canal de distributie activ.",
+      title: "Canal de vanzare",
+      description:
+        "Tot ce vinzi prin propriile suprafete se publica pe Direct. Alege alt canal doar daca vinzi acest magazin printr-un partener.",
       unavailable:
         "Legarea canalelor nu este configurata pentru acest deployment, deci accesul magazinului esueaza inchis.",
-      defaultDeny:
-        "Default-deny este aplicat: cererile clientilor sunt respinse pana cand magazinul este legat de un canal activ.",
+      directDefault:
+        "Acest magazin publica pe Direct. Nu trebuie sa configurezi nimic pentru propriul site, checkout sau portalul de clienti.",
       selectLabel: "Canal",
-      selectPlaceholder: "Selecteaza un canal activ",
+      selectPlaceholder: "Direct (implicit)",
       loading: "Se incarca starea canalului",
-      noActiveChannels:
-        "Nu exista canale active disponibile. Activeaza mai intai un canal in Setari.",
-      boundStatus: "Legat de {channel} ({status})",
-      unboundStatus: "Niciun canal legat",
-      inactiveWarning: "Canalul legat nu este activ; accesul magazinului este respins.",
+      noActiveChannels: "Nu exista alte canale active disponibile.",
+      boundStatus: "Publica pe {channel} ({status})",
+      implicitStatus: "Publica pe Direct (implicit)",
+      unboundStatus: "Niciun canal disponibil",
+      inactiveWarning: "Canalul legat nu este activ; acest magazin revine la Direct.",
       save: "Salveaza canalul",
       saving: "Se salveaza…",
-      clear: "Sterge legarea",
-      clearConfirm:
-        "Stergi legarea canalului pentru acest magazin? Accesul prin API al clientilor va fi respins pana cand salvezi alt canal activ.",
+      clear: "Foloseste Direct",
+      clearConfirm: "Publici din nou acest magazin pe Direct?",
     },
     keys: {
       title: "Chei de acces",

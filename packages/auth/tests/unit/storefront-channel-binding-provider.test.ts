@@ -48,11 +48,18 @@ function activeChannelRow(overrides: Record<string, unknown> = {}) {
   return { id: "chan_1", name: "Direct", status: "active", ...overrides }
 }
 
+/**
+ * The Direct-channel lookup is the only read that mentions `system_key`, which
+ * is what separates it from the by-id channel read both go through `channels`.
+ */
+const isDirectChannelRead = (sql: string) => sql.includes("system_key")
+
 describe("storefront channel binding without a deployment LinkService", () => {
   it("lists bindings by reading the pivot table from the request database", async () => {
     const provider = createLinkServiceStorefrontChannelBindingProvider()
     const { context, statements } = managedContext(({ sql }) => {
       if (sql.includes(BINDING_TABLE)) return [linkRow()]
+      if (isDirectChannelRead(sql)) return []
       if (sql.includes("channels")) return [activeChannelRow()]
       return []
     })
@@ -67,7 +74,9 @@ describe("storefront channel binding without a deployment LinkService", () => {
         channelStatus: "active",
         createdAt: "2026-08-01T00:00:00.000Z",
         updatedAt: "2026-08-02T00:00:00.000Z",
+        implicit: false,
       },
+      // No pivot row and no Direct channel in this deployment: still null.
       sf_2: null,
     })
     const pivotRead = statements.find((statement) => statement.sql.includes(BINDING_TABLE))
@@ -79,6 +88,7 @@ describe("storefront channel binding without a deployment LinkService", () => {
     const provider = createLinkServiceStorefrontChannelBindingProvider()
     const { context } = managedContext(({ sql }) => {
       if (sql.includes(BINDING_TABLE)) return [linkRow()]
+      if (isDirectChannelRead(sql)) return []
       if (sql.includes("channels")) return [activeChannelRow()]
       return []
     })
@@ -136,11 +146,113 @@ describe("storefront channel binding without a deployment LinkService", () => {
   })
 })
 
+describe("implicit Direct channel", () => {
+  const directRow = { id: "chan_system_direct", name: "Direct", status: "active" }
+
+  function deploymentWithDirectChannel(pivotRows: unknown[]) {
+    return managedContext(({ sql }) => {
+      if (sql.includes(BINDING_TABLE)) return pivotRows as Record<string, unknown>[]
+      if (isDirectChannelRead(sql)) return [directRow]
+      if (sql.includes("channels")) return [activeChannelRow()]
+      return []
+    })
+  }
+
+  it("binds an unbound storefront to the deployment's Direct channel", async () => {
+    const provider = createLinkServiceStorefrontChannelBindingProvider()
+    const { context } = deploymentWithDirectChannel([])
+
+    const binding = await provider.getStorefrontChannelBinding(context, "sf_1")
+
+    expect(binding).toEqual({
+      storefrontId: "sf_1",
+      channelId: "chan_system_direct",
+      channelName: "Direct",
+      channelStatus: "active",
+      // Nothing was configured, so there is no link row to date.
+      createdAt: null,
+      updatedAt: null,
+      implicit: true,
+    })
+  })
+
+  it("prefers an explicit binding over Direct", async () => {
+    const provider = createLinkServiceStorefrontChannelBindingProvider()
+    const { context } = deploymentWithDirectChannel([linkRow()])
+
+    await expect(provider.getStorefrontChannelBinding(context, "sf_1")).resolves.toMatchObject({
+      channelId: "chan_1",
+      implicit: false,
+    })
+  })
+
+  it("falls back to Direct when the explicitly bound channel is no longer active", async () => {
+    const provider = createLinkServiceStorefrontChannelBindingProvider()
+    const { context } = managedContext(({ sql }) => {
+      if (sql.includes(BINDING_TABLE)) return [linkRow()]
+      if (isDirectChannelRead(sql)) return [directRow]
+      if (sql.includes("channels")) return [activeChannelRow({ status: "archived" })]
+      return []
+    })
+
+    // Losing the channel an operator chose is a reason to serve the default,
+    // not a reason to take the public surface down.
+    await expect(provider.getStorefrontChannelBinding(context, "sf_1")).resolves.toMatchObject({
+      channelId: "chan_system_direct",
+      implicit: true,
+    })
+  })
+
+  it("reads the Direct channel once for a batch, and not at all when every storefront is bound", async () => {
+    const provider = createLinkServiceStorefrontChannelBindingProvider()
+    const { context, statements } = deploymentWithDirectChannel([
+      linkRow({ storefront_id: "sf_1" }),
+      linkRow({ id: "lnk_2", storefront_id: "sf_2" }),
+    ])
+
+    await provider.listStorefrontChannelBindings(context, ["sf_1", "sf_2"])
+
+    expect(statements.filter((statement) => isDirectChannelRead(statement.sql))).toHaveLength(0)
+  })
+
+  it("prefers the system row over an operator's own direct channel", async () => {
+    const provider = createLinkServiceStorefrontChannelBindingProvider()
+    const { context, statements } = deploymentWithDirectChannel([])
+
+    await provider.getStorefrontChannelBinding(context, "sf_1")
+
+    const read = statements.find((statement) => isDirectChannelRead(statement.sql))
+    expect(read?.sql).toContain("system_key = 'direct'")
+    expect(read?.sql).toContain("kind = 'direct'")
+    // `IS NOT DISTINCT FROM`, not `=`. `system_key` is null on every
+    // operator-created channel, `NULL = 'direct'` is NULL, and a DESC sort puts
+    // NULLs first — so the `=` form ranked the operator's own direct channel
+    // above the system row. What this fake db cannot tell you is that the query
+    // is wrong; `routes.direct-channel.test.ts` runs it against Postgres, which
+    // is what caught it.
+    expect(read?.sql).toContain("(system_key IS NOT DISTINCT FROM 'direct') DESC")
+  })
+
+  it("reports no binding, rather than failing, when the channel read faults", async () => {
+    const provider = createLinkServiceStorefrontChannelBindingProvider()
+    // A deployment that has not run the distribution migration has no
+    // `system_key` column. "No Direct channel" is the honest answer there; a
+    // throw would turn a 403 into a 500.
+    const { context } = managedContext(({ sql }) => {
+      if (sql.includes(BINDING_TABLE)) return []
+      if (isDirectChannelRead(sql)) throw new Error('column "system_key" does not exist')
+      return []
+    })
+
+    await expect(provider.getStorefrontChannelBinding(context, "sf_1")).resolves.toBeNull()
+  })
+})
+
 describe("storefront channel binding with a deployment LinkService", () => {
   it("prefers the wired service over the database fallback", async () => {
     const provider = createLinkServiceStorefrontChannelBindingProvider()
     const { context, statements } = managedContext(({ sql }) =>
-      sql.includes("channels") ? [activeChannelRow()] : [],
+      sql.includes("channels") && !isDirectChannelRead(sql) ? [activeChannelRow()] : [],
     )
     const list = vi.fn(async () => [
       {

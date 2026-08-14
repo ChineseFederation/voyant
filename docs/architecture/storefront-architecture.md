@@ -107,21 +107,35 @@ A Storefront is the authenticated identity of one customer-facing frontend or
 application. A Channel is the sales and distribution context that controls
 assortment and commercial behavior. Those are separate identities:
 
-- every active Storefront binds to exactly one active Channel after migration
+- every active Storefront resolves to exactly one active Channel
 - a Channel may have zero or many Storefronts
-- the Storefront-to-Channel association is deployment-composed link data
+- an explicit Storefront-to-Channel association is deployment-composed link data
 - neither Storefront nor Channel owns a cross-package foreign key to the other
 - frontend route composition is never publication authority
 
 Public runtime resolves Storefront identity from the admitted Storefront API key
-or approved origin and then resolves the bound Channel. Public callers cannot
-select, override, or probe Channel context by request parameter, header, body, or
-URL shape. Admin callers may select a Channel only on authorized preview and
+or approved origin and then resolves its Channel. Public callers cannot select,
+override, or probe Channel context by request parameter, header, body, or URL
+shape. Admin callers may select a Channel only on authorized preview and
 management surfaces.
 
-During migration, a deployment may carry an explicit temporary default Channel
-for compatibility. After cutover, an active unbound Storefront fails closed, and
-an inactive bound Channel denies public access.
+**Direct is the default, and it is implicit.** `@voyant-travel/distribution`
+provisions exactly one system Channel per deployment — `system_key = 'direct'`,
+non-deletable, kind fixed, and left out of the counterparty list. A Storefront
+with no explicit binding resolves to it, and so does one whose bound Channel has
+gone inactive: losing the Channel an operator chose is a reason to serve the
+default, not a reason to take the public surface down. An explicit binding still
+wins, which is what keeps `affiliate` / `reseller` / `api_partner` working.
+
+This replaces the earlier fail-closed rule. Requiring an explicit binding meant
+an operator had to hand-create a commercial counterparty representing
+themselves, in a table carrying contracts and rate limits, before their own
+website could read a departure — and nothing provisioned it, so every Storefront
+created after the one-shot backfill 403ed
+([#4624](https://github.com/voyant-travel/voyant/issues/4624)). Public access is
+still denied when no Storefront resolves at all, and when the deployment has no
+active Direct Channel — which now means a migration has not run, not that
+someone forgot to configure something.
 
 Rule:
 

@@ -365,6 +365,12 @@ jobs:
                 tests/integration/linked-payment-contract-confirmation.test.ts
               pnpm --filter @voyant-travel/cruises exec vitest run \
                 tests/integration/created-target-tools.test.ts
+              pnpm --filter @voyant-travel/auth exec vitest run \
+                tests/integration/storefront-channel-binding.test.ts
+              pnpm --filter @voyant-travel/distribution exec vitest run \
+                tests/integration/direct-channel-migration.test.ts
+              pnpm --filter @voyant-travel/distribution exec vitest run \
+                tests/integration/routes.direct-channel.test.ts
               pnpm --filter @voyant-travel/inventory exec vitest run \
                 tests/integration/conservative-family-backfill.test.ts
               pnpm --filter @voyant-travel/inventory exec vitest run \

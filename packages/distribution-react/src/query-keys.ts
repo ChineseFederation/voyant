@@ -6,7 +6,14 @@ export interface PaginationFilters {
 export interface SuppliersListFilters extends PaginationFilters {}
 export interface ProductsListFilters extends PaginationFilters {}
 export interface BookingsListFilters extends PaginationFilters {}
-export interface ChannelsListFilters extends PaginationFilters {}
+export interface ChannelsListFilters extends PaginationFilters {
+  /**
+   * How to treat system-provisioned channels (today: Direct). Defaults to
+   * including them, because publication and product-mapping pickers must be
+   * able to target Direct. Only the counterparty list asks to drop it.
+   */
+  system?: "include" | "exclude" | "only" | undefined
+}
 export interface ContractsListFilters extends PaginationFilters {
   channelId?: string | undefined
 }

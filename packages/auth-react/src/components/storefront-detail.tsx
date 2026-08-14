@@ -18,7 +18,7 @@ import {
   Label,
   Separator,
 } from "@voyant-travel/ui/components"
-import { AlertTriangle, Check, Copy, KeyRound, Plus, RefreshCw, Trash2, X } from "lucide-react"
+import { Check, Copy, KeyRound, Plus, RefreshCw, Trash2, X } from "lucide-react"
 import { useState } from "react"
 
 import { useAuthUiI18nOrDefault } from "../i18n/provider.js"
@@ -172,8 +172,10 @@ function ChannelBindingSection({
 }) {
   const queryClient = useQueryClient()
   const copy = useAuthUiI18nOrDefault().messages.storefrontsPage
+  // An implicit binding is the absence of a choice, so the picker shows its
+  // "Direct (default)" placeholder rather than preselecting the Direct row.
   const [selectedChannelId, setSelectedChannelId] = useState(
-    storefront.channelBinding?.channelId ?? "",
+    storefront.channelBinding?.implicit ? "" : (storefront.channelBinding?.channelId ?? ""),
   )
   const channelsQuery = useQuery({
     ...storefrontChannelsQueryOptions(api),
@@ -233,12 +235,15 @@ function ChannelBindingSection({
         <h3 className="text-sm font-medium">{copy.channel.title}</h3>
         <p className="text-xs text-muted-foreground">{copy.channel.description}</p>
       </div>
-      <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-        <div className="flex gap-2">
-          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-          <span>{copy.channel.defaultDeny}</span>
-        </div>
-      </div>
+      {binding?.implicit ? (
+        // Publishing to Direct is the resting state, not a warning. It read as
+        // an amber alert while an unbound storefront actually 403ed; now that
+        // Direct is the default, saying so in the same tone would be telling an
+        // operator something is wrong when nothing is. Shown only when the
+        // binding really is the default — with no channel at all, the badge
+        // says so, and claiming Direct here would be a lie.
+        <p className="text-xs text-muted-foreground">{copy.channel.directDefault}</p>
+      ) : null}
       <div className="grid gap-2">
         <Label htmlFor={`storefront-channel-${storefront.id}`}>{copy.channel.selectLabel}</Label>
         <select
@@ -263,14 +268,16 @@ function ChannelBindingSection({
       ) : null}
       <div className="flex flex-wrap items-center gap-2 text-sm">
         <Badge variant={binding?.channelStatus === "active" ? "default" : "secondary"}>
-          {binding
-            ? copy.channel.boundStatus
-                .replace(
-                  "{channel}",
-                  binding.channelName ?? boundChannel?.name ?? binding.channelId,
-                )
-                .replace("{status}", binding.channelStatus)
-            : copy.channel.unboundStatus}
+          {!binding
+            ? copy.channel.unboundStatus
+            : binding.implicit
+              ? copy.channel.implicitStatus
+              : copy.channel.boundStatus
+                  .replace(
+                    "{channel}",
+                    binding.channelName ?? boundChannel?.name ?? binding.channelId,
+                  )
+                  .replace("{status}", binding.channelStatus)}
         </Badge>
         {boundChannel && boundChannel.status !== "active" ? (
           <span className="text-xs text-destructive">{copy.channel.inactiveWarning}</span>
@@ -291,7 +298,7 @@ function ChannelBindingSection({
           type="button"
           size="sm"
           variant="outline"
-          disabled={!binding || clear.isPending}
+          disabled={!binding || binding.implicit === true || clear.isPending}
           onClick={async () => {
             if (
               await confirmDialog({

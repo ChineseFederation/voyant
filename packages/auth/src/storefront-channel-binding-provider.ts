@@ -66,6 +66,43 @@ function channelFromRow(row: Record<string, unknown>): ChannelRow | null {
   }
 }
 
+/**
+ * The deployment's Direct channel — the one everything sold through the
+ * operator's own surfaces publishes to. `@voyant-travel/distribution` marks it
+ * with `system_key = 'direct'` and provisions exactly one by migration.
+ *
+ * The fallback to `kind = 'direct'` is not belt-and-braces: it is what a
+ * deployment whose operator hand-created a self-representing channel before
+ * the system row existed already binds to, and it is the same tie-break the
+ * storefront-channel-binding cutover used. Preferring the system row and
+ * falling back to the oldest active `direct` keeps both resolving to the row
+ * their publication rules are keyed by.
+ *
+ * Returns null rather than throwing when the lookup faults — a deployment that
+ * has not run the distribution migration has no `system_key` column, and the
+ * honest answer there is "no Direct channel", which leaves behaviour exactly as
+ * it was before this existed.
+ */
+async function loadDirectChannel(context: BindingContext): Promise<ChannelRow | null> {
+  try {
+    const rows = await executeRows(
+      context,
+      sql`
+        SELECT id, name, status
+        FROM channels
+        WHERE status = 'active'
+          AND (system_key = 'direct' OR kind = 'direct')
+        ORDER BY (system_key IS NOT DISTINCT FROM 'direct') DESC, created_at, id
+        LIMIT 1
+      `,
+    )
+    const row = rows[0]
+    return row ? channelFromRow(row) : null
+  } catch {
+    return null
+  }
+}
+
 async function loadChannels(
   context: BindingContext,
   channelIds: readonly string[],
@@ -112,6 +149,27 @@ function toBinding(
     channelStatus: channel.status,
     createdAt: iso(linkRow.createdAt),
     updatedAt: iso(linkRow.updatedAt),
+    implicit: false,
+  }
+}
+
+/**
+ * The binding a storefront has by default. There is no link row behind it, so
+ * the timestamps are null — nothing was ever configured, which is the point.
+ */
+function toImplicitDirectBinding(
+  storefrontId: string,
+  channel: ChannelRow | null,
+): StorefrontChannelBindingDto | null {
+  if (!channel || channel.status !== ACTIVE_CHANNEL_STATUS) return null
+  return {
+    storefrontId,
+    channelId: channel.id,
+    channelName: channel.name,
+    channelStatus: channel.status,
+    createdAt: null,
+    updatedAt: null,
+    implicit: true,
   }
 }
 
@@ -145,6 +203,9 @@ export function createLinkServiceStorefrontChannelBindingProvider(): StorefrontC
         return channelId ? [channelId] : []
       })
       const channels = await loadChannels(context, channelIds)
+      // Resolved once for the whole batch, and lazily: a deployment where every
+      // storefront is explicitly bound never issues the query.
+      let directChannel: ChannelRow | null | undefined
 
       for (const storefrontId of ids) {
         const bindingRows = rowsByStorefront.get(storefrontId) ?? []
@@ -153,8 +214,19 @@ export function createLinkServiceStorefrontChannelBindingProvider(): StorefrontC
           bindingRows.map((row) => row.rightId),
         )
         const linkRow = bindingRows.find((row) => row.rightId === channelId)
-        result[storefrontId] =
+        const explicit =
           channelId && linkRow ? toBinding(storefrontId, channels.get(channelId), linkRow) : null
+        if (explicit) {
+          result[storefrontId] = explicit
+          continue
+        }
+        // No explicit binding — or one pointing at a channel that is gone or no
+        // longer active. Either way the storefront falls back to Direct rather
+        // than to nothing: publishing to yourself is the default, and the 403
+        // that used to follow from an absent binding was asking the operator to
+        // hand-create a counterparty representing themselves (#4624).
+        if (directChannel === undefined) directChannel = await loadDirectChannel(context)
+        result[storefrontId] = toImplicitDirectBinding(storefrontId, directChannel)
       }
 
       return result
@@ -189,6 +261,11 @@ export function createLinkServiceStorefrontChannelBindingProvider(): StorefrontC
       return binding
     },
 
+    /**
+     * Drop the explicit binding. The storefront does not become channel-less —
+     * it falls back to the deployment's Direct channel, which is what it had
+     * before anyone chose otherwise.
+     */
     async clearStorefrontChannelBinding(context, storefrontId) {
       const link = resolveLinkService(context)
       const rows = await link.list(linkKey, { leftId: storefrontId })

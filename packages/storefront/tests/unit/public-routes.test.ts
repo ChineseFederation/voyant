@@ -54,6 +54,34 @@ describe("createStorefrontPublicRoutes", () => {
     expect(await res.json()).toEqual({ data: [], total: 0, limit: 100, offset: 0 })
   })
 
+  it("serves a storefront whose channel context came from the implicit Direct default", async () => {
+    // The guard asks whether the request has an active channel, not whether an
+    // operator configured one. Nothing binds this storefront explicitly; the
+    // binding provider resolved it to the deployment's system Direct channel,
+    // and from here that is indistinguishable from a chosen one (#4624).
+    const isProductPublished = vi.fn(async () => false)
+    const app = new Hono().use("*", async (c, next) => {
+      c.set(
+        "storefrontChannel" as never,
+        {
+          storefrontId: "sf_unbound",
+          channelId: "chan_system_direct",
+          channelStatus: "active",
+        } as never,
+      )
+      await next()
+    })
+    app.route("/", createStorefrontPublicRoutes({ publication: { isProductPublished } }))
+
+    const res = await app.request("/products/prod_1/departures")
+
+    expect(res.status).toBe(200)
+    expect(isProductPublished).toHaveBeenCalledWith({
+      productId: "prod_1",
+      context: expect.objectContaining({ channelId: "chan_system_direct" }),
+    })
+  })
+
   it("rejects public requests without an active storefront channel context", async () => {
     const app = new Hono().route("/", createStorefrontPublicRoutes())
 

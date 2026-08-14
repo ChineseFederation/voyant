@@ -23,6 +23,19 @@ import {
 } from "./schema-shared.js"
 import { suppliers } from "./suppliers/schema.js"
 
+/**
+ * The Direct channel: everything the operator sells through itself — its
+ * website, the booking engine, the customer portal, a custom frontend on the
+ * Public API — publishes to this one channel. Exactly one row per deployment
+ * carries it, provisioned by migration, and it is the channel a public request
+ * resolves to when nothing names another one.
+ */
+export const DIRECT_CHANNEL_SYSTEM_KEY = "direct"
+
+/** Every system-provisioned channel marker. Only Direct exists today. */
+export const CHANNEL_SYSTEM_KEYS = [DIRECT_CHANNEL_SYSTEM_KEY] as const
+export type ChannelSystemKey = (typeof CHANNEL_SYSTEM_KEYS)[number]
+
 export const channels = pgTable(
   "channels",
   {
@@ -32,6 +45,20 @@ export const channels = pgTable(
     kind: channelKindEnum("kind").notNull(),
     status: channelStatusEnum("status").notNull().default("active"),
     metadata: jsonb("metadata").$type<Record<string, unknown>>(),
+    /**
+     * Non-null on a channel the deployment provisions for itself rather than
+     * one the operator created for a counterparty. Today the only value is
+     * `direct` (see {@link DIRECT_CHANNEL_SYSTEM_KEY}): the channel everything
+     * we sell through ourselves publishes to.
+     *
+     * It is a column rather than a `metadata` key because three things depend
+     * on it being unforgeable and indexable — the public surface resolves its
+     * channel through it, `deleteChannel` refuses on it, and the counterparty
+     * list filters on it. A `metadata` flag is editable through the ordinary
+     * channel PATCH, which would let an operator delete the row the public API
+     * depends on by first clearing the marker.
+     */
+    systemKey: text("system_key").$type<ChannelSystemKey>(),
 
     // ── Channel push: per-channel rate-limit defaults ───────────────
     // Per channel-push-architecture §14.1. Contract-level rules in
@@ -56,6 +83,11 @@ export const channels = pgTable(
     index("idx_channels_created").on(table.createdAt),
     index("idx_channels_kind_created").on(table.kind, table.createdAt),
     index("idx_channels_status_created").on(table.status, table.createdAt),
+    // Partial, so the column stays null on every operator-created channel and
+    // only the one system row per key is constrained.
+    uniqueIndex("uniq_channels_system_key")
+      .on(table.systemKey)
+      .where(sql`${table.systemKey} IS NOT NULL`),
   ],
 )
 
