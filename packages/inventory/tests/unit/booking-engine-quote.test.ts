@@ -239,7 +239,7 @@ describe("createProductsBookingHandler.computeQuote", () => {
     )
   })
 
-  it("prices a room whose unit price is set per traveler category, per person (voyant#3586)", async () => {
+  it("prices two Adults from a room's per-person category price (voyant#3586, #4571)", async () => {
     // The Rooms & prices editor stores a room's price per traveler type — a
     // "Double / Adult" row (`travelerCategory` set), not a flat per-room price.
     // Such a room prices per person by band (`pax[band] × price`), independent
@@ -253,7 +253,7 @@ describe("createProductsBookingHandler.computeQuote", () => {
             unitId: "unit_double",
             unitType: "room",
             travelerCategory: "adult",
-            sellAmountCents: 40000,
+            sellAmountCents: 69000,
           },
         ],
       }),
@@ -281,13 +281,13 @@ describe("createProductsBookingHandler.computeQuote", () => {
 
     expect(result.available).toBe(true)
     const breakdown = result.pricing?.breakdown as Record<string, unknown>
-    // 2 adults × 40000 = 80000 — NOT × 3 rooms.
-    expect(breakdown?.total).toBe(80000)
+    // 2 adults × €690 = €1,380 — NOT × 3 rooms.
+    expect(breakdown?.total).toBe(138000)
     const lines = breakdown?.lines as Array<{ label: string; quantity: number; unitAmount: number }>
     expect(lines).toHaveLength(1)
     expect(lines[0]).toEqual(
       // The band's label, not its code — the shopper reads this line.
-      expect.objectContaining({ quantity: 2, unitAmount: 40000, label: "Double — Adult" }),
+      expect.objectContaining({ quantity: 2, unitAmount: 69000, label: "Double — Adult" }),
     )
   })
 
