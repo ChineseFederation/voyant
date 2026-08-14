@@ -33,6 +33,11 @@
       "note": "Not stated. The passenger-composition constraint is enforced on the field with no description on it or in the Tool text."
     },
     {
+      "id": "@voyant-travel/distribution:create_distribution_channel:presetKey",
+      "documented": true,
+      "note": "Documented. The presetKey field description lists the accepted network keys and states that partner-type keys are rejected; it is built from the catalog so it cannot drift from the refinement."
+    },
+    {
       "id": "@voyant-travel/finance:book_product:paymentSchedules[].dueTimeZone",
       "documented": true,
       "note": "Documented. The dueTimeZone field description states that it is the IANA timezone for the local payment business date."

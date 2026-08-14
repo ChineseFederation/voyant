@@ -8,6 +8,7 @@ import type {
 } from "@voyant-travel/identity/validation"
 import { and, eq, inArray, isNotNull, isNull, sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
+import { findChannelPreset } from "../channel-presets.js"
 import { channelContactProjections, channels } from "../schema.js"
 import { DistributionServiceRefusalError } from "./errors.js"
 import { publicationServiceOperations } from "./publications.js"
@@ -18,6 +19,23 @@ import type { ChannelListQuery, CreateChannelInput, UpdateChannelInput } from ".
  * surface depending on it. Distinct from "not found" so the route answers 409
  * rather than a 404 that reads like the row is gone.
  */
+/**
+ * Refusal to create a second channel for a named network. The preset key is
+ * meant to resolve to one row, so a connector asking for "the GetYourGuide
+ * channel" gets an answer rather than a list.
+ */
+export class DuplicateChannelPresetError extends DistributionServiceRefusalError {
+  readonly presetKey: string
+  readonly existingChannelId: string
+
+  constructor(presetKey: string, existingChannelId: string, message: string) {
+    super(message)
+    this.name = "DuplicateChannelPresetError"
+    this.presetKey = presetKey
+    this.existingChannelId = existingChannelId
+  }
+}
+
 export class SystemChannelProtectedError extends DistributionServiceRefusalError {
   readonly channelId: string
   readonly systemKey: string
@@ -70,6 +88,7 @@ function toCreateChannelBaseValues(data: CreateChannelInput) {
     kind: data.kind,
     status: data.status,
     metadata: data.metadata,
+    presetKey: data.presetKey ?? null,
   }
 }
 
@@ -291,6 +310,23 @@ export const channelServiceOperations = {
   },
 
   async createChannel(db: PostgresJsDatabase, data: CreateChannelInput) {
+    if (data.presetKey) {
+      // The unique index is the real guard; this turns the collision into a
+      // sentence an operator can act on instead of a driver error, and names
+      // the row they already have.
+      const [existing] = await db
+        .select({ id: channels.id, name: channels.name })
+        .from(channels)
+        .where(eq(channels.presetKey, data.presetKey))
+        .limit(1)
+      if (existing) {
+        throw new DuplicateChannelPresetError(
+          data.presetKey,
+          existing.id,
+          `This deployment already has a ${findChannelPreset(data.presetKey)?.name ?? data.presetKey} channel ("${existing.name}").`,
+        )
+      }
+    }
     const [row] = await db.insert(channels).values(toCreateChannelBaseValues(data)).returning()
     if (!row) {
       throw new Error("Failed to create channel")

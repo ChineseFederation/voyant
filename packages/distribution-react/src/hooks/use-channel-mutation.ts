@@ -17,10 +17,16 @@ const channelInputSchema = z.object({
   contactName: z.string().nullable().optional(),
   contactEmail: z.string().email().nullable().optional(),
   metadata: z.record(z.string(), z.unknown()).nullable().optional(),
+  /**
+   * Catalog entry this channel is created from, for named networks only. Set
+   * once, at creation — `UpdateChannelInput` drops it, because the key says
+   * which counterparty the row *is*.
+   */
+  presetKey: z.string().nullable().optional(),
 })
 
 export type CreateChannelInput = z.input<typeof channelInputSchema>
-export type UpdateChannelInput = Partial<CreateChannelInput>
+export type UpdateChannelInput = Partial<Omit<CreateChannelInput, "presetKey">>
 
 export function useChannelMutation() {
   const { baseUrl, fetcher } = useVoyantDistributionContext()

@@ -471,6 +471,10 @@ export const distributionUiRo = {
       deleteDescription: "Produsele alocate acestui canal vor fi deconectate.",
       editSheetTitle: "Editeaza canal",
       newSheetTitle: "Canal nou",
+      presetLabel: "Retea sau tip de partener",
+      presetCustom: "Altceva — il descriu eu",
+      presetHint:
+        "Alegerea unei retele completeaza numele si tipul. Nu se creeaza nimic pana nu salvezi si poti modifica orice.",
       nameLabel: "Nume",
       namePlaceholder: "Website",
       kindLabel: "Tip",

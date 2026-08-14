@@ -466,6 +466,10 @@ export const distributionUiEn = {
       deleteDescription: "Products assigned to this channel will be unlinked.",
       editSheetTitle: "Edit Channel",
       newSheetTitle: "New Channel",
+      presetLabel: "Network or partner type",
+      presetCustom: "Something else — I'll describe it",
+      presetHint:
+        "Picking a network fills in its name and kind. Nothing is created until you save, and you can change any of it.",
       nameLabel: "Name",
       namePlaceholder: "Website",
       kindLabel: "Kind",

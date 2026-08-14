@@ -33,6 +33,7 @@ import {
   type ChannelRow,
   type CreateChannelInput,
   useChannelMutation,
+  useChannelPresets,
   useChannels,
 } from "../index.js"
 import { PublicationSheet } from "./publication-sheet.js"
@@ -46,7 +47,15 @@ type ChannelFormValues = {
   website: string
   contactName: string
   contactEmail: string
+  /**
+   * Catalog entry the operator started from. Persisted only for a named
+   * network; a partner-type preset prefills `kind` and leaves this empty.
+   */
+  presetKey: string
 }
+
+/** Sentinel for "describe it yourself" — an empty option value cannot be selected. */
+const CUSTOM_PRESET_VALUE = "__custom__"
 
 export interface ChannelsPageProps {
   className?: string
@@ -57,6 +66,7 @@ const defaultFormValues: ChannelFormValues = {
   name: "",
   kind: "direct",
   status: "active",
+  presetKey: "",
   website: "",
   contactName: "",
   contactEmail: "",
@@ -263,6 +273,32 @@ function ChannelSheet({
     value: value as ChannelRow["kind"],
     label,
   }))
+  // Only offered when creating. Editing a channel is about the relationship,
+  // not about which catalog entry it came from — that is fixed at creation.
+  const presetsQuery = useChannelPresets({ enabled: open && !isEditing })
+  const presets = presetsQuery.data?.data ?? []
+  const networkPresets = presets.filter((preset) => preset.identity === "network")
+  const partnerTypePresets = presets.filter((preset) => preset.identity === "partner-type")
+
+  const applyPreset = (key: string) => {
+    if (key === CUSTOM_PRESET_VALUE) {
+      setValues((current) => ({ ...current, presetKey: "" }))
+      return
+    }
+    const preset = presets.find((candidate) => candidate.key === key)
+    if (!preset) return
+    setValues((current) => ({
+      ...current,
+      // A partner type names a shape, not a company, so it fills the kind and
+      // leaves the operator to say who this actually is.
+      presetKey: preset.identity === "network" ? preset.key : "",
+      kind: preset.kind,
+      ...(preset.identity === "network"
+        ? { name: preset.name, website: preset.website ?? current.website }
+        : {}),
+    }))
+    setErrors({})
+  }
 
   useEffect(() => {
     if (open && channel) {
@@ -270,6 +306,9 @@ function ChannelSheet({
         name: channel.name,
         kind: channel.kind,
         status: channel.status,
+        // Carried so the form round-trips, though the picker is not rendered
+        // when editing — the catalog entry is fixed at creation.
+        presetKey: channel.presetKey ?? "",
         website: channel.website ?? "",
         contactName: channel.contactName ?? "",
         contactEmail: channel.contactEmail ?? "",
@@ -301,6 +340,7 @@ function ChannelSheet({
       website: normalizeOptional(values.website),
       contactName: normalizeOptional(values.contactName),
       contactEmail: normalizeOptional(values.contactEmail),
+      ...(values.presetKey ? { presetKey: values.presetKey } : {}),
     }
 
     if (isEditing) {
@@ -319,6 +359,40 @@ function ChannelSheet({
         </SheetHeader>
         <form onSubmit={onSubmit} className="flex flex-1 flex-col overflow-hidden">
           <SheetBody className="grid gap-4">
+            {isEditing ? null : (
+              <div className="flex flex-col gap-2">
+                <Label id="channel-preset-label" htmlFor="channel-preset">
+                  {page.presetLabel}
+                </Label>
+                <Select
+                  value={values.presetKey || CUSTOM_PRESET_VALUE}
+                  onValueChange={(value) => applyPreset(value ?? CUSTOM_PRESET_VALUE)}
+                >
+                  <SelectTrigger
+                    id="channel-preset"
+                    aria-labelledby="channel-preset-label"
+                    className="w-full"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {networkPresets.map((preset) => (
+                      <SelectItem key={preset.key} value={preset.key}>
+                        {preset.name}
+                      </SelectItem>
+                    ))}
+                    {partnerTypePresets.map((preset) => (
+                      <SelectItem key={preset.key} value={preset.key}>
+                        {preset.name}
+                      </SelectItem>
+                    ))}
+                    <SelectItem value={CUSTOM_PRESET_VALUE}>{page.presetCustom}</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">{page.presetHint}</p>
+              </div>
+            )}
+
             <div className="flex flex-col gap-2">
               <Label htmlFor="channel-name">{page.nameLabel}</Label>
               <Input

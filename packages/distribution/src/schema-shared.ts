@@ -10,6 +10,8 @@ export const channelKindEnum = pgEnum("channel_kind", [
   "connect",
 ])
 
+export type ChannelKind = (typeof channelKindEnum.enumValues)[number]
+
 export const channelStatusEnum = pgEnum("channel_status", [
   "active",
   "inactive",

@@ -102,6 +102,7 @@ const channelRow: InferSelectModel<typeof channels> = {
   status: "active",
   metadata: null,
   systemKey: null,
+  presetKey: null,
   rateLimitRps: null,
   rateLimitBurst: null,
   rateLimitPriorityGates: null,

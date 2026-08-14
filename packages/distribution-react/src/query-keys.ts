@@ -68,6 +68,7 @@ export const distributionQueryKeys = {
   channelsList: (filters: ChannelsListFilters) =>
     [...distributionQueryKeys.channels(), "list", filters] as const,
   channel: (id: string) => [...distributionQueryKeys.channels(), "detail", id] as const,
+  channelPresets: () => [...distributionQueryKeys.channels(), "presets"] as const,
 
   contracts: () => [...distributionQueryKeys.all, "contracts"] as const,
   contractsList: (filters: ContractsListFilters) =>

@@ -43,6 +43,26 @@ vi.mock("../index.js", () => ({
     remove: { isPending: false, mutateAsync: mutationState.remove },
     update: { isPending: false, mutateAsync: mutationState.update },
   }),
+  useChannelPresets: () => ({
+    data: {
+      data: [
+        {
+          key: "getyourguide",
+          name: "GetYourGuide",
+          kind: "ota",
+          identity: "network",
+          website: "https://www.getyourguide.com",
+        },
+        {
+          key: "partner-affiliate",
+          name: "Affiliate partner",
+          kind: "affiliate",
+          identity: "partner-type",
+        },
+      ],
+    },
+    isPending: false,
+  }),
   useProducts: () => ({
     data: { data: [{ id: "product_1", name: "Harbor Tour" }], total: 1 },
     isPending: false,

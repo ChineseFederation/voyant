@@ -55,6 +55,21 @@ export const effectivePublicationReasonSchema = z.enum([
   "product_eligibility",
 ])
 
+/**
+ * A network or partner type a channel can be created from. Not a channel — no
+ * row exists until the operator picks one.
+ */
+export const channelPresetSchema = z.object({
+  key: z.string(),
+  name: z.string(),
+  kind: channelKindSchema,
+  identity: z.enum(["network", "partner-type"]),
+  website: z.string().optional(),
+  description: z.string().optional(),
+})
+
+export type ChannelPreset = z.infer<typeof channelPresetSchema>
+
 export const channelRecordSchema = z.object({
   id: z.string(),
   name: z.string(),
@@ -70,6 +85,8 @@ export const channelRecordSchema = z.object({
    * parsing responses from a server that predates the column.
    */
   systemKey: z.string().nullable().optional(),
+  /** Catalog entry this channel came from, for named networks only. */
+  presetKey: z.string().nullable().optional(),
 })
 
 export type ChannelRow = z.infer<typeof channelRecordSchema>
@@ -259,6 +276,7 @@ export const supplierListResponse = paginatedEnvelope(supplierOptionSchema)
 export const productListResponse = paginatedEnvelope(productOptionSchema)
 export const bookingListResponse = paginatedEnvelope(bookingOptionSchema)
 export const channelListResponse = paginatedEnvelope(channelRecordSchema)
+export const channelPresetListResponse = singleEnvelope(z.array(channelPresetSchema))
 export const channelContractListResponse = paginatedEnvelope(channelContractRecordSchema)
 export const channelCommissionRuleListResponse = paginatedEnvelope(
   channelCommissionRuleRecordSchema,

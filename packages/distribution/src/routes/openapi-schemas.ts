@@ -92,11 +92,33 @@ const channelBaseSchema = z.object({
    * the counterparty list leaves it out.
    */
   systemKey: z.string().nullable(),
+  /**
+   * The catalog entry this channel was created from, for named networks only.
+   * A stable identity a connector can bind to, unlike the display name.
+   */
+  presetKey: z.string().nullable(),
   rateLimitRps: z.number().int().nullable(),
   rateLimitBurst: z.number().int().nullable(),
   rateLimitPriorityGates: numberRecord.nullable(),
   createdAt: isoTimestamp,
   updatedAt: isoTimestamp,
+})
+
+/**
+ * A catalog entry the operator may create a channel from. Not a channel — no
+ * row exists until they pick one.
+ */
+export const channelPresetSchema = z.object({
+  key: z.string(),
+  name: z.string(),
+  kind: channelKindSchema,
+  /**
+   * `network` names a specific counterparty and is recorded on the row it
+   * creates; `partner-type` only prefills the form's `kind`.
+   */
+  identity: z.enum(["network", "partner-type"]),
+  website: z.string().optional(),
+  description: z.string().optional(),
 })
 
 /**

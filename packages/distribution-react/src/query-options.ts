@@ -29,6 +29,7 @@ import {
   channelContractListResponse,
   channelContractSingleResponse,
   channelListResponse,
+  channelPresetListResponse,
   channelProductMappingListResponse,
   channelProductMappingSingleResponse,
   channelProductPublicationListResponse,
@@ -167,6 +168,24 @@ export function getChannelsQueryOptions(
         client,
       )
     },
+  })
+}
+
+/**
+ * The catalog of networks and partner types a channel can be created from.
+ * Static for a deployment, so it is cached indefinitely — refetching it on
+ * every sheet open would be a request per keystroke of hesitation.
+ */
+export function getChannelPresetsQueryOptions(client: FetchWithValidationOptions) {
+  return queryOptions({
+    queryKey: distributionQueryKeys.channelPresets(),
+    staleTime: Number.POSITIVE_INFINITY,
+    queryFn: () =>
+      fetchWithValidation(
+        "/v1/admin/distribution/channels/presets",
+        channelPresetListResponse,
+        client,
+      ),
   })
 }
 

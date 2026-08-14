@@ -1,6 +1,8 @@
 import { booleanQueryParam } from "@voyant-travel/db/helpers"
 import { z } from "zod"
 
+import { CHANNEL_PRESET_KEY_DESCRIPTION, isPersistableChannelPresetKey } from "./channel-presets.js"
+
 export * from "./external-refs/validation.js"
 export * from "./publication-validation.js"
 export * from "./suppliers/validation.js"
@@ -107,10 +109,28 @@ export const channelCoreSchema = z.object({
   contactName: z.string().nullable().optional(),
   contactEmail: z.string().email().nullable().optional(),
   metadata: z.record(z.string(), z.unknown()).nullable().optional(),
+  /**
+   * Catalog entry this channel is being created from. Only a named network is
+   * accepted — the partner-type presets prefill a form and name no
+   * counterparty, so persisting one would claim an identity that is not there.
+   */
+  presetKey: z
+    .string()
+    .trim()
+    .min(1)
+    .nullable()
+    .optional()
+    .refine((value) => value == null || isPersistableChannelPresetKey(value), {
+      message: "Unknown channel preset.",
+    })
+    .describe(CHANNEL_PRESET_KEY_DESCRIPTION),
 })
 
 export const insertChannelSchema = channelCoreSchema
-export const updateChannelSchema = channelCoreSchema.partial()
+// `presetKey` is set once, at creation. It says which counterparty this row
+// *is*, and re-pointing it would silently move whatever a connector had bound
+// to it; delete the channel and create the right one instead.
+export const updateChannelSchema = channelCoreSchema.omit({ presetKey: true }).partial()
 export const channelListQuerySchema = paginationSchema.extend({
   kind: channelKindSchema.optional(),
   status: channelStatusSchema.optional(),

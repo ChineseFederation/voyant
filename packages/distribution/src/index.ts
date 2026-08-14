@@ -24,6 +24,13 @@ export const distributionApiModules = [
 ] as const
 
 export * from "./booking-extension.js"
+export {
+  CHANNEL_PRESETS,
+  type ChannelPreset,
+  type ChannelPresetIdentity,
+  findChannelPreset,
+  isPersistableChannelPresetKey,
+} from "./channel-presets.js"
 export * from "./channel-push/index.js"
 export {
   classifyMappingUpdate,
@@ -184,7 +191,7 @@ export {
   channelAvailabilityPushIntents,
   channelContentPushIntents,
 } from "./schema-push-intents.js"
-export { SystemChannelProtectedError } from "./service/channels.js"
+export { DuplicateChannelPresetError, SystemChannelProtectedError } from "./service/channels.js"
 export * from "./suppliers/index.js"
 export {
   channelBookingLinkListQuerySchema,

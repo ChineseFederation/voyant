@@ -37,6 +37,8 @@ import {
 } from "@voyant-travel/identity/validation"
 import { listResponseSchema } from "@voyant-travel/types"
 
+import { CHANNEL_PRESETS } from "./channel-presets.js"
+
 import {
   batchIdsSchema,
   batchUpdateChannelBookingLinkSchema,
@@ -58,6 +60,7 @@ import {
   channelContactPointSchema,
   channelContractSchema,
   channelNamedContactSchema,
+  channelPresetSchema,
   channelProductMappingSchema,
   channelProductPublicationSchema,
   channelPublicationReindexIntentSchema,
@@ -77,7 +80,7 @@ import {
   supplierPublicationPreviewResponseSchema,
 } from "./routes/openapi-schemas.js"
 import { settlementRoutes } from "./routes/settlements.js"
-import { SystemChannelProtectedError } from "./service/channels.js"
+import { DuplicateChannelPresetError, SystemChannelProtectedError } from "./service/channels.js"
 import { distributionService } from "./service.js"
 import {
   channelBookingLinkListQuerySchema,
@@ -139,6 +142,10 @@ const createChannelRoute = createRoute({
   responses: {
     201: { description: "The created channel", ...jsonContent(z.object({ data: channelSchema })) },
     400: { description: "invalid_request", ...jsonContent(errorResponseSchema) },
+    409: {
+      description: "A channel for this preset network already exists",
+      ...jsonContent(errorResponseSchema),
+    },
   },
 })
 
@@ -162,6 +169,19 @@ const batchDeleteChannelsRoute = createRoute({
   responses: {
     200: { description: "Per-id batch-delete results", ...jsonContent(batchDeleteResponseSchema) },
     400: { description: "invalid_request", ...jsonContent(errorResponseSchema) },
+  },
+})
+
+// Declared before `/channels/{id}`, which would otherwise match `presets` as an
+// id — the same reason the batch legs sit above it.
+const listChannelPresetsRoute = createRoute({
+  method: "get",
+  path: "/channels/presets",
+  responses: {
+    200: {
+      description: "Known networks and partner types a channel can be created from",
+      ...jsonContent(z.object({ data: z.array(channelPresetSchema) })),
+    },
   },
 })
 
@@ -208,10 +228,18 @@ const channelRoutes = new OpenAPIHono<DistributionRouteEnv>({ defaultHook: openA
   .openapi(listChannelsRoute, async (c) =>
     c.json(await distributionService.listChannels(c.get("db"), c.req.valid("query")), 200),
   )
+  .openapi(listChannelPresetsRoute, async (c) => c.json({ data: [...CHANNEL_PRESETS] }, 200))
   .openapi(createChannelRoute, async (c) => {
-    const row = await distributionService.createChannel(c.get("db"), c.req.valid("json"))
-    if (row) await c.get("eventBus")?.emit("channel.created", { id: row.id })
-    return c.json({ data: row! }, 201)
+    try {
+      const row = await distributionService.createChannel(c.get("db"), c.req.valid("json"))
+      if (row) await c.get("eventBus")?.emit("channel.created", { id: row.id })
+      return c.json({ data: row! }, 201)
+    } catch (error) {
+      if (error instanceof DuplicateChannelPresetError) {
+        return c.json({ error: error.message }, 409)
+      }
+      throw error
+    }
   })
   .openapi(batchUpdateChannelsRoute, async (c) => {
     const body = c.req.valid("json")

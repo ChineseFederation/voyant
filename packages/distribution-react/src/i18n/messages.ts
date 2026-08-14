@@ -295,6 +295,9 @@ export type DistributionUiMessages = {
       deleteDescription: string
       editSheetTitle: string
       newSheetTitle: string
+      presetLabel: string
+      presetCustom: string
+      presetHint: string
       nameLabel: string
       namePlaceholder: string
       kindLabel: string

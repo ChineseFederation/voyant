@@ -78,6 +78,13 @@
       "when": 1786708800000,
       "tag": "20260814120000_direct_channel_system_key",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1786723200000,
+      "tag": "20260814160000_channel_preset_key",
+      "breakpoints": true
     }
   ]
 }

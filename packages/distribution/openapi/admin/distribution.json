@@ -124,6 +124,10 @@
                             "type": ["string", "null"],
                             "description": "Non-null on a channel the deployment provisions for itself. `direct` is the only one today: it cannot be deleted or deactivated, and the counterparty list leaves it out."
                           },
+                          "presetKey": {
+                            "type": ["string", "null"],
+                            "description": "Catalog entry this channel was created from, for named networks only. A stable identity a connector can bind to, unlike the display name."
+                          },
                           "rateLimitRps": {
                             "type": ["integer", "null"]
                           },
@@ -160,6 +164,7 @@
                           "status",
                           "metadata",
                           "systemKey",
+                          "presetKey",
                           "rateLimitRps",
                           "rateLimitBurst",
                           "rateLimitPriorityGates",
@@ -297,6 +302,10 @@
                           "type": ["string", "null"],
                           "description": "Non-null on a channel the deployment provisions for itself. `direct` is the only one today: it cannot be deleted or deactivated, and the counterparty list leaves it out."
                         },
+                        "presetKey": {
+                          "type": ["string", "null"],
+                          "description": "Catalog entry this channel was created from, for named networks only. A stable identity a connector can bind to, unlike the display name."
+                        },
                         "rateLimitRps": {
                           "type": ["integer", "null"]
                         },
@@ -333,6 +342,7 @@
                         "status",
                         "metadata",
                         "systemKey",
+                        "presetKey",
                         "rateLimitRps",
                         "rateLimitBurst",
                         "rateLimitPriorityGates",
@@ -351,6 +361,22 @@
           },
           "400": {
             "description": "invalid_request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "A channel for this preset network already exists",
             "content": {
               "application/json": {
                 "schema": {
@@ -493,6 +519,10 @@
                             "type": ["string", "null"],
                             "description": "Non-null on a channel the deployment provisions for itself. `direct` is the only one today: it cannot be deleted or deactivated, and the counterparty list leaves it out."
                           },
+                          "presetKey": {
+                            "type": ["string", "null"],
+                            "description": "Catalog entry this channel was created from, for named networks only. A stable identity a connector can bind to, unlike the display name."
+                          },
                           "rateLimitRps": {
                             "type": ["integer", "null"]
                           },
@@ -529,6 +559,7 @@
                           "status",
                           "metadata",
                           "systemKey",
+                          "presetKey",
                           "rateLimitRps",
                           "rateLimitBurst",
                           "rateLimitPriorityGates",
@@ -670,6 +701,64 @@
         }
       }
     },
+    "/v1/admin/distribution/channels/presets": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Known networks and partner types a channel can be created from",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "key": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "direct",
+                              "affiliate",
+                              "ota",
+                              "reseller",
+                              "marketplace",
+                              "api_partner",
+                              "connect"
+                            ]
+                          },
+                          "identity": {
+                            "type": "string",
+                            "enum": ["network", "partner-type"]
+                          },
+                          "website": {
+                            "type": "string"
+                          },
+                          "description": {
+                            "type": "string"
+                          }
+                        },
+                        "required": ["key", "name", "kind", "identity"]
+                      }
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "listChannelPresets",
+        "tags": ["distribution"]
+      }
+    },
     "/v1/admin/distribution/channels/{id}": {
       "get": {
         "x-voyant-api-id": "@voyant-travel/distribution#api",
@@ -727,6 +816,10 @@
                           "type": ["string", "null"],
                           "description": "Non-null on a channel the deployment provisions for itself. `direct` is the only one today: it cannot be deleted or deactivated, and the counterparty list leaves it out."
                         },
+                        "presetKey": {
+                          "type": ["string", "null"],
+                          "description": "Catalog entry this channel was created from, for named networks only. A stable identity a connector can bind to, unlike the display name."
+                        },
                         "rateLimitRps": {
                           "type": ["integer", "null"]
                         },
@@ -763,6 +856,7 @@
                         "status",
                         "metadata",
                         "systemKey",
+                        "presetKey",
                         "rateLimitRps",
                         "rateLimitBurst",
                         "rateLimitPriorityGates",
@@ -915,6 +1009,10 @@
                           "type": ["string", "null"],
                           "description": "Non-null on a channel the deployment provisions for itself. `direct` is the only one today: it cannot be deleted or deactivated, and the counterparty list leaves it out."
                         },
+                        "presetKey": {
+                          "type": ["string", "null"],
+                          "description": "Catalog entry this channel was created from, for named networks only. A stable identity a connector can bind to, unlike the display name."
+                        },
                         "rateLimitRps": {
                           "type": ["integer", "null"]
                         },
@@ -951,6 +1049,7 @@
                         "status",
                         "metadata",
                         "systemKey",
+                        "presetKey",
                         "rateLimitRps",
                         "rateLimitBurst",
                         "rateLimitPriorityGates",

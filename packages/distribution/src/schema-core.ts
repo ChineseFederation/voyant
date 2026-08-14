@@ -59,6 +59,16 @@ export const channels = pgTable(
      * depends on by first clearing the marker.
      */
     systemKey: text("system_key").$type<ChannelSystemKey>(),
+    /**
+     * The catalog entry this channel was created from (`channel-presets.ts`),
+     * for named networks only — a stable identity a connector can bind to
+     * instead of matching on a display name the operator is free to rename.
+     *
+     * Null for a channel the operator described themselves, and null for the
+     * partner-type presets, which prefill a form rather than name a
+     * counterparty.
+     */
+    presetKey: text("preset_key"),
 
     // ── Channel push: per-channel rate-limit defaults ───────────────
     // Per channel-push-architecture §14.1. Contract-level rules in
@@ -88,6 +98,12 @@ export const channels = pgTable(
     uniqueIndex("uniq_channels_system_key")
       .on(table.systemKey)
       .where(sql`${table.systemKey} IS NOT NULL`),
+    // One channel per named network: the point of the key is that it resolves
+    // to exactly one row, so a connector asking for "the GetYourGuide channel"
+    // gets an answer rather than a list.
+    uniqueIndex("uniq_channels_preset_key")
+      .on(table.presetKey)
+      .where(sql`${table.presetKey} IS NOT NULL`),
   ],
 )
 
