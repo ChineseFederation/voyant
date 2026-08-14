@@ -1,3 +1,12 @@
+/**
+ * NOTE (voyant#4625): this runs AHEAD of the PK/SK capability line, because a
+ * hit is meant to skip auth entirely. Only a response a route explicitly marks
+ * `Cache-Control: public, s-maxage=…` is ever stored — a claim that the body is
+ * identical for every caller — and every route group in
+ * `docs/architecture/public-route-cache-policy.md` is declared `publishable`.
+ * Keep it that way: a secret-key-only route that marked itself shared-cacheable
+ * would be served to any caller, and would bypass the capability line on top.
+ */
 import type { KVStore } from "@voyant-travel/utils/cache"
 import type { MiddlewareHandler } from "hono"
 

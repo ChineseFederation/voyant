@@ -278,6 +278,17 @@ export interface VoyantGraphRuntimeComposition {
 export interface VoyantGraphRuntimeRoutePosture {
   publicPaths: string[]
   transactionalPaths: string[]
+  /**
+   * Absolute paths a publishable (`vpk_`) storefront key may call. Everything
+   * else on a published surface is secret-key-only, so this list is an
+   * allow-list and its absence is a denial, not an omission.
+   */
+  publishablePaths: string[]
+  /**
+   * Absolute paths that capture unchallenged person data. Reachable with a
+   * publishable key only on a deployment that has an intake guard configured.
+   */
+  guardedIntakePaths: string[]
 }
 
 /**
@@ -443,6 +454,8 @@ function deriveAccessResources(runtime: VoyantGraphRuntime): {
 interface UnitRoutePosture extends VoyantGraphRuntimeRoutePosture {
   publicMount?: string
   anonymous: boolean | readonly string[] | undefined
+  publishable: boolean | readonly string[] | undefined
+  guardedIntake: boolean | readonly string[] | undefined
 }
 
 function deriveUnitRoutePosture(unit: VoyantGraphRuntimeUnitLoader): UnitRoutePosture {
@@ -466,10 +479,42 @@ function deriveUnitRoutePosture(unit: VoyantGraphRuntimeUnitLoader): UnitRoutePo
       return route.transactional.map((path) => resolveRoutePosturePath(mount, path))
     }),
   )
+  // Only the public surface can be reached with a storefront key at all, so an
+  // admin bundle that declared `publishable` would otherwise widen a list the
+  // capability middleware reads as "a browser key may go here".
+  const publishablePaths = sortedUnique(
+    publicRoutes.flatMap(({ route }) => {
+      const mount = resolveVoyantGraphRouteMountPath(unit, route)
+      if (route.publishable === true) return [mount]
+      if (!route.publishable) return []
+      return route.publishable.map((path) => resolveRoutePosturePath(mount, path))
+    }),
+  )
+  const guardedIntakePaths = sortedUnique(
+    publicRoutes.flatMap(({ route }) => {
+      const mount = resolveVoyantGraphRouteMountPath(unit, route)
+      if (route.guardedIntake === true) return [mount]
+      if (!route.guardedIntake) return []
+      return route.guardedIntake.map((path) => resolveRoutePosturePath(mount, path))
+    }),
+  )
   const publicMount = publicMounts.length === 1 ? publicMounts[0] : undefined
-  const anonymous = publicMount ? anonymousForPublicMount(publicMount, publicPaths) : undefined
+  const anonymous = publicMount ? relativeToPublicMount(publicMount, publicPaths) : undefined
+  const publishable = publicMount ? relativeToPublicMount(publicMount, publishablePaths) : undefined
+  const guardedIntake = publicMount
+    ? relativeToPublicMount(publicMount, guardedIntakePaths)
+    : undefined
 
-  return { publicPaths, transactionalPaths, publicMount, anonymous }
+  return {
+    publicPaths,
+    transactionalPaths,
+    publishablePaths,
+    guardedIntakePaths,
+    publicMount,
+    anonymous,
+    publishable,
+    guardedIntake,
+  }
 }
 
 export function resolveVoyantGraphRouteMountPath(
@@ -495,13 +540,20 @@ function appendPath(mount: string, relative: string): string {
   return relative ? `${normalizeAbsolutePath(mount)}/${relative}` : normalizeAbsolutePath(mount)
 }
 
-function anonymousForPublicMount(
+/**
+ * Project absolute posture paths back onto a module's own public mount, in the
+ * `boolean | string[]` shape `ApiModule` declares. `true` when the whole mount
+ * is covered, the mount-relative sub-paths otherwise, `undefined` when nothing
+ * is — so an absent declaration stays absent rather than becoming an empty
+ * array, which downstream assemblers read as "declared nothing".
+ */
+function relativeToPublicMount(
   publicMount: string,
-  publicPaths: readonly string[],
+  paths: readonly string[],
 ): boolean | readonly string[] | undefined {
-  if (publicPaths.includes(publicMount)) return true
+  if (paths.includes(publicMount)) return true
   const prefix = `${publicMount}/`
-  const relative = publicPaths
+  const relative = paths
     .filter((path) => path.startsWith(prefix))
     .map((path) => path.slice(publicMount.length))
   return relative.length > 0 ? relative : undefined
@@ -514,6 +566,8 @@ function applyModuleRoutePosture(output: ApiModule, posture: UnitRoutePosture): 
       ? { publicPath: publicPathFromMount(posture.publicMount) }
       : {}),
     ...(posture.anonymous !== undefined ? { anonymous: posture.anonymous } : {}),
+    ...(posture.publishable !== undefined ? { publishable: posture.publishable } : {}),
+    ...(posture.guardedIntake !== undefined ? { guardedIntake: posture.guardedIntake } : {}),
     ...(posture.transactionalPaths.length > 0
       ? {
           transactionalPaths: sortedUnique([
@@ -532,6 +586,8 @@ function applyExtensionRoutePosture(output: ApiExtension, posture: UnitRoutePost
       ? { publicPath: publicPathFromMount(posture.publicMount) }
       : {}),
     ...(posture.anonymous !== undefined ? { anonymous: posture.anonymous } : {}),
+    ...(posture.publishable !== undefined ? { publishable: posture.publishable } : {}),
+    ...(posture.guardedIntake !== undefined ? { guardedIntake: posture.guardedIntake } : {}),
     ...(posture.transactionalPaths.length > 0
       ? {
           transactionalPaths: sortedUnique([
@@ -556,6 +612,10 @@ function mergeRoutePostures(
     publicPaths: sortedUnique(postures.flatMap(({ publicPaths }) => publicPaths)),
     transactionalPaths: sortedUnique(
       postures.flatMap(({ transactionalPaths }) => transactionalPaths),
+    ),
+    publishablePaths: sortedUnique(postures.flatMap(({ publishablePaths }) => publishablePaths)),
+    guardedIntakePaths: sortedUnique(
+      postures.flatMap(({ guardedIntakePaths }) => guardedIntakePaths),
     ),
   }
 }

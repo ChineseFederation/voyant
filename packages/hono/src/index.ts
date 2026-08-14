@@ -1,5 +1,10 @@
 export type { VoyantPermission } from "@voyant-travel/core"
-export { assembleAnonymousPaths, assembleOptionalCustomerAuthPaths } from "./anonymous-paths.js"
+export {
+  assembleAnonymousPaths,
+  assembleGuardedIntakePaths,
+  assembleOptionalCustomerAuthPaths,
+  assemblePublishablePaths,
+} from "./anonymous-paths.js"
 export { mountApp } from "./app.js"
 export type {
   BusinessCustomerBuyerContext,
@@ -80,6 +85,7 @@ export {
   requestId,
   requireActor,
   requireAuth,
+  requireKeyCapability,
   requirePermission,
 } from "./middleware/index.js"
 export type { ApiExtension, ApiModule } from "./module.js"

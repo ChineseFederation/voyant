@@ -171,6 +171,9 @@ describe("mountApp lazy route mounting", () => {
           module: { name: "checkout" },
           lazyPublicRoutes: async () =>
             new Hono().get("/ping", (c) => c.json({ surface: "lazy-public" })),
+          // Secret-key-only without this (voyant#4625); the assertion here is
+          // about where a lazy public family mounts.
+          publishable: true,
         },
       ],
       auth: { resolve: () => ({ userId: "u1", actor: "customer", realm: "customer" }) },

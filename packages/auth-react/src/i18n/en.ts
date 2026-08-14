@@ -530,7 +530,8 @@ export const authUiEn: AuthUiMessages = {
     },
     keys: {
       title: "Access keys",
-      description: "Publishable keys are browser-safe; secret keys are server-only.",
+      description:
+        "A publishable key ships in your browser bundle and is public — treat it as such. Allowed origins keep another website from using it in a visitor's browser, but they are a browser control, not a security boundary: any server can send whatever origin it likes. A secret key is server-only, carries the scopes you grant it, and reaches both the public and admin APIs.",
       namePlaceholder: "Key name (optional)",
       issuePublishable: "Issue publishable key",
       issueSecret: "Issue secret key",
@@ -541,6 +542,11 @@ export const authUiEn: AuthUiMessages = {
       rotateConfirm: "Rotate this key? The current secret will stop working.",
       kindPublishable: "Publishable",
       kindSecret: "Secret",
+      scopesLabel: "Scopes",
+      scopesFullAccess: "Full access",
+      scopesFullAccessWarning:
+        "This key can do anything on this deployment, including the admin API. Grant it only what it needs.",
+      scopesLegacy: "Unscoped (issued before scopes)",
       revoked: "Revoked",
       active: "Active",
       revealTitle: "Copy your new key now",

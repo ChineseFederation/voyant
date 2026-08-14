@@ -15,6 +15,11 @@ The goal is simple:
 Storefront should be a first-class framework surface, not just a set of public
 routes.
 
+A storefront authenticates with one of two access keys, and which one it is
+decides which routes it can reach. That split — and the fact that origin binding
+is a browser control rather than a security boundary — is specified in
+[`storefront-key-capability-line.md`](./storefront-key-capability-line.md).
+
 ## Core Rules
 
 ### 1. Keep `storefront` as the customer-facing package concept

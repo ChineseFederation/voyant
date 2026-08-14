@@ -280,6 +280,31 @@ export interface VoyantGraphRouteBundle {
   requiredScopes?: readonly string[]
   /** Anonymous public access for the whole public mount or route-relative path subsets. */
   anonymous?: boolean | readonly string[]
+  /**
+   * Which parts of this bundle a PUBLISHABLE (`vpk_`) storefront key may call.
+   * `true` opens the whole mount; a string array opens only those
+   * route-relative paths. Everything not named here is secret-key-only.
+   *
+   * The default is the fail-closed one: a bundle that says nothing is reachable
+   * only with a `vsk_`. That is deliberate — a publishable key ships inside a
+   * browser bundle, so "nobody remembered to classify this route" must not read
+   * as "safe to expose". Anonymity and publishability are independent: a route
+   * can be anonymous (no customer session) and still require a secret key, and
+   * a publishable route can still demand a session on top.
+   */
+  publishable?: boolean | readonly string[]
+  /**
+   * Public paths that capture person data with nothing challenging the
+   * submitter — a lead form, a newsletter sign-up, a booking inquiry. A
+   * publishable key reaches these ONLY when the deployment has an intake guard
+   * configured; without one they are secret-key-only.
+   *
+   * This is a third state on purpose rather than a flavour of `publishable`:
+   * the answer depends on a deployment fact, not on the route. The framework
+   * supplies the seam and the fail-closed default; what fills it (a CAPTCHA, a
+   * proof-of-work, a rate-limited allowlist) is the deployment's business.
+   */
+  guardedIntake?: boolean | readonly string[]
   /** Transactional DB routing for the whole mount or route-relative path subsets. */
   transactional?: boolean | readonly string[]
   runtime?: VoyantGraphRuntimeReference

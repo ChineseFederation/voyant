@@ -2074,6 +2074,109 @@ function createBankTransferHarness() {
   return harness
 }
 
+/**
+ * voyant#4625 §3 — confirmation, not new behaviour.
+ *
+ * Under the target model a publishable key may open, quote, hold and commit a
+ * Booking Session, because the key is never the authority: the session's own
+ * capability, its revision and its idempotency key are. These pin that, so a
+ * later change cannot quietly make the credential load-bearing again.
+ *
+ * Nothing in this suite presents a key of any kind. If any of it started
+ * depending on one, the model would have moved.
+ */
+describe("Booking Session v1 authority under a publishable key", () => {
+  it("refuses a session action without the session's own capability", async () => {
+    const harness = createHarness()
+    const created = await harness.module.createSession(
+      {
+        idempotencyKey: nextCreateKey("pk_authority_capability"),
+        target: { kind: "product", productId: "prod_owned_1" },
+      },
+      ANONYMOUS_ACCESS,
+    )
+    if (created.kind !== "session_created") throw new Error("session not created")
+
+    await expect(
+      harness.module.resumeSession(created.session.id, {
+        actorKind: "anonymous",
+        ...STOREFRONT_ACCESS,
+      }),
+    ).resolves.toMatchObject({ kind: "rejected", error: { kind: "capability_required" } })
+  })
+
+  it("refuses a stale revision even with the right capability", async () => {
+    const harness = createHarness()
+    const created = await harness.module.createSession(
+      {
+        idempotencyKey: nextCreateKey("pk_authority_revision"),
+        target: { kind: "product", productId: "prod_owned_1" },
+      },
+      ANONYMOUS_ACCESS,
+    )
+    if (created.kind !== "session_created") throw new Error("session not created")
+
+    await expect(
+      harness.module.quoteSession(
+        created.session.id,
+        {
+          expectedRevision: created.session.revision + 5,
+          idempotencyKey: "pk_authority_stale_revision",
+        },
+        ANONYMOUS_ACCESS,
+      ),
+    ).resolves.toMatchObject({ kind: "rejected" })
+  })
+
+  it("replays a repeated idempotency key instead of acting twice", async () => {
+    const harness = createHarness()
+    const created = await harness.module.createSession(
+      {
+        idempotencyKey: nextCreateKey("pk_authority_idempotency"),
+        target: { kind: "product", productId: "prod_owned_1" },
+      },
+      ANONYMOUS_ACCESS,
+    )
+    if (created.kind !== "session_created") throw new Error("session not created")
+
+    const first = await harness.module.quoteSession(
+      created.session.id,
+      { expectedRevision: created.session.revision, idempotencyKey: "pk_authority_quote_once" },
+      ANONYMOUS_ACCESS,
+    )
+    const replay = await harness.module.quoteSession(
+      created.session.id,
+      { expectedRevision: created.session.revision, idempotencyKey: "pk_authority_quote_once" },
+      ANONYMOUS_ACCESS,
+    )
+
+    expect(first.kind).not.toBe("rejected")
+    expect(replay).toEqual(first)
+  })
+
+  it("pins the session to the storefront that opened it", async () => {
+    // Origin binding is a browser control, so the session carries its own
+    // storefront provenance rather than trusting the request's.
+    const harness = createHarness()
+    const created = await harness.module.createSession(
+      {
+        idempotencyKey: nextCreateKey("pk_authority_storefront"),
+        target: { kind: "product", productId: "prod_owned_1" },
+      },
+      ANONYMOUS_ACCESS,
+    )
+    if (created.kind !== "session_created") throw new Error("session not created")
+
+    await expect(
+      harness.module.resumeSession(created.session.id, {
+        actorKind: "anonymous",
+        capability: TEST_CAPABILITY,
+        storefront: { storefrontId: "sf_other", channelId: "chan_other" },
+      }),
+    ).resolves.toMatchObject({ kind: "rejected", error: { kind: "not_authorized" } })
+  })
+})
+
 function nextCreateKey(prefix: string): string {
   createCounter += 1
   return `${prefix}_${createCounter}`

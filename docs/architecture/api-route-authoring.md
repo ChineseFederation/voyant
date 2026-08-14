@@ -38,6 +38,14 @@ Use `publicRoutes` for customer-facing and other external-facing contracts.
 Do not add new package routes to the legacy `routes` surface unless there is a
 strong backwards-compatibility reason.
 
+**`/v1/public/*` names the audience, not the trust level.** It is not "the safe
+surface": committing a booking, opening a payment session and reading a
+customer's documents all live there. Every public route declares which storefront
+key kind may reach it, and a route that declares nothing is secret-key-only — so
+a browser cannot call it until you say so. Read
+[`storefront-key-capability-line.md`](./storefront-key-capability-line.md)
+before adding one.
+
 Rule:
 
 Every new package route should declare whether it belongs to the admin or

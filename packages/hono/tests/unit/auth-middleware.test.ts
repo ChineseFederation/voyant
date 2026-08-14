@@ -698,6 +698,173 @@ function makeApiKeyDb(row: Record<string, unknown>) {
   } as never
 }
 
+/**
+ * voyant#4625 §4 — a storefront SECRET key authenticates `/v1/admin/*`,
+ * replacing the deployment admin key, and the deployment key it replaces is
+ * deprecated behind a switch rather than deleted (self-host consumes this from
+ * npm and cannot be migrated on its behalf).
+ */
+describe("requireAuth storefront secret keys on the admin surface", () => {
+  const SECRET = "vsk_admin_secret_key"
+  const storefrontKeyRow = (scopes: Record<string, string[]> | null) => ({
+    id: "sfk_1",
+    storefrontId: "sf_1",
+    kind: "secret",
+    scopes,
+    tokenHash: "hash",
+    tokenPreview: "vsk_abc123",
+    name: null,
+    lastUsedAt: null,
+    revokedAt: null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  })
+
+  function adminApp(row: Record<string, unknown> | null) {
+    const app = new Hono()
+    app.use(
+      "*",
+      requireAuth(
+        () =>
+          ({
+            select: () => ({
+              from: () => ({ where: () => ({ limit: async () => (row ? [row] : []) }) }),
+            }),
+            update: () => ({ set: () => ({ where: async () => {} }) }),
+          }) as never,
+      ),
+    )
+    app.get("/v1/admin/bookings", (c) =>
+      c.json({
+        actor: c.get("actor"),
+        realm: c.get("realm"),
+        callerType: c.get("callerType"),
+        storefrontKeyKind: c.get("storefrontKeyKind") ?? null,
+        scopes: c.get("scopes") ?? null,
+      }),
+    )
+    app.get("/v1/public/catalog", (c) => c.json({ actor: c.get("actor") ?? null }))
+    return app
+  }
+
+  const request = (path: string, headers: Record<string, string>) =>
+    new Request(`http://example.com${path}`, { headers })
+
+  it("admits a secret key as staff on the admin realm, carrying its scopes", async () => {
+    const app = adminApp(storefrontKeyRow({ bookings: ["read"] }))
+    const response = await app.fetch(
+      request("/v1/admin/bookings", { "x-api-key": SECRET }),
+      TEST_ENV,
+      mockExecutionCtx(),
+    )
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({
+      actor: "staff",
+      realm: "admin",
+      callerType: "api_key",
+      storefrontKeyKind: "secret",
+      scopes: ["bookings:read"],
+    })
+  })
+
+  it("accepts the same key as a bearer token", async () => {
+    const app = adminApp(storefrontKeyRow({ bookings: ["read"] }))
+    const response = await app.fetch(
+      request("/v1/admin/bookings", { authorization: `Bearer ${SECRET}` }),
+      TEST_ENV,
+      mockExecutionCtx(),
+    )
+    expect(response.status).toBe(200)
+  })
+
+  it("gives a pre-scopes key the commerce default, never the unrestricted grant", async () => {
+    const app = adminApp(storefrontKeyRow(null))
+    const response = await app.fetch(
+      request("/v1/admin/bookings", { "x-api-key": SECRET }),
+      TEST_ENV,
+      mockExecutionCtx(),
+    )
+    const body = (await response.json()) as { scopes: string[] }
+    expect(body.scopes).toContain("bookings:read")
+    expect(body.scopes).not.toContain("*")
+  })
+
+  it("401s a secret key that resolves to no row", async () => {
+    const app = adminApp(null)
+    const response = await app.fetch(
+      request("/v1/admin/bookings", { "x-api-key": SECRET }),
+      TEST_ENV,
+      mockExecutionCtx(),
+    )
+    expect(response.status).toBe(401)
+  })
+
+  it("never admits a PUBLISHABLE key on the admin surface", async () => {
+    const app = adminApp(storefrontKeyRow({ bookings: ["read"] }))
+    const response = await app.fetch(
+      request("/v1/admin/bookings", { "x-api-key": "vpk_browser_key" }),
+      TEST_ENV,
+      mockExecutionCtx(),
+    )
+    expect(response.status).toBe(401)
+  })
+
+  it("leaves the public surface to the customer-auth resolver", async () => {
+    // Admitting a secret key here too would skip the resolution that derives
+    // the storefront channel, handing the request a public context with no
+    // storefront behind it.
+    const app = adminApp(storefrontKeyRow({ bookings: ["read"] }))
+    const response = await app.fetch(
+      request("/v1/public/catalog", { "x-api-key": SECRET }),
+      TEST_ENV,
+      mockExecutionCtx(),
+    )
+    expect(response.status).toBe(401)
+  })
+})
+
+describe("requireAuth deployment API key deprecation", () => {
+  const token = "voy_deployment_key"
+
+  async function call(env: VoyantBindings, path: string) {
+    const row = makeApiKeyRow({ key: await sha256Base64Url(token), referenceId: "org_1" })
+    const app = new Hono()
+    app.use(
+      "*",
+      requireAuth(() => makeApiKeyDb(row)),
+    )
+    app.get(path, (c) => c.json({ ok: true }))
+    return app.fetch(
+      new Request(`http://example.com${path}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      }),
+      env,
+      mockExecutionCtx(),
+    )
+  }
+
+  it("keeps working by default — the compatibility window is open", async () => {
+    expect((await call(TEST_ENV, "/v1/admin/bookings")).status).toBe(200)
+  })
+
+  it("stops authenticating the admin surface once the deployment closes the window", async () => {
+    const response = await call(
+      { ...TEST_ENV, VOYANT_DEPLOYMENT_API_KEY_MODE: "disabled" },
+      "/v1/admin/bookings",
+    )
+    expect(response.status).toBe(401)
+    expect(await response.json()).toMatchObject({ code: "deployment_api_key_disabled" })
+  })
+
+  it("closing the window does not touch non-admin surfaces", async () => {
+    const response = await call(
+      { ...TEST_ENV, VOYANT_DEPLOYMENT_API_KEY_MODE: "disabled" },
+      "/v1/some-legacy-route",
+    )
+    expect(response.status).toBe(200)
+  })
+})
+
 function makeCloudActorDb(userId: string | null) {
   return {
     select: () => ({

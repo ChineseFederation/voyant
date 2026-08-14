@@ -39,6 +39,21 @@ export interface ApiBundle {
    * these into the assembled anonymous allow-list.
    */
   anonymous?: string[]
+  /**
+   * Absolute `/v1/public/*` paths this bundle exposes that a PUBLISHABLE
+   * (`vpk_`) storefront key may call (voyant#4625). Same absolute-path shape as
+   * `anonymous`, and for the same reason: a bundle's routes can mount anywhere.
+   *
+   * Declaring nothing denies the bundle's public routes to publishable keys —
+   * the capability line is an allow-list, so silence is a denial.
+   */
+  publishable?: string[]
+  /**
+   * Absolute `/v1/public/*` paths this bundle exposes that capture unchallenged
+   * person data (voyant#4625). Publishable-key callable only on a deployment
+   * with an intake guard configured.
+   */
+  guardedIntake?: string[]
 }
 
 const LAZY_API_BUNDLE = Symbol.for("voyant.api.lazyBundle")
@@ -61,6 +76,16 @@ export interface LazyApiBundle {
    * before the bundle has been imported.
    */
   anonymous?: string[]
+  /**
+   * Absolute publishable-key paths contributed by the eventual bundle, eager
+   * for the same reason `anonymous` is: the capability line must be able to
+   * answer for the first matching request, before the bundle is imported. Not
+   * declaring them keeps the bundle secret-key-only, which is the fail-closed
+   * direction.
+   */
+  publishable?: string[]
+  /** Absolute unchallenged-intake paths contributed by the eventual bundle. */
+  guardedIntake?: string[]
   /**
    * Absolute route matchers the eventual bundle may serve. Required for lazy
    * bundles that contribute HTTP routes because Hono routes must be registered
@@ -115,6 +140,10 @@ export interface ExpandedApiBundles {
   links: LinkDefinition[]
   /** Absolute anonymous-access paths declared by bundles (ADR-0008). */
   anonymousPaths: string[]
+  /** Absolute publishable-key paths declared by bundles (voyant#4625). */
+  publishablePaths: string[]
+  /** Absolute unchallenged-intake paths declared by bundles (voyant#4625). */
+  guardedIntakePaths: string[]
 }
 
 /**
@@ -129,6 +158,8 @@ export function expandApiBundles(bundles: ReadonlyArray<ApiBundle>): ExpandedApi
   const subscribers: Subscriber[] = []
   const links: LinkDefinition[] = []
   const anonymousPaths: string[] = []
+  const publishablePaths: string[] = []
+  const guardedIntakePaths: string[] = []
 
   for (const bundle of bundles) {
     if (seen.has(bundle.name)) {
@@ -141,7 +172,17 @@ export function expandApiBundles(bundles: ReadonlyArray<ApiBundle>): ExpandedApi
     if (bundle.subscribers) subscribers.push(...bundle.subscribers)
     if (bundle.links) links.push(...bundle.links)
     if (bundle.anonymous) anonymousPaths.push(...bundle.anonymous)
+    if (bundle.publishable) publishablePaths.push(...bundle.publishable)
+    if (bundle.guardedIntake) guardedIntakePaths.push(...bundle.guardedIntake)
   }
 
-  return { modules, extensions, subscribers, links, anonymousPaths }
+  return {
+    modules,
+    extensions,
+    subscribers,
+    links,
+    anonymousPaths,
+    publishablePaths,
+    guardedIntakePaths,
+  }
 }

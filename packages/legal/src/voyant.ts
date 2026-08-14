@@ -294,6 +294,9 @@ export const legalVoyantModule = defineModule({
       openapi: { document: "legal" },
       anonymous: true,
       transactional: true,
+      // Terms, policies and contract documents a customer reads and signs from
+      // a browser; the contract id plus its own acceptance flow is the authority.
+      publishable: true,
       runtime: {
         entry: "@voyant-travel/legal",
         export: "createLegalVoyantRuntime",

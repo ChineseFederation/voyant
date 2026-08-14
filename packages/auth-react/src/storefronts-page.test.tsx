@@ -41,6 +41,9 @@ const API_KEY: StorefrontApiKeyDto = {
   id: "key_1",
   storefrontId: "storefront_1",
   kind: "publishable",
+  // Publishable keys carry no scope grant — they are bounded by the capability
+  // line, not by scopes (voyant#4625).
+  scopes: null,
   tokenPreview: "vpk_ab12",
   name: null,
   lastUsedAt: null,

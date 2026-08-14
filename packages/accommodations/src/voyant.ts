@@ -302,6 +302,8 @@ export const accommodationsContentVoyantPlugin = defineExtension({
       surface: "public",
       mount: "accommodations",
       anonymous: true,
+      // Content reads only: nothing here names a person or a booking.
+      publishable: true,
       openapi: { document: "accommodations-content-public" },
       runtime: {
         entry: "@voyant-travel/accommodations/graph-runtime",

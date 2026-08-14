@@ -243,6 +243,12 @@ export function createStorefrontApiModule(options?: StorefrontApiModuleOptions):
     ),
     anonymous: storefrontAnonymousPublicPaths,
     optionalCustomerAuth: storefrontOptionalCustomerAuthPaths,
+    // Lead and newsletter intake capture a person with nothing challenging the
+    // submitter, so a publishable key reaches them only once a guard exists
+    // (voyant#4625 §3). Reporting it from here means wiring the guard IS the
+    // unlock — there is no second flag to forget, and no way to claim the
+    // deployment guards intake while nothing does.
+    ...(options?.intake?.guard ? { publicIntakeGuarded: true } : {}),
     bodyKeyedCache: ["/shopping/search"],
   }
 }
@@ -289,6 +295,9 @@ export const createStorefrontVoyantRuntime = defineGraphRuntimeFactory(
       }
       if (configured.bodyKeyedCache !== undefined) {
         selected.bodyKeyedCache = configured.bodyKeyedCache
+      }
+      if (configured.publicIntakeGuarded !== undefined) {
+        selected.publicIntakeGuarded = configured.publicIntakeGuarded
       }
     }
     return selected

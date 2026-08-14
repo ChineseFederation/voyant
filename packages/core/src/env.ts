@@ -9,6 +9,21 @@ export type VoyantCallerType = "session" | "api_key" | "internal" | "app"
  */
 export type Actor = "staff" | "customer" | "partner" | "supplier"
 
+/**
+ * Which storefront access key a request presented, classified by prefix alone.
+ *
+ * `publishable` (`vpk_`) is meant to ship inside a browser bundle or a native
+ * app, so it must be assumed public: origin binding is a browser control, not a
+ * secrecy guarantee. `secret` (`vsk_`) is server-only and carries the
+ * storefront's full, scoped trust.
+ *
+ * The classification is a CEILING, not an authentication result — a request
+ * that merely looks like `vsk_…` still has to authenticate. Naming the kind
+ * before authentication is what lets one middleware decide, for every route,
+ * whether a browser-resident credential may reach it at all.
+ */
+export type VoyantStorefrontKeyKind = "publishable" | "secret"
+
 /** Immutable host context carried by an online token minted for an app extension. */
 export interface VoyantAppContextConstraint {
   entity: { type: string; id: string } | null
@@ -66,6 +81,12 @@ export interface VoyantAuthContext {
   appTokenMode?: "offline" | "online"
   appViewerId?: string
   appContextConstraint?: VoyantAppContextConstraint
+  /**
+   * Kind of storefront access key presented on this request, when one was.
+   * Set from the token prefix before any credential is verified, so guards can
+   * refuse a browser-resident key on a route that must never accept one.
+   */
+  storefrontKeyKind?: VoyantStorefrontKeyKind
   email?: string | null
 }
 

@@ -31,7 +31,11 @@ function makeModule(name: string, surface: "admin" | "public"): ApiModule {
   const routes = new Hono().get("/ping", (c) => c.json({ name, surface }))
   return {
     module: { name },
-    ...(surface === "admin" ? { adminRoutes: routes } : { publicRoutes: routes }),
+    // A public mount is secret-key-only unless it declares `publishable`
+    // (voyant#4625); these fixtures assert bundle expansion and mounting.
+    ...(surface === "admin"
+      ? { adminRoutes: routes }
+      : { publicRoutes: routes, publishable: true }),
   }
 }
 

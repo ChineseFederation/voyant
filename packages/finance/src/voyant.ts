@@ -104,6 +104,21 @@ export const financeVoyantModule = defineModule({
         "/accountant",
         "/travel-credits",
       ],
+      // Every booking-scoped leg is gated by a signed checkout capability plus a
+      // storefront-origin match, and the accountant share token is a
+      // high-entropy capability opened in a browser — so a publishable key adds
+      // no reach. `/travel-credits` is deliberately absent: validating a credit
+      // code is an oracle over a bearer instrument worth real money, and a
+      // publishable key is public by construction. A storefront that wants
+      // browser-side validation proxies it with a secret key.
+      publishable: [
+        "/bookings",
+        "/collections",
+        "/payment-sessions",
+        "/accountant",
+        "/documents",
+        "/invoices",
+      ],
       transactional: true,
       runtime: {
         entry: "@voyant-travel/finance",
@@ -908,6 +923,8 @@ export const financeBookingScheduleVoyantPlugin = defineExtension({
       mount: "payment-policy",
       openapi: { document: "bookings" },
       anonymous: true,
+      // Payment-policy display for a product a storefront is rendering.
+      publishable: true,
       runtime: {
         entry: "@voyant-travel/finance",
         export: "createBookingScheduleApiExtension",

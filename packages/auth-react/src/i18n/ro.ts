@@ -537,7 +537,8 @@ export const authUiRo: AuthUiMessages = {
     },
     keys: {
       title: "Chei de acces",
-      description: "Cheile publicabile sunt sigure in browser; cheile secrete sunt doar pe server.",
+      description:
+        "O cheie publicabila ajunge in pachetul din browser si este publica — trateaz-o ca atare. Originile permise impiedica alt site sa o foloseasca in browserul unui vizitator, dar sunt un control de browser, nu o limita de securitate: orice server poate trimite ce origine vrea. O cheie secreta este doar pe server, poarta permisiunile pe care i le acorzi si ajunge atat la API-ul public, cat si la cel de administrare.",
       namePlaceholder: "Nume cheie (optional)",
       issuePublishable: "Emite cheie publicabila",
       issueSecret: "Emite cheie secreta",
@@ -548,6 +549,11 @@ export const authUiRo: AuthUiMessages = {
       rotateConfirm: "Rotesti aceasta cheie? Secretul curent nu va mai functiona.",
       kindPublishable: "Publicabila",
       kindSecret: "Secreta",
+      scopesLabel: "Permisiuni",
+      scopesFullAccess: "Acces complet",
+      scopesFullAccessWarning:
+        "Aceasta cheie poate face orice pe acest deployment, inclusiv pe API-ul de administrare. Acorda-i doar ce ii trebuie.",
+      scopesLegacy: "Fara permisiuni (emisa inainte de permisiuni)",
       revoked: "Revocata",
       active: "Activa",
       revealTitle: "Copiaza cheia noua acum",

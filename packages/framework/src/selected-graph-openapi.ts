@@ -90,6 +90,7 @@ export async function buildSelectedGraphOpenApiDocuments(
           "x-voyant-api-id": claim.route.id,
           "x-voyant-unit-id": claim.unit.id,
           "x-voyant-package-name": claim.unit.packageName,
+          "x-voyant-key-kind": keyKindForPath(claim, path),
         }
       }
 
@@ -206,6 +207,50 @@ function mergeDocumentPaths(
     merged[path] = isRecord(current) && isRecord(pathItem) ? { ...current, ...pathItem } : pathItem
   }
   return merged
+}
+
+/**
+ * The published key-kind for one operation (voyant#4625).
+ *
+ * Derived from the SAME `publishable`/`guardedIntake` declaration the capability
+ * middleware enforces, resolved against the same mount, so the document a client
+ * reads and the middleware that answers it cannot disagree. Hand-stamping the
+ * committed specs instead would have produced exactly that drift — a contract
+ * saying "publishable" over a runtime that returns 403.
+ *
+ * `secret` is the value for anything undeclared, matching the middleware's
+ * fail-closed default: a route nobody classified is documented as
+ * secret-key-only rather than left blank for a reader to assume the safer of
+ * the two.
+ */
+function keyKindForPath(claim: OpenApiClaim, path: string): "publishable" | "secret" {
+  // Only the public surface accepts a storefront key at all, and composition
+  // drops `publishable` on anything else — so a stray declaration on an admin
+  // bundle must not document a reach the runtime does not grant.
+  if (claim.route.surface !== "public") return "secret"
+  // Unchallenged intake is publishable only on a deployment that configured a
+  // guard, which no document can know. The narrower of the two claims is the
+  // honest one to publish.
+  if (matchesDeclaration(claim.route.guardedIntake, claim.mount, path)) return "secret"
+  return matchesDeclaration(claim.route.publishable, claim.mount, path) ? "publishable" : "secret"
+}
+
+/** Whether `path` falls under a `boolean | string[]` declaration on `mount`. */
+function matchesDeclaration(
+  declaration: boolean | readonly string[] | undefined,
+  mount: string,
+  path: string,
+): boolean {
+  if (!declaration) return false
+  const covered =
+    declaration === true
+      ? [mount]
+      : declaration.map((entry) => {
+          const relative = entry.trim().replace(/^\/+|\/+$/g, "")
+          if (!relative) return mount
+          return mount === "/" ? `/${relative}` : `${mount}/${relative}`
+        })
+  return covered.some((prefix) => path === prefix || path.startsWith(`${prefix}/`))
 }
 
 function routeClaimsMethod(claim: OpenApiClaim, method: string): boolean {

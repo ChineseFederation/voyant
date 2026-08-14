@@ -94,6 +94,13 @@ export const storefrontVoyantModule = defineModule({
         "/shopping",
         "/settings",
       ],
+      // Catalog, departures, offers and shopping are browser reads and
+      // browser-driven composition. `/leads` and `/newsletter` are NOT here:
+      // they capture a person with nothing challenging the submitter, so they
+      // sit under `guardedIntake` and stay secret-key-only until the deployment
+      // configures an intake guard.
+      publishable: ["/bookings", "/departures", "/offers", "/products", "/shopping", "/settings"],
+      guardedIntake: ["/leads", "/newsletter"],
       runtime: {
         entry: "@voyant-travel/storefront",
         export: "createStorefrontApiModule",
@@ -205,6 +212,9 @@ export const storefrontCustomerPortalVoyantModule = defineModule({
       // No anonymous routes: the customer portal answers only for an
       // authenticated customer. `contact-exists` used to sit here and told any
       // caller whether an address had an account.
+      // Publishable because the customer session — not the key — is what
+      // selects whose data comes back; a leaked `vpk_` reads nobody.
+      publishable: true,
       runtime: {
         entry: "@voyant-travel/storefront/customer-portal",
         export: "createCustomerPortalApiModule",
@@ -476,6 +486,10 @@ export const storefrontVerificationVoyantModule = defineModule({
       mount: "storefront-verification",
       openapi: { document: "storefront-verification" },
       anonymous: true,
+      // OTP start/confirm from the browser. Per-destination cooldowns and a
+      // per-challenge attempt limit are the challenge here, so this is not
+      // unchallenged intake.
+      publishable: true,
       runtime: {
         entry: "@voyant-travel/storefront/verification",
         export: "createStorefrontVerificationApiModule",
@@ -578,6 +592,9 @@ export const storefrontPaymentLinkVoyantModule = defineModule({
       resource: "storefront",
       openapi: { document: "payment-link" },
       anonymous: ["payment-link-config", "payment-link"],
+      // A payment link is opened by the payer in a browser; the session id in
+      // the path is the capability.
+      publishable: ["payment-link-config", "payment-link"],
       runtime: {
         entry: "@voyant-travel/storefront/payment-link",
         export: "createPaymentLinkApiModule",

@@ -25,6 +25,8 @@ export const chartersVoyantModule = defineModule({
       mount: "charters",
       anonymous: true,
       transactional: true,
+      // Voyage/yacht content plus per-suite and whole-yacht price quotes.
+      publishable: true,
       openapi: { document: "charters" },
       runtime: {
         entry: "@voyant-travel/charters",

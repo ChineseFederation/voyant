@@ -427,6 +427,14 @@ export async function loadVoyantNodeRuntime(
         ...(options.app?.publicPaths ?? []),
         ...graphComposition.routePosture.publicPaths,
       ],
+      publishablePaths: [
+        ...(options.app?.publishablePaths ?? []),
+        ...graphComposition.routePosture.publishablePaths,
+      ],
+      guardedIntakePaths: [
+        ...(options.app?.guardedIntakePaths ?? []),
+        ...graphComposition.routePosture.guardedIntakePaths,
+      ],
       dbTransactionalPaths: [
         ...(options.app?.dbTransactionalPaths ?? []),
         ...graphComposition.routePosture.transactionalPaths,

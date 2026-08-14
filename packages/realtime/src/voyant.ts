@@ -37,6 +37,8 @@ export const realtimeVoyantModule = defineModule({
       mount: "realtime",
       resource: "realtime",
       openapi: { document: "realtime-public" },
+      // Mints a short-lived channel token for the caller's own session.
+      publishable: true,
       runtime: {
         entry: "@voyant-travel/realtime",
         export: "createRealtimeVoyantRuntime",

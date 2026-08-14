@@ -33,7 +33,10 @@ function makeModule(options: {
   return {
     module: { name: options.name },
     ...(options.admin ? { adminRoutes: admin } : {}),
-    ...(options.public_ ? { publicRoutes: pub } : {}),
+    // A public mount with no `publishable` declaration is secret-key-only
+    // (voyant#4625), so these surface-mounting fixtures declare one — they are
+    // asserting where routes mount, not what the capability line does.
+    ...(options.public_ ? { publicRoutes: pub, publishable: true } : {}),
     ...(options.publicPath ? { publicPath: options.publicPath } : {}),
   }
 }
@@ -268,6 +271,9 @@ describe("mountApp surface mounting", () => {
           publicPath: "/",
           publicRoutes,
           anonymous: ["/offers"],
+          // `anonymous` and `publishable` answer different questions: this
+          // fixture needs both, and `/account` gets neither.
+          publishable: ["/offers"],
         },
       ],
     })

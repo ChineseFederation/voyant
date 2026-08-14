@@ -379,7 +379,14 @@ export function createStorefrontAdminRoutes(
     const input = await parseJsonBody(c, issueStorefrontApiKeyInputSchema)
     const result = await run(
       c,
-      (context) => runtime.issueApiKey(context, storefrontId, input.kind, input.name ?? null),
+      (context) =>
+        runtime.issueApiKey(
+          context,
+          storefrontId,
+          input.kind,
+          input.name ?? null,
+          input.scopes ?? null,
+        ),
       "write",
     )
     return result instanceof Response ? result : c.json({ data: result }, 201)

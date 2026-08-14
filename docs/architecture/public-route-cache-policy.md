@@ -16,6 +16,14 @@ has no `Set-Cookie`. Shared response caching is performed by an external CDN or
 the graph-selected `env.CACHE` provider; the runtime does not depend on the
 Cloudflare Cache API.
 
+
+> **Every cacheable route group must be `publishable`.** A shared cache hit is
+> served before the PK/SK capability line runs (`publicResponseCache` is mounted
+> ahead of auth on purpose), so a secret-key-only route that marked itself
+> `public, s-maxage=…` would be readable with a publishable key — on top of
+> already being readable by anyone, which is the older bug. See
+> [`storefront-key-capability-line.md`](./storefront-key-capability-line.md).
+
 ## Policy Classes
 
 - `shared-response-cache`: non-personalized, stale-tolerant public GET. The

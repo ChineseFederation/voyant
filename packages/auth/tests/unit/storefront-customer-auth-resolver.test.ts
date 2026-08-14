@@ -62,6 +62,7 @@ function fakeProvider(overrides?: {
             id: "sfk_1",
             storefrontId: "sf_1",
             kind: "publishable",
+            scopes: null,
             tokenPreview: "vpk_ab12cd",
             name: null,
             lastUsedAt: null,
@@ -237,7 +238,7 @@ describe("createLocalStorefrontCustomerAuthResolver", () => {
     throw new Error("expected the resolver to reject")
   }
 
-  it("requires the origin header", async () => {
+  it("requires the origin header for a PUBLISHABLE key", async () => {
     const { resolver } = makeResolver(fakeProvider())
     const error = await rejection(resolver({}, request({ [STOREFRONT_KEY_HEADER]: "vpk_token" })))
     expect(error).toBeInstanceOf(StorefrontCustomerAuthResolutionError)
@@ -245,6 +246,67 @@ describe("createLocalStorefrontCustomerAuthResolver", () => {
     expect(error.reason).toBe("missing_origin")
     expect(error.status).toBe(401)
     expect(error.code).toBe("unauthorized")
+  })
+
+  // voyant#4625 §2: requiring an origin for BOTH kinds meant a genuine
+  // server-to-server caller could not use the API at all — `vsk_` only worked
+  // from a BFF forwarding a synthetic origin header.
+  it("does NOT require an origin for a secret key, and derives one from the storefront", async () => {
+    const { resolver } = makeResolver(fakeProvider())
+    const context = await resolver({}, request({ [STOREFRONT_KEY_HEADER]: "vsk_token" }))
+    expect(context.baseURL).toBe("https://shop.example.com")
+    expect(context.publicApiBaseURL).toBe("https://shop.example.com/api")
+    expect(context.trustedOrigins).toEqual(["https://shop.example.com"])
+  })
+
+  it("still checks an origin a secret-key caller DOES present", async () => {
+    // Only the requirement differs by kind, never the check: a BFF relaying a
+    // browser origin must be relaying one this storefront declared.
+    const { resolver } = makeResolver(fakeProvider())
+    const error = await rejection(
+      resolver(
+        {},
+        request({
+          [STOREFRONT_KEY_HEADER]: "vsk_token",
+          [STOREFRONT_ORIGIN_HEADER]: "https://evil.example.net",
+        }),
+      ),
+    )
+    expect(error.reason).toBe("origin_not_allowed")
+    expect(error.status).toBe(403)
+  })
+
+  it("refuses a secret-key caller when the storefront declares no exact origin", async () => {
+    // Every URL the customer-auth runtime builds needs a canonical origin, and
+    // a wildcard names a family of hosts rather than an address.
+    const wildcardOnly = { ...STOREFRONT, allowedOrigins: ["https://*.example.com"] }
+    const { resolver } = makeResolver(
+      fakeProvider({
+        resolveStorefrontByApiKey: async () => ({
+          storefront: wildcardOnly,
+          key: {
+            id: "sfk_2",
+            storefrontId: "sf_1",
+            kind: "secret",
+            scopes: null,
+            tokenPreview: "vsk_ab12cd",
+            name: null,
+            lastUsedAt: null,
+            revokedAt: null,
+            createdAt: "2026-07-19T00:00:00.000Z",
+          },
+        }),
+      }),
+    )
+    const error = await rejection(resolver({}, request({ [STOREFRONT_KEY_HEADER]: "vsk_token" })))
+    expect(error.reason).toBe("missing_origin")
+  })
+
+  it("requires an origin when no key kind is recognisable", async () => {
+    // An unrecognised token is not a secret key, so it gets the stricter rule.
+    const { resolver } = makeResolver(fakeProvider())
+    const error = await rejection(resolver({}, request({ [STOREFRONT_KEY_HEADER]: "nonsense" })))
+    expect(error.reason).toBe("missing_origin")
   })
 
   it("requires the key header", async () => {
@@ -483,6 +545,19 @@ describe("createLocalStorefrontCorsOriginResolver", () => {
     )
     expect(origin).toBe("https://shop.example.com")
     expect(disposed()).toBe(1)
+  })
+
+  // voyant#4625 §2: dynamic CORS exists so a BROWSER can talk to this
+  // deployment with a publishable key. A secret key is server-only, and
+  // server-to-server callers are not subject to CORS at all — so echoing an
+  // origin for one would only ever help a browser that has a `vsk_` in it.
+  it("never echoes an origin for a SECRET key, even from an allowed origin", async () => {
+    const { resolver } = makeCorsResolver(fakeProvider())
+    const origin = await resolver(
+      {},
+      request({ [STOREFRONT_KEY_HEADER]: "vsk_token", origin: "https://shop.example.com" }),
+    )
+    expect(origin).toBeNull()
   })
 
   it("returns null for a valid key presented from a disallowed origin", async () => {

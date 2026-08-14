@@ -8,6 +8,7 @@ import type {
   StorefrontHostingKind,
 } from "@voyant-travel/db/schema/iam"
 import type { VoyantDb } from "@voyant-travel/hono"
+import type { StorefrontKeyScopes } from "@voyant-travel/types/storefront-key-scopes"
 
 export interface StorefrontDto {
   id: string
@@ -56,6 +57,13 @@ export interface StorefrontApiKeyDto {
   id: string
   storefrontId: string
   kind: StorefrontApiKeyKind
+  /**
+   * Grant carried by a SECRET key, in the deployment's access-catalog
+   * vocabulary. `null` on every publishable key (a `vpk_` is bounded by the
+   * capability line, not by scopes) and on secret keys minted before scopes
+   * existed, which are honoured unscoped for the compatibility window.
+   */
+  scopes: StorefrontKeyScopes | null
   tokenPreview: string
   name: string | null
   lastUsedAt: string | null
@@ -156,6 +164,11 @@ export interface StorefrontRuntimeProvider {
     storefrontId: string,
     kind: StorefrontApiKeyKind,
     name?: string | null,
+    /**
+     * Grant for a secret key. Omitted means the commerce-shaped default set;
+     * ignored entirely for a publishable key.
+     */
+    scopes?: StorefrontKeyScopes | null,
   ): Promise<IssuedStorefrontApiKeyDto>
   rotateApiKey(
     context: StorefrontRequestContext,

@@ -371,4 +371,53 @@ describe("buildSelectedGraphOpenApiDocuments", () => {
     expect(Object.keys(documents.get("storefront")?.paths ?? {})).toEqual([ownedPath])
     expect(documents.get("storefront")?.paths?.[unrelatedPath]).toBeUndefined()
   })
+
+  it("stamps the key kind from the same declaration the runtime enforces", async () => {
+    // voyant#4625 §1: the served document and the capability middleware read one
+    // declaration. Hand-stamping the specs instead would let a contract promise
+    // a reach the deployment 403s.
+    const app = documentedApp([
+      "/v1/public/storefront/departures",
+      "/v1/public/storefront/leads",
+      "/v1/public/storefront/exports",
+      "/v1/admin/storefront/offers",
+    ])
+    const storefront = unit("@voyant-travel/storefront", [
+      {
+        id: "@voyant-travel/storefront#api.public",
+        surface: "public",
+        mount: "storefront",
+        openapi: { document: "storefront" },
+        publishable: ["/departures"],
+        guardedIntake: ["/leads"],
+        runtime: { entry: "@voyant-travel/storefront" },
+      },
+      {
+        id: "@voyant-travel/storefront#api.admin",
+        surface: "admin",
+        mount: "storefront",
+        openapi: { document: "storefront" },
+        // An admin bundle cannot make a path publishable, however it declares.
+        publishable: true,
+        runtime: { entry: "@voyant-travel/storefront" },
+      },
+    ])
+
+    const documents = await buildSelectedGraphOpenApiDocuments({
+      runtime: runtime([storefront]),
+      app,
+      options,
+    })
+    const paths = documents.get("storefront")?.paths ?? {}
+    const kindOf = (routePath: string) =>
+      (paths[routePath]?.get as Record<string, unknown> | undefined)?.["x-voyant-key-kind"]
+
+    expect(kindOf("/v1/public/storefront/departures")).toBe("publishable")
+    // Unchallenged intake publishes as secret: whether a publishable key reaches
+    // it depends on a deployment fact no document can know.
+    expect(kindOf("/v1/public/storefront/leads")).toBe("secret")
+    // Undeclared is secret — the fail-closed default, stated rather than blank.
+    expect(kindOf("/v1/public/storefront/exports")).toBe("secret")
+    expect(kindOf("/v1/admin/storefront/offers")).toBe("secret")
+  })
 })

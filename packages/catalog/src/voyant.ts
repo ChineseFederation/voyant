@@ -138,6 +138,8 @@ export const catalogVoyantModule = defineModule({
       mount: "catalog",
       openapi: { document: "catalog" },
       anonymous: true,
+      // Catalog search is the canonical publishable read.
+      publishable: true,
       runtime: {
         entry: "@voyant-travel/catalog/graph-runtime",
         export: "createCatalogSearchVoyantRuntime",
@@ -486,6 +488,10 @@ export const catalogBookingEngineVoyantModule = defineModule({
       mount: "catalog",
       openapi: { document: "catalog-booking" },
       transactional: ["/booking-sessions"],
+      // Open, quote, hold and commit a Booking Session. Authority is the
+      // session capability plus its revision and idempotency key, all of which
+      // hold with nothing but a publishable key present.
+      publishable: true,
       runtime: {
         entry: "@voyant-travel/catalog/graph-runtime",
         export: "createCatalogBookingVoyantRuntime",

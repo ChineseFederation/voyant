@@ -64,6 +64,77 @@ export function assembleAnonymousPaths(
 }
 
 /**
+ * Assemble the publishable-key allow-list from module/extension `publishable`
+ * declarations, unioned with any absolute paths the deployment declares
+ * explicitly (the same escape hatch `publicPaths` is for — an unowned route,
+ * such as a processor callback mounted outside a module).
+ *
+ * This list is the ONLY thing that makes a route reachable with a `vpk_` key.
+ * Unlike {@link assembleAnonymousPaths}, an empty result is meaningful rather
+ * than merely quiet: it denies the whole public surface to publishable keys.
+ * That is the fail-closed default the capability line depends on — a route
+ * nobody classified must not be callable with a credential that ships in a
+ * browser bundle.
+ */
+export function assemblePublishablePaths(
+  modules: readonly ApiModule[],
+  extensions: readonly ApiExtension[],
+  explicit: readonly string[] = [],
+): string[] {
+  return assemblePublicMountDeclaration(modules, extensions, (unit) => unit.publishable, explicit)
+}
+
+/**
+ * Assemble the guarded-intake list: public paths that capture person data with
+ * nothing challenging the submitter. A publishable key reaches these only on a
+ * deployment that has an intake guard configured, so they are deliberately NOT
+ * part of {@link assemblePublishablePaths} — a deployment with no guard must
+ * see them as secret-key-only without anyone having to remember to remove them.
+ */
+export function assembleGuardedIntakePaths(
+  modules: readonly ApiModule[],
+  extensions: readonly ApiExtension[],
+  explicit: readonly string[] = [],
+): string[] {
+  return assemblePublicMountDeclaration(modules, extensions, (unit) => unit.guardedIntake, explicit)
+}
+
+/**
+ * Resolve one `boolean | string[]` declaration across every unit into absolute
+ * paths under `/v1/public`. Shared so `anonymous`, `publishable` and
+ * `guardedIntake` cannot drift in how they interpret the same shape.
+ */
+function assemblePublicMountDeclaration(
+  modules: readonly ApiModule[],
+  extensions: readonly ApiExtension[],
+  select: (unit: ApiModule | ApiExtension) => boolean | readonly string[] | undefined,
+  explicit: readonly string[],
+): string[] {
+  const paths = new Set<string>(explicit)
+
+  const add = (mount: string, declaration: boolean | readonly string[] | undefined): void => {
+    if (!declaration) return
+    if (declaration === true) {
+      paths.add(mount)
+      return
+    }
+    for (const sub of declaration) {
+      const trimmed = sub.trim().replace(/^\/+|\/+$/g, "")
+      paths.add(trimmed ? `${mount}/${trimmed}` : mount)
+    }
+  }
+
+  for (const m of modules) {
+    add(resolveSurfaceMountPath("/v1/public", m.publicPath, m.module.name), select(m))
+  }
+  for (const e of extensions) {
+    add(resolveSurfaceMountPath("/v1/public", e.publicPath, e.extension.module), select(e))
+  }
+
+  return [...paths].sort()
+}
+
+/**
  * Assemble anonymous paths that use mixed auth: valid customer sessions are
  * resolved, while requests without a valid session continue as explicit guests.
  */

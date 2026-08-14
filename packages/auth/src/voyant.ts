@@ -110,6 +110,9 @@ export const authInvitationsVoyantModule = defineModule({
       surface: "public",
       mount: "invitations",
       anonymous: true,
+      // The emailed invitation token is the authority and the link opens in a
+      // browser; the key never decides who may redeem.
+      publishable: true,
       openapi: { document: "invitations" },
       transactional: true,
       runtime: {

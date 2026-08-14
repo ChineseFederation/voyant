@@ -499,6 +499,10 @@ describe("graph runtime composition", () => {
                 id: "project.api.public.foo",
                 surface: "public",
                 mount: "/foo",
+                // A public mount is secret-key-only unless it declares
+                // `publishable` (voyant#4625); this asserts where a project API
+                // root mount lands, not what the capability line does.
+                publishable: true,
                 runtime: {
                   entry: "./.voyant/runtime/project-api.generated.js",
                   export: "projectApiModule",

@@ -153,6 +153,9 @@ export const tripsVoyantModule = defineModule({
       mount: "trips",
       openapi: { document: "trips" },
       transactional: true,
+      // Trip composition is browser-driven end to end; every mutating leg is
+      // scoped to the envelope the caller already holds.
+      publishable: true,
       runtime: {
         entry: "@voyant-travel/trips",
         export: "createTripsVoyantRuntime",

@@ -16,6 +16,11 @@ import {
   storefrontCustomerAuthCredentials,
   storefronts,
 } from "@voyant-travel/db/schema/iam"
+import {
+  normalizeStorefrontKeyScopes,
+  STOREFRONT_SECRET_KEY_DEFAULT_SCOPES,
+  type StorefrontKeyScopes,
+} from "@voyant-travel/types/storefront-key-scopes"
 import { and, desc, eq, sql } from "drizzle-orm"
 
 import {
@@ -70,6 +75,7 @@ function toApiKeyDto(row: SelectStorefrontApiKey): StorefrontApiKeyDto {
     id: row.id,
     storefrontId: row.storefrontId,
     kind: row.kind,
+    scopes: row.scopes ?? null,
     tokenPreview: row.tokenPreview,
     name: row.name ?? null,
     lastUsedAt: row.lastUsedAt?.toISOString() ?? null,
@@ -174,13 +180,23 @@ export function createLocalStorefrontAdapter(options: {
     storefront: SelectStorefront,
     kind: StorefrontApiKeyDto["kind"],
     name?: string | null,
+    scopes?: StorefrontKeyScopes | null,
   ): Promise<IssuedStorefrontApiKeyDto> {
     const generated = await generateStorefrontApiKey(kind)
+    // A publishable key never carries scopes: it is bounded by the capability
+    // line, and a scope set on it would imply it could be widened. A secret key
+    // always gets one — the commerce-shaped default when the operator picked
+    // nothing — so `null` keeps meaning "minted before scopes existed".
+    const grant =
+      kind === "publishable"
+        ? null
+        : (normalizeStorefrontKeyScopes(scopes) ?? STOREFRONT_SECRET_KEY_DEFAULT_SCOPES)
     const [row] = await context.db
       .insert(storefrontApiKeys)
       .values({
         storefrontId: storefront.id,
         kind,
+        scopes: grant,
         tokenHash: generated.tokenHash,
         tokenPreview: generated.tokenPreview,
         name: name?.trim() || null,
@@ -281,9 +297,9 @@ export function createLocalStorefrontAdapter(options: {
       return rows.map(toApiKeyDto)
     },
 
-    async issueApiKey(context, storefrontId, kind, name) {
+    async issueApiKey(context, storefrontId, kind, name, scopes) {
       const storefront = await requireStorefront(context, storefrontId)
-      return issueKeyRow(context, storefront, kind, name)
+      return issueKeyRow(context, storefront, kind, name, scopes)
     },
 
     async rotateApiKey(context, storefrontId, keyId) {
@@ -300,7 +316,9 @@ export function createLocalStorefrontAdapter(options: {
         .update(storefrontApiKeys)
         .set({ revokedAt: new Date(), updatedAt: new Date() })
         .where(eq(storefrontApiKeys.id, keyId))
-      return issueKeyRow(context, storefront, existing.kind, existing.name)
+      // Rotation replaces the token, never the grant: an operator rotating a
+      // leaked key is not asking to re-authorize it.
+      return issueKeyRow(context, storefront, existing.kind, existing.name, existing.scopes)
     },
 
     async revokeApiKey(context, storefrontId, keyId) {

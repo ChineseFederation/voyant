@@ -657,6 +657,9 @@ export const proposalsPresentationVoyantExtension = defineExtension({
       mount: "proposals",
       anonymous: true,
       transactional: true,
+      // A proposal version id IS the shared link a customer was sent, and the
+      // presentation is opened in their browser.
+      publishable: true,
       openapi: { document: "proposals-public" },
       runtime: {
         entry: "@voyant-travel/proposals",

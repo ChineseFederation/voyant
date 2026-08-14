@@ -1,5 +1,16 @@
 # API Tokens
 
+> **Deprecated for `/v1/admin/*`.** A storefront secret key (`vsk_`) now covers
+> both published surfaces with a scope grant and a capability line behind it,
+> which is what a deployment API key was being used for. The `voy_` path still
+> works — self-host deployments consume these packages from npm and cannot be
+> migrated on their behalf — but it logs a deprecation on use, and a deployment
+> that has finished migrating closes the window with
+> `VOYANT_DEPLOYMENT_API_KEY_MODE=disabled`, which stops minting as well as
+> authenticating. Admin **sessions** are unaffected,
+> as are `voy_` keys with a customer, partner or supplier audience. See
+> [`storefront-key-capability-line.md`](./storefront-key-capability-line.md).
+
 Voyant API tokens are Better Auth API keys configured for automation and
 cross-runtime integrations. They are intended for CMS sync jobs, storefront
 proxies, webhook relays, domain API commands, and other systems that need a

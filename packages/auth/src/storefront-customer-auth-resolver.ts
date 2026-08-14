@@ -13,6 +13,7 @@
  * Host/X-Forwarded-Host) plus the storefront key, exactly like the managed
  * broker.
  */
+import { classifyStorefrontKeyToken } from "@voyant-travel/core"
 import type { CustomerBuyerAccountPolicy } from "./customer-buyer-accounts.js"
 import type { CustomerAuthRuntimeContext } from "./node-runtime.js"
 import type { CustomerAuthMethods } from "./server.js"
@@ -35,6 +36,15 @@ export const STANDARD_ORIGIN_HEADER = "origin"
 export const STOREFRONT_KEY_HEADER = "x-api-key"
 
 const WILDCARD_ORIGIN_PREFIX = "https://*."
+
+/**
+ * First exact (non-wildcard) origin a storefront declares. A wildcard entry
+ * names a family of hosts rather than an address, so it cannot stand in as the
+ * canonical origin a server-to-server caller failed to send.
+ */
+function firstExactOrigin(allowedOrigins: readonly string[]): string | null {
+  return allowedOrigins.find((origin) => !origin.startsWith(WILDCARD_ORIGIN_PREFIX)) ?? null
+}
 
 /**
  * Resolve the storefront browser origin for a request. The BFF forwards its
@@ -138,18 +148,26 @@ export function createLocalStorefrontCustomerAuthResolver<Env>(
   const keyHeader = config.keyHeader ?? STOREFRONT_KEY_HEADER
 
   return async (env, request) => {
-    const origin = resolveStorefrontRequestOrigin(request, originHeader)
-    if (!origin) {
-      throw new StorefrontCustomerAuthResolutionError(
-        "missing_origin",
-        `Local storefront customer auth requires ${originHeader} (BFF) or a standard Origin header.`,
-      )
-    }
     const token = request.headers.get(keyHeader)?.trim()
     if (!token) {
       throw new StorefrontCustomerAuthResolutionError(
         "missing_key",
         `Local storefront customer auth requires a storefront key (${keyHeader}).`,
+      )
+    }
+    // The key kind decides whether an origin is required, so it has to be read
+    // before the origin check rather than after the database lookup.
+    const keyKind = classifyStorefrontKeyToken(token)
+    const requestOrigin = resolveStorefrontRequestOrigin(request, originHeader)
+    // A publishable key is origin-bound: it ships in a browser bundle, so the
+    // declared-origin check is the only thing narrowing where it may be used.
+    // A secret key is server-only and a genuine server-to-server caller has no
+    // origin to send — requiring one made `vsk_` usable ONLY from a BFF
+    // forwarding a synthetic header, which is the symmetry voyant#4625 names.
+    if (!requestOrigin && keyKind !== "secret") {
+      throw new StorefrontCustomerAuthResolutionError(
+        "missing_origin",
+        `Local storefront customer auth with a publishable key requires ${originHeader} (BFF) or a standard Origin header.`,
       )
     }
 
@@ -163,10 +181,25 @@ export function createLocalStorefrontCustomerAuthResolver<Env>(
         )
       }
       const { storefront } = resolved
-      if (!isStorefrontOriginAllowed(origin, storefront.allowedOrigins)) {
+      // An origin that IS presented is always checked, whichever kind sent it:
+      // a BFF relaying a real browser origin must still be relaying one this
+      // storefront declared. Only the requirement differs by kind, never the
+      // check.
+      if (requestOrigin && !isStorefrontOriginAllowed(requestOrigin, storefront.allowedOrigins)) {
         throw new StorefrontCustomerAuthResolutionError(
           "origin_not_allowed",
           "The request origin is not a declared allowed origin for this storefront.",
+        )
+      }
+      // Every URL the customer-auth runtime builds (callbacks, invitation
+      // accept links, the public API base) needs a canonical origin. A direct
+      // server-to-server caller sent none, so fall back to the storefront's own
+      // first declared exact origin — the address its customers actually use.
+      const origin = requestOrigin ?? firstExactOrigin(storefront.allowedOrigins)
+      if (!origin) {
+        throw new StorefrontCustomerAuthResolutionError(
+          "missing_origin",
+          "A secret-key customer-auth request needs the storefront to declare at least one exact allowed origin.",
         )
       }
 
@@ -416,6 +449,12 @@ export function createLocalStorefrontCorsOriginResolver<Env>(
     try {
       const token = request.headers.get(keyHeader)?.trim()
       if (token) {
+        // Dynamic CORS exists to let a browser talk to this deployment with a
+        // publishable key. A secret key is server-only, and server-to-server
+        // callers are not subject to CORS at all — so echoing an origin for one
+        // would only ever help a browser that has a `vsk_` in it, which is the
+        // situation the grant should refuse to normalise (voyant#4625).
+        if (classifyStorefrontKeyToken(token) === "secret") return null
         const resolved = await config.provider.resolveStorefrontByApiKey(context, token)
         if (!resolved) return null
         if (!isStorefrontOriginAllowed(origin, resolved.storefront.allowedOrigins)) return null

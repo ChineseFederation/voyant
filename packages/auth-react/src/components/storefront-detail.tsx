@@ -6,6 +6,10 @@ import type {
   StorefrontDto,
 } from "@voyant-travel/auth/storefront-admin-contracts"
 import {
+  isWildcardStorefrontKeyScopes,
+  storefrontKeyScopeStrings,
+} from "@voyant-travel/types/storefront-key-scopes"
+import {
   Badge,
   Button,
   Card,
@@ -18,7 +22,7 @@ import {
   Label,
   Separator,
 } from "@voyant-travel/ui/components"
-import { Check, Copy, KeyRound, Plus, RefreshCw, Trash2, X } from "lucide-react"
+import { AlertTriangle, Check, Copy, KeyRound, Plus, RefreshCw, Trash2, X } from "lucide-react"
 import { useState } from "react"
 
 import { useAuthUiI18nOrDefault } from "../i18n/provider.js"
@@ -401,6 +405,51 @@ function OriginsEditor({
   )
 }
 
+/**
+ * What a secret key is allowed to do, shown next to the key rather than behind a
+ * click. Full access is called out with the destructive badge and a sentence
+ * saying what it means: a `*` key reaches the admin API too, which makes it the
+ * deployment admin key voyant#4625 set out to retire — so it has to look like a
+ * decision someone made, not a default nobody noticed.
+ */
+function StorefrontKeyScopeBadge({
+  scopes,
+  copy,
+}: {
+  scopes: Record<string, string[]> | null
+  copy: {
+    scopesLabel: string
+    scopesFullAccess: string
+    scopesFullAccessWarning: string
+    scopesLegacy: string
+  }
+}) {
+  if (!scopes) {
+    return (
+      <Badge variant="outline" className="font-normal">
+        {copy.scopesLegacy}
+      </Badge>
+    )
+  }
+  if (isWildcardStorefrontKeyScopes(scopes)) {
+    return (
+      <span className="flex flex-wrap items-center gap-2">
+        <Badge variant="destructive">
+          <AlertTriangle className="mr-1 h-3 w-3" />
+          {copy.scopesFullAccess}
+        </Badge>
+        <span className="text-xs text-destructive">{copy.scopesFullAccessWarning}</span>
+      </span>
+    )
+  }
+  const granted = storefrontKeyScopeStrings(scopes)
+  return (
+    <Badge variant="outline" className="font-normal" title={granted.join(", ")}>
+      {copy.scopesLabel}: {granted.length}
+    </Badge>
+  )
+}
+
 function KeysSection({
   api,
   storefront,
@@ -525,6 +574,9 @@ function KeysSection({
                 <Badge variant={key.revokedAt ? "secondary" : "default"}>
                   {key.revokedAt ? copy.revoked : copy.active}
                 </Badge>
+                {key.kind === "secret" ? (
+                  <StorefrontKeyScopeBadge scopes={key.scopes} copy={copy} />
+                ) : null}
                 {key.name ? (
                   <span className="text-xs text-muted-foreground">{key.name}</span>
                 ) : null}

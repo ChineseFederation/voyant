@@ -106,10 +106,18 @@ export const storefrontSchema = z.object({
     .optional(),
 })
 
+/**
+ * Scope grant on a secret key, in the deployment's access-catalog vocabulary
+ * (`{ resource: [action, ...] }`). `null` on publishable keys and on secret keys
+ * minted before scopes existed.
+ */
+export const storefrontApiKeyScopesSchema = z.record(z.string(), z.array(z.string()))
+
 export const storefrontApiKeySchema = z.object({
   id: z.string(),
   storefrontId: z.string(),
   kind: storefrontApiKeyKindSchema,
+  scopes: storefrontApiKeyScopesSchema.nullable(),
   tokenPreview: z.string(),
   name: z.string().nullable(),
   lastUsedAt: z.string().nullable(),
@@ -161,6 +169,13 @@ export const issueStorefrontApiKeyInputSchema = z
   .object({
     kind: storefrontApiKeyKindSchema,
     name: z.string().trim().min(1).max(200).nullable().optional(),
+    /**
+     * Grant for a SECRET key. Omitted means the commerce-shaped default set.
+     * `{"*": ["*"]}` is the unrestricted grant and must be an explicit choice —
+     * it is the deployment admin key by another name. Ignored for a publishable
+     * key, which is bounded by the capability line rather than by scopes.
+     */
+    scopes: storefrontApiKeyScopesSchema.nullable().optional(),
   })
   .strict()
 

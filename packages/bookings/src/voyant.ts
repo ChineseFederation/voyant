@@ -388,6 +388,13 @@ export const bookingsVoyantModule = defineModule({
       openapi: { document: "bookings" },
       resource: "bookings",
       anonymous: true,
+      // Guest lookup is challenge-based (reference + email), rate-limited and
+      // storefront-origin bound, and every amendment leg needs a signed guest or
+      // checkout capability. The key is never what authorizes the read.
+      publishable: true,
+      // A booking inquiry captures a person with nothing challenging the
+      // submitter — the same shape as a lead, and placed the same way.
+      guardedIntake: ["/inquiries"],
       transactional: true,
       runtime: {
         entry: "@voyant-travel/bookings",
@@ -646,6 +653,8 @@ export const bookingRequirementsVoyantModule = defineModule({
       mount: "booking-requirements",
       openapi: { document: "booking-requirements" },
       resource: "bookings",
+      // Product-scoped requirement metadata; no person, no booking.
+      publishable: true,
       runtime: {
         entry: "@voyant-travel/bookings/requirements",
         export: "createBookingRequirementsApiModule",

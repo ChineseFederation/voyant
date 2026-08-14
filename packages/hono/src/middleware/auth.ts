@@ -1,7 +1,18 @@
 // agent-quality: file-size exception -- auth middleware is a shared policy surface spanning sessions, API keys, and anonymous public contexts.
 import type { Actor, VoyantAuthContext } from "@voyant-travel/core"
-import { apikeyTable, cloudAuthUserLinks, type SelectApikey } from "@voyant-travel/db/schema/iam"
+import {
+  classifyStorefrontKeyToken,
+  hashStorefrontKeyToken,
+  STOREFRONT_KEY_HEADER,
+} from "@voyant-travel/core"
+import {
+  apikeyTable,
+  cloudAuthUserLinks,
+  type SelectApikey,
+  storefrontApiKeys,
+} from "@voyant-travel/db/schema/iam"
 import { API_KEY_AUDIENCES, permissionsToStrings } from "@voyant-travel/types/api-keys"
+import { STOREFRONT_SECRET_KEY_DEFAULT_SCOPES } from "@voyant-travel/types/storefront-key-scopes"
 import type { KVStore } from "@voyant-travel/utils/cache"
 import { and, eq, isNull, or, sql } from "drizzle-orm"
 import type { MiddlewareHandler } from "hono"
@@ -23,6 +34,35 @@ import {
 import { acquireRequestDb } from "./request-db.js"
 
 const API_KEY_PREFIX = "voy_"
+
+/**
+ * Whether this deployment still accepts the `voy_` deployment admin key on
+ * `/v1/admin/*` (voyant#4625 §4).
+ *
+ * A storefront secret key now covers both published surfaces, which makes the
+ * deployment admin key a second credential for the same job — and the one
+ * without a capability line or a storefront behind it. It is deprecated rather
+ * than deleted because self-host deployments consume this package from npm and
+ * cannot be migrated on their behalf: they need a window in which both work.
+ *
+ * `disabled` closes the window for a deployment that has finished migrating.
+ * The default stays `enabled` so upgrading the package never locks anyone out
+ * of their own admin API.
+ */
+function deploymentApiKeyEnabled(env: VoyantBindings): boolean {
+  return env.VOYANT_DEPLOYMENT_API_KEY_MODE?.trim() !== "disabled"
+}
+
+const warnedDeprecatedDeploymentKeys = new Set<string>()
+
+/** Warn once per key per isolate — a deprecation nobody sees is not a warning. */
+function warnDeprecatedDeploymentApiKey(keyId: string): void {
+  if (warnedDeprecatedDeploymentKeys.has(keyId)) return
+  warnedDeprecatedDeploymentKeys.add(keyId)
+  console.warn(
+    `[auth/api-token] Deployment API key ${keyId} authenticated /v1/admin/*. This credential is deprecated (voyant#4625): mint a storefront secret key (vsk_) with the scopes it needs instead. Set VOYANT_DEPLOYMENT_API_KEY_MODE=disabled once nothing uses it.`,
+  )
+}
 const ACTING_USER_HEADER = "x-voyant-acting-user-id"
 const ACTING_USER_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9:_-]{0,199}$/
 
@@ -170,6 +210,7 @@ function applyAuthContext(
   if (auth.buyerMembershipRole !== undefined) {
     c.set("buyerMembershipRole", auth.buyerMembershipRole ?? undefined)
   }
+  if (auth.storefrontKeyKind) c.set("storefrontKeyKind", auth.storefrontKeyKind)
   if (auth.callerType) c.set("callerType", auth.callerType)
   if (auth.actor) c.set("actor", auth.actor)
   if (auth.audience !== undefined) {
@@ -305,6 +346,58 @@ export function requireAuth<TBindings extends VoyantBindings>(
       }
     }
 
+    // Strategy 1b: Storefront SECRET key on the admin surface (voyant#4625 §4).
+    //
+    // One `vsk_` covers `/v1/public/*` and `/v1/admin/*` on a deployment,
+    // replacing the deployment admin key it sits in front of here. Only admin
+    // is resolved in this strategy: on `/v1/public/*` the same key is resolved
+    // by the customer-auth resolver, which also derives the storefront channel
+    // — admitting it here would skip that and hand the request a public context
+    // with no storefront behind it.
+    //
+    // A publishable key is never accepted: this is the grant half of the same
+    // rule the capability middleware states, kept in the place that grants.
+    const isAdminApi = p === "/v1/admin" || p.startsWith("/v1/admin/")
+    const storefrontKeyToken = c.req.header(STOREFRONT_KEY_HEADER)?.trim() || token
+    if (
+      isAdminApi &&
+      storefrontKeyToken &&
+      classifyStorefrontKeyToken(storefrontKeyToken) === "secret"
+    ) {
+      const lease = acquireRequestDb(c, dbFactory)
+      try {
+        const [row] = await lease.db
+          .select()
+          .from(storefrontApiKeys)
+          .where(
+            and(
+              eq(storefrontApiKeys.tokenHash, await hashStorefrontKeyToken(storefrontKeyToken)),
+              eq(storefrontApiKeys.kind, "secret"),
+              isNull(storefrontApiKeys.revokedAt),
+            ),
+          )
+          .limit(1)
+        if (!row) return c.json({ error: "Invalid storefront key" }, 401)
+
+        applyAuthContext(c, {
+          // A secret key minted before scopes existed carries `null`. It never
+          // had admin reach to preserve, so it gets the commerce-shaped default
+          // rather than the unrestricted grant — new capability, narrow start.
+          scopes: permissionsToStrings(row.scopes ?? STOREFRONT_SECRET_KEY_DEFAULT_SCOPES),
+          callerType: "api_key",
+          apiKeyId: row.id,
+          actor: "staff",
+          audience: "staff",
+          realm: "admin",
+          storefrontKeyKind: "secret",
+        })
+        // `await` is load-bearing — see strategy 2.
+        return await next()
+      } finally {
+        await lease.release()
+      }
+    }
+
     // Strategy 2: Core-owned API key support (voy_ prefixed)
     if (token?.startsWith(API_KEY_PREFIX)) {
       // Shared per-request client — the db middleware downstream reuses
@@ -384,6 +477,25 @@ export function requireAuth<TBindings extends VoyantBindings>(
         // follows the audience so a non-staff key resolves to its own
         // visibility pool instead of silently gaining operator privileges.
         const audience = resolveApiKeyAudience(row.metadata)
+
+        // The deployment admin key is the credential voyant#4625 §4 retires: a
+        // storefront secret key now does the same job with a capability line
+        // and a scope grant behind it. Only the STAFF grant on the admin
+        // surface is affected — a customer/partner/supplier `voy_` key is a
+        // different credential and is untouched.
+        if (isAdminApi && audience === "staff") {
+          if (!deploymentApiKeyEnabled(c.env)) {
+            return c.json(
+              {
+                error:
+                  "Deployment API keys are disabled on this deployment. Use a storefront secret key (vsk_).",
+                code: "deployment_api_key_disabled",
+              },
+              401,
+            )
+          }
+          warnDeprecatedDeploymentApiKey(row.id)
+        }
 
         applyAuthContext(c, {
           organizationId: row.referenceId,

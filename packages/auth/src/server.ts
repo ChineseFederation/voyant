@@ -148,6 +148,16 @@ function normalizeSignupBlockSurfaces(
   return options?.surfaces ?? DEFAULT_SIGNUP_BLOCK_SURFACES
 }
 
+/**
+ * Whether this deployment still mints and accepts `voy_` deployment API keys on
+ * the admin realm (voyant#4625 §4). Read from the environment, like every other
+ * deployment-level switch in this module, so the same value governs the Better
+ * Auth plugin here and the credential check in `@voyant-travel/hono`.
+ */
+function deploymentApiKeysEnabled(): boolean {
+  return process.env.VOYANT_DEPLOYMENT_API_KEY_MODE?.trim() !== "disabled"
+}
+
 function isSignupBlockEnabled(options: DisableSignupWhenUsersExistOptions | undefined): boolean {
   return options?.enabled !== false
 }
@@ -428,7 +438,14 @@ export function createBetterAuth<
     socialProviders: options.socialProviders ?? {},
     trustedOrigins,
     plugins: [
-      ...(realm === "admin"
+      // Deployment API keys (`voy_`) are deprecated on the admin realm: a
+      // storefront secret key does the same job with a capability line and a
+      // scope grant behind it (voyant#4625 §4). The plugin stays mounted by
+      // default because self-host deployments consume this package from npm and
+      // cannot be migrated on their behalf. A deployment that has closed the
+      // window loses the ability to MINT as well as to authenticate — leaving
+      // minting open would hand operators keys that no longer work.
+      ...(realm === "admin" && deploymentApiKeysEnabled()
         ? [
             apiKey({
               defaultPrefix: "voy_",

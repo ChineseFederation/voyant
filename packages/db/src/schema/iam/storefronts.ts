@@ -43,6 +43,13 @@ export const STOREFRONT_API_KEY_KINDS = ["publishable", "secret"] as const
 export type StorefrontApiKeyKind = (typeof STOREFRONT_API_KEY_KINDS)[number]
 
 /**
+ * Scope grant on a secret key, keyed by access-catalog resource. Structurally
+ * identical to `ApiKeyPermissions` in `@voyant-travel/types` — declared here as
+ * a plain alias so the schema package stays free of that dependency.
+ */
+export type StorefrontApiKeyScopes = Record<string, string[]>
+
+/**
  * Operator-declared toggles for which customer-auth methods a storefront
  * offers. Distinct from the runtime `CustomerAuthMethods` (which carries the
  * resolved Better Auth social-provider secrets); this is the persisted,
@@ -107,6 +114,19 @@ export const storefrontApiKeys = pgTable(
       .notNull()
       .references(() => storefronts.id, { onDelete: "cascade" }),
     kind: text("kind").$type<StorefrontApiKeyKind>().notNull(),
+    /**
+     * Grant carried by a SECRET key, in the deployment's own access-catalog
+     * vocabulary (`{ resource: [action, ...] }`, the same shape as
+     * `apikey.permissions`). A secret key authenticates `/v1/admin/*` as well as
+     * `/v1/public/*` (voyant#4625), so it needs a grant narrower than the whole
+     * deployment.
+     *
+     * NULL means "minted before scopes existed" — the unscoped legacy grant,
+     * honoured during the compatibility window and deliberately distinguishable
+     * from an explicit empty grant. Publishable keys stay NULL forever: a `vpk_`
+     * is bounded by the capability line, not by scopes.
+     */
+    scopes: jsonb("scopes").$type<StorefrontApiKeyScopes>(),
     tokenHash: text("token_hash").notNull(),
     tokenPreview: text("token_preview").notNull(),
     name: text("name"),

@@ -53,6 +53,8 @@ export const operatorSettingsVoyantModule = defineModule({
       surface: "public",
       mount: "operator-profile",
       anonymous: true,
+      // The operator identity a storefront renders in its own chrome.
+      publishable: true,
       openapi: { document: "operator-settings" },
       runtime,
     },
@@ -61,6 +63,8 @@ export const operatorSettingsVoyantModule = defineModule({
       surface: "public",
       mount: "operator-branding",
       anonymous: true,
+      // Logos and branding slots, fetched by the browser.
+      publishable: true,
       openapi: { document: "operator-settings" },
       runtime,
     },
@@ -69,6 +73,8 @@ export const operatorSettingsVoyantModule = defineModule({
       surface: "public",
       mount: "settings/operator",
       anonymous: true,
+      // Public operator settings a storefront needs before sign-in.
+      publishable: true,
       openapi: { document: "operator-settings" },
       runtime,
     },

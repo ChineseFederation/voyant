@@ -16,6 +16,8 @@ export const publicDocumentDeliveryVoyantModule = defineModule({
       surface: "public",
       mount: "documents",
       anonymous: true,
+      // The delivery token in the path is the capability.
+      publishable: true,
       openapi: { document: "public-document-delivery" },
       runtime: {
         entry: "@voyant-travel/public-document-delivery",

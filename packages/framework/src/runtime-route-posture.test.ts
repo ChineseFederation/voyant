@@ -99,6 +99,10 @@ describe("graph runtime route posture", () => {
         "/v1/admin/catalog/quote",
         "/v1/public/catalog/book",
       ],
+      // Nothing declared `publishable`, so the capability line denies the whole
+      // public surface to publishable keys (voyant#4625).
+      publishablePaths: [],
+      guardedIntakePaths: [],
     })
     expect(composition.modules[0]).toMatchObject({
       publicPath: "catalog",
@@ -220,6 +224,8 @@ describe("graph runtime route posture", () => {
         "/v1/public/offers",
       ],
       transactionalPaths: ["/v1/public/finance"],
+      publishablePaths: [],
+      guardedIntakePaths: [],
     })
     expect(composition.modules).toEqual(
       expect.arrayContaining([
@@ -303,5 +309,135 @@ describe("graph runtime route posture", () => {
       publicPath: "/",
       anonymous: ["/payment-link", "/payment-link-config"],
     })
+  })
+
+  it("derives the publishable and guarded-intake allow-lists from the same declarations", async () => {
+    // voyant#4625: `anonymous` and `publishable` answer different questions and
+    // neither implies the other, so they are derived independently from the
+    // same bundle and projected back onto the module's own mount.
+    const runtime = createVoyantGraphRuntime({
+      graphHash: "sha256:capability-line",
+      entries: {
+        "@voyant-travel/storefront": async () => ({
+          createStorefrontModule: () => ({ module: { name: "storefront" } }),
+        }),
+      },
+      modules: [
+        {
+          id: "@voyant-travel/storefront",
+          kind: "module",
+          packageName: "@voyant-travel/storefront",
+          order: 0,
+          references: [
+            {
+              id: "storefront-public-route",
+              unitId: "@voyant-travel/storefront",
+              facet: "api",
+              entityId: "@voyant-travel/storefront#api.public",
+              runtime: {
+                entry: "@voyant-travel/storefront",
+                export: "createStorefrontModule",
+              },
+              importEntry: "@voyant-travel/storefront",
+            },
+          ],
+          selectedIds: {
+            routes: ["@voyant-travel/storefront#api.public"],
+            tools: [],
+            events: [],
+            webhooks: [],
+          },
+          routes: [
+            {
+              route: {
+                id: "@voyant-travel/storefront#api.public",
+                surface: "public",
+                mount: "/",
+                anonymous: ["/leads", "/departures"],
+                publishable: ["/departures", "offers"],
+                guardedIntake: ["/leads"],
+                runtime: {
+                  entry: "@voyant-travel/storefront",
+                  export: "createStorefrontModule",
+                },
+              },
+              importEntry: "@voyant-travel/storefront",
+              referenceId: "storefront-public-route",
+            },
+          ],
+        },
+      ],
+      plugins: [],
+    })
+
+    const composition = await composeVoyantGraphRuntime({ runtime, capabilities: {} })
+
+    expect(composition.routePosture.publishablePaths).toEqual([
+      "/v1/public/departures",
+      "/v1/public/offers",
+    ])
+    expect(composition.routePosture.guardedIntakePaths).toEqual(["/v1/public/leads"])
+    expect(composition.modules[0]).toMatchObject({
+      publicPath: "/",
+      anonymous: ["/departures", "/leads"],
+      publishable: ["/departures", "/offers"],
+      guardedIntake: ["/leads"],
+    })
+  })
+
+  it("ignores a publishable declaration on a non-public bundle", async () => {
+    // Only the public surface accepts a storefront key at all, so an admin
+    // bundle must not be able to widen the list the middleware reads.
+    const runtime = createVoyantGraphRuntime({
+      graphHash: "sha256:admin-publishable",
+      entries: {
+        "@acme/catalog": async () => ({
+          createCatalogModule: () => ({ module: { name: "catalog" } }),
+        }),
+      },
+      modules: [
+        {
+          id: "@acme/catalog",
+          localId: "catalog",
+          kind: "module",
+          packageName: "@acme/catalog",
+          order: 0,
+          references: [
+            {
+              id: "catalog-admin-route",
+              unitId: "@acme/catalog",
+              facet: "api",
+              entityId: "@acme/catalog#api.admin",
+              runtime: { entry: "@acme/catalog", export: "createCatalogModule" },
+              importEntry: "@acme/catalog",
+            },
+          ],
+          selectedIds: {
+            routes: ["@acme/catalog#api.admin"],
+            tools: [],
+            events: [],
+            webhooks: [],
+          },
+          routes: [
+            {
+              route: {
+                id: "@acme/catalog#api.admin",
+                surface: "admin",
+                mount: "catalog",
+                publishable: true,
+                runtime: { entry: "@acme/catalog", export: "createCatalogModule" },
+              },
+              importEntry: "@acme/catalog",
+              referenceId: "catalog-admin-route",
+            },
+          ],
+        },
+      ],
+      plugins: [],
+    })
+
+    const composition = await composeVoyantGraphRuntime({ runtime, capabilities: {} })
+
+    expect(composition.routePosture.publishablePaths).toEqual([])
   })
 })

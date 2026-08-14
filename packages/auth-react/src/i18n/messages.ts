@@ -486,6 +486,10 @@ export interface StorefrontsPageMessages {
     rotateConfirm: string
     kindPublishable: string
     kindSecret: string
+    scopesLabel: string
+    scopesFullAccess: string
+    scopesFullAccessWarning: string
+    scopesLegacy: string
     revoked: string
     active: string
     revealTitle: string

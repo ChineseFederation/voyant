@@ -5,7 +5,12 @@ import { createContainer, createEventBus, createQueryRunner } from "@voyant-trav
 import { createLinkServiceFactory } from "@voyant-travel/db/links"
 import type { Context, Hono } from "hono"
 
-import { assembleAnonymousPaths, assembleOptionalCustomerAuthPaths } from "./anonymous-paths.js"
+import {
+  assembleAnonymousPaths,
+  assembleGuardedIntakePaths,
+  assembleOptionalCustomerAuthPaths,
+  assemblePublishablePaths,
+} from "./anonymous-paths.js"
 import { composeAuthAugmentations } from "./auth-augmentation.js"
 import {
   type ApiBundle,
@@ -34,6 +39,7 @@ import {
 import { cors } from "./middleware/cors.js"
 import { db } from "./middleware/db.js"
 import { handleApiError, requestId } from "./middleware/error-boundary.js"
+import { requireKeyCapability } from "./middleware/key-capability.js"
 import { logger } from "./middleware/logger.js"
 import { publicResponseCache } from "./middleware/public-cache.js"
 import {
@@ -246,6 +252,20 @@ export function mountApp<TBindings extends VoyantBindings>(
     ...(expanded?.anonymousPaths ?? []),
     ...lazyPlugins.flatMap((plugin) => plugin.anonymous ?? []),
   ])
+  // Publishable-key allow-list (voyant#4625): the paths a `vpk_` may call.
+  // Assembled the same way as the anonymous list and from the same declarations
+  // on the same units, but it answers a different question — "may a credential
+  // that ships in a browser bundle call this?" rather than "is a session
+  // needed?" — and it is an allow-list, so an empty result denies rather than
+  // permits.
+  const publishablePaths = assemblePublishablePaths(allModules, allExtensions, [
+    ...(config.publishablePaths ?? []),
+    ...(expanded?.publishablePaths ?? []),
+  ])
+  const guardedIntakePaths = assembleGuardedIntakePaths(allModules, allExtensions, [
+    ...(config.guardedIntakePaths ?? []),
+    ...(expanded?.guardedIntakePaths ?? []),
+  ])
   const optionalCustomerAuthPaths = assembleOptionalCustomerAuthPaths(allModules, allExtensions)
   const clientAuthenticatedRoutes = assembleClientAuthenticatedRoutes(allModules)
   const bodyKeyedCachePaths = assembleBodyKeyedCachePaths(allModules, allExtensions)
@@ -370,6 +390,16 @@ export function mountApp<TBindings extends VoyantBindings>(
     anonymousPaths.push(
       ...assembleAnonymousPaths(lazyExpanded.modules, lazyExpanded.extensions, [
         ...lazyExpanded.anonymousPaths,
+      ]),
+    )
+    publishablePaths.push(
+      ...assemblePublishablePaths(lazyExpanded.modules, lazyExpanded.extensions, [
+        ...lazyExpanded.publishablePaths,
+      ]),
+    )
+    guardedIntakePaths.push(
+      ...assembleGuardedIntakePaths(lazyExpanded.modules, lazyExpanded.extensions, [
+        ...lazyExpanded.guardedIntakePaths,
       ]),
     )
     optionalCustomerAuthPaths.push(
@@ -647,6 +677,29 @@ export function mountApp<TBindings extends VoyantBindings>(
 
   // Auth middleware for all other routes
   app.use("*", requireAuth(dbSource, authOptions))
+
+  // PK/SK capability line (voyant#4625). Runs after auth so it can read the
+  // credential class that actually admitted the request, and before anything
+  // that touches the database or a route handler — a request a publishable key
+  // may not make should cost a path comparison, not a query. `publishablePaths`
+  // is passed by reference so lazily-expanded bundles widen it in place, the
+  // same way `anonymousPaths` reaches `requireAuth`.
+  app.use(
+    "*",
+    requireKeyCapability({
+      publishablePaths,
+      guardedIntakePaths,
+      // Either signal counts: the deployment saying so, or a module reporting
+      // that it was handed a working guard. Read once, unlike the path lists
+      // that lazy bundles widen in place — a lazy bundle arriving later can
+      // only fail to unlock intake, which is the fail-closed direction. A lazy
+      // bundle that needs the unlock sets `publicIntakeGuarded` on the app.
+      publicIntakeGuarded:
+        (config.publicIntakeGuarded ?? false) ||
+        allModules.some((module) => module.publicIntakeGuarded === true),
+      basePath: config.basePath,
+    }),
+  )
 
   // DB middleware — sets c.var.db for all downstream handlers.
   // Pass the list of modules that need interactive transactions so the

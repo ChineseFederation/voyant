@@ -30,6 +30,13 @@ export interface VoyantExecutionContext {
 export interface VoyantBindings {
   INTERNAL_API_KEY?: string
   INTERNAL_API_KEY_SCOPES?: string
+  /**
+   * `"disabled"` stops accepting the deprecated `voy_` deployment admin key on
+   * `/v1/admin/*` (voyant#4625 §4). Anything else — including unset — keeps the
+   * compatibility window open. Storefront secret keys and admin sessions are
+   * unaffected either way.
+   */
+  VOYANT_DEPLOYMENT_API_KEY_MODE?: string
   VOYANT_CLOUD_DEPLOYMENT_ID?: string
   SESSION_CLAIMS_ADMIN_SECRET?: string
   SESSION_CLAIMS_CUSTOMER_SECRET?: string
@@ -332,6 +339,29 @@ export interface VoyantAppConfig<TBindings extends VoyantBindings = VoyantBindin
    */
   basePath?: string
   publicPaths?: string[]
+  /**
+   * Absolute `/v1/public/*` paths a publishable (`vpk_`) storefront key may
+   * call, beyond what modules declare via `publishable` (voyant#4625). The same
+   * escape hatch `publicPaths` is — for a route no module owns.
+   *
+   * Leaving this empty does not mean "unrestricted": the capability line is an
+   * allow-list, so anything not declared here or by a module is reachable only
+   * with a secret key.
+   */
+  publishablePaths?: string[]
+  /**
+   * Absolute `/v1/public/*` paths that capture unchallenged person data, beyond
+   * what modules declare via `guardedIntake` (voyant#4625).
+   */
+  guardedIntakePaths?: string[]
+  /**
+   * Whether this deployment has wired a guard in front of unchallenged public
+   * intake (a CAPTCHA, a proof-of-work, whatever it chose). Defaults to
+   * `false`, which keeps every `guardedIntake` path secret-key-only. The
+   * framework supplies the seam and the fail-closed default; what fills it is
+   * the deployment's business.
+   */
+  publicIntakeGuarded?: boolean
   /** Selected graph mount-to-resource authorization overrides. */
   accessResources?: readonly {
     path: string

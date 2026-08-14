@@ -9,6 +9,12 @@ package-internal routes or create provisional Booking records.
 `bookingSessionsV1` is the sole supported construction API. A Booking Session is
 the pre-commit aggregate; a Booking is created only when Session Commit succeeds.
 
+A browser-resident storefront uses a **publishable** (`vpk_`) key, which reaches
+the Booking Session flow because the session's own capability, revision and
+idempotency key are the authority — not the key. Anything outside the declared
+publishable set needs a **secret** (`vsk_`) key from a server you control. See
+[`storefront-key-capability-line.md`](./storefront-key-capability-line.md).
+
 The SDK wraps public contracts from:
 
 - `@voyant-travel/catalog-contracts` for Booking Session v1

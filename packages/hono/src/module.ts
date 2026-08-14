@@ -62,6 +62,39 @@ export interface ApiModule {
    * surface — admin routes always require a `staff` actor.
    */
   anonymous?: boolean | readonly string[]
+  /**
+   * Declares which of this module's PUBLIC routes a PUBLISHABLE (`vpk_`)
+   * storefront key may call. `true` = the whole public mount; a string array =
+   * sub-paths relative to the public mount, exactly like {@link anonymous}.
+   *
+   * Undeclared means secret-key-only. The two declarations answer different
+   * questions and neither implies the other: `anonymous` says "no customer
+   * session needed", `publishable` says "a credential that ships in a browser
+   * bundle may reach this". A catalog read is usually both; committing a
+   * booking is publishable but not anonymous; an operator-wide export may be
+   * neither.
+   */
+  publishable?: boolean | readonly string[]
+  /**
+   * Public sub-paths that capture person data with nothing challenging the
+   * submitter — a lead form, a newsletter sign-up, a booking inquiry. Same
+   * mount-relative shape as {@link anonymous}.
+   *
+   * These are reachable with a publishable key ONLY on a deployment that has an
+   * intake guard configured (`publicIntakeGuarded`); without one they are
+   * secret-key-only. Kept separate from `publishable` because the answer turns
+   * on a deployment fact rather than on the route: the framework supplies the
+   * seam and the fail-closed default, the deployment supplies the guard.
+   */
+  guardedIntake?: boolean | readonly string[]
+  /**
+   * Set by a module that has been handed a working intake guard, so the
+   * capability line can unlock its `guardedIntake` paths without the deployment
+   * also having to remember a separate flag. Composed with the app-level
+   * `publicIntakeGuarded` by OR — either signal is a deployment saying it
+   * guards public intake.
+   */
+  publicIntakeGuarded?: boolean
   /** Anonymous paths that also attempt live customer-session resolution. */
   optionalCustomerAuth?: boolean | readonly string[]
   /**
@@ -150,6 +183,16 @@ export interface ApiExtension {
    * to the extension's public mount.
    */
   anonymous?: boolean | readonly string[]
+  /**
+   * Publishable-key reachability — same semantics as
+   * {@link ApiModule.publishable}, relative to the extension's public mount.
+   */
+  publishable?: boolean | readonly string[]
+  /**
+   * Unchallenged person-data intake — same semantics as
+   * {@link ApiModule.guardedIntake}, relative to the extension's public mount.
+   */
+  guardedIntake?: boolean | readonly string[]
   /** Anonymous paths that also attempt live customer-session resolution. */
   optionalCustomerAuth?: boolean | readonly string[]
   /**

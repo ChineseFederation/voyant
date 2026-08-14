@@ -55,6 +55,8 @@ export const cruisesVoyantModule = defineModule({
       mount: "cruises",
       anonymous: true,
       transactional: true,
+      // Sailing content plus quotes.
+      publishable: true,
       openapi: { document: "cruises" },
       runtime: {
         entry: "@voyant-travel/cruises",
@@ -324,6 +326,8 @@ export const cruisesContentVoyantPlugin = defineExtension({
       mount: "cruises",
       anonymous: true,
       openapi: { document: "cruises" },
+      // Ship and sailing content.
+      publishable: true,
       runtime: {
         entry: "@voyant-travel/cruises/graph-runtime",
         export: "createCruisesContentVoyantRuntime",

@@ -95,6 +95,8 @@ export const commerceVoyantModule = defineModule({
       surface: "public",
       mount: "pricing",
       openapi: { document: "pricing" },
+      // Product pricing a storefront renders before anyone signs in.
+      publishable: true,
       runtime: {
         entry: "@voyant-travel/commerce",
         export: "pricingApiModule",
@@ -118,6 +120,8 @@ export const commerceVoyantModule = defineModule({
       openapi: { document: "markets" },
       resource: "markets",
       anonymous: true,
+      // Market and currency metadata.
+      publishable: true,
       runtime: {
         entry: "@voyant-travel/commerce",
         export: "marketsApiModule",
@@ -495,6 +499,8 @@ export const commerceCatalogCheckoutVoyantPlugin = defineExtension({
       surface: "public",
       mount: "catalog",
       openapi: { document: "catalog" },
+      // Checkout start, part of the Booking Session flow above.
+      publishable: true,
       runtime: {
         entry: "@voyant-travel/commerce/checkout",
         export: "createCatalogCheckoutGraphExtension",

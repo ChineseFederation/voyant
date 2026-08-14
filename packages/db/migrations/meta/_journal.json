@@ -113,6 +113,13 @@
       "when": 1786042800000,
       "tag": "20260806190000_bounded_outbox_drain",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1786993200000,
+      "tag": "20260814090000_storefront_secret_key_scopes",
+      "breakpoints": true
     }
   ]
 }

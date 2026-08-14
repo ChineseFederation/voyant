@@ -56,6 +56,8 @@ export const inventoryVoyantModule = defineModule({
       mount: "products",
       openapi: { document: "products" },
       anonymous: true,
+      // Product listings and content — the canonical publishable read.
+      publishable: true,
       runtime: {
         entry: "@voyant-travel/inventory/graph-runtime",
         export: "createInventoryVoyantRuntime",
@@ -1008,6 +1010,8 @@ export const inventoryContentVoyantPlugin = defineExtension({
       mount: "products",
       openapi: { document: "products" },
       anonymous: true,
+      // Product listings and content — the canonical publishable read.
+      publishable: true,
       runtime: {
         entry: "@voyant-travel/inventory/graph-runtime",
         export: "createInventoryContentVoyantRuntime",

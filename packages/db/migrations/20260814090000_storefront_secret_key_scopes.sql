@@ -1,0 +1,15 @@
+-- Scopes on a storefront secret key (voyant#4625).
+--
+-- A `vsk_` now authenticates `/v1/admin/*` as well as `/v1/public/*`, replacing
+-- the deployment admin key, so it needs the same thing that key had: a grant
+-- narrower than "everything this deployment can do". The vocabulary is the
+-- deployment's own access catalog (`resource: [action, ...]`), identical in
+-- shape to `apikey.permissions`, so one scope picker and one permission check
+-- serve both credential kinds.
+--
+-- Nullable rather than defaulted: NULL means "minted before scopes existed" and
+-- is read as the unscoped legacy grant during the compatibility window, which
+-- is distinguishable from an explicit empty grant. Publishable keys leave it
+-- NULL permanently — a `vpk_` is bounded by the capability line, not by scopes,
+-- and giving it a scope set would suggest it could be widened.
+ALTER TABLE "storefront_api_keys" ADD COLUMN IF NOT EXISTS "scopes" jsonb;

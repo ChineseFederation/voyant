@@ -126,6 +126,13 @@ function mountRoutePosture(composition: Awaited<ReturnType<typeof buildGraphComp
   return {
     publicPaths: [...composition.routePosture.publicPaths],
     dbTransactionalPaths: [...composition.routePosture.transactionalPaths],
+    // The PK/SK capability line is part of the mounted posture (voyant#4625).
+    // Omitting these would leave the harness holding every public route to an
+    // empty allow-list — secret-key-only — which is a posture no deployment
+    // ever has, so the smoke tests would assert against a surface that does
+    // not exist.
+    publishablePaths: [...composition.routePosture.publishablePaths],
+    guardedIntakePaths: [...composition.routePosture.guardedIntakePaths],
     accessResources: composition.accessResources,
     accessCatalog,
   }
@@ -230,20 +237,35 @@ describe("operator composed route mounting (smoke)", () => {
     expect(await status("/v1/admin/smartbill/invoices/inv_123/sync", "POST")).toBe(404)
   })
 
-  it("lets storefront Travel Credit validation pass the public actor gate with an admin session", async () => {
-    const res = await responseWithSessionActor(
+  // Travel-credit validation takes a bare code, is not rate-limited, and answers
+  // with the credit's remaining balance — an enumeration oracle over a bearer
+  // instrument worth real money. It is deliberately NOT publishable
+  // (voyant#4625): a storefront that wants browser-side validation proxies it
+  // with a secret key. Both halves are asserted, because "mounted" and
+  // "reachable with a publishable key" are now different questions.
+  it("mounts Travel Credit validation but refuses it without a secret key", async () => {
+    const body = {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ code: "TEST-CREDIT" }),
+    }
+
+    const denied = await responseWithSessionActor(
       "staff",
       "/v1/public/finance/travel-credits/validate",
-      {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ code: "TEST-CREDIT" }),
-      },
+      body,
     )
+    expect(denied.status).toBe(403)
+    expect(((await denied.json()) as { code?: string }).code).toBe("secret_key_required")
 
-    expect(res.status).not.toBe(401)
-    expect(res.status).not.toBe(403)
-    expect(res.status).not.toBe(404)
+    const withSecretKey = await responseWithSessionActor(
+      "staff",
+      "/v1/public/finance/travel-credits/validate",
+      { ...body, headers: { ...body.headers, "x-api-key": "vsk_operator_route_mounting" } },
+    )
+    expect(withSecretKey.status).not.toBe(401)
+    expect(withSecretKey.status).not.toBe(403)
+    expect(withSecretKey.status).not.toBe(404)
   })
 
   it("mounts storefront offer routes selected by the deployment graph", async () => {

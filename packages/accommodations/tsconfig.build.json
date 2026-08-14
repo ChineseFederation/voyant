@@ -2041,6 +2041,7 @@
       "@voyant-travel/types/api-keys": ["../types/dist/api-keys.d.ts"],
       "@voyant-travel/types/member-roles": ["../types/dist/member-roles.d.ts"],
       "@voyant-travel/types/schemas/*": ["../types/dist/schemas/*.d.ts"],
+      "@voyant-travel/types/storefront-key-scopes": ["../types/dist/storefront-key-scopes.d.ts"],
       "@voyant-travel/ui/components": ["../ui/dist/components/index.d.ts"],
       "@voyant-travel/ui/components/*": ["../ui/dist/components/*.d.ts"],
       "@voyant-travel/ui/components/big-calendar": [

@@ -14,12 +14,17 @@
  * Runtime-agnostic: uses only Web Crypto (`crypto.getRandomValues`,
  * `crypto.subtle`), which is available in Node, workerd, and the browser.
  */
+import {
+  classifyStorefrontKeyToken,
+  hashStorefrontKeyToken,
+  STOREFRONT_KEY_PREFIXES,
+} from "@voyant-travel/core"
 import type { StorefrontApiKeyKind } from "@voyant-travel/db/schema/iam"
 
-const KEY_PREFIXES = {
-  publishable: "vpk_",
-  secret: "vsk_",
-} as const satisfies Record<StorefrontApiKeyKind, string>
+// The prefix table lives in `core` because the capability middleware in
+// `@voyant-travel/hono` classifies a token before this package is reachable,
+// and two copies of it drifting apart is an auth bypass (voyant#4625).
+const KEY_PREFIXES = STOREFRONT_KEY_PREFIXES satisfies Record<StorefrontApiKeyKind, string>
 
 /** Bytes of entropy in the random portion of a key (256 bits). */
 const KEY_RANDOM_BYTES = 32
@@ -40,12 +45,13 @@ function base64UrlFromBytes(bytes: Uint8Array): string {
   return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "")
 }
 
-/** SHA-256 hex digest of an access token. */
+/**
+ * SHA-256 hex digest of an access token. Delegates to `core` so issuance here
+ * and the admin-surface lookup in `@voyant-travel/hono` cannot compute
+ * different digests for the same token.
+ */
 export async function hashStorefrontApiKey(token: string): Promise<string> {
-  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token))
-  return Array.from(new Uint8Array(digest))
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("")
+  return hashStorefrontKeyToken(token)
 }
 
 /**
@@ -54,10 +60,7 @@ export async function hashStorefrontApiKey(token: string): Promise<string> {
  * tokens before hitting the database.
  */
 export function classifyStorefrontApiKey(token: string): StorefrontApiKeyKind | null {
-  for (const kind of Object.keys(KEY_PREFIXES) as StorefrontApiKeyKind[]) {
-    if (token.startsWith(KEY_PREFIXES[kind])) return kind
-  }
-  return null
+  return classifyStorefrontKeyToken(token)
 }
 
 /**
