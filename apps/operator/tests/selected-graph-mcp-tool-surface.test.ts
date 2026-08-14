@@ -43,8 +43,20 @@ import {
  * roughly the old ~880-byte median, which is the regression worth catching. A
  * ceiling only a few bytes above the measurement would be a tripwire that fires on
  * routine wording changes, which trains people to raise it without reading.
+ *
+ * **Raised 3,800 -> 5,000 for voyant#4592.** That change gives every `tools/list`
+ * entry a positive `_meta` marker so a client can tell a server-owned tool from a
+ * registry Tool with broken metadata — the distinction whose absence made Max
+ * discard whole tenant catalogues. All five tier-0 entries now carry
+ * `serverToolMeta`, which is a deliberate ~85 bytes each: measured **4,155 bytes**,
+ * still 5 tools, still no domain tool eager (the per-tool breakdown in `diagnose`
+ * confirms it). Headroom stays at 845 — under the ~880 an eagerly-registered
+ * domain tool costs — so the tripwire this ratchet exists for is unchanged.
+ *
+ * It landed on main without this adjustment because `operator#test` was a turbo
+ * cache hit there and never ran.
  */
-const PAYLOAD_CEILING_BYTES = 3_800
+const PAYLOAD_CEILING_BYTES = 5_000
 
 /**
  * Ceiling for the AGGREGATE describe schema of the collapsed READ surface — the
@@ -181,10 +193,17 @@ async function serializeEagerToolSurface(): Promise<{
 }
 
 function diagnose(tools: SerializedTool[], totalBytes: number): string {
+  // Per-tool bytes, largest first. The total alone says the payload grew; it
+  // does not say which tool grew, and the difference decides whether the cause
+  // is a newly-eager domain tool or one tier-0 schema getting fatter. Chasing a
+  // 355-byte overage without this cost a whole debugging cycle (voyant#4598).
+  const sized = tools
+    .map((tool) => ({ name: tool.name, bytes: Buffer.byteLength(JSON.stringify(tool), "utf8") }))
+    .sort((left, right) => right.bytes - left.bytes)
   return [
     `MCP tools/list payload: ${totalBytes.toLocaleString()} bytes across ${tools.length} eager tools`,
     `  ~${Math.round(totalBytes / BYTES_PER_TOKEN).toLocaleString()} tokens charged on every connection`,
-    `  tools: ${tools.map(({ name }) => name).join(", ")}`,
+    ...sized.map(({ name, bytes }) => `    ${bytes.toLocaleString().padStart(7)}  ${name}`),
     "",
     "  Progressive disclosure (voyant#3927) keeps only tier-0 resident. If this grew,",
     "  a domain tool was likely registered eagerly again — discover it through",

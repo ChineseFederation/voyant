@@ -2430,6 +2430,9 @@ importers:
       '@voyant-travel/identity':
         specifier: workspace:^
         version: link:../identity
+      '@voyant-travel/schema-kit':
+        specifier: workspace:^
+        version: link:../schema-kit
       '@voyant-travel/suppliers-contracts':
         specifier: workspace:^
         version: link:../suppliers-contracts
@@ -2657,6 +2660,9 @@ importers:
       '@voyant-travel/reporting-contracts':
         specifier: workspace:^
         version: link:../reporting-contracts
+      '@voyant-travel/schema-kit':
+        specifier: workspace:^
+        version: link:../schema-kit
       '@voyant-travel/storage':
         specifier: workspace:^
         version: link:../storage
@@ -3466,6 +3472,9 @@ importers:
       '@voyant-travel/relationships':
         specifier: workspace:^
         version: link:../relationships
+      '@voyant-travel/schema-kit':
+        specifier: workspace:^
+        version: link:../schema-kit
       '@voyant-travel/storage':
         specifier: workspace:^
         version: link:../storage
@@ -5605,6 +5614,9 @@ importers:
       '@voyant-travel/relationships-contracts':
         specifier: workspace:^
         version: link:../relationships-contracts
+      '@voyant-travel/schema-kit':
+        specifier: workspace:^
+        version: link:../schema-kit
       '@voyant-travel/tools':
         specifier: workspace:^
         version: link:../tools

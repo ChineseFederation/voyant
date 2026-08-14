@@ -1797,6 +1797,7 @@
       "@voyant-travel/runtime/openapi": ["../runtime/dist/openapi.d.ts"],
       "@voyant-travel/runtime/tooling": ["../runtime/dist/tooling.d.ts"],
       "@voyant-travel/schema-kit": ["../schema-kit/dist/index.d.ts"],
+      "@voyant-travel/schema-kit/email": ["../schema-kit/dist/email.d.ts"],
       "@voyant-travel/schema-kit/kms": ["../schema-kit/dist/kms.d.ts"],
       "@voyant-travel/schema-kit/query-params": ["../schema-kit/dist/query-params.d.ts"],
       "@voyant-travel/schema-kit/typeid": ["../schema-kit/dist/typeid/index.d.ts"],

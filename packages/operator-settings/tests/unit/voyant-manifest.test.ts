@@ -92,5 +92,12 @@ describe("operator-settings deployment manifest", () => {
     expect(paths?.["/v1/public/operator-branding/{slot}"]?.get?.["x-voyant-api-id"]).toBe(
       "@voyant-travel/operator-settings#api.public.branding-assets",
     )
-  })
+    // Two genuinely heavy steps, not a hang: `lazyRoutes.load()` is a cold
+    // dynamic import of the whole route module, and `getOpenAPI31Document`
+    // then walks every route schema converting it to JSON Schema. Measured at
+    // 3.5-4.4s cold on a developer machine, so the 5s default left no margin
+    // and the test failed roughly one run in six locally — and on a loaded CI
+    // runner, more often than that. The assertions themselves are fast and
+    // deterministic; only the budget was wrong.
+  }, 30_000)
 })

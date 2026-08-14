@@ -8,10 +8,11 @@
  * why the first attempt appeared to work — it was run against the published
  * packages installed under `apps/voyant-operator-runtime`, not repo sources.
  */
-import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs"
+import { existsSync, readFileSync, writeFileSync } from "node:fs"
 import path from "node:path"
-import { fileURLToPath, pathToFileURL } from "node:url"
+import { fileURLToPath } from "node:url"
 import type { z } from "zod"
+import { collectGraphToolDefinitions } from "./lib/graph-tool-definitions.mjs"
 import { inspectToolProtocolFieldInventory } from "./lib/tool-protocol-field-inventory.mjs"
 import {
   entryId,
@@ -160,12 +161,6 @@ type Inventory = {
   maxUndocumented?: number
 }
 
-type PackageJson = {
-  name?: string
-  exports?: Record<string, unknown>
-  voyant?: { kind?: string; manifest?: string }
-}
-
 async function collectRefinements(root: string) {
   const found: {
     id: string
@@ -174,61 +169,31 @@ async function collectRefinements(root: string) {
   }[] = []
   const unknownTypes: string[] = []
   const protocolFields: { id: string; serverResolved: boolean }[] = []
-  const packagesRoot = path.join(root, "packages")
 
-  for (const packageDirectory of findPackageDirectories(packagesRoot)) {
-    const packageJson = JSON.parse(
-      readFileSync(path.join(packageDirectory, "package.json"), "utf8"),
-    ) as PackageJson
-    if (!packageJson.name?.startsWith("@voyant-travel/")) continue
-    if (!packageJson.voyant?.manifest) continue
-
-    const manifestTarget = exportTarget(packageJson.exports?.[packageJson.voyant.manifest])
-    if (!manifestTarget) {
-      // Fail closed. An unread package would otherwise pass by finding nothing.
-      throw new Error(
-        `${packageJson.name}: manifest export "${packageJson.voyant.manifest}" has no importable target`,
-      )
+  for (const { packageName, toolName, definition } of await collectGraphToolDefinitions(root)) {
+    const tool = definition as {
+      inputSchema: z.ZodType
+      description?: string
+      resolvesIdempotencyKeyServerSide?: boolean
     }
-
-    const manifestModule = await importFile(packageDirectory, manifestTarget, packageJson.name)
-    for (const value of Object.values(manifestModule)) {
-      for (const tool of manifestTools(value)) {
-        const target = exportTarget(packageJson.exports?.[relativeEntry(tool.entry, packageJson)])
-        if (!target) {
-          throw new Error(
-            `${packageJson.name}: tool "${tool.name}" runtime entry "${tool.entry}" has no importable target`,
-          )
-        }
-        const toolModule = await importFile(packageDirectory, target, packageJson.name)
-        const definition = toolModule[tool.export] as
-          | { inputSchema?: z.ZodType; resolvesIdempotencyKeyServerSide?: boolean }
-          | undefined
-        if (!definition?.inputSchema) {
-          throw new Error(
-            `${packageJson.name}: "${tool.export}" is not an exported Tool with an inputSchema`,
-          )
-        }
-        if (hasTopLevelField(definition.inputSchema, "idempotencyKey")) {
-          protocolFields.push({
-            id: `${packageJson.name}:${tool.name}:input.idempotencyKey`,
-            serverResolved: definition.resolvesIdempotencyKeyServerSide === true,
-          })
-        }
-        const walked = findRefinementPaths(definition.inputSchema)
-        for (const entry of walked.unknownTypes) {
-          unknownTypes.push(`${packageJson.name}:${tool.name}:${entry}`)
-        }
-        for (const refinementPath of walked.paths) {
-          found.push({
-            id: entryId(packageJson.name, tool.name, refinementPath),
-            // Evidence for a human classifying the entry, never a verdict. The
-            // first attempt keyword-matched text like this and got it wrong.
-            toolDescription: (definition as { description?: string }).description ?? "",
-            pathDescription: describeAt(definition.inputSchema, refinementPath),
-          })
-        }
-      }
+    if (hasTopLevelField(tool.inputSchema, "idempotencyKey")) {
+      protocolFields.push({
+        id: `${packageName}:${toolName}:input.idempotencyKey`,
+        serverResolved: tool.resolvesIdempotencyKeyServerSide === true,
+      })
+    }
+    const walked = findRefinementPaths(tool.inputSchema)
+    for (const entry of walked.unknownTypes) {
+      unknownTypes.push(`${packageName}:${toolName}:${entry}`)
+    }
+    for (const refinementPath of walked.paths) {
+      found.push({
+        id: entryId(packageName, toolName, refinementPath),
+        // Evidence for a human classifying the entry, never a verdict. The
+        // first attempt keyword-matched text like this and got it wrong.
+        toolDescription: tool.description ?? "",
+        pathDescription: describeAt(tool.inputSchema, refinementPath),
+      })
     }
   }
 
@@ -256,57 +221,4 @@ function hasTopLevelField(schema: unknown, field: string, depth = 0): boolean {
     return def.options.some((option) => hasTopLevelField(option, field, depth + 1))
   }
   return false
-}
-
-function manifestTools(value: unknown) {
-  if (!value || typeof value !== "object") return []
-  const tools = (value as { tools?: unknown }).tools
-  if (!Array.isArray(tools)) return []
-  const rows: { name: string; entry: string; export: string }[] = []
-  for (const tool of tools) {
-    const runtime = (tool as { runtime?: { entry?: string; export?: string } }).runtime
-    const name = (tool as { name?: string }).name
-    if (!runtime?.entry || !runtime.export || !name) continue
-    rows.push({ name, entry: runtime.entry, export: runtime.export })
-  }
-  return rows
-}
-
-/** `@voyant-travel/trips/tools` -> `./tools` within its own package. */
-function relativeEntry(entry: string, packageJson: PackageJson) {
-  if (!packageJson.name) return entry
-  if (entry === packageJson.name) return "."
-  return entry.startsWith(`${packageJson.name}/`)
-    ? `./${entry.slice(packageJson.name.length + 1)}`
-    : entry
-}
-
-async function importFile(packageDirectory: string, target: string, packageName: string) {
-  const absolute = path.resolve(packageDirectory, target)
-  if (!existsSync(absolute)) {
-    throw new Error(`${packageName}: export target ${target} does not exist`)
-  }
-  return (await import(pathToFileURL(absolute).href)) as Record<string, unknown>
-}
-
-function exportTarget(value: unknown): string | undefined {
-  if (typeof value === "string") return value
-  if (!value || typeof value !== "object") return undefined
-  const record = value as Record<string, unknown>
-  for (const key of ["development", "import", "default", "node"]) {
-    const resolved = exportTarget(record[key])
-    if (resolved) return resolved
-  }
-  return undefined
-}
-
-function findPackageDirectories(packagesRoot: string) {
-  const directories: string[] = []
-  if (!existsSync(packagesRoot)) return directories
-  for (const entry of readdirSync(packagesRoot, { withFileTypes: true })) {
-    if (!entry.isDirectory()) continue
-    const directory = path.join(packagesRoot, entry.name)
-    if (existsSync(path.join(directory, "package.json"))) directories.push(directory)
-  }
-  return directories.sort()
 }

@@ -1,3 +1,4 @@
+import { emailAddress } from "@voyant-travel/schema-kit/email"
 import { typeIdSchema } from "@voyant-travel/schema-kit/typeid"
 import { z } from "zod"
 
@@ -49,7 +50,7 @@ const supplierCoreSchema = z.object({
   type: supplierTypeSchema,
   status: supplierStatusSchema.default("active"),
   description: z.string().optional().nullable(),
-  email: z.string().email().optional().nullable(),
+  email: emailAddress().optional().nullable(),
   phone: z.string().optional().nullable(),
   website: z.string().url().optional().nullable(),
   address: z.string().optional().nullable(),
@@ -58,7 +59,7 @@ const supplierCoreSchema = z.object({
   defaultCurrency: currencyCodeSchema.optional().nullable(),
   primaryFacilityId: z.string().optional().nullable(),
   contactName: z.string().optional().nullable(),
-  contactEmail: z.string().email().optional().nullable(),
+  contactEmail: emailAddress().optional().nullable(),
   contactPhone: z.string().optional().nullable(),
   paymentTermsDays: z.number().int().positive().optional().nullable(),
   reservationTimeoutMinutes: z

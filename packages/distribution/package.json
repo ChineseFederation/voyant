@@ -55,7 +55,8 @@
     "drizzle-orm": "catalog:",
     "hono": "catalog:",
     "zod": "catalog:",
-    "@voyant-travel/suppliers-contracts": "workspace:^"
+    "@voyant-travel/suppliers-contracts": "workspace:^",
+    "@voyant-travel/schema-kit": "workspace:^"
   },
   "devDependencies": {
     "@voyant-travel/voyant-typescript-config": "workspace:^",

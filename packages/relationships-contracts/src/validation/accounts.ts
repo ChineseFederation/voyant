@@ -1,3 +1,4 @@
+import { emailAddress } from "@voyant-travel/schema-kit/email"
 import { kmsEnvelopeSchema } from "@voyant-travel/schema-kit/kms"
 import { z } from "zod"
 
@@ -108,7 +109,7 @@ export const personCoreSchema = z.object({
   // Inline identity fields — synced to identity module on create/update
   email: z.preprocess(
     (value) => (value === "" ? null : value),
-    z.string().email().nullable().optional(),
+    emailAddress().nullable().optional(),
   ),
   phone: z.string().nullable().optional(),
   website: z

@@ -1,4 +1,5 @@
 import { booleanQueryParam } from "@voyant-travel/db/helpers"
+import { emailAddress } from "@voyant-travel/schema-kit/email"
 import { z } from "zod"
 
 import { CHANNEL_PRESET_KEY_DESCRIPTION, isPersistableChannelPresetKey } from "./channel-presets.js"
@@ -107,7 +108,7 @@ export const channelCoreSchema = z.object({
     .or(z.literal(""))
     .transform((value) => value || null),
   contactName: z.string().nullable().optional(),
-  contactEmail: z.string().email().nullable().optional(),
+  contactEmail: emailAddress().nullable().optional(),
   metadata: z.record(z.string(), z.unknown()).nullable().optional(),
   /**
    * Catalog entry this channel is being created from. Only a named network is

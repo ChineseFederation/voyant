@@ -18,6 +18,7 @@
  * work (reference allocation, the durable command) lives in `mcp-runtime.ts`,
  * which holds the request-scoped services.
  */
+import { emailAddress } from "@voyant-travel/schema-kit/email"
 import { z } from "zod"
 
 import { type BookingCreateInput, bookingCreateSchema } from "./service-booking-create.js"
@@ -38,7 +39,7 @@ const bookProductTravelerSchema = z.object({
     ),
   firstName: z.string().min(1).max(255),
   lastName: z.string().min(1).max(255),
-  email: z.string().email().optional().nullable(),
+  email: emailAddress().optional().nullable(),
   phone: z.string().max(50).optional().nullable(),
   personId: z
     .string()

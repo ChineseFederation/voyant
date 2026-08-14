@@ -255,16 +255,39 @@ describe("selected Operator graph runtime composition", () => {
     const subscribe = vi.spyOn(eventBus, "subscribe")
     const context = { bindings: {} as AppBindings, container, eventBus }
 
-    await notificationsModule?.module.bootstrap?.(context)
-    await subscriberExtension?.extension.bootstrap?.(context)
-    await subscriberRuntimeModule?.module.bootstrap?.(context)
+    // Attribute each subscription to the bootstrap that made it. The event type
+    // alone does not say who registered it, and an unexpected one sent voyant#4598
+    // hunting through source for a string that is composed at runtime and appears
+    // nowhere in the tree.
+    const origin = new Map<string, string[]>()
+    const record = async (label: string, bootstrap?: () => unknown) => {
+      const before = subscribe.mock.calls.length
+      await bootstrap?.()
+      origin.set(
+        label,
+        subscribe.mock.calls.slice(before).map(([eventType]) => String(eventType)),
+      )
+    }
+    await record("notifications module", () => notificationsModule?.module.bootstrap?.(context))
+    await record("reminder-subscribers extension", () =>
+      subscriberExtension?.extension.bootstrap?.(context),
+    )
+    await record("subscribers graph-runtime", () =>
+      subscriberRuntimeModule?.module.bootstrap?.(context),
+    )
+    const attribution = [...origin]
+      .map(([label, events]) => `  ${label}: ${events.join(", ") || "(none)"}`)
+      .join("\n")
 
     expect(subscriberExtension?.extension.bootstrap).toBeTypeOf("function")
     expect(container.has(NOTIFICATIONS_SUBSCRIBER_RUNTIME_KEY)).toBe(true)
     // The extension activates both subscriber families: the reminder
     // subscribers that mail the customer, then the staff alerts that mail the
     // operator's team. They share event types but never a recipient.
-    expect(subscribe.mock.calls.map(([eventType]) => eventType)).toEqual([
+    expect(
+      subscribe.mock.calls.map(([eventType]) => eventType),
+      attribution,
+    ).toEqual([
       "booking.cancelled",
       "booking.confirmed",
       "checkout.finalized",
@@ -279,6 +302,11 @@ describe("selected Operator graph runtime composition", () => {
       "customer.signal.created",
       "invoice.settled",
       "payment.completed",
+      // voyant#4645 added a staff alert for a stranded payment settlement, which
+      // subscribes to the outbox's own dead-letter event. It landed without this
+      // line because `operator#test` was a turbo cache hit on main and did not
+      // run; the first change to invalidate that key surfaced it.
+      "event.dead_lettered",
     ])
     // Confirmation priority is unchanged by the staff alerts: the reminder
     // subscriber for `booking.confirmed` still registers before any staff one,

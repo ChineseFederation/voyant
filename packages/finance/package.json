@@ -71,7 +71,8 @@
     "hono": "catalog:",
     "rrule": "^2.8.1",
     "zod": "catalog:",
-    "@voyant-travel/tools": "workspace:^"
+    "@voyant-travel/tools": "workspace:^",
+    "@voyant-travel/schema-kit": "workspace:^"
   },
   "devDependencies": {
     "@voyant-travel/webhook-delivery": "workspace:^",

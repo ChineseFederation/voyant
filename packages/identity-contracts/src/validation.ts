@@ -1,3 +1,4 @@
+import { emailAddress } from "@voyant-travel/schema-kit/email"
 import { booleanQueryParam } from "@voyant-travel/schema-kit/query-params"
 import { typeIdSchema } from "@voyant-travel/schema-kit/typeid"
 import { z } from "zod"
@@ -80,7 +81,7 @@ const namedContactCoreSchema = z.object({
   role: namedContactRoleSchema.default("general"),
   name: z.string().min(1).max(255),
   title: z.string().max(255).nullable().optional(),
-  email: z.string().email().nullable().optional(),
+  email: emailAddress().nullable().optional(),
   phone: z.string().max(50).nullable().optional(),
   isPrimary: z.boolean().default(false),
   notes: z.string().nullable().optional(),

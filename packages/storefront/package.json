@@ -94,7 +94,8 @@
     "@voyant-travel/utils": "workspace:^",
     "drizzle-orm": "catalog:",
     "hono": "catalog:",
-    "zod": "catalog:"
+    "zod": "catalog:",
+    "@voyant-travel/schema-kit": "workspace:^"
   },
   "peerDependencies": {
     "@voyant-travel/identity": "workspace:^",

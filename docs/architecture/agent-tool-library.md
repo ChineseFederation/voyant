@@ -66,6 +66,15 @@ Rules:
   must not create a second composition layer or persist directly into foreign tables.
 - Keep `inputSchema` serialization-friendly (avoid top-level `.transform()`/`.refine()`)
   so `z.toJSONSchema` emits a faithful manifest.
+- **No regex lookaround in an `inputSchema` `pattern`.** Providers that validate
+  tool schemas with an RE2-style engine reject `(?=)`, `(?!)`, `(?<=)` and
+  `(?<!)` outright, and a client sends *every* authorized tool schema in one
+  model call — so one offending field fails every turn of the conversation,
+  including questions that never reach the Tool carrying it. Zod's default
+  `z.email()` pattern is exactly this shape; use `emailAddress()` from
+  `@voyant-travel/schema-kit/email` instead. `verify:tool-schema-portability`
+  serializes each registered Tool through the real `createRegisteredTool` path
+  and fails on any lookaround `pattern`.
 - Treat the package Tool id as the stable capability identity. `name` is the canonical
   MCP invocation label and `aliases` are temporary compatibility labels. Graph-driven
   registration supplies `capabilityId` and `owner`; standalone registries should declare

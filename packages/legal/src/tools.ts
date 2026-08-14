@@ -1,6 +1,7 @@
 // agent-quality: file-size exception -- owner: legal; contract lifecycle tools stay co-located because create/read/update/document handlers share one admission and schema surface.
 
 import { bookingsService } from "@voyant-travel/bookings"
+import { emailAddress, emailPattern } from "@voyant-travel/schema-kit/email"
 import {
   admitHandlerActionPolicy,
   defineTool,
@@ -372,7 +373,7 @@ const listAttachmentsInputSchema = z.object({ contractId: z.string().trim().min(
 const transitionContractInputSchema = z.object({ contractId: z.string().trim().min(1) })
 const legacySendContractInputSchema = transitionContractInputSchema
   .extend({
-    recipientEmail: z.string().email().nullable().optional(),
+    recipientEmail: emailAddress().nullable().optional(),
     subject: z.string().max(500).nullable().optional(),
     message: z.string().max(10_000).nullable().optional(),
   })
@@ -390,7 +391,7 @@ const bookingContractSendInputSchema = z.discriminatedUnion("channel", [
     .extend({
       ...bookingContractSendFields,
       channel: z.literal("email"),
-      recipient: z.string().trim().email().max(320),
+      recipient: z.string().trim().email({ pattern: emailPattern }).max(320),
     })
     .strict(),
   transitionContractInputSchema

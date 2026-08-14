@@ -1,3 +1,4 @@
+import { emailAddress } from "@voyant-travel/schema-kit/email"
 import { z } from "zod"
 
 import {
@@ -59,7 +60,7 @@ export const customerPortalProfileSchema = z.object({
   userId: z.string(),
   // null for phone-only signups; customer identity lives in customer_auth.user
   // guarantees email or phoneNumber is set, not both required.
-  email: z.string().email().nullable(),
+  email: emailAddress().nullable(),
   phoneNumber: z.string().nullable().optional(),
   emailVerified: z.boolean(),
   firstName: z.string().nullable(),
@@ -260,7 +261,7 @@ export const createCustomerPortalCompanionSchema = z.object({
     .default("other"),
   name: z.string().min(1).max(255),
   title: z.string().max(255).nullable().optional(),
-  email: z.string().email().nullable().optional(),
+  email: emailAddress().nullable().optional(),
   phone: z.string().max(50).nullable().optional(),
   isPrimary: z.boolean().default(false),
   notes: z.string().nullable().optional(),

@@ -1,3 +1,4 @@
+import { emailAddress } from "@voyant-travel/schema-kit/email"
 import { z } from "zod"
 
 import {
@@ -14,7 +15,7 @@ const travelerRecordCoreSchema = z.object({
   travelerCategory: bookingTravelerCategorySchema.optional().nullable(),
   firstName: z.string().min(1).max(255),
   lastName: z.string().min(1).max(255),
-  email: z.string().email().optional().nullable(),
+  email: emailAddress().optional().nullable(),
   phone: z.string().max(50).optional().nullable(),
   preferredLanguage: z.string().max(35).optional().nullable(),
   specialRequests: z.string().optional().nullable(),
@@ -27,7 +28,7 @@ const travelerRecordCoreSchema = z.object({
 const travelerCoreSchema = z.object({
   firstName: z.string().min(1).max(255),
   lastName: z.string().min(1).max(255),
-  email: z.string().email().optional().nullable(),
+  email: emailAddress().optional().nullable(),
   phone: z.string().max(50).optional().nullable(),
   preferredLanguage: z.string().max(35).optional().nullable(),
   specialRequests: z.string().optional().nullable(),

@@ -22,6 +22,7 @@ import {
 } from "@voyant-travel/bookings/schema"
 import { withBookingFinanceInsertionFence } from "@voyant-travel/db/booking-finance-fence"
 import { classifyOccupancyPrice } from "@voyant-travel/products-contracts/occupancy-pricing"
+import { emailAddress } from "@voyant-travel/schema-kit/email"
 import { and, asc, eq, sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import * as rrulePackage from "rrule"
@@ -58,7 +59,7 @@ const travelerInputSchema = z.object({
     ),
   firstName: z.string().min(1).max(255),
   lastName: z.string().min(1).max(255),
-  email: z.string().email().optional().nullable(),
+  email: emailAddress().optional().nullable(),
   phone: z.string().max(50).optional().nullable(),
   personId: z.string().optional().nullable(),
   participantType: z.enum(["traveler", "occupant", "other"]).default("traveler"),
