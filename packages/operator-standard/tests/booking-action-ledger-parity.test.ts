@@ -24,6 +24,14 @@ describe("standard booking action-ledger authority", () => {
         capabilityId: "bookings:status:override",
       },
       {
+        id: "@voyant-travel/bookings#action.read-booking-documents",
+        capabilityId: "bookings:documents:read",
+      },
+      {
+        id: "@voyant-travel/bookings#action.record-booking-document",
+        capabilityId: "bookings:documents:record",
+      },
+      {
         id: "@voyant-travel/bookings#action.preview-traveler-correction-amendment",
         capabilityId: "bookings:amendments:preview-traveler-correction",
       },
