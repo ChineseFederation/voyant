@@ -1,5 +1,13 @@
 # @voyant-travel/framework
 
+## 0.82.1
+
+### Patch Changes
+
+- @voyant-travel/voyant-connect-adapter@0.31.0
+- @voyant-travel/operator-standard@0.21.40
+- @voyant-travel/cruises@0.239.1
+
 ## 0.82.0
 
 ### Minor Changes
