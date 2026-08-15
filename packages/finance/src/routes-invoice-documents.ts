@@ -17,6 +17,7 @@
 
 import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi"
 import { openApiValidationHook } from "@voyant-travel/hono"
+import { fulfilInvoiceRendition } from "./invoice-document-fulfilment.js"
 import {
   errorResponseSchema,
   invoiceAttachmentSchema,
@@ -24,7 +25,11 @@ import {
   invoiceRenditionSchema,
   successResponseSchema,
 } from "./routes-invoice-schemas.js"
-import { buildInlineDownload, resolveWaitRequest } from "./routes-runtime.js"
+import {
+  buildInlineDownload,
+  getFinanceRouteRuntime,
+  resolveWaitRequest,
+} from "./routes-runtime.js"
 import type { Env } from "./routes-shared.js"
 import { financeService } from "./service.js"
 import { waitForInvoiceRendition, waitFormatForMode } from "./service-rendition-wait.js"
@@ -133,13 +138,36 @@ const renditionRoutes = new OpenAPIHono<Env>({ defaultHook: openApiValidationHoo
     if (result.status === "not_found") {
       return c.json({ error: "Invoice not found" }, 404)
     }
-    if (waitRequest.mode !== "none" && result.rendition) {
+
+    // Fulfil inline only for a caller that asked to wait. `docs/architecture/
+    // invoice-rendition-wait.md` makes the wait additive — "omitted or `wait:
+    // "none"` preserves the historical response shape" — and rendering can hold
+    // the request for the renderer's full 30s navigation timeout, so doing it
+    // unconditionally would turn every fire-and-forget request into a blocking
+    // one. Without a wait the row is still durable and the subscriber and the
+    // recovery job produce the document; that is what they are for.
+    const runtime = getFinanceRouteRuntime(c)
+    let rendition = result.rendition
+    if (rendition && waitRequest.mode !== "none") {
+      await fulfilInvoiceRendition(c.get("db"), rendition.id, {
+        ...(runtime?.invoiceDocumentProvider ? { provider: runtime.invoiceDocumentProvider } : {}),
+        ...(runtime?.eventBus ? { eventBus: runtime.eventBus } : {}),
+        ...(runtime?.resolveCustomFields
+          ? { resolveCustomFields: runtime.resolveCustomFields }
+          : {}),
+      })
+      // Report what the row *is*, not what it was a moment ago.
+      rendition =
+        (await financeService.getInvoiceRenditionById(c.get("db"), rendition.id)) ?? rendition
+    }
+
+    if (waitRequest.mode !== "none" && rendition) {
       const waitResult = await waitForInvoiceRendition(c.get("db"), invoiceId, {
-        renditionId: result.rendition.id,
+        renditionId: rendition.id,
         format: waitFormatForMode(waitRequest.mode),
         timeoutMs: waitRequest.timeoutMs,
       })
-      const payload = { rendition: waitResult.rendition ?? result.rendition }
+      const payload = { rendition: waitResult.rendition ?? rendition }
       if (waitResult.status !== "ready") {
         return c.json({ data: payload }, 202)
       }
@@ -149,7 +177,7 @@ const renditionRoutes = new OpenAPIHono<Env>({ defaultHook: openApiValidationHoo
       }
       return c.json({ data: { ...payload, download: download.download } }, 201)
     }
-    return c.json({ data: result.rendition }, 201)
+    return c.json({ data: rendition }, 201)
   })
 
 // --- attachments -----------------------------------------------------------

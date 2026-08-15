@@ -117,6 +117,17 @@ const issueInvoiceFromBookingRoute = createRoute({
   },
 })
 
+/**
+ * A conversion refusal names the document it collided with, so the operator can
+ * open it rather than be told only that something already exists.
+ */
+const conversionConflictSchema = errorResponseSchema.extend({
+  code: z.string().optional(),
+  invoiceNumber: z.string().optional(),
+  existingInvoiceId: z.string().nullable().optional(),
+  existingInvoiceNumber: z.string().nullable().optional(),
+})
+
 const convertProformaToInvoiceRoute = createRoute({
   method: "post",
   path: "/invoices/{id}/convert-to-invoice",
@@ -141,7 +152,7 @@ const convertProformaToInvoiceRoute = createRoute({
     409: {
       description:
         "The invoice is not a proforma, has already been converted, or a duplicate fiscal invoice already exists",
-      content: { "application/json": { schema: errorResponseSchema } },
+      content: { "application/json": { schema: conversionConflictSchema } },
     },
   },
 })
@@ -275,7 +286,14 @@ financeInvoiceIssueRoutes
       })
     } catch (error) {
       if (error instanceof InvoiceNumberConflictError) {
-        return c.json({ error: "Invoice number already exists" }, 409)
+        return c.json(
+          {
+            error: "Invoice number already exists",
+            code: error.code,
+            invoiceNumber: error.invoiceNumber,
+          },
+          409,
+        )
       }
       throw error
     }
@@ -284,13 +302,33 @@ financeInvoiceIssueRoutes
       return c.json({ error: "Invoice not found" }, 404)
     }
     if (result.status === "not_proforma") {
-      return c.json({ error: "Only proforma invoices can be converted" }, 409)
+      return c.json({ error: "Only proforma invoices can be converted", code: result.status }, 409)
     }
+    // Every conflict below names the document the caller collided with. The
+    // service already resolves that pointer and this route used to drop it,
+    // leaving the operator a sentence and no way to reach the invoice that
+    // caused the refusal.
     if (result.status === "already_converted") {
-      return c.json({ error: "This proforma has already been converted" }, 409)
+      return c.json(
+        {
+          error: "This proforma has already been converted",
+          code: "proforma_already_converted",
+          existingInvoiceId: result.invoice?.id ?? null,
+          existingInvoiceNumber: result.invoice?.invoiceNumber ?? null,
+        },
+        409,
+      )
     }
     if (result.status === "duplicate_fiscal_invoice") {
-      return c.json({ error: "A fiscal invoice already exists for this booking amount" }, 409)
+      return c.json(
+        {
+          error: "A fiscal invoice already exists for this booking amount",
+          code: result.status,
+          existingInvoiceId: result.invoice.id,
+          existingInvoiceNumber: result.invoice.invoiceNumber,
+        },
+        409,
+      )
     }
 
     return c.json({ data: result.invoice }, 201)

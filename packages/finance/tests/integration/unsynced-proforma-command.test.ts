@@ -56,17 +56,21 @@ describe.skipIf(!DB_AVAILABLE)("unsynced proforma command", () => {
     const [booking] = await db
       .insert(bookings)
       .values({
+        status: "confirmed",
         bookingNumber: "BK-UNSYNCED-PROFORMA",
         sellCurrency: "EUR",
         sellAmountCents: 80_000,
         costAmountCents: 50_000,
-        marginPercent: 37.5,
+        // `bookings.margin_percent` is an integer column, so a fractional
+        // margin is rejected by Postgres before the command under test runs.
+        marginPercent: 38,
         startDate: "2026-08-10",
       })
       .returning()
     const [item] = await db
       .insert(bookingItems)
       .values({
+        status: "confirmed",
         bookingId: booking!.id,
         title: "Coastal day cruise",
         quantity: 2,

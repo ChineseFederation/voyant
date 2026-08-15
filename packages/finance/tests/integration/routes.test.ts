@@ -1,6 +1,7 @@
 // agent-quality: file-size exception -- owner: finance; existing coverage file stays co-located until a dedicated split preserves behavior and tests.
 import { bookingItems, bookings } from "@voyant-travel/bookings/schema"
 import { createEventBus } from "@voyant-travel/core"
+import { handleApiError } from "@voyant-travel/hono"
 import { prepareExternalWebhookEvent } from "@voyant-travel/webhook-delivery"
 import { eq, sql } from "drizzle-orm"
 import { Hono } from "hono"
@@ -95,6 +96,17 @@ async function cleanupFinanceTestData(
   db: any,
 ) {
   const tableNames = [
+    // The action ledger carries the idempotency records these routes replay
+    // against. Leaving them behind meant a rerun against the same database
+    // matched a stored key with a different payload fingerprint and answered
+    // 409 to the *first* request of a test, not the second.
+    "idempotency_keys",
+    "action_approvals",
+    "action_mutation_details",
+    "action_sensitive_read_details",
+    "action_ledger_payloads",
+    "action_delegations",
+    "action_ledger_entries",
     "payment_sessions",
     "supplier_payments",
     "payments",
@@ -353,6 +365,12 @@ describe.skipIf(!DB_AVAILABLE)("Finance routes", () => {
       c.set("container" as never, containerStub)
       await next()
     })
+    // The routes signal validation and conflict failures by throwing; turning
+    // those into status codes is `createApp`'s job, not each route's. Mounting
+    // them on a bare Hono without it made every such case a default 500, so
+    // these tests asserted 400/409 against a harness that could not produce
+    // one.
+    app.onError((err, c) => handleApiError(err, c))
     app.route("/", financeRoutes)
   })
 
@@ -380,6 +398,7 @@ describe.skipIf(!DB_AVAILABLE)("Finance routes", () => {
     const [row] = await db
       .insert(bookings)
       .values({
+        status: "confirmed",
         bookingNumber: nextBookingNumber(),
         sellCurrency: "USD",
         sellAmountCents: 100000,
@@ -399,6 +418,7 @@ describe.skipIf(!DB_AVAILABLE)("Finance routes", () => {
     const [row] = await db
       .insert(bookingItems)
       .values({
+        status: "confirmed",
         bookingId,
         title: "Test Service",
         quantity: 2,
@@ -427,7 +447,23 @@ describe.skipIf(!DB_AVAILABLE)("Finance routes", () => {
     const res = await app.request("/invoices", { method: "POST", ...json(body) })
     expect(res.status).toBe(201)
     const { data } = await res.json()
-    return data as { id: string; [k: string]: unknown }
+    const created = data as { id: string; [k: string]: unknown }
+
+    // `POST /invoices` has no `invoiceType` in its contract — proformas are
+    // only ever minted by the from-booking issuance path — so passing one here
+    // was silently dropped and the caller got a plain invoice it believed was
+    // a proforma. Apply it directly for the tests that need a proforma to
+    // convert; the conversion itself still runs through the route.
+    if (typeof overrides.invoiceType === "string" && overrides.invoiceType !== "invoice") {
+      const [updated] = await db
+        .update(invoices)
+        .set({ invoiceType: overrides.invoiceType as "proforma" })
+        .where(eq(invoices.id, created.id))
+        .returning()
+      return { ...created, invoiceType: updated?.invoiceType } as typeof created
+    }
+
+    return created
   }
 
   async function seedPaymentInstrument(overrides: Record<string, unknown> = {}) {
@@ -721,7 +757,7 @@ describe.skipIf(!DB_AVAILABLE)("Finance routes", () => {
       // `invoice.settled` so plugin callbacks (Netopia and friends) don't
       // need a separate poller — see issue #357.
       expect(settlementEvents).toHaveLength(1)
-      expect(settlementEvents[0]).toMatchObject({
+      expect(settlementEvents[0]?.data).toMatchObject({
         invoiceId: invoice.id,
         paymentId: data.paymentId,
         provider: "netopia",
@@ -730,7 +766,7 @@ describe.skipIf(!DB_AVAILABLE)("Finance routes", () => {
         balanceDueCents: 0,
       })
       expect(invoicePaymentRecordedEvents).toHaveLength(1)
-      expect(invoicePaymentRecordedEvents[0]).toMatchObject({
+      expect(invoicePaymentRecordedEvents[0]?.data).toMatchObject({
         invoiceId: invoice.id,
         invoiceNumber: invoice.invoiceNumber,
         invoiceType: "invoice",
@@ -808,7 +844,7 @@ describe.skipIf(!DB_AVAILABLE)("Finance routes", () => {
       expect(storedInvoice?.balanceDueCents).toBe(0)
       expect(storedInvoice?.status).toBe("paid")
       expect(schedulePaidEvents).toHaveLength(1)
-      expect(schedulePaidEvents[0]).toMatchObject({
+      expect(schedulePaidEvents[0]?.data).toMatchObject({
         bookingId: booking.id,
         bookingPaymentScheduleId: schedule.id,
         paymentSessionId: session.id,
@@ -819,7 +855,7 @@ describe.skipIf(!DB_AVAILABLE)("Finance routes", () => {
         provider: "netopia",
       })
       expect(paymentCompletedEvents).toHaveLength(1)
-      expect(paymentCompletedEvents[0]).toMatchObject({
+      expect(paymentCompletedEvents[0]?.data).toMatchObject({
         paymentSessionId: session.id,
         targetType: "booking_payment_schedule",
         targetId: schedule.id,
@@ -1336,9 +1372,21 @@ describe.skipIf(!DB_AVAILABLE)("Finance routes", () => {
       const replayBody = await replay.json()
       expect(replayBody.data.id).toBe(firstBody.data.id)
 
+      // Reusing the number just issued must conflict. The body has to be a
+      // valid from-booking request to get that far — the invoice-create shape
+      // this used to send is rejected by the route's schema now, so the 409 it
+      // asserted could never be reached.
       const conflict = await app.request("/invoices/from-booking?wait=pdf", {
         method: "POST",
-        ...jsonWithIdempotency(input, "finance-invoice-from-booking-1"),
+        ...jsonWithIdempotency(
+          {
+            bookingId: booking.id,
+            invoiceNumber: input.invoiceNumber,
+            issueDate: input.issueDate,
+            dueDate: input.dueDate,
+          },
+          "finance-invoice-from-booking-1",
+        ),
       })
       expect(conflict.status).toBe(409)
     })
@@ -1705,7 +1753,11 @@ describe.skipIf(!DB_AVAILABLE)("Finance routes", () => {
 
     it("returns a conflict when conversion would reuse an active invoice number", async () => {
       const booking = await seedBooking()
-      await seedInvoice(booking.id, {
+      // The colliding invoice belongs to a *different* booking on purpose: on
+      // the same one the duplicate-fiscal-invoice guard fires first and this
+      // test never reaches the number-uniqueness check it is named for.
+      const otherBooking = await seedBooking()
+      await seedInvoice(otherBooking.id, {
         invoiceNumber: "INV-CONVERT-DUP",
         invoiceType: "invoice",
         status: "issued",
@@ -1955,7 +2007,10 @@ describe.skipIf(!DB_AVAILABLE)("Finance routes", () => {
       expect(data.id).toMatch(/^inv_/)
       expect(data.bookingId).toBe(booking.id)
       expect(data.currency).toBe("USD")
-      expect(data.status).toBe("draft")
+      // `/invoices/from-booking` is an *issuing* command — `issued` is its only
+      // success shape. The `draft` assertion predates that and has been wrong
+      // since the route stopped merely composing a draft.
+      expect(data.status).toBe("issued")
       // Should have subtotal based on items
       expect(data.subtotalCents).toBeGreaterThan(0)
       expect(data.balanceDueCents).toBeGreaterThan(0)
@@ -2152,7 +2207,7 @@ describe.skipIf(!DB_AVAILABLE)("Finance routes", () => {
       expect(res.status).toBe(201)
       const { data } = await res.json()
       expect(data.invoiceNumber).toBe("INV-0042")
-      expect(data.seriesId).toMatch(/^ins_/)
+      expect(data.seriesId).toMatch(/^invs_/)
       expect(data.sequence).toBe(42)
       expect(data.totalCents).toBe(16500)
     })
@@ -2248,14 +2303,26 @@ describe.skipIf(!DB_AVAILABLE)("Finance routes", () => {
         }),
       })
 
-      expect(res.status).toBe(201)
-      const { data } = await res.json()
-      expect(data.currency).toBe("EUR")
-      expect(data.baseCurrency).toBe("RON")
-      expect(data.subtotalCents).toBe(16500)
-      expect(data.baseSubtotalCents).toBeNull()
-      expect(data.baseTotalCents).toBeNull()
-      expect(data.baseBalanceDueCents).toBeNull()
+      // The rule this test is named for is now enforced by refusing the
+      // invoice outright rather than by issuing one with null base amounts: a
+      // schedule in another currency cannot be converted without a rate set,
+      // and guessing from the booking's sell currency is exactly what must not
+      // happen. The refusal names what was missing.
+      expect(res.status).toBe(400)
+      await expect(res.json()).resolves.toMatchObject({
+        code: "invalid_invoice_from_booking",
+        details: {
+          scheduleCurrency: "EUR",
+          bookingSellCurrency: "USD",
+          fxRateSetId: null,
+        },
+      })
+
+      const created = await db
+        .select({ id: invoices.id })
+        .from(invoices)
+        .where(eq(invoices.bookingId, booking.id))
+      expect(created).toHaveLength(0)
     })
 
     it("returns 404 for non-existent booking", async () => {
@@ -2299,7 +2366,26 @@ describe.skipIf(!DB_AVAILABLE)("Finance routes", () => {
   })
 
   describe("Invoice rendition wait", () => {
-    it("returns 202 with the pending rendition when render wait times out", async () => {
+    it("leaves the row pending when the caller did not ask to wait", async () => {
+      const booking = await seedBooking()
+      const invoice = await seedInvoice(booking.id)
+
+      const res = await app.request(`/invoices/${invoice.id}/render`, {
+        method: "POST",
+        ...json({ format: "pdf" }),
+      })
+
+      // `docs/architecture/invoice-rendition-wait.md`: the wait is additive, and
+      // omitting it preserves the historical response shape. Rendering inline
+      // regardless would hold a fire-and-forget request for the renderer's full
+      // navigation timeout.
+      expect(res.status).toBe(201)
+      const { data } = await res.json()
+      expect(data).toMatchObject({ invoiceId: invoice.id, format: "pdf", status: "pending" })
+      expect(data.errorMessage).toBeNull()
+    })
+
+    it("records the miss when no document provider is configured", async () => {
       const booking = await seedBooking()
       const invoice = await seedInvoice(booking.id)
 
@@ -2308,13 +2394,19 @@ describe.skipIf(!DB_AVAILABLE)("Finance routes", () => {
         ...json({ format: "pdf" }),
       })
 
+      // This route used to answer 202 with a `pending` row and leave it there
+      // forever — the orphan voyant#4668 was filed for. These routes are built
+      // without a provider, so the request cannot be served; saying so on the
+      // row is what releases every waiter, because `failed` is terminal for
+      // `waitForInvoiceRendition` and `pending` is not.
       expect(res.status).toBe(202)
       const { data } = await res.json()
       expect(data.rendition).toMatchObject({
         invoiceId: invoice.id,
         format: "pdf",
-        status: "pending",
+        status: "failed",
       })
+      expect(data.rendition.errorMessage).toMatch(/no document renderer is available/i)
 
       const rows = await db
         .select()
@@ -3232,6 +3324,7 @@ describe.skipIf(!DB_AVAILABLE)("Finance routes", () => {
     it("requires userId to create notes", async () => {
       // Create a separate app without userId
       const noUserApp = new Hono()
+      noUserApp.onError((err, c) => handleApiError(err, c))
       noUserApp.use("*", async (c, next) => {
         c.set("db" as never, db)
         // userId NOT set
@@ -3246,9 +3339,11 @@ describe.skipIf(!DB_AVAILABLE)("Finance routes", () => {
         method: "POST",
         ...json({ content: "No user" }),
       })
-      expect(res.status).toBe(400)
-      const body = await res.json()
-      expect(body.error).toContain("User ID")
+      // A request with no actor is unauthenticated, not malformed: the route
+      // raises `UnauthorizedApiError` and the boundary renders 401. The old
+      // 400 / "User ID" message belonged to a hand-rolled guard that no longer
+      // exists.
+      expect(res.status).toBe(401)
     })
 
     it("lists notes for an invoice", async () => {

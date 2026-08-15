@@ -5,6 +5,10 @@ import { and, desc, eq } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 
 import {
+  type FinanceInvoiceDocumentProvider,
+  invoiceDocumentOperationKey,
+} from "./contracts/invoice-document-provider.js"
+import {
   type invoiceLineItems,
   type invoiceRenditions,
   type invoices,
@@ -93,7 +97,7 @@ export interface InvoiceDocumentGeneratedEvent {
   regenerated: boolean
 }
 
-type PreparedInvoiceDocument =
+export type PreparedInvoiceDocument =
   | { status: "not_found" }
   | {
       status: "ready"
@@ -243,10 +247,108 @@ export function createPdfInvoiceDocumentGenerator(
   })
 }
 
-async function prepareInvoiceDocument(
+/**
+ * Serve the on-demand generate/regenerate routes from the graph-selected
+ * provider, so a deployment configures a renderer once and both paths — the
+ * requested rendition the engine drains and the document an operator asks for
+ * from the invoice screen — go through the same conformance-tested seam.
+ *
+ * The key is derived from the invoice rather than a rendition id: this path
+ * inserts its rendition through `bindInvoiceRendition` *after* the artifact
+ * exists, so there is no row to key on yet.
+ */
+/**
+ * The one definition of "which custom fields does this invoice's template see".
+ *
+ * Shared by every path that renders a document, because `prepareInvoiceDocument`
+ * only populates `variables.customFields` when a resolver is supplied: when the
+ * HTTP route had one and the subscriber and recovery job did not, the same
+ * template rendered with the customer's fields interactively and without them
+ * in the background.
+ */
+export function createInvoiceCustomFieldsResolver(customFields: {
+  resolveVisibleValues(
+    db: PostgresJsDatabase,
+    subjectType: string,
+    subjectId: string,
+    surface: string,
+  ): Promise<Record<string, unknown>> | Record<string, unknown>
+}): NonNullable<InvoiceDocumentRuntimeOptions["resolveCustomFields"]> {
+  return async (db, invoice) => {
+    if (invoice.organizationId) {
+      return customFields.resolveVisibleValues(
+        db,
+        "organization",
+        invoice.organizationId,
+        "invoice",
+      )
+    }
+    if (invoice.personId) {
+      return customFields.resolveVisibleValues(db, "person", invoice.personId, "invoice")
+    }
+    return {}
+  }
+}
+
+export function createProviderBackedInvoiceDocumentGenerator(
+  provider: FinanceInvoiceDocumentProvider,
+): InvoiceDocumentGenerator {
+  return async (context) => {
+    const operationId = crypto.randomUUID()
+    const artifact = await provider.render({
+      renditionId: operationId,
+      invoiceId: context.invoice.id,
+      invoiceNumber: context.invoice.invoiceNumber ?? "",
+      templateId: context.template?.id ?? null,
+      body: context.renderedBody,
+      bodyFormat: context.renderedBodyFormat,
+      format: context.targetFormat,
+      language: context.language,
+      variables: context.variables,
+    })
+    const reference = await provider.put({
+      renditionId: operationId,
+      operationKey: invoiceDocumentOperationKey({
+        invoiceId: context.invoice.id,
+        renditionId: operationId,
+        format: context.targetFormat,
+      }),
+      artifact,
+    })
+
+    return {
+      format: context.targetFormat,
+      storageKey: reference.key,
+      contentType: artifact.contentType,
+      fileSize: reference.byteLength,
+      checksum: reference.checksumSha256,
+      language: context.language,
+      metadata: {
+        ...(artifact.metadata ?? {}),
+        provider: provider.identity.id,
+        providerVersion: provider.identity.version,
+      },
+    }
+  }
+}
+
+/**
+ * Resolve everything a renderer needs and nothing it may decide: the template,
+ * the line items, the payments, the custom fields, and the body rendered from
+ * them. Shared by the generator path and by the fulfilment engine that drains
+ * requested renditions, so both produce a document from the same inputs.
+ *
+ * Takes the narrow shape rather than `GenerateInvoiceDocumentInput` because the
+ * engine's input is a persisted `invoice_renditions` row, not a request body.
+ */
+export async function prepareInvoiceDocument(
   db: PostgresJsDatabase,
   invoiceId: string,
-  input: GenerateInvoiceDocumentInput,
+  input: {
+    format: GenerateInvoiceDocumentInput["format"]
+    templateId?: string | null
+    language?: string | null
+  },
   resolveCustomFields?: InvoiceDocumentRuntimeOptions["resolveCustomFields"],
 ): Promise<PreparedInvoiceDocument> {
   const invoice = await financeService.getInvoiceById(db, invoiceId)

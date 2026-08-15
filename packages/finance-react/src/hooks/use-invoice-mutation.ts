@@ -185,10 +185,18 @@ export function useInvoiceMutation() {
   })
 
   /**
-   * Render (or re-render) a PDF for an existing invoice. Server-side this
-   * inserts an `invoice_rendition` row + emits `invoice.rendered`, which a
-   * downstream subscriber turns into a stored PDF attachment. Use this for
-   * the operator's "Generate" / "Regenerate" buttons.
+   * Render (or re-render) a PDF for an existing invoice, for the operator's
+   * "Generate" / "Regenerate" buttons.
+   *
+   * Waits by default. The route is non-blocking unless the caller opts in
+   * (`docs/architecture/invoice-rendition-wait.md`), and a person who just
+   * pressed a button is exactly the caller the wait exists for — without it the
+   * row is fulfilled by the recovery job and the button appears to do nothing
+   * for up to a minute. Pass an explicit `wait` to override.
+   *
+   * The old note here claimed this emitted `invoice.rendered` and that a
+   * subscriber turned it into a PDF. Neither was true: nothing fulfilled the
+   * requested rendition at all until voyant#4668.
    */
   const render = useMutation({
     mutationFn: async ({ id, input }: { id: string; input?: RenderInvoiceInput }) => {
@@ -196,7 +204,7 @@ export function useInvoiceMutation() {
         `/v1/admin/finance/invoices/${id}/render`,
         invoiceRenditionResponse,
         { baseUrl, fetcher },
-        { method: "POST", body: JSON.stringify(input ?? { format: "pdf" }) },
+        { method: "POST", body: JSON.stringify({ format: "pdf", wait: "pdf", ...input }) },
       )
       return data
     },

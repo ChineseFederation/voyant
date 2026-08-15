@@ -398,7 +398,11 @@ describe("finance accounting action ledger builders", () => {
       routeOrToolName: "finance.invoice.issue_from_booking",
       authorizationSource: "finance.invoice.from_booking.route",
       idempotencyScope: "finance.booking:book_123:invoice_issue",
-      idempotencyKey: "INV-2026-001",
+      // Keyed by (type, number) to match
+      // `invoices_invoice_number_type_active_idx`: a proforma and a fiscal
+      // invoice may share an external number, and keying on the number
+      // alone made the second of the pair collide with the first.
+      idempotencyKey: "invoice:INV-2026-001",
       mutationDetail: {
         commandInputRef: "booking:book_123:invoice_issue",
         commandResultRef: "invoice:inv_123",

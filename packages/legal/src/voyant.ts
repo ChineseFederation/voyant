@@ -284,7 +284,14 @@ export const legalVoyantModule = defineModule({
       openapi: { document: "contract-document" },
       runtime: {
         entry: "@voyant-travel/legal/contract-document-routes",
-        export: "createContractDocumentApiModule",
+        // The graph-runtime wrapper, not the raw factory beneath it:
+        // `createContractDocumentApiModule` takes its options as its first
+        // argument, so pointing the bundle at it handed the graph's own
+        // context in as `options` and every request to
+        // `/v1/admin/documents/files/*` died destructuring `undefined`. That
+        // is the download target for every private document — contracts, and
+        // now invoice renditions.
+        export: "createContractDocumentVoyantRuntime",
       },
     },
     {

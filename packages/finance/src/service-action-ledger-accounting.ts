@@ -298,7 +298,14 @@ export async function buildInvoiceIssuedActionLedgerInput(
     approvalId: options.approvalId,
     idempotencyScope:
       options.idempotencyScope ?? `finance.booking:${input.invoice.bookingId}:invoice_issue`,
-    idempotencyKey: options.idempotencyKey ?? input.invoice.invoiceNumber,
+    // Keyed by (type, number), matching `invoices_invoice_number_type_active_idx`
+    // — the database deliberately lets a proforma and a fiscal invoice carry
+    // the same external number. Keying on the number alone made the second of
+    // the pair collide with the first inside one booking's issue scope, and the
+    // reused key surfaced as a failed issuance for a document the schema
+    // permits.
+    idempotencyKey:
+      options.idempotencyKey ?? `${input.invoice.invoiceType}:${input.invoice.invoiceNumber}`,
     idempotencyFingerprint:
       options.idempotencyFingerprint ??
       (await buildIdempotencyFingerprint({

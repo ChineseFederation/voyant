@@ -4,6 +4,7 @@ import type { PaymentAdapter } from "@voyant-travel/payments"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import { resolvePaymentCallbackUrl, startPaymentAdapterCardPayment } from "./card-payment.js"
 import type { CheckoutPaymentStarter } from "./checkout-service.js"
+import type { FinanceInvoiceDocumentProvider } from "./contracts/invoice-document-provider.js"
 import type { FinanceApiModuleOptions } from "./index.js"
 import {
   createVoyantDataFxExchangeRateResolver,
@@ -26,6 +27,10 @@ import type {
   FinanceProposalsPaymentPolicyRuntime,
 } from "./runtime-port.js"
 import { financeService } from "./service.js"
+import {
+  createInvoiceCustomFieldsResolver,
+  createProviderBackedInvoiceDocumentGenerator,
+} from "./service-documents.js"
 import type { InvoiceSettlementPoller } from "./service-settlement.js"
 
 /** Compose Finance's main HTTP runtime from generic host and selected providers. */
@@ -37,24 +42,23 @@ export function createFinanceRuntime(
   checkoutPaymentStarters?: FinanceCheckoutPaymentStartersRuntime,
   invoiceSettlementPollerProviders: readonly FinanceInvoiceSettlementPollerProvider[] = [],
   selectedPaymentAdapter?: PaymentAdapter,
+  invoiceDocumentProvider?: FinanceInvoiceDocumentProvider,
 ): FinanceApiModuleOptions {
   const { primitives } = host
   return {
     resolveDocumentDownloadUrl: primitives.storage.downloadUrl,
-    resolveCustomFields: async (db, invoice) => {
-      if (invoice.organizationId) {
-        return customFields.resolveVisibleValues(
-          db,
-          "organization",
-          invoice.organizationId,
-          "invoice",
-        )
-      }
-      if (invoice.personId) {
-        return customFields.resolveVisibleValues(db, "person", invoice.personId, "invoice")
-      }
-      return {}
-    },
+    // Both document paths run off the one selected provider: the on-demand
+    // generate/regenerate routes through the generator adapter (they used to
+    // answer 501 because nothing ever supplied one), and the requested-rendition
+    // engine through the provider itself.
+    ...(invoiceDocumentProvider
+      ? {
+          invoiceDocumentProvider,
+          invoiceDocumentGenerator:
+            createProviderBackedInvoiceDocumentGenerator(invoiceDocumentProvider),
+        }
+      : {}),
+    resolveCustomFields: createInvoiceCustomFieldsResolver(customFields),
     resolveInvoiceExchangeRateResolver: (bindings) =>
       createExchangeRateResolver(primitives, bindings),
     invoiceSettlementPollers: aggregateFinanceInvoiceSettlementPollers(

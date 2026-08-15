@@ -126,6 +126,7 @@ export const STANDARD_OPERATOR_DEPLOYMENT: VoyantGraphProjectDeployment = {
     scheduledJobs: "node-cron",
     outboundWebhooks: "postgres",
     legalDocumentArtifact: "standard",
+    invoiceDocumentArtifact: "standard",
     payments: "custom",
   },
 }

@@ -1090,7 +1090,11 @@
       "@voyant-travel/finance/checkout": ["../finance/dist/checkout-service.d.ts"],
       "@voyant-travel/finance/checkout-routes": ["../finance/dist/checkout-routes.d.ts"],
       "@voyant-travel/finance/checkout-validation": ["../finance/dist/checkout-validation.d.ts"],
+      "@voyant-travel/finance/invoice-document-job": ["../finance/dist/invoice-document-job.d.ts"],
       "@voyant-travel/finance/invoice-fx": ["../finance/dist/invoice-fx.d.ts"],
+      "@voyant-travel/finance/invoice-issued-subscriber": [
+        "../finance/dist/invoice-issued-subscriber.d.ts"
+      ],
       "@voyant-travel/finance/linkables": ["../finance/dist/linkables.d.ts"],
       "@voyant-travel/finance/order-payment-sessions": [
         "../finance/dist/order-payment-sessions.d.ts"

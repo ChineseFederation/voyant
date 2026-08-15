@@ -40,7 +40,12 @@ import { InvoiceNumberConflictError, toRows } from "./service-shared.js"
 
 type ArtifactRuntimePrimitives = Pick<VoyantRuntimeHostPrimitives, "storage">
 
-function artifactEventBus(
+/**
+ * Adapt the host's raw delivery primitive into the `EventBus` the services
+ * expect, for the paths that run outside a request and so have no bus of their
+ * own — the app artifact upload here, and the invoice-document recovery job.
+ */
+export function createPrimitivesEventBus(
   primitives: Pick<VoyantRuntimeHostPrimitives, "events"> | undefined,
   bindings: unknown,
 ): EventBus | undefined {
@@ -327,7 +332,7 @@ export function createFinanceAppApiRuntime(
             appFileName: input.fileName,
             metadata: { source: "remote_app" },
           },
-          { eventBus: artifactEventBus(primitives, environment) },
+          { eventBus: createPrimitivesEventBus(primitives, environment) },
         )
         if (result.status === "not_found") {
           await bestEffortDelete(storage, storageKey)

@@ -26,6 +26,8 @@
     "./runtime-port": "./src/runtime-port.ts",
     "./booking-schedule-subscriber": "./src/booking-schedule/subscriber-runtime.ts",
     "./proforma-conversion-subscriber": "./src/proforma-conversion-runtime.ts",
+    "./invoice-document-job": "./src/invoice-document-job.ts",
+    "./invoice-issued-subscriber": "./src/invoice-issued-subscriber.ts",
     "./routes": "./src/routes.ts",
     "./public-routes": "./src/routes-public.ts",
     "./public-validation": "./src/validation-public.ts",
@@ -198,6 +200,16 @@
         "types": "./dist/proforma-conversion-runtime.d.ts",
         "import": "./dist/proforma-conversion-runtime.js",
         "default": "./dist/proforma-conversion-runtime.js"
+      },
+      "./invoice-document-job": {
+        "types": "./dist/invoice-document-job.d.ts",
+        "import": "./dist/invoice-document-job.js",
+        "default": "./dist/invoice-document-job.js"
+      },
+      "./invoice-issued-subscriber": {
+        "types": "./dist/invoice-issued-subscriber.d.ts",
+        "import": "./dist/invoice-issued-subscriber.js",
+        "default": "./dist/invoice-issued-subscriber.js"
       },
       "./routes": {
         "types": "./dist/routes.d.ts",

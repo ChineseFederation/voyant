@@ -6,6 +6,7 @@ import {
 import type { EventBus } from "@voyant-travel/core"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 
+import type { FinanceInvoiceDocumentProvider } from "./contracts/invoice-document-provider.js"
 import type { InvoiceFxOptions } from "./invoice-fx.js"
 import type { RefundSettlementExecutionResult } from "./refund-settlement-execution.js"
 import type { FinanceDocumentRouteOptions } from "./routes-documents.js"
@@ -26,6 +27,13 @@ export type FinanceRouteRuntime = {
    */
   readonly monthlyBookingLimit?: number | null
   invoiceDocumentGenerator?: InvoiceDocumentGenerator
+  /**
+   * The graph-selected invoice document provider. Present exactly when the
+   * deployment fulfilled finance's `document-renderer` and `document-storage`
+   * resources, which is what lets the render route produce the document inline
+   * instead of leaving the caller waiting on the recovery job (voyant#4668).
+   */
+  invoiceDocumentProvider?: FinanceInvoiceDocumentProvider
   resolveCustomFields?: FinanceDocumentRouteOptions["resolveCustomFields"]
   resolveDocumentDownloadUrl?: FinanceDocumentRouteOptions["resolveDocumentDownloadUrl"]
   invoiceSettlementPollers: Record<string, InvoiceSettlementPoller>
@@ -68,6 +76,8 @@ export interface FinanceRuntimeOptions
   resolveMonthlyBookingLimit?: MonthlyBookingLimitResolver
   /** Populated by `createFinanceRuntime` when a payment adapter is selected. */
   executeRefundSettlement?: ExecuteRefundSettlement
+  /** Populated by `createFinanceRuntime` when a document provider is selected. */
+  invoiceDocumentProvider?: FinanceInvoiceDocumentProvider
 }
 
 export function buildFinanceRouteRuntime(
@@ -91,6 +101,7 @@ export function buildFinanceRouteRuntime(
     },
     invoiceDocumentGenerator:
       options.resolveInvoiceDocumentGenerator?.(bindings) ?? options.invoiceDocumentGenerator,
+    invoiceDocumentProvider: options.invoiceDocumentProvider,
     resolveCustomFields: options.resolveCustomFields,
     resolveDocumentDownloadUrl: options.resolveDocumentDownloadUrl,
     invoiceSettlementPollers:

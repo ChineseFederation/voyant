@@ -22,6 +22,8 @@ import {
 const DB_AVAILABLE = !!process.env.TEST_DATABASE_URL
 const ORIGINAL_TEST_DATABASE_URL = process.env.TEST_DATABASE_URL
 const ORIGINAL_CHECKOUT_CAPABILITY_SECRET = process.env.VOYANT_CHECKOUT_CAPABILITY_SECRET
+const TEST_STOREFRONT_ID = "stfr_public_finance_test"
+const TEST_CHANNEL_ID = "chan_public_finance_test"
 
 const json = (body: Record<string, unknown>) => ({
   headers: { "Content-Type": "application/json" },
@@ -119,9 +121,18 @@ describe.skipIf(!DB_AVAILABLE)("Public finance routes", () => {
 
     app = new Hono()
     app.onError(handleApiError)
+    // voyant#4050 made the public finance routes storefront-scoped: they read
+    // the active channel off the context and match it against the booking's
+    // origin snapshot. Without both, every route here answers 403 — which is
+    // the guard working, not the routes being broken.
     app.use("*", async (c, next) => {
       c.set("db" as never, db)
       c.set("userId" as never, "public-finance-test-user")
+      c.set("storefrontChannel" as never, {
+        storefrontId: TEST_STOREFRONT_ID,
+        channelId: TEST_CHANNEL_ID,
+        channelStatus: "active",
+      })
       await next()
     })
     app.route("/", publicFinanceRoutes)
@@ -150,6 +161,7 @@ describe.skipIf(!DB_AVAILABLE)("Public finance routes", () => {
     const [row] = await db
       .insert(bookings)
       .values({
+        status: "confirmed",
         bookingNumber: nextBookingNumber(),
         sellCurrency: "USD",
         sellAmountCents: 100000,
@@ -159,6 +171,14 @@ describe.skipIf(!DB_AVAILABLE)("Public finance routes", () => {
         ...overrides,
       })
       .returning()
+
+    // agent-quality: raw-sql reviewed -- owner: finance; the origin snapshot
+    // belongs to Bookings and the ids are parameter-bound.
+    await db.execute(sql`
+      INSERT INTO booking_origins (booking_id, storefront_id, channel_id)
+      VALUES (${row!.id}, ${TEST_STOREFRONT_ID}, ${TEST_CHANNEL_ID})
+      ON CONFLICT (booking_id) DO NOTHING
+    `)
 
     return row
   }
@@ -502,7 +522,11 @@ describe.skipIf(!DB_AVAILABLE)("Public finance routes", () => {
         headers: await capabilityHeaders(otherBooking.id),
       },
     )
-    expect(mismatchedCapabilityRes.status).toBe(401)
+    // A capability minted for another booking is rejected as 403, not 401:
+    // `verifyPublicCapabilityToken` distinguishes an absent or unverifiable
+    // token (unauthenticated, 401) from a valid one scoped to a different
+    // subject (authenticated, not permitted).
+    expect(mismatchedCapabilityRes.status).toBe(403)
 
     const mismatchedReferenceRes = await app.request(
       `/bookings/${booking.id}/documents/by-reference?reference=PF-SCOPED-2002`,
@@ -803,6 +827,10 @@ describe.skipIf(!DB_AVAILABLE)("Public finance routes", () => {
       code: "SPRING-2026",
       initialAmountCents: 30000,
       remainingAmountCents: 18000,
+      // The request below validates in EUR, and currency is checked before
+      // balance — a USD credit answers `currency_mismatch` and never reaches
+      // the assertion this test is named for.
+      currency: "EUR",
       sourceBookingId: booking.id,
       expiresAt: new Date("2026-12-31T23:59:59.000Z"),
     })
@@ -831,6 +859,7 @@ describe.skipIf(!DB_AVAILABLE)("Public finance routes", () => {
       code: "LOW-10",
       initialAmountCents: 1000,
       remainingAmountCents: 1000,
+      currency: "EUR",
     })
 
     const res = await app.request("/travel-credits/validate", {

@@ -17,6 +17,7 @@ import {
   financeAppApiRuntimePort,
   financeDepartureProfitabilityRuntimePort,
 } from "@voyant-travel/finance-contracts/runtime-port"
+import { financeInvoiceDocumentProviderPort } from "./contracts/invoice-document-provider.js"
 import {
   financeReceivablesDatasetDefinition,
   financeReportingTemplates,
@@ -50,6 +51,39 @@ import {
 
 const paymentAdapterRuntimePortReference = { id: "payments.adapter.runtime" } as const
 
+const financeInvoiceDocumentResources = [
+  {
+    id: "@voyant-travel/finance#resource.document-storage",
+    kind: "document-storage",
+    required: true,
+  },
+  {
+    id: "@voyant-travel/finance#resource.document-renderer",
+    kind: "document-renderer",
+    required: true,
+  },
+] as const
+
+const invoiceDocumentJobs = [
+  {
+    id: "finance.invoice-document-renditions",
+    schedule: { every: "1m", overlap: "skip" as const },
+    scheduling: {
+      required: true,
+      profiles: {
+        eager: { every: "1m", overlap: "skip" as const },
+        economical: { every: "5m", overlap: "skip" as const },
+        "scale-to-zero": { cron: "*/15 * * * *", overlap: "skip" as const },
+      },
+    },
+    wakeup: true,
+    runtime: {
+      entry: "@voyant-travel/finance/invoice-document-job",
+      export: "runDueInvoiceDocumentRenditionsJob",
+    },
+  },
+] as const
+
 /** Import-cheap deployment declaration owned by the finance package. */
 export const financeVoyantModule = defineModule({
   id: "@voyant-travel/finance",
@@ -67,6 +101,7 @@ export const financeVoyantModule = defineModule({
       optional: true,
       cardinality: "many",
     }),
+    requirePort(financeInvoiceDocumentProviderPort, { optional: true }),
   ],
   provides: {
     capabilities: ["finance.data-owner", "finance.payment-sessions"],
@@ -77,8 +112,31 @@ export const financeVoyantModule = defineModule({
       providePort(financeHostRuntimePort),
       providePort(financeAppApiRuntimePort),
       providePort(financeDepartureProfitabilityRuntimePort),
+      providePort(financeInvoiceDocumentProviderPort),
     ],
   },
+  // An invoice PDF needs a renderer and somewhere to put it. Declaring both
+  // makes a deployment that cannot produce one say so when the graph resolves,
+  // rather than at the HTTP 501 these routes used to return
+  // (voyant#4668).
+  resources: financeInvoiceDocumentResources,
+  providers: [
+    {
+      id: "@voyant-travel/finance#provider.invoice-document",
+      port: financeInvoiceDocumentProviderPort.id,
+      selection: { role: "invoiceDocumentArtifact", value: "standard" },
+      uses: {
+        resources: [
+          "@voyant-travel/finance#resource.document-storage",
+          "@voyant-travel/finance#resource.document-renderer",
+        ],
+      },
+      runtime: {
+        entry: "@voyant-travel/finance/runtime-contributor",
+        export: "createFinanceInvoiceDocumentGraphProvider",
+      },
+    },
+  ],
   api: [
     {
       id: "@voyant-travel/finance#api.admin",
@@ -724,6 +782,24 @@ export const financeVoyantModule = defineModule({
   lifecycle: {
     uninstall: { default: "retain-data", purge: "not-supported" },
   },
+  // The trigger and the recovery leg for invoice documents (voyant#4668). The
+  // subscriber is the latency path — booking create cannot render inside its
+  // own transaction, so it writes the request and this turns it into a
+  // document as soon as the invoice is issued. The job covers everything the
+  // subscriber cannot: a restart mid-render, a transient renderer failure, and
+  // a rendition requested against an invoice issued long ago.
+  subscribers: [
+    {
+      id: "@voyant-travel/finance#subscriber.invoice-issued-document",
+      eventType: "invoice.issued",
+      source: "@voyant-travel/finance/invoice-issued-subscriber",
+      runtime: {
+        entry: "@voyant-travel/finance/invoice-issued-subscriber",
+        export: "createInvoiceIssuedDocumentSubscriberGraphRuntime",
+      },
+    },
+  ],
+  jobs: invoiceDocumentJobs,
   meta: {
     ownership: "package",
   },

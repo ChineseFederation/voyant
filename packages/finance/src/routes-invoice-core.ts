@@ -23,6 +23,7 @@
  */
 
 import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi"
+import { ActionLedgerIdempotencyConflictError } from "@voyant-travel/action-ledger"
 import { openApiValidationHook, parseOptionalJsonBody, requireUserId } from "@voyant-travel/hono"
 import {
   creditNoteLineItemSchema,
@@ -525,6 +526,21 @@ const paymentRoutes = new OpenAPIHono<Env>({ defaultHook: openApiValidationHook 
         return c.json(
           { error: error.message, code: error.code, details: error.details },
           error.status,
+        )
+      }
+      // Reusing an idempotency key with a different payload is a conflict, and
+      // the HTTP idempotency middleware already answers 409 for exactly this.
+      // Left unhandled the ledger's own version of it reached the boundary as
+      // an unrecognized error and became a 500 — an infrastructure fault for
+      // what is a client mistake.
+      if (error instanceof ActionLedgerIdempotencyConflictError) {
+        return c.json(
+          {
+            error: error.message,
+            code: "idempotency_key_reused",
+            existingActionId: error.existingActionId,
+          },
+          409,
         )
       }
       throw error

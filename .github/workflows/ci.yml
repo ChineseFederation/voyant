@@ -387,6 +387,8 @@ jobs:
                 tests/integration/payment-disputes.test.ts
               pnpm --filter @voyant-travel/finance exec vitest run \
                 tests/integration/refund-settlements.test.ts
+              pnpm --filter @voyant-travel/finance exec vitest run \
+                tests/integration/invoice-document-fulfilment.test.ts
               pnpm --filter @voyant-travel/storefront exec vitest run \
                 tests/integration/payment-reconciliation-job.test.ts
               pnpm --filter @voyant-travel/bookings exec vitest run \

@@ -9,17 +9,21 @@ import {
   bookingsFinanceRuntimePort,
 } from "@voyant-travel/bookings/runtime-port"
 import type { VoyantRuntimeHostPrimitives } from "@voyant-travel/core"
+import type { DocumentRenderer } from "@voyant-travel/core/document-rendering"
 import type { VoyantPort } from "@voyant-travel/core/project"
 import { financeAppApiRuntimePort } from "@voyant-travel/finance-contracts/app-api"
 import {
   type FinanceDepartureProfitabilityRuntime,
   financeDepartureProfitabilityRuntimePort,
 } from "@voyant-travel/finance-contracts/runtime-port"
+import type { StorageProvider } from "@voyant-travel/storage"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import { checkFinanceActionLedgerDrift } from "./action-ledger-drift.js"
 import { createFinanceAppApiRuntime } from "./app-api-runtime.js"
 import { financeBookingActionSource } from "./booking-action-source.js"
 import { createBookingAmendmentFinanceRuntime } from "./booking-amendment-runtime.js"
+import type { FinanceInvoiceDocumentProvider } from "./contracts/invoice-document-provider.js"
+import { createStandardInvoiceDocumentProvider } from "./invoice-document-runtime.js"
 import {
   type FinanceOperatorSettingsRuntime,
   financeHostRuntimePort,
@@ -31,6 +35,28 @@ export interface FinanceRuntimeContributorHost {
   primitives: VoyantRuntimeHostPrimitives
   hasRuntimePort?(port: Pick<VoyantPort<unknown>, "id">): boolean
   getRuntimePort<T>(port: Pick<VoyantPort<T>, "id">): T | Promise<T>
+}
+
+/** Selected-graph factory for the deployment-bound invoice document provider. */
+interface FinanceInvoiceDocumentGraphProviderContext {
+  getResource<T = unknown>(declarationId: string): T | undefined
+}
+
+export async function createFinanceInvoiceDocumentGraphProvider(
+  context: FinanceInvoiceDocumentGraphProviderContext,
+): Promise<FinanceInvoiceDocumentProvider> {
+  const storage = context.getResource<StorageProvider>(
+    "@voyant-travel/finance#resource.document-storage",
+  )
+  const renderer = context.getResource<DocumentRenderer>(
+    "@voyant-travel/finance#resource.document-renderer",
+  )
+  if (!storage || !renderer) {
+    throw new Error(
+      "The selected invoice document provider requires document storage and document renderer resources.",
+    )
+  }
+  return createStandardInvoiceDocumentProvider({ storage, renderer })
 }
 
 /** Provide Finance's generic host input and its narrow Bookings integration. */

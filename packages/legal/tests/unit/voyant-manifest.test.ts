@@ -49,7 +49,10 @@ describe("legal deployment manifest", () => {
           openapi: { document: "contract-document" },
           runtime: {
             entry: "@voyant-travel/legal/contract-document-routes",
-            export: "createContractDocumentApiModule",
+            // The graph-runtime wrapper, not the raw factory: the raw one
+            // takes its options as its first argument and the graph has none
+            // to give, which is why this bundle answered 500 on every request.
+            export: "createContractDocumentVoyantRuntime",
           },
         },
         {
