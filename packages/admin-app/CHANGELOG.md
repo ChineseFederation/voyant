@@ -1,5 +1,14 @@
 # @voyant-travel/admin-app
 
+## 0.178.0
+
+### Patch Changes
+
+- @voyant-travel/finance-react@0.285.0
+- @voyant-travel/inventory-react@0.167.0
+- @voyant-travel/distribution-react@0.275.0
+- @voyant-travel/commerce-react@0.167.0
+
 ## 0.177.0
 
 ### Patch Changes
