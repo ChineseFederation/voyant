@@ -23,7 +23,13 @@ import {
 import { Eye, Package, Pencil, Plus, Trash2 } from "lucide-react"
 import * as React from "react"
 import { useBookingsUiI18nOrDefault, useBookingsUiMessagesOrDefault } from "../i18n/provider.js"
-import { type BookingItemRecord, useBookingItemMutation, useBookingItems } from "../index.js"
+import {
+  type BookingItemRecord,
+  useBooking,
+  useBookingItemMutation,
+  useBookingItems,
+} from "../index.js"
+import { BookingItemAdditionDialog } from "./booking-item-addition-dialog.js"
 import { BookingItemDialog } from "./booking-item-dialog.js"
 import { IconActionButton } from "./icon-action-button.js"
 import { StatusBadge } from "./status-badge.js"
@@ -50,7 +56,20 @@ export function BookingItemList({
   const [editing, setEditing] = React.useState<BookingItemRecord | undefined>(undefined)
   const [deleteTarget, setDeleteTarget] = React.useState<BookingItemRecord | null>(null)
   const [viewing, setViewing] = React.useState<BookingItemRecord | null>(null)
+  const [additionOpen, setAdditionOpen] = React.useState(false)
   const { data } = useBookingItems(bookingId)
+  const bookingQuery = useBooking(bookingId)
+  const booking = bookingQuery.data?.data
+
+  /**
+   * On a live booking, adding a line is not data entry — it buys something.
+   * Route it through the Amendment flow so the catalog prices it and the
+   * departure actually gives up a seat, and keep the free-text dialog for
+   * bookings that have not been committed yet.
+   */
+  const requiresAmendment =
+    (booking?.status === "confirmed" || booking?.status === "in_progress") &&
+    typeof booking.revision === "number"
   const { remove } = useBookingItemMutation(bookingId)
   const { formatCurrency, formatDateTime } = useBookingsUiI18nOrDefault()
   const messages = useBookingsUiMessagesOrDefault()
@@ -194,6 +213,10 @@ export function BookingItemList({
             variant="outline"
             size="sm"
             onClick={() => {
+              if (requiresAmendment) {
+                setAdditionOpen(true)
+                return
+              }
               setEditing(undefined)
               setDialogOpen(true)
             }}
@@ -210,6 +233,15 @@ export function BookingItemList({
         emptyMessage={messages.bookingItemList.empty}
         showPagination={false}
       />
+
+      {booking?.revision !== undefined ? (
+        <BookingItemAdditionDialog
+          open={additionOpen}
+          onOpenChange={setAdditionOpen}
+          bookingId={bookingId}
+          bookingRevision={booking.revision}
+        />
+      ) : null}
 
       <BookingItemDialog
         open={dialogOpen}

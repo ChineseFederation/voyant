@@ -77,6 +77,8 @@ export const bookingsQueryKeys = {
   supplierStatuses: (bookingId: string) =>
     [...bookingsQueryKeys.booking(bookingId), "supplier-statuses"] as const,
   activity: (bookingId: string) => [...bookingsQueryKeys.booking(bookingId), "activity"] as const,
+  amendments: (bookingId: string) =>
+    [...bookingsQueryKeys.booking(bookingId), "amendments"] as const,
   actionLedger: (bookingId: string) =>
     [...bookingsQueryKeys.booking(bookingId), "action-ledger"] as const,
   notes: (bookingId: string) => [...bookingsQueryKeys.booking(bookingId), "notes"] as const,

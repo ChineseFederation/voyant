@@ -92,6 +92,7 @@ function schedule(data: Partial<BookingPaymentScheduleRecord> = {}): BookingPaym
     id: "bps_123",
     bookingId: "book_123",
     bookingItemId: null,
+    amendmentId: null,
     scheduleType: "deposit",
     status: "paid",
     dueDate: "2026-05-30",

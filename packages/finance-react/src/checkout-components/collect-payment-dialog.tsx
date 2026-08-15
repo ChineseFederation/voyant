@@ -24,7 +24,12 @@ import {
 import { CheckCircle2, Copy, ExternalLink, Loader2, X } from "lucide-react"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { toast } from "sonner"
-import { useCheckoutPaymentLinkConfig, useCollectPayment } from "../checkout-hooks/index.js"
+import {
+  useCheckoutPaymentLinkConfig,
+  useCollectPayment,
+  usePaymentLinkEmailTemplates,
+  useSendPaymentLink,
+} from "../checkout-hooks/index.js"
 import {
   useCheckoutUiI18nOrDefault,
   useCheckoutUiMessagesOrDefault,
@@ -125,17 +130,45 @@ export function CollectPaymentDialog({
     cancelUrl,
   })
 
+  /**
+   * The obligation a Booking Amendment just raised, if any.
+   *
+   * When an operator adds a traveller and then reaches for "collect
+   * payment", the difference is what they want — not the booking total.
+   * Finance writes exactly one open schedule per amendment, so the most
+   * recent one is the amount the customer now owes for the change.
+   */
+  const amendmentSchedule = useMemo(
+    () =>
+      schedules
+        .filter((schedule) => schedule.amendmentId)
+        .sort((left, right) => right.createdAt.localeCompare(left.createdAt))[0] ?? null,
+    [schedules],
+  )
+
   // Re-seed the amount from the latest props only on the closed→open
   // transition. Watching state mid-flight would clobber manual edits.
   const wasOpenRef = useRef(false)
+  const seededRef = useRef(false)
   useEffect(() => {
     if (open && !wasOpenRef.current) {
+      // Schedules arrive asynchronously; `seededRef` lets the amendment
+      // pre-fill land once they do, without re-seeding afterwards.
+      seededRef.current = false
       setAmountCents(defaultAmountCents ?? 0)
       setScheduleId(FULL_AMOUNT_VALUE)
       setCurrency(defaultCurrency)
     }
     wasOpenRef.current = open
   }, [open, defaultAmountCents, defaultCurrency])
+
+  useEffect(() => {
+    if (!open || seededRef.current || !amendmentSchedule) return
+    seededRef.current = true
+    setScheduleId(amendmentSchedule.id)
+    setAmountCents(amendmentSchedule.amountCents)
+    setCurrency(amendmentSchedule.currency)
+  }, [open, amendmentSchedule])
 
   function reset() {
     setAmountCents(defaultAmountCents ?? 0)
@@ -166,7 +199,13 @@ export function CollectPaymentDialog({
       return
     }
     try {
-      const data = await collect.mutateAsync({ choice: { type: "hold" }, amountCents })
+      const data = await collect.mutateAsync({
+        choice: { type: "hold" },
+        amountCents,
+        // Bind the payment to the schedule the operator actually picked.
+        // Left unset, checkout settles the earliest open one instead.
+        scheduleId: scheduleId === FULL_AMOUNT_VALUE ? null : scheduleId,
+      })
       setResult(data)
       toast.success(messages.validation.linkReady)
     } catch (err) {
@@ -190,7 +229,7 @@ export function CollectPaymentDialog({
 
         {result ? (
           <div className="px-6 py-5">
-            <ResultPanel result={result} />
+            <ResultPanel result={result} bookingId={bookingId} />
           </div>
         ) : (
           <div className="flex flex-col gap-4 px-6 py-5">
@@ -209,7 +248,12 @@ export function CollectPaymentDialog({
                       <SelectItem value={FULL_AMOUNT_VALUE}>{fullAmountLabel}</SelectItem>
                       {schedules.map((schedule) => (
                         <SelectItem key={schedule.id} value={schedule.id}>
-                          {formatScheduleOption(schedule, messages.scheduleTypeLabels, locale)}
+                          {formatScheduleOption(
+                            schedule,
+                            messages.scheduleTypeLabels,
+                            locale,
+                            messages.scheduleAmendmentLabel,
+                          )}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -292,13 +336,24 @@ function formatScheduleOption(
   schedule: BookingPaymentScheduleRecord,
   typeLabels: Record<string, string>,
   locale: string,
+  amendmentLabel: string,
 ): string {
-  const typeLabel = typeLabels[schedule.scheduleType] ?? schedule.scheduleType
+  // An amendment obligation is stored as `other`; showing "Other" would
+  // hide the one thing that makes it recognisable.
+  const typeLabel = schedule.amendmentId
+    ? amendmentLabel
+    : (typeLabels[schedule.scheduleType] ?? schedule.scheduleType)
   const amount = formatAmount(schedule.amountCents, schedule.currency, locale)
   return `${typeLabel} • ${amount} • ${schedule.dueDate}`
 }
 
-function ResultPanel({ result }: { result: InitiatedCheckoutCollectionRecord }) {
+function ResultPanel({
+  result,
+  bookingId,
+}: {
+  result: InitiatedCheckoutCollectionRecord
+  bookingId: string
+}) {
   const messages = useCheckoutUiMessagesOrDefault().collectPaymentDialog
   const configQuery = useCheckoutPaymentLinkConfig()
   const sessionId = result.paymentSession?.id ?? null
@@ -350,6 +405,71 @@ function ResultPanel({ result }: { result: InitiatedCheckoutCollectionRecord }) 
           <ExternalLink className="h-3.5 w-3.5" />
         </a>
       </div>
+      {sessionId ? <SendPanel bookingId={bookingId} sessionId={sessionId} /> : null}
+    </div>
+  )
+}
+
+/**
+ * Emails the generated link instead of leaving the operator to paste it
+ * somewhere themselves.
+ *
+ * The template list is deployment-authored, so this renders a hint rather
+ * than a broken button when nothing is published.
+ */
+function SendPanel({ bookingId, sessionId }: { bookingId: string; sessionId: string }) {
+  const messages = useCheckoutUiMessagesOrDefault().collectPaymentDialog
+  const templatesQuery = usePaymentLinkEmailTemplates()
+  const send = useSendPaymentLink(bookingId)
+  const [templateId, setTemplateId] = useState<string | null>(null)
+  const [sent, setSent] = useState(false)
+
+  const templates = templatesQuery.data ?? []
+
+  if (templatesQuery.isPending) return null
+
+  if (templates.length === 0) {
+    return (
+      <p className="border-t pt-4 text-muted-foreground text-xs">{messages.send.noTemplates}</p>
+    )
+  }
+
+  return (
+    <div className="flex flex-col gap-3 border-t pt-4">
+      <span className="font-medium text-sm">{messages.send.title}</span>
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="send-template">{messages.send.templateLabel}</Label>
+        <Select value={templateId ?? ""} onValueChange={(next) => setTemplateId(next ?? null)}>
+          <SelectTrigger id="send-template" className="w-full">
+            <SelectValue placeholder={messages.send.templatePlaceholder} />
+          </SelectTrigger>
+          <SelectContent>
+            {templates.map((template) => (
+              <SelectItem key={template.id} value={template.id}>
+                {template.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <Button
+        className="self-start"
+        disabled={!templateId || send.isPending || sent}
+        onClick={async () => {
+          if (!templateId) return
+          try {
+            await send.mutateAsync({ paymentSessionId: sessionId, templateId })
+            setSent(true)
+            toast.success(messages.send.sent)
+          } catch (err) {
+            toast.error((err as Error).message)
+          }
+        }}
+      >
+        {send.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+        {sent && <CheckCircle2 className="mr-2 h-4 w-4" />}
+        {messages.send.action}
+      </Button>
     </div>
   )
 }

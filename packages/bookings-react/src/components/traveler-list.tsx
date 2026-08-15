@@ -33,11 +33,13 @@ import {
   type BookingTravelerDocumentRecord,
   type BookingTravelerRecord,
   type BookingTravelerRevealRecord,
+  useBooking,
   useBookingTravelerDocuments,
   useRevealTraveler,
   useTravelerMutation,
   useTravelers,
 } from "../index.js"
+import { BookingRosterAmendmentDialog } from "./booking-roster-amendment-dialog.js"
 import { IconActionButton } from "./icon-action-button.js"
 import { TravelerDialog } from "./traveler-dialog.js"
 
@@ -52,7 +54,22 @@ export function TravelerList({ bookingId, autoReveal = false }: TravelerListProp
   const [viewingId, setViewingId] = React.useState<string | null>(null)
   const [deleteTarget, setDeleteTarget] = React.useState<BookingTravelerRecord | null>(null)
   const [revealedIds, setRevealedIds] = React.useState<Set<string>>(new Set())
+  const [amendment, setAmendment] = React.useState<{
+    mode: "add" | "drop"
+    travelerId?: string
+  } | null>(null)
   const { data } = useTravelers(bookingId)
+  const bookingQuery = useBooking(bookingId)
+  const booking = bookingQuery.data?.data
+
+  /**
+   * On a confirmed booking a roster change is not data entry — it moves
+   * inventory, money, and possibly a supplier reservation. Route those
+   * through the Amendment flow so the operator sees the price and the
+   * departure is actually checked, and keep the plain add/delete dialogs
+   * for bookings that have not been committed yet.
+   */
+  const requiresAmendment = booking?.status === "confirmed" && typeof booking.revision === "number"
   const documentsQuery = useBookingTravelerDocuments(bookingId)
   const { remove } = useTravelerMutation(bookingId)
   const messages = useBookingsUiMessagesOrDefault()
@@ -212,6 +229,10 @@ export function TravelerList({ bookingId, autoReveal = false }: TravelerListProp
                 className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                 onClick={(e) => {
                   e.stopPropagation()
+                  if (requiresAmendment) {
+                    setAmendment({ mode: "drop", travelerId: traveler.id })
+                    return
+                  }
                   setDeleteTarget(traveler)
                 }}
               />
@@ -228,6 +249,10 @@ export function TravelerList({ bookingId, autoReveal = false }: TravelerListProp
       isRevealed,
       messages,
       toggleReveal,
+      // The booking loads after the first render, so without this the row
+      // actions would keep the initial `false` and hard-delete a traveller
+      // off a confirmed booking instead of quoting the change.
+      requiresAmendment,
     ],
   )
 
@@ -244,6 +269,10 @@ export function TravelerList({ bookingId, autoReveal = false }: TravelerListProp
           variant="outline"
           size="sm"
           onClick={() => {
+            if (requiresAmendment) {
+              setAmendment({ mode: "add" })
+              return
+            }
             setEditing(undefined)
             setDialogOpen(true)
           }}
@@ -270,6 +299,19 @@ export function TravelerList({ bookingId, autoReveal = false }: TravelerListProp
         traveler={editing}
         onSuccess={() => setEditing(undefined)}
       />
+
+      {amendment && booking?.revision !== undefined ? (
+        <BookingRosterAmendmentDialog
+          open
+          onOpenChange={(next) => {
+            if (!next) setAmendment(null)
+          }}
+          bookingId={bookingId}
+          bookingRevision={booking.revision}
+          mode={amendment.mode}
+          travelerId={amendment.travelerId}
+        />
+      ) : null}
 
       <Sheet
         open={Boolean(viewingTraveler)}

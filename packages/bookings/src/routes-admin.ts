@@ -3068,7 +3068,9 @@ const itemsRoutes = new OpenAPIHono<Env>({ defaultHook: openApiValidationHook })
     const body = c.req.valid("json") ?? {}
     const ledgerContext = getActionLedgerRequestContext(c)
     const row = await c.get("db").transaction(async (tx) => {
-      const row = await bookingsService.updateItem(tx as PostgresJsDatabase, itemId, body)
+      const row = await bookingsService.updateItem(tx as PostgresJsDatabase, itemId, body, {
+        eventBus: c.get("eventBus"),
+      })
       if (!row) return null
       await appendBookingMutationLedgerEntryToDb(tx as AnyDrizzleDb, ledgerContext, {
         action: "update",
@@ -3106,6 +3108,7 @@ const itemsRoutes = new OpenAPIHono<Env>({ defaultHook: openApiValidationHook })
         tx as PostgresJsDatabase,
         itemId,
         c.get("userId"),
+        { eventBus: c.get("eventBus") },
       )
       if (!row) return null
       await appendBookingMutationLedgerEntryToDb(tx as AnyDrizzleDb, ledgerContext, {

@@ -367,4 +367,75 @@ export const bookingsUiEnSections = {
       deleteConfirm: "Delete this document?",
     },
   },
+  rosterAmendmentDialog: {
+    titles: {
+      add: "Add a traveller",
+      drop: "Remove a traveller",
+    },
+    fields: {
+      firstName: "First name",
+      lastName: "Last name",
+      email: "Email",
+      unknownTraveler: "This traveller is no longer on the booking.",
+      items: "Applies to",
+      itemsHint: "Pick the services this traveller joins. Pricing is quoted per service.",
+      noItems: "This booking has no confirmed services to change.",
+      reason: "Reason",
+      reasonPlaceholder:
+        "Why is the booking changing? The customer sees this on the change record.",
+    },
+    actions: {
+      cancel: "Cancel",
+      quote: "Get a price",
+      apply: "Apply change",
+    },
+    quote: {
+      title: "Price of this change",
+      subtotal: "Subtotal",
+      tax: "Tax",
+    },
+    consequences: {
+      collect: "Collect {amount} from the customer.",
+      refund: "Refund {amount} to the customer.",
+      supplier: "The supplier must confirm this change before it takes effect.",
+      documents: "Travel documents will need reissuing.",
+    },
+    blocked: {
+      noOp: "Nothing would change on this booking.",
+      availabilityChanged: "That departure no longer has room for another traveller.",
+      unsupported: "This booking is not set up for traveller changes.",
+      staleRevision: "Someone else changed this booking. Close and reopen to try again.",
+      generic: "This change could not be quoted.",
+    },
+  },
+  itemAdditionDialog: {
+    title: "Add a service",
+    sourcedUnsupported:
+      "This is a supplier product. Adding it to an existing booking has to be arranged with the supplier first.",
+    fields: {
+      departure: "Departure",
+      departurePlaceholder: "Pick a departure",
+      departureEmpty: "No open departures",
+      unit: "Unit",
+      unitNone: "No specific unit",
+      quantity: "Quantity",
+      reason: "Reason",
+      reasonPlaceholder: "Why is this being added? The customer sees this on the change record.",
+    },
+    actions: {
+      cancel: "Cancel",
+      quote: "Get a price",
+      apply: "Add to booking",
+    },
+    quote: {
+      title: "Price of this addition",
+      collect: "Collect {amount} from the customer.",
+    },
+    blocked: {
+      availabilityChanged: "That departure no longer has room for this.",
+      unsupported: "This service cannot be added to this booking.",
+      staleRevision: "Someone else changed this booking. Close and reopen to try again.",
+      generic: "This addition could not be quoted.",
+    },
+  },
 } satisfies BookingsUiSectionsMessages

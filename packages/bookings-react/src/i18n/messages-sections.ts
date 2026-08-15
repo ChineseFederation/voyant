@@ -360,4 +360,76 @@ export type BookingsUiSectionsMessages = {
       deleteConfirm: string
     }
   }
+  rosterAmendmentDialog: {
+    titles: {
+      add: string
+      drop: string
+    }
+    fields: {
+      firstName: string
+      lastName: string
+      email: string
+      unknownTraveler: string
+      items: string
+      itemsHint: string
+      noItems: string
+      reason: string
+      reasonPlaceholder: string
+    }
+    actions: {
+      cancel: string
+      quote: string
+      apply: string
+    }
+    quote: {
+      title: string
+      subtotal: string
+      tax: string
+    }
+    consequences: {
+      /** `{amount}` is replaced with the money to collect. */
+      collect: string
+      /** `{amount}` is replaced with the money to refund. */
+      refund: string
+      supplier: string
+      documents: string
+    }
+    blocked: {
+      noOp: string
+      availabilityChanged: string
+      unsupported: string
+      staleRevision: string
+      generic: string
+    }
+  }
+  itemAdditionDialog: {
+    title: string
+    sourcedUnsupported: string
+    fields: {
+      departure: string
+      departurePlaceholder: string
+      departureEmpty: string
+      unit: string
+      unitNone: string
+      quantity: string
+      reason: string
+      reasonPlaceholder: string
+    }
+    actions: {
+      cancel: string
+      quote: string
+      apply: string
+    }
+    quote: {
+      title: string
+      /** `{amount}` is replaced with the money to collect. */
+      collect: string
+    }
+    blocked: {
+      availabilityChanged: string
+      unsupported: string
+      staleRevision: string
+      generic: string
+    }
+  }
 }

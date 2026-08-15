@@ -240,6 +240,8 @@ export const bookingPaymentScheduleRecordSchema = z.object({
   id: z.string(),
   bookingId: z.string(),
   bookingItemId: z.string().nullable(),
+  /** Present when a Booking Amendment raised this obligation. */
+  amendmentId: z.string().nullable().default(null),
   scheduleType: paymentScheduleTypeSchema,
   status: paymentScheduleStatusSchema,
   dueDate: z.string(),

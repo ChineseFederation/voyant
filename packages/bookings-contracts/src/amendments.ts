@@ -78,6 +78,37 @@ export const previewTravelerRosterChangeSchema = z.object({
   change: travelerRosterChangeSchema,
 })
 
+/**
+ * Adding a catalog-linked service to a booking that already exists — an
+ * extra excursion, a transfer, another room.
+ *
+ * Only the identity of what is being added crosses the wire. Price, name,
+ * and timing are resolved from the catalog server-side, so an operator
+ * cannot quote themselves a number the catalog does not agree with, and
+ * the snapshot columns on the resulting Booking Item stay authoritative.
+ */
+export const bookingItemAdditionSchema = z.object({
+  type: z.literal("item_add"),
+  productId: z.string().min(1),
+  optionId: z.string().min(1).nullable().optional(),
+  optionUnitId: z.string().min(1).nullable().optional(),
+  /**
+   * Departure to consume capacity from. Required for a product that sells
+   * by departure; the preview refuses the addition when the product needs
+   * one and none is given.
+   */
+  availabilitySlotId: z.string().min(1).nullable().optional(),
+  quantity: z.number().int().positive().max(99).default(1),
+  /** Overrides the catalog name on the Booking Item only — never the price. */
+  title: z.string().trim().min(1).max(255).optional(),
+})
+
+export const previewBookingItemAdditionSchema = z.object({
+  expectedBookingRevision: z.number().int().positive(),
+  reason: z.string().trim().min(1).max(2_000),
+  addition: bookingItemAdditionSchema,
+})
+
 export const acceptBookingAmendmentSchema = z.object({
   proposedRevisionId: z.string().min(1),
 })
@@ -194,8 +225,9 @@ export const bookingRevisionSchema = z.object({
 export const bookingAmendmentSchema = z.object({
   id: z.string(),
   bookingId: z.string(),
-  travelerId: z.string(),
-  kind: z.enum(["traveler_correction", "traveler_add", "traveler_drop"]),
+  /** Null for `item_add`, which concerns a service rather than a person. */
+  travelerId: z.string().nullable(),
+  kind: z.enum(["traveler_correction", "traveler_add", "traveler_drop", "item_add"]),
   status: bookingAmendmentStatusSchema,
   baseBookingRevision: z.number().int().positive(),
   resultBookingRevision: z.number().int().positive(),
@@ -239,7 +271,7 @@ export const bookingAmendmentPreviewResultSchema = z.discriminatedUnion("status"
   z.object({
     status: z.literal("no_op"),
     bookingId: z.string(),
-    travelerId: z.string(),
+    travelerId: z.string().nullable(),
     bookingRevision: z.number().int().positive(),
   }),
   z.object({ status: z.literal("not_found") }),
@@ -280,6 +312,8 @@ export type BookingAmendmentPrice = z.infer<typeof bookingAmendmentPriceSchema>
 export type BookingRevisionSnapshot = z.infer<typeof bookingRevisionSnapshotSchema>
 export type PreviewTravelerCorrectionInput = z.infer<typeof previewTravelerCorrectionSchema>
 export type PreviewTravelerRosterChangeInput = z.infer<typeof previewTravelerRosterChangeSchema>
+export type BookingItemAddition = z.infer<typeof bookingItemAdditionSchema>
+export type PreviewBookingItemAdditionInput = z.infer<typeof previewBookingItemAdditionSchema>
 export type TravelerRosterChange = z.infer<typeof travelerRosterChangeSchema>
 export type TravelerCorrectionPatch = z.infer<typeof travelerCorrectionPatchSchema>
 export type AcceptBookingAmendmentInput = z.infer<typeof acceptBookingAmendmentSchema>

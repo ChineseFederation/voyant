@@ -114,6 +114,7 @@ export const checkoutUiEn: CheckoutUiMessages = {
       hold: "Hold",
       other: "Other",
     },
+    scheduleAmendmentLabel: "Change difference",
     amountLabel: "Amount ({currency})",
     amountLabelShort: "Amount",
     currencyLabel: "Currency",
@@ -132,6 +133,15 @@ export const checkoutUiEn: CheckoutUiMessages = {
       body: "Share this link with the customer. They'll choose card or bank transfer on the page.",
       copyLink: "Copy link",
       openLink: "Open link",
+    },
+    send: {
+      title: "Send it to the customer",
+      templateLabel: "Email template",
+      templatePlaceholder: "Pick a template",
+      action: "Send email",
+      sent: "Payment link sent.",
+      noTemplates:
+        "No published email templates yet. Copy the link above, or add a template under Notifications.",
     },
   },
 }

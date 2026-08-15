@@ -85,6 +85,13 @@
       "when": 1786125600000,
       "tag": "20260806120000_refund_settlements",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1786867200000,
+      "tag": "20260815100000_booking_payment_schedule_amendment",
+      "breakpoints": true
     }
   ]
 }

@@ -9,3 +9,9 @@ export {
 } from "./use-collect-payment.js"
 export { useInitiateCheckoutCollection } from "./use-initiate-checkout-collection.js"
 export { usePreviewCheckoutCollection } from "./use-preview-checkout-collection.js"
+export {
+  type PaymentLinkEmailTemplate,
+  type SendPaymentLinkInput,
+  usePaymentLinkEmailTemplates,
+  useSendPaymentLink,
+} from "./use-send-payment-link.js"

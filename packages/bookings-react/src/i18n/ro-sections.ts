@@ -367,4 +367,78 @@ export const bookingsUiRoSections = {
       deleteConfirm: "Stergi acest document?",
     },
   },
+  rosterAmendmentDialog: {
+    titles: {
+      add: "Adauga un calator",
+      drop: "Elimina un calator",
+    },
+    fields: {
+      firstName: "Prenume",
+      lastName: "Nume",
+      email: "Email",
+      unknownTraveler: "Acest calator nu mai este pe rezervare.",
+      items: "Se aplica la",
+      itemsHint:
+        "Alege serviciile la care participa acest calator. Pretul este calculat per serviciu.",
+      noItems: "Aceasta rezervare nu are servicii confirmate de modificat.",
+      reason: "Motiv",
+      reasonPlaceholder:
+        "De ce se modifica rezervarea? Clientul vede acest text pe fisa modificarii.",
+    },
+    actions: {
+      cancel: "Anuleaza",
+      quote: "Calculeaza pretul",
+      apply: "Aplica modificarea",
+    },
+    quote: {
+      title: "Pretul acestei modificari",
+      subtotal: "Subtotal",
+      tax: "Taxa",
+    },
+    consequences: {
+      collect: "Incaseaza {amount} de la client.",
+      refund: "Restituie {amount} clientului.",
+      supplier: "Furnizorul trebuie sa confirme modificarea inainte sa intre in vigoare.",
+      documents: "Documentele de calatorie vor trebui reemise.",
+    },
+    blocked: {
+      noOp: "Nu s-ar modifica nimic pe aceasta rezervare.",
+      availabilityChanged: "Aceasta plecare nu mai are loc pentru inca un calator.",
+      unsupported: "Aceasta rezervare nu permite modificari de calatori.",
+      staleRevision:
+        "Altcineva a modificat rezervarea. Inchide si redeschide pentru a incerca din nou.",
+      generic: "Aceasta modificare nu a putut fi cotata.",
+    },
+  },
+  itemAdditionDialog: {
+    title: "Adauga un serviciu",
+    sourcedUnsupported:
+      "Acesta este un produs de furnizor. Adaugarea lui pe o rezervare existenta trebuie stabilita intai cu furnizorul.",
+    fields: {
+      departure: "Plecare",
+      departurePlaceholder: "Alege o plecare",
+      departureEmpty: "Nicio plecare disponibila",
+      unit: "Unitate",
+      unitNone: "Fara unitate anume",
+      quantity: "Cantitate",
+      reason: "Motiv",
+      reasonPlaceholder: "De ce se adauga? Clientul vede acest text pe fisa modificarii.",
+    },
+    actions: {
+      cancel: "Anuleaza",
+      quote: "Calculeaza pretul",
+      apply: "Adauga pe rezervare",
+    },
+    quote: {
+      title: "Pretul acestei adaugari",
+      collect: "Incaseaza {amount} de la client.",
+    },
+    blocked: {
+      availabilityChanged: "Aceasta plecare nu mai are loc pentru asa ceva.",
+      unsupported: "Acest serviciu nu poate fi adaugat pe aceasta rezervare.",
+      staleRevision:
+        "Altcineva a modificat rezervarea. Inchide si redeschide pentru a incerca din nou.",
+      generic: "Aceasta adaugare nu a putut fi cotata.",
+    },
+  },
 } satisfies BookingsUiSectionsMessages

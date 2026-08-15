@@ -1,5 +1,6 @@
 import type {
   BookingAmendmentFinancialConsequences,
+  BookingItemAddition,
   BookingRevisionSnapshot,
   TravelerCorrectionPatch,
   TravelerRosterChange,
@@ -31,11 +32,16 @@ export type BookingAmendmentStatus =
   | "manual_review"
 export type BookingAmendmentActor = "customer" | "staff" | "partner" | "system"
 export type BookingRevisionRole = "before" | "proposed_after"
-export type BookingAmendmentKind = "traveler_correction" | "traveler_add" | "traveler_drop"
+export type BookingAmendmentKind =
+  | "traveler_correction"
+  | "traveler_add"
+  | "traveler_drop"
+  | "item_add"
 
 export type BookingAmendmentRequestedChange =
   | { type: "traveler_correction"; travelerId: string; patch: TravelerCorrectionPatch }
   | (TravelerRosterChange & { travelerId: string })
+  | BookingItemAddition
 
 export interface BookingAmendmentPolicyDecision {
   code: string
@@ -91,6 +97,49 @@ export interface BookingAmendmentRosterItemPlan {
   } | null
 }
 
+/**
+ * Plan for adding one catalog-linked service to an existing booking.
+ *
+ * Unlike a roster plan — which moves an allocation that already exists —
+ * this one creates both the Booking Item and its allocation, so it carries
+ * everything needed to write them without re-reading the catalog at apply
+ * time. The quote the operator accepted is the quote that gets applied.
+ */
+export interface BookingAmendmentItemAddPlan {
+  kind: "item_add"
+  productId: string
+  optionId: string | null
+  optionUnitId: string | null
+  availabilitySlotId: string | null
+  quantity: number
+  title: string
+  sellCurrency: string
+  unitSellAmountCents: number
+  totalSellAmountCents: number
+  costCurrency: string | null
+  unitCostAmountCents: number | null
+  totalCostAmountCents: number | null
+  serviceDate: string | null
+  productNameSnapshot: string | null
+  optionNameSnapshot: string | null
+  unitNameSnapshot: string | null
+  departureLabelSnapshot: string | null
+}
+
+/**
+ * What an Amendment will do at apply time. Roster plans move an existing
+ * allocation; an item-add plan creates one.
+ */
+export type BookingAmendmentOperationPlan =
+  | BookingAmendmentRosterItemPlan
+  | BookingAmendmentItemAddPlan
+
+export function isItemAddPlan(
+  plan: BookingAmendmentOperationPlan,
+): plan is BookingAmendmentItemAddPlan {
+  return "kind" in plan && plan.kind === "item_add"
+}
+
 export const bookingAmendments = pgTable(
   "booking_amendments",
   {
@@ -98,7 +147,10 @@ export const bookingAmendments = pgTable(
     bookingId: typeIdRef("booking_id")
       .notNull()
       .references(() => bookings.id, { onDelete: "cascade" }),
-    travelerId: text("traveler_id").notNull(),
+    // Null for `item_add`, which concerns a service rather than a person.
+    // The `ck_booking_amendments_traveler_required` constraint holds the
+    // rule that every other kind still names its traveler.
+    travelerId: text("traveler_id"),
     kind: text("kind").$type<BookingAmendmentKind>().notNull().default("traveler_correction"),
     status: text("status").$type<BookingAmendmentStatus>().notNull().default("proposed"),
     baseBookingRevision: integer("base_booking_revision").notNull(),
@@ -125,7 +177,7 @@ export const bookingAmendments = pgTable(
     quoteExpiresAt: timestamp("quote_expires_at", { withTimezone: true }),
     supplierOperationIds: jsonb("supplier_operation_ids").$type<string[]>().notNull().default([]),
     operationPlan: jsonb("operation_plan")
-      .$type<BookingAmendmentRosterItemPlan[]>()
+      .$type<BookingAmendmentOperationPlan[]>()
       .notNull()
       .default([]),
     failureCode: text("failure_code"),
@@ -156,7 +208,7 @@ export const bookingAmendments = pgTable(
     check(
       "ck_booking_amendments_kind",
       // agent-quality: raw-sql reviewed -- owner: bookings; static enum membership constraint over Drizzle identifiers.
-      sql`${table.kind} IN ('traveler_correction', 'traveler_add', 'traveler_drop')`,
+      sql`${table.kind} IN ('traveler_correction', 'traveler_add', 'traveler_drop', 'item_add')`,
     ),
     check(
       "ck_booking_amendments_status",

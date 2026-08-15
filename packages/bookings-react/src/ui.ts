@@ -51,6 +51,10 @@ export {
   BookingGuaranteeList,
   type BookingGuaranteeListProps,
 } from "./components/booking-guarantee-list.js"
+export {
+  BookingItemAdditionDialog,
+  type BookingItemAdditionDialogProps,
+} from "./components/booking-item-addition-dialog.js"
 export { BookingItemDialog, type BookingItemDialogProps } from "./components/booking-item-dialog.js"
 export { BookingItemList, type BookingItemListProps } from "./components/booking-item-list.js"
 export {
@@ -88,6 +92,10 @@ export {
   BookingRefundBanner,
   type BookingRefundBannerProps,
 } from "./components/booking-refund-banner.js"
+export {
+  BookingRosterAmendmentDialog,
+  type BookingRosterAmendmentDialogProps,
+} from "./components/booking-roster-amendment-dialog.js"
 export { BookingsPage, type BookingsPageProps } from "./components/bookings-page.js"
 export {
   FileDropzone,

@@ -114,6 +114,7 @@ export const checkoutUiRo: CheckoutUiMessages = {
       hold: "Retinere",
       other: "Alta",
     },
+    scheduleAmendmentLabel: "Diferenta din modificare",
     amountLabel: "Suma ({currency})",
     amountLabelShort: "Suma",
     currencyLabel: "Moneda",
@@ -133,6 +134,15 @@ export const checkoutUiRo: CheckoutUiMessages = {
       body: "Trimite acest link clientului. Va alege cardul sau transferul bancar pe pagina.",
       copyLink: "Copiaza linkul",
       openLink: "Deschide linkul",
+    },
+    send: {
+      title: "Trimite-l clientului",
+      templateLabel: "Sablon de email",
+      templatePlaceholder: "Alege un sablon",
+      action: "Trimite emailul",
+      sent: "Linkul de plata a fost trimis.",
+      noTemplates:
+        "Nu exista sabloane de email publicate. Copiaza linkul de mai sus sau adauga un sablon in Notificari.",
     },
   },
 }

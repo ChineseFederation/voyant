@@ -1,6 +1,16 @@
 import { typeId, typeIdRef } from "@voyant-travel/db/lib/typeid-column"
 import { sql } from "drizzle-orm"
-import { boolean, check, date, index, integer, pgTable, text, timestamp } from "drizzle-orm/pg-core"
+import {
+  boolean,
+  check,
+  date,
+  index,
+  integer,
+  pgTable,
+  text,
+  timestamp,
+  uniqueIndex,
+} from "drizzle-orm/pg-core"
 
 import {
   commissionModelEnum,
@@ -23,6 +33,13 @@ export const bookingPaymentSchedules = pgTable(
     id: typeId("booking_payment_schedules"),
     bookingId: text("booking_id").notNull(),
     bookingItemId: text("booking_item_id"),
+    /**
+     * Set when this obligation was raised by a Booking Amendment rather
+     * than by the original payment plan. Plain id, not an FK — amendments
+     * are owned by `@voyant-travel/bookings`. Unique where present, so
+     * replaying `recordBookingAmendment` cannot bill the customer twice.
+     */
+    amendmentId: text("amendment_id"),
     scheduleType: paymentScheduleTypeEnum("schedule_type").notNull().default("balance"),
     status: paymentScheduleStatusEnum("status").notNull().default("pending"),
     dueDate: date("due_date").notNull(),
@@ -42,6 +59,9 @@ export const bookingPaymentSchedules = pgTable(
       table.createdAt,
     ),
     index("idx_booking_payment_schedules_item").on(table.bookingItemId),
+    uniqueIndex("uq_booking_payment_schedules_amendment")
+      .on(table.amendmentId)
+      .where(sql`${table.amendmentId} IS NOT NULL`),
     index("idx_booking_payment_schedules_status").on(table.status),
     index("idx_booking_payment_schedules_due_date").on(table.dueDate),
   ],

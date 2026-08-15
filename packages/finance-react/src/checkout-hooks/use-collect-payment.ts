@@ -53,6 +53,16 @@ export interface UseCollectPaymentOptions {
 export interface CollectPaymentInput {
   choice: PaymentChoice
   amountCents: number
+  /**
+   * Payment schedule this collection settles.
+   *
+   * Without it checkout picks the *earliest* open schedule on the booking,
+   * which is the wrong one whenever an operator is collecting the delta
+   * from a Booking Amendment while an older instalment is still due: the
+   * payment lands on the instalment and the amendment's obligation stays
+   * open, collectable a second time.
+   */
+  scheduleId?: string | null
 }
 
 /**
@@ -80,8 +90,10 @@ export function useCollectPayment(bookingId: string, options: UseCollectPaymentO
     mutationFn: async ({
       choice,
       amountCents,
+      scheduleId,
     }: CollectPaymentInput): Promise<InitiatedCheckoutCollectionRecord> => {
       const body = mapChoiceToRequest(choice, amountCents, {
+        scheduleId,
         cardProvider,
         payerEmail,
         payerName,
@@ -118,6 +130,7 @@ function mapChoiceToRequest(
   choice: PaymentChoice,
   amountCents: number,
   ctx: {
+    scheduleId?: string | null
     cardProvider?: string
     payerEmail?: string | null
     payerName?: string | null
@@ -143,6 +156,7 @@ function mapChoiceToRequest(
       method: "card",
       stage: "manual",
       amountCents,
+      scheduleId: ctx.scheduleId ?? undefined,
       ensureDefaultPaymentPlan: true,
       paymentSession: {
         provider: ctx.cardProvider,

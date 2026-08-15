@@ -104,6 +104,12 @@ export type CheckoutUiMessages = {
     scheduleFullAmount: string
     /** Localized labels for each `payment_schedule_type` enum value. */
     scheduleTypeLabels: Record<"deposit" | "installment" | "balance" | "hold" | "other", string>
+    /**
+     * Label used instead of `scheduleTypeLabels` when the obligation was
+     * raised by a Booking Amendment — "Change difference" reads better to
+     * an operator than "Other".
+     */
+    scheduleAmendmentLabel: string
     amountLabel: string
     amountLabelShort: string
     currencyLabel: string
@@ -122,6 +128,22 @@ export type CheckoutUiMessages = {
       body: string
       copyLink: string
       openLink: string
+    }
+    send: {
+      /** Heading for the "email this link" block under a ready link. */
+      title: string
+      /** Label for the template picker. */
+      templateLabel: string
+      templatePlaceholder: string
+      /** Primary action. */
+      action: string
+      /** Toast on a successful dispatch. */
+      sent: string
+      /**
+       * Shown instead of the picker when the deployment has published no
+       * email templates — the link is still copyable.
+       */
+      noTemplates: string
     }
   }
 }

@@ -56,6 +56,12 @@ export interface BookingsFinanceRuntime {
       price: BookingAmendmentPrice
       consequences: BookingAmendmentFinancialConsequences
       reason: string
+      /**
+       * Application instant, supplied so finance dates the obligation it
+       * raises from the same clock the amendment was applied on rather
+       * than from its own `new Date()`. Tests inject a fixed value.
+       */
+      now?: Date
     },
   ): Promise<{ adjustmentId: string; status: "recorded" | "replay" }>
 }

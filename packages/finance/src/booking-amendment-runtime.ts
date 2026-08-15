@@ -3,7 +3,8 @@ import { and, eq } from "drizzle-orm"
 
 import type { ResolveBookingTaxSettings } from "./booking-tax.js"
 import { computeBookingItemTaxLine, resolveBookingSellTaxRate } from "./booking-tax.js"
-import { financeAmendmentAdjustments } from "./schema.js"
+import { bookingPaymentSchedules, financeAmendmentAdjustments } from "./schema.js"
+import { toDateString } from "./service-shared.js"
 
 export const BOOKING_AMENDMENT_FINANCE_POLICY_VERSION = "booking-amendment-finance-v1"
 
@@ -110,7 +111,33 @@ export function createBookingAmendmentFinanceRuntime(
         })
         .onConflictDoNothing({ target: financeAmendmentAdjustments.amendmentId })
         .returning({ id: financeAmendmentAdjustments.id })
-      if (created) return { adjustmentId: created.id, status: "recorded" }
+      if (created) {
+        // The adjustment is a ledger fact; on its own nobody can act on
+        // it. Raising the matching obligation is what puts the delta in
+        // front of an operator — `CollectPaymentDialog` offers open
+        // schedules as pre-fills, so the amount to collect stops being
+        // something read off one screen and retyped into another.
+        //
+        // Only on the freshly-created branch: a replay must not bill twice.
+        // The partial unique index on `amendment_id` is the backstop.
+        if (input.price.collectionAmountCents > 0) {
+          const dueDate = toDateString(input.now ?? new Date())
+          await tx.insert(bookingPaymentSchedules).values({
+            bookingId: input.bookingId,
+            amendmentId: input.amendmentId,
+            scheduleType: "other",
+            // The amendment is being applied now, so the money is owed
+            // now — not at some future planned instalment date.
+            status: "due",
+            dueDate,
+            dueTimeZone: "UTC",
+            currency: input.price.currency,
+            amountCents: input.price.collectionAmountCents,
+            notes: input.reason,
+          })
+        }
+        return { adjustmentId: created.id, status: "recorded" }
+      }
 
       const [existing] = await tx
         .select()

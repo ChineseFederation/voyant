@@ -61,6 +61,12 @@ export type BookingRecordItemSummary = z.infer<typeof bookingRecordItemSummarySc
 export const bookingRecordSchema = z.object({
   id: z.string(),
   bookingNumber: z.string(),
+  /**
+   * Optimistic-concurrency token. Amendment previews and applies quote
+   * against it, so a change raced by another operator is refused rather
+   * than silently applied to a booking that has moved on.
+   */
+  revision: z.number().int().positive().optional(),
   status: bookingStatusSchema,
   personId: z.string().nullable(),
   organizationId: z.string().nullable(),
