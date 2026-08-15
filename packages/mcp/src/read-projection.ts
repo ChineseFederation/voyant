@@ -84,12 +84,28 @@ export interface QueryTool {
   resources: QueryResource[]
 }
 
+/** Where a folded read went: the query tool that absorbed it and its `resource`. */
+export interface FoldedRead {
+  queryTool: QueryTool
+  resource: string
+}
+
 export interface ReadProjection {
   /** Query tool name (`<domain>_query`) → its resources. */
   readonly queryTools: ReadonlyMap<string, QueryTool>
   /** Canonical names of the reads folded away (hidden from flat discovery/dispatch). */
   readonly hiddenReadNames: ReadonlySet<string>
   queryToolFor(name: string): QueryTool | undefined
+  /**
+   * Resolve a folded read name to where it is now reachable.
+   *
+   * `hiddenReadNames` answers "is this name still callable" and nothing else,
+   * which is why asking for `get_booking` used to return the same
+   * does-not-exist-or-not-authorized error as a typo. The name exists, the
+   * caller is authorized for it, and it moved — so the error can say so
+   * (voyant#4656).
+   */
+  foldedReadFor(name: string): FoldedRead | undefined
 }
 
 /**
@@ -100,14 +116,19 @@ export interface ReadProjection {
 export function buildReadProjection(surface: AuthorizedSurface): ReadProjection {
   const byDomain = new Map<string, QueryResource[]>()
   const hiddenReadNames = new Set<string>()
+  // Invocation name → the domain + resource it folded into. Aliases resolve to
+  // their canonical read's destination, so a caller that knows only the old
+  // alias still gets told where the read went.
+  const foldedInto = new Map<string, { domain: string; resource: string }>()
   for (const [invocationName, { entry, aliasFor }] of surface) {
-    // Fold aliases into their canonical; only project the canonical read once.
-    if (aliasFor) {
-      if (isReadToolName(entry.name)) hiddenReadNames.add(invocationName)
-      continue
-    }
     if (!isReadToolName(entry.name)) continue
     hiddenReadNames.add(invocationName)
+    foldedInto.set(invocationName, {
+      domain: toolDomain(entry),
+      resource: resourceOf(entry.name),
+    })
+    // Fold aliases into their canonical; only project the canonical read once.
+    if (aliasFor) continue
     const domain = toolDomain(entry)
     const resources = byDomain.get(domain) ?? []
     resources.push({ resource: resourceOf(entry.name), invocationName, entry })
@@ -123,6 +144,12 @@ export function buildReadProjection(surface: AuthorizedSurface): ReadProjection 
     queryTools,
     hiddenReadNames,
     queryToolFor: (name) => queryTools.get(name),
+    foldedReadFor: (name) => {
+      const folded = foldedInto.get(name)
+      if (!folded) return undefined
+      const queryTool = queryTools.get(`${folded.domain}${QUERY_SUFFIX}`)
+      return queryTool ? { queryTool, resource: folded.resource } : undefined
+    },
   }
 }
 

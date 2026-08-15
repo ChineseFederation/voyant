@@ -83,6 +83,11 @@
       "rationale": "Retained because the caller chooses the stable identity of this retryable business command."
     },
     {
+      "id": "@voyant-travel/finance:record_payment:input.idempotencyKey",
+      "ownership": "caller-owned-command-identity",
+      "rationale": "Optional and caller-owned, and deliberately not derived from the command the way an issue is. Two identical payments — same invoice, amount, method and date, no reference — are an ordinary thing for a customer to do, and a content-derived key would replay the second one away. The caller sends a key only when it means 'this is the same payment I already told you about'."
+    },
+    {
       "id": "@voyant-travel/finance:record_refund_settlement:input.idempotencyKey",
       "ownership": "caller-owned-command-identity",
       "rationale": "Retained because the caller chooses the stable identity of this retryable business command."

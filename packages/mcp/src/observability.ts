@@ -45,11 +45,22 @@ import type { ToolContext } from "@voyant-travel/tools"
 export const MCP_TELEMETRY_CONTEXT_KEY = "voyant.mcp" as const
 
 /**
- * The four outcomes of a `tools/call`, kept distinct so `unknown_tool` and
+ * The outcomes of a `tools/call`, kept distinct so `unknown_tool` and
  * `validation_error` — the naming and schema mismatches an agent hits — never
  * blur into a successful call.
+ *
+ * `unreachable` is the one that is a DEFECT rather than a caller mistake: the
+ * tool exists, the caller is authorized for it, and discovery did not surface it
+ * under the name that was called (voyant#4656). Folded into `unknown_tool` it was
+ * indistinguishable from a typo, so the case nobody could act on was also the
+ * case nobody could count.
  */
-export type McpCallOutcome = "ok" | "tool_error" | "unknown_tool" | "validation_error"
+export type McpCallOutcome =
+  | "ok"
+  | "tool_error"
+  | "unknown_tool"
+  | "unreachable"
+  | "validation_error"
 
 /** Caller identity ids and granted scopes — never booking/traveller payloads. */
 export interface McpCaller {

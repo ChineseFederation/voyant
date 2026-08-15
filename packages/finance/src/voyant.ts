@@ -452,6 +452,24 @@ export const financeVoyantModule = defineModule({
       risk: "high",
     },
     {
+      id: "@voyant-travel/finance#tool.record-payment",
+      name: "record_payment",
+      runtime: {
+        entry: "@voyant-travel/finance/tools",
+        export: "recordPaymentTool",
+      },
+      requiredScopes: ["finance:write"],
+      context: ["finance"],
+      // `medium`: the money arrived before the call and this is the record
+      // catching up with it. What changes is what the invoice honestly reports.
+      risk: "medium",
+      // Declared for the same reason the dispute Tool declares its own: the
+      // trailing noun of `/finance/payments/{id}` is `payment` too, and this
+      // Tool records a NEW payment against an invoice. It does not amend or
+      // delete one, so it must not claim coverage of those.
+      adminWrites: ["/v1/admin/finance/invoices/{id}/payments"],
+    },
+    {
       id: "@voyant-travel/finance#tool.record-payment-dispute",
       name: "record_payment_dispute",
       runtime: {
@@ -609,6 +627,31 @@ export const financeVoyantModule = defineModule({
       targetLifecycle: "existing",
       existingTarget: { durability: "handler-command-result-v1" },
       from: { tools: ["@voyant-travel/finance#tool.record-refund-settlement"] },
+    },
+    {
+      id: "@voyant-travel/finance#action.record-payment",
+      capabilityId: "finance:payment-record",
+      version: "v1",
+      kind: "execute",
+      targetType: "invoice",
+      commandTargetField: "invoiceId",
+      resource: "finance",
+      action: "write",
+      requiredScopes: ["finance:write"],
+      risk: "medium",
+      ledger: "required",
+      // `never`, like the dispute record: the payment happened outside this
+      // system and the operator is entering what already occurred. An approval
+      // per payment would stall the back-entry sweep this Tool exists for while
+      // the invoice kept reporting a balance nobody owes. The service still
+      // refuses an overpayment and an invoice that cannot take a payment.
+      approval: "never",
+      reversible: false,
+      allowedActorTypes: ["staff", "system"],
+      availability: { status: "available" },
+      effectBoundary: "local",
+      targetLifecycle: "existing",
+      from: { tools: ["@voyant-travel/finance#tool.record-payment"] },
     },
     {
       id: "@voyant-travel/finance#action.record-payment-dispute",

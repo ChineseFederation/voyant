@@ -45,7 +45,7 @@ import {
   buildUnsyncedProformaApprovalSnapshot,
   issueInvoiceFromBookingCommand,
 } from "./service-issue.js"
-import type { InvoiceNumberAllocationErrorCode } from "./service-shared.js"
+import { type InvoiceNumberAllocationErrorCode, PaymentValidationError } from "./service-shared.js"
 import { toJsonValue } from "./tool-json.js"
 
 export * from "./tools.js"
@@ -122,6 +122,49 @@ export const voyantToolContextContribution = defineToolContextContribution({
               input.idempotencyKey ??
               (await deriveCommandIdempotencyKey("issue-invoice-from-booking", input.command)),
           })
+        },
+        /**
+         * Money received against an invoice (voyant#4656).
+         *
+         * The route already runs this exact command with a ledger context; the
+         * Tool differs only in where the invoice id comes from (the body, not a
+         * path) and in the authorization source it stamps, so a payment an agent
+         * recorded is distinguishable from one an operator typed.
+         *
+         * `PaymentValidationError` — an overpayment, or an invoice that cannot
+         * take another payment — becomes `INVALID_INPUT` carrying the service's
+         * own code and details rather than a 500. Both are terminal for an
+         * identical retry and both are the caller's to fix.
+         */
+        async recordPayment(
+          input: Parameters<typeof financeService.createPayment>[2] & { invoiceId: string },
+        ): Promise<unknown> {
+          const { invoiceId, ...payment } = input
+          try {
+            const row = await financeService.createPayment(
+              db as PostgresJsDatabase,
+              invoiceId,
+              payment,
+              {
+                ...getFinanceRouteRuntime(c),
+                actionLedgerContext: financeToolActionLedgerContext(c),
+                actionLedgerAuthorizationSource: "finance.payment.tool",
+              },
+            )
+            if (!row) {
+              throw new ToolError("Invoice was not found.", "NOT_FOUND", { invoiceId })
+            }
+            return toJsonValue(row)
+          } catch (error) {
+            if (error instanceof PaymentValidationError) {
+              throw new ToolError(error.message, "INVALID_INPUT", {
+                invoiceId,
+                code: error.code,
+                ...(error.details ?? {}),
+              })
+            }
+            throw error
+          }
         },
         async recordPaymentDispute(
           input: Parameters<typeof financeService.paymentDisputes.recordPaymentDispute>[1],

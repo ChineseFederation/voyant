@@ -31,14 +31,17 @@ import {
   invoiceDetailSchema,
   invoiceListItemSchema,
   invoiceSchema,
+  paymentSchema,
 } from "./routes-invoice-schemas.js"
 import { bookingCreateToolSchema } from "./service-booking-create.js"
 import { parseJsonResult } from "./tool-json.js"
 import {
   insertCreditNoteSchema,
+  insertPaymentSchema,
   invoiceFromBookingSchema,
   invoiceListQuerySchema,
   paymentDisputeRecordSchema,
+  paymentStatusSchema,
   recordPaymentDisputeSchema,
   recordRefundSettlementSchema,
   refundSettlementRecordSchema,
@@ -96,6 +99,7 @@ export interface FinanceToolServices {
   issueInvoiceFromBooking(
     input: z.infer<typeof issueInvoiceFromBookingToolInputSchema> & { approvalId?: string },
   ): Promise<unknown>
+  recordPayment(input: z.infer<typeof recordPaymentToolInputSchema>): Promise<unknown>
   recordPaymentDispute(input: z.infer<typeof recordPaymentDisputeToolInputSchema>): Promise<unknown>
   recordRefundSettlement(
     input: z.infer<typeof recordRefundSettlementToolInputSchema>,
@@ -680,6 +684,110 @@ export const issueUnsyncedProformaFromBookingTool = defineTool<
   },
 })
 
+/**
+ * The agent-facing shape of "money arrived against this invoice".
+ *
+ * Derived from `insertPaymentSchema` — the body the admin route takes under
+ * `/invoices/{id}/payments` — so the two cannot drift, then narrowed three ways:
+ *
+ * - `invoiceId` moves INTO the body. A Tool has no path, and the graph action
+ *   resolves its target from a named command field.
+ * - The FX and card-plumbing fields are dropped. `baseCurrency`,
+ *   `baseAmountCents` and `fxRateSetId` are resolved server-side against the
+ *   invoice's currency and rate set, and `paymentInstrumentId` /
+ *   `paymentAuthorizationId` / `paymentCaptureId` belong to a processor session
+ *   that recorded its own payment. An agent that had to fill them in would guess,
+ *   and every one of them also rides the eager `tools/list`.
+ * - `status` defaults to `completed` rather than `pending`. An operator telling
+ *   an agent to record a payment is recording money it already has; the route's
+ *   `pending` default belongs to a checkout session that settles later. Getting
+ *   this backwards leaves the invoice reading unpaid after the agent reports
+ *   success, which is the failure worth defaulting against.
+ */
+export const recordPaymentToolInputSchema = insertPaymentSchema
+  .pick({
+    amountCents: true,
+    currency: true,
+    paymentMethod: true,
+    paymentDate: true,
+    referenceNumber: true,
+    notes: true,
+  })
+  .safeExtend({
+    invoiceId: z.string().min(1).describe("The invoice this payment settles."),
+    status: paymentStatusSchema
+      .default("completed")
+      .describe(
+        "Settlement state. `completed` counts against the invoice balance; `pending` records " +
+          "an expected payment that does not.",
+      ),
+    idempotencyKey: z
+      .string()
+      .max(255)
+      .optional()
+      .describe(
+        "Optional stable key. Repeating a recording with the same key replays the first one " +
+          "instead of taking the money twice.",
+      ),
+  })
+
+/**
+ * Recording a payment an operator already received (voyant#4656).
+ *
+ * The gap this closes was not discovery: there was no Tool at all. An operator
+ * asked the agent for a confirmed, fully-paid booking and was told payment
+ * recording did not exist — correctly, because `/finance/invoices/{id}/payments`
+ * had no agent-facing front. Entering historical bookings and their payments for
+ * a regulatory filing is exactly the work an operator delegates.
+ *
+ * `medium` risk, no approval, for the same reason `record_payment_dispute` needs
+ * none: the money moved before this call, and the record only catches up with
+ * it. Gating a back-entry sweep behind per-payment approval would stall the one
+ * job this exists for, while the invoice kept reporting a balance nobody owes.
+ * The service still refuses to overpay an invoice or to accept a payment against
+ * one that cannot take another, so the destructive cases fail closed on their
+ * own.
+ */
+export const recordPaymentTool = defineTool<
+  z.infer<typeof recordPaymentToolInputSchema>,
+  unknown,
+  FinanceToolContext
+>({
+  owner: "@voyant-travel/finance",
+  capabilityId: "@voyant-travel/finance#tool.record-payment",
+  capabilityVersion: "v1",
+  name: "record_payment",
+  description:
+    "Record a payment received against an invoice — bank transfer, card, cash, cheque, " +
+    "wallet, direct bill, or travel credit. Recomputes the invoice's paid amount, balance, " +
+    "and status, so a payment that covers the total marks the invoice `paid`. Amounts are " +
+    "in MINOR units (`amountCents`) and `paymentDate` is the date the money was received, " +
+    "which is what makes back-entering historical payments work. Rejected when the invoice " +
+    "would be overpaid or is not in a state that accepts payments. Refunds go through " +
+    "`issue_invoice_refund` and `record_refund_settlement`, not a negative payment.",
+  inputSchema: recordPaymentToolInputSchema,
+  outputSchema: paymentSchema,
+  requiredScopes: ["finance:write"],
+  audience: { source: "grant", allowed: ["staff"] },
+  tier: "write",
+  riskPolicy: {
+    destructive: false,
+    // Matches the graph action. Removing a payment is an admin operation with no
+    // agent-facing counterpart, so from here the record does not come back.
+    reversible: false,
+    dryRunSupported: false,
+    confirmationRequired: true,
+    sideEffects: ["data-write"],
+  },
+  // Deliberately NOT `idempotentHint`. This is idempotent only when the caller
+  // sends `idempotencyKey`, which is optional — and it has to stay optional,
+  // because two genuinely identical payments are a thing customers do. Claiming
+  // the hint would tell an agent that repeating the call is free, about money.
+  async handler(input, ctx) {
+    return parseJsonResult(paymentSchema, await finance(ctx).recordPayment(input))
+  },
+})
+
 export const recordPaymentDisputeToolInputSchema = recordPaymentDisputeSchema
 
 /**
@@ -807,6 +915,7 @@ export const financeTools = [
   issueInvoiceFromBookingTool,
   invoiceBookingTool,
   refundCancelledBookingTool,
+  recordPaymentTool,
   recordPaymentDisputeTool,
   recordRefundSettlementTool,
   previewUnsyncedProformaFromBookingTool,

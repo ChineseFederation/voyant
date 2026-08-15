@@ -1,3 +1,4 @@
+export { DEFAULT_EAGER_TOOL_NAMES } from "./meta-tools.js"
 export {
   createMcpRateLimiter,
   DEFAULT_MCP_RATE_LIMIT,

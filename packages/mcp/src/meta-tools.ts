@@ -108,17 +108,40 @@ export function collectAuthorizedTools(
 }
 
 /**
+ * The domain writes a deployment gets resident without configuring anything.
+ *
+ * Progressive disclosure defaulted this to EMPTY, on the reasoning that the long
+ * tail is reachable through the meta-tools. It is — but "reachable" turned out to
+ * depend on a consumer admitting three tools it had no way to classify, and when
+ * one did not, an operator asking for a booking was told the capability did not
+ * exist (voyant#4656). A default that is correct only while every consumer
+ * behaves is not a default.
+ *
+ * So the two writes an operator delegates most are resident, and cost what they
+ * cost: `book_product` is the intent-level booking entry point the guide names
+ * (`create_booking` is the lower-level command it defers to, and is twice the
+ * schema), and `record_payment` is the money leg the same journey ends on.
+ * Everything else stays lazy — this is a floor for the common journey, not a
+ * re-opening of the eager catalog.
+ *
+ * A name here is promoted only if the caller is authorized for it, so a
+ * read-only key still pays nothing, and a deployment without these tools is
+ * unaffected.
+ */
+export const DEFAULT_EAGER_TOOL_NAMES: readonly string[] = ["book_product", "record_payment"]
+
+/**
  * Choose the tier-0 domain tools to register eagerly. The mechanism is
  * deployment-driven: `eagerToolNames` promotes specific tools (canonical names)
- * into the resident surface. It defaults to empty, which — until the guide /
- * workflow / domain-query tiers land — keeps `tools/list` at just the meta-tools.
+ * into the resident surface. Omitting it takes {@link DEFAULT_EAGER_TOOL_NAMES};
+ * passing an explicit `[]` opts out and restores a tools/list of tier-0 alone.
  */
 export function selectEagerToolNames(
   surface: AuthorizedSurface,
   eagerToolNames: readonly string[] | undefined,
 ): Set<string> {
   const eager = new Set<string>()
-  for (const name of eagerToolNames ?? []) {
+  for (const name of eagerToolNames ?? DEFAULT_EAGER_TOOL_NAMES) {
     const binding = surface.get(name)
     // Only promote canonical names; aliases follow their canonical registration.
     if (binding && !binding.aliasFor) eager.add(name)
@@ -519,9 +542,12 @@ function describeTool(
   }
   const resolvedName = resolveInvocationName(surface, name)
   const binding = surface.get(resolvedName)
-  // A flat read name is folded into its query tool and no longer describable.
-  if (!binding || projection.hiddenReadNames.has(resolvedName))
-    return unknownToolResult(name, surface, projection)
+  // A flat read name is folded into its query tool and no longer describable —
+  // but it exists and the caller is authorized for it, so say where it went.
+  if (binding && projection.hiddenReadNames.has(resolvedName)) {
+    return foldedReadResult(name, resolvedName, projection, "describe")
+  }
+  if (!binding) return unknownToolResult(name, surface, projection)
   try {
     const descriptor = advertiseTool(registry, binding.entry, resolvedName, binding.aliasFor)
     return {
@@ -596,8 +622,20 @@ function registerCallTool(input: RegisterMetaToolsInput): void {
       }
       const binding = surface.get(invocationName)
       // A flat read name is folded into its query tool and no longer callable.
-      if (!binding || projection.hiddenReadNames.has(invocationName))
-        return unknownToolResult(args.name, surface, projection)
+      // It is not unknown: it exists, the caller is authorized, and discovery
+      // moved it — which is a different answer and a different recovery.
+      if (binding && projection.hiddenReadNames.has(invocationName)) {
+        const result = foldedReadResult(args.name, invocationName, projection, "call")
+        observer.toolCall({
+          tool: binding.entry.name,
+          outcome: "unreachable",
+          durationMs: 0,
+          write: binding.entry.annotations.readOnlyHint !== true,
+          caller,
+        })
+        return result
+      }
+      if (!binding) return unknownToolResult(args.name, surface, projection)
       const def = registry.get(binding.entry.name)
       if (!def) return unknownToolResult(args.name, surface, projection)
       const output = toMcpOutputContract(def.outputSchema)
@@ -684,6 +722,73 @@ function resolveInvocationName(surface: AuthorizedSurface, name: string): string
   if (surface.has(name) || !name.includes(".")) return name
   const unprefixed = name.split(".").pop() ?? name
   return unprefixed.length > 0 ? unprefixed : name
+}
+
+/**
+ * The answer for a name that EXISTS, is AUTHORIZED, and is not reachable under
+ * that name — today, a flat read the projection folded into a `<domain>_query`
+ * group (voyant#4656).
+ *
+ * It used to share {@link unknownToolResult}, which says "it does not exist or
+ * your grant does not authorize it". Both halves of that are false here, and an
+ * agent that believes either reports a missing capability to the operator rather
+ * than making the one call that works. Since the projection knows exactly which
+ * group absorbed the read and under which `resource`, the recovery is a single
+ * concrete call, not a re-discovery.
+ */
+function foldedReadResult(
+  requestedName: string,
+  resolvedName: string,
+  projection: ReadProjection,
+  intent: "call" | "describe",
+): CallToolResult {
+  const folded = projection.foldedReadFor(resolvedName)
+  if (!folded) return unknownToolResult(requestedName, undefined, projection)
+  const { queryTool, resource } = folded
+  const step =
+    intent === "call"
+      ? `Call ${queryTool.name} with {"resource": "${resource}", …} instead.`
+      : `Describe ${queryTool.name} with {"resource": "${resource}"} to get this read's schema.`
+  return errorResult(
+    new ToolError(
+      `Tool "${requestedName}" exists and you are authorized for it, but it is not ` +
+        `reachable under that name: the ${queryTool.domain} reads are served by ` +
+        `"${queryTool.name}" as resource "${resource}".`,
+      "NOT_FOUND",
+      undefined,
+      undefined,
+      {
+        nextSteps: [step],
+        didYouMean: queryTool.name,
+        candidates: [queryTool.name],
+      },
+    ),
+  )
+}
+
+/**
+ * Register a folded read's OLD flat name for one request, so a flat-name
+ * `tools/call` gets {@link foldedReadResult} instead of the SDK's "tool not
+ * found" — the same answer it gives a typo.
+ *
+ * Registered per request, on a `tools/call` for that exact name, so it never
+ * reaches a `tools/list` and never re-advertises the read the projection folded.
+ */
+export function registerFoldedReadNotice(
+  server: McpServer,
+  projection: ReadProjection,
+  invocationName: string,
+): void {
+  server.registerTool(
+    invocationName,
+    {
+      description: `Moved: ${invocationName} is served by its domain's \`_query\` tool.`,
+      inputSchema: z.looseObject({}),
+      annotations: { readOnlyHint: true, openWorldHint: false },
+      _meta: serverToolMeta("meta"),
+    },
+    () => foldedReadResult(invocationName, invocationName, projection, "call"),
+  )
 }
 
 function unknownToolResult(

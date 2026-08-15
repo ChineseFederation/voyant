@@ -44,6 +44,7 @@ import {
   type AuthorizedSurface,
   collectAuthorizedTools,
   META_TOOL_NAMES,
+  registerFoldedReadNotice,
   registerMetaTools,
   selectEagerToolNames,
 } from "./meta-tools.js"
@@ -227,6 +228,13 @@ export function createMcpApiRoutes(options: McpApiRoutesOptions): OpenAPIHono {
       const queryTool = projection.queryToolFor(requestedName)
       if (queryTool) {
         registerQueryTool(server, registry, queryTool, ctx, requireActionPolicy, budgetBytes)
+      } else if (surface.has(requestedName) && projection.hiddenReadNames.has(requestedName)) {
+        // A folded read called by its old flat name. Without this the SDK answers
+        // "tool not found", which is the same thing it says for a typo — so the
+        // one case that is a discovery defect looked exactly like caller error
+        // (voyant#4656). Registered only for THIS request, so it never appears in
+        // a `tools/list`.
+        registerFoldedReadNotice(server, projection, requestedName)
       } else if (surface.has(requestedName) && !projection.hiddenReadNames.has(requestedName)) {
         registerSurfaceTool(
           server,
@@ -366,7 +374,13 @@ async function instrumentRpc(
       queryTool !== undefined ||
       META_TOOL_NAMES.includes(name) ||
       guideToolNames.has(name)
-    const { outcome, code } = classifyToolCallResult(payload, known)
+    // A folded read called by its flat name is not an unknown tool: it exists,
+    // the caller is authorized, and discovery moved it. Counting it as a miss
+    // buried the one outcome that is a defect rather than caller error.
+    const folded = surface.has(name) && projection.hiddenReadNames.has(name)
+    const { outcome, code } = folded
+      ? { outcome: "unreachable" as const, code: undefined }
+      : classifyToolCallResult(payload, known)
     observer.toolCall({
       tool: name,
       outcome,

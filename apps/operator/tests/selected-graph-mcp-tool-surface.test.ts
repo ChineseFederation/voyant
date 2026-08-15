@@ -55,8 +55,29 @@ import {
  *
  * It landed on main without this adjustment because `operator#test` was a turbo
  * cache hit there and never ran.
+ *
+ * **Raised 5,000 -> 20,000 for voyant#4656**, and this one is a real trade rather
+ * than a measurement artefact, so the numbers are here to be argued with.
+ *
+ * The eager DOMAIN tier is no longer empty: `DEFAULT_EAGER_TOOL_NAMES` makes the
+ * two writes an operator delegates most resident. Measured **18,395 bytes across
+ * 7 entries** — `book_product` 9,700 and `record_payment` 4,538 on top of the
+ * 4,157-byte tier-0 — so ~4,600 tokens per connection against ~1,040 before.
+ *
+ * What was bought: an empty default made every write depend on the consumer
+ * admitting three meta-tools it had no way to classify, and when one did not, an
+ * operator asking for a booking was told the capability did not exist. A write
+ * journey also pays the difference back — the eval measures ~1,200 tokens for a
+ * three-call discovery sequence, and this removes two of them — so the real cost
+ * falls on a read-only session, which pays nothing at all, because a name is
+ * promoted only for a caller authorized for it.
+ *
+ * The tripwire still works, and is what the headroom is sized for: at ~880 bytes
+ * for a median domain tool and ~4,500-9,700 for these two, a THIRD eager write
+ * trips this. That is the regression worth catching — not the two that were
+ * chosen deliberately.
  */
-const PAYLOAD_CEILING_BYTES = 5_000
+const PAYLOAD_CEILING_BYTES = 20_000
 
 /**
  * Ceiling for the AGGREGATE describe schema of the collapsed READ surface — the
@@ -221,17 +242,23 @@ describe("selected-graph MCP tool surface cost", () => {
     expect(totalBytes, diagnose(tools, totalBytes)).toBeLessThanOrEqual(PAYLOAD_CEILING_BYTES)
   })
 
-  it("advertises exactly the tier-0 resident surface eagerly", async () => {
+  it("advertises exactly the tier-0 resident surface plus the default eager writes", async () => {
     const { tools } = await serializeEagerToolSurface()
 
     expect(tools.map(({ name }) => name).sort()).toEqual([
+      // The two core operator writes (voyant#4656). Named here, not counted:
+      // "some domain tools are eager" is what the empty default already claimed
+      // while a booking was unreachable. A fourth appearing silently is the drift
+      // this exists to catch, and so is either of these two disappearing.
+      "book_product",
       "call_tool",
       "describe_tool",
+      "record_payment",
       "search_tools",
-      // The guide layer (voyant#3931) is resident by design: with no eager domain
-      // surface, it is the only thing that tells a connecting agent what this
-      // deployment is for. A guide reachable only by first guessing a search query
-      // would be useless at exactly the moment it is needed.
+      // The guide layer (voyant#3931) is resident by design: it is what tells a
+      // connecting agent what this deployment is for. A guide reachable only by
+      // first guessing a search query would be useless at exactly the moment it
+      // is needed.
       "voyant_glossary",
       "voyant_guide",
     ])

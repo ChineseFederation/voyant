@@ -77,8 +77,10 @@ export function buildServerInstructions(scope: GuideScope): string {
     "HOW TO DISCOVER CAPABILITIES",
     "The surface is discovered on demand: `search_tools` finds a tool by keyword,",
     "`describe_tool` returns its full input schema, and `GET /v1/admin/mcp/manifest` is",
-    "the authorization-filtered capability index; the eager `tools/list` carries only",
-    "these meta-tools and the guide. READS are grouped by product area into one",
+    "the authorization-filtered capability index. The eager `tools/list` carries these",
+    "meta-tools, the guide, and the two core writes (`book_product`, `record_payment`)",
+    "— everything else is found through search, and its ABSENCE from `tools/list` never",
+    "means it does not exist. READS are grouped by product area into one",
     "`<domain>_query` tool (a discriminated union on `resource`): read products with",
     '`inventory_query` (`resource: "products"`/`"product"`), dated departures with',
     '`operations_query` (`resource: "departures"`), and CRM people with',
@@ -223,10 +225,12 @@ function overviewSection(scope: GuideScope): string {
 function discoverySection(): string {
   return (
     "# Discovering capabilities\n\n" +
-    "The surface is discovered on demand. `tools/list` carries only the meta-tools " +
-    "(`search_tools`, `describe_tool`, `call_tool`) and this guide; every domain " +
+    "The surface is discovered on demand. `tools/list` carries the meta-tools " +
+    "(`search_tools`, `describe_tool`, `call_tool`), this guide, and the two writes " +
+    "an operator asks for most (`book_product`, `record_payment`); every OTHER domain " +
     "capability is found through them or the `GET /v1/admin/mcp/manifest` capability " +
-    "index. To find one:\n\n" +
+    "index. A capability missing from `tools/list` is not a capability this deployment " +
+    "lacks — search before you report one as unavailable. To find one:\n\n" +
     "1. `search_tools { query }` returns matching tool names and one-line descriptions; " +
     "`describe_tool { name }` returns a tool's full input schema. The manifest carries " +
     "each capability's `requiredScopes` and risk, so you can see what a key can do " +

@@ -29,9 +29,10 @@ export interface McpApiRoutesOptions {
   requireActionPolicies?: boolean
   /**
    * Canonical names of domain tools to register eagerly in tier 0 alongside the
-   * meta-tools (voyant#3927). Defaults to none: the domain surface is discovered
-   * on demand through `search_tools` / `describe_tool` / `call_tool` until the
-   * guide / workflow / domain-query tiers land and opt specific tools in.
+   * meta-tools (voyant#3927). Omit for `DEFAULT_EAGER_TOOL_NAMES` — the core
+   * operator writes, resident so the common journey never depends on a consumer
+   * admitting the meta-tools (voyant#4656). Pass an explicit `[]` to opt out and
+   * discover everything on demand; the rest of the surface is lazy either way.
    */
   eagerToolNames?: readonly string[]
   /** Observability sink for MCP transport telemetry (RFC #1553). Defaults to no-op. */

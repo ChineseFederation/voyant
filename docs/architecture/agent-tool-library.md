@@ -426,6 +426,43 @@ fingerprints. Approval preflight is server-owned and returns stable
 structured error metadata; an approved retry is admitted only after the action ledger matches the
 recomputed action, target, command, principal, organization, and request id.
 
+### What is resident, and what a deployment can change
+
+`tools/list` carries the tier-0 server-owned entries (the guide Tools and the
+meta-tools) plus a small **default eager set** of registry Tools: the writes an
+operator delegates most, `book_product` and `record_payment`
+(`DEFAULT_EAGER_TOOL_NAMES`, exported from `@voyant-travel/mcp`). A name in that
+set is registered only when the caller is authorized for it, so a read-only key
+still pays nothing for it.
+
+That default is not free — the two schemas roughly triple the eager payload — and
+it exists because the alternative failed in production. With an empty default,
+every write depended on the consumer admitting three meta-tools it could not
+classify; when one did not, an operator asking for a booking was told the
+capability did not exist (voyant#4656). Residency for the common journey is the
+floor that does not depend on consumer behaviour. `eagerToolNames` overrides it:
+an explicit `[]` opts out and restores a tools/list of tier-0 alone, and a list
+of canonical names replaces the default entirely. Everything outside it stays
+lazy.
+
+### Three reasons a name does not resolve, and three answers
+
+A `tools/call` for a name the transport will not dispatch has distinct causes,
+and collapsing them is what turns a discovery defect into "the product cannot do
+this":
+
+| cause | answer |
+| --- | --- |
+| no such tool, or the grant does not authorize it | `NOT_FOUND` with near-matches from the authorized surface |
+| a read the projection folded into `<domain>_query` | `NOT_FOUND` naming the query tool and the `resource` to call it with |
+| an authorized tool that is simply not eager | dispatched — the transport registers it for that request |
+
+The middle row is the one that is OURS rather than the caller's: the tool exists,
+the caller is authorized, and discovery moved it. It answers over every path a
+caller reaches it by — `call_tool`, the flat name, and `describe_tool` — and is
+counted as the distinct telemetry outcome `unreachable`, so the case an agent
+cannot recover from on its own is also the case an operator can see.
+
 ### Classifying a `tools/list` entry
 
 `tools/list` is no longer a wholesale catalog. Progressive disclosure (voyant#3927)
