@@ -67,6 +67,14 @@ export const bookingsUiRoCreateList = {
         requirementsChanged:
           "Datele solicitate de acest produs s-au schimbat. Verifica formularul actualizat si incearca din nou.",
         commitRejected: "Rezervarea nu a putut fi finalizata din selectia curenta.",
+        commitInFlight:
+          "Rezervarea este inca in curs de confirmare. Nu o trimite din nou - reincarca peste un moment pentru a vedea rezultatul.",
+        alreadyCommitted:
+          "Aceasta sesiune a fost deja finalizata printr-o alta incercare. Cauta rezervarea creata in loc sa trimiti din nou.",
+        supplierUnavailable:
+          "Furnizorul nu a putut confirma rezervarea. Alege alta disponibilitate sau trimite cazul spre verificare manuala.",
+        proposalAcceptanceRequired:
+          "Propunerea s-a schimbat de la acceptare. Cere calatorului sa accepte versiunea curenta si incearca din nou.",
         notAuthorized: "Nu ai permisiunea de a finaliza aceasta rezervare.",
         unknown: "Booking Session a respins cererea. Verifica rezervarea si incearca din nou.",
       },

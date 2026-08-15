@@ -25,6 +25,7 @@ import {
 import {
   type BookingSessionJourneyContinuation,
   BookingSessionJourneyError,
+  bookingSessionContinuationIsStale,
   commitBookingSessionJourneyV1,
   createBookingJourneyApi,
   useOfferPreview,
@@ -1853,6 +1854,18 @@ export function ManualBookingCreateForm({
       // The typed outcome carried the list; keep it. Collapsing it back into
       // the sentence above is what made the server's enforcement invisible.
       setUnsatisfied(cause instanceof BookingSessionJourneyError ? (cause.unsatisfied ?? []) : [])
+      if (
+        cause instanceof BookingSessionJourneyError &&
+        bookingSessionContinuationIsStale(cause.outcome)
+      ) {
+        // The server said the Quote, Hold or revision we are holding is dead.
+        // Keeping the attempt would replay the same dead continuation on every
+        // resubmit, which is how one operator hit the same failure three times
+        // in a row (voyant#4662). Dropping it makes the next submit run a fresh
+        // Create → Quote → Hold → Commit under a new idempotency key — safe
+        // precisely because these outcomes mean no booking was created.
+        attemptRef.current = null
+      }
     } finally {
       submissionRef.current = false
       setSubmitting(false)

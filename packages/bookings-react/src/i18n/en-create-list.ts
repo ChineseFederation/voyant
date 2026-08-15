@@ -66,6 +66,14 @@ export const bookingsUiEnCreateList = {
         requirementsChanged:
           "The booking details this product requires changed. Review the refreshed form and try again.",
         commitRejected: "The booking could not be committed from the current selection.",
+        commitInFlight:
+          "This booking is still being confirmed. Do not submit it again — refresh in a moment to see the result.",
+        alreadyCommitted:
+          "This booking session was already completed by another attempt. Find the booking it created instead of submitting again.",
+        supplierUnavailable:
+          "The supplier could not confirm this booking. Choose different inventory or send it for manual review.",
+        proposalAcceptanceRequired:
+          "The proposal changed since it was accepted. Have the traveller accept the current version and try again.",
         notAuthorized: "You do not have permission to commit this booking.",
         unknown: "The Booking Session rejected this request. Review the booking and try again.",
       },

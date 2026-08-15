@@ -60,9 +60,13 @@ export {
 } from "./session-journey.js"
 export {
   BookingSessionJourneyError,
+  type BookingSessionNextActionV1,
   type BookingSessionOutcomeKind,
   type BookingSessionOutcomeOf,
   type BookingSessionRecoveryV1,
+  bookingSessionCommitOutcome,
+  bookingSessionContinuationIsStale,
+  bookingSessionNextActionV1,
   bookingSessionOf,
   bookingSessionOutcomeOf,
   bookingSessionRecoveryV1,

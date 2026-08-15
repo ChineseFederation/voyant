@@ -4,7 +4,11 @@ import {
   type BookingSessionJourneyContinuation,
   commitBookingSessionJourneyV1,
 } from "./session-journey.js"
-import { BookingSessionJourneyError, unsatisfiedBookingRequirements } from "./session-outcomes.js"
+import {
+  BookingSessionJourneyError,
+  bookingSessionContinuationIsStale,
+  unsatisfiedBookingRequirements,
+} from "./session-outcomes.js"
 import { createBookingJourneyApi } from "./use-booking-journey-api.js"
 
 const REQUIREMENTS = {
@@ -299,6 +303,48 @@ describe("Booking Session v1 journey", () => {
       "/v1/admin/catalog/booking-sessions/bses_1/commit",
       expect.objectContaining({ credentials: "include", method: "POST" }),
     )
+  })
+
+  it("classifies a failed Commit by its outcome rather than as unknown", async () => {
+    // The Commit envelope is `commit_result`, not `rejected`, so a mapper that
+    // only reads rejections hands the operator the generic fallback for a
+    // fully-structured failure (voyant#4662).
+    const fetcher = vi.fn(async (url: string) => {
+      if (url.endsWith("/booking-sessions")) {
+        return json({ kind: "session_created", session: session() })
+      }
+      if (url.endsWith("/quote")) return json(quote())
+      if (url.endsWith("/hold")) return json(hold())
+      return json({
+        kind: "commit_result",
+        outcome: {
+          kind: "quote_failure",
+          nextAction: "request_fresh_quote",
+          reason: "superseded",
+        },
+      })
+    })
+
+    const failure = await commitBookingSessionJourneyV1(
+      createBookingJourneyApi({ baseUrl: "", fetcher }),
+      {
+        target: { kind: "product", productId: "prod_1" },
+        selection: {},
+        quantity: 1,
+        idempotencyKey: "manual-booking:commit-quote-failure",
+      },
+    ).catch((error: unknown) => error)
+
+    expect(failure).toBeInstanceOf(BookingSessionJourneyError)
+    const error = failure as BookingSessionJourneyError
+    expect(error.recovery).toBe("quoteChanged")
+    expect(error.message).toBe("booking_session_quoteChanged")
+    // `rejected` is the only envelope carrying a lifecycle error, so this stays
+    // null — the Commit outcome is where the cause lives.
+    expect(error.error).toBeNull()
+    expect(error.commitOutcome).toMatchObject({ kind: "quote_failure", reason: "superseded" })
+    expect(error.nextAction).toBe("request_fresh_quote")
+    expect(bookingSessionContinuationIsStale(error.outcome)).toBe(true)
   })
 
   it("exposes typed recovery without embedding UI copy", async () => {
