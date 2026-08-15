@@ -1,5 +1,11 @@
 # @voyant-travel/plugin-voyant-connect
 
+## 0.31.3
+
+### Patch Changes
+
+- @voyant-travel/storefront@0.258.0
+
 ## 0.31.2
 
 ### Patch Changes
