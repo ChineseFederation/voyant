@@ -6181,8 +6181,8 @@ importers:
   packages/voyant-connect-adapter:
     dependencies:
       '@voyant-travel/connect-adapter':
-        specifier: ^0.5.0
-        version: 0.5.0(@voyant-travel/catalog@packages+catalog)
+        specifier: ^0.6.1
+        version: 0.6.1(@voyant-travel/catalog-contracts@packages+catalog-contracts)
       '@voyant-travel/connect-cruises':
         specifier: ^0.6.2
         version: 0.6.2(@voyant-travel/cruises@packages+cruises)
@@ -9021,10 +9021,10 @@ packages:
     bundledDependencies:
       - '@voyant-travel/sdk-core'
 
-  '@voyant-travel/connect-adapter@0.5.0':
-    resolution: {integrity: sha512-O1vOJeTYPeHmDo0/6CqJ87vKv20Q9lfhiU6E3FKT3FAVVrDx8/Q69qobwSMGy7ig+Ke2Tc82UJcY75yCALDM5A==}
+  '@voyant-travel/connect-adapter@0.6.1':
+    resolution: {integrity: sha512-DMdRcJBVOvaEeXkfKVTTclDSbtS/du0gGwfD5tk0aurL6V64ugYDWDGX09alpL5XK6GmxIYWoOamgI/Y4kIh1Q==}
     peerDependencies:
-      '@voyant-travel/catalog': '>=0.130.0 <1'
+      '@voyant-travel/catalog-contracts': '>=0.112.2 <0.114.0'
 
   '@voyant-travel/connect-cruises@0.6.2':
     resolution: {integrity: sha512-qqaC61HPHaqRJIfStElVcDZoJALtkc+kHHrTANkcKCf6quX9+tkNIA+xxc6stiTraZaTe9GoyWlUNshib572WA==}
@@ -16205,9 +16205,9 @@ snapshots:
     optionalDependencies:
       typesense: 3.0.6(@babel/runtime@7.29.7)
 
-  '@voyant-travel/connect-adapter@0.5.0(@voyant-travel/catalog@packages+catalog)':
+  '@voyant-travel/connect-adapter@0.6.1(@voyant-travel/catalog-contracts@packages+catalog-contracts)':
     dependencies:
-      '@voyant-travel/catalog': link:packages/catalog
+      '@voyant-travel/catalog-contracts': link:packages/catalog-contracts
       '@voyant-travel/connect-sdk': 0.10.0
 
   '@voyant-travel/connect-cruises@0.6.2(@voyant-travel/cruises@packages+cruises)':
