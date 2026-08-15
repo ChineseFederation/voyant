@@ -190,7 +190,7 @@ export const adminAvailabilityMessagesRoPart2 = {
       overview: {
         capacityTitle: "Capacitate",
         authoredPaxLabel: "Pax configurati",
-        effectivePaxLabel: "Pax care pot fi cazati",
+        effectivePaxLabel: "Capacitate efectiva",
         storedRemainingLabel: "Ramasi (stocat)",
         derivedRemainingLabel: "Ramasi (calculat)",
         consumedPaxLabel: "Pax consumati",
@@ -217,19 +217,32 @@ export const adminAvailabilityMessagesRoPart2 = {
       },
       travelers: {
         title: "Lista calatorilor",
+        reservationsLabel: "Rezervari",
         enteredLabel: "Nume introduse",
-        leadLabel: "Calatori principali",
+        leadHint: "Calatori principali: {count}",
         seatedLabel: "Cazati",
         unseatedLabel: "Necazati",
         missingLabel: "Nume lipsa",
         excessLabel: "Nume peste pax vanduti",
-        columnTraveler: "Calator",
-        columnBooking: "Rezervare",
-        columnStatus: "Status",
-        columnSeat: "Loc / camera",
-        seatedBadge: "Cazat",
+        bookedByLabel: "Rezervat de {name}",
+        namesOfPaxLabel: "{entered} / {pax} nume",
+        namesEnteredLabel: "{entered} nume",
+        groupNoNames: "Niciun nume introdus pe aceasta rezervare",
         unseatedBadge: "Necazat",
         leadBadge: "Principal",
+        accessibilityBadge: "Accesibilitate",
+        dietaryBadge: "Regim alimentar",
+        bookingStatusLabels: {
+          confirmed: "Confirmata",
+          in_progress: "In lucru",
+          completed: "Finalizata",
+          cancelled: "Anulata",
+        },
+        paymentStatusLabels: {
+          paid: "Achitat",
+          partial: "Achitat partial",
+          unpaid: "Neachitat",
+        },
         emptyTitle: "Nimeni nu este rezervat pe aceasta plecare",
         emptyDescription:
           "Calatorii apar aici imediat ce o rezervare este alocata acestei plecari.",
@@ -289,6 +302,13 @@ export const adminAvailabilityMessagesRoPart2 = {
         emptyDescription:
           "Modificarile de resurse si alocarile de calatori se inregistreaza aici pe masura ce sunt facute.",
         emptyAction: "Mergi la Alocare",
+      },
+      allocation: {
+        notPlannedTitle: "Aceasta plecare nu aloca camere sau locuri",
+        notPlannedDescription:
+          "Nimic pe acest produs nu declara camere, cabine sau o harta de locuri, deci nu exista o lista de cazare de tinut. Configureaza sabloanele de resurse pe produs daca aceasta plecare ar trebui sa aiba una.",
+        notPlannedProductAction: "Configureaza resursele pe produs",
+        notPlannedAnywayAction: "Pregateste totusi camere sau locuri",
       },
       resources: {
         title: "Resurse",

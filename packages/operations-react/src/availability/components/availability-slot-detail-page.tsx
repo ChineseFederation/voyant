@@ -3,22 +3,30 @@
 import { useQuery } from "@tanstack/react-query"
 import {
   Badge,
+  Button,
   Card,
   CardContent,
   CardHeader,
   CardTitle,
   cn,
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
   Tabs,
   TabsContent,
   TabsList,
   TabsTrigger,
 } from "@voyant-travel/ui/components"
+import { BedDouble } from "lucide-react"
 import { type ReactNode, useState } from "react"
 import { useAvailabilityUiI18nOrDefault } from "../i18n/index.js"
 import {
   type DepartureIssue,
   type DepartureWorkspaceTab,
   defaultDepartureWorkspaceTab,
+  departureAllocatesPositions,
   useAvailabilitySlotMutation,
   useSlotAllocationAuditLog,
   useVoyantAvailabilityContext,
@@ -189,6 +197,14 @@ export function AvailabilitySlotDetailPage({
   const [uncontrolledTab, setUncontrolledTab] = useState<DepartureWorkspaceTab>(
     defaultDepartureWorkspaceTab,
   )
+  /**
+   * Reveals the allocation manager on a departure that allocates nothing. The
+   * manager is never the DEFAULT there — a day excursion presented with an
+   * empty rooming plan reads as a plan someone forgot to fill in — but the
+   * operator can still open it, because "this product has no templates yet" and
+   * "this product will never have rooms" are indistinguishable from here.
+   */
+  const [allocationOverridden, setAllocationOverridden] = useState(false)
   const activeTab = tab ?? uncontrolledTab
   const selectTab = (next: DepartureWorkspaceTab) => {
     setUncontrolledTab(next)
@@ -360,6 +376,10 @@ export function AvailabilitySlotDetailPage({
   const attentionCount =
     (summary?.operations.criticalCount ?? 0) + (summary?.operations.warningCount ?? 0)
   const logisticsCount = pickupRows.length + closeoutRows.length
+  // Whether this departure has a rooming / seating plan at all. Drives every
+  // seat-shaped affordance in the workspace, so an excursion stops being asked
+  // about rooms it will never have.
+  const allocatesPositions = departureAllocatesPositions(summary?.allocation)
 
   return (
     <div className={cn("flex flex-col gap-6", className)}>
@@ -454,6 +474,7 @@ export function AvailabilitySlotDetailPage({
             summary={summary}
             bookings={allocationBookings}
             resourceLabelById={resourceLabelById}
+            allocatesPositions={allocatesPositions}
             messages={messages}
             onCreateBooking={onCreateBooking}
             onOpenBooking={onOpenBooking}
@@ -461,19 +482,45 @@ export function AvailabilitySlotDetailPage({
         </TabsContent>
 
         <TabsContent value="allocation" className="mt-4 flex flex-col gap-8">
-          {renderAllocation ? (
-            renderAllocation({ slotId: id, productId: slot.productId })
+          {allocatesPositions || allocationOverridden ? (
+            <>
+              {renderAllocation ? (
+                renderAllocation({ slotId: id, productId: slot.productId })
+              ) : (
+                <p className="rounded-md border border-dashed p-6 text-sm text-muted-foreground">
+                  {detailMessages.tabs.allocationUnwired}
+                </p>
+              )}
+              <DepartureResourcesSection
+                summary={summary}
+                messages={messages}
+                productId={slot.productId}
+                onOpenLink={openLink}
+              />
+            </>
           ) : (
-            <p className="rounded-md border border-dashed p-6 text-sm text-muted-foreground">
-              {detailMessages.tabs.allocationUnwired}
-            </p>
+            <Empty data-slot="departure-allocation-not-planned" className="border">
+              <EmptyHeader>
+                <EmptyMedia variant="icon">
+                  <BedDouble aria-hidden="true" />
+                </EmptyMedia>
+                <EmptyTitle>{departureMessages.allocation.notPlannedTitle}</EmptyTitle>
+                <EmptyDescription>
+                  {departureMessages.allocation.notPlannedDescription}
+                </EmptyDescription>
+              </EmptyHeader>
+              <div className="flex flex-wrap items-center justify-center gap-2">
+                {onOpenProduct ? (
+                  <Button variant="outline" onClick={() => onOpenProduct(slot.productId)}>
+                    {departureMessages.allocation.notPlannedProductAction}
+                  </Button>
+                ) : null}
+                <Button variant="ghost" onClick={() => setAllocationOverridden(true)}>
+                  {departureMessages.allocation.notPlannedAnywayAction}
+                </Button>
+              </div>
+            </Empty>
           )}
-          <DepartureResourcesSection
-            summary={summary}
-            messages={messages}
-            productId={slot.productId}
-            onOpenLink={openLink}
-          />
         </TabsContent>
 
         <TabsContent value="operations" className="mt-4">

@@ -105,6 +105,19 @@ export interface DepartureResourceCounters {
   /** Every `allocation_resources` row on the slot, parents included. */
   total: number
   /**
+   * `product_option_resource_templates` this departure would materialize from —
+   * the catalog's statement that this product is *supposed* to have rooms or
+   * seats. Resolved like the materializer does: its own option when it has one,
+   * every option of its product when it does not.
+   *
+   * This is what separates "the rooming list has not been laid out yet" from
+   * "this product allocates nothing" (a day excursion). Without it, every
+   * excursion reported its whole roster as unseated and carried a permanent
+   * `allocation_resources_missing` warning for a plan that was never going to
+   * exist (#4033 follow-up).
+   */
+  templated: number
+  /**
    * Resources that actually seat a traveler — a `vehicle` whose
    * `vehicle_seat` children are also rows would otherwise be counted twice.
    */
@@ -117,6 +130,16 @@ export interface DepartureResourceCounters {
   available: number
   /** Seating resources whose assigned count exceeds their capacity. */
   overCapacity: number
+  /**
+   * Whether this departure allocates positions at all: it already has
+   * resources, or its option declares templates to materialize them from.
+   *
+   * Derived here rather than by each reader, so "does this departure have a
+   * rooming/seating plan" has exactly one answer. `false` means every
+   * seat/room counter below is structurally zero and reporting them as a
+   * shortfall would be inventing a requirement nobody declared.
+   */
+  planned: boolean
 }
 
 export interface DepartureCapacityCounters {
@@ -183,18 +206,20 @@ export async function getDepartureCapacityCounters(
 
   if (!slot) return null
 
-  const [allocationRows, bookingRows, travelerRows, holds, resourceBreakdown] = await Promise.all([
-    loadAllocationStatusRows(db, slotId, now),
-    loadBookingStatusRows(db, slotId),
-    loadTravelerCounts(db, slotId),
-    countSlotHolds(db, slotId, now),
-    getSlotResourceAvailability(db, slotId),
-  ])
+  const [allocationRows, bookingRows, travelerRows, holds, resourceBreakdown, templated] =
+    await Promise.all([
+      loadAllocationStatusRows(db, slotId, now),
+      loadBookingStatusRows(db, slotId),
+      loadTravelerCounts(db, slotId),
+      countSlotHolds(db, slotId, now),
+      getSlotResourceAvailability(db, slotId),
+      countResourceTemplates(db, { optionId: slot.optionId, productId: slot.productId }),
+    ])
 
   const allocations = rollUpAllocations(allocationRows)
   const bookings = rollUpBookings(bookingRows)
   const travelers = rollUpTravelers(travelerRows[0], bookings.expectedPax)
-  const resources = rollUpResources(resourceBreakdown)
+  const resources = rollUpResources(resourceBreakdown, templated)
 
   const derivedConsumedPax = bookings.expectedPax + holds.activePax
   const initialPax = slot.initialPax ?? null
@@ -373,8 +398,42 @@ function rollUpTravelers(
   }
 }
 
+/**
+ * How many resource templates this departure would materialize from.
+ *
+ * Resolved exactly the way `materializeSlotResourcesFromTemplateDefaultsLocked`
+ * resolves it, because the two have to agree on what "this departure has a
+ * declared plan" means: an option-scoped slot draws from its own option, and a
+ * **product-level slot** (`option_id IS NULL`) draws from every option of its
+ * product. Counting only the slot's own option reported zero for every
+ * product-level departure and hid a rooming plan that the materializer would
+ * happily have created.
+ */
+async function countResourceTemplates(
+  db: PostgresJsDatabase,
+  slot: { optionId: string | null; productId: string },
+): Promise<number> {
+  const rows = await executeRows<{ template_count: number }>(
+    db,
+    slot.optionId
+      ? sql`
+          SELECT COUNT(*)::int AS template_count
+          FROM product_option_resource_templates
+          WHERE product_option_id = ${slot.optionId}
+        `
+      : sql`
+          SELECT COUNT(*)::int AS template_count
+          FROM product_option_resource_templates t
+          JOIN product_options o ON o.id = t.product_option_id
+          WHERE o.product_id = ${slot.productId}
+        `,
+  )
+  return rows[0]?.template_count ?? 0
+}
+
 function rollUpResources(
   breakdown: readonly SlotResourceAvailability[],
+  templated: number,
 ): DepartureResourceCounters {
   const parentIds = new Set(
     breakdown.flatMap((resource) => (resource.parentId ? [resource.parentId] : [])),
@@ -383,10 +442,12 @@ function rollUpResources(
 
   return {
     total: breakdown.length,
+    templated,
     seating: seating.length,
     capacity: seating.reduce((sum, resource) => sum + resource.capacity, 0),
     assigned: seating.reduce((sum, resource) => sum + resource.assigned, 0),
     available: seating.reduce((sum, resource) => sum + resource.available, 0),
     overCapacity: seating.filter((resource) => resource.assigned > resource.capacity).length,
+    planned: breakdown.length > 0 || templated > 0,
   }
 }

@@ -255,6 +255,50 @@ describe.skipIf(!DB_AVAILABLE)("departure summary (integration)", () => {
     expect(page?.bookings[0]?.id).toBe(whole?.bookings[1]?.id)
   })
 
+  /**
+   * Whether a departure has a rooming plan at all, resolved the same way the
+   * materializer resolves which templates it would create from. The seeded slot
+   * carries no `option_id` — a PRODUCT-LEVEL departure, which
+   * `materializeSlotResourcesFromTemplateDefaultsLocked` serves by drawing from
+   * every option of the product. Counting only the slot's own option answered
+   * zero for all of them and hid a plan the materializer would have created.
+   */
+  it("counts the product's option templates on a product-level departure", async () => {
+    const optionId = newId("product_options")
+    await db.execute(sql`
+      INSERT INTO product_options (id, product_id, name)
+      VALUES (${optionId}, ${productId}, 'Standard')
+    `)
+    await db.execute(sql`
+      INSERT INTO product_option_resource_templates
+        (id, product_option_id, kind, capacity, name_pattern)
+      VALUES (
+        ${newId("product_option_resource_templates")}, ${optionId}, 'room', 2, 'DBL {sequence}'
+      )
+    `)
+    await seedBooking({ pax: 2, travelerCount: 2 })
+
+    const counters = await getDepartureCapacityCounters(db, slotId)
+    expect(counters?.resources.templated).toBe(1)
+    expect(counters?.resources.planned).toBe(true)
+
+    // Declared but never laid out — the one state this warning is for.
+    const issues = await getDepartureIssues(db, slotId, { counters: counters ?? undefined })
+    expect(codesFor(issues ?? [])).toContain("allocation_resources_missing")
+  })
+
+  it("says nothing about rooms on a departure whose catalog declares none", async () => {
+    await seedBooking({ pax: 2, travelerCount: 2 })
+
+    const counters = await getDepartureCapacityCounters(db, slotId)
+    expect(counters?.resources.templated).toBe(0)
+    expect(counters?.resources.planned).toBe(false)
+
+    const issues = await getDepartureIssues(db, slotId, { counters: counters ?? undefined })
+    expect(codesFor(issues ?? [])).not.toContain("allocation_resources_missing")
+    expect(codesFor(issues ?? [])).not.toContain("travelers_unassigned")
+  })
+
   it("reports a resource holding more travelers than it can seat", async () => {
     const resourceId = newId("allocation_resources")
     await db.execute(sql`

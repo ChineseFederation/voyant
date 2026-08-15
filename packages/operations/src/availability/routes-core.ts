@@ -271,11 +271,18 @@ const departureTravelerCountersSchema = z.object({
 
 const departureResourceCountersSchema = z.object({
   total: z.number().int(),
+  /** Resource templates the departure's option declares. */
+  templated: z.number().int(),
   seating: z.number().int(),
   capacity: z.number().int(),
   assigned: z.number().int(),
   available: z.number().int(),
   overCapacity: z.number().int(),
+  /**
+   * Whether this departure allocates rooms or seats at all. False on a day
+   * excursion, where every counter above is structurally zero.
+   */
+  planned: z.boolean(),
 })
 
 const departureResourceRowSchema = z.object({

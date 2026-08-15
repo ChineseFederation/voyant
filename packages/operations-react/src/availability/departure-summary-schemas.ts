@@ -84,13 +84,46 @@ export type DepartureTravelerCounters = z.infer<typeof departureTravelerCounters
 
 export const departureResourceCountersSchema = z.object({
   total: z.number().int(),
+  /**
+   * Resource templates the departure's option declares. Defaulted so a client
+   * one release ahead of its server still parses.
+   */
+  templated: z.number().int().default(0),
   seating: z.number().int(),
   capacity: z.number().int(),
   assigned: z.number().int(),
   available: z.number().int(),
   overCapacity: z.number().int(),
+  /**
+   * Whether this departure allocates rooms or seats at all. Optional rather
+   * than defaulted: absent means "this server does not answer the question",
+   * which `departureAllocatesPositions` resolves differently from a server that
+   * answered `false`.
+   */
+  planned: z.boolean().optional(),
 })
 export type DepartureResourceCounters = z.infer<typeof departureResourceCountersSchema>
+
+/**
+ * Does this departure have a rooming or seating plan?
+ *
+ * The server derives it (`resources.planned`) so there is one authority for the
+ * rule. Against an older server the field is absent and the only fact available
+ * is whether resources exist — which is the same answer for every departure
+ * that has any, and a safe "no seat column" for those that do not.
+ *
+ * Everything seat-shaped in the workspace hangs off this: the Seated / Not
+ * seated counters, the Seat / room column, and the Allocation section's
+ * default. A day excursion allocates nothing, and showing it a rooming list
+ * with its whole roster marked "not seated" is noise the operator cannot act
+ * on.
+ */
+export function departureAllocatesPositions(
+  counters: Pick<DepartureResourceCounters, "total" | "planned"> | null | undefined,
+): boolean {
+  if (!counters) return false
+  return counters.planned ?? counters.total > 0
+}
 
 export const departureResourceRowSchema = z.object({
   id: z.string(),

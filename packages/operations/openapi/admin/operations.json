@@ -4830,6 +4830,9 @@
                                 "total": {
                                   "type": "integer"
                                 },
+                                "templated": {
+                                  "type": "integer"
+                                },
                                 "seating": {
                                   "type": "integer"
                                 },
@@ -4844,15 +4847,20 @@
                                 },
                                 "overCapacity": {
                                   "type": "integer"
+                                },
+                                "planned": {
+                                  "type": "boolean"
                                 }
                               },
                               "required": [
                                 "total",
+                                "templated",
                                 "seating",
                                 "capacity",
                                 "assigned",
                                 "available",
-                                "overCapacity"
+                                "overCapacity",
+                                "planned"
                               ]
                             },
                             "resourceBreakdown": {
@@ -5026,6 +5034,9 @@
                             "total": {
                               "type": "integer"
                             },
+                            "templated": {
+                              "type": "integer"
+                            },
                             "seating": {
                               "type": "integer"
                             },
@@ -5040,15 +5051,20 @@
                             },
                             "overCapacity": {
                               "type": "integer"
+                            },
+                            "planned": {
+                              "type": "boolean"
                             }
                           },
                           "required": [
                             "total",
+                            "templated",
                             "seating",
                             "capacity",
                             "assigned",
                             "available",
-                            "overCapacity"
+                            "overCapacity",
+                            "planned"
                           ]
                         },
                         "operations": {

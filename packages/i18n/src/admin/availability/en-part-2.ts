@@ -193,7 +193,9 @@ export const adminAvailabilityMessagesEnPart2 = {
       overview: {
         capacityTitle: "Capacity",
         authoredPaxLabel: "Authored pax",
-        effectivePaxLabel: "Seatable pax",
+        // Not "seatable": on a departure with no rooms or seats this is simply
+        // the authored capacity, and rooming language there is noise.
+        effectivePaxLabel: "Effective capacity",
         storedRemainingLabel: "Stored remaining",
         derivedRemainingLabel: "Derived remaining",
         consumedPaxLabel: "Consumed pax",
@@ -220,19 +222,32 @@ export const adminAvailabilityMessagesEnPart2 = {
       },
       travelers: {
         title: "Traveler roster",
+        reservationsLabel: "Reservations",
         enteredLabel: "Names entered",
-        leadLabel: "Lead travelers",
+        leadHint: "Lead travelers: {count}",
         seatedLabel: "Seated",
         unseatedLabel: "Not seated",
         missingLabel: "Names still missing",
         excessLabel: "Names beyond sold pax",
-        columnTraveler: "Traveler",
-        columnBooking: "Booking",
-        columnStatus: "Status",
-        columnSeat: "Seat / room",
-        seatedBadge: "Seated",
+        bookedByLabel: "Booked by {name}",
+        namesOfPaxLabel: "{entered} / {pax} names",
+        namesEnteredLabel: "{entered} names",
+        groupNoNames: "No names entered on this reservation yet",
         unseatedBadge: "Not seated",
         leadBadge: "Lead",
+        accessibilityBadge: "Accessibility",
+        dietaryBadge: "Dietary",
+        bookingStatusLabels: {
+          confirmed: "Confirmed",
+          in_progress: "In progress",
+          completed: "Completed",
+          cancelled: "Cancelled",
+        },
+        paymentStatusLabels: {
+          paid: "Paid",
+          partial: "Part paid",
+          unpaid: "Unpaid",
+        },
         emptyTitle: "Nobody is booked on this departure yet",
         emptyDescription:
           "Travelers appear here the moment a booking is allocated to this departure.",
@@ -292,6 +307,13 @@ export const adminAvailabilityMessagesEnPart2 = {
         emptyDescription:
           "Resource changes and traveler assignments are recorded here as they are made.",
         emptyAction: "Go to Allocation",
+      },
+      allocation: {
+        notPlannedTitle: "This departure does not allocate rooms or seats",
+        notPlannedDescription:
+          "Nothing on this product declares rooms, cabins or a seat map, so there is no rooming list to keep. Set up the resource templates on the product if this departure should have one.",
+        notPlannedProductAction: "Configure resources on the product",
+        notPlannedAnywayAction: "Lay out rooms or seats anyway",
       },
       resources: {
         title: "Resources",

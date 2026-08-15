@@ -60,7 +60,11 @@ export type DepartureIssueCode =
   | "resource_over_capacity"
   /** Travelers with no resource assignment on a departure that has resources. */
   | "travelers_unassigned"
-  /** Travelers to seat, but no `allocation_resources` laid out. */
+  /**
+   * Travelers to seat, and a declared rooming/seating plan, but no
+   * `allocation_resources` laid out. Never raised on a departure that
+   * allocates nothing (`resources.planned === false`).
+   */
   | "allocation_resources_missing"
   /** The slot was never bound to an immutable Product Version. */
   | "departure_not_version_bound"
@@ -225,14 +229,21 @@ export function evaluateDepartureIssues(input: DepartureIssueInput): DepartureIs
     })
   }
 
-  if (counters.resources.seating === 0 && counters.travelers.entered > 0) {
+  // Both of these are about a rooming/seating plan, so neither means anything
+  // on a departure that has no plan to fall short of. `planned` is the
+  // catalog's own statement — templates declared, or resources already laid
+  // out. Without the gate every day excursion carried a permanent
+  // `allocation_resources_missing` warning for rooms nobody ever intended to
+  // allocate, which is how operators learn to ignore the attention list.
+  const allocationPlanned = counters.resources.planned
+  if (allocationPlanned && counters.resources.seating === 0 && counters.travelers.entered > 0) {
     departureIssue(
       "allocation_resources_missing",
       "warning",
       counters.travelers.entered,
       "Travelers are booked on this departure but no rooms or seats have been laid out.",
     )
-  } else if (counters.travelers.unassigned > 0) {
+  } else if (allocationPlanned && counters.travelers.unassigned > 0) {
     departureIssue(
       "travelers_unassigned",
       "warning",

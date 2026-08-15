@@ -5,7 +5,12 @@ import { act } from "react"
 import { createRoot, type Root } from "react-dom/client"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
-import type { DepartureIssue, DepartureSummary } from "../index.js"
+import type {
+  AllocationManifestBooking,
+  AllocationManifestTraveler,
+  DepartureIssue,
+  DepartureSummary,
+} from "../index.js"
 import { AvailabilitySlotDetailPage } from "./availability-slot-detail-page.js"
 
 /**
@@ -57,7 +62,19 @@ const EMPTY_SUMMARY: DepartureSummary = {
     },
     bookings: { active: 0, cancelledWithLiveAllocation: 0, expectedPax: 0, byStatus: {} },
     travelers: { entered: 0, lead: 0, assigned: 0, unassigned: 0, missing: 0 },
-    resources: { total: 0, seating: 0, capacity: 0, assigned: 0, available: 0, overCapacity: 0 },
+    resources: {
+      total: 0,
+      // The base fixture is a TOUR: its option declares rooms, none of which have
+      // been laid out on this departure yet. An excursion — a departure that
+      // allocates nothing at all — is its own fixture below.
+      templated: 4,
+      seating: 0,
+      capacity: 0,
+      assigned: 0,
+      available: 0,
+      overCapacity: 0,
+      planned: true,
+    },
     resourceBreakdown: [],
   },
   bookings: {
@@ -70,12 +87,78 @@ const EMPTY_SUMMARY: DepartureSummary = {
     outstandingAmountCents: null,
   },
   travelers: { entered: 0, lead: 0, assigned: 0, unassigned: 0, missing: 0 },
-  allocation: { total: 0, seating: 0, capacity: 0, assigned: 0, available: 0, overCapacity: 0 },
+  allocation: {
+    total: 0,
+    // The base fixture is a TOUR: its option declares rooms, none of which have
+    // been laid out on this departure yet. An excursion — a departure that
+    // allocates nothing at all — is its own fixture below.
+    templated: 4,
+    seating: 0,
+    capacity: 0,
+    assigned: 0,
+    available: 0,
+    overCapacity: 0,
+    planned: true,
+  },
   operations: { issues: [], criticalCount: 0, warningCount: 0, clear: true },
   extras: null,
   // No Finance provider is bound in this deployment — an explicit
   // "unavailable", not a grid of zeros.
   finance: null,
+}
+
+/** A manifest booking with only the fields the roster reads spelled out. */
+function booking(
+  overrides: Partial<AllocationManifestBooking> & Pick<AllocationManifestBooking, "id">,
+): AllocationManifestBooking {
+  return {
+    bookingNumber: "BK-0000-0000",
+    status: "confirmed",
+    bookingSequence: 1,
+    paymentStatus: "unpaid",
+    contactFirstName: null,
+    contactLastName: null,
+    contactEmail: null,
+    contactPhone: null,
+    sellCurrency: "RON",
+    pax: null,
+    sellAmountCents: null,
+    paidAmountCents: null,
+    travelers: [],
+    ...overrides,
+  }
+}
+
+function travelerRow(
+  id: string,
+  fullName: string,
+  overrides: Partial<AllocationManifestTraveler> = {},
+): AllocationManifestTraveler {
+  const [firstName = fullName, ...rest] = fullName.split(" ")
+  return {
+    id,
+    bookingId: "bkg_1",
+    bookingNumber: "BK-0000-0000",
+    bookingStatus: "confirmed",
+    bookingSequence: 1,
+    paymentStatus: "unpaid",
+    firstName,
+    lastName: rest.join(" "),
+    fullName,
+    email: null,
+    phone: null,
+    isLeadTraveler: false,
+    isPrimary: false,
+    sharingGroupId: null,
+    roomTypeId: null,
+    bedPreference: null,
+    allocations: {},
+    travelerCategory: null,
+    participantType: "traveler",
+    hasAccessibilityNeeds: false,
+    hasDietaryRequirements: false,
+    ...overrides,
+  }
 }
 
 const OVERSOLD_ISSUE: DepartureIssue = {
@@ -98,6 +181,8 @@ const UNSEATED_ISSUE: DepartureIssue = {
 
 const testState = vi.hoisted(() => ({
   summary: null as unknown,
+  /** Allocation manifest bookings backing the traveler roster. */
+  bookings: [] as unknown[],
   /** Captured from the mocked `Tabs`, so a trigger click can drive it. */
   onValueChange: undefined as ((value: string) => void) | undefined,
   activeTab: undefined as string | undefined,
@@ -154,7 +239,7 @@ vi.mock("@tanstack/react-query", () => ({
       case "allocation":
         return {
           isPending: false,
-          data: { data: { bookings: [], resources: [], sharingGroupLabels: {} } },
+          data: { data: { bookings: testState.bookings, resources: [], sharingGroupLabels: {} } },
         }
       default:
         return { isPending: false, data: { data: [] } }
@@ -162,7 +247,15 @@ vi.mock("@tanstack/react-query", () => ({
   },
 }))
 
-vi.mock("../index.js", () => ({
+// The barrel is stubbed so the page's query options and hooks can be driven,
+// but `departureAllocatesPositions` is the REAL rule — a reimplementation here
+// would let the page and the rule drift apart while both tests stayed green.
+vi.mock("../index.js", async () => ({
+  departureAllocatesPositions: (
+    await vi.importActual<typeof import("../departure-summary-schemas.js")>(
+      "../departure-summary-schemas.js",
+    )
+  ).departureAllocatesPositions,
   getDepartureSummaryQueryOptions: () => ({ queryKey: ["summary"] }),
   getPickupPointsQueryOptions: () => ({ queryKey: ["pickup-points"] }),
   getProductQueryOptions: () => ({ queryKey: ["product"] }),
@@ -277,6 +370,7 @@ describe("AvailabilitySlotDetailPage — the departure workspace", () => {
     root = null
     container = null
     testState.summary = null
+    testState.bookings = []
     testState.onValueChange = undefined
     testState.activeTab = undefined
   })
@@ -334,6 +428,107 @@ describe("AvailabilitySlotDetailPage — the departure workspace", () => {
     // Activity.
     expect(text).toContain("Nothing has happened on this departure yet")
     expect(text).toContain("Go to Allocation")
+  })
+
+  it("groups the roster by reservation instead of repeating a booking number per row", () => {
+    testState.summary = {
+      ...EMPTY_SUMMARY,
+      travelers: { entered: 3, lead: 1, assigned: 0, unassigned: 3, missing: 0 },
+      bookings: { ...EMPTY_SUMMARY.bookings, count: 2 },
+    } satisfies DepartureSummary
+    testState.bookings = [
+      booking({
+        id: "bkg_2",
+        bookingNumber: "BK-2605-6381",
+        bookingSequence: 2,
+        pax: 1,
+        travelers: [travelerRow("trv_3", "Violeta Luca")],
+      }),
+      booking({
+        id: "bkg_1",
+        bookingNumber: "BK-2605-1014",
+        bookingSequence: 1,
+        paymentStatus: "paid",
+        contactFirstName: "Mariana",
+        contactLastName: "Marin",
+        pax: 3,
+        travelers: [
+          travelerRow("trv_1", "Mariana Marin", { isLeadTraveler: true }),
+          travelerRow("trv_2", "Ileana Plangă"),
+        ],
+      }),
+    ]
+
+    const view = render(<AvailabilitySlotDetailPage id="slot_1" tab="travelers" />)
+
+    const groups = [...view.querySelectorAll("[data-slot='departure-traveler-group']")]
+    // Two reservations, in departure-local sequence — not the manifest's order.
+    expect(groups.map((group) => group.getAttribute("data-booking-id"))).toEqual(["bkg_1", "bkg_2"])
+    // Every traveler sits inside its own reservation, so who came together is
+    // structural rather than a booking number the reader has to match by eye.
+    expect(groups[0]?.querySelectorAll("[data-slot='departure-traveler']")).toHaveLength(2)
+    expect(groups[1]?.querySelectorAll("[data-slot='departure-traveler']")).toHaveLength(1)
+    expect(groups[0]?.textContent).toContain("BK-2605-1014")
+    expect(groups[0]?.textContent).toContain("Mariana Marin")
+    expect(groups[0]?.textContent).toContain("Ileana Plangă")
+    expect(groups[1]?.textContent).toContain("Violeta Luca")
+
+    const text = view.textContent ?? ""
+    // The group carries what belongs to the party: who booked it, whether it is
+    // paid, and which reservation is short of names.
+    expect(text).toContain("Booked by Mariana Marin")
+    expect(text).toContain("Paid")
+    expect(text).toContain("2 / 3 names")
+    expect(text).toContain("1 / 1 names")
+  })
+
+  it("drops every seat-shaped affordance on a departure that allocates nothing", () => {
+    const excursion = {
+      total: 0,
+      templated: 0,
+      seating: 0,
+      capacity: 0,
+      assigned: 0,
+      available: 0,
+      overCapacity: 0,
+      planned: false,
+    }
+    testState.summary = {
+      ...EMPTY_SUMMARY,
+      capacity: { ...EMPTY_SUMMARY.capacity, resources: excursion },
+      allocation: excursion,
+      travelers: { entered: 2, lead: 1, assigned: 0, unassigned: 2, missing: 0 },
+    } satisfies DepartureSummary
+    testState.bookings = [
+      booking({
+        id: "bkg_1",
+        bookingNumber: "BK-2608-907921",
+        bookingSequence: 1,
+        pax: 2,
+        travelers: [travelerRow("trv_1", "Jeni Irimia"), travelerRow("trv_2", "Andrei Irimia")],
+      }),
+    ]
+
+    const view = render(
+      <AvailabilitySlotDetailPage
+        id="slot_1"
+        renderAllocation={() => <p>allocation-manager</p>}
+        onOpenProduct={() => undefined}
+      />,
+    )
+    const text = view.textContent ?? ""
+
+    // No "0 seated / 2 not seated" against a rooming plan that does not exist…
+    expect(text).not.toContain("Seated")
+    expect(text).not.toContain("Not seated")
+    // …and the roster itself is still there.
+    expect(text).toContain("Jeni Irimia")
+    // The Allocation section says so plainly rather than opening an empty
+    // rooming plan, and still leaves a way in.
+    expect(view.querySelector("[data-slot='departure-allocation-not-planned']")).not.toBeNull()
+    expect(text).toContain("This departure does not allocate rooms or seats")
+    expect(text).not.toContain("allocation-manager")
+    expect(text).toContain("Lay out rooms or seats anyway")
   })
 
   it("renders typed issues with their severity and clears them after the repair", () => {
