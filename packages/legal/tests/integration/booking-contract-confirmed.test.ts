@@ -380,4 +380,189 @@ describe.skipIf(!DB_AVAILABLE)("booking-confirmed contract generation", () => {
       await db.select().from(contracts).where(eq(contracts.bookingId, booking!.id)),
     ).toHaveLength(0)
   })
+
+  // voyant#4650: this is the shape of a real Romanian deployment — one market,
+  // one active Romanian customer template, an active series, and 311 bookings
+  // whose `communication_language` is null because no creation path writes it.
+  // Template *selection* already falls back to the deployment's own template;
+  // the applicability re-check then discarded it for not being English, so
+  // contract generation had never once succeeded through the ordinary path.
+  it("generates from the deployment's own template when the booking carries no language", async () => {
+    const [booking] = await db
+      .insert(bookings)
+      .values({
+        bookingNumber: "BK-AUTO-CONTRACT-RO",
+        status: "confirmed",
+        contactFirstName: "Ana",
+        contactLastName: "Pop",
+        contactEmail: "ana@example.test",
+        communicationLanguage: null,
+        contactPreferredLanguage: null,
+        sellCurrency: "RON",
+        sellAmountCents: 500_00,
+        startDate: "2026-09-01",
+        endDate: "2026-09-07",
+        pax: 2,
+      })
+      .returning()
+    await db.insert(bookingItems).values({
+      bookingId: booking!.id,
+      title: "Excursie de toamnă",
+      status: "confirmed",
+      productNameSnapshot: "Excursie de toamnă",
+      quantity: 2,
+      sellCurrency: "RON",
+      totalSellAmountCents: 500_00,
+    })
+    const body = "Contract {{ contract.number }} pentru rezervarea {{ booking.number }}"
+    const [template] = await db
+      .insert(contractTemplates)
+      .values({
+        name: "Contract de comercializare",
+        slug: "contract-comercializare",
+        scope: "customer",
+        language: "ro",
+        body,
+        active: true,
+        isDefault: true,
+      })
+      .returning()
+    const [version] = await db
+      .insert(contractTemplateVersions)
+      .values({ templateId: template!.id, version: 1, body, variableSchema: {} })
+      .returning()
+    await db
+      .update(contractTemplates)
+      .set({ currentVersionId: version!.id })
+      .where(eq(contractTemplates.id, template!.id))
+    await db.insert(contractNumberSeries).values({
+      name: "Contracte clienți",
+      prefix: "CTR",
+      scope: "customer",
+      isDefault: true,
+      active: true,
+      currentSequence: 0,
+      padLength: 5,
+      separator: "-",
+      resetStrategy: "never",
+    })
+
+    const eventBus = createEventBus({ handlerTimeoutMs: false })
+    await createLegalBookingContractConfirmedSubscriber({
+      resolveDb: async () => db,
+      provider: provider(),
+    }).register({ bindings: {}, container: {} as never, eventBus })
+    await eventBus.emit(
+      "booking.confirmed",
+      {
+        bookingId: booking!.id,
+        bookingNumber: booking!.bookingNumber,
+        actorId: null,
+      } satisfies LegalBookingConfirmedPayload,
+      {
+        eventId: `evt_finance_booking_confirmed_${booking!.id}`,
+        category: "domain",
+        source: "service",
+      },
+    )
+
+    const contractRows = await db
+      .select()
+      .from(contracts)
+      .where(eq(contracts.bookingId, booking!.id))
+    expect(contractRows).toHaveLength(1)
+    // The document is labelled with the language it is actually written in —
+    // the template's — never the "en" the booking's absent fields resolve to.
+    expect(contractRows[0]).toMatchObject({
+      templateVersionId: version!.id,
+      language: "ro",
+      contractNumber: "CTR-00001",
+      renderedBody: "Contract CTR-00001 pentru rezervarea BK-AUTO-CONTRACT-RO",
+    })
+    expect(await db.select().from(contractAttachments)).toMatchObject([
+      { contractId: contractRows[0]!.id, kind: "document" },
+    ])
+    const ledgerRows = await db
+      .select()
+      .from(actionLedgerEntries)
+      .where(eq(actionLedgerEntries.targetId, booking!.id))
+    expect(ledgerRows).toMatchObject([{ status: "requested" }])
+  })
+
+  // voyant#4650: `template.applicableCurrentVersion` names a category, not a
+  // comparison. Establishing which comparison failed took a database query
+  // against the deployment; the entry now carries it.
+  it("records what the template selection compared when prerequisites are missing", async () => {
+    const [booking] = await db
+      .insert(bookings)
+      .values({
+        bookingNumber: "BK-AUTO-CONTRACT-DETAIL",
+        status: "confirmed",
+        contactFirstName: "Ana",
+        contactLastName: "Pop",
+        contactEmail: "ana@example.test",
+        sellCurrency: "RON",
+        sellAmountCents: 500_00,
+        startDate: "2026-09-01",
+        endDate: "2026-09-07",
+      })
+      .returning()
+    const body = "Contract {{ contract.number }}"
+    const [template] = await db
+      .insert(contractTemplates)
+      .values({
+        name: "Contract de comercializare",
+        slug: "contract-comercializare-detail",
+        scope: "customer",
+        language: "ro",
+        body,
+        active: true,
+        isDefault: true,
+      })
+      .returning()
+    const [version] = await db
+      .insert(contractTemplateVersions)
+      .values({ templateId: template!.id, version: 1, body, variableSchema: {} })
+      .returning()
+    await db
+      .update(contractTemplates)
+      .set({ currentVersionId: version!.id })
+      .where(eq(contractTemplates.id, template!.id))
+
+    const eventBus = createEventBus({ handlerTimeoutMs: false })
+    await createLegalBookingContractConfirmedSubscriber({
+      resolveDb: async () => db,
+      provider: provider(),
+    }).register({ bindings: {}, container: {} as never, eventBus })
+    await eventBus.emit(
+      "booking.confirmed",
+      {
+        bookingId: booking!.id,
+        bookingNumber: booking!.bookingNumber,
+        actorId: null,
+      } satisfies LegalBookingConfirmedPayload,
+      {
+        eventId: `evt_finance_booking_confirmed_${booking!.id}`,
+        category: "domain",
+        source: "service",
+      },
+    )
+
+    const [ledgerRow] = await db
+      .select()
+      .from(actionLedgerEntries)
+      .where(eq(actionLedgerEntries.targetId, booking!.id))
+    expect(ledgerRow).toMatchObject({
+      status: "failed",
+      idempotencyKey: `booking-confirmed-unfulfilled:${booking!.id}:missing_prerequisites`,
+    })
+    const [detail] = await db
+      .select()
+      .from(actionMutationDetails)
+      .where(eq(actionMutationDetails.actionId, ledgerRow!.id))
+    expect(detail!.summary).toContain("Missing: booking.items")
+    expect(detail!.summary).toContain('preferred language "en"')
+    expect(detail!.summary).toContain('selected template "Contract de comercializare" in "ro"')
+    expect(detail!.summary).toContain("booking channel none")
+  })
 })

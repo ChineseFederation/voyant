@@ -27,7 +27,6 @@ import {
   bookingContractTemplateMatchesChannel,
   getBookingContractReview,
   listApplicableBookingContractTemplates,
-  resolveBookingContractLanguage,
 } from "./booking-contract-review.js"
 import { executeLegalContractDocumentCommand } from "./contract-document-command.js"
 import type { ContractDocumentRoutesOptions } from "./contract-document-routes.js"
@@ -770,14 +769,17 @@ export async function executeLegalContractDraftCreate(
           }
           const items = bookingRows.flatMap(({ item }) => (item ? [item] : []))
           await testHooks?.afterBookingReviewSourceRead?.()
-          language =
-            requestedInput.language ?? previous?.language ?? resolveBookingContractLanguage(booking)
+          // The caller named this template version, so the draft is written in
+          // that template's language. Requiring it to equal the *booking's*
+          // preferred language rejected every deployment whose templates are
+          // not in English, because nothing populates the fields that
+          // preference reads (voyant#4650).
+          language = requestedInput.language ?? previous?.language ?? template.language
           const expectedChannelId = requestedInput.channelId ?? previous?.channelId ?? null
           const templateApplicable =
             template?.active === true &&
             template.scope === "customer" &&
             template.currentVersionId === templateVersion.id &&
-            template.language === language &&
             bookingContractTemplateMatchesChannel(template.channelId, expectedChannelId)
           const missingPrerequisites = bookingContractPrerequisites({
             templateApplicable,
@@ -807,7 +809,6 @@ export async function executeLegalContractDraftCreate(
               template.active === true &&
               template.scope === "customer" &&
               template.currentVersionId === templateVersion.id &&
-              template.language === language &&
               bookingContractTemplateMatchesChannel(template.channelId, expectedChannelId)
             )
           ) {

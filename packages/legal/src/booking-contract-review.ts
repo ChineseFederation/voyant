@@ -86,6 +86,20 @@ export function missingBookingContractRequiredVariables(
   })
 }
 
+/**
+ * The language this booking would *prefer* its contract in.
+ *
+ * It is a preference and nothing more: it orders template selection, where
+ * `contractsService.getDefaultTemplate` tries it first and falls back to the
+ * deployment's own templates. It is never the language a generated contract is
+ * labelled with — that is the language of the template the document was
+ * rendered from, which is the only claim the body can support.
+ *
+ * voyant#4650: no booking creation path writes either field, so this resolves
+ * to `"en"` for essentially every booking. Treating that as a hard match is
+ * what stopped a Romanian deployment with one Romanian template from ever
+ * generating a contract through the ordinary path.
+ */
 export function resolveBookingContractLanguage(booking: {
   communicationLanguage: string | null
   contactPreferredLanguage: string | null
@@ -170,7 +184,13 @@ export async function listApplicableBookingContractTemplates(
     .where(eq(bookingItems.bookingId, booking.id))
   const primaryProduct = bookingProductRows[0]
 
-  const language = input.language ?? resolveBookingContractLanguage(booking)
+  // Only a caller that names a language gets a language-filtered list. Filtering
+  // on the booking's *preferred* language hid every template a single-language
+  // deployment owns, because that preference resolves to "en" on a booking
+  // nothing ever wrote a language to (voyant#4650) — so the operator's own
+  // Romanian template was absent from the list of templates that apply to a
+  // Romanian booking. Each row carries its `language`, so the caller can still
+  // tell them apart.
   const templates = await db
     .select()
     .from(contractTemplates)
@@ -178,7 +198,7 @@ export async function listApplicableBookingContractTemplates(
       and(
         eq(contractTemplates.scope, "customer"),
         eq(contractTemplates.active, true),
-        eq(contractTemplates.language, language),
+        ...(input.language ? [eq(contractTemplates.language, input.language)] : []),
       ),
     )
 

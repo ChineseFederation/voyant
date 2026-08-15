@@ -65,6 +65,13 @@ export type BookingContractConfirmationResult =
         | "contract_not_mutable"
         | "missing_prerequisites"
       missingPrerequisites?: string[]
+      /**
+       * What the selection actually compared, in words. The prerequisite token
+       * is `template.applicableCurrentVersion`, which does not say whether the
+       * template was inactive, superseded, or bound to another channel — that
+       * took a database comparison to establish (voyant#4650).
+       */
+      selectionDetail?: string
     }
 
 interface GenerateBookingContractOnConfirmationInput {
@@ -200,6 +207,7 @@ export async function generateBookingContractOnConfirmation(
         ...(prepared.missingPrerequisites
           ? { missingPrerequisites: prepared.missingPrerequisites }
           : {}),
+        ...(prepared.selectionDetail ? { selectionDetail: prepared.selectionDetail } : {}),
       })
     }
     return prepared
@@ -285,6 +293,7 @@ export async function recordUnfulfilledBookingContract(
     event: LegalBookingConfirmedEvent
     reason: UnfulfilledBookingContractReason
     missingPrerequisites?: readonly string[]
+    selectionDetail?: string
   },
 ): Promise<{ recorded: boolean }> {
   const bookingId = input.event.data.bookingId
@@ -317,6 +326,8 @@ export async function recordUnfulfilledBookingContract(
   const missing = input.missingPrerequisites?.length
     ? ` Missing: ${input.missingPrerequisites.join(", ")}.`
     : ""
+  // The reason and the token both name a category; this names the comparison.
+  const selection = input.selectionDetail ? ` Selection: ${input.selectionDetail}.` : ""
 
   await actionLedgerService.appendEntry(
     db,
@@ -344,7 +355,7 @@ export async function recordUnfulfilledBookingContract(
       idempotencyKey,
       idempotencyFingerprint,
       mutationDetail: {
-        summary: `${UNFULFILLED_BOOKING_CONTRACT_SUMMARIES[input.reason]}${missing}`,
+        summary: `${UNFULFILLED_BOOKING_CONTRACT_SUMMARIES[input.reason]}${missing}${selection}`,
         reversalKind: "none",
       },
     }),
@@ -396,7 +407,8 @@ async function prepareBookingContractTarget(
     bookingsService.listItems(db, bookingId),
     bookingsService.listTravelers(db, bookingId),
   ])
-  const language = resolveBookingContractLanguage(booking)
+  const preferredLanguage = resolveBookingContractLanguage(booking)
+  const channelId = origin?.channelId ?? null
   const reusable = existingContracts.find((contract) => {
     const metadata = record(contract.metadata)
     return (
@@ -409,11 +421,25 @@ async function prepareBookingContractTarget(
 
   const selected = await resolveTemplateSelection(db, {
     reusable,
-    language,
-    channelId: origin?.channelId ?? null,
+    language: preferredLanguage,
+    channelId,
   })
-  if (selected.status !== "selected") return selected
+  if (selected.status !== "selected") {
+    return {
+      ...selected,
+      selectionDetail: `preferred language "${preferredLanguage}", booking channel ${channelId ?? "none"}`,
+    }
+  }
 
+  // A contract is written in the language of the template it is rendered from.
+  // `preferredLanguage` only ordered the selection above, where
+  // `getDefaultTemplate` already applies the deployment's language policy —
+  // prefer the requested language, then English, then whatever active template
+  // the operator marked default. Re-asserting the preference here as an
+  // equality contradicted that policy: it discarded every template the selector
+  // had deliberately fallen back to, which on a single-language deployment is
+  // the only template there is (voyant#4650).
+  const language = selected.template.language
   const variables = bookingContractVariables(booking, items, travelers)
   const missingPrerequisites = bookingContractPrerequisites({
     templateApplicable:
@@ -421,11 +447,7 @@ async function prepareBookingContractTarget(
       (selected.template.active &&
         selected.template.scope === "customer" &&
         selected.template.currentVersionId === selected.version.id &&
-        selected.template.language === language &&
-        bookingContractTemplateMatchesChannel(
-          selected.template.channelId,
-          origin?.channelId ?? null,
-        )),
+        bookingContractTemplateMatchesChannel(selected.template.channelId, channelId)),
     totalAmountCents: booking.sellAmountCents,
     itemCount: items.length,
     missingRequiredVariables: validateTemplateVariables(
@@ -434,7 +456,18 @@ async function prepareBookingContractTarget(
     ),
   })
   if (missingPrerequisites.length > 0) {
-    return { status: "skipped", reason: "missing_prerequisites", missingPrerequisites }
+    return {
+      status: "skipped",
+      reason: "missing_prerequisites",
+      missingPrerequisites,
+      selectionDetail:
+        `preferred language "${preferredLanguage}", ` +
+        `selected template "${selected.template.name}" in "${selected.template.language}" ` +
+        `(active ${selected.template.active}, scope ${selected.template.scope}, ` +
+        `current version ${selected.template.currentVersionId === selected.version.id}, ` +
+        `template channel ${selected.template.channelId ?? "none"}), ` +
+        `booking channel ${channelId ?? "none"}`,
+    }
   }
 
   const reviewSnapshot = bookingContractReviewSnapshot({
@@ -501,7 +534,7 @@ async function prepareBookingContractTarget(
         seriesId,
         personId: reusable.personId ?? booking.personId,
         organizationId: reusable.organizationId ?? booking.organizationId,
-        channelId: reusable.channelId ?? origin?.channelId ?? null,
+        channelId: reusable.channelId ?? channelId,
         language,
         variables,
         renderedBody,
@@ -524,7 +557,7 @@ async function prepareBookingContractTarget(
         bookingId,
         personId: booking.personId,
         organizationId: booking.organizationId,
-        channelId: origin?.channelId ?? null,
+        channelId,
         language,
         variables,
         metadata,

@@ -268,6 +268,79 @@ describe.skipIf(!DB_AVAILABLE)("managed booking contract workflow", () => {
     })
   })
 
+  // voyant#4650: the listing filtered templates on the booking's *preferred*
+  // language, which resolves to "en" on a booking nothing ever wrote a language
+  // to. A single-language deployment's only customer template was therefore
+  // absent from the list of templates that apply to its own bookings.
+  it("lists the deployment's own templates for a booking that carries no language", async () => {
+    const [booking] = await db
+      .insert(bookings)
+      .values({
+        bookingNumber: "BK-NO-LANGUAGE-1",
+        status: "confirmed",
+        contactFirstName: "Ana",
+        contactLastName: "Pop",
+        contactEmail: "ana@example.test",
+        communicationLanguage: null,
+        contactPreferredLanguage: null,
+        sellCurrency: "RON",
+        sellAmountCents: 500_00,
+        startDate: "2026-09-01",
+        endDate: "2026-09-07",
+      })
+      .returning()
+    await db.insert(bookingItems).values({
+      bookingId: booking.id,
+      title: "Excursie de toamnă",
+      status: "confirmed",
+      productNameSnapshot: "Excursie de toamnă",
+      quantity: 2,
+      sellCurrency: "RON",
+      totalSellAmountCents: 500_00,
+    })
+    const [template] = await db
+      .insert(contractTemplates)
+      .values({
+        name: "Contract de comercializare",
+        slug: "contract-comercializare-listing",
+        scope: "customer",
+        language: "ro",
+        body: "Contract pentru {{ customer.name }}",
+        active: true,
+        isDefault: true,
+      })
+      .returning()
+    const [version] = await db
+      .insert(contractTemplateVersions)
+      .values({
+        templateId: template.id,
+        version: 1,
+        body: "Contract pentru {{ customer.name }}",
+        variableSchema: { required: ["customer.name"] },
+      })
+      .returning()
+    await db
+      .update(contractTemplates)
+      .set({ currentVersionId: version.id })
+      .where(eq(contractTemplates.id, template.id))
+
+    const service = createLegalToolServices(db, undefined, {
+      userId: "usr_listing",
+      callerType: "session",
+      actor: "staff",
+    })
+    await expect(
+      service.listApplicableBookingTemplates({ bookingId: booking.id }),
+    ).resolves.toMatchObject({
+      bookingFound: true,
+      data: [{ id: template.id, language: "ro", applicable: true, missingPrerequisites: [] }],
+    })
+    // A caller that names a language still gets exactly that language.
+    await expect(
+      service.listApplicableBookingTemplates({ bookingId: booking.id, language: "en" }),
+    ).resolves.toMatchObject({ bookingFound: true, data: [] })
+  })
+
   it("gates booking draft snapshots with trusted PII context and preserves generic drafts", async () => {
     const { booking, version } = await seedBookingTemplate("BK-DRAFT-PII-GATE")
     let snapshotSourceRead = false
@@ -894,6 +967,7 @@ describe.skipIf(!DB_AVAILABLE)("managed booking contract workflow", () => {
       .insert(bookings)
       .values({
         bookingNumber,
+        status: "confirmed",
         contactFirstName: "Ana",
         contactLastName: "Pop",
         contactEmail: "ana@example.test",
@@ -910,6 +984,7 @@ describe.skipIf(!DB_AVAILABLE)("managed booking contract workflow", () => {
       .values({
         bookingId: booking.id,
         title: "Fallback title",
+        status: "confirmed",
         productNameSnapshot: "Original tour",
         quantity: 2,
         sellCurrency: "EUR",
