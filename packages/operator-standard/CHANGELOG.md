@@ -1,5 +1,12 @@
 # @voyant-travel/operator-standard
 
+## 0.21.46
+
+### Patch Changes
+
+- Updated dependencies [f35c83e]
+  - @voyant-travel/voyant-connect-adapter@0.31.1
+
 ## 0.21.45
 
 ### Patch Changes
