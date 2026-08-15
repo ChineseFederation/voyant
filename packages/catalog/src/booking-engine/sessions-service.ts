@@ -42,6 +42,7 @@ import type {
 import { validateSelectionAgainstRequirements } from "./contracts.js"
 import { InvalidBookingSessionSelectionError } from "./errors.js"
 import { previewOffer } from "./offer-preview.js"
+import { partySizeFromSelection } from "./quote-support.js"
 
 const DEFAULT_SESSION_TTL_MS = 24 * 60 * 60 * 1000
 const DEFAULT_QUOTE_TTL_MS = 10 * 60 * 1000
@@ -1248,7 +1249,10 @@ export function createBookingSessionModule(
           sessionId,
           quoteId: quote.id,
           target: session.target,
-          quantity: input.quantity ?? 1,
+          // A caller that names no quantity is holding for the party the
+          // Session is already for. Defaulting to a literal `1` here made
+          // every multi-traveler checkout unholdable (voyant#4655).
+          quantity: input.quantity ?? partySizeFromSelection(session.statePayload),
           state: "active",
           capacityKey: capacityKeyForTarget(session.target),
           expiresAt: new Date(at.getTime() + holdTtlMs),
@@ -1272,7 +1276,11 @@ export function createBookingSessionModule(
               kind: "hold_quantity_mismatch",
               requestedQuantity: hold.quantity,
               expectedQuantity: held.expectedQuantity,
-              nextAction: "request_new_hold",
+              // Not `request_new_hold`: the quantity is derived, so an
+              // identical retry is rejected identically and the client spins.
+              // `expectedQuantity` is the value to hold instead — or the
+              // caller changes the Session's pax and takes a fresh Quote.
+              nextAction: "request_hold_for_expected_quantity",
             },
           })
         }

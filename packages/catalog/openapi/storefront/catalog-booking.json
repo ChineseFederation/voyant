@@ -11323,7 +11323,7 @@
                       },
                       "nextAction": {
                         "type": "string",
-                        "enum": ["request_new_hold"]
+                        "enum": ["request_hold_for_expected_quantity"]
                       }
                     },
                     "required": ["kind", "requestedQuantity", "expectedQuantity", "nextAction"]
@@ -13553,7 +13553,7 @@
                       },
                       "nextAction": {
                         "type": "string",
-                        "enum": ["request_new_hold"]
+                        "enum": ["request_hold_for_expected_quantity"]
                       }
                     },
                     "required": ["kind", "requestedQuantity", "expectedQuantity", "nextAction"]
@@ -14320,8 +14320,7 @@
                   },
                   "quantity": {
                     "type": "integer",
-                    "exclusiveMinimum": 0,
-                    "default": 1
+                    "exclusiveMinimum": 0
                   },
                   "idempotencyKey": {
                     "type": "string",

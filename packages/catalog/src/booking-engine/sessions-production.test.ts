@@ -1346,10 +1346,62 @@ describe("production Booking Session ports", () => {
         kind: "hold_quantity_mismatch",
         requestedQuantity: 1,
         expectedQuantity: 2,
-        nextAction: "request_new_hold",
+        nextAction: "request_hold_for_expected_quantity",
       },
     })
     expect(placeHoldCalls).toBe(0)
+  })
+
+  it("holds the session's own party size when the caller names no quantity", async () => {
+    // voyant#4655: this is the storefront's request shape. It named no
+    // quantity, the server invented `1`, the capacity port expected the two
+    // travelers the selection states, and the rejection asked for a retry that
+    // could only be rejected the same way — forever.
+    const placeHoldRequests: Array<Record<string, unknown>> = []
+    const { module } = createProductionHarness({
+      entityModule: "products",
+      computeRequirements: HANDLER_REQUIREMENTS_PORT,
+      async computeQuote() {
+        return {
+          available: true,
+          pricing: {
+            base_amount: 10000,
+            taxes: 0,
+            fees: 0,
+            surcharges: 0,
+            currency: "EUR",
+          },
+        }
+      },
+      async placeHold(_ctx, request) {
+        placeHoldRequests.push(request.parameters as Record<string, unknown>)
+        return { status: "held", holdToken: request.draftId ?? "hold", expiresAt: new Date() }
+      },
+    })
+    const { created, access } = await createAnonymousSession(module, {
+      configure: { pax: { adult: 2 }, departureSlotId: "slot_1" },
+    })
+    const quoted = await module.quoteSession(
+      created.session.id,
+      { expectedRevision: created.session.revision, idempotencyKey: "quote_default_quantity" },
+      access,
+    )
+    if (quoted.kind !== "quote_created") throw new Error("quote not created")
+
+    const held = await module.placeHold(
+      created.session.id,
+      {
+        expectedRevision: created.session.revision,
+        quoteId: quoted.quote.id,
+        idempotencyKey: "hold_default_quantity",
+      },
+      access,
+    )
+
+    if (held.kind !== "hold_created") throw new Error(`hold rejected: ${JSON.stringify(held)}`)
+    expect(held.hold.quantity).toBe(2)
+    expect(placeHoldRequests).toHaveLength(1)
+    expect(placeHoldRequests[0]?.paxCount).toBe(2)
   })
 
   it("returns a typed actionable rejection for an incomplete commit", async () => {

@@ -1906,6 +1906,10 @@ const SATISFYING_SELECTION = {
 describe("Booking Session v1 requirements enforcement", () => {
   async function prepare(selection: Record<string, unknown>) {
     const harness = createHarness({}, undefined, undefined, perPersonProductRequirements())
+    // These selections are for two adults, and a Hold now asks for the seats
+    // the party actually needs. The shared default of one seat used to be
+    // enough only because the Hold was quietly for one person (voyant#4655).
+    harness.inventory.setCapacity("product:prod_owned_1", 2)
     const created = await harness.module.createSession(
       {
         idempotencyKey: nextCreateKey("create_requirements"),

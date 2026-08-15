@@ -77,6 +77,46 @@ describe("Booking Session v1 journey", () => {
     expect(calls[2]?.body.quantity).toBe(2)
   })
 
+  it("sends no Hold quantity when the host states none", async () => {
+    // The server derives the party size from the selection it was just sent.
+    // Inventing a `1` here is what made a two-traveler checkout unholdable —
+    // the server rejected its own invented quantity and asked for a retry that
+    // sent the same `1` again (voyant#4655).
+    const calls: Array<{ url: string; body: Record<string, unknown> }> = []
+    const fetcher = vi.fn(async (url: string, init?: RequestInit) => {
+      calls.push({ url, body: JSON.parse(String(init?.body)) as Record<string, unknown> })
+      if (url.endsWith("/booking-sessions")) {
+        return json({ kind: "session_created", session: session() })
+      }
+      if (url.endsWith("/quote")) return json(quote())
+      if (url.endsWith("/hold")) return json(hold())
+      return json({
+        kind: "commit_result",
+        outcome: {
+          kind: "committed",
+          nextAction: "none",
+          booking: { id: "book_1", status: "confirmed" },
+          allocationIds: ["bkac_1"],
+          consumedSessionId: "bses_1",
+          consumedQuoteId: "bsqu_1",
+          convertedHoldId: "bshd_1",
+        },
+      })
+    })
+
+    await expect(
+      commitBookingSessionJourneyV1(createBookingJourneyApi({ baseUrl: "", fetcher }), {
+        target: { kind: "product", productId: "prod_1" },
+        selection: { configure: { pax: { adult: 3 } } },
+        idempotencyKey: "storefront:stable",
+      }),
+    ).resolves.toEqual({ kind: "committed", bookingId: "book_1" })
+
+    const holdBody = calls.find((call) => call.url.endsWith("/hold"))?.body
+    expect(holdBody).toBeDefined()
+    expect("quantity" in (holdBody ?? {})).toBe(false)
+  })
+
   it("returns the same Commit continuation when payment is required", async () => {
     const fetcher = vi.fn(async (url: string) => {
       if (url.endsWith("/booking-sessions")) {

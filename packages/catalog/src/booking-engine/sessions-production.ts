@@ -49,7 +49,7 @@ import {
   type PromotionEvaluator,
   promotionEvaluationInputFor,
 } from "./quote-promotions.js"
-import { engineParametersFromSelection } from "./quote-support.js"
+import { engineParametersFromSelection, partySizeFromSelection } from "./quote-support.js"
 import type { SourceAdapterRegistry } from "./registry.js"
 import type { ProductionBookingSessionPaymentDeps } from "./sessions-payment-production.js"
 import { createProductionBookingSessionPaymentPorts } from "./sessions-payment-production.js"
@@ -290,7 +290,9 @@ function createProductionCompositeLeafRuntime(
         entityModule: handler.entityModule,
         sourceKind: "owned",
       })
-      const expectedQuantity = positiveInteger(parameters.paxCount) ?? 1
+      // The same derivation `placeHold` defaults to, so the two can only
+      // disagree when a caller named a quantity of its own (voyant#4655).
+      const expectedQuantity = partySizeFromSelection(session.statePayload)
       if (expectedQuantity !== quantity) {
         return { status: "quantity_mismatch", expectedQuantity }
       }

@@ -9,6 +9,7 @@ import type {
   CompositeBookingCommitment,
   PricingBreakdownV1,
 } from "@voyant-travel/catalog/booking-engine"
+import { partySizeFromSelection } from "@voyant-travel/catalog/booking-engine"
 import {
   DEFAULT_PAX_BANDS,
   DEFAULT_PAYMENT_INTENTS,
@@ -229,7 +230,7 @@ export function createTripBookingSessionCompositeHandler(
           quote: childQuote(input.quote, pricing),
           holdId: hold.id,
           capacityKey: hold.capacityKey,
-          quantity: componentQuantity(child.statePayload),
+          quantity: partySizeFromSelection(child.statePayload),
           expiresAt: hold.expiresAt,
           access: input.access,
           now: input.now,
@@ -566,7 +567,7 @@ function childHold(
     sessionId: session.id,
     quoteId: "hold" in input ? input.hold.quoteId : input.quote.id,
     target: session.target,
-    quantity: componentQuantity(session.statePayload),
+    quantity: partySizeFromSelection(session.statePayload),
     state: "active",
     capacityKey: componentCapacityKey(session.target, componentId),
     expiresAt: "hold" in input ? input.hold.expiresAt : input.expiresAt,
@@ -776,16 +777,6 @@ async function recordComponentCommit(input: {
 
 function acceptedProposalOrigin(session: BookingSessionInternalRecord) {
   return session.origin?.kind === "accepted_proposal_version" ? session.origin : undefined
-}
-
-function componentQuantity(payload: Record<string, unknown>): number {
-  const configure = record(payload.configure)
-  const pax = record(configure?.pax)
-  const total = Object.values(pax ?? {}).reduce(
-    (sum: number, value) => sum + (typeof value === "number" && value > 0 ? value : 0),
-    0,
-  )
-  return total > 0 ? total : 1
 }
 
 function componentCapacityKey(target: BookingSessionTargetV1, componentId: string) {

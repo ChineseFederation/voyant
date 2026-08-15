@@ -26,6 +26,10 @@ export interface UseBookingHoldOptions extends BookingJourneyApiOptions {
 export interface PlaceBookingHoldInput {
   /** The Quote the Hold is taken against. A Hold without one holds no price. */
   quoteId: string
+  /**
+   * Omit to hold for the party the Session already states. Naming a different
+   * number is rejected — see `hold_quantity_mismatch`.
+   */
   quantity?: number
 }
 
@@ -79,18 +83,21 @@ export function useBookingHold(options: UseBookingHoldOptions): UseBookingHold {
   const place = useCallback(
     (input: PlaceBookingHoldInput) => {
       const current = requireSession()
-      const quantity = input.quantity ?? 1
+      // No local default. Sending an invented `1` is what made a
+      // multi-traveler Hold impossible (voyant#4655); an absent quantity means
+      // "the party this Session is for", which only the server can derive.
+      const quantity = input.quantity
       return run(() =>
         holdBookingSession(api, current.sessionId, {
           expectedRevision: current.revision,
           quoteId: input.quoteId,
-          quantity,
+          ...(quantity === undefined ? {} : { quantity }),
           idempotencyKey: bookingSessionIdempotencyKey(
             idempotencyRoot,
             "hold",
             current.revision,
             input.quoteId,
-            quantity,
+            quantity ?? "session",
           ),
         }),
       )

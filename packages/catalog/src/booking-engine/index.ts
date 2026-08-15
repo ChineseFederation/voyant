@@ -192,7 +192,7 @@ export {
   type PromotionEvaluator,
   promotionEvaluationInputFor,
 } from "./quote-promotions.js"
-export { engineParametersFromSelection } from "./quote-support.js"
+export { engineParametersFromSelection, partySizeFromSelection } from "./quote-support.js"
 export {
   createSourceAdapterRegistry,
   type SourceAdapterRegistry,

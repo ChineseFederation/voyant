@@ -64,6 +64,27 @@ describe("Booking Session v1 contracts", () => {
     ).toBe(true)
   })
 
+  it("leaves an unstated Hold quantity absent for the server to derive", () => {
+    // A `.default(1)` here filled the field in during parsing, so the server's
+    // own fallback to the Session's party size was unreachable and every
+    // multi-traveler Hold was rejected against an invented `1` (voyant#4655).
+    const parsed = placeBookingHoldV1.parse({
+      quoteId: "bsqu_1",
+      expectedRevision: 1,
+      idempotencyKey: "stable_hold_key",
+    })
+    expect(parsed.quantity).toBeUndefined()
+    expect("quantity" in parsed).toBe(false)
+    expect(
+      placeBookingHoldV1.parse({
+        quoteId: "bsqu_1",
+        expectedRevision: 1,
+        quantity: 3,
+        idempotencyKey: "stable_hold_key",
+      }).quantity,
+    ).toBe(3)
+  })
+
   it("does not accept client-authoritative Booking status, source, or price fields on Commit", () => {
     const parsed = commitBookingSessionV1.parse({
       expectedRevision: 1,
@@ -225,7 +246,7 @@ describe("Booking Session v1 contracts", () => {
       kind: "hold_quantity_mismatch",
       requestedQuantity: 1,
       expectedQuantity: 2,
-      nextAction: "request_new_hold",
+      nextAction: "request_hold_for_expected_quantity",
     },
   ])("accepts the actionable $kind lifecycle rejection", (error) => {
     expect(bookingSessionOutcomeV1.safeParse({ kind: "rejected", error }).success).toBe(true)

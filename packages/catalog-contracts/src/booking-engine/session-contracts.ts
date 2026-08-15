@@ -276,7 +276,20 @@ export type BookingQuoteRecordV1 = z.infer<typeof bookingQuoteRecordV1>
 export const placeBookingHoldV1 = z.object({
   expectedRevision: z.number().int().positive(),
   quoteId: z.string().min(1),
-  quantity: z.number().int().positive().default(1),
+  /**
+   * How much capacity to hold. **Omit it** unless the caller is deliberately
+   * holding for a party other than the one the Session states: absent means
+   * the Session's own party size, which is what the capacity port checks
+   * against.
+   *
+   * This carried `.default(1)` until voyant#4655. A default here is not a
+   * default at all — it is a value the server invents and then rejects itself
+   * for, because parsing filled the field in before any code could fall back
+   * to the Session. Every storefront checkout for two or more travelers was
+   * unholdable, and the rejection asked the client to retry, so it retried the
+   * same invented `1` forever.
+   */
+  quantity: z.number().int().positive().optional(),
   idempotencyKey: z.string().min(8).max(128),
 })
 export type PlaceBookingHoldV1 = z.input<typeof placeBookingHoldV1>
@@ -491,10 +504,19 @@ export const bookingSessionLifecycleErrorV1 = z.discriminatedUnion("kind", [
     nextAction: z.literal("request_new_hold"),
   }),
   z.object({
+    /**
+     * The caller named a quantity, and it is not the party this Session is
+     * for. The server derives the expected quantity from the Session's own
+     * selection, so repeating the same request is rejected the same way:
+     * `request_new_hold` here was a livelock, not a recovery (voyant#4655).
+     *
+     * `expectedQuantity` is the value to hold instead. A caller that meant a
+     * different party size changes the Session's pax and re-quotes.
+     */
     kind: z.literal("hold_quantity_mismatch"),
     requestedQuantity: z.number().int().positive(),
     expectedQuantity: z.number().int().positive(),
-    nextAction: z.literal("request_new_hold"),
+    nextAction: z.literal("request_hold_for_expected_quantity"),
   }),
   z.object({
     kind: z.literal("commit_already_consumed"),

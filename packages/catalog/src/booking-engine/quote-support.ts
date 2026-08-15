@@ -61,6 +61,27 @@ export function engineParametersFromSelection(
   return next
 }
 
+/**
+ * How many people this Session is for, read from its canonical selection.
+ *
+ * This is the single derivation of party size in the Session lifecycle.
+ * `engineParametersFromSelection` publishes it to adapters as `paxCount`, the
+ * capacity port checks a requested Hold quantity against it, and `placeHold`
+ * holds this much when the caller names no quantity of its own.
+ *
+ * Deriving it in only one of those places is what made a checkout for more
+ * than one traveler impossible: the Hold defaulted to a literal `1` while the
+ * port expected the real party size, every Hold was rejected, and the
+ * rejection told the client to retry — identically, forever (voyant#4655).
+ *
+ * A selection that names no pax is one person.
+ */
+export function partySizeFromSelection(selectionPayload: unknown): number {
+  const configure = asRecord(asRecord(selectionPayload)?.configure)
+  const total = sumPax(configure?.pax)
+  return total > 0 ? total : 1
+}
+
 function applyConnectStayParameters(
   parameters: Record<string, unknown>,
   selection: Record<string, unknown> | undefined,

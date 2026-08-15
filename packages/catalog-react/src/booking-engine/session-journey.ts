@@ -47,7 +47,13 @@ export interface BookingSessionJourneyInput {
   target: CreateBookingSessionTargetV1
   selection?: Record<string, unknown>
   scope?: BookingSessionScopeV1
-  quantity: number
+  /**
+   * How much capacity to hold. Omit it and the server holds for the party the
+   * `selection` already states — the only number that can be right, and the
+   * one the capacity port checks against (voyant#4655). Pass one only when the
+   * host genuinely knows better than the selection it just sent.
+   */
+  quantity?: number
   /**
    * Stable root for every key this journey derives. Must be the same string
    * across retries of the same user action — that is what makes the sequence
@@ -107,7 +113,7 @@ export async function commitBookingSessionJourneyV1(
     await holdBookingSession(api, session.id, {
       expectedRevision: session.revision,
       quoteId: quoted.quote.id,
-      quantity: input.quantity,
+      ...(input.quantity === undefined ? {} : { quantity: input.quantity }),
       idempotencyKey: bookingSessionIdempotencyKey(input.idempotencyKey, "hold"),
     }),
     "hold_created",
