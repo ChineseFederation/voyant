@@ -317,17 +317,38 @@ export type BookingsUiSectionsMessages = {
   }
   bookingDocumentDialog: {
     title: string
-    documentTypeLabels: Record<"visa" | "insurance" | "health" | "passport_copy" | "other", string>
+    documentTypeLabels: Record<
+      | "visa"
+      | "insurance"
+      | "health"
+      | "passport_copy"
+      | "contract"
+      | "invoice"
+      | "proforma"
+      | "credit_note"
+      | "other",
+      string
+    >
+    /** Shown when the selected kind records paperwork issued outside Voyant. */
+    issuedNotice: string
     fields: {
       type: string
       traveler: string
       file: string
+      issuedBy: string
+      issuedSeries: string
+      issuedNumber: string
+      issuedAt: string
       expiresAt: string
       notes: string
     }
     placeholders: {
       travelerUnassigned: string
       helperText: string
+      issuedBy: string
+      issuedSeries: string
+      issuedNumber: string
+      issuedAt: string
       expiresAt: string
       notes: string
     }
@@ -335,6 +356,8 @@ export type BookingsUiSectionsMessages = {
       fileRequired: string
       fileNameRequired: string
       fileUrlInvalid: string
+      issuedNumberRequired: string
+      issuedAtRequired: string
     }
     actions: {
       addDocument: string

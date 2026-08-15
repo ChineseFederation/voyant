@@ -8,6 +8,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  Input,
   Label,
   Select,
   SelectContent,
@@ -24,28 +25,68 @@ import { useForm } from "react-hook-form"
 import { z } from "zod/v4"
 import { useBookingsUiMessagesOrDefault } from "../i18n/provider.js"
 import { useBookingTravelerDocumentMutation, useTravelers } from "../index.js"
+import { issuedBookingDocumentTypes } from "../schemas.js"
 
 import { FileDropzone } from "./file-dropzone.js"
 
-const documentTypes = ["visa", "insurance", "health", "passport_copy", "other"] as const
+const documentTypes = [
+  "visa",
+  "insurance",
+  "health",
+  "passport_copy",
+  "contract",
+  "invoice",
+  "proforma",
+  "credit_note",
+  "other",
+] as const
+
+const issuedTypes = new Set<string>(issuedBookingDocumentTypes)
 
 const UNASSIGNED = "__unassigned__"
 
 function createDocumentFormSchema(messages: ReturnType<typeof useBookingsUiMessagesOrDefault>) {
-  return z.object({
-    type: z.enum(documentTypes).default("other"),
-    fileName: z
-      .string()
-      .min(1, messages.bookingDocumentDialog.validation.fileNameRequired)
-      .max(500),
-    fileUrl: z
-      .string()
-      .min(1, messages.bookingDocumentDialog.validation.fileRequired)
-      .url(messages.bookingDocumentDialog.validation.fileUrlInvalid),
-    travelerId: z.string().optional().nullable(),
-    expiresAt: z.string().optional().nullable(),
-    notes: z.string().optional().nullable(),
-  })
+  return (
+    z
+      .object({
+        type: z.enum(documentTypes).default("other"),
+        fileName: z
+          .string()
+          .min(1, messages.bookingDocumentDialog.validation.fileNameRequired)
+          .max(500),
+        fileUrl: z
+          .string()
+          .min(1, messages.bookingDocumentDialog.validation.fileRequired)
+          .url(messages.bookingDocumentDialog.validation.fileUrlInvalid),
+        travelerId: z.string().optional().nullable(),
+        issuedBy: z.string().optional().nullable(),
+        issuedSeries: z.string().optional().nullable(),
+        issuedNumber: z.string().optional().nullable(),
+        issuedAt: z.string().optional().nullable(),
+        expiresAt: z.string().optional().nullable(),
+        notes: z.string().optional().nullable(),
+      })
+      // A document issued elsewhere is only auditable if it says which document
+      // it is, so the server requires the issuer's number and date. Ask for them
+      // here rather than letting the request come back rejected.
+      .superRefine((value, ctx) => {
+        if (!issuedTypes.has(value.type)) return
+        if (!value.issuedNumber?.trim()) {
+          ctx.addIssue({
+            code: "custom",
+            path: ["issuedNumber"],
+            message: messages.bookingDocumentDialog.validation.issuedNumberRequired,
+          })
+        }
+        if (!value.issuedAt?.trim()) {
+          ctx.addIssue({
+            code: "custom",
+            path: ["issuedAt"],
+            message: messages.bookingDocumentDialog.validation.issuedAtRequired,
+          })
+        }
+      })
+  )
 }
 
 type DocumentFormValues = z.input<ReturnType<typeof createDocumentFormSchema>>
@@ -98,6 +139,10 @@ export function BookingDocumentDialog({
       fileName: "",
       fileUrl: "",
       travelerId: UNASSIGNED,
+      issuedBy: "",
+      issuedSeries: "",
+      issuedNumber: "",
+      issuedAt: "",
       expiresAt: "",
       notes: "",
     },
@@ -115,6 +160,10 @@ export function BookingDocumentDialog({
       fileName: values.fileName,
       fileUrl: values.fileUrl,
       travelerId: values.travelerId && values.travelerId !== UNASSIGNED ? values.travelerId : null,
+      issuedBy: values.issuedBy?.trim() || null,
+      issuedSeries: values.issuedSeries?.trim() || null,
+      issuedNumber: values.issuedNumber?.trim() || null,
+      issuedAt: values.issuedAt || null,
       expiresAt: values.expiresAt || null,
       notes: values.notes || null,
     })
@@ -123,6 +172,8 @@ export function BookingDocumentDialog({
     onSuccess?.()
   }
   const uploadedFileUrl = form.watch("fileUrl")
+  const selectedType = form.watch("type")
+  const recordsIssuedDocument = issuedTypes.has(selectedType ?? "other")
   const canSubmit = Boolean(uploadedFileUrl) && !create.isPending
 
   return (
@@ -201,6 +252,63 @@ export function BookingDocumentDialog({
                 <p className="text-xs text-destructive">{form.formState.errors.fileUrl.message}</p>
               )}
             </div>
+
+            {recordsIssuedDocument ? (
+              <div className="flex flex-col gap-4 rounded-md border border-dashed p-3">
+                <p className="text-muted-foreground text-xs">
+                  {messages.bookingDocumentDialog.issuedNotice}
+                </p>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div className="flex flex-col gap-2">
+                    <Label>{messages.bookingDocumentDialog.fields.issuedSeries}</Label>
+                    <Input
+                      {...form.register("issuedSeries")}
+                      placeholder={messages.bookingDocumentDialog.placeholders.issuedSeries}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <Label>{messages.bookingDocumentDialog.fields.issuedNumber}</Label>
+                    <Input
+                      {...form.register("issuedNumber")}
+                      placeholder={messages.bookingDocumentDialog.placeholders.issuedNumber}
+                    />
+                    {form.formState.errors.issuedNumber && (
+                      <p className="text-xs text-destructive">
+                        {form.formState.errors.issuedNumber.message}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div className="flex flex-col gap-2">
+                    <Label>{messages.bookingDocumentDialog.fields.issuedAt}</Label>
+                    <DatePicker
+                      value={form.watch("issuedAt") || null}
+                      onChange={(next) =>
+                        form.setValue("issuedAt", next ?? "", {
+                          shouldValidate: true,
+                          shouldDirty: true,
+                        })
+                      }
+                      placeholder={messages.bookingDocumentDialog.placeholders.issuedAt}
+                      className="w-full"
+                    />
+                    {form.formState.errors.issuedAt && (
+                      <p className="text-xs text-destructive">
+                        {form.formState.errors.issuedAt.message}
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <Label>{messages.bookingDocumentDialog.fields.issuedBy}</Label>
+                    <Input
+                      {...form.register("issuedBy")}
+                      placeholder={messages.bookingDocumentDialog.placeholders.issuedBy}
+                    />
+                  </div>
+                </div>
+              </div>
+            ) : null}
 
             <div className="flex flex-col gap-2">
               <Label>{messages.bookingDocumentDialog.fields.expiresAt}</Label>

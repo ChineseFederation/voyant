@@ -255,6 +255,27 @@ const document: BookingDocument = {
   type: "visa",
   fileName: "visa.pdf",
   fileUrl: "https://example.com/visa.pdf",
+  issuedBy: null,
+  issuedSeries: null,
+  issuedNumber: null,
+  issuedAt: null,
+  expiresAt: null,
+  notes: null,
+  createdAt,
+}
+
+/** A document issued outside Voyant and recorded against the booking. */
+const recordedInvoice: BookingDocument = {
+  id: "bdo_2",
+  bookingId: "bkg_1",
+  travelerId: null,
+  type: "invoice",
+  fileName: "VYT-1042.pdf",
+  fileUrl: "https://example.com/VYT-1042.pdf",
+  issuedBy: "Contabilitate SRL",
+  issuedSeries: "VYT",
+  issuedNumber: "1042",
+  issuedAt: new Date("2026-03-04T00:00:00.000Z"),
   expiresAt: null,
   notes: null,
   createdAt,
@@ -336,6 +357,16 @@ describe("bookings core admin contract", () => {
     const parsed = bookingDocumentSchema.parse(toWire(document))
     expect(parsed.type).toBe("visa")
     expect(parsed.expiresAt).toBeNull()
+    expect(parsed.issuedNumber).toBeNull()
+  })
+
+  it("document row schema carries the identity of an externally issued document", () => {
+    const parsed = bookingDocumentSchema.parse(toWire(recordedInvoice))
+    expect(parsed.type).toBe("invoice")
+    expect(parsed.issuedBy).toBe("Contabilitate SRL")
+    expect(parsed.issuedSeries).toBe("VYT")
+    expect(parsed.issuedNumber).toBe("1042")
+    expect(parsed.issuedAt).toBe("2026-03-04T00:00:00.000Z")
   })
 
   it("detail schema hydrates the bookings-owned child collections (items/travelers/documents)", () => {

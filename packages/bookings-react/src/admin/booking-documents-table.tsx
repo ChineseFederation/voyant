@@ -49,6 +49,10 @@ type TravelerDocPayload = {
   fileName: string
   fileUrl: string
   travelerId: string | null
+  issuedBy: string | null
+  issuedSeries: string | null
+  issuedNumber: string | null
+  issuedAt: string | null
   expiresAt: string | null
   notes: string | null
   createdAt: string
@@ -304,17 +308,25 @@ function ContractDocumentCell({ contract }: { contract: LegalContractRecord }) {
 }
 
 function TravelerDocumentCell({ doc }: { doc: TravelerDocPayload }) {
+  // A document issued outside Voyant is identified by the number its issuer
+  // printed on it, so show that next to the file rather than only the filename.
+  const issuedIdentity = [doc.issuedSeries, doc.issuedNumber].filter(Boolean).join(" ")
   return (
-    <a
-      href={doc.fileUrl}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="inline-flex items-center gap-1.5 text-primary hover:underline"
-    >
-      <FileText className="h-3.5 w-3.5 shrink-0 opacity-60" />
-      <span className="truncate">{doc.fileName}</span>
-      <ArrowUpRight className="h-3 w-3" />
-    </a>
+    <div className="flex flex-col">
+      <a
+        href={doc.fileUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-flex items-center gap-1.5 text-primary hover:underline"
+      >
+        <FileText className="h-3.5 w-3.5 shrink-0 opacity-60" />
+        <span className="truncate">{doc.fileName}</span>
+        <ArrowUpRight className="h-3 w-3" />
+      </a>
+      {issuedIdentity ? (
+        <span className="text-muted-foreground text-xs">{issuedIdentity}</span>
+      ) : null}
+    </div>
   )
 }
 

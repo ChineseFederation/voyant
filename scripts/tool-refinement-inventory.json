@@ -18,6 +18,11 @@
       "note": "Documented. The Booking Item id field description states that one or more distinct ids are required and duplicate ids are rejected."
     },
     {
+      "id": "@voyant-travel/bookings:record_booking_document:<root>",
+      "documented": true,
+      "note": "Documented. The `type` field description names the kinds that must carry issuedNumber and issuedAt, both of those field descriptions repeat that they are required for those kinds, and the Tool description states it again."
+    },
+    {
       "id": "@voyant-travel/commerce:create_promotion:<root>",
       "documented": false,
       "note": "Not stated. The discount-type/amount pairing rule (percent vs fixed amount, and the currency it needs) is enforced only by the refinement."

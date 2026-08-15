@@ -558,6 +558,25 @@ export const bookingsVoyantModule = defineModule({
       risk: "critical",
     },
     {
+      id: "@voyant-travel/bookings#tool.list-booking-documents",
+      name: "list_booking_documents",
+      runtime: { entry: "@voyant-travel/bookings/tools", export: "listBookingDocumentsTool" },
+      requiredScopes: ["bookings:read", "bookings-pii:read"],
+      context: ["bookingDocuments"],
+      // The collection holds traveller identity documents, so it is a
+      // sensitive read rather than a plain one.
+      risk: "high",
+    },
+    {
+      id: "@voyant-travel/bookings#tool.record-booking-document",
+      name: "record_booking_document",
+      runtime: { entry: "@voyant-travel/bookings/tools", export: "recordBookingDocumentTool" },
+      requiredScopes: ["bookings:write"],
+      context: ["bookingDocuments"],
+      risk: "medium",
+      adminWrites: ["/v1/admin/bookings/{id}/documents"],
+    },
+    {
       id: "@voyant-travel/bookings#tool.preview-traveler-correction-amendment",
       name: "preview_traveler_correction_amendment",
       runtime: {

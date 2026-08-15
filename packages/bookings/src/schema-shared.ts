@@ -39,11 +39,30 @@ export const bookingActivityTypeEnum = pgEnum("booking_activity_type", [
   "system_action",
 ])
 
+/**
+ * What a Booking Document is a copy of. Traveller paperwork (`visa`,
+ * `insurance`, `health`, `passport_copy`) was the original set; `contract`,
+ * `invoice`, `proforma`, and `credit_note` record commercial paperwork that was
+ * ISSUED ELSEWHERE — by the operator's accounting system, a predecessor
+ * platform, or on paper (voyant#4657). Those four words are the ones the
+ * customer portal's unified document view already uses, so a recorded document
+ * reaches the customer under the same name as a Voyant-issued one.
+ *
+ * A row of one of those four kinds is a record, never an issuance: it
+ * allocates nothing from `invoice_number_series` or a legal contract series,
+ * renders nothing from a template, and creates neither an `invoices` nor a
+ * `contracts` row. The document's own identity travels with it in the
+ * `issued_*` columns on `booking_documents`.
+ */
 export const bookingDocumentTypeEnum = pgEnum("booking_document_type", [
   "visa",
   "insurance",
   "health",
   "passport_copy",
+  "contract",
+  "invoice",
+  "proforma",
+  "credit_note",
   "other",
 ])
 

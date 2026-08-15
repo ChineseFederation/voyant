@@ -1,5 +1,15 @@
 import { typeId, typeIdRef } from "@voyant-travel/db/lib/typeid-column"
-import { index, integer, jsonb, pgTable, text, timestamp } from "drizzle-orm/pg-core"
+import { sql } from "drizzle-orm"
+import {
+  check,
+  index,
+  integer,
+  jsonb,
+  pgTable,
+  text,
+  timestamp,
+  uniqueIndex,
+} from "drizzle-orm/pg-core"
 
 import { bookings, bookingTravelers } from "./schema-core.js"
 import {
@@ -78,6 +88,17 @@ export const bookingNotes = pgTable(
   ],
 )
 
+/**
+ * Documents held against a Booking. Every row is a RECORD of a document that
+ * exists somewhere else — an uploaded passport scan, or a contract or invoice
+ * issued by an external system. Platform-issued paperwork is not stored here:
+ * a generated booking contract lives in legal's contract attachments and a
+ * Voyant-issued invoice lives in finance's renditions.
+ *
+ * The `issued*` columns carry the external document's OWN identity, so the
+ * booking is auditable against the paperwork the customer actually holds
+ * without Voyant claiming to have issued it (voyant#4657).
+ */
 export const bookingDocuments = pgTable(
   "booking_documents",
   {
@@ -91,6 +112,14 @@ export const bookingDocuments = pgTable(
     type: bookingDocumentTypeEnum("type").notNull(),
     fileName: text("file_name").notNull(),
     fileUrl: text("file_url").notNull(),
+    /** Who issued the document — an accounting system, agency, or authority. */
+    issuedBy: text("issued_by"),
+    /** The issuer's own series, when the document carries one. */
+    issuedSeries: text("issued_series"),
+    /** The issuer's own number. Never allocated by Voyant. */
+    issuedNumber: text("issued_number"),
+    /** The date the issuer put on the document. */
+    issuedAt: timestamp("issued_at", { withTimezone: true }),
     expiresAt: timestamp("expires_at", { withTimezone: true }),
     notes: text("notes"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -99,6 +128,31 @@ export const bookingDocuments = pgTable(
     index("idx_booking_documents_booking").on(table.bookingId),
     index("idx_booking_documents_booking_created").on(table.bookingId, table.createdAt),
     index("idx_booking_documents_traveler").on(table.travelerId),
+    // A commercial document is only auditable if it says which document it
+    // is, so the kinds that stand in for issued paperwork must carry the
+    // issuer's number and date. Enforced here rather than in the route so no
+    // writer can bypass it.
+    check(
+      "ck_booking_documents_issued_identity",
+      sql`${table.type} NOT IN ('contract', 'invoice', 'proforma', 'credit_note') OR (${table.issuedNumber} IS NOT NULL AND ${table.issuedAt} IS NOT NULL)`,
+    ),
+    // Recording the same issued document twice would double it in the
+    // booking's audit trail. The key is the document's whole identity, not
+    // just its number: two issuers can both number an invoice 1042, and a
+    // series-less issuer reuses numbers across years. `coalesce` because
+    // issuer, series, and date are individually optional and PostgreSQL
+    // treats NULLs as distinct in a unique index.
+    uniqueIndex("uq_booking_documents_issued_identity")
+      .on(
+        table.bookingId,
+        table.type,
+        // agent-quality: raw-sql reviewed -- owner: bookings; the expressions interpolate Drizzle column references only.
+        sql`coalesce(${table.issuedBy}, '')`,
+        sql`coalesce(${table.issuedSeries}, '')`,
+        table.issuedNumber,
+        sql`coalesce(${table.issuedAt}, '-infinity'::timestamptz)`,
+      )
+      .where(sql`${table.issuedNumber} IS NOT NULL`),
   ],
 )
 

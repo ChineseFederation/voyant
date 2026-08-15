@@ -1976,5 +1976,125 @@ describe.skipIf(!DB_AVAILABLE)("Booking routes", () => {
       })
       expect(res.status).toBe(404)
     })
+
+    // voyant#4657 — an operator migrating historical bookings holds paperwork
+    // that was issued elsewhere. Recording it must keep the issuer's identity
+    // and must not behave like an issuance.
+    describe("externally issued documents", () => {
+      const externalInvoice = {
+        type: "invoice",
+        fileName: "VYT-1042.pdf",
+        fileUrl: "https://example.com/VYT-1042.pdf",
+        issuedBy: "Contabilitate SRL",
+        issuedSeries: "VYT",
+        issuedNumber: "1042",
+        issuedAt: "2026-03-04T00:00:00.000Z",
+      }
+
+      it("records the issuer's own series, number, and date", async () => {
+        const booking = await seedBooking()
+        const res = await app.request(`/${booking.id}/documents`, {
+          method: "POST",
+          ...json(externalInvoice),
+        })
+
+        expect(res.status).toBe(201)
+        const { data } = await res.json()
+        expect(data).toMatchObject({
+          type: "invoice",
+          issuedBy: "Contabilitate SRL",
+          issuedSeries: "VYT",
+          issuedNumber: "1042",
+        })
+        expect(data.issuedAt).toBe("2026-03-04T00:00:00.000Z")
+
+        const [row] = await db
+          .select()
+          .from(bookingDocuments)
+          .where(eq(bookingDocuments.id, data.id))
+        expect(row?.issuedNumber).toBe("1042")
+      })
+
+      it("replays rather than duplicates the same issued document", async () => {
+        const booking = await seedBooking()
+        const first = await app.request(`/${booking.id}/documents`, {
+          method: "POST",
+          ...json(externalInvoice),
+        })
+        const second = await app.request(`/${booking.id}/documents`, {
+          method: "POST",
+          ...json(externalInvoice),
+        })
+
+        expect(first.status).toBe(201)
+        expect(second.status).toBe(201)
+        expect((await second.json()).data.id).toBe((await first.json()).data.id)
+
+        const rows = await db
+          .select()
+          .from(bookingDocuments)
+          .where(eq(bookingDocuments.bookingId, booking.id))
+        expect(rows).toHaveLength(1)
+      })
+
+      it("keeps documents from different issuers apart", async () => {
+        const booking = await seedBooking()
+        await app.request(`/${booking.id}/documents`, {
+          method: "POST",
+          ...json(externalInvoice),
+        })
+        const other = await app.request(`/${booking.id}/documents`, {
+          method: "POST",
+          ...json({ ...externalInvoice, issuedBy: "Alt Accounting SRL" }),
+        })
+
+        expect(other.status).toBe(201)
+        const rows = await db
+          .select()
+          .from(bookingDocuments)
+          .where(eq(bookingDocuments.bookingId, booking.id))
+        expect(rows).toHaveLength(2)
+      })
+
+      it("rejects an issued document that carries no number or date", async () => {
+        const booking = await seedBooking()
+        const res = await app.request(`/${booking.id}/documents`, {
+          method: "POST",
+          ...json({
+            type: "invoice",
+            fileName: "scan.pdf",
+            fileUrl: "https://example.com/scan.pdf",
+          }),
+        })
+        expect(res.status).toBe(400)
+      })
+
+      it("rejects an unparseable issue date", async () => {
+        const booking = await seedBooking()
+        const res = await app.request(`/${booking.id}/documents`, {
+          method: "POST",
+          ...json({ ...externalInvoice, issuedAt: "not-a-date" }),
+        })
+        expect(res.status).toBe(400)
+      })
+
+      it("records who recorded it in the action ledger, once", async () => {
+        const booking = await seedBooking()
+        await app.request(`/${booking.id}/documents`, {
+          method: "POST",
+          ...json(externalInvoice),
+        })
+        await app.request(`/${booking.id}/documents`, {
+          method: "POST",
+          ...json(externalInvoice),
+        })
+
+        const entries = await db
+          .select()
+          .from(actionLedgerEntries)
+          .where(eq(actionLedgerEntries.actionName, "booking.document.record"))
+        expect(entries.filter((entry) => entry.targetId === booking.id)).toHaveLength(1)
+      })
+    })
   })
 })

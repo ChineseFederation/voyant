@@ -2112,13 +2112,35 @@
                               },
                               "type": {
                                 "type": "string",
-                                "enum": ["visa", "insurance", "health", "passport_copy", "other"]
+                                "enum": [
+                                  "visa",
+                                  "insurance",
+                                  "health",
+                                  "passport_copy",
+                                  "contract",
+                                  "invoice",
+                                  "proforma",
+                                  "credit_note",
+                                  "other"
+                                ]
                               },
                               "fileName": {
                                 "type": "string"
                               },
                               "fileUrl": {
                                 "type": "string"
+                              },
+                              "issuedBy": {
+                                "type": ["string", "null"]
+                              },
+                              "issuedSeries": {
+                                "type": ["string", "null"]
+                              },
+                              "issuedNumber": {
+                                "type": ["string", "null"]
+                              },
+                              "issuedAt": {
+                                "type": ["string", "null"]
                               }
                             },
                             "required": ["id", "travelerId", "type", "fileName", "fileUrl"]
@@ -8404,13 +8426,35 @@
                           },
                           "type": {
                             "type": "string",
-                            "enum": ["visa", "insurance", "health", "passport_copy", "other"]
+                            "enum": [
+                              "visa",
+                              "insurance",
+                              "health",
+                              "passport_copy",
+                              "contract",
+                              "invoice",
+                              "proforma",
+                              "credit_note",
+                              "other"
+                            ]
                           },
                           "fileName": {
                             "type": "string"
                           },
                           "fileUrl": {
                             "type": "string"
+                          },
+                          "issuedBy": {
+                            "type": ["string", "null"]
+                          },
+                          "issuedSeries": {
+                            "type": ["string", "null"]
+                          },
+                          "issuedNumber": {
+                            "type": ["string", "null"]
+                          },
+                          "issuedAt": {
+                            "type": ["string", "null"]
                           },
                           "expiresAt": {
                             "type": ["string", "null"]
@@ -8468,7 +8512,17 @@
                   },
                   "type": {
                     "type": "string",
-                    "enum": ["visa", "insurance", "health", "passport_copy", "other"]
+                    "enum": [
+                      "visa",
+                      "insurance",
+                      "health",
+                      "passport_copy",
+                      "contract",
+                      "invoice",
+                      "proforma",
+                      "credit_note",
+                      "other"
+                    ]
                   },
                   "fileName": {
                     "type": "string",
@@ -8478,6 +8532,18 @@
                   "fileUrl": {
                     "type": "string",
                     "format": "uri"
+                  },
+                  "issuedBy": {
+                    "type": ["string", "null"]
+                  },
+                  "issuedSeries": {
+                    "type": ["string", "null"]
+                  },
+                  "issuedNumber": {
+                    "type": ["string", "null"]
+                  },
+                  "issuedAt": {
+                    "type": ["string", "null"]
                   },
                   "expiresAt": {
                     "type": ["string", "null"]
@@ -8513,13 +8579,35 @@
                         },
                         "type": {
                           "type": "string",
-                          "enum": ["visa", "insurance", "health", "passport_copy", "other"]
+                          "enum": [
+                            "visa",
+                            "insurance",
+                            "health",
+                            "passport_copy",
+                            "contract",
+                            "invoice",
+                            "proforma",
+                            "credit_note",
+                            "other"
+                          ]
                         },
                         "fileName": {
                           "type": "string"
                         },
                         "fileUrl": {
                           "type": "string"
+                        },
+                        "issuedBy": {
+                          "type": ["string", "null"]
+                        },
+                        "issuedSeries": {
+                          "type": ["string", "null"]
+                        },
+                        "issuedNumber": {
+                          "type": ["string", "null"]
+                        },
+                        "issuedAt": {
+                          "type": ["string", "null"]
                         },
                         "expiresAt": {
                           "type": ["string", "null"]
@@ -10316,13 +10404,35 @@
                               },
                               "type": {
                                 "type": "string",
-                                "enum": ["visa", "insurance", "health", "passport_copy", "other"]
+                                "enum": [
+                                  "visa",
+                                  "insurance",
+                                  "health",
+                                  "passport_copy",
+                                  "contract",
+                                  "invoice",
+                                  "proforma",
+                                  "credit_note",
+                                  "other"
+                                ]
                               },
                               "fileName": {
                                 "type": "string"
                               },
                               "fileUrl": {
                                 "type": "string"
+                              },
+                              "issuedBy": {
+                                "type": ["string", "null"]
+                              },
+                              "issuedSeries": {
+                                "type": ["string", "null"]
+                              },
+                              "issuedNumber": {
+                                "type": ["string", "null"]
+                              },
+                              "issuedAt": {
+                                "type": ["string", "null"]
                               },
                               "expiresAt": {
                                 "type": ["string", "null"]

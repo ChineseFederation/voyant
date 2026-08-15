@@ -80,6 +80,10 @@ import {
   updateProductContactRequirementTool as updateProductContactRequirementDefinition,
 } from "./requirements/tools.js"
 import { bookingToolDetailSchema, bookingToolSchema } from "./tool-output-schemas.js"
+import {
+  listBookingDocumentsTool as listBookingDocumentsDefinition,
+  recordBookingDocumentTool as recordBookingDocumentDefinition,
+} from "./tools-documents.js"
 import { bookingListQuerySchema } from "./validation.js"
 
 export interface BookingsToolServices {
@@ -564,10 +568,18 @@ export const reconcileBookingAmendmentTool = defineTool({
   },
 })
 
+// Booking Document Tools are authored in their own module and re-exported
+// here so the package keeps one Tool registry, the same way extension Tools
+// are wrapped below.
+export const listBookingDocumentsTool = defineTool(listBookingDocumentsDefinition)
+export const recordBookingDocumentTool = defineTool(recordBookingDocumentDefinition)
+
 export const bookingsTools = [
   listBookingsTool,
   getBookingTool,
   cancelBookingTool,
+  listBookingDocumentsTool,
+  recordBookingDocumentTool,
   previewTravelerCorrectionAmendmentTool,
   previewTravelerRosterChangeAmendmentTool,
   acceptBookingAmendmentTool,

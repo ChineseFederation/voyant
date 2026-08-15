@@ -25,6 +25,16 @@ const adminRouteBinding = {
   routes: ["@voyant-travel/bookings#api.admin"],
 } as const
 
+/**
+ * Ledger identity for recording a Booking Document. Like the `booking.note.*`
+ * names, this is a package-local literal rather than a graph action: recording
+ * a document needs no approval gate, only an entry saying who did it. Both the
+ * admin route and `record_booking_document` write it, so a document recorded
+ * by an agent and one recorded by a person read the same way.
+ */
+export const BOOKING_DOCUMENT_LEDGER_ACTION_NAME = "booking.document.record"
+export const BOOKING_DOCUMENT_LEDGER_ACTION_VERSION = "v1"
+
 const bookingWriteCapability = {
   version: "v1",
   resource: "booking",
@@ -145,6 +155,58 @@ export const BOOKING_ACTION_DECLARATIONS = {
       },
     },
   },
+  documents: {
+    read: {
+      id: "bookings:documents:read",
+      version: "v1",
+      resource: "booking_document",
+      action: "read",
+      risk: "high",
+      ledgerPolicy: "required",
+      approvalPolicy: "none",
+      reversible: false,
+      allowedActorTypes: ["staff"],
+      requiredGrants: [
+        { resource: "bookings", action: "read" },
+        { resource: "bookings-pii", action: "read" },
+      ],
+      graph: {
+        id: "@voyant-travel/bookings#action.read-booking-documents",
+        kind: "sensitive-read",
+        // The collection holds traveller passports and visas alongside
+        // commercial paperwork, so reading it is a PII read.
+        from: {
+          ...adminRouteBinding,
+          tools: ["@voyant-travel/bookings#tool.list-booking-documents"],
+        },
+        policy: "bookings-pii-scope-or-staff-v1",
+      },
+    },
+    record: {
+      ...bookingWriteCapability,
+      id: "bookings:documents:record",
+      resource: "booking_document",
+      action: "record",
+      // Recording paperwork issued elsewhere writes a row and nothing else: it
+      // allocates no number from a Voyant series, renders no template, and
+      // creates no invoice or contract. It is reversible by deleting the row,
+      // so it carries a ledger entry rather than an approval gate.
+      reversible: true,
+      allowedActorTypes: ["staff"],
+      graph: {
+        ...bookingWriteCapability.graph,
+        id: "@voyant-travel/bookings#action.record-booking-document",
+        commandTargetField: "bookingId",
+        targetLifecycle: "existing",
+        availability: { status: "available" },
+        effectBoundary: "local",
+        from: {
+          ...adminRouteBinding,
+          tools: ["@voyant-travel/bookings#tool.record-booking-document"],
+        },
+      },
+    },
+  },
   amendments: {
     previewTravelerCorrection: {
       ...amendmentWriteCapability,
@@ -214,6 +276,7 @@ export const BOOKING_ACTION_DECLARATIONS = {
 } as const satisfies {
   piiRead: BookingActionDeclaration
   status: Record<string, BookingActionDeclaration>
+  documents: Record<string, BookingActionDeclaration>
   amendments: Record<string, BookingActionDeclaration>
 }
 
@@ -259,6 +322,11 @@ export const BOOKING_STATUS_CAPABILITIES = {
   override: toCapabilityDefinition(BOOKING_ACTION_DECLARATIONS.status.override),
 } as const
 
+export const BOOKING_DOCUMENT_CAPABILITIES = {
+  read: toCapabilityDefinition(BOOKING_ACTION_DECLARATIONS.documents.read),
+  record: toCapabilityDefinition(BOOKING_ACTION_DECLARATIONS.documents.record),
+} as const
+
 export const BOOKING_AMENDMENT_CAPABILITIES = {
   previewTravelerCorrection: toCapabilityDefinition(
     BOOKING_ACTION_DECLARATIONS.amendments.previewTravelerCorrection,
@@ -274,11 +342,13 @@ export const BOOKING_AMENDMENT_CAPABILITIES = {
 export const BOOKING_ACTION_LEDGER_CAPABILITIES = [
   BOOKING_PII_READ_CAPABILITY,
   ...Object.values(BOOKING_STATUS_CAPABILITIES),
+  ...Object.values(BOOKING_DOCUMENT_CAPABILITIES),
   ...Object.values(BOOKING_AMENDMENT_CAPABILITIES),
 ] as const
 
 export const BOOKING_VOYANT_ACTIONS = [
   toVoyantAction(BOOKING_ACTION_DECLARATIONS.piiRead),
   ...Object.values(BOOKING_ACTION_DECLARATIONS.status).map(toVoyantAction),
+  ...Object.values(BOOKING_ACTION_DECLARATIONS.documents).map(toVoyantAction),
   ...Object.values(BOOKING_ACTION_DECLARATIONS.amendments).map(toVoyantAction),
 ] as const

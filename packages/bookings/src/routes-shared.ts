@@ -1,3 +1,4 @@
+import type { ActionLedgerRequestContextValues } from "@voyant-travel/action-ledger"
 import type { EventBus, ModuleContainer } from "@voyant-travel/core"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import type { Context } from "hono"
@@ -87,4 +88,27 @@ export function getRuntimeEnv(c: Context) {
 
 export function notFound<T extends Env>(c: Context<T>, error: string) {
   return c.json({ error }, 404)
+}
+
+/**
+ * The caller identity an action-ledger entry is attributed to. Shared by the
+ * admin routes and the Tool runtime so a mutation records the same principal
+ * whichever surface performed it.
+ */
+export function getActionLedgerRequestContext(c: Context<Env>): ActionLedgerRequestContextValues {
+  return {
+    userId: c.get("userId") ?? null,
+    agentId: c.get("agentId") ?? null,
+    workflowPrincipalId: c.get("workflowPrincipalId") ?? null,
+    principalSubtype: c.get("principalSubtype") ?? null,
+    sessionId: c.get("sessionId") ?? null,
+    apiTokenId: c.get("apiTokenId") ?? c.get("apiKeyId") ?? null,
+    callerType: c.get("callerType") ?? null,
+    actor: c.get("actor") ?? null,
+    isInternalRequest: c.get("isInternalRequest") ?? false,
+    organizationId: c.get("organizationId") ?? null,
+    workflowRunId: c.get("workflowRunId") ?? null,
+    workflowStepId: c.get("workflowStepId") ?? null,
+    correlationId: c.req.header("x-correlation-id") ?? c.req.header("x-request-id") ?? null,
+  }
 }

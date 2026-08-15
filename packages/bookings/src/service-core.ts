@@ -69,6 +69,7 @@ import {
 } from "./products-ref.js"
 import { bookingTravelerTravelDetails } from "./schema/travel-details.js"
 import {
+  type BookingDocument,
   bookingActivityLog,
   bookingAllocations,
   bookingDocuments,
@@ -5294,11 +5295,22 @@ const bookingsServiceInternal = {
       .orderBy(bookingDocuments.createdAt)
   },
 
+  /**
+   * Record a document against a Booking.
+   *
+   * Recording is never issuing: nothing here allocates a number from an
+   * invoice or contract series and nothing renders a template. A document of
+   * an issued kind (contract/invoice/proforma/credit note) carries the identity the issuer
+   * already gave it, and recording the same one twice replays the first row
+   * rather than doubling it in the booking's audit trail (voyant#4657).
+   *
+   * Returns `null` when the booking does not exist.
+   */
   async createDocument(
     db: PostgresJsDatabase,
     bookingId: string,
     data: CreateBookingDocumentInput,
-  ) {
+  ): Promise<{ document: BookingDocument; replayed: boolean } | null> {
     const [booking] = await db
       .select({ id: bookings.id })
       .from(bookings)
@@ -5309,6 +5321,22 @@ const bookingsServiceInternal = {
       return null
     }
 
+    const issuedNumber = data.issuedNumber ?? null
+    const identity = issuedNumber
+      ? {
+          bookingId,
+          type: data.type,
+          issuedBy: data.issuedBy ?? null,
+          issuedSeries: data.issuedSeries ?? null,
+          issuedNumber,
+          issuedAt: data.issuedAt ? new Date(data.issuedAt) : null,
+        }
+      : null
+    const existing = identity ? await findBookingDocumentByIssuedIdentity(db, identity) : null
+    if (existing) {
+      return { document: existing, replayed: true }
+    }
+
     const [row] = await db
       .insert(bookingDocuments)
       .values({
@@ -5317,16 +5345,31 @@ const bookingsServiceInternal = {
         type: data.type,
         fileName: data.fileName,
         fileUrl: data.fileUrl,
+        issuedBy: data.issuedBy ?? null,
+        issuedSeries: data.issuedSeries ?? null,
+        issuedNumber,
+        issuedAt: identity?.issuedAt ?? (data.issuedAt ? new Date(data.issuedAt) : null),
         expiresAt: data.expiresAt ? new Date(data.expiresAt) : null,
         notes: data.notes ?? null,
       })
+      // Two concurrent recordings of the same issued document race past the
+      // read above; the unique index settles it and this replays the winner
+      // instead of surfacing a constraint violation.
+      .onConflictDoNothing()
       .returning()
 
     if (row) {
       await touchBookingUpdatedAt(db, bookingId)
+      return { document: row, replayed: false }
     }
 
-    return row
+    const winner = identity ? await findBookingDocumentByIssuedIdentity(db, identity) : null
+    if (!winner) {
+      throw new Error(
+        `Recording a ${data.type} document on booking ${bookingId} inserted no row and found no conflicting record.`,
+      )
+    }
+    return { document: winner, replayed: true }
   },
 
   async deleteDocument(db: PostgresJsDatabase, documentId: string) {
@@ -5346,6 +5389,40 @@ const bookingsServiceInternal = {
 const { convertProductToBooking: _commandOnlyCreate, ...bookingsService } = bookingsServiceInternal
 
 export { bookingsService }
+
+/**
+ * Resolve a Booking Document by the identity its issuer gave it. Mirrors the
+ * `uq_booking_documents_issued_identity` index, including its `coalesce` on a
+ * missing series, so a lookup and the constraint agree on what "the same
+ * document" means.
+ */
+async function findBookingDocumentByIssuedIdentity(
+  db: PostgresJsDatabase,
+  identity: {
+    bookingId: string
+    type: BookingDocument["type"]
+    issuedBy: string | null
+    issuedSeries: string | null
+    issuedNumber: string
+    issuedAt: Date | null
+  },
+): Promise<BookingDocument | null> {
+  const [row] = await db
+    .select()
+    .from(bookingDocuments)
+    .where(
+      and(
+        eq(bookingDocuments.bookingId, identity.bookingId),
+        eq(bookingDocuments.type, identity.type),
+        sql`coalesce(${bookingDocuments.issuedBy}, '') = ${identity.issuedBy ?? ""}`,
+        sql`coalesce(${bookingDocuments.issuedSeries}, '') = ${identity.issuedSeries ?? ""}`,
+        eq(bookingDocuments.issuedNumber, identity.issuedNumber),
+        sql`coalesce(${bookingDocuments.issuedAt}, '-infinity'::timestamptz) = coalesce(${identity.issuedAt}::timestamptz, '-infinity'::timestamptz)`,
+      ),
+    )
+    .limit(1)
+  return row ?? null
+}
 
 /**
  * Command-only booking-domain settlement. The runtime lease is minted by the

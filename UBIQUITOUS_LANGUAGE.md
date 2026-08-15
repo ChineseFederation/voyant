@@ -207,6 +207,7 @@ explicit and reconcilable.
 | **Contract**          | A signed legal document instance bound to a Booking, Proposal Version, Program, Product, Supplier/Channel relationship, or explicit provider/source ref. | *agreement (overloaded)*  |
 | **Contract Template** | A reusable contract form with variable placeholders, rendered per instance.                      | *form, boilerplate*       |
 | **Signature**         | A record of a Contract being signed (signer, method, IP, timestamp).                             | *sign-event*              |
+| **Booking Document**  | A file held against a Booking. Either a traveller document (passport copy, visa, insurance) or a **recorded** contract, invoice, proforma, or credit note that was issued outside Voyant and carries its issuer's own series, number, and date. Never platform-issued paperwork: a generated contract is a Contract with attachments, and a Voyant-numbered invoice is an Invoice. | *attachment (overloaded)* |
 | **Policy**            | A scoped rule set (cancellation, payment, T&C, guarantee, commission); versioned.                | *terms*                   |
 | **Policy Version**    | An immutable snapshot of a Policy's rules — `published` or `retired`.                            | *revision*                |
 | **Policy Acceptance** | A recorded confirmation that a Person or Booking accepted a specific Policy Version.             | *consent, sign-off*       |
@@ -251,6 +252,7 @@ See [agent tool library](docs/architecture/agent-tool-library.md) and
 | **Start**      | Mark a confirmed Booking as in-progress — service is underway.                                   | Booking                                  |
 | **Complete**   | Mark an in-progress Booking as fully delivered.                                                  | Booking                                  |
 | **Issue**      | Produce a deliverable artifact (Service Voucher, invoice, contract, policy version).             | Fulfillment, Invoice, Contract, Policy Version |
+| **Record**     | Register a document that already exists elsewhere, keeping the identity its issuer gave it. Never allocates a number from a Voyant series and never renders from a template — the opposite of Issue. | Booking Document |
 | **Fulfill**    | Mark operational delivery complete.                                                              | Booking Item, Allocation                 |
 | **Deliver**    | Push an issued artifact to the recipient over a channel (email, download, wallet, API).          | Fulfillment, Notification                |
 | **Accept**     | Record that the client chose a Proposal Version or accepted required commercial/legal terms; does not by itself mean every supplier component is confirmed. | Proposal Version, Policy Version, Contract, legacy Offer |

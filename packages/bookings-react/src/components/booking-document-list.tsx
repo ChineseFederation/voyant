@@ -25,6 +25,10 @@ const typeVariant: Record<string, "default" | "secondary" | "outline" | "destruc
   insurance: "secondary",
   health: "secondary",
   passport_copy: "outline",
+  contract: "default",
+  invoice: "default",
+  proforma: "secondary",
+  credit_note: "destructive",
   other: "outline",
 }
 

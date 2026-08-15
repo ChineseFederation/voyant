@@ -34,6 +34,14 @@ export interface CreateBookingTravelerDocumentInput {
   fileName: string
   fileUrl: string
   travelerId?: string | null
+  /**
+   * Identity of a document issued outside Voyant (contract, invoice, proforma,
+   * credit note). Voyant records these; it never allocates them.
+   */
+  issuedBy?: string | null
+  issuedSeries?: string | null
+  issuedNumber?: string | null
+  issuedAt?: string | null
   expiresAt?: string | null
   notes?: string | null
 }
@@ -64,6 +72,10 @@ export function useBookingTravelerDocumentMutation(bookingId: string) {
             fileName: input.fileName,
             fileUrl: input.fileUrl,
             travelerId: input.travelerId,
+            issuedBy: input.issuedBy,
+            issuedSeries: input.issuedSeries,
+            issuedNumber: input.issuedNumber,
+            issuedAt: input.issuedAt,
             expiresAt: input.expiresAt,
             notes: input.notes,
           }),

@@ -10,6 +10,8 @@ import {
   bookingItemParticipantRoleSchema,
   bookingItemTypeSchema,
   bookingRedemptionMethodSchema,
+  isIssuedBookingDocumentType,
+  isoDateOrTimestampSchema,
   supplierConfirmationStatusSchema,
 } from "./validation-shared.js"
 
@@ -198,15 +200,59 @@ export const updateBookingNoteSchema = z.object({
 
 // ---------- documents ----------
 
+/**
+ * The identity an externally-issued document already carries. Voyant records
+ * these; it never allocates them (voyant#4657).
+ */
+const bookingDocumentIssuedIdentityShape = {
+  issuedBy: z.string().trim().min(1).max(255).optional().nullable(),
+  issuedSeries: z.string().trim().min(1).max(64).optional().nullable(),
+  issuedNumber: z.string().trim().min(1).max(128).optional().nullable(),
+  issuedAt: isoDateOrTimestampSchema.optional().nullable(),
+}
+
+const bookingDocumentShape = {
+  travelerId: z.string().optional().nullable(),
+  type: bookingDocumentTypeSchema,
+  fileName: z.string().min(1).max(500),
+  fileUrl: z.string().url(),
+  ...bookingDocumentIssuedIdentityShape,
+  expiresAt: z.string().optional().nullable(),
+  notes: z.string().optional().nullable(),
+}
+
+/**
+ * Mirrors the `ck_booking_documents_issued_identity` database constraint so a
+ * caller is told which field is missing instead of being handed a constraint
+ * violation.
+ */
+export function requireIssuedDocumentIdentity<
+  T extends {
+    type: z.infer<typeof bookingDocumentTypeSchema>
+    issuedNumber?: string | null
+    issuedAt?: string | null
+  },
+>(value: T, ctx: z.RefinementCtx): void {
+  if (!isIssuedBookingDocumentType(value.type)) return
+  if (!value.issuedNumber) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["issuedNumber"],
+      message: `A ${value.type} document records paperwork issued elsewhere, so it must carry the issuer's own number.`,
+    })
+  }
+  if (!value.issuedAt) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["issuedAt"],
+      message: `A ${value.type} document records paperwork issued elsewhere, so it must carry the date the issuer put on it.`,
+    })
+  }
+}
+
 export const insertBookingDocumentSchema = z
-  .object({
-    travelerId: z.string().optional().nullable(),
-    type: bookingDocumentTypeSchema,
-    fileName: z.string().min(1).max(500),
-    fileUrl: z.string().url(),
-    expiresAt: z.string().optional().nullable(),
-    notes: z.string().optional().nullable(),
-  })
+  .object(bookingDocumentShape)
+  .superRefine(requireIssuedDocumentIdentity)
   .transform(({ travelerId, ...rest }) => ({
     ...rest,
     travelerId: travelerId ?? null,

@@ -22,6 +22,7 @@ import {
   type BookingCancellationPolicyEvaluator,
   resolveBookingCancellationConsequences,
 } from "./cancellation-consequences.js"
+import { contributeBookingDocumentsToolContext } from "./documents-runtime.js"
 import { contributeBookingsExtrasToolContext } from "./extras/mcp-runtime.js"
 import {
   type BookingStatusToolAction,
@@ -52,7 +53,7 @@ import type { BookingsToolServices } from "./tools.js"
 export * from "./tools.js"
 
 export const voyantToolContextContribution = defineToolContextContribution({
-  context: ["bookings", "bookingsExtras", "bookingRequirements"],
+  context: ["bookings", "bookingDocuments", "bookingsExtras", "bookingRequirements"],
   async contribute(input) {
     const { request, context } = input
     const c = request as Context<Env>
@@ -202,6 +203,7 @@ export const voyantToolContextContribution = defineToolContextContribution({
           },
         },
       },
+      contributeBookingDocumentsToolContext(input),
       contributeBookingsExtrasToolContext(input),
       contributeBookingRequirementsToolContext(input),
     )
