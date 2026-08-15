@@ -2,6 +2,7 @@ import {
   assertBookingLifecycleConformanceV1,
   bookingLifecycleConformanceScenariosV1,
 } from "@voyant-travel/catalog-contracts/booking-engine/lifecycle-conformance"
+import type { PricingBreakdownV1 } from "@voyant-travel/catalog-contracts/booking-engine/pricing-contracts"
 import { describe, expect, it } from "vitest"
 
 import type { BookingRequirementsV1 } from "./contracts.js"
@@ -55,6 +56,10 @@ function createHarness(
 ) {
   let currentNow = new Date("2026-08-01T12:00:00.000Z")
   let price = BASE_PRICING
+  // Some pricing is not a constant: a policy snapshot is stamped with the
+  // instant it was read, so the value differs on every compose of the very
+  // same selection. Set this to model that faithfully.
+  let pricePerCompose: (() => PricingBreakdownV1) | null = null
   let published = requirements ?? inMemoryBookingRequirements()
   const repository = createInMemoryBookingSessionRepository()
   const inventory = createInMemoryOwnedInventoryPorts()
@@ -76,7 +81,7 @@ function createHarness(
       composeQuote: async () => ({
         status: "quoted",
         requirements: published,
-        pricing: price,
+        pricing: pricePerCompose ? pricePerCompose() : price,
       }),
       placeCapacityHold: inventory.placeCapacityHold,
       releaseCapacityHold: inventory.releaseCapacityHold,
@@ -94,6 +99,9 @@ function createHarness(
     },
     setPrice(next: typeof BASE_PRICING) {
       price = next
+    },
+    setPricePerCompose(next: (() => PricingBreakdownV1) | null) {
+      pricePerCompose = next
     },
     setRequirements(next: BookingRequirementsV1) {
       published = next
@@ -980,6 +988,175 @@ describe("Booking Session v1 owned tracer", () => {
     expect(harness.inventory.bookingIds).toEqual([])
   })
 
+  /**
+   * A quote whose pricing carries a policy snapshot.
+   *
+   * `captureCancellationPolicySnapshot` stamps `capturedAt` with `new Date()`,
+   * so every compose of the same unchanged selection returns a different one.
+   * The counter here stands in for the clock.
+   */
+  function policyPricing(total = 10000) {
+    let captures = 0
+    return () => {
+      captures += 1
+      return {
+        ...BASE_PRICING,
+        lines: [{ ...BASE_PRICING.lines[0]!, unitAmount: total, totalAmount: total }],
+        subtotal: total,
+        total,
+        policyEvidence: {
+          cancellation: {
+            schemaVersion: 1,
+            policyId: "pol_1",
+            policyVersionId: "plvr_1",
+            version: 1,
+            capturedAt: new Date(1_760_000_000_000 + captures * 1000).toISOString(),
+            rules: [
+              {
+                id: "plrl_1",
+                daysBeforeDeparture: 30,
+                refundPercent: 10000,
+                refundType: "cash",
+                flatAmountCents: null,
+                currency: null,
+                label: "30 days or more",
+              },
+            ],
+          },
+        },
+      } as PricingBreakdownV1
+    }
+  }
+
+  it("commits against a Quote whose policy snapshot was re-captured at Commit", async () => {
+    // voyant#4689: the Commit preflight re-composes the Quote and compares price
+    // fingerprints. With the capture instant inside the fingerprint the two can
+    // never agree, so every Commit was refused `quote_failure / superseded` and
+    // the Hold released - checkout down for any product with a published
+    // cancellation policy, on the first attempt, with no race involved.
+    const payment = createPaymentHarness()
+    const harness = createHarness({}, payment.ports)
+    harness.setPricePerCompose(policyPricing())
+    const { session, quote, hold } = await createQuoteAndHold(harness)
+
+    const committed = await harness.module.commitSession(
+      session.id,
+      {
+        expectedRevision: session.revision,
+        quoteId: quote.id,
+        requirementsFingerprint: quote.requirementsFingerprint,
+        holdId: hold.id,
+        idempotencyKey: "commit_recaptured_policy",
+        checkoutIntent: "card" as const,
+      },
+      ANONYMOUS_ACCESS,
+    )
+
+    expect(committed).toMatchObject({
+      kind: "commit_result",
+      outcome: { kind: "payment_required" },
+    })
+    expect(harness.repository.quotes.get(quote.id)?.state).toBe("active")
+    expect(harness.repository.holds.get(hold.id)?.state).toBe("active")
+  })
+
+  it("fingerprints two composes of one unchanged selection identically", async () => {
+    const harness = createHarness()
+    harness.setPricePerCompose(policyPricing())
+    const created = await harness.module.createSession(
+      {
+        idempotencyKey: nextCreateKey("stable_fingerprint"),
+        target: { kind: "product", productId: "prod_owned_1" },
+      },
+      ANONYMOUS_ACCESS,
+    )
+    if (created.kind !== "session_created") throw new Error("session not created")
+
+    const first = await harness.module.quoteSession(
+      created.session.id,
+      { expectedRevision: created.session.revision, idempotencyKey: "quote_1" },
+      ANONYMOUS_ACCESS,
+    )
+    const second = await harness.module.quoteSession(
+      created.session.id,
+      { expectedRevision: created.session.revision, idempotencyKey: "quote_2" },
+      ANONYMOUS_ACCESS,
+    )
+    if (first.kind !== "quote_created" || second.kind !== "quote_created") {
+      throw new Error("quotes not created")
+    }
+
+    const left = harness.repository.quotes.get(first.quote.id)
+    const right = harness.repository.quotes.get(second.quote.id)
+    // Different capture instants, same price: one fingerprint.
+    expect(left?.pricing).not.toEqual(right?.pricing)
+    expect(left?.priceFingerprint).toBe(right?.priceFingerprint)
+  })
+
+  it("still supersedes a Quote whose price actually moved", async () => {
+    // The half of the invariant that must not be traded away for the fix above:
+    // a real price change still has to invalidate the Quote.
+    const harness = createHarness()
+    harness.setPricePerCompose(policyPricing(10000))
+    const { session, capability, quote, hold } = await createQuoteAndHold(harness)
+    harness.setPricePerCompose(policyPricing(12500))
+
+    const rejected = await harness.module.commitSession(
+      session.id,
+      {
+        expectedRevision: session.revision,
+        quoteId: quote.id,
+        requirementsFingerprint: quote.requirementsFingerprint,
+        holdId: hold.id,
+        idempotencyKey: "commit_real_price_change",
+        checkoutIntent: "card" as const,
+      },
+      { ...ANONYMOUS_ACCESS, capability },
+    )
+
+    expect(rejected).toMatchObject({
+      kind: "commit_result",
+      outcome: { kind: "quote_failure", reason: "superseded" },
+    })
+    expect(harness.repository.quotes.get(quote.id)?.state).toBe("superseded")
+    expect(harness.inventory.bookingIds).toEqual([])
+  })
+
+  it("still supersedes a Quote whose cancellation policy version changed", async () => {
+    // Policy identity stays inside the fingerprint: only the capture instant
+    // leaves. A traveller must not be booked onto refund terms they never saw.
+    const harness = createHarness()
+    harness.setPricePerCompose(policyPricing())
+    const { session, capability, quote, hold } = await createQuoteAndHold(harness)
+    harness.setPricePerCompose(() => {
+      const pricing = policyPricing()() as PricingBreakdownV1 & {
+        policyEvidence: { cancellation: Record<string, unknown> }
+      }
+      pricing.policyEvidence.cancellation.policyVersionId = "plvr_2"
+      pricing.policyEvidence.cancellation.version = 2
+      return pricing
+    })
+
+    const rejected = await harness.module.commitSession(
+      session.id,
+      {
+        expectedRevision: session.revision,
+        quoteId: quote.id,
+        requirementsFingerprint: quote.requirementsFingerprint,
+        holdId: hold.id,
+        idempotencyKey: "commit_policy_version_change",
+        checkoutIntent: "card" as const,
+      },
+      { ...ANONYMOUS_ACCESS, capability },
+    )
+
+    expect(rejected).toMatchObject({
+      kind: "commit_result",
+      outcome: { kind: "quote_failure", reason: "superseded" },
+    })
+    expect(harness.repository.quotes.get(quote.id)?.state).toBe("superseded")
+  })
+
   it("reuses the transaction-locked Session and supersedes Quotes in one repository operation", async () => {
     const { harness, session, capability, quote } = await createQuoteAndHold()
     let getSessionCalls = 0
@@ -1385,6 +1562,7 @@ describe("Booking Session v1 owned tracer", () => {
       // quote record here; a narrower stub degrades it to `{ id }` and the
       // fingerprint read below stops typechecking.
       setPrice(_next: typeof BASE_PRICING) {},
+      setPricePerCompose(_next: (() => PricingBreakdownV1) | null) {},
       setRequirements(_next: BookingRequirementsV1) {},
     }
     const { session, capability, quote, hold } = await createQuoteAndHold(harness)

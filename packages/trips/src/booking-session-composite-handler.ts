@@ -10,6 +10,7 @@ import type {
   PricingBreakdownV1,
 } from "@voyant-travel/catalog/booking-engine"
 import { partySizeFromSelection } from "@voyant-travel/catalog/booking-engine"
+import { policyEvidenceIdentity } from "@voyant-travel/catalog-contracts/booking-engine/pricing-contracts"
 import {
   DEFAULT_PAX_BANDS,
   DEFAULT_PAYMENT_INTENTS,
@@ -648,11 +649,26 @@ function materialPolicyChanged(snapshot: TripSnapshot, pricing: PricingBreakdown
     if (!isCatalogBackedTripComponent(component)) continue
     const accepted = acceptedPolicyEvidence(component)
     const fresh = current.get(component.id)
+    // Compared on identity, not on the instant each side was read. The accepted
+    // snapshot was captured when the traveller accepted the proposal and the
+    // fresh one moments ago, so their `capturedAt` always differ - which used to
+    // report every catalog-backed component as materially changed and demand a
+    // re-acceptance no traveller could ever clear (voyant#4689).
     if (accepted?.cancellation !== undefined || fresh?.cancellation !== undefined) {
-      if (stableJson(accepted?.cancellation) !== stableJson(fresh?.cancellation)) return true
+      if (
+        stableJson(policyEvidenceIdentity(accepted?.cancellation)) !==
+        stableJson(policyEvidenceIdentity(fresh?.cancellation))
+      ) {
+        return true
+      }
     }
     if (accepted?.bookingTerms !== undefined || fresh?.bookingTerms !== undefined) {
-      if (stableJson(accepted?.bookingTerms) !== stableJson(fresh?.bookingTerms)) return true
+      if (
+        stableJson(policyEvidenceIdentity(accepted?.bookingTerms)) !==
+        stableJson(policyEvidenceIdentity(fresh?.bookingTerms))
+      ) {
+        return true
+      }
     }
   }
   return false

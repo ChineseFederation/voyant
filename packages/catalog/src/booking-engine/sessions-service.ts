@@ -4,6 +4,7 @@ import type {
   OfferPreviewOutcomeV1,
   OfferPreviewRequestV1,
 } from "@voyant-travel/catalog-contracts/booking-engine/preview-contracts"
+import { priceFingerprintInput } from "@voyant-travel/catalog-contracts/booking-engine/pricing-contracts"
 import type {
   AbandonBookingSessionV1,
   AdoptBookingSessionV1,
@@ -1176,7 +1177,7 @@ export function createBookingSessionModule(
           state: "active",
           requirements,
           pricing,
-          priceFingerprint: await stableFingerprint(pricing),
+          priceFingerprint: await priceFingerprint(pricing),
           requirementsFingerprint: await stableFingerprint(requirements),
           quotedAt: at,
           expiresAt: new Date(at.getTime() + quoteTtlMs),
@@ -1527,7 +1528,7 @@ export function createBookingSessionModule(
           await releaseLiveHolds(repository, options.ports, session, access, at, tx)
           return { status: "outcome" as const, outcome: quoteUnavailable(freshQuote) }
         }
-        if ((await stableFingerprint(freshQuote.pricing)) !== quote.priceFingerprint) {
+        if ((await priceFingerprint(freshQuote.pricing)) !== quote.priceFingerprint) {
           quote.state = "superseded"
           await repository.saveQuote(quote)
           await releaseLiveHolds(repository, options.ports, session, access, at, tx)
@@ -2112,7 +2113,7 @@ async function consumeCommittedSources(input: {
       // superseded as one whose price did.
       if (
         currentQuoteResult.status === "unavailable" ||
-        (await stableFingerprint(currentQuoteResult.pricing)) !== currentQuote.priceFingerprint ||
+        (await priceFingerprint(currentQuoteResult.pricing)) !== currentQuote.priceFingerprint ||
         (await stableFingerprint(currentQuoteResult.requirements)) !==
           currentQuote.requirementsFingerprint
       ) {
@@ -2950,6 +2951,20 @@ async function scopedCreateIdempotencyKey(
 
 async function stableFingerprint(value: unknown): Promise<string> {
   return sha256Hex(JSON.stringify(sortForStableJson(value)))
+}
+
+/**
+ * The fingerprint that decides whether a Quote's price still stands.
+ *
+ * One function rather than three call sites hashing `pricing` directly, because
+ * the value is written once at quote time and compared twice at commit — in the
+ * preflight and again inside the commit transaction — and a normalization
+ * applied to some of those but not all is the same outage in a subtler form.
+ *
+ * See `priceFingerprintInput` for what it deliberately does not depend on.
+ */
+async function priceFingerprint(pricing: unknown): Promise<string> {
+  return stableFingerprint(priceFingerprintInput(pricing))
 }
 
 async function sha256Hex(value: string): Promise<string> {

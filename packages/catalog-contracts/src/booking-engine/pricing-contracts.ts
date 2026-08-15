@@ -100,6 +100,74 @@ export const pricingBreakdownV1 = z.object({
 })
 export type PricingBreakdownV1 = z.infer<typeof pricingBreakdownV1>
 
+/**
+ * The key a policy snapshot stamps with the instant it was READ.
+ *
+ * `captureCancellationPolicySnapshot` defaults it to `new Date()`, so it is
+ * different on every compose of the same unchanged selection. That is correct
+ * for evidence — it records when we looked — and wrong for identity: it says
+ * nothing about WHICH policy was captured or what it costs.
+ */
+const POLICY_CAPTURE_INSTANT = "capturedAt"
+
+/**
+ * Policy evidence reduced to what identifies the policy.
+ *
+ * Everything that decides whether a quote still stands survives:
+ * `policyId`, `policyVersionId`, `version` and the `rules` themselves. Only the
+ * capture instant is dropped, and only inside the evidence subtree.
+ *
+ * The recursion is deliberate. `cancellation` and `bookingTerms` are typed
+ * `unknown` because a supplier's terms are its own shape, so there is no field
+ * list to walk; the statable invariant — no capture instant anywhere inside
+ * policy evidence contributes to identity — is the one that survives the shape
+ * changing underneath it.
+ */
+export function policyEvidenceIdentity<T>(evidence: T): T {
+  return stripCaptureInstant(evidence) as T
+}
+
+function stripCaptureInstant(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(stripCaptureInstant)
+  if (!value || typeof value !== "object") return value
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>)
+      .filter(([key]) => key !== POLICY_CAPTURE_INSTANT)
+      .map(([key, item]) => [key, stripCaptureInstant(item)]),
+  )
+}
+
+/**
+ * The pricing, reduced to what a price fingerprint is allowed to depend on.
+ *
+ * A price fingerprint answers one question: has this quote's price moved since
+ * we issued it. Commit re-composes the quote and compares, so anything in the
+ * input that changes on every compose makes that comparison unconditionally
+ * false — the quote is declared superseded, the hold is released, and no
+ * booking can ever be made (voyant#4689).
+ *
+ * `policyEvidence.cancellation.capturedAt` was exactly that. Everything else
+ * here is left alone: money, taxes, applied offers and the policy's own
+ * identity all belong in the fingerprint, because a genuine change to any of
+ * them genuinely does supersede the quote.
+ */
+export function priceFingerprintInput<T>(pricing: T): T {
+  if (!pricing || typeof pricing !== "object") return pricing
+  const breakdown = pricing as Record<string, unknown>
+  if (breakdown.policyEvidence === undefined && breakdown.componentPolicies === undefined) {
+    return pricing
+  }
+  return {
+    ...breakdown,
+    ...(breakdown.policyEvidence !== undefined
+      ? { policyEvidence: policyEvidenceIdentity(breakdown.policyEvidence) }
+      : {}),
+    ...(breakdown.componentPolicies !== undefined
+      ? { componentPolicies: policyEvidenceIdentity(breakdown.componentPolicies) }
+      : {}),
+  } as T
+}
+
 export const bookingPaymentScheduleV1 = z.object({
   scheduleType: z.enum(["deposit", "installment", "balance", "hold", "other"]),
   status: z.enum(["pending", "due", "paid", "waived", "cancelled", "expired"]),
