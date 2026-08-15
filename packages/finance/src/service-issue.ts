@@ -698,7 +698,12 @@ export async function buildInvoiceIssuedEvent(
     clientCity: booking?.contactCity ?? null,
     clientCounty: booking?.contactRegion ?? null,
     clientCountry: booking?.contactCountry ?? null,
-    clientVatCode: null,
+    // The buyer's fiscal code, when the operator recorded one. A business buyer
+    // needs it on the invoice, and downstream e-invoicing derives the buyer's
+    // taxpayer status from its presence, so dropping it both loses a mandatory
+    // field and misclassifies the party (voyant#4653). `contactRegCom` has no
+    // column to read from, so that one stays null until there is one.
+    clientVatCode: booking?.contactTaxId ?? null,
     clientRegCom: null,
     lineItems: lines.map((line) => {
       const taxMetadata =
