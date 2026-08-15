@@ -2,21 +2,33 @@ import { describe, expect, it } from "vitest"
 
 import { catalogUiEn } from "../i18n/en.js"
 import { durationMeta } from "./catalog-page-cards.js"
-import { resolveScheduledScopeLocks } from "./scheduled-catalog-page.js"
+import { resolveScheduledScopeLocks, type ScheduledScope } from "./scheduled-catalog-page.js"
+
+const FAMILY_SCOPES = [
+  "tours",
+  "activities",
+  "attractions",
+  "events",
+  "transportation",
+] as const satisfies readonly ScheduledScope[]
 
 describe("product family catalog views", () => {
-  it("locks family and subtype independently from duration and supply mechanics", () => {
+  it("locks family independently from duration and supply mechanics", () => {
     expect(resolveScheduledScopeLocks("tours")).toEqual({
       lockedFacets: { familyCode: ["tour"] },
-      lockedRanges: {},
-    })
-    expect(resolveScheduledScopeLocks("boat-tours")).toEqual({
-      lockedFacets: { familyCode: ["tour"], subtypeCode: ["boat-tour"] },
       lockedRanges: {},
     })
     expect(resolveScheduledScopeLocks("activities").lockedFacets).toEqual({
       familyCode: ["activity"],
     })
+  })
+
+  it("never locks a subtype, so no subtype gets a surface of its own", () => {
+    for (const scope of FAMILY_SCOPES) {
+      const { lockedFacets } = resolveScheduledScopeLocks(scope)
+      expect(Object.keys(lockedFacets)).toEqual(["familyCode"])
+      expect(lockedFacets.familyCode).toHaveLength(1)
+    }
   })
 
   it("shows a sixty-minute Boat Tour as 60 min rather than one day", () => {

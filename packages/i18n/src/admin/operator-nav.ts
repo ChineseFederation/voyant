@@ -9,8 +9,6 @@ export type OperatorAdminNavMessages = {
   catalogExcursionsTagline: string
   catalogTours: string
   catalogToursTagline: string
-  catalogBoatTours: string
-  catalogBoatToursTagline: string
   catalogActivities: string
   catalogActivitiesTagline: string
   catalogAttractions: string
@@ -82,8 +80,6 @@ export const operatorAdminNavMessages = {
       catalogExcursionsTagline: "Scheduled products shown in an excursion context.",
       catalogTours: "Tours",
       catalogToursTagline: "Products in the Tour family.",
-      catalogBoatTours: "Boat Tours",
-      catalogBoatToursTagline: "Tour products with the Boat Tour subtype.",
       catalogActivities: "Activities",
       catalogActivitiesTagline: "Products in the Activity family.",
       catalogAttractions: "Attractions",
@@ -154,8 +150,6 @@ export const operatorAdminNavMessages = {
       catalogExcursionsTagline: "Produse programate prezentate in context de excursie.",
       catalogTours: "Tururi",
       catalogToursTagline: "Produse din familia Tur.",
-      catalogBoatTours: "Tururi cu barca",
-      catalogBoatToursTagline: "Produse din familia Tur cu subtipul Tur cu barca.",
       catalogActivities: "Activitati",
       catalogActivitiesTagline: "Produse din familia Activitate.",
       catalogAttractions: "Atractii",

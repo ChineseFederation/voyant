@@ -67,8 +67,6 @@ function scheduledScopeCopy(
       return [nav.catalogExcursions, nav.catalogExcursionsTagline]
     case "tours":
       return [nav.catalogTours, nav.catalogToursTagline]
-    case "boat-tours":
-      return [nav.catalogBoatTours, nav.catalogBoatToursTagline]
     case "activities":
       return [nav.catalogActivities, nav.catalogActivitiesTagline]
     case "attractions":

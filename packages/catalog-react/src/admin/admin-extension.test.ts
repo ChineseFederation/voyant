@@ -35,7 +35,6 @@ describe("createCatalogAdminExtension", () => {
         catalogProducts: "Pachete",
         catalogExcursions: "Excursii",
         catalogTours: "Tururi",
-        catalogBoatTours: "Tururi cu barca",
         catalogActivities: "Activitati",
         catalogAttractions: "Atractii",
         catalogEvents: "Evenimente",
@@ -57,11 +56,6 @@ describe("createCatalogAdminExtension", () => {
           items: [
             { id: "catalog-products", title: "Pachete", url: "/catalog/products" },
             { id: "catalog-tours", title: "Tururi", url: "/catalog/tours" },
-            {
-              id: "catalog-boat-tours",
-              title: "Tururi cu barca",
-              url: "/catalog/boat-tours",
-            },
             { id: "catalog-activities", title: "Activitati", url: "/catalog/activities" },
             { id: "catalog-attractions", title: "Atractii", url: "/catalog/attractions" },
             { id: "catalog-events", title: "Evenimente", url: "/catalog/events" },
@@ -86,7 +80,6 @@ describe("createCatalogAdminExtension", () => {
       items: [
         { title: "Products" },
         { title: "Tours" },
-        { title: "Boat Tours" },
         { title: "Activities" },
         { title: "Attractions" },
         { title: "Events" },
@@ -106,14 +99,13 @@ describe("createCatalogAdminExtension", () => {
   it("describes the index redirect plus one route per catalog surface page", () => {
     const extension = createCatalogAdminExtension()
     const routes = extension.routes ?? []
-    expect(routes).toHaveLength(21)
-    expect(new Set(routes.map((route) => route.id)).size).toBe(21)
-    expect(new Set(routes.map((route) => route.path)).size).toBe(21)
+    expect(routes).toHaveLength(19)
+    expect(new Set(routes.map((route) => route.id)).size).toBe(19)
+    expect(new Set(routes.map((route) => route.path)).size).toBe(19)
     for (const surface of [
       "products",
       "excursions",
       "tours",
-      "boat-tours",
       "activities",
       "attractions",
       "events",

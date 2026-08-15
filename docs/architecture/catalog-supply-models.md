@@ -68,11 +68,20 @@ review warning), never the family.
 
 Catalog views facet on the stable family/subtype codes, not on free-text
 labels. The standard Tour, Activity, Attraction, Event, and Transportation
-views each lock their corresponding `familyCode`; the Boat Tour view locks
-`familyCode = tour` plus `subtypeCode = boat-tour`. This is independent of
-which surface (§3) the product renders in — a `scheduled` Tour and a `dynamic`
-Tour both facet the same way. Excursions remains a contextual compatibility
-view for scheduled products and is not primary family navigation.
+views each lock exactly one `familyCode` and nothing else. This is independent
+of which surface (§3) the product renders in — a `scheduled` Tour and a
+`dynamic` Tour both facet the same way. Excursions remains a contextual
+compatibility view for scheduled products and is not primary family navigation.
+
+**A subtype never gets a catalog view of its own.** Families are a closed,
+seeded set, so a family view is the same concept on every deployment; subtypes
+are free-form per deployment, so promoting one to a browse surface hardcodes one
+operator's vocabulary and silently leaves every other subtype without a home.
+Subtypes browse as the ordinary `subtypeCode` facet inside their family's view —
+a Boat Tour is found by filtering Tours, the same way a Wine Tour or a Day Tour
+is. A dedicated Boat Tours surface existed until it was retired for exactly this
+reason: it was a strict subset of Tours, and no rule explained why `boat-tour`
+had a page and `day-tour` did not.
 
 ## 3. Two catalog surfaces (split on the mechanic)
 

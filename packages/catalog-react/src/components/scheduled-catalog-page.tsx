@@ -3,21 +3,25 @@
 import type { ReactNode } from "react"
 
 /**
- * Product-family catalog surface. Family and subtype views intentionally do
- * not lock booking/supply mechanics: those concepts are orthogonal to how a
- * product is merchandised. The legacy Excursions context remains the only
- * scheduled-only scope.
+ * Product-family catalog surface. Family views intentionally do not lock
+ * booking/supply mechanics: those concepts are orthogonal to how a product is
+ * merchandised. The legacy Excursions context remains the only scheduled-only
+ * scope.
  *
- * The scope is defined by the **Product family / subtype stable codes**, NOT by
- * duration. The old `durationDays ≤ 1` / `≥ 2` split is retired: a product's
- * duration is display/range information, never its identity, so a 60-minute Boat
- * Tour appears under the Tour view (family `tour`) and the Boat Tour view
- * (subtype `boat-tour`) exactly like a multi-day tour, and it is never shunted
- * into a short/`excursions` bucket because it is brief. "Excursion" is
- * contextual vocabulary, not a `≤ 1-day` family.
+ * A scope is exactly one **Product family stable code** — never a duration and
+ * never a subtype. The old `durationDays ≤ 1` / `≥ 2` split is retired: a
+ * product's duration is display/range information, never its identity, so a
+ * 60-minute Boat Tour appears under the Tour view (family `tour`) exactly like a
+ * multi-day tour, and it is never shunted into a short/`excursions` bucket
+ * because it is brief. "Excursion" is contextual vocabulary, not a `≤ 1-day`
+ * family.
  *   - family views — lock exactly one standard family code
- *   - `boat-tours` — locks family `tour` + subtype `boat-tour`
  *   - `excursions` — contextual scheduled browse (no duration lock)
+ *
+ * Subtypes (`subtypeCode`, e.g. `boat-tour`) are deliberately NOT scopes. They
+ * are free-form per deployment, so no single subtype can earn a hardcoded
+ * surface here without arbitrarily privileging one operator's vocabulary; they
+ * browse as the ordinary subtype facet inside their family's view.
  *
  * Presentational: the localized `title`/`subtitle` and the browse grid itself
  * (`renderBrowseGrid`, the host's `CatalogBrowsePage` wired to its data) are
@@ -27,7 +31,6 @@ import type { ReactNode } from "react"
 export type ScheduledScope =
   | "excursions"
   | "tours"
-  | "boat-tours"
   | "activities"
   | "attractions"
   | "events"
@@ -38,20 +41,12 @@ export interface ScheduledCatalogLocks {
   lockedRanges: Record<string, { gte?: number; lte?: number }>
 }
 
-/** Resolve the family/subtype facet locks for a scope. Duration never locks. */
+/** Resolve the family facet lock for a scope. Duration and subtype never lock. */
 export function resolveScheduledScopeLocks(scope: ScheduledScope): ScheduledCatalogLocks {
   switch (scope) {
     case "tours":
       return {
         lockedFacets: { familyCode: ["tour"] },
-        lockedRanges: {},
-      }
-    case "boat-tours":
-      return {
-        lockedFacets: {
-          familyCode: ["tour"],
-          subtypeCode: ["boat-tour"],
-        },
         lockedRanges: {},
       }
     case "excursions":

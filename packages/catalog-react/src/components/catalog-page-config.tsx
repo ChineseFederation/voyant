@@ -135,8 +135,9 @@ export function makeProductFilters(
     },
     { field: "supplierId", label: messages.filters.supplier, formatValue: formatSupplier },
     { field: "bookingMode", label: messages.filters.bookingMode },
-    // Merchandising family + subtype facets, keyed on the stable codes. The
-    // Tour view locks `familyCode`; the Boat Tour facet locks `subtypeCode`.
+    // Merchandising family + subtype facets, keyed on the stable codes. A
+    // family view locks `familyCode`; `subtypeCode` always stays a free facet,
+    // since subtypes are per-deployment vocabulary with no surface of their own.
     { field: "familyCode", label: messages.filters.family },
     { field: "subtypeCode", label: messages.filters.subtype },
     { field: "capacityMode", label: messages.filters.capacity },

@@ -254,8 +254,6 @@ describe("catalog deployment manifest", () => {
       ["@voyant-travel/catalog#admin.route.excursions-detail", "/catalog/excursions/$id"],
       ["@voyant-travel/catalog#admin.route.tours-index", "/catalog/tours"],
       ["@voyant-travel/catalog#admin.route.tours-detail", "/catalog/tours/$id"],
-      ["@voyant-travel/catalog#admin.route.boat-tours-index", "/catalog/boat-tours"],
-      ["@voyant-travel/catalog#admin.route.boat-tours-detail", "/catalog/boat-tours/$id"],
       ["@voyant-travel/catalog#admin.route.activities-index", "/catalog/activities"],
       ["@voyant-travel/catalog#admin.route.activities-detail", "/catalog/activities/$id"],
       ["@voyant-travel/catalog#admin.route.attractions-index", "/catalog/attractions"],

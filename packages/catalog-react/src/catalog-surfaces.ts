@@ -9,7 +9,6 @@ export const catalogDetailSurfaces = [
   "accommodations",
   "excursions",
   "tours",
-  "boat-tours",
   "activities",
   "attractions",
   "events",

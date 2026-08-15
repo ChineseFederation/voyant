@@ -130,7 +130,6 @@ export interface CreateCatalogAdminExtensionOptions {
     products?: string
     excursions?: string
     tours?: string
-    boatTours?: string
     activities?: string
     attractions?: string
     events?: string
@@ -244,7 +243,6 @@ export function createCatalogAdminExtension(
     products = "Packages",
     excursions = "Excursions",
     tours = "Tours",
-    boatTours = "Boat Tours",
     activities = "Activities",
     attractions = "Attractions",
     events = "Events",
@@ -322,7 +320,6 @@ export function createCatalogAdminExtension(
       },
       ...(
         [
-          ["boat-tours", boatTours],
           ["activities", activities],
           ["attractions", attractions],
           ["events", events],
@@ -397,7 +394,6 @@ export function createSelectedCatalogAdminExtension({
     products: navMessages.catalogProducts ?? "Products",
     excursions: navMessages.catalogExcursions ?? "Excursions",
     tours: navMessages.catalogTours ?? "Tours",
-    boatTours: navMessages.catalogBoatTours ?? "Boat Tours",
     activities: navMessages.catalogActivities ?? "Activities",
     attractions: navMessages.catalogAttractions ?? "Attractions",
     events: navMessages.catalogEvents ?? "Events",
@@ -432,11 +428,6 @@ export function createSelectedCatalogAdminExtension({
                 url: "/catalog/products",
               },
               { id: "catalog-tours", title: labels.tours, url: "/catalog/tours" },
-              {
-                id: "catalog-boat-tours",
-                title: labels.boatTours,
-                url: "/catalog/boat-tours",
-              },
               {
                 id: "catalog-activities",
                 title: labels.activities,

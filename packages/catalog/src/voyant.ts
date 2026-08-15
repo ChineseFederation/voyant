@@ -415,8 +415,6 @@ export const catalogVoyantModule = defineModule({
         ["excursions-detail", "/catalog/excursions/$id"],
         ["tours-index", "/catalog/tours"],
         ["tours-detail", "/catalog/tours/$id"],
-        ["boat-tours-index", "/catalog/boat-tours"],
-        ["boat-tours-detail", "/catalog/boat-tours/$id"],
         ["activities-index", "/catalog/activities"],
         ["activities-detail", "/catalog/activities/$id"],
         ["attractions-index", "/catalog/attractions"],
