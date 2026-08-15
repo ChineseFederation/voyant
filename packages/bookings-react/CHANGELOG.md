@@ -1,5 +1,32 @@
 # @voyant-travel/bookings-react
 
+## 0.286.0
+
+### Minor Changes
+
+- 8e2133e: Record contracts, invoices, proformas, and credit notes that were issued outside Voyant against a booking.
+
+  A Booking Document can now be one of those four commercial kinds as well as a traveller document, and carries the identity its own issuer gave it (`issuedBy`, `issuedSeries`, `issuedNumber`, `issuedAt`). Recording is not issuing: nothing allocates a number from an invoice or contract series, nothing renders from a template, and no `invoices` or `contracts` row is created. A database check requires an issued kind to carry the issuer's number and date, and a unique index over the document's whole issued identity makes recording the same document twice replay the first record instead of doubling it, while keeping two issuers' identically-numbered documents apart. The insert and its action-ledger entry commit in one transaction.
+
+  Adds the `record_booking_document` and `list_booking_documents` Tools so an agent migrating historical bookings can attach the paperwork itself, and adds the matching fields to the admin Upload document dialog.
+
+### Patch Changes
+
+- Updated dependencies [8e2133e]
+  - @voyant-travel/bookings-contracts@0.117.0
+  - @voyant-travel/bookings@0.244.0
+  - @voyant-travel/distribution-react@0.276.0
+  - @voyant-travel/finance-react@0.286.0
+  - @voyant-travel/identity-react@0.286.0
+  - @voyant-travel/legal-react@0.286.0
+  - @voyant-travel/operations-react@0.167.0
+  - @voyant-travel/accommodations@0.210.0
+  - @voyant-travel/storefront-react@0.288.0
+  - @voyant-travel/catalog-react@0.284.0
+  - @voyant-travel/commerce-react@0.168.0
+  - @voyant-travel/inventory-react@0.168.0
+  - @voyant-travel/relationships-react@0.286.0
+
 ## 0.285.0
 
 ### Minor Changes
