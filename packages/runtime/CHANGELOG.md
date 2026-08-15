@@ -1,5 +1,35 @@
 # @voyant-travel/runtime
 
+## 0.24.0
+
+### Minor Changes
+
+- 020de35: Bind the observability sinks a served deployment ships with.
+
+  `analytics.runtime` had no provider anywhere in the repository, so every
+  deployment ran with the booking engine's `engine.*` events — including
+  `engine.hold.failed` and its `failure_reason` — reaching `noopAnalytics`. The
+  runtime now binds `consoleAnalytics`, a new built-in sink writing one JSON line
+  per event to stdout, unless the project supplies its own `analytics.runtime`; a
+  deployment that wants silence binds `noopAnalytics` explicitly.
+
+  The reporter was hard-coded to `consoleReporter`, which left the first-party
+  Sentry adapter unreachable from a generated project. `host.reporter` now accepts
+  the deployment's own `Reporter`, with the console one as the default.
+
+### Patch Changes
+
+- Updated dependencies [020de35]
+  - @voyant-travel/core@0.142.0
+  - @voyant-travel/apps@0.14.19
+  - @voyant-travel/auth@0.152.1
+  - @voyant-travel/db@0.122.2
+  - @voyant-travel/framework@0.82.2
+  - @voyant-travel/hono@0.143.1
+  - @voyant-travel/storage@0.115.7
+  - @voyant-travel/webhook-delivery@0.6.3
+  - @voyant-travel/admin-host@0.138.0
+
 ## 0.23.10
 
 ### Patch Changes

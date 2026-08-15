@@ -1,5 +1,15 @@
 # @voyant-travel/media
 
+## 0.6.14
+
+### Patch Changes
+
+- Updated dependencies [020de35]
+  - @voyant-travel/core@0.142.0
+  - @voyant-travel/db@0.122.2
+  - @voyant-travel/hono@0.143.1
+  - @voyant-travel/storage@0.115.7
+
 ## 0.6.13
 
 ### Patch Changes

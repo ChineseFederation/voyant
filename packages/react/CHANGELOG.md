@@ -1,5 +1,12 @@
 # @voyant-travel/react
 
+## 0.106.2
+
+### Patch Changes
+
+- Updated dependencies [020de35]
+  - @voyant-travel/core@0.142.0
+
 ## 0.106.1
 
 ### Patch Changes

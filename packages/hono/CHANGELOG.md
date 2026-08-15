@@ -1,5 +1,13 @@
 # @voyant-travel/hono
 
+## 0.143.1
+
+### Patch Changes
+
+- Updated dependencies [020de35]
+  - @voyant-travel/core@0.142.0
+  - @voyant-travel/db@0.122.2
+
 ## 0.143.0
 
 ### Minor Changes

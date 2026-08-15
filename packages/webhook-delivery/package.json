@@ -1,6 +1,6 @@
 {
   "name": "@voyant-travel/webhook-delivery",
-  "version": "0.6.2",
+  "version": "0.6.3",
   "description": "Durable, policy-aware outbound webhook delivery for Voyant Node deployments.",
   "license": "Apache-2.0",
   "type": "module",
