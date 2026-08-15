@@ -12,6 +12,7 @@
     "./checkout-routes": "./src/checkout-routes.ts",
     "./checkout-validation": "./src/checkout-validation.ts",
     "./invoice-fx": "./src/invoice-fx.ts",
+    "./booking-settlement": "./src/service-booking-settlement.ts",
     "./service-invoice-core": "./src/service-invoice-core.ts",
     "./reporting": "./src/reporting.ts",
     "./order-payment-sessions": "./src/order-payment-sessions.ts",
@@ -130,6 +131,11 @@
         "types": "./dist/invoice-fx.d.ts",
         "import": "./dist/invoice-fx.js",
         "default": "./dist/invoice-fx.js"
+      },
+      "./booking-settlement": {
+        "types": "./dist/service-booking-settlement.d.ts",
+        "import": "./dist/service-booking-settlement.js",
+        "default": "./dist/service-booking-settlement.js"
       },
       "./service-invoice-core": {
         "types": "./dist/service-invoice-core.d.ts",

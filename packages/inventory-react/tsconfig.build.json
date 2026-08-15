@@ -1103,6 +1103,9 @@
       "@voyant-travel/finance/booking-schedule-subscriber": [
         "../finance/dist/booking-schedule/subscriber-runtime.d.ts"
       ],
+      "@voyant-travel/finance/booking-settlement": [
+        "../finance/dist/service-booking-settlement.d.ts"
+      ],
       "@voyant-travel/finance/booking-tax": ["../finance/dist/booking-tax.d.ts"],
       "@voyant-travel/finance/card-payment": ["../finance/dist/card-payment.d.ts"],
       "@voyant-travel/finance/checkout": ["../finance/dist/checkout-service.d.ts"],

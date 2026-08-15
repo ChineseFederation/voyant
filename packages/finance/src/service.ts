@@ -1,5 +1,6 @@
 import { getFinanceAggregates } from "./service-aggregates.js"
 import { financeBookingBillingService } from "./service-booking-billing.js"
+import { financeBookingSettlementService } from "./service-booking-settlement.js"
 import { costCategoriesService } from "./service-cost-categories.js"
 import { financeInvoiceArtifactService } from "./service-invoice-artifacts.js"
 import { financeInvoiceNumberingService } from "./service-invoice-numbering.js"
@@ -30,6 +31,7 @@ export const financeService = {
   refundSettlements: financeRefundSettlementService,
   ...financePaymentProcessingService,
   ...financeBookingBillingService,
+  ...financeBookingSettlementService,
   ...financeReportService,
   ...financeSupplierPaymentService,
   ...financeInvoiceService,

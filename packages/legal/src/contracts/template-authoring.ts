@@ -615,6 +615,36 @@ export const contractTemplateVariableCatalog: ContractTemplateVariableCategory[]
         description: "Alias for `payment.capturedAt`.",
       },
       {
+        key: "payment.paidAmountCents",
+        label: "Paid so far (alias)",
+        example: "50000",
+        type: "cents",
+        description: "Alias for `booking.paidAmountCents`.",
+      },
+      {
+        key: "payment.balanceDueCents",
+        label: "Balance due (alias)",
+        example: "199900",
+        type: "cents",
+        description: "Alias for `booking.balanceDueCents`. Payment-aware; 0 once settled.",
+      },
+      {
+        key: "payment.isPaidInFull",
+        label: "Paid in full (alias)",
+        example: "false",
+        type: "boolean",
+        description: "Alias for `booking.isPaidInFull`.",
+      },
+      {
+        key: "payment.schedule",
+        label: "Installments",
+        example: "[]",
+        type: "loop",
+        description:
+          "Installments that still stand, oldest due date first. Loop with " +
+          "`{% for line in payment.schedule %}`; cancelled, waived and expired rows are excluded.",
+      },
+      {
         key: "payment.latestCompleted.method",
         label: "Latest payment method",
         example: "bank_transfer",
