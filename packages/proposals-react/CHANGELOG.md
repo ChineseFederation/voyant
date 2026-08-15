@@ -1,5 +1,15 @@
 # @voyant-travel/proposals-react
 
+## 0.282.0
+
+### Patch Changes
+
+- Updated dependencies [0fe4ce8]
+- Updated dependencies [a414f2c]
+  - @voyant-travel/finance@0.251.0
+  - @voyant-travel/finance-react@0.284.0
+  - @voyant-travel/relationships-react@0.284.0
+
 ## 0.281.0
 
 ### Patch Changes
