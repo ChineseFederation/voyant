@@ -223,13 +223,41 @@ export function createCheckoutFinalizedReminderSubscriberRuntime(
   }
 }
 
-async function retryPaymentBundleForBooking(
+/**
+ * A document a booking email was waiting on has arrived — re-drive the emails
+ * that deferred for it.
+ *
+ * Both booking events can defer, so both get retried, and the two have
+ * different preconditions:
+ *
+ * - `booking_confirmed` fires on confirmation and has none. It is retried for
+ *   every booking, because voyant#4653 made it defer on a template that
+ *   declares an attachment, and a booking that was never paid through a
+ *   session still owes its customer that email.
+ * - `payment_complete` needs a paid session and a paid-in-full booking, so it
+ *   is only retried once one exists.
+ *
+ * A run that already delivered is left alone by `sendBookingEventReminder`'s
+ * dedupe, so retrying an event that never deferred costs a lookup and stops.
+ */
+async function retryBookingDocumentBundleForBooking(
   db: PostgresJsDatabase,
   runtime: NotificationsSubscriberRuntime,
   dependencies: NotificationsSubscriberDependencies,
   bookingId: string,
   eventData: Record<string, unknown>,
 ) {
+  const isNotificationsSuppressed =
+    dependencies.isNotificationsSuppressed ?? bookingNotificationsSuppressedForNotification
+  if (await isNotificationsSuppressed(db, bookingId)) return
+
+  await (dependencies.dispatchReminderRules ?? dispatchReminderEventRules)(
+    db,
+    runtime.dispatcher,
+    { targetType: "booking_confirmed", bookingId, eventData },
+    { documentAttachmentResolver: runtime.documentAttachmentResolver },
+  )
+
   const [session] = await db
     .select({ id: paymentSessionsRef.id })
     .from(paymentSessionsRef)
@@ -265,7 +293,13 @@ export function createInvoiceRenderedReminderSubscriberRuntime(
             .where(eq(invoicesRef.id, data.invoiceId))
             .limit(1)
           if (!invoice) return
-          await retryPaymentBundleForBooking(db, runtime, dependencies, invoice.bookingId, data)
+          await retryBookingDocumentBundleForBooking(
+            db,
+            runtime,
+            dependencies,
+            invoice.bookingId,
+            data,
+          )
         } catch (error) {
           logger.error(
             `[notifications] invoice_rendered bundle retry failed for invoice ${data.invoiceId}: ${errorMessage(error)}`,
@@ -296,7 +330,13 @@ export function createContractDocumentReminderSubscriberRuntime(
               .where(eq(contractsRef.id, data.contractId))
               .limit(1)
             if (!contract?.bookingId) return
-            await retryPaymentBundleForBooking(db, runtime, dependencies, contract.bookingId, data)
+            await retryBookingDocumentBundleForBooking(
+              db,
+              runtime,
+              dependencies,
+              contract.bookingId,
+              data,
+            )
           } catch (error) {
             logger.error(
               `[notifications] contract_document_generated bundle retry failed for contract ${data.contractId}: ${errorMessage(error)}`,
@@ -334,7 +374,7 @@ export function createProductContentReminderSubscriberRuntime(
                 and(eq(bookingItemsRef.productId, data.id), eq(paymentSessionsRef.status, "paid")),
               )
             for (const { bookingId } of paidBookings) {
-              await retryPaymentBundleForBooking(db, runtime, dependencies, bookingId, data)
+              await retryBookingDocumentBundleForBooking(db, runtime, dependencies, bookingId, data)
             }
           } catch (error) {
             logger.error(

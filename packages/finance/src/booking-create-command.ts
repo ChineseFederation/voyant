@@ -18,7 +18,7 @@ import {
   FINANCE_BOOKING_CREATE_SELF_SERVICE_ACTION,
   FINANCE_BOOKING_CREATE_SELF_SERVICE_HANDLER_POLICY,
 } from "./booking-create-policy.js"
-import type { FinanceServiceRuntime } from "./service.js"
+import type { FinanceDomainEvent, FinanceServiceRuntime } from "./service.js"
 import {
   type BookingCreateInput,
   type BookingCreateResult,
@@ -158,7 +158,13 @@ async function executeBookingCreateCommand(
         // Spend the draft, quote, hold, and challenge in the same transaction
         // as the booking graph. Throwing here rolls the whole create back.
         await consumeSources?.(transaction, result.booking.id)
-        await insertBookingCreatedOutbox(transaction, input.commandInput, result, input.context)
+        await insertBookingCreatedOutbox(
+          transaction,
+          input.commandInput,
+          result,
+          input.context,
+          outcome.events,
+        )
         return {
           value: { bookingId: result.booking.id },
           targetId: result.booking.id,
@@ -176,6 +182,12 @@ async function insertBookingCreatedOutbox(
   command: BookingCreateInput,
   result: BookingCreateResult,
   context: ActionLedgerRequestContextValues,
+  /**
+   * Finance events the mutation raised — `invoice.issued` and any
+   * `invoice.payment.recorded` — handed up rather than emitted so they commit
+   * or roll back with the booking that caused them (voyant#4653).
+   */
+  domainEvents: readonly FinanceDomainEvent[] = [],
 ) {
   const events: Array<Parameters<typeof insertOutboxEvents>[1][number]> = [
     {
@@ -225,6 +237,10 @@ async function insertBookingCreatedOutbox(
   // subscribed to it. Legal generates the contract off `booking.confirmed`
   // above, so the request event was retired rather than given a second trigger
   // for the same idempotent operation. See scripts/checks/symbols.
+  //
+  // The finance events go last so a subscriber reading the outbox in order
+  // sees the booking exist before it is told an invoice was issued for it.
+  events.push(...domainEvents)
   await insertOutboxEvents(tx, events)
 }
 

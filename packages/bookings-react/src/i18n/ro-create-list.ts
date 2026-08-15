@@ -15,6 +15,15 @@ export const bookingsUiRoCreateList = {
       contactLastName: "Nume contact",
       contactEmail: "E-mail contact",
       contactPhone: "Telefon contact",
+      billingAddress: "Adresa de facturare",
+      billingAddressRequired: "Adresa de facturare (obligatorie pentru factura)",
+      billingAddressLine1: "Strada si numarul",
+      billingAddressLine2: "Adresa, linia 2",
+      billingCity: "Oras",
+      billingRegion: "Judet / regiune",
+      billingPostalCode: "Cod postal",
+      billingCountry: "Tara",
+      billingTaxId: "Cod fiscal",
       addPayment: "Adauga un calendar initial de plata",
       notes: "Note interne",
     },
@@ -31,6 +40,11 @@ export const bookingsUiRoCreateList = {
         "Nu am putut incarca acest contact. Incearca din nou sau selecteaza ori creeaza alt contact.",
       contactIncomplete:
         "Acest contact are nevoie de prenume si nume, plus un e-mail sau un numar de telefon. Editeaza contactul de mai sus sau selecteaza ori creeaza alt contact.",
+      billingAddress:
+        "Precompletata din adresa principala a acestui contact. Corecteaz-o daca factura se emite in alta parte.",
+      billingAddressRequired:
+        "O factura trebuie sa contina numele si adresa cumparatorului, asa ca rezervarea nu poate fi creata fara ele.",
+      billingAddressLoading: "Se incarca adresa de facturare...",
     },
     validation: {
       product: "Alege un produs.",
@@ -41,6 +55,10 @@ export const bookingsUiRoCreateList = {
       contact: "Adauga un nume de contact pentru rezervare.",
       contactName: "Adauga prenumele si numele persoanei facturate.",
       contactMethod: "Adauga un e-mail sau un numar de telefon pentru persoana facturata.",
+      billingAddress:
+        "Adauga adresa de facturare — strada, oras si tara. O factura nu este valida fara adresa cumparatorului.",
+      billingTaxId:
+        "Adauga codul fiscal al organizatiei. O factura catre o firma trebuie sa il contina.",
       email: "Introdu un e-mail de contact valid.",
       travelers: "Adauga cel putin un calator.",
       travelerNames: "Fiecare calator are nevoie de prenume si nume.",

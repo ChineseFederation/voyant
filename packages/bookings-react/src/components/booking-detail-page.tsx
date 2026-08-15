@@ -1,6 +1,7 @@
 // agent-quality: file-size exception -- owner: bookings-react; existing UI surface stays co-located until a dedicated split preserves behavior and tests.
 "use client"
 
+import { missingFiscalBillingFields } from "@voyant-travel/bookings-contracts"
 import { useOrganization, usePerson } from "@voyant-travel/relationships-react"
 import {
   AlertDialog,
@@ -27,6 +28,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@voyant-travel/ui/components/tabs"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@voyant-travel/ui/components/tooltip"
 import {
+  AlertTriangle,
   Ban,
   ChevronDown,
   ChevronRight,
@@ -155,6 +157,11 @@ export interface BookingDetailPageProps {
    */
   hasRecordedPayment?: boolean
   /**
+   * True when the host has found at least one invoice or proforma for this
+   * booking. Gates the Payer card's incomplete-billing warning.
+   */
+  hasFiscalDocument?: boolean
+  /**
    * Open a linked resource referenced by a booking item (product or
    * availability slot) in the host app. When omitted, the item-snapshot
    * sheet renders the names as plain text.
@@ -201,6 +208,7 @@ export function BookingDetailPage({
   addScheduleDisabledReason,
   paidAmountCents,
   hasRecordedPayment,
+  hasFiscalDocument,
   onItemResourceOpen,
   onPersonOpen,
   onOrganizationOpen,
@@ -538,6 +546,7 @@ export function BookingDetailPage({
             booking={booking}
             onPersonOpen={onPersonOpen}
             onOrganizationOpen={onOrganizationOpen}
+            hasFiscalDocument={hasFiscalDocument ?? false}
           />
           <TravelerList bookingId={id} autoReveal />
         </TabsContent>
@@ -726,12 +735,22 @@ export function BookingBillingContextCard({
   booking,
   onPersonOpen,
   onOrganizationOpen,
+  hasFiscalDocument = false,
 }: {
   booking: BookingRecord
   /** Open the linked CRM person's detail page. */
   onPersonOpen?: (personId: string) => void
   /** Open the linked CRM organization's detail page. */
   onOrganizationOpen?: (organizationId: string) => void
+  /**
+   * Whether an invoice or proforma exists for this booking.
+   *
+   * Passed in rather than read here: this card belongs to bookings and the
+   * invoice list is finance's, and the host has already fetched it. It gates
+   * the incomplete-billing warning, because a booking that will never produce
+   * a fiscal document does not owe anyone an address (voyant#4654).
+   */
+  hasFiscalDocument?: boolean
 }) {
   const messages = useBookingsUiMessagesOrDefault().bookingDetailPage
   const [editOpen, setEditOpen] = useState(false)
@@ -761,6 +780,25 @@ export function BookingBillingContextCard({
     .filter(Boolean)
     .join(", ")
 
+  // The gap the operator otherwise has no way to see: the form did not ask,
+  // and issuance succeeds either way, so an invoice went out naming a buyer
+  // with no address and nothing anywhere said so (voyant#4654).
+  const missingFiscalFields = hasFiscalDocument
+    ? missingFiscalBillingFields({
+        contactPartyType: booking.contactPartyType,
+        // A booking billed to an organization is a company buyer even when
+        // `contactPartyType` was never set, which callers other than the
+        // manual form are free to leave null.
+        organizationId: booking.organizationId,
+        contactFirstName: booking.contactFirstName ?? payerName,
+        contactLastName: booking.contactLastName,
+        contactTaxId: taxId,
+        contactAddressLine1: booking.contactAddressLine1,
+        contactCity: booking.contactCity,
+        contactCountry: booking.contactCountry,
+      })
+    : []
+
   return (
     <div data-slot="booking-billing-context" className="flex flex-col gap-3">
       <div className="flex items-center justify-between">
@@ -773,6 +811,19 @@ export function BookingBillingContextCard({
           {messages.editAction}
         </Button>
       </div>
+      {missingFiscalFields.length > 0 ? (
+        <div
+          className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive"
+          role="alert"
+        >
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+          <p>
+            {missingFiscalFields.includes("contactTaxId") && missingFiscalFields.length === 1
+              ? messages.billingIncompleteTaxId
+              : messages.billingIncomplete}
+          </p>
+        </div>
+      ) : null}
       <div className="flex flex-col gap-4 rounded-md border p-4">
         <div className="grid gap-4 md:grid-cols-4">
           <BillingField

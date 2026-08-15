@@ -120,6 +120,8 @@ export type BookingsUiBaseMessages = {
     billingEmail: string
     billingPhone: string
     billingAddress: string
+    billingIncomplete: string
+    billingIncompleteTaxId: string
     documentsSlotEmpty: string
   }
   travelerDialog: {

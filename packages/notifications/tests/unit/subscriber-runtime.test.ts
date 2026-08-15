@@ -7,6 +7,8 @@ import {
   createBookingCancelledReminderSubscriberRuntime,
   createBookingConfirmedReminderSubscriberRuntime,
   createCheckoutFinalizedReminderSubscriberRuntime,
+  createContractDocumentReminderSubscriberRuntime,
+  createInvoiceRenderedReminderSubscriberRuntime,
   createPaymentCompletedReminderSubscriberRuntime,
   NOTIFICATIONS_SUBSCRIBER_RUNTIME_KEY,
   type NotificationsSubscriberRuntime,
@@ -282,6 +284,95 @@ describe("Notifications subscriber runtime descriptors", () => {
     expect(db.update).toHaveBeenCalled()
     expect(isNotificationsSuppressed).toHaveBeenCalledWith(db, "book_silent")
     expect(dispatchReminderRules).not.toHaveBeenCalled()
+  })
+
+  /**
+   * voyant#4653: the document-arrived subscribers only ever re-drove
+   * `payment_complete`, which needs a paid session and a paid-in-full booking.
+   * A booking confirmation that deferred waiting for the same document could
+   * therefore never be repaired — and a booking paid outside a session never
+   * had a session to find.
+   */
+  describe("re-delivering a booking bundle when its document arrives", () => {
+    /**
+     * Hands each queued row set to successive `select(...)` chains. Every
+     * lookup in these subscribers ends in `.limit(1)`, so the builder only has
+     * to be awaitable there.
+     */
+    function selectingDb(rowSets: ReadonlyArray<ReadonlyArray<Record<string, unknown>>>) {
+      let call = 0
+      const chain = () => {
+        const rows = rowSets[call++] ?? []
+        const builder = {
+          where: () => builder,
+          orderBy: () => builder,
+          limit: async () => rows,
+        }
+        return builder
+      }
+      return {
+        select: () => ({ from: chain }),
+        update: vi.fn(() => ({ set: vi.fn(() => ({ where: vi.fn(async () => undefined) })) })),
+      } as unknown as PostgresJsDatabase
+    }
+
+    it("retries the confirmation even when the booking has no paid session", async () => {
+      const dispatchReminderRules = vi.fn().mockResolvedValue(undefined)
+      const isPaidInFull = vi.fn().mockResolvedValue(true)
+      const renderedDb = selectingDb([[{ bookingId: "book_1" }], []])
+      const harness = createHarness({ resolveDb: () => renderedDb })
+      createInvoiceRenderedReminderSubscriberRuntime({
+        dispatchReminderRules,
+        isPaidInFull,
+        isNotificationsSuppressed: vi.fn().mockResolvedValue(false),
+      }).register(harness)
+
+      await harness.eventBus.emit("invoice.rendered", { invoiceId: "inv_1" })
+
+      expect(dispatchReminderRules).toHaveBeenCalledTimes(1)
+      expect(dispatchReminderRules).toHaveBeenCalledWith(
+        renderedDb,
+        dispatcher,
+        expect.objectContaining({ targetType: "booking_confirmed", bookingId: "book_1" }),
+        { documentAttachmentResolver: attachmentResolver },
+      )
+      // No session, so the payment_complete leg is correctly skipped rather
+      // than the whole retry being skipped with it.
+      expect(isPaidInFull).not.toHaveBeenCalled()
+    })
+
+    it("retries both bundles when a paid session exists", async () => {
+      const dispatchReminderRules = vi.fn().mockResolvedValue(undefined)
+      const contractDb = selectingDb([[{ bookingId: "book_1" }], [{ id: "pays_1" }]])
+      const harness = createHarness({ resolveDb: () => contractDb })
+      createContractDocumentReminderSubscriberRuntime({
+        dispatchReminderRules,
+        isPaidInFull: vi.fn().mockResolvedValue(true),
+        isNotificationsSuppressed: vi.fn().mockResolvedValue(false),
+      }).register(harness)
+
+      await harness.eventBus.emit("contract.document.generated", { contractId: "ctr_1" })
+
+      expect(dispatchReminderRules.mock.calls.map(([, , input]) => input.targetType)).toEqual([
+        "booking_confirmed",
+        "payment_complete",
+      ])
+    })
+
+    it("does not retry a suppressed booking", async () => {
+      const dispatchReminderRules = vi.fn().mockResolvedValue(undefined)
+      const renderedDb = selectingDb([[{ bookingId: "book_silent" }], [{ id: "pays_1" }]])
+      const harness = createHarness({ resolveDb: () => renderedDb })
+      createInvoiceRenderedReminderSubscriberRuntime({
+        dispatchReminderRules,
+        isPaidInFull: vi.fn().mockResolvedValue(true),
+        isNotificationsSuppressed: vi.fn().mockResolvedValue(true),
+      }).register(harness)
+
+      await harness.eventBus.emit("invoice.rendered", { invoiceId: "inv_1" })
+
+      expect(dispatchReminderRules).not.toHaveBeenCalled()
+    })
   })
 
   it("catches and logs runtime failures without rejecting the event", async () => {

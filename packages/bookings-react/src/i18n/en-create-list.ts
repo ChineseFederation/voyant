@@ -15,6 +15,15 @@ export const bookingsUiEnCreateList = {
       contactLastName: "Contact last name",
       contactEmail: "Contact email",
       contactPhone: "Contact phone",
+      billingAddress: "Billing address",
+      billingAddressRequired: "Billing address (required for the invoice)",
+      billingAddressLine1: "Street address",
+      billingAddressLine2: "Address line 2",
+      billingCity: "City",
+      billingRegion: "County / region",
+      billingPostalCode: "Postal code",
+      billingCountry: "Country",
+      billingTaxId: "Fiscal code",
       addPayment: "Add an initial payment schedule",
       notes: "Internal notes",
     },
@@ -31,6 +40,11 @@ export const bookingsUiEnCreateList = {
         "We couldn't load this contact. Try again, or select or create another contact.",
       contactIncomplete:
         "This contact needs a first and last name plus an email address or phone number. Edit the contact above, or select or create another contact.",
+      billingAddress:
+        "Prefilled from this contact's primary address. Correct it if the invoice is billed elsewhere.",
+      billingAddressRequired:
+        "An invoice must name the buyer and their address, so this booking cannot be created without one.",
+      billingAddressLoading: "Loading the billing address...",
     },
     validation: {
       product: "Select a product.",
@@ -41,6 +55,9 @@ export const bookingsUiEnCreateList = {
       contact: "Add a contact name for the booking.",
       contactName: "Add the billing person's first and last name.",
       contactMethod: "Add an email address or phone number for the billing person.",
+      billingAddress:
+        "Add the billing address — street, city and country. An invoice is not valid without the buyer's address.",
+      billingTaxId: "Add the organization's fiscal code. A company invoice must carry one.",
       email: "Enter a valid contact email.",
       travelers: "Add at least one traveler.",
       travelerNames: "Each traveler needs a first and last name.",

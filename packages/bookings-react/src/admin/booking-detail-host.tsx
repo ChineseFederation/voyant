@@ -179,6 +179,13 @@ export function BookingDetailHost({
         })
         .reduce((sum, inv) => sum + (inv.paidCents ?? 0), 0)
     : null
+  // Any non-credit-note document is a fiscal document the buyer's details
+  // have to be complete for (voyant#4654).
+  const hasFiscalDocument =
+    invoicesData?.data.some(
+      (invoice) =>
+        ((invoice as { invoiceType?: string }).invoiceType ?? "invoice") !== "credit_note",
+    ) ?? false
   const hasRecordedPayment =
     adminPaymentsData?.data.payments.some(
       (payment) => payment.status === "completed" && payment.amountCents > 0,
@@ -239,6 +246,7 @@ export function BookingDetailHost({
         addScheduleDisabledReason={fullyPaidReason}
         paidAmountCents={paidAmountCents}
         hasRecordedPayment={hasRecordedPayment}
+        hasFiscalDocument={hasFiscalDocument}
         onItemResourceOpen={(kind, resourceId) => {
           if (kind === "product") {
             navigateTo("product.detail", { productId: resourceId })

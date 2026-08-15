@@ -152,6 +152,10 @@ export const bookingsUiRoBase = {
     billingEmail: "Email",
     billingPhone: "Telefon",
     billingAddress: "Adresa",
+    billingIncomplete:
+      "Aceasta rezervare are factura, dar nu are o adresa de facturare completa. O factura trebuie sa contina numele si adresa cumparatorului — editeaza platitorul si emite din nou.",
+    billingIncompleteTaxId:
+      "Aceasta rezervare este facturata unei organizatii fara cod fiscal. O factura catre o firma trebuie sa il contina — editeaza platitorul si emite din nou.",
     documentsSlotEmpty: "Inca nu exista documente.",
   },
   travelerDialog: {

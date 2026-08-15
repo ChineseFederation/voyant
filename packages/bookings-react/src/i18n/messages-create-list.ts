@@ -13,6 +13,15 @@ export type BookingsUiCreateListMessages = {
       contactLastName: string
       contactEmail: string
       contactPhone: string
+      billingAddress: string
+      billingAddressRequired: string
+      billingAddressLine1: string
+      billingAddressLine2: string
+      billingCity: string
+      billingRegion: string
+      billingPostalCode: string
+      billingCountry: string
+      billingTaxId: string
       addPayment: string
       notes: string
     }
@@ -27,6 +36,9 @@ export type BookingsUiCreateListMessages = {
       contactLoading: string
       contactUnavailable: string
       contactIncomplete: string
+      billingAddress: string
+      billingAddressRequired: string
+      billingAddressLoading: string
     }
     validation: {
       product: string
@@ -37,6 +49,8 @@ export type BookingsUiCreateListMessages = {
       contact: string
       contactName: string
       contactMethod: string
+      billingAddress: string
+      billingTaxId: string
       email: string
       travelers: string
       travelerNames: string

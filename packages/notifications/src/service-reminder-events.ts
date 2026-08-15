@@ -64,6 +64,17 @@ export async function requiredAttachmentTypes(
   return configuredAttachmentTypes(template?.metadata ?? null)
 }
 
+/**
+ * Marks a reminder run that is waiting on a document, not one that failed.
+ *
+ * It is a stored sentinel: rows carrying it exist in live deployments and the
+ * retry predicate matches on it, so the value stays as written even though
+ * voyant#4653 widened it past `payment_complete` to every booking event whose
+ * template declares an attachment. Renaming it would strand every run already
+ * waiting.
+ */
+export const DOCUMENT_BUNDLE_NOT_READY_PREFIX = "payment_document_bundle_not_ready:"
+
 export function shouldResolveBookingEventDocuments(
   targetType: BookingEventReminderTargetType,
   channel: NotificationReminderRuleRow["channel"],
@@ -125,7 +136,7 @@ async function sendBookingEventReminder(
   const retryingPendingBundle =
     existingRun?.status === "failed" &&
     existingRun.notificationDeliveryId === null &&
-    existingRun.errorMessage?.startsWith("payment_document_bundle_not_ready:")
+    existingRun.errorMessage?.startsWith(DOCUMENT_BUNDLE_NOT_READY_PREFIX)
   if (existingRun && !retryingPendingBundle) {
     return null
   }
@@ -191,11 +202,23 @@ async function sendBookingEventReminder(
           runtime.documentAttachmentResolver,
           input.targetType === "payment_complete" ? requiredDocumentTypes : undefined,
         )
-      : Promise.resolve({ documents: [], attachments: [] }),
+      : Promise.resolve({ documents: [], attachments: [], unresolvedDocumentTypes: [] }),
   ])
   const documentContext = unfilteredDocumentContext
 
-  if (input.targetType === "payment_complete" && requiredDocumentTypes.length > 0) {
+  // voyant#4653: this gate used to be `payment_complete`-only, so a
+  // booking-confirmation template that declared an invoice attachment sent the
+  // moment the booking was confirmed — before the invoice had been rendered
+  // and before legal had generated the contract, both of which happen
+  // asynchronously off the same event. The customer got an email announcing
+  // documents and carrying none, and the run was recorded as delivered, so the
+  // retry below could never repair it.
+  //
+  // The condition is the template's own declaration, not the target type: an
+  // event whose template promises nothing still sends immediately.
+  // `shouldResolveDocuments` guards the case where we never went looking, so a
+  // target type that resolves no bundle cannot deadlock on an empty one.
+  if (shouldResolveDocuments && requiredDocumentTypes.length > 0) {
     const bookedProductIds = [
       ...new Set(
         items
@@ -208,15 +231,13 @@ async function sendBookingEventReminder(
       documentContext.documents,
       bookedProductIds,
     )
-    if (
-      missingTypes.length > 0 ||
-      documentContext.attachments.length !== documentContext.documents.length
-    ) {
-      const unresolved =
-        documentContext.attachments.length !== documentContext.documents.length
-          ? ["unresolvable_attachment"]
-          : []
-      const errorMessage = `payment_document_bundle_not_ready:${[
+    // Only a required document failing to resolve holds the email back. A
+    // brochure the bundle happens to carry is not what the template promised.
+    const unresolved = documentContext.unresolvedDocumentTypes
+      .filter((documentType) => requiredDocumentTypes.includes(documentType))
+      .map((documentType) => `unresolvable_attachment:${documentType}`)
+    if (missingTypes.length > 0 || unresolved.length > 0) {
+      const errorMessage = `${DOCUMENT_BUNDLE_NOT_READY_PREFIX}${[
         ...missingTypes,
         ...unresolved,
       ].join(",")}`

@@ -26,6 +26,7 @@ import {
   bookingItemToInvoiceLine,
   buildInvoiceIssuedActionLedgerInput,
   type CreateInvoiceFromBookingInput,
+  type FinanceDomainEvent,
   type FinanceServiceRuntime,
   financeService,
   INVOICEABLE_PAYMENT_SCHEDULE_STATUSES,
@@ -279,7 +280,25 @@ export interface InvoiceIssuedEvent {
   clientCity?: string | null
   clientCounty?: string | null
   clientCountry?: string | null
+  clientPostalCode?: string | null
+  /**
+   * Buyer's fiscal code, from the booking's `contact_tax_id` snapshot,
+   * whenever one was recorded.
+   *
+   * Sent for either party type on purpose: e-invoicing downstream reads the
+   * buyer's taxpayer status off this field's presence, so withholding a code
+   * the operator did record would misclassify the party rather than protect
+   * anyone. Whether a buyer must *have* one before the invoice may be issued
+   * is the separate question `isCompanyFiscalBuyer` answers.
+   */
   clientVatCode?: string | null
+  /**
+   * Trade-registry number (Romania's `Reg. Com.`, its analogues elsewhere).
+   * Stays null: no booking column holds it, and there is no second identifier
+   * to derive it from. Populating it means giving the booking contact snapshot
+   * a field of its own, not reusing `contact_tax_id` — they are different
+   * registries and conflating them puts a wrong number on a fiscal document.
+   */
   clientRegCom?: string | null
   lineItems?: InvoiceIssuedLineItem[]
   bookingNumber?: string | null
@@ -552,6 +571,60 @@ export async function issueInvoiceFromBooking(
   return row
 }
 
+/** What issuing a booking's invoice produced, for the transaction's owner. */
+export interface BookingInvoiceIssuance {
+  invoice: typeof invoices.$inferSelect
+  /** `invoice.issued`, or `invoice.proforma.issued` for a proforma. */
+  event: FinanceDomainEvent
+}
+
+/**
+ * Issue an invoice that was just created inside the caller's open transaction,
+ * handing the event back instead of emitting it.
+ *
+ * `issueInvoiceFromBooking` above is the same transition for a caller that
+ * owns the whole operation: it opens its own transaction and emits on the bus
+ * afterwards. Booking create cannot do either — it is already several writes
+ * into a leased transaction that may still roll back, and an event emitted
+ * there escapes it (see `domainEventSink`). So the two share the transition
+ * and differ only in how the event leaves: bus there, outbox row here.
+ *
+ * No action-ledger entry. The booking-create command this runs inside already
+ * ledgers the mutation that produced the invoice; a second entry would record
+ * one operator action twice.
+ */
+export async function issueBookingInvoiceInTransaction(
+  tx: PostgresJsDatabase,
+  invoice: typeof invoices.$inferSelect,
+  runtime: InvoiceIssueRuntime = {},
+): Promise<BookingInvoiceIssuance | null> {
+  // An external series never gets a real number here — allocation is the
+  // accounting provider's, and `pending_external_allocation` is what tells the
+  // subscribed app the placeholder is waiting on it.
+  const status = invoice.status === "pending_external_allocation" ? invoice.status : "issued"
+  const [issued] = await tx
+    .update(invoices)
+    .set({ status, updatedAt: new Date() })
+    .where(eq(invoices.id, invoice.id))
+    .returning()
+  if (!issued) return null
+  await touchLinkedBookingUpdatedAt(tx, issued.bookingId)
+
+  const payload = await buildInvoiceIssuedEvent(tx, issued, runtime)
+  return {
+    invoice: issued,
+    event: {
+      name: issued.invoiceType === "proforma" ? PROFORMA_ISSUED_EVENT : ISSUED_EVENT,
+      data: payload,
+      metadata: {
+        category: "domain",
+        source: "service",
+        eventId: `evt_finance_invoice_issued_${issued.id}`,
+      },
+    },
+  }
+}
+
 /**
  * Create + emit a proforma from a booking. Same shape as
  * `issueInvoiceFromBooking` but marks the row as `invoiceType:
@@ -698,11 +771,18 @@ export async function buildInvoiceIssuedEvent(
     clientCity: booking?.contactCity ?? null,
     clientCounty: booking?.contactRegion ?? null,
     clientCountry: booking?.contactCountry ?? null,
+    clientPostalCode: booking?.contactPostalCode ?? null,
     // The buyer's fiscal code, when the operator recorded one. A business buyer
     // needs it on the invoice, and downstream e-invoicing derives the buyer's
     // taxpayer status from its presence, so dropping it both loses a mandatory
     // field and misclassifies the party (voyant#4653). `contactRegCom` has no
     // column to read from, so that one stays null until there is one.
+    //
+    // Deliberately unconditional, unlike `isCompanyFiscalBuyer` next door in
+    // the issuance gate. The two ask different questions: that one is "must we
+    // demand a fiscal code before this may be issued", which only a company
+    // owes, while this is "does the buyer have one", where withholding a
+    // recorded code would tell the integration the party is not a taxpayer.
     clientVatCode: booking?.contactTaxId ?? null,
     clientRegCom: null,
     lineItems: lines.map((line) => {

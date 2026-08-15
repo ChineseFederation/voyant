@@ -20,6 +20,10 @@ import {
   bookings,
   bookingTravelers,
 } from "@voyant-travel/bookings/schema"
+import {
+  type FiscalBillingField,
+  missingFiscalBillingFields,
+} from "@voyant-travel/bookings-contracts"
 import { withBookingFinanceInsertionFence } from "@voyant-travel/db/booking-finance-fence"
 import { classifyOccupancyPrice } from "@voyant-travel/products-contracts/occupancy-pricing"
 import { emailAddress } from "@voyant-travel/schema-kit/email"
@@ -36,7 +40,13 @@ import type {
   TravelCreditRedemption,
 } from "./schema.js"
 import { bookingItemTaxLines, bookingPaymentSchedules, travelCredits } from "./schema.js"
-import { type FinanceServiceRuntime, financeService, toRows } from "./service.js"
+import {
+  type FinanceDomainEvent,
+  type FinanceServiceRuntime,
+  financeService,
+  toRows,
+} from "./service.js"
+import { issueBookingInvoiceInTransaction } from "./service-issue.js"
 import { TravelCreditServiceError, travelCreditsService } from "./service-travel-credits.js"
 import {
   ianaTimeZoneSchema,
@@ -649,6 +659,18 @@ export interface BookingCreateResult {
     | { status: "requested"; renditionId: string | null }
     | { status: "generated"; renditionId: string }
     | { status: "not_requested" | "not_available" | "failed" }
+  /**
+   * Whether the invoice this create wrote was issued, and if not, why not.
+   *
+   * `blocked` is not a failure: the invoice exists as a draft, the booking is
+   * fine, and the operator completes the buyer's billing details and issues it.
+   * It is here so the caller can say that rather than leaving an unissued
+   * invoice looking like an issued one (voyant#4654).
+   */
+  invoiceIssuance:
+    | { status: "issued" }
+    | { status: "blocked"; missingBillingFields: readonly FiscalBillingField[] }
+    | { status: "not_applicable" }
   payments: Payment[]
 }
 
@@ -658,7 +680,18 @@ export interface BookingCreateValidationIssue {
 }
 
 export type BookingCreateOutcome =
-  | { status: "ok"; result: BookingCreateResult }
+  | {
+      status: "ok"
+      result: BookingCreateResult
+      /**
+       * Domain events raised while building the booking, for the command that
+       * owns the transaction to persist with `insertOutboxEvents(tx, ...)`.
+       *
+       * Handed up rather than emitted because everything here happens inside a
+       * transaction that may still roll back — see `domainEventSink`.
+       */
+      events: FinanceDomainEvent[]
+    }
   | { status: "invalid_payment_schedules"; issues: BookingCreateValidationIssue[] }
   | { status: "invalid_tax_lines"; issues: BookingCreateValidationIssue[] }
   | { status: "invalid_pricing"; issues: BookingCreateValidationIssue[] }
@@ -2852,6 +2885,7 @@ export async function createBookingMutation(
         groupMembership,
         invoice: null,
         invoiceDocument: { status: "not_requested" as const },
+        invoiceIssuance: { status: "not_applicable" as const },
         payments: [],
       }
     })()
@@ -2872,6 +2906,16 @@ export async function createBookingMutation(
       }
     }
     throw error
+  }
+
+  const domainEvents: FinanceDomainEvent[] = []
+  // Everything below runs on the caller's still-open transaction, so nothing
+  // here may reach the event bus: a bus emit captures on a different
+  // connection and would outlive a rollback. Services get this sink instead
+  // and the command writes what it collects into the outbox atomically.
+  const invoiceRuntime: FinanceServiceRuntime = {
+    ...(runtime ?? {}),
+    domainEventSink: (event) => domainEvents.push(event),
   }
 
   const paidSchedules = (input.paymentSchedules ?? []).filter(isAlreadyPaidSchedule)
@@ -2908,7 +2952,7 @@ export async function createBookingMutation(
         notes: "Generated from booking create.",
       },
       { booking: result.booking, dueDatePaymentSchedule, items },
-      runtime,
+      invoiceRuntime,
     )
 
     result = {
@@ -2917,41 +2961,81 @@ export async function createBookingMutation(
     }
 
     if (invoice) {
+      // voyant#4653: the invoice was created and then left alone. Nothing
+      // issued it, so `invoice.issued` never fired, an external number series
+      // never got past its `PENDING-…` placeholder, and an installed
+      // accounting app saw nothing for the lifetime of the deployment. The
+      // only way to a real number was an operator opening each invoice and
+      // pressing the app's own button.
+      //
+      // voyant#4654: a fiscal document needs to name its buyer and where they
+      // are. Issuing one that cannot is worse than not issuing it — an invalid
+      // invoice reaching an accounting system has to be voided and reissued
+      // there, not just corrected here. So an incomplete buyer leaves the
+      // invoice a draft, which is exactly where every booking-created invoice
+      // already sat before this change: no deployment loses behaviour it had,
+      // and the operator gets told what is missing.
+      const missingBillingFields = missingFiscalBillingFields(result.booking)
+      const issuance =
+        missingBillingFields.length === 0
+          ? await issueBookingInvoiceInTransaction(tx, invoice, invoiceRuntime)
+          : null
+      if (issuance) domainEvents.push(issuance.event)
+
       const payments: Payment[] = []
       for (const schedule of paidSchedules) {
         const metadata = parseAlreadyPaidScheduleMetadata(schedule.notes)
         const methodResult = paymentMethodSchema.safeParse(
           metadata?.paymentMethod ?? "bank_transfer",
         )
-        const payment = await financeService.createPayment(tx, invoice.id, {
-          amountCents: schedule.amountCents,
-          currency: schedule.currency,
-          paymentMethod: methodResult.success ? methodResult.data : "bank_transfer",
-          status: "completed",
-          referenceNumber: metadata?.paymentReference?.trim() || null,
-          paymentDate: metadata?.paymentDate || schedule.dueDate || issueDate,
-          notes: schedule.notes ?? null,
-        })
+        const payment = await financeService.createPayment(
+          tx,
+          invoice.id,
+          {
+            amountCents: schedule.amountCents,
+            currency: schedule.currency,
+            paymentMethod: methodResult.success ? methodResult.data : "bank_transfer",
+            status: "completed",
+            referenceNumber: metadata?.paymentReference?.trim() || null,
+            paymentDate: metadata?.paymentDate || schedule.dueDate || issueDate,
+            notes: schedule.notes ?? null,
+          },
+          invoiceRuntime,
+        )
         if (payment) payments.push(payment)
       }
 
       let invoiceDocument: BookingCreateResult["invoiceDocument"] = { status: "not_requested" }
+      // Nothing is rendered for an invoice we just refused to issue. Asking
+      // for the PDF of a document we decided must not become a fiscal record
+      // contradicts the decision, and a rendition that later turns `ready`
+      // would put that document in the booking's notification bundle and mail
+      // it to the customer — the retry this change added is what would carry
+      // it. `not_available` says the document was wanted and withheld, which
+      // `not_requested` (nobody asked) does not.
       if (documentGeneration.invoiceDocument) {
-        const requested = await financeService.renderInvoice(tx, invoice.id, { format: "pdf" })
-        invoiceDocument =
-          requested.status === "requested"
-            ? { status: "requested", renditionId: requested.rendition?.id ?? null }
-            : { status: "failed" }
+        if (!issuance) {
+          invoiceDocument = { status: "not_available" }
+        } else {
+          const requested = await financeService.renderInvoice(tx, invoice.id, { format: "pdf" })
+          invoiceDocument =
+            requested.status === "requested"
+              ? { status: "requested", renditionId: requested.rendition?.id ?? null }
+              : { status: "failed" }
+        }
       }
 
       result = {
         ...result,
         invoice: await financeService.getInvoiceById(tx, invoice.id),
         invoiceDocument,
+        invoiceIssuance: issuance
+          ? { status: "issued" }
+          : { status: "blocked", missingBillingFields },
         payments,
       }
     }
   }
 
-  return { status: "ok", result }
+  return { status: "ok", result, events: domainEvents }
 }

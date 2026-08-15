@@ -8,6 +8,7 @@ import {
   resolveBookingExtraLines,
   travelersToRows,
 } from "@voyant-travel/bookings/pricing-assignment"
+import { missingFiscalBillingFields } from "@voyant-travel/bookings-contracts"
 import {
   type BookingRequirementsV1,
   type BookingSelectionV1,
@@ -34,6 +35,7 @@ import {
   useOptionUnitPriceRules,
   usePricingCategories,
 } from "@voyant-travel/commerce-react/pricing"
+import { useAddresses } from "@voyant-travel/identity-react"
 import { useProduct } from "@voyant-travel/inventory-react"
 import {
   type AvailabilitySlotRecord,
@@ -64,6 +66,7 @@ import {
   Textarea,
 } from "@voyant-travel/ui/components"
 import { AsyncCombobox } from "@voyant-travel/ui/components/async-combobox"
+import { CountryCombobox } from "@voyant-travel/ui/components/country-combobox"
 import { CurrencyCombobox } from "@voyant-travel/ui/components/currency-combobox"
 import { PhoneInput } from "@voyant-travel/ui/components/phone-input"
 import { Loader2 } from "lucide-react"
@@ -185,6 +188,31 @@ export interface ManualBookingContactInput {
   contactEmail: string | null
   contactPhone: string | null
   contactPreferredLanguage: string | null
+  contactAddressLine1: string | null
+  contactAddressLine2: string | null
+  contactCity: string | null
+  contactRegion: string | null
+  contactPostalCode: string | null
+  contactCountry: string | null
+}
+
+/** The billing address the operator entered, as the form holds it. */
+export interface ManualBookingAddressInput {
+  line1: string
+  line2: string
+  city: string
+  region: string
+  postalCode: string
+  country: string
+}
+
+export const emptyManualBookingAddress: ManualBookingAddressInput = {
+  line1: "",
+  line2: "",
+  city: "",
+  region: "",
+  postalCode: "",
+  country: "",
 }
 
 export interface ManualBookingResolvedPricing {
@@ -252,6 +280,20 @@ export function manualBookingTravelersToRows(
   })
 }
 
+/**
+ * Drops blank lines so the selection carries only what was filled in. The
+ * public billing schema treats every address line as optional; sending `""`
+ * would record an address that says nothing rather than no address.
+ */
+function pruneEmptyAddress(address: Record<string, string | null | undefined>) {
+  return Object.fromEntries(
+    Object.entries(address).flatMap(([key, value]) => {
+      const trimmed = value?.trim()
+      return trimmed ? [[key, trimmed]] : []
+    }),
+  )
+}
+
 export function buildManualBookingQuoteDraft(input: {
   productId: string
   sourceKind?: string
@@ -311,7 +353,17 @@ export function buildManualBookingQuoteDraft(input: {
                   vatId: input.contact.contactTaxId ?? undefined,
                 }
               : undefined,
-          address: {},
+          // voyant#4654: hardcoded `{}` while the storefront's billing step
+          // filled the same field, so the quote the operator saw described a
+          // buyer with no address and the commit wrote none.
+          address: pruneEmptyAddress({
+            line1: input.contact.contactAddressLine1,
+            line2: input.contact.contactAddressLine2,
+            city: input.contact.contactCity,
+            region: input.contact.contactRegion,
+            postal: input.contact.contactPostalCode,
+            country: input.contact.contactCountry,
+          }),
         }
       : undefined,
     travelers: input.travelers.travelers.map((traveler, index) => ({
@@ -495,16 +547,54 @@ export function buildManualBookingContactInput(input: {
     preferredLanguage: string
     taxId?: string | null
   }
+  /**
+   * The buyer's billing address. Optional so existing callers keep working;
+   * absent means the booking carries no address, which is what every manually
+   * created booking did before voyant#4654 and what made their invoices
+   * fiscally invalid.
+   */
+  address?: ManualBookingAddressInput
 }): ManualBookingContactInput {
+  const address = input.address ?? emptyManualBookingAddress
+  const trimmedOrNull = (value: string) => value.trim() || null
   return {
     contactPartyType: input.billTo === "organization" ? "company" : "individual",
+    // A private buyer's tax id is personal data an invoice does not need, so
+    // it is only carried for a company. Matches `missingFiscalBillingFields`,
+    // which likewise only requires one of a company.
     contactTaxId: input.billTo === "organization" ? (input.contact.taxId ?? null) : null,
     contactFirstName: input.contact.firstName.trim(),
-    contactLastName: input.contact.lastName.trim() || null,
-    contactEmail: input.contact.email.trim() || null,
-    contactPhone: input.contact.phone.trim() || null,
-    contactPreferredLanguage: input.contact.preferredLanguage.trim() || null,
+    contactLastName: trimmedOrNull(input.contact.lastName),
+    contactEmail: trimmedOrNull(input.contact.email),
+    contactPhone: trimmedOrNull(input.contact.phone),
+    contactPreferredLanguage: trimmedOrNull(input.contact.preferredLanguage),
+    contactAddressLine1: trimmedOrNull(address.line1),
+    contactAddressLine2: trimmedOrNull(address.line2),
+    contactCity: trimmedOrNull(address.city),
+    contactRegion: trimmedOrNull(address.region),
+    contactPostalCode: trimmedOrNull(address.postalCode),
+    contactCountry: trimmedOrNull(address.country),
   }
+}
+
+/**
+ * Whether this booking will produce a fiscal document, and so whether the
+ * buyer's billing details have to be complete before it may be created.
+ *
+ * Mirrors booking create's own `shouldCreateInvoice`: either the operator
+ * asked for a document, or a schedule is already marked paid and an invoice
+ * has to exist for the payment to attach to.
+ */
+export function manualBookingWillIssueInvoice(input: {
+  generateProforma: boolean
+  generateInvoiceAndContract: boolean
+  paymentSchedule: Pick<PaymentScheduleValue, "installments">
+}) {
+  return (
+    input.generateProforma ||
+    input.generateInvoiceAndContract ||
+    input.paymentSchedule.installments.some((installment) => installment.alreadyPaid)
+  )
 }
 
 export function validateManualBookingDraft(input: {
@@ -522,6 +612,14 @@ export function validateManualBookingDraft(input: {
   manualOverrideRequiresReason?: boolean
   paymentRows: Array<{ dueDate: string; amountCents: number }>
   paymentSchedule?: PaymentScheduleValue
+  /**
+   * The billing address, and whether this booking will produce a fiscal
+   * document. Optional so the existing callers and tests that predate
+   * voyant#4654 keep compiling; absent means the address is not checked.
+   */
+  address?: ManualBookingAddressInput
+  willIssueInvoice?: boolean
+  contactTaxId?: string
   messages: ReturnType<typeof useBookingsUiMessagesOrDefault>["manualBookingCreate"]
 }): string | null {
   if (!input.productId) return input.messages.validation.product
@@ -541,6 +639,24 @@ export function validateManualBookingDraft(input: {
   }
   if (billTo === "person" && !input.contactEmail.trim() && !input.contactPhone.trim()) {
     return input.messages.validation.contactMethod
+  }
+  // voyant#4654: an invoice needs to name its buyer and where they are, and
+  // the cheapest place to establish that is here — the operator has the
+  // customer in front of them. Asked only when a document will actually be
+  // produced, so a booking that issues nothing is not held up for an address
+  // no one will read.
+  if (input.willIssueInvoice) {
+    const missing = missingFiscalBillingFields({
+      contactPartyType: billTo === "organization" ? "company" : "individual",
+      contactFirstName: input.contactFirstName,
+      contactLastName: input.contactLastName,
+      contactTaxId: input.contactTaxId ?? null,
+      contactAddressLine1: input.address?.line1 ?? null,
+      contactCity: input.address?.city ?? null,
+      contactCountry: input.address?.country ?? null,
+    })
+    if (missing.includes("contactTaxId")) return input.messages.validation.billingTaxId
+    if (missing.length > 0) return input.messages.validation.billingAddress
   }
   if (input.travelers.travelers.length === 0) return input.messages.validation.travelers
   if (
@@ -720,6 +836,13 @@ export function ManualBookingCreateForm({
   // read the same value and cannot disagree for a render.
   const generateInvoiceAndContractSelected =
     generateInvoiceAndContract && contractGeneration.available
+  // Whether this booking will produce a fiscal document, and so whether the
+  // buyer's billing details have to be complete before it can be created.
+  const willIssueInvoice = manualBookingWillIssueInvoice({
+    generateProforma,
+    generateInvoiceAndContract: generateInvoiceAndContractSelected,
+    paymentSchedule,
+  })
   const [notifyTraveler, setNotifyTraveler] = React.useState(true)
   const [contact, setContact] = React.useState({
     firstName: "",
@@ -730,6 +853,12 @@ export function ManualBookingCreateForm({
     taxId: "",
   })
   const [contactTouched, setContactTouched] = React.useState(false)
+  const [address, setAddress] = React.useState<ManualBookingAddressInput>(emptyManualBookingAddress)
+  const [addressTouched, setAddressTouched] = React.useState(false)
+  const updateAddress = React.useCallback((patch: Partial<ManualBookingAddressInput>) => {
+    setAddressTouched(true)
+    setAddress((current) => ({ ...current, ...patch }))
+  }, [])
   const [notes, setNotes] = React.useState("")
   const [error, setError] = React.useState<ManualBookingFormError | null>(null)
   /**
@@ -825,6 +954,43 @@ export function ManualBookingCreateForm({
     billing.billTo === "organization" ? (billing.organizationId ?? undefined) : undefined,
     { enabled: billing.billTo === "organization" && Boolean(billing.organizationId) },
   ).data
+
+  // The billing party's own address, so the operator confirms it rather than
+  // retyping it. A CRM person has no address columns — addresses are Identity
+  // records keyed by entity — which is why picking a person never populated
+  // the booking's `contact_*` columns and every manual booking's invoice came
+  // out without one (voyant#4654).
+  const billTo = billing.billTo ?? "person"
+  const billingParty =
+    billTo === "organization" ? (billing.organizationId ?? null) : (billing.personId ?? null)
+  const billingAddressEntity = {
+    entityType: billTo === "organization" ? ("organization" as const) : ("person" as const),
+    entityId: billingParty,
+  }
+  const billingAddressQuery = useAddresses({
+    entityType: billingAddressEntity.entityType,
+    entityId: billingAddressEntity.entityId ?? undefined,
+    isPrimary: true,
+    limit: 1,
+    enabled: Boolean(billingAddressEntity.entityId),
+  })
+  const billingAddress = billingAddressQuery.data?.data?.[0] ?? null
+  const billingAddressLoading = Boolean(billingParty) && billingAddressQuery.isLoading
+
+  React.useEffect(() => {
+    // Same contract as the contact prefill below: fill until the operator
+    // edits, then never overwrite what they typed.
+    if (addressTouched) return
+    if (!billingAddressEntity.entityId) return
+    setAddress({
+      line1: billingAddress?.line1 ?? "",
+      line2: billingAddress?.line2 ?? "",
+      city: billingAddress?.city ?? "",
+      region: billingAddress?.region ?? "",
+      postalCode: billingAddress?.postalCode ?? "",
+      country: billingAddress?.country ?? "",
+    })
+  }, [addressTouched, billingAddress, billingAddressEntity.entityId])
 
   React.useEffect(() => {
     if (product.productId) setSlotsFromIso(new Date().toISOString())
@@ -1009,6 +1175,11 @@ export function ManualBookingCreateForm({
           preferredLanguage: "",
           taxId: "",
         })
+        // The address belongs to the party, so changing the party clears it
+        // and re-arms the prefill. Leaving it would bill the new buyer at the
+        // previous one's address.
+        setAddressTouched(false)
+        setAddress(emptyManualBookingAddress)
       }
       setBilling(next)
     },
@@ -1403,8 +1574,9 @@ export function ManualBookingCreateForm({
       buildManualBookingContactInput({
         billTo: billing.billTo ?? "person",
         contact,
+        address,
       }),
-    [billing.billTo, contact],
+    [billing.billTo, contact, address],
   )
   const quoteDraft = React.useMemo(
     () =>
@@ -1608,6 +1780,9 @@ export function ManualBookingCreateForm({
       manualOverrideRequiresReason,
       paymentRows,
       paymentSchedule,
+      address,
+      contactTaxId: contact.taxId,
+      willIssueInvoice,
       messages: copy,
     })
     if (validationError) {
@@ -1655,7 +1830,6 @@ export function ManualBookingCreateForm({
     if (submissionRef.current) return
     submissionRef.current = true
 
-    const billTo = billing.billTo ?? "person"
     const submitUnits =
       bookingUnits.length > 0
         ? bookingUnits
@@ -1747,6 +1921,7 @@ export function ManualBookingCreateForm({
     const contactPayload = buildManualBookingContactInput({
       billTo,
       contact,
+      address,
     })
     const booking = {
       productId: product.productId,
@@ -2093,6 +2268,21 @@ export function ManualBookingCreateForm({
                   </Field>
                 </div>
               )}
+              {billingParty ? (
+                <ManualBookingBillingAddressFields
+                  address={address}
+                  onChange={updateAddress}
+                  copy={copy}
+                  required={willIssueInvoice}
+                  loading={billingAddressLoading}
+                  {...(billTo === "organization"
+                    ? {
+                        taxId: contact.taxId,
+                        onTaxIdChange: (value: string) => updateContact("taxId", value),
+                      }
+                    : {})}
+                />
+              ) : null}
             </FieldSet>
           ) : null}
 
@@ -2546,6 +2736,101 @@ function EditableContactField({
         onChange={(event) => onChange(event.target.value)}
       />
     </Field>
+  )
+}
+
+/**
+ * The buyer's billing address, and the fiscal code when the buyer is a
+ * company.
+ *
+ * Prefilled from the picked party's primary address and editable, matching
+ * `BookingBillingDialog` — the operator confirms what the CRM already knows
+ * rather than retyping it, and can correct it when the invoice goes somewhere
+ * else. `required` follows whether this booking will actually produce a
+ * document, so a booking that issues nothing never asks (voyant#4654).
+ */
+function ManualBookingBillingAddressFields({
+  address,
+  onChange,
+  copy,
+  required,
+  loading,
+  taxId,
+  onTaxIdChange,
+}: {
+  address: ManualBookingAddressInput
+  onChange: (patch: Partial<ManualBookingAddressInput>) => void
+  copy: ReturnType<typeof useBookingsUiMessagesOrDefault>["manualBookingCreate"]
+  required: boolean
+  loading: boolean
+  taxId?: string
+  onTaxIdChange?: (value: string) => void
+}) {
+  return (
+    <FieldSet className="gap-4">
+      <FieldLegend className="px-1 text-sm font-medium">
+        {required ? copy.fields.billingAddressRequired : copy.fields.billingAddress}
+      </FieldLegend>
+      {loading ? (
+        <p className="text-sm text-muted-foreground">{copy.hints.billingAddressLoading}</p>
+      ) : (
+        <p className="text-sm text-muted-foreground">
+          {required ? copy.hints.billingAddressRequired : copy.hints.billingAddress}
+        </p>
+      )}
+      <div className="grid gap-4 sm:grid-cols-2">
+        <EditableContactField
+          id="manual-booking-billing-line1"
+          label={copy.fields.billingAddressLine1}
+          value={address.line1}
+          required={required}
+          onChange={(value) => onChange({ line1: value })}
+        />
+        <EditableContactField
+          id="manual-booking-billing-line2"
+          label={copy.fields.billingAddressLine2}
+          value={address.line2}
+          onChange={(value) => onChange({ line2: value })}
+        />
+        <EditableContactField
+          id="manual-booking-billing-city"
+          label={copy.fields.billingCity}
+          value={address.city}
+          required={required}
+          onChange={(value) => onChange({ city: value })}
+        />
+        <EditableContactField
+          id="manual-booking-billing-region"
+          label={copy.fields.billingRegion}
+          value={address.region}
+          onChange={(value) => onChange({ region: value })}
+        />
+        <EditableContactField
+          id="manual-booking-billing-postal-code"
+          label={copy.fields.billingPostalCode}
+          value={address.postalCode}
+          onChange={(value) => onChange({ postalCode: value })}
+        />
+        <Field className="gap-2">
+          <FieldLabel htmlFor="manual-booking-billing-country">
+            {copy.fields.billingCountry}
+          </FieldLabel>
+          <CountryCombobox
+            value={address.country || null}
+            onChange={(code) => onChange({ country: code ?? "" })}
+          />
+        </Field>
+        {onTaxIdChange ? (
+          <EditableContactField
+            id="manual-booking-billing-tax-id"
+            label={copy.fields.billingTaxId}
+            value={taxId ?? ""}
+            required={required}
+            onChange={onTaxIdChange}
+          />
+        ) : null}
+      </div>
+    </FieldSet>
   )
 }
 

@@ -172,10 +172,26 @@ async function listFinanceBookingDocuments(
   db: PostgresJsDatabase,
   bookingId: string,
 ): Promise<BookingDocumentBundleItem[]> {
+  // A draft is not a document anyone may be sent. It is the state an invoice
+  // sits in before it has been issued — including one booking create refused
+  // to issue because the buyer's fiscal details were incomplete (voyant#4654)
+  // — so a rendition bound to it must not reach a customer. Excluded here as
+  // well as at the point of rendering, because this is the query that decides
+  // what actually gets attached.
+  //
+  // `pending_external_allocation` stays in: it is issued, merely waiting on
+  // the accounting provider for its number, and the allocation that gives it
+  // one moves it to `issued` in the same write.
   const invoiceRows = await db
     .select()
     .from(invoices)
-    .where(and(eq(invoices.bookingId, bookingId), ne(invoices.status, "void")))
+    .where(
+      and(
+        eq(invoices.bookingId, bookingId),
+        ne(invoices.status, "void"),
+        ne(invoices.status, "draft"),
+      ),
+    )
     .orderBy(desc(invoices.createdAt))
 
   if (invoiceRows.length === 0) {

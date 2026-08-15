@@ -173,6 +173,17 @@ export async function getBookingEventDocumentContext(
 ): Promise<{
   documents: BookingDocumentBundleItem[]
   attachments: NotificationAttachment[]
+  /**
+   * Types of documents the bundle found but the resolver could not turn into
+   * something sendable — no download URL, or storage that would not sign.
+   *
+   * Named rather than counted so a caller can ask whether the document it is
+   * waiting for resolved. Comparing `attachments.length` to `documents.length`
+   * only works when the bundle was already filtered to what was required;
+   * booking confirmations attach whatever exists, so an unresolvable brochure
+   * would otherwise hold back an email whose invoice was ready (voyant#4653).
+   */
+  unresolvedDocumentTypes: Array<BookingDocumentBundleItem["documentType"]>
 }> {
   const bundle = await bookingDocumentNotificationsService.listBookingDocumentBundle(db, bookingId)
   const requested = requestedDocumentTypes ? new Set(requestedDocumentTypes) : null
@@ -180,18 +191,30 @@ export async function getBookingEventDocumentContext(
     (document) => !requested || requested.has(document.documentType),
   )
   if (documents.length === 0) {
-    return { documents, attachments: [] }
+    return { documents, attachments: [], unresolvedDocumentTypes: [] }
   }
 
   const resolver =
     attachmentResolver ??
     (async (document: BookingDocumentBundleItem) =>
       createDefaultBookingDocumentAttachment(document))
-  const attachments = (await Promise.all(documents.map((document) => resolver(document)))).filter(
-    (attachment): attachment is NotificationAttachment => Boolean(attachment),
+  const resolved = await Promise.all(
+    documents.map(async (document) => ({ document, attachment: await resolver(document) })),
   )
 
-  return { documents, attachments }
+  return {
+    documents,
+    attachments: resolved
+      .map(({ attachment }) => attachment)
+      .filter((attachment): attachment is NotificationAttachment => Boolean(attachment)),
+    unresolvedDocumentTypes: [
+      ...new Set(
+        resolved
+          .filter(({ attachment }) => !attachment)
+          .map(({ document }) => document.documentType),
+      ),
+    ],
+  }
 }
 
 function amountFromCents(value: number | null | undefined) {

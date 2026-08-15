@@ -153,6 +153,10 @@ export const bookingsUiEnBase = {
     billingEmail: "Email",
     billingPhone: "Phone",
     billingAddress: "Address",
+    billingIncomplete:
+      "This booking has an invoice but no complete billing address. A fiscal invoice must carry the buyer's name and address — edit the payer to add it, then reissue.",
+    billingIncompleteTaxId:
+      "This booking is invoiced to an organization with no fiscal code. A company invoice must carry one — edit the payer to add it, then reissue.",
     documentsSlotEmpty: "No documents yet.",
   },
   travelerDialog: {

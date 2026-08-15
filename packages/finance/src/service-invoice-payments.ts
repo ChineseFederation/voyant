@@ -25,6 +25,7 @@ import {
   PaymentValidationError,
   paymentSettlementAmountSql,
   payments,
+  publishFinanceDomainEvent,
   recomputeInvoiceTotalsAfterPaymentChange,
   resolveFxMoneyBaseAmount,
   settleCoveredBookingPaymentSchedules,
@@ -335,8 +336,10 @@ export const financeInvoicePaymentService = {
 
     const paymentId = newId("payments")
 
-    let recordedPaymentEvent: InvoicePaymentRecordedEvent | null = null
-    const payment = await db.transaction(async (tx) => {
+    // Returned from the transaction rather than closed over: a `let` assigned
+    // only inside the callback reads as `null` to control-flow analysis
+    // afterwards, which silently typed the event as `never` at its use site.
+    const { payment, recordedPaymentEvent } = await db.transaction(async (tx) => {
       if (runtime.actionLedgerContext) {
         const ledgerResult = await appendActionLedgerMutation(
           tx,
@@ -358,7 +361,10 @@ export const financeInvoicePaymentService = {
         )
 
         if (ledgerResult.replayed) {
-          return getPaymentFromReplayedLedgerEntry(tx, ledgerResult.entry.id)
+          return {
+            payment: await getPaymentFromReplayedLedgerEntry(tx, ledgerResult.entry.id),
+            recordedPaymentEvent: null,
+          }
         }
       }
 
@@ -413,30 +419,31 @@ export const financeInvoicePaymentService = {
         .where(eq(invoices.id, invoiceId))
       await touchLinkedBookingUpdatedAt(tx, invoice.bookingId)
 
-      if (payment.status === "completed") {
-        recordedPaymentEvent = {
-          invoiceId: invoice.id,
-          invoiceNumber: invoice.invoiceNumber,
-          invoiceType: invoice.invoiceType,
-          bookingId: invoice.bookingId,
-          invoiceCurrency: invoice.currency,
-          invoiceTotalCents: invoice.totalCents,
-          invoicePaidCents: paidCents,
-          invoiceBalanceDueCents: balanceDueCents,
-          paymentId: payment.id,
-          amountCents: payment.amountCents,
-          currency: payment.currency,
-          baseCurrency: payment.baseCurrency ?? null,
-          baseAmountCents: payment.baseAmountCents ?? null,
-          paymentMethod: payment.paymentMethod,
-          status: payment.status,
-          referenceNumber: payment.referenceNumber ?? null,
-          paymentDate: payment.paymentDate,
-          occurredAt: new Date().toISOString(),
-        }
-      }
+      const recordedPaymentEvent: InvoicePaymentRecordedEvent | null =
+        payment.status !== "completed"
+          ? null
+          : {
+              invoiceId: invoice.id,
+              invoiceNumber: invoice.invoiceNumber,
+              invoiceType: invoice.invoiceType,
+              bookingId: invoice.bookingId,
+              invoiceCurrency: invoice.currency,
+              invoiceTotalCents: invoice.totalCents,
+              invoicePaidCents: paidCents,
+              invoiceBalanceDueCents: balanceDueCents,
+              paymentId: payment.id,
+              amountCents: payment.amountCents,
+              currency: payment.currency,
+              baseCurrency: payment.baseCurrency ?? null,
+              baseAmountCents: payment.baseAmountCents ?? null,
+              paymentMethod: payment.paymentMethod,
+              status: payment.status,
+              referenceNumber: payment.referenceNumber ?? null,
+              paymentDate: payment.paymentDate,
+              occurredAt: new Date().toISOString(),
+            }
 
-      return payment
+      return { payment, recordedPaymentEvent }
     })
 
     if (payment?.status === "completed" && invoice.bookingId) {
@@ -444,9 +451,19 @@ export const financeInvoicePaymentService = {
     }
 
     if (recordedPaymentEvent) {
-      await runtime.eventBus?.emit("invoice.payment.recorded", recordedPaymentEvent, {
-        category: "domain",
-        source: "service",
+      // voyant#4653: booking create records the payments for already-paid
+      // schedules on its own transaction and passed no runtime at all, so this
+      // never fired and the accounting integration never learned a booking had
+      // been paid. It now passes a `domainEventSink`, which lands the event in
+      // the same outbox write as the booking.
+      await publishFinanceDomainEvent(runtime, {
+        name: "invoice.payment.recorded",
+        data: recordedPaymentEvent,
+        metadata: {
+          category: "domain",
+          source: "service",
+          eventId: `evt_finance_invoice_payment_recorded_${recordedPaymentEvent.paymentId}`,
+        },
       })
     }
 
