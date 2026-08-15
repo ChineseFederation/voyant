@@ -158,6 +158,25 @@ export function bookingSessionOf(
  * never a replacement for it: the error itself stays on
  * `BookingSessionJourneyError.error` so a host that wants
  * `unsatisfied[]` — or `revision_conflict.actualRevision` — can still reach it.
+ *
+ * **A repeating class is not always a loop, and the difference decides what a
+ * host may say.** `commitInFlight` — `payment_in_flight`,
+ * `supplier_operation_active`, `supplier_in_doubt`, `component_commit_pending`
+ * — repeats precisely because external work is still running, and its next
+ * actions are to await, reconcile or continue. Observing it many times is what
+ * waiting looks like, and a host that answered it with a terminal failure would
+ * abandon a payment that was about to succeed.
+ *
+ * **Every other class names a remedy, not a promise that retrying applies it.**
+ * Most are deterministic for a given Session state, so re-running the same
+ * remedy is rejected identically every time. One shopper retried a checkout for
+ * eleven minutes — 30 holds, no commit — and saw a spinner throughout, because
+ * nothing between the rejection and the screen ever concluded that it would not
+ * work (voyant#4655, voyant#4683). Where to give up is a host decision and
+ * these hooks deliberately do not make it: a library that silently declined a
+ * call the host asked for would be a worse failure than the loop. But something
+ * must make it, and a terminal "we could not complete this — please contact us"
+ * is the only part of that eleven minutes the shopper would have valued.
  */
 export type BookingSessionRecoveryV1 =
   | "revisionConflict"
