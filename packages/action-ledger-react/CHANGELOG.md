@@ -1,5 +1,15 @@
 # @voyant-travel/action-ledger-react
 
+## 0.177.0
+
+### Patch Changes
+
+- Updated dependencies [e99380d]
+  - @voyant-travel/i18n@0.124.0
+  - @voyant-travel/inventory-react@0.170.0
+  - @voyant-travel/bookings-react@0.288.0
+  - @voyant-travel/relationships-react@0.288.0
+
 ## 0.176.0
 
 ### Patch Changes

@@ -1,5 +1,12 @@
 # @voyant-travel/inventory
 
+## 0.42.8
+
+### Patch Changes
+
+- Updated dependencies [e99380d]
+  - @voyant-travel/operations@0.23.0
+
 ## 0.42.7
 
 ### Patch Changes

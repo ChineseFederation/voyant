@@ -1,5 +1,13 @@
 # @voyant-travel/mice
 
+## 0.103.2
+
+### Patch Changes
+
+- Updated dependencies [e99380d]
+  - @voyant-travel/operations@0.23.0
+  - @voyant-travel/accommodations@0.210.2
+
 ## 0.103.1
 
 ### Patch Changes
