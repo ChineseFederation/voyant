@@ -86,6 +86,37 @@ export const noopAnalytics: AnalyticsEmitter = Object.freeze({
   group: () => undefined,
 })
 
+/**
+ * Built-in sink that writes one JSON line per event to `console.log`.
+ *
+ * The vendor-neutral port is the right seam, but "unbound is supported" made
+ * *unbound* the state every deployment shipped in: a storefront checkout could
+ * reject 30 holds in eleven minutes and emit `engine.hold.failed` 30 times into
+ * {@link noopAnalytics}, so the break was invisible until a customer wrote in
+ * (voyant#4655, voyant#4682). A deployment whose log drain is its telemetry
+ * backend should not have to write an adapter to see that.
+ *
+ * One object per line, no timestamp — the drain stamps ingestion time, and
+ * omitting it keeps the line diffable in a test. Grep `"voyant":"analytics"`.
+ *
+ * Never throws: a sink that cannot serialize an event must not be able to break
+ * the booking that emitted it.
+ */
+export function consoleAnalytics(sink: Pick<Console, "log"> = console): AnalyticsPort {
+  const emit = (line: Record<string, unknown>): void => {
+    try {
+      sink.log(JSON.stringify({ voyant: "analytics", ...line }))
+    } catch {
+      // measuring the funnel must never break the funnel
+    }
+  }
+  return {
+    track: (event, properties) => emit({ kind: "track", event, properties }),
+    identify: (id, properties) => emit({ kind: "identify", id, properties }),
+    group: (type, key, properties) => emit({ kind: "group", type, key, properties }),
+  }
+}
+
 function swallow(run: () => unknown): void {
   try {
     const result = run()

@@ -14,6 +14,7 @@ export {
   analyticsFailureReason,
   analyticsPort,
   analyticsProperties,
+  consoleAnalytics,
   createSafeAnalytics,
   noopAnalytics,
 } from "./analytics.js"

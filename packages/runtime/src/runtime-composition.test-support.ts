@@ -12,6 +12,8 @@ interface RuntimeCompositionMocks {
   adminSsrHandler: Mock
   createAdminSsrHandler: Mock
   authRuntimeOptions: Array<Record<string, unknown>>
+  /** Constructed only when the project supplies no reporter of its own. */
+  consoleReporter: Mock
   createNodeServer: Mock
   postgresEnqueue: Mock
   appEnqueue: Mock
@@ -88,6 +90,7 @@ const mocks: RuntimeCompositionMocks = vi.hoisted(() => {
         }
       },
     ),
+    consoleReporter: vi.fn(() => ({ captureException: vi.fn() })),
     postgresEnqueue: vi.fn(async () => ["queued"]),
     appEnqueue: vi.fn(async () => ["app-queued"]),
     createAppWebhookDeliveryEnqueuer: vi.fn(),
@@ -250,7 +253,7 @@ vi.mock("./deployment-resources.js", async (importOriginal) => {
 })
 
 vi.mock("@voyant-travel/hono/observability/reporter", () => ({
-  consoleReporter: () => ({}),
+  consoleReporter: mocks.consoleReporter,
 }))
 
 vi.mock("@voyant-travel/runtime-core", () => ({

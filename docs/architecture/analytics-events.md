@@ -28,9 +28,19 @@ Four properties are guaranteed by `@voyant-travel/core/analytics` rather than
 left to each implementation:
 
 1. **Unbound is a supported, silent state.** The default is `noopAnalytics`. A
-   deployment that binds nothing behaves exactly as it did before the port
+   library consumer that binds nothing behaves exactly as it did before the port
    existed and pays nothing for it — no network call, no error, no measurable
    overhead.
+
+   A *served deployment* is different, and voyant#4682 is what taught us the
+   difference: because unbound was silent and nothing in the repository ever
+   bound the port, every deployment ran with the whole catalogue going nowhere.
+   A storefront checkout rejected 30 holds in eleven minutes, emitted
+   `engine.hold.failed` 30 times into the no-op, and the operator found out when
+   the customer wrote in (voyant#4655). So `@voyant-travel/runtime` binds
+   `consoleAnalytics` — one JSON line per event on stdout — unless the project
+   supplies its own `analytics.runtime`. A deployment that wants silence back
+   binds `noopAnalytics` explicitly, which is a decision rather than a default.
 2. **Fire-and-forget.** `track` returns `void`. There is nothing to await, so
    no caller can put an analytics round-trip on a booking's critical path.
 3. **It cannot fail a booking.** `createSafeAnalytics` swallows a provider that
@@ -45,7 +55,14 @@ Where the binding is made:
 | Surface | Bind through |
 |---|---|
 | Server | `requirePort(analyticsPort, { optional: true })`, resolved by the package's runtime contributor |
+| Deployment | `createVoyantProjectServerEntry({ host: { runtimePorts: { "analytics.runtime": … } } })` — overrides the built-in stdout sink |
 | Browser | `<VoyantReactProvider analytics={…}>`, or `<VoyantAnalyticsProvider>` for a surface with its own provider |
+
+Exceptions travel the other seam. `Reporter` is `captureException` only, and a
+rejected Hold is a typed outcome on a *successful* response — so a rejection is
+invisible to it by construction, no matter which vendor is bound. That seam is
+`host.reporter` (default `consoleReporter`, RFC voyant#1553); this one is where
+a failing checkout shows up.
 
 `useVoyantAnalytics()` never throws and never returns null: outside a provider
 it returns the no-op, because a component that emits an event still renders

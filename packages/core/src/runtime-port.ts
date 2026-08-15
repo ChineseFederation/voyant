@@ -12,7 +12,12 @@ export type {
   AnalyticsProperties,
   AnalyticsPropertyValue,
 } from "./analytics.js"
-export { analyticsPort, createSafeAnalytics, noopAnalytics } from "./analytics.js"
+export {
+  analyticsPort,
+  consoleAnalytics,
+  createSafeAnalytics,
+  noopAnalytics,
+} from "./analytics.js"
 export type {
   DocumentRenderer,
   PdfPageFormat,

@@ -8,6 +8,7 @@ import {
   analyticsFailureReason,
   analyticsPort,
   analyticsProperties,
+  consoleAnalytics,
   createSafeAnalytics,
   noopAnalytics,
 } from "../../src/analytics.js"
@@ -165,6 +166,64 @@ describe("the catalogue", () => {
       if (!name.startsWith("engine.") || exempt.has(name)) continue
       expect(properties as readonly string[], name).toContain("booking_session_id")
     }
+  })
+})
+
+describe("consoleAnalytics", () => {
+  function lines(): { sink: Pick<Console, "log">; written: unknown[] } {
+    const written: unknown[] = []
+    return { sink: { log: (line: unknown) => written.push(line) }, written }
+  }
+
+  it("writes one parseable line per event", () => {
+    const { sink, written } = lines()
+
+    consoleAnalytics(sink).track("engine.hold.failed", {
+      booking_session_id: "bses_1",
+      failure_reason: "hold_quantity_mismatch",
+    })
+
+    expect(written).toHaveLength(1)
+    expect(JSON.parse(String(written[0]))).toEqual({
+      voyant: "analytics",
+      kind: "track",
+      event: "engine.hold.failed",
+      properties: { booking_session_id: "bses_1", failure_reason: "hold_quantity_mismatch" },
+    })
+  })
+
+  it("distinguishes the three calls a host can receive", () => {
+    const { sink, written } = lines()
+    const analytics = consoleAnalytics(sink)
+
+    analytics.identify("usr_1", { role: "agent" })
+    analytics.group("organization", "org_1")
+
+    expect(written.map((line) => JSON.parse(String(line)))).toEqual([
+      { voyant: "analytics", kind: "identify", id: "usr_1", properties: { role: "agent" } },
+      { voyant: "analytics", kind: "group", type: "organization", key: "org_1" },
+    ])
+  })
+
+  it("swallows an event it cannot serialize rather than failing the booking", () => {
+    const { sink, written } = lines()
+    const circular: Record<string, unknown> = {}
+    circular.self = circular
+
+    expect(() =>
+      consoleAnalytics(sink).track("engine.hold.failed", circular as never),
+    ).not.toThrow()
+    expect(written).toEqual([])
+  })
+
+  it("swallows a sink that throws", () => {
+    const analytics = consoleAnalytics({
+      log: () => {
+        throw new Error("stdout closed")
+      },
+    })
+
+    expect(() => analytics.track("engine.hold.failed")).not.toThrow()
   })
 })
 

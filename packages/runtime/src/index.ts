@@ -34,6 +34,8 @@ import {
   storefrontRuntimePort,
 } from "@voyant-travel/auth/storefront-runtime-port"
 import {
+  analyticsPort,
+  consoleAnalytics,
   createHttpDocumentRendererFromEnv,
   type EventEnvelope,
   type LinkDefinition,
@@ -53,7 +55,7 @@ import {
   type VoyantProductJobWakeProducer,
   validateVoyantNodeProviderPlanEnv,
 } from "@voyant-travel/framework/node-runtime"
-import { consoleReporter } from "@voyant-travel/hono/observability/reporter"
+import { consoleReporter, type Reporter } from "@voyant-travel/hono/observability/reporter"
 import { createNodeServer, type NodeServerHandle } from "@voyant-travel/runtime-core"
 import type { StorageProviderResolver } from "@voyant-travel/storage/types"
 import { renderPdfDocument } from "@voyant-travel/utils/pdf-renderer"
@@ -129,6 +131,16 @@ export interface LoadVoyantProjectOptions {
     jobWakeProducers?: readonly VoyantProductJobWakeProducer[]
     /** Project-owned provider overrides keyed by their published runtime-port id. */
     runtimePorts?: VoyantGraphRuntimePorts
+    /**
+     * Where framework catch points send exceptions. Defaults to
+     * {@link consoleReporter}.
+     *
+     * The vendor SDK stays a deployment choice (RFC voyant#1553), so a project
+     * binding Sentry passes `sentryReporter(Sentry)` from
+     * `@voyant-travel/observability-sentry` here — before voyant#4682 the
+     * console reporter was hard-coded and the adapter was unreachable.
+     */
+    reporter?: Reporter
     storage?: StorageProviderResolver
     /** Resolve a canonical storefront auth origin and server-side provider credentials. */
     resolveCustomerAuthContext?: (
@@ -167,6 +179,26 @@ export interface VoyantProjectHost {
 export interface VoyantProjectAuth {
   getBootstrapStatusForRequest(request: Request, env: VoyantNodeRuntimeEnv): Promise<unknown>
   getCurrentUserForRequest(request: Request, env: VoyantNodeRuntimeEnv): Promise<unknown>
+}
+
+/**
+ * Bind the built-in analytics sink unless the project brought its own.
+ *
+ * The port is optional and unbound resolves to `noopAnalytics`, so every
+ * deployment shipped with the booking engine's `engine.*` events — the ones
+ * carrying `failure_reason` and `booking_session_id` — going nowhere at all
+ * (voyant#4682). A rejected Hold is a typed outcome on a successful response,
+ * not an exception, so the reporter never saw them either: silence was the
+ * default on both seams.
+ *
+ * Defaulting here rather than in the port keeps "unbound is supported" true for
+ * a library consumer while making a *served deployment* observable. A project
+ * that wants a vendor passes its own `analytics.runtime`; one that wants
+ * silence passes `noopAnalytics`.
+ */
+function withDefaultAnalyticsSink(ports: VoyantGraphRuntimePorts): VoyantGraphRuntimePorts {
+  if (Object.hasOwn(ports, analyticsPort.id)) return ports
+  return { ...ports, [analyticsPort.id]: consoleAnalytics() }
 }
 
 /**
@@ -227,7 +259,7 @@ export async function loadVoyantProject(
   const adminAuthProvider = deployment.providers.adminAuth
   const customerAuthProvider = selectedCustomerAuthProvider(deployment.providers.customerAuth)
   const authMode = selectedOperatorAuthMode(adminAuthProvider)
-  const reporter = consoleReporter()
+  const reporter = options.host?.reporter ?? consoleReporter()
   const providerPlan = resolveVoyantNodeProviderPlan(deployment.providers)
   const providerIssues = validateVoyantNodeProviderPlanEnv(providerPlan, rawEnv)
   if (providerIssues.length > 0) {
@@ -237,10 +269,12 @@ export async function loadVoyantProject(
   }
   const env = createVoyantNodeEnv(rawEnv, providerPlan)
   const authEnv = requireVoyantAuthEnv(env, authMode, customerAuthProvider)
-  const explicitRuntimePorts = admitHostPorts(options.host?.runtimePorts ?? {}, {
-    deployment,
-    graphRuntime,
-  })
+  const explicitRuntimePorts = withDefaultAnalyticsSink(
+    admitHostPorts(options.host?.runtimePorts ?? {}, {
+      deployment,
+      graphRuntime,
+    }),
+  )
   const selectedStoragePorts = await resolveSelectedGraphProviderPorts(graphRuntime, rawEnv, {
     includedPorts: ["storage.object"],
     excludedPorts: [
@@ -474,6 +508,13 @@ export async function loadVoyantProject(
     env: authEnv,
     app: {
       linkDefinitions: projectLinks,
+      // Without this the app config carries no reporter at all, so `createApp`
+      // falls back to `noopReporter` and every catch point it owns — the 5xx
+      // boundary, `c.set("reporter")`, module bootstrap, event-bus subscribers
+      // — discards its exception. That was true of the hard-coded console
+      // reporter too: the only paths ever reporting anything were the auth
+      // runtime and the two webhook loops below.
+      reporter,
       auth: {
         handler: () => ({
           fetch: (request, requestEnv, ctx) =>
