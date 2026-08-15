@@ -181,6 +181,51 @@ describe("createMcpRateLimiter middleware", () => {
     expect((await second.request("/", echoCall)).status).toBe(200)
   })
 
+  it("charges a write dispatched through call_tool to the write bucket", async () => {
+    // The bucket has to follow the tool that will RUN, not the name on the
+    // envelope. Progressive disclosure made `call_tool` the ordinary way to reach
+    // a non-eager tool, so classifying the envelope let every such write run at
+    // the loose read limit (voyant#4661 review).
+    const server = app({ readLimit: 100, writeLimit: 1 })
+    const nested = rpc("tools/call", {
+      name: "call_tool",
+      arguments: { name: "delete_record", arguments: { id: "r1" } },
+    })
+
+    expect((await server.request("/", nested)).status).toBe(200)
+    expect((await server.request("/", nested)).status).toBe(429)
+    // Still its own counter: the read bucket was never touched.
+    expect((await server.request("/", echoCall)).status).toBe(200)
+  })
+
+  it("charges a namespaced write name to the write bucket", async () => {
+    // Dispatch accepts `functions.delete_record`, so a throttle that does not
+    // would make the prefix a one-token way down to the read limit.
+    const server = app({ readLimit: 100, writeLimit: 1 })
+    const prefixed = rpc("tools/call", {
+      name: "functions.delete_record",
+      arguments: { id: "r1" },
+    })
+
+    await server.request("/", prefixed)
+    expect((await server.request("/", prefixed)).status).toBe(429)
+  })
+
+  it("keeps a read dispatched through call_tool on the read bucket", async () => {
+    // The unwrapping must not push everything into the tight bucket — a read is
+    // still a read wherever it is called from.
+    const server = app({ readLimit: 100, writeLimit: 1 })
+    const nested = rpc("tools/call", {
+      name: "call_tool",
+      arguments: { name: "echo", arguments: { text: "hi" } },
+    })
+
+    expect((await server.request("/", nested)).status).toBe(200)
+    expect((await server.request("/", nested)).status).toBe(200)
+    // The write budget of 1 is untouched.
+    expect((await server.request("/", deleteCall)).status).toBe(200)
+  })
+
   it("does not throttle when rate limiting is disabled", async () => {
     const server = app({ rateLimit: false })
     for (let i = 0; i < 10; i++) {

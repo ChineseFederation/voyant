@@ -37,6 +37,34 @@ export interface GuideScope {
    * silence: the agent trusts the orientation and blames its own queries.
    */
   anyToolReachable: boolean
+  /**
+   * The domain tools actually registered eagerly for THIS caller, in `tools/list`
+   * order.
+   *
+   * The guide named the default eager set as a fixed pair, which is wrong for
+   * three real cases: a read-only key (neither is authorized), a deployment that
+   * passes `eagerToolNames: []` or its own list, and a graph that ships neither
+   * tool. In each, the text promised a resident tool the caller could not see —
+   * and telling an agent a tool is resident when it is not is exactly the failure
+   * this guide exists to prevent (voyant#4661 review). Say what is there.
+   */
+  eagerToolNames?: readonly string[]
+}
+
+/** The sentence describing what the eager `tools/list` carries for this caller. */
+function eagerSurfaceSentence(scope: GuideScope): string {
+  const eager = scope.eagerToolNames ?? []
+  const resident =
+    eager.length > 0
+      ? `, and ${eager.length === 1 ? "one core write" : `${eager.length} core writes`} (${eager
+          .map((name) => `\`${name}\``)
+          .join(", ")})`
+      : ""
+  return (
+    `The eager \`tools/list\` carries these meta-tools, the guide${resident} — ` +
+    "everything else is found through search, and its ABSENCE from `tools/list` " +
+    "never means it does not exist."
+  )
 }
 
 /** Names of the guide Tools registered on every MCP server, for instrumentation. */
@@ -77,10 +105,8 @@ export function buildServerInstructions(scope: GuideScope): string {
     "HOW TO DISCOVER CAPABILITIES",
     "The surface is discovered on demand: `search_tools` finds a tool by keyword,",
     "`describe_tool` returns its full input schema, and `GET /v1/admin/mcp/manifest` is",
-    "the authorization-filtered capability index. The eager `tools/list` carries these",
-    "meta-tools, the guide, and the two core writes (`book_product`, `record_payment`)",
-    "— everything else is found through search, and its ABSENCE from `tools/list` never",
-    "means it does not exist. READS are grouped by product area into one",
+    `the authorization-filtered capability index. ${eagerSurfaceSentence(scope)}`,
+    "READS are grouped by product area into one",
     "`<domain>_query` tool (a discriminated union on `resource`): read products with",
     '`inventory_query` (`resource: "products"`/`"product"`), dated departures with',
     '`operations_query` (`resource: "departures"`), and CRM people with',
@@ -171,7 +197,7 @@ function guideSection(topic: GuideTopic, scope: GuideScope): string {
     case "overview":
       return overviewSection(scope)
     case "discovery":
-      return discoverySection()
+      return discoverySection(scope)
     case "booking-journey":
       return bookingJourneySection(scope)
     case "proposals":
@@ -222,15 +248,20 @@ function overviewSection(scope: GuideScope): string {
   )
 }
 
-function discoverySection(): string {
+function discoverySection(scope: GuideScope): string {
+  const eager = scope.eagerToolNames ?? []
+  const resident =
+    eager.length > 0
+      ? `, and the ${eager.length === 1 ? "write" : "writes"} an operator asks for most ` +
+        `(${eager.map((name) => `\`${name}\``).join(", ")})`
+      : ""
   return (
     "# Discovering capabilities\n\n" +
     "The surface is discovered on demand. `tools/list` carries the meta-tools " +
-    "(`search_tools`, `describe_tool`, `call_tool`), this guide, and the two writes " +
-    "an operator asks for most (`book_product`, `record_payment`); every OTHER domain " +
-    "capability is found through them or the `GET /v1/admin/mcp/manifest` capability " +
-    "index. A capability missing from `tools/list` is not a capability this deployment " +
-    "lacks — search before you report one as unavailable. To find one:\n\n" +
+    `(\`search_tools\`, \`describe_tool\`, \`call_tool\`), this guide${resident}; every ` +
+    "OTHER domain capability is found through them or the `GET /v1/admin/mcp/manifest` " +
+    "capability index. A capability missing from `tools/list` is not a capability this " +
+    "deployment lacks — search before you report one as unavailable. To find one:\n\n" +
     "1. `search_tools { query }` returns matching tool names and one-line descriptions; " +
     "`describe_tool { name }` returns a tool's full input schema. The manifest carries " +
     "each capability's `requiredScopes` and risk, so you can see what a key can do " +

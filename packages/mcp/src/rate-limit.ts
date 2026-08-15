@@ -14,6 +14,11 @@
  *   a non-`read` {@link ToolManifestEntry.tier}, a `destructive` risk policy, or
  *   an action-ledgered capability (`actionPolicy`). Tight limit.
  *
+ * The bucket is chosen from the tool the request will actually DISPATCH, not
+ * from the name on the envelope — see {@link dispatchedToolName}. Classifying the
+ * envelope let `call_tool`, the ordinary way to reach the long tail, carry any
+ * write at the read limit.
+ *
  * The classification reads only manifest metadata already carried by the
  * registry (`tier` / `riskPolicy` / `actionPolicy`) — it invents no new
  * taxonomy. Limits and the window are deployment-configurable with safe
@@ -24,6 +29,8 @@
 import type { ToolManifestEntry, ToolRegistry } from "@voyant-travel/tools"
 import type { Context, MiddlewareHandler } from "hono"
 import { MemoryStore, rateLimiter, type Store } from "hono-rate-limiter"
+
+import { CALL_TOOL_NAME } from "./meta-tools.js"
 
 /** The two throttle buckets, keyed apart so a read burst never starves writes. */
 export type McpRateLimitBucket = "read" | "write"
@@ -94,17 +101,48 @@ function restrictedNames(registry: ToolRegistry): ReadonlySet<string> {
   return names
 }
 
+/**
+ * The tool name a `tools/call` will actually dispatch.
+ *
+ * Two unwrappings, because both are things dispatch already accepts and a
+ * throttle that does not accept them is a throttle with a documented way around
+ * it:
+ *
+ * - **`call_tool`.** Progressive disclosure made the meta-tools the ordinary way
+ *   to reach the long tail, so `call_tool({name: "issue_invoice_refund"})` is not
+ *   an exotic call — it is the normal one. Classified on the outer name it is
+ *   `call_tool`, which is in no registry and falls to the loose read bucket, so
+ *   every non-eager write ran at the read limit (voyant#4661 review).
+ * - **A namespace prefix.** `resolveInvocationName` accepts
+ *   `functions.record_payment` because models emit it; if this did not, the
+ *   prefix would be a one-character bucket downgrade.
+ */
+function dispatchedToolName(body: {
+  method?: unknown
+  params?: { name?: unknown; arguments?: unknown }
+}): string | undefined {
+  if (body?.method !== "tools/call") return undefined
+  const outer = unprefixed(body.params?.name)
+  if (outer !== CALL_TOOL_NAME) return outer
+  const args = body.params?.arguments
+  const inner =
+    typeof args === "object" && args !== null ? (args as { name?: unknown }).name : undefined
+  return unprefixed(inner) ?? outer
+}
+
+/** A tool name with any client namespace prefix (`functions.x`) removed. */
+function unprefixed(name: unknown): string | undefined {
+  if (typeof name !== "string" || name.length === 0) return undefined
+  if (!name.includes(".")) return name
+  const tail = name.split(".").pop()
+  return tail && tail.length > 0 ? tail : name
+}
+
 /** Classify the JSON-RPC request into a bucket, reading only the cached body. */
 async function bucketFor(c: Context, restricted: ReadonlySet<string>): Promise<McpRateLimitBucket> {
   try {
-    const body = (await c.req.json()) as {
-      method?: unknown
-      params?: { name?: unknown }
-    }
-    if (body?.method === "tools/call") {
-      const name = body.params?.name
-      if (typeof name === "string" && restricted.has(name)) return "write"
-    }
+    const name = dispatchedToolName(await c.req.json())
+    if (name !== undefined && restricted.has(name)) return "write"
   } catch {
     // A malformed body is rejected downstream by the route validator; treat it
     // as a read for throttling so a parse slip cannot bypass the tighter bucket.

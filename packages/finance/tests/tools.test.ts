@@ -268,6 +268,24 @@ describe("finance tools", () => {
       recordPaymentToolInputSchema.safeParse({ amountCents: 1, currency: "EUR" }).success,
     ).toBe(false)
 
+    // Only the two RECORDABLE states. `failed` is not money received and
+    // `refunded` is reached by refunding a payment, never by recording one —
+    // both used to insert a row the balance recomputation then ignored, so the
+    // agent reported success against an invoice that never moved.
+    const withStatus = (status: string) =>
+      recordPaymentToolInputSchema.safeParse({
+        invoiceId: "invoice_1",
+        amountCents: 25_000,
+        currency: "EUR",
+        paymentMethod: "bank_transfer",
+        paymentDate: "2026-03-04",
+        status,
+      }).success
+    expect(withStatus("completed")).toBe(true)
+    expect(withStatus("pending")).toBe(true)
+    expect(withStatus("failed")).toBe(false)
+    expect(withStatus("refunded")).toBe(false)
+
     let received: unknown
     const result = await recordPaymentTool.handler(
       parsed,

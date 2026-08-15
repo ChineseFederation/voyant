@@ -177,6 +177,12 @@ export function createMcpApiRoutes(options: McpApiRoutesOptions): OpenAPIHono {
     // prunes an unauthorized read out of its group.
     const projection = buildReadProjection(surface)
 
+    // Which domain tools are eager is resolved BEFORE the server is built,
+    // because the guide describes the eager surface and must describe the one
+    // this caller will actually receive — an authorized-and-selected set, not the
+    // configured list (voyant#4661 review).
+    const eagerNames = selectEagerToolNames(surface, options.eagerToolNames)
+
     // The guide layer's `instructions` are scope-aware — a read-only key is told
     // the write journeys are unreachable rather than shown workflows it cannot
     // perform — so whether any write Tool is reachable must be known before the
@@ -186,6 +192,7 @@ export function createMcpApiRoutes(options: McpApiRoutesOptions): OpenAPIHono {
         ({ entry }) => entry.annotations.readOnlyHint !== true,
       ),
       anyToolReachable: surface.size > 0,
+      eagerToolNames: [...eagerNames],
     }
     const server = new McpServer(serverInfo, {
       instructions: buildServerInstructions(guideScope),
@@ -193,7 +200,6 @@ export function createMcpApiRoutes(options: McpApiRoutesOptions): OpenAPIHono {
     const guideToolNames = new Set(registerGuideTools(server, guideScope))
 
     // Register only the tier-0 domain tools eagerly; the long tail stays lazy.
-    const eagerNames = selectEagerToolNames(surface, options.eagerToolNames)
     for (const name of eagerNames)
       registerSurfaceTool(server, registry, surface, name, ctx, requireActionPolicy, budgetBytes)
 

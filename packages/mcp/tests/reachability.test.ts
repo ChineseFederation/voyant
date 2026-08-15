@@ -249,6 +249,58 @@ describe("the core operator writes are reachable without configuration", () => {
   })
 })
 
+describe("the guide describes the eager surface this caller actually got", () => {
+  /** `initialize` instructions plus the `discovery` guide topic — both claim it. */
+  async function orientation(app: Hono): Promise<string> {
+    const initialized = await readRpc(
+      await app.request(
+        "/",
+        rpc("initialize", {
+          protocolVersion: "2025-06-18",
+          capabilities: {},
+          clientInfo: { name: "test", version: "1" },
+        }),
+      ),
+    )
+    const instructions = (initialized.result as { instructions?: string } | undefined)?.instructions
+    const guide = await callText(app, "voyant_guide", { topic: "discovery" })
+    return `${instructions ?? ""}\n${guide}`
+  }
+
+  it("names the eager writes when they are resident", async () => {
+    const text = await orientation(harness().app)
+
+    expect(text).toContain("book_product")
+    expect(text).toContain("record_payment")
+  })
+
+  it("does not promise them to a caller that has neither", async () => {
+    // A read-only key is authorized for no write, so `selectEagerToolNames`
+    // promotes nothing. Telling it two writes are resident is the exact failure
+    // this guide exists to prevent — it would report a tool it cannot see.
+    const text = await orientation(harness({ scopes: ["bookings:read"] }).app)
+
+    expect(text).not.toContain("book_product")
+    expect(text).not.toContain("record_payment")
+    // And it still says the absent long tail is reachable, which is the point.
+    expect(text).toContain("search")
+  })
+
+  it("does not promise them to a deployment that opted out", async () => {
+    const text = await orientation(harness({ eagerToolNames: [] }).app)
+
+    expect(text).not.toContain("book_product")
+    expect(text).not.toContain("record_payment")
+  })
+
+  it("names exactly the one write a partially authorized caller got", async () => {
+    const text = await orientation(harness({ scopes: ["bookings:read", "bookings:write"] }).app)
+
+    expect(text).toContain("book_product")
+    expect(text).not.toContain("record_payment")
+  })
+})
+
 describe("a folded read says where it went", () => {
   const EXPECTED = ["bookings_query", 'resource "booking"']
 

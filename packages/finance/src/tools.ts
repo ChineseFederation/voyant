@@ -685,6 +685,14 @@ export const issueUnsyncedProformaFromBookingTool = defineTool<
 })
 
 /**
+ * The payment states an agent may RECORD, out of the four the lifecycle has.
+ *
+ * Derived by subsetting `paymentStatusSchema` rather than re-listing it, so a new
+ * lifecycle state has to be considered here rather than silently admitted.
+ */
+export const recordablePaymentStatusSchema = paymentStatusSchema.extract(["pending", "completed"])
+
+/**
  * The agent-facing shape of "money arrived against this invoice".
  *
  * Derived from `insertPaymentSchema` — the body the admin route takes under
@@ -698,11 +706,16 @@ export const issueUnsyncedProformaFromBookingTool = defineTool<
  *   `paymentAuthorizationId` / `paymentCaptureId` belong to a processor session
  *   that recorded its own payment. An agent that had to fill them in would guess,
  *   and every one of them also rides the eager `tools/list`.
- * - `status` defaults to `completed` rather than `pending`. An operator telling
- *   an agent to record a payment is recording money it already has; the route's
- *   `pending` default belongs to a checkout session that settles later. Getting
- *   this backwards leaves the invoice reading unpaid after the agent reports
- *   success, which is the failure worth defaulting against.
+ * - `status` is narrowed to the two RECORDABLE states and defaults to
+ *   `completed` rather than `pending`. An operator telling an agent to record a
+ *   payment is recording money it already has; the route's `pending` default
+ *   belongs to a checkout session that settles later, and getting that backwards
+ *   leaves the invoice reading unpaid after the agent reports success. The other
+ *   two lifecycle states are not things this call means: `failed` is not money
+ *   received, and `refunded` is reached by refunding a payment
+ *   (`issue_invoice_refund` then `record_refund_settlement`), never by recording
+ *   one. Both were accepted, inserted, and then silently ignored by the balance
+ *   recomputation, which counts only `completed` (voyant#4661 review).
  */
 export const recordPaymentToolInputSchema = insertPaymentSchema
   .pick({
@@ -715,11 +728,12 @@ export const recordPaymentToolInputSchema = insertPaymentSchema
   })
   .safeExtend({
     invoiceId: z.string().min(1).describe("The invoice this payment settles."),
-    status: paymentStatusSchema
+    status: recordablePaymentStatusSchema
       .default("completed")
       .describe(
         "Settlement state. `completed` counts against the invoice balance; `pending` records " +
-          "an expected payment that does not.",
+          "an expected payment that does not. A failed attempt is not recorded here, and a " +
+          "refund goes through `issue_invoice_refund`.",
       ),
     idempotencyKey: z
       .string()
