@@ -2714,6 +2714,7 @@ const bookingsServiceInternal = {
         pax: bookingPax,
         internalNotes: data.internalNotes ?? null,
         notificationsSuppressed: data.suppressNotifications === true,
+        documentsSuppressed: data.suppressDocuments === true,
       })
       .returning()
 

@@ -88,6 +88,7 @@ const booking: Booking = {
   pax: 2,
   internalNotes: null,
   notificationsSuppressed: false,
+  documentsSuppressed: false,
   customerPaymentPolicy: null,
   priceOverride: null,
   customFields: { custom: { source: "intake" } },

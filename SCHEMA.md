@@ -2090,6 +2090,7 @@ Constraints:
 | `pax` | integer • nullable |
 | `internal_notes` (`internalNotes`) | text • nullable |
 | `notifications_suppressed` (`notificationsSuppressed`) | boolean • not null • default false |
+| `documents_suppressed` (`documentsSuppressed`) | boolean • not null • default false |
 | `customer_payment_policy` (`customerPaymentPolicy`) | jsonb • nullable |
 | `price_override` (`priceOverride`) | jsonb • nullable |
 | `custom_fields` (`customFields`) | jsonb • not null • default |

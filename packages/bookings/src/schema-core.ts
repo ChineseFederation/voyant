@@ -77,6 +77,25 @@ export const bookings = pgTable(
      */
     notificationsSuppressed: boolean("notifications_suppressed").notNull().default(false),
     /**
+     * Durable "record this booking, do not produce documents for it" decision.
+     *
+     * voyant#4688: an operator told the agent, in words, not to issue a
+     * proforma, invoice or contract. The agent invoked no issuance call and
+     * truthfully reported that none were issued — and creating the booking
+     * issued a fiscal invoice to the accounting provider anyway, plus a
+     * contract, because both are consequences of booking creation rather than
+     * actions anyone chose. There was no flag at any layer that could say no.
+     *
+     * It lives on the row rather than only on the create input for the reason
+     * `notifications_suppressed` does: the paths that must honour it run after
+     * the creating transaction has committed, off events, and re-read the
+     * booking. A decision that exists only in the command cannot reach them.
+     *
+     * This governs automatic generation. An operator issuing a document by
+     * hand afterwards is a deliberate act and is not blocked by it.
+     */
+    documentsSuppressed: boolean("documents_suppressed").notNull().default(false),
+    /**
      * Booking-level customer payment policy override. When set, this
      * booking's payment schedule uses these terms instead of the
      * cascade default. Wins over listing / category / supplier /

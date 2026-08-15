@@ -208,6 +208,112 @@ const invoiceExternalRefCoreSchema = z.object({
   syncError: z.string().optional().nullable(),
 })
 
+/**
+ * `invoice_external_refs.status` values that mean the provider document the row
+ * points at is no longer a live fiscal document.
+ *
+ * The column carries whatever word the provider uses, so this is a vocabulary
+ * rather than an enum. It is what tells the duplicate-issuance guard that a
+ * booking's external document was retracted and a replacement may be issued:
+ * a ref whose status is not in here still counts as a fiscal document that
+ * exists in the operator's accounting system.
+ */
+export const CANCELLED_EXTERNAL_DOCUMENT_STATUSES = [
+  "cancelled",
+  "canceled",
+  "void",
+  "voided",
+  "storno",
+  "reversed",
+  "annulled",
+] as const
+
+export function isCancelledExternalDocumentStatus(status: string | null | undefined): boolean {
+  if (!status) return false
+  const normalized = status.trim().toLowerCase()
+  return CANCELLED_EXTERNAL_DOCUMENT_STATUSES.some((value) => value === normalized)
+}
+
+/**
+ * A fiscal document the operator already issued in their accounting provider,
+ * outside this platform.
+ *
+ * Declaring one records the sale against that document instead of issuing a
+ * second one: the platform writes its own invoice so balances, payments and
+ * contracts are right, but the mirror is suppressed and the external reference
+ * points at the operator's document. This is what back-filling a booking for an
+ * already-invoiced sale needs, and it is equally the answer for an operator who
+ * invoices outside the platform as a matter of course (voyant#4688).
+ *
+ * `series` and `number` are kept apart because that is how the providers this
+ * targets identify a document; the series lands in the reference's metadata,
+ * `number` in `external_number`.
+ */
+export const externalInvoiceDocumentSchema = z.object({
+  provider: z.string().trim().min(1).max(100),
+  series: z.string().trim().min(1).max(100).optional().nullable(),
+  number: z.string().trim().min(1).max(255),
+  externalId: z.string().trim().min(1).max(255).optional().nullable(),
+  externalUrl: z.string().trim().min(1).max(1000).optional().nullable(),
+  issuedAt: z.string().min(1).optional().nullable(),
+  note: z.string().max(1000).optional().nullable(),
+})
+
+export type ExternalInvoiceDocumentInput = z.infer<typeof externalInvoiceDocumentSchema>
+
+/** How an already-issued external document reads in an operator-facing message. */
+export function formatExternalDocumentLabel(document: {
+  series?: string | null
+  number?: string | null
+  externalNumber?: string | null
+}): string {
+  const number = document.number ?? document.externalNumber ?? null
+  if (!number) return "an unnumbered document"
+  return document.series ? `${document.series} ${number}` : number
+}
+
+/**
+ * Record that the provider document an external reference points at was
+ * cancelled in the provider's own UI, and optionally repoint the reference at
+ * its replacement.
+ *
+ * Without this there is no supported way back: the reference keeps naming a
+ * cancelled document, and blindly overwriting it would lose the identity of the
+ * document the operator's accounting system still has on file.
+ */
+export const supersedeInvoiceExternalRefSchema = z
+  .object({
+    reason: z.string().trim().min(3).max(1000),
+    replacement: z
+      .object({
+        externalId: z.string().trim().min(1).max(255).optional().nullable(),
+        externalNumber: z.string().trim().min(1).max(255).optional().nullable(),
+        externalUrl: z.string().trim().min(1).max(1000).optional().nullable(),
+        status: z.string().trim().min(1).max(100).optional().nullable(),
+        series: z.string().trim().min(1).max(100).optional().nullable(),
+      })
+      .optional()
+      .describe(
+        "The document that replaces the cancelled one. Omit it when the cancellation stands on its own — the reference is then marked cancelled and the booking may be invoiced again.",
+      ),
+  })
+  .superRefine((value, ctx) => {
+    if (!value.replacement) return
+    // A replacement with no identity is the worst of both: the reference stops
+    // being marked cancelled, so it reads as live, while carrying no document
+    // number the guard can recognise — which silently releases the guard
+    // without anyone having said the old document was retracted. Omitting
+    // `replacement` is how you say "cancelled, nothing replaces it".
+    if (!value.replacement.externalId && !value.replacement.externalNumber) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message:
+          "A replacement document needs an externalId or an externalNumber. Omit `replacement` to record the cancellation on its own.",
+        path: ["replacement"],
+      })
+    }
+  })
+
 export const invoiceFromBookingSchema = z
   .object({
     bookingId: z.string().min(1),
@@ -242,6 +348,21 @@ export const invoiceFromBookingSchema = z
      * see it; only the external-provider subscribers honour this flag.
      */
     skipExternalSync: z.boolean().optional(),
+    /**
+     * This sale is already invoiced in the operator's accounting provider —
+     * record it against that document rather than issuing a second one.
+     * Implies `skipExternalSync`.
+     */
+    externalDocument: externalInvoiceDocumentSchema.optional(),
+    /**
+     * Issue anyway, knowing the booking already carries a live external fiscal
+     * document. Without it the issuance refuses rather than sending a duplicate
+     * to the provider (voyant#4688).
+     *
+     * `z.literal(true)` on purpose: this is an operator saying yes, so there is
+     * no `false` to send and no default to inherit.
+     */
+    acknowledgeExistingExternalDocument: z.literal(true).optional(),
     wait: invoiceDocumentWaitModeSchema.optional(),
     waitTimeoutMs: z.coerce.number().int().min(0).max(60_000).optional(),
   })
@@ -256,6 +377,28 @@ export const invoiceFromBookingSchema = z
         })
       }
       providers.add(ref.provider)
+    }
+
+    if (!value.externalDocument) return
+
+    // The two halves of "already invoiced externally" used to be independent
+    // flags a caller had to remember to set together. Setting only one is what
+    // the duplicate is made of, so the incoherent combinations are rejected
+    // rather than silently honoured.
+    if (value.skipExternalSync === false) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message:
+          "An invoice recorded against an existing external document cannot also be synced to the provider",
+        path: ["skipExternalSync"],
+      })
+    }
+    if (providers.has(value.externalDocument.provider)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "externalDocument duplicates an externalRefs entry for the same provider",
+        path: ["externalDocument", "provider"],
+      })
     }
   })
 

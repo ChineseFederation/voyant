@@ -59,6 +59,14 @@ export type BookingContractConfirmationResult =
       status: "skipped"
       reason:
         | "booking_not_found"
+        /**
+         * The operator said not to produce documents for this booking
+         * (voyant#4688). Generation used to be a consequence of confirmation
+         * with nothing able to decline it, so an operator's explicit
+         * instruction had no effect — the decision is now persisted on the
+         * booking and read here, where the generation actually happens.
+         */
+        | "documents_suppressed"
         | "template_not_found"
         | "template_version_missing"
         | "series_not_found"
@@ -200,7 +208,18 @@ export async function generateBookingContractOnConfirmation(
     if (prepared.status === "already_generated") {
       await promotePaidAcceptedBookingContract(input.db, prepared.contractId, input.eventBus)
     }
-    if (prepared.status === "skipped" && prepared.reason !== "booking_not_found") {
+    // `documents_suppressed` joins `booking_not_found` in not being recorded as
+    // unfulfilled. The entry these write is a `failed` one, and nothing failed
+    // — an operator said not to produce documents for this booking. The
+    // voyant#4634 reason for recording the others is that silence there is
+    // indistinguishable from a deployment where generation never works; here it
+    // is not, because `bookings.documents_suppressed` is set on the booking and
+    // says exactly why nothing was generated.
+    if (
+      prepared.status === "skipped" &&
+      prepared.reason !== "booking_not_found" &&
+      prepared.reason !== "documents_suppressed"
+    ) {
       await recordUnfulfilledBookingContract(input.db, {
         event: input.event,
         reason: prepared.reason,
@@ -243,7 +262,7 @@ export async function generateBookingContractOnConfirmation(
 export type UnfulfilledBookingContractReason =
   | Exclude<
       Extract<BookingContractConfirmationResult, { status: "skipped" }>["reason"],
-      "booking_not_found"
+      "booking_not_found" | "documents_suppressed"
     >
   | "document_renderer_unavailable"
 
@@ -372,6 +391,12 @@ async function prepareBookingContractTarget(
 > {
   const booking = await bookingsService.getBookingById(db, bookingId)
   if (!booking) return { status: "skipped", reason: "booking_not_found" }
+  // Checked before anything is looked up or written, so a suppressed booking
+  // leaves no half-prepared contract behind. Read from the row rather than the
+  // event for the reason voyant#4634 gave for notification suppression: the
+  // decision lives on the booking, and every path that must honour it re-reads
+  // it there.
+  if (booking.documentsSuppressed) return { status: "skipped", reason: "documents_suppressed" }
 
   const existingContracts = await db
     .select()

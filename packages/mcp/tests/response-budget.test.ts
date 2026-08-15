@@ -71,6 +71,7 @@ function bookingRow(index: number): Record<string, unknown> {
     pax: 2,
     internalNotes: null,
     notificationsSuppressed: false,
+    documentsSuppressed: false,
     priceOverride: null,
     customFields: { "voyant.loyalty": { tier: "gold", points: 4200 } },
     holdExpiresAt: null,

@@ -1,3 +1,7 @@
+import {
+  EXTERNAL_DOCUMENT_METADATA_KEY,
+  SUPERSEDED_DOCUMENTS_METADATA_KEY,
+} from "./invoice-external-document.js"
 import type {
   CreateInvoiceExternalRefInput,
   CreateTaxClassInput,
@@ -5,6 +9,7 @@ import type {
   CreateTaxPolicyRuleInput,
   CreateTaxRegimeInput,
   PostgresJsDatabase,
+  SupersedeInvoiceExternalRefInput,
   TaxClassListQuery,
   TaxPolicyProfileListQuery,
   TaxPolicyRuleListQuery,
@@ -435,6 +440,107 @@ export const financeReferenceDataService = {
         provider: data.provider,
         ...values,
       })
+      .returning()
+    return row ?? null
+  },
+
+  /**
+   * Record that the provider document a reference points at was cancelled in
+   * the provider's own UI, and optionally repoint the reference at the document
+   * that replaces it.
+   *
+   * voyant#4688: once a duplicate fiscal document had been issued, the only
+   * remedy was cancelling it by hand in the provider, which left the reference
+   * naming a cancelled document with nothing supported to do about it —
+   * `voidInvoice` refuses on a recorded payment, and overwriting the reference
+   * would lose the identity of the document the operator's accounting system
+   * still has on file. So the previous identity is kept, appended to the row's
+   * own metadata, and the cancelled status is what releases the
+   * duplicate-issuance guard.
+   *
+   * Deleting the row instead is not the same thing: it erases the fact that a
+   * document was ever issued there, which is what an audit needs to see.
+   */
+  async supersedeInvoiceExternalRef(
+    db: PostgresJsDatabase,
+    id: string,
+    input: SupersedeInvoiceExternalRefInput,
+    // Reference ids are globally addressable, so a route that resolves one from
+    // its own path must also prove it belongs to the invoice in that path.
+    // Without this, superseding under invoice A can mutate a reference on
+    // invoice B — releasing B's duplicate-document guard from a request that
+    // never named it.
+    scope: { invoiceId?: string } = {},
+  ) {
+    const [existing] = await db
+      .select()
+      .from(invoiceExternalRefs)
+      .where(
+        scope.invoiceId
+          ? and(eq(invoiceExternalRefs.id, id), eq(invoiceExternalRefs.invoiceId, scope.invoiceId))
+          : eq(invoiceExternalRefs.id, id),
+      )
+      .limit(1)
+    if (!existing) return null
+
+    const previousMetadata =
+      existing.metadata &&
+      typeof existing.metadata === "object" &&
+      !Array.isArray(existing.metadata)
+        ? (existing.metadata as Record<string, unknown>)
+        : {}
+    const history = Array.isArray(previousMetadata[SUPERSEDED_DOCUMENTS_METADATA_KEY])
+      ? (previousMetadata[SUPERSEDED_DOCUMENTS_METADATA_KEY] as unknown[])
+      : []
+
+    const replacement = input.replacement ?? null
+    const now = new Date()
+
+    const [row] = await db
+      .update(invoiceExternalRefs)
+      .set({
+        externalId: replacement ? (replacement.externalId ?? null) : existing.externalId,
+        externalNumber: replacement
+          ? (replacement.externalNumber ?? null)
+          : existing.externalNumber,
+        externalUrl: replacement ? (replacement.externalUrl ?? null) : existing.externalUrl,
+        // With a replacement the row now names a live document again, so it
+        // carries the replacement's status (or none). Without one it is the
+        // cancellation itself, and `cancelled` is what tells the guard this
+        // booking may be invoiced again.
+        status: replacement ? (replacement.status ?? null) : "cancelled",
+        metadata: {
+          ...previousMetadata,
+          ...(replacement?.series
+            ? {
+                [EXTERNAL_DOCUMENT_METADATA_KEY]: {
+                  ...(typeof previousMetadata[EXTERNAL_DOCUMENT_METADATA_KEY] === "object" &&
+                  previousMetadata[EXTERNAL_DOCUMENT_METADATA_KEY] !== null
+                    ? (previousMetadata[EXTERNAL_DOCUMENT_METADATA_KEY] as Record<string, unknown>)
+                    : {}),
+                  series: replacement.series,
+                  number: replacement.externalNumber ?? null,
+                },
+              }
+            : {}),
+          [SUPERSEDED_DOCUMENTS_METADATA_KEY]: [
+            ...history,
+            {
+              externalId: existing.externalId,
+              externalNumber: existing.externalNumber,
+              externalUrl: existing.externalUrl,
+              status: existing.status,
+              reason: input.reason,
+              supersededAt: now.toISOString(),
+            },
+          ],
+        },
+        // The platform did not talk to the provider here either way: an
+        // operator told it what happened there.
+        syncedAt: null,
+        updatedAt: now,
+      })
+      .where(eq(invoiceExternalRefs.id, id))
       .returning()
     return row ?? null
   },

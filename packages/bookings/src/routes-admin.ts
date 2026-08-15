@@ -1291,6 +1291,7 @@ const bookingSchema = z.object({
   pax: z.number().int().nullable(),
   internalNotes: z.string().nullable(),
   notificationsSuppressed: z.boolean(),
+  documentsSuppressed: z.boolean(),
   customerPaymentPolicy: z.unknown().nullable(),
   priceOverride: jsonObject.nullable(),
   customFields: namespacedCustomFields,

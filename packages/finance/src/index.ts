@@ -386,6 +386,14 @@ export {
 } from "./invoice-document-fulfilment.js"
 export { createStandardInvoiceDocumentProvider } from "./invoice-document-runtime.js"
 export {
+  describeDuplicateExternalDocument,
+  EXTERNAL_DOCUMENT_METADATA_KEY,
+  externalDocumentToRefInput,
+  findLiveBookingExternalDocument,
+  type LiveBookingExternalDocument,
+  SUPERSEDED_DOCUMENTS_METADATA_KEY,
+} from "./invoice-external-document.js"
+export {
   createInvoiceFxApiExtension,
   createInvoiceFxRoutes,
   createVoyantDataFxExchangeRateResolver,
@@ -663,11 +671,13 @@ export {
   prepareInvoiceDocument,
 } from "./service-documents.js"
 export type {
+  InvoiceFromBookingCommandOutcome,
   InvoiceIssuedEvent,
   InvoiceIssueRuntime,
   InvoiceProformaConvertedEvent,
 } from "./service-issue.js"
 export {
+  applyExternalDocumentDeclaration,
   buildInvoiceIssuedEvent,
   convertProformaToInvoice,
   issueInvoiceFromBooking,

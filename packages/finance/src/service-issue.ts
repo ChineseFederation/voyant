@@ -12,6 +12,11 @@ import { and, asc, eq, inArray, ne } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 
 import { resolveBookingSellTaxRate } from "./booking-tax.js"
+import {
+  externalDocumentToRefInput,
+  findLiveBookingExternalDocument,
+  type LiveBookingExternalDocument,
+} from "./invoice-external-document.js"
 import { resolveInvoiceFxContext } from "./invoice-fx.js"
 import { isInvoiceNumberUniqueConstraintError } from "./invoice-number-errors.js"
 import {
@@ -59,6 +64,39 @@ export type InvoiceFromBookingCommandOutcome =
       currentUpdatedAt: string
     }
   | { status: "approval_snapshot_changed"; bookingNumber: string }
+  /**
+   * The booking already has a fiscal document in an accounting provider, so
+   * issuing would mirror a second one for the same sale (voyant#4688). The
+   * caller decides: record the sale against the existing document with
+   * `externalDocument`, retract that document with
+   * `supersedeInvoiceExternalRef`, or say yes with
+   * `acknowledgeExistingExternalDocument`.
+   */
+  | { status: "duplicate_external_document"; existing: LiveBookingExternalDocument }
+
+/**
+ * Fold an "already invoiced externally" declaration into the plain
+ * create-from-booking input.
+ *
+ * The declaration is two facts that only work together: write the reference row
+ * naming the operator's document, and keep the mirror from issuing one of our
+ * own. Callers used to have to remember both (`externalRefs` + `skipExternalSync`)
+ * and nothing checked that they had; folding them here is what makes the
+ * primitive a single thing to get right.
+ */
+export function applyExternalDocumentDeclaration(
+  input: CreateInvoiceFromBookingInput,
+): CreateInvoiceFromBookingInput {
+  if (!input.externalDocument) return input
+  return {
+    ...input,
+    skipExternalSync: true,
+    externalRefs: [
+      ...(input.externalRefs ?? []),
+      externalDocumentToRefInput(input.externalDocument),
+    ],
+  }
+}
 
 export interface UnsyncedProformaApprovalSnapshot {
   id: string
@@ -405,6 +443,18 @@ export async function issueInvoiceFromBookingCommand(
   const bookingQuery = db.select().from(bookings).where(eq(bookings.id, input.bookingId)).limit(1)
   const [booking] = options.atomicScope ? await bookingQuery.for("update") : await bookingQuery
   if (!booking) return { status: "booking_not_found" }
+
+  // Before anything is written: a booking that already has a fiscal document in
+  // an accounting provider must not quietly get a second one (voyant#4688).
+  // This refuses whether or not the caller is declaring an external document —
+  // recording the sale against a second provider document is the same duplicate
+  // as issuing one.
+  if (!input.acknowledgeExistingExternalDocument) {
+    const existing = await findLiveBookingExternalDocument(db, booking.id, {
+      bookingPaymentScheduleId: input.bookingPaymentScheduleId ?? null,
+    })
+    if (existing) return { status: "duplicate_external_document", existing }
+  }
   if (
     options.expectedBookingUpdatedAt &&
     new Date(options.expectedBookingUpdatedAt).getTime() !== booking.updatedAt.getTime()
@@ -515,7 +565,7 @@ export async function issueInvoiceFromBookingCommand(
   }
   const issuer =
     input.invoiceType === "proforma" ? issueProformaFromBooking : issueInvoiceFromBooking
-  const invoice = await issuer(db, input, bookingData, runtime)
+  const invoice = await issuer(db, applyExternalDocumentDeclaration(input), bookingData, runtime)
   if (!invoice) return { status: "booking_not_found" }
   return { status: "issued", invoice }
 }
@@ -597,6 +647,7 @@ export async function issueBookingInvoiceInTransaction(
   tx: PostgresJsDatabase,
   invoice: typeof invoices.$inferSelect,
   runtime: InvoiceIssueRuntime = {},
+  options: { skipExternalSync?: boolean } = {},
 ): Promise<BookingInvoiceIssuance | null> {
   // An external series never gets a real number here — allocation is the
   // accounting provider's, and `pending_external_allocation` is what tells the
@@ -611,6 +662,10 @@ export async function issueBookingInvoiceInTransaction(
   await touchLinkedBookingUpdatedAt(tx, issued.bookingId)
 
   const payload = await buildInvoiceIssuedEvent(tx, issued, runtime)
+  // The event still fires — ledgers and audit want it — but the external
+  // subscribers stand down, because the fiscal document for this sale already
+  // exists in the operator's provider (voyant#4688).
+  if (options.skipExternalSync) payload.skipExternalSync = true
   return {
     invoice: issued,
     event: {

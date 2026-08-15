@@ -25,13 +25,17 @@ import {
   missingFiscalBillingFields,
 } from "@voyant-travel/bookings-contracts"
 import { withBookingFinanceInsertionFence } from "@voyant-travel/db/booking-finance-fence"
+import {
+  externalInvoiceDocumentSchema,
+  formatExternalDocumentLabel,
+} from "@voyant-travel/finance-contracts"
 import { classifyOccupancyPrice } from "@voyant-travel/products-contracts/occupancy-pricing"
 import { emailAddress } from "@voyant-travel/schema-kit/email"
 import { and, asc, eq, sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import * as rrulePackage from "rrule"
 import { z } from "zod"
-
+import { externalDocumentToRefInput } from "./invoice-external-document.js"
 import type {
   BookingPaymentSchedule,
   Invoice,
@@ -101,6 +105,22 @@ const documentGenerationInputSchema = z
      * shortcut on the new-booking dialog).
      */
     invoiceType: z.enum(["invoice", "proforma"]).default("invoice"),
+    /**
+     * The sale is already invoiced in the operator's accounting provider.
+     *
+     * This is what back-filling a booking for an already-invoiced sale needs
+     * (voyant#4688): the standard recovery after a checkout takes the money and
+     * the settlement commit fails, where the operator has already issued a
+     * fiscal document by hand so the customer has one. Without it the back-fill
+     * mirrored a second real document to the provider — for a Romanian operator
+     * both land in e-Factura and the sale is declared twice.
+     *
+     * The booking's invoice is still written and still issued, so payments,
+     * balances and the contract are right. What changes is that no document is
+     * requested from the provider and the invoice's external reference names
+     * the one the operator already has.
+     */
+    externalInvoice: externalInvoiceDocumentSchema.optional(),
   })
   .default({ contractDocument: false, invoiceDocument: false, invoiceType: "invoice" })
 
@@ -528,6 +548,24 @@ const bookingCreateBaseSchema = z.object({
    */
   suppressNotifications: z.boolean().optional(),
   /**
+   * Record this booking without producing documents for it: no invoice or
+   * proforma reaches the accounting provider, and no contract is generated.
+   *
+   * voyant#4688: an operator instructed the agent not to issue a proforma,
+   * invoice or contract. The agent invoked no issuance call and said none were
+   * issued — and creating the booking issued a real fiscal invoice to the
+   * provider anyway, because issuance is a consequence of booking creation
+   * rather than a call anyone makes. An agent cannot decline an action it never
+   * invokes, so the instruction had nowhere to land. This is where it lands.
+   *
+   * The invoice is still written when there is money to record, as an unissued
+   * draft carrying the payments — recording that a booking was paid is
+   * deliberately separable from issuing a fiscal document for it. Persisted on
+   * the booking as `documents_suppressed`, because contract generation runs off
+   * an event after this transaction commits and cannot see a command flag.
+   */
+  suppressDocuments: z.boolean().optional(),
+  /**
    * Explicit operator override for same billing party + departure creates.
    * Defaults to guarded behavior so retries and concurrent double-submit
    * attempts return a structured duplicate signal instead of minting another
@@ -666,9 +704,23 @@ export interface BookingCreateResult {
    * fine, and the operator completes the buyer's billing details and issues it.
    * It is here so the caller can say that rather than leaving an unissued
    * invoice looking like an issued one (voyant#4654).
+   *
+   * `recorded_externally` is issued too — the invoice is a real, issued record
+   * with the right balance. What it says is that no fiscal document was
+   * requested from the accounting provider, because the operator already has
+   * one for this sale (voyant#4688).
+   *
+   * `withheld` is the operator's instruction honoured: the invoice exists as an
+   * unissued draft and carries the payments, so the booking records what was
+   * paid, and no fiscal document was produced for it. It is the answer to "an
+   * operator said do not issue" — which previously had nowhere to land, because
+   * issuance was a consequence of creating the booking rather than a call
+   * anyone made (voyant#4688).
    */
   invoiceIssuance:
     | { status: "issued" }
+    | { status: "recorded_externally"; externalDocument: { provider: string; label: string } }
+    | { status: "withheld" }
     | { status: "blocked"; missingBillingFields: readonly FiscalBillingField[] }
     | { status: "not_applicable" }
   payments: Payment[]
@@ -2613,6 +2665,7 @@ export async function createBookingMutation(
           priceOverrideReason: input.priceOverrideReason ?? null,
           manualPriceOverride: input.manualPriceOverride,
           suppressNotifications: input.suppressNotifications,
+          suppressDocuments: input.suppressDocuments,
           contactFirstName: input.contactFirstName ?? null,
           contactLastName: input.contactLastName ?? null,
           contactPartyType: input.contactPartyType ?? null,
@@ -2919,7 +2972,16 @@ export async function createBookingMutation(
   }
 
   const paidSchedules = (input.paymentSchedules ?? []).filter(isAlreadyPaidSchedule)
-  const shouldCreateInvoice = documentGeneration.invoiceDocument || paidSchedules.length > 0
+  // Declaring an external document is itself a reason to write the invoice.
+  // Without this, `externalInvoice` on a create that asked for no invoice
+  // document and has no already-paid schedule is silently dropped: no invoice,
+  // no external reference, and therefore nothing for the duplicate guard to
+  // find — so the next issuance mirrors exactly the document this field exists
+  // to prevent.
+  const shouldCreateInvoice =
+    documentGeneration.invoiceDocument ||
+    paidSchedules.length > 0 ||
+    documentGeneration.externalInvoice !== undefined
 
   if (shouldCreateInvoice) {
     const items = await tx
@@ -2939,6 +3001,16 @@ export async function createBookingMutation(
       documentGeneration.invoiceType,
     )
 
+    const externalInvoice = documentGeneration.externalInvoice ?? null
+    // An operator saying "do not issue" and an operator saying "it is already
+    // issued, over there" are different instructions with the same consequence
+    // for the provider: this create must not put a fiscal document into the
+    // world. They differ in what the platform's own invoice ends up being — an
+    // unissued draft that records the money, or an issued record pointed at the
+    // operator's document — so `externalInvoice` is the more specific of the
+    // two and decides when both are given.
+    const withholdIssuance = input.suppressDocuments === true && externalInvoice === null
+
     const invoice = await financeService.createInvoiceFromBooking(
       tx,
       {
@@ -2949,7 +3021,13 @@ export async function createBookingMutation(
         issueDate,
         dueDate,
         invoiceType: documentGeneration.invoiceType,
-        notes: "Generated from booking create.",
+        notes: externalInvoice
+          ? "Generated from booking create. Already invoiced externally."
+          : "Generated from booking create.",
+        // The reference is written with the invoice, in the same fenced insert,
+        // so there is no window where an issued invoice exists without the
+        // record of which external document already covers it.
+        ...(externalInvoice ? { externalRefs: [externalDocumentToRefInput(externalInvoice)] } : {}),
       },
       { booking: result.booking, dueDatePaymentSchedule, items },
       invoiceRuntime,
@@ -2977,8 +3055,10 @@ export async function createBookingMutation(
       // and the operator gets told what is missing.
       const missingBillingFields = missingFiscalBillingFields(result.booking)
       const issuance =
-        missingBillingFields.length === 0
-          ? await issueBookingInvoiceInTransaction(tx, invoice, invoiceRuntime)
+        missingBillingFields.length === 0 && !withholdIssuance
+          ? await issueBookingInvoiceInTransaction(tx, invoice, invoiceRuntime, {
+              skipExternalSync: externalInvoice !== null,
+            })
           : null
       if (issuance) domainEvents.push(issuance.event)
 
@@ -3014,7 +3094,13 @@ export async function createBookingMutation(
       // it. `not_available` says the document was wanted and withheld, which
       // `not_requested` (nobody asked) does not.
       if (documentGeneration.invoiceDocument) {
-        if (!issuance) {
+        if (!issuance || externalInvoice) {
+          // Withheld for the same reason above, and for one more when the sale
+          // is already invoiced externally: our rendition carries our invoice
+          // number and reads as an invoice, so a `ready` one would join the
+          // booking's notification bundle and mail the customer a second
+          // document for a purchase they already hold one for (voyant#4688).
+          // The operator's own document is the one to send.
           invoiceDocument = { status: "not_available" }
         } else {
           const requested = await financeService.renderInvoice(tx, invoice.id, { format: "pdf" })
@@ -3029,9 +3115,19 @@ export async function createBookingMutation(
         ...result,
         invoice: await financeService.getInvoiceById(tx, invoice.id),
         invoiceDocument,
-        invoiceIssuance: issuance
-          ? { status: "issued" }
-          : { status: "blocked", missingBillingFields },
+        invoiceIssuance: withholdIssuance
+          ? { status: "withheld" }
+          : !issuance
+            ? { status: "blocked", missingBillingFields }
+            : externalInvoice
+              ? {
+                  status: "recorded_externally",
+                  externalDocument: {
+                    provider: externalInvoice.provider,
+                    label: formatExternalDocumentLabel(externalInvoice),
+                  },
+                }
+              : { status: "issued" },
         payments,
       }
     }

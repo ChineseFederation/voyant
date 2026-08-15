@@ -18,6 +18,7 @@
  * work (reference allocation, the durable command) lives in `mcp-runtime.ts`,
  * which holds the request-scoped services.
  */
+import { externalInvoiceDocumentSchema } from "@voyant-travel/finance-contracts"
 import { emailAddress } from "@voyant-travel/schema-kit/email"
 import { z } from "zod"
 
@@ -93,6 +94,11 @@ const documentGenerationSchema = z.object({
   contractDocument: z.boolean().default(false),
   invoiceDocument: z.boolean().default(false),
   invoiceType: z.enum(["invoice", "proforma"]).default("invoice"),
+  externalInvoice: externalInvoiceDocumentSchema
+    .optional()
+    .describe(
+      "The sale is already invoiced in the operator's accounting provider — give the document's series and number and no second one is issued. Use this for a back-fill after a failed settlement, or for an operator who invoices outside the platform.",
+    ),
 })
 
 export const bookProductToolInputSchema = z.object({
@@ -165,6 +171,12 @@ export const bookProductToolInputSchema = z.object({
     .boolean()
     .optional()
     .describe("Confirm silently — skip customer-facing email and document bundles."),
+  suppressDocuments: z
+    .boolean()
+    .optional()
+    .describe(
+      "Record the booking without producing documents for it: no invoice or proforma is issued to the accounting provider, and no contract is generated. Set this whenever the operator says not to issue — issuance is otherwise a consequence of creating the booking, so declining to call an issuance tool does not prevent it. Payments are still recorded, on an unissued draft invoice.",
+    ),
   allowDuplicate: z
     .boolean()
     .optional()
@@ -257,6 +269,9 @@ export function mapBookProductIntentToCommand(
     documentGeneration: input.documentGeneration,
     ...(input.suppressNotifications !== undefined
       ? { suppressNotifications: input.suppressNotifications }
+      : {}),
+    ...(input.suppressDocuments !== undefined
+      ? { suppressDocuments: input.suppressDocuments }
       : {}),
     ...(input.allowDuplicate !== undefined ? { allowDuplicate: input.allowDuplicate } : {}),
   }

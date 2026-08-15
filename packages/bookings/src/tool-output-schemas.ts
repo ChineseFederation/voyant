@@ -43,6 +43,7 @@ export const bookingToolSchema = z.object({
   pax: z.number().int().nullable(),
   internalNotes: z.string().nullable(),
   notificationsSuppressed: z.boolean(),
+  documentsSuppressed: z.boolean(),
   customerPaymentPolicy: bookingCustomerPaymentPolicySchema.nullable(),
   priceOverride: jsonObject.nullable(),
   customFields: namespacedCustomFields,

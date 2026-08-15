@@ -179,6 +179,7 @@ import type {
   profitabilityQuerySchema,
   renderInvoiceInputSchema,
   revenueReportQuerySchema,
+  supersedeInvoiceExternalRefSchema,
   supplierPaymentListQuerySchema,
   taxClassListQuerySchema,
   taxPolicyProfileListQuerySchema,
@@ -336,6 +337,7 @@ export type TaxPolicyRuleListQuery = z.infer<typeof taxPolicyRuleListQuerySchema
 export type CreateTaxPolicyRuleInput = z.infer<typeof insertTaxPolicyRuleSchema>
 export type UpdateTaxPolicyRuleInput = z.infer<typeof updateTaxPolicyRuleSchema>
 export type CreateInvoiceExternalRefInput = z.infer<typeof insertInvoiceExternalRefSchema>
+export type SupersedeInvoiceExternalRefInput = z.infer<typeof supersedeInvoiceExternalRefSchema>
 export type RenderInvoiceInput = z.infer<typeof renderInvoiceInputSchema>
 export type MarkPaymentSessionRequiresRedirectInput = z.infer<
   typeof markPaymentSessionRequiresRedirectSchema

@@ -18,6 +18,7 @@ import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi"
 import { openApiValidationHook, parseJsonBody } from "@voyant-travel/hono"
 import { listResponseSchema } from "@voyant-travel/types"
 import type { MiddlewareHandler } from "hono"
+import { describeDuplicateExternalDocument } from "./invoice-external-document.js"
 import {
   errorResponseSchema,
   invoiceListItemSchema,
@@ -92,7 +93,9 @@ const issueInvoiceFromBookingRoute = createRoute({
     body: {
       required: true,
       description:
-        "Create + issue an invoice or proforma from a booking (and optionally a payment schedule). `invoiceType` selects invoice vs proforma; `bookingPaymentScheduleId`, when present, must belong to the booking.",
+        "Create + issue an invoice or proforma from a booking (and optionally a payment schedule). `invoiceType` selects invoice vs proforma; `bookingPaymentScheduleId`, when present, must belong to the booking. " +
+        "Pass `externalDocument` when the operator already issued a fiscal document for this sale in their accounting provider — the invoice is recorded against that document and no second one is requested. " +
+        "If the booking already carries a live external document the request is refused with `duplicate_external_document`; `acknowledgeExistingExternalDocument: true` overrides it.",
       content: { "application/json": { schema: invoiceFromBookingSchema } },
     },
   },
@@ -111,7 +114,7 @@ const issueInvoiceFromBookingRoute = createRoute({
     },
     409: {
       description:
-        "Invoice number allocation failed, the invoice number already exists, or the booking failed issuance validation",
+        "Invoice number allocation failed, the invoice number already exists, the booking failed issuance validation, or the booking already has a live fiscal document in an accounting provider (`duplicate_external_document`)",
       content: { "application/json": { schema: errorResponseSchema } },
     },
   },
@@ -263,6 +266,23 @@ financeInvoiceIssueRoutes
     }
     if (outcome.status === "booking_changed" || outcome.status === "approval_snapshot_changed") {
       return c.json({ error: "Booking changed after review" }, 409)
+    }
+    if (outcome.status === "duplicate_external_document") {
+      return c.json(
+        {
+          error: describeDuplicateExternalDocument(outcome.existing),
+          code: "duplicate_external_document",
+          details: {
+            invoiceId: outcome.existing.invoiceId,
+            invoiceNumber: outcome.existing.invoiceNumber,
+            provider: outcome.existing.provider,
+            externalNumber: outcome.existing.externalNumber,
+            externalId: outcome.existing.externalId,
+            externalUrl: outcome.existing.externalUrl,
+          },
+        },
+        409,
+      )
     }
     return c.json({ data: outcome.invoice }, 201)
   })

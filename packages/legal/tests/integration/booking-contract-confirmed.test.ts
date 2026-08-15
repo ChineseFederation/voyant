@@ -6,7 +6,10 @@ import { cleanupTestDb } from "@voyant-travel/db/test-utils"
 import { eq } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest"
-import { LEGAL_BOOKING_CONTRACT_CONFIRMED_ACTION_ID } from "../../src/booking-contract-confirmed.js"
+import {
+  generateBookingContractOnConfirmation,
+  LEGAL_BOOKING_CONTRACT_CONFIRMED_ACTION_ID,
+} from "../../src/booking-contract-confirmed.js"
 import {
   createLegalBookingContractConfirmedSubscriber,
   type LegalBookingConfirmedPayload,
@@ -302,6 +305,63 @@ describe.skipIf(!DB_AVAILABLE)("booking-confirmed contract generation", () => {
         .from(contractSignatures)
         .where(eq(contractSignatures.contractId, contractRows[0]!.id)),
     ).toHaveLength(1)
+  })
+
+  // voyant#4688: an operator told the agent not to issue a proforma, invoice or
+  // contract. The contract was generated ~5s after booking creation anyway,
+  // because generation follows from confirmation rather than from a call anyone
+  // makes — there was nothing at any layer the instruction could reach.
+  it("generates nothing for a booking the operator suppressed documents on", async () => {
+    const [booking] = await db
+      .insert(bookings)
+      .values({
+        bookingNumber: "BK-AUTO-CONTRACT-SUPPRESSED",
+        status: "confirmed",
+        contactFirstName: "Ana",
+        contactLastName: "Pop",
+        contactEmail: "ana@example.test",
+        contactPreferredLanguage: "en",
+        sellCurrency: "EUR",
+        sellAmountCents: 120_00,
+        startDate: "2026-09-01",
+        endDate: "2026-09-07",
+        pax: 2,
+        documentsSuppressed: true,
+      })
+      .returning()
+
+    const result = await generateBookingContractOnConfirmation({
+      db,
+      provider: provider(),
+      event: {
+        data: {
+          bookingId: booking!.id,
+          bookingNumber: booking!.bookingNumber,
+          actorId: null,
+        },
+        metadata: {
+          eventId: `evt_finance_booking_confirmed_${booking!.id}`,
+          category: "domain",
+          source: "service",
+        },
+      } as never,
+    })
+
+    // Specifically suppression, not "no template" — the refusal happens before
+    // any template or series is looked at, so the same booking without a
+    // template would have skipped for a different reason.
+    expect(result).toEqual({ status: "skipped", reason: "documents_suppressed" })
+    expect(
+      await db.select().from(contracts).where(eq(contracts.bookingId, booking!.id)),
+    ).toHaveLength(0)
+    // And no `failed` ledger entry: nothing failed. The booking row carries the
+    // reason, so the absence is explained without misreporting a decision.
+    expect(
+      await db
+        .select()
+        .from(actionLedgerEntries)
+        .where(eq(actionLedgerEntries.targetId, booking!.id)),
+    ).toHaveLength(0)
   })
 
   // voyant#4634: with no template to render, generation used to return a

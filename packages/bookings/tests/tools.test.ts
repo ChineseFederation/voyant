@@ -66,6 +66,7 @@ function bookingDetail(id: string, status: "confirmed" | "cancelled") {
     pax: null,
     internalNotes: null,
     notificationsSuppressed: false,
+    documentsSuppressed: false,
     customerPaymentPolicy: null,
     priceOverride: null,
     customFields: {},

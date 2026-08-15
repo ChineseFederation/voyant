@@ -202,10 +202,15 @@ async function insertBookingCreatedOutbox(
           ? result.travelCreditRedemption.redemption.amountCents
           : null,
         groupId: result.groupMembership?.groupId ?? null,
-        documentGeneration: command.documentGeneration ?? {
-          contractDocument: false,
-          invoiceDocument: false,
-          invoiceType: "invoice",
+        // Named field by field rather than spread: `documentGeneration` also
+        // carries `externalInvoice`, the identity of a document in the
+        // operator's accounting provider, and `booking.created` is externally
+        // deliverable. The payload schema is `additionalProperties: false`, so
+        // spreading it would also fail validation.
+        documentGeneration: {
+          contractDocument: command.documentGeneration?.contractDocument ?? false,
+          invoiceDocument: command.documentGeneration?.invoiceDocument ?? false,
+          invoiceType: command.documentGeneration?.invoiceType ?? "invoice",
         },
         createdByUserId: context.userId ?? null,
         occurredAt: new Date(),

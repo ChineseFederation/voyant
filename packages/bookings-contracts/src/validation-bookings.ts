@@ -77,6 +77,11 @@ const bookingCoreSchema = z.object({
   pax: z.number().int().positive().optional().nullable(),
   internalNotes: z.string().optional().nullable(),
   notificationsSuppressed: z.boolean().optional(),
+  /**
+   * "Record this booking, do not produce documents for it" — no automatic
+   * invoice issuance, no automatic contract generation (voyant#4688).
+   */
+  documentsSuppressed: z.boolean().optional(),
   customerPaymentPolicy: bookingCustomerPaymentPolicySchema.optional().nullable(),
   priceOverride: bookingPriceOverrideSchema.optional().nullable(),
   // Values are always `customFields[namespace][key]`; definitions and scalar
@@ -95,6 +100,10 @@ export const updateBookingSchema = bookingCoreSchema
   .extend({
     sourceType: bookingSourceTypeSchema.optional(),
     notificationsSuppressed: z.literal(true).optional(),
+    // Same one-way latch as notification suppression, for the same reason:
+    // clearing it cannot un-issue anything, and turning generation back on is
+    // an operator issuing the document deliberately, not a flag flip.
+    documentsSuppressed: z.literal(true).optional(),
   })
   .strict()
   .superRefine(validateExclusiveBillingParty)
@@ -228,6 +237,12 @@ export const convertProductSchema = z
       .boolean()
       .optional()
       .describe("Persistently suppress customer-facing messages for this booking lifecycle."),
+    suppressDocuments: z
+      .boolean()
+      .optional()
+      .describe(
+        "Record the booking without producing documents for it: no invoice or proforma is issued to the accounting provider, and no contract is generated. Persists on the booking, so the paths that run after the create honour it too. Use it when the operator says not to issue, or when the sale is already invoiced outside the platform.",
+      ),
     /**
      * Billing-contact snapshot. Captures who the operator was billing
      * at create time so the booking detail page renders the right

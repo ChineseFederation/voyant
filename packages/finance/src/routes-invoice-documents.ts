@@ -2,7 +2,7 @@
  * Admin invoice-document routes — mounted by the operator starter under
  * `/v1/admin/finance/...`. Covers invoice renditions (list + render), invoice
  * attachments (list/create/update/delete + signed download redirect), and
- * invoice external refs (list/register/delete).
+ * invoice external refs (list/register/supersede/delete).
  *
  * Migrated to `@hono/zod-openapi` for the OpenAPI admin backfill (voyant#2114 /
  * voyant#2208 — finance sub-batch 9B). Request schemas reuse the existing
@@ -38,6 +38,7 @@ import {
   insertInvoiceExternalRefSchema,
   invoiceDocumentWaitQuerySchema,
   renderInvoiceInputSchema,
+  supersedeInvoiceExternalRefSchema,
   updateInvoiceAttachmentSchema,
 } from "./validation.js"
 
@@ -375,6 +376,38 @@ const registerExternalRefRoute = createRoute({
   },
 })
 
+const supersedeExternalRefRoute = createRoute({
+  method: "post",
+  path: "/invoices/{id}/external-refs/{refId}/supersede",
+  description:
+    "Record that the provider document this reference points at was cancelled " +
+    "in the provider's own UI, and optionally repoint the reference at its " +
+    "replacement. The superseded identity is kept in the reference's metadata; " +
+    "with no replacement the reference is marked `cancelled`, which is what " +
+    "lets the booking be invoiced again (voyant#4688).",
+  request: {
+    params: refParamSchema,
+    body: {
+      required: true,
+      content: { "application/json": { schema: supersedeInvoiceExternalRefSchema } },
+    },
+  },
+  responses: {
+    200: {
+      description: "The superseded external ref",
+      content: { "application/json": { schema: z.object({ data: invoiceExternalRefSchema }) } },
+    },
+    400: {
+      description: "invalid_request: request body failed validation",
+      content: { "application/json": { schema: errorResponseSchema } },
+    },
+    404: {
+      description: "External ref not found",
+      content: { "application/json": { schema: errorResponseSchema } },
+    },
+  },
+})
+
 const deleteExternalRefRoute = createRoute({
   method: "delete",
   path: "/invoices/{id}/external-refs/{refId}",
@@ -405,6 +438,16 @@ const externalRefRoutes = new OpenAPIHono<Env>({ defaultHook: openApiValidationH
       c.req.valid("json"),
     )
     return row ? c.json({ data: row }, 201) : c.json({ error: "Invoice not found" }, 404)
+  })
+  .openapi(supersedeExternalRefRoute, async (c) => {
+    const { id, refId } = c.req.valid("param")
+    const row = await financeService.supersedeInvoiceExternalRef(
+      c.get("db"),
+      refId,
+      c.req.valid("json"),
+      { invoiceId: id },
+    )
+    return row ? c.json({ data: row }, 200) : c.json({ error: "External ref not found" }, 404)
   })
   .openapi(deleteExternalRefRoute, async (c) => {
     const row = await financeService.deleteInvoiceExternalRef(

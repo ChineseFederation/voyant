@@ -79,6 +79,7 @@ function bookingDetail(id = "booking_1") {
     pax: 1,
     internalNotes: null,
     notificationsSuppressed: false,
+    documentsSuppressed: false,
     customerPaymentPolicy: null,
     priceOverride: null,
     customFields: {},
