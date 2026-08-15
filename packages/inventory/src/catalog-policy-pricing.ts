@@ -49,9 +49,18 @@ import { defineFieldPolicy, type FieldPolicyInput } from "@voyant-travel/catalog
 
 const PRODUCT_PRICING_FIELD_POLICY: FieldPolicyInput[] = [
   // ── Aggregated "price from" amount ───────────────────────────────────────
-  // MIN across future bookable active default room prices first, then
-  // base/unit fallbacks, then `products.sellAmountCents`. `null` when no
-  // source has a positive amount.
+  // MIN across the amounts the product's future bookable active default
+  // rules actually charge — room, base and unit prices in one comparison —
+  // then `products.sellAmountCents`. `null` when no source has a positive
+  // amount.
+  //
+  // Only amounts a traveler could pay on their own take part. A room price
+  // whose rule carries an occupancy `supplement` basis is a surcharge added
+  // to the traveler fare, not a price, so it is excluded and the fare below
+  // it becomes the "from" value; symmetrically an `all_in` rule's base
+  // amount is excluded, because the resolver does not charge it. Without
+  // the first rule the MIN advertised a 100 EUR single supplement as the
+  // headline price of a 165 EUR tour (#4675).
   {
     path: "priceFromAmountCents",
     class: "structural",

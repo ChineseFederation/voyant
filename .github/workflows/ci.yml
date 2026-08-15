@@ -377,6 +377,8 @@ jobs:
                 tests/integration/conservative-family-backfill.test.ts
               pnpm --filter @voyant-travel/inventory exec vitest run \
                 tests/integration/mcp-lookup.test.ts
+              pnpm --filter @voyant-travel/inventory exec vitest run \
+                tests/integration/catalog-plane-pricing-occupancy.test.ts
               pnpm --filter @voyant-travel/finance exec vitest run \
                 tests/integration/booking-create.test.ts
               pnpm --filter @voyant-travel/finance exec vitest run \
