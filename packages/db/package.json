@@ -45,7 +45,7 @@
     "./schema/iam/kms": "./src/schema/iam/kms.ts",
     "./schema/iam/oauth_provider": "./src/schema/iam/oauth_provider.ts",
     "./schema/iam/roles": "./src/schema/iam/roles.ts",
-    "./schema/iam/storefronts": "./src/schema/iam/storefronts.ts",
+    "./schema/iam/public-api": "./src/schema/iam/public-api.ts",
     "./schema/iam/user_profiles": "./src/schema/iam/user_profiles.ts",
     "./schema/iam/*": "./src/schema/iam/*.ts",
     "./schema/infra": "./src/schema/infra/index.ts",
@@ -259,10 +259,10 @@
         "import": "./dist/schema/iam/roles.js",
         "default": "./dist/schema/iam/roles.js"
       },
-      "./schema/iam/storefronts": {
-        "types": "./dist/schema/iam/storefronts.d.ts",
-        "import": "./dist/schema/iam/storefronts.js",
-        "default": "./dist/schema/iam/storefronts.js"
+      "./schema/iam/public-api": {
+        "types": "./dist/schema/iam/public-api.d.ts",
+        "import": "./dist/schema/iam/public-api.js",
+        "default": "./dist/schema/iam/public-api.js"
       },
       "./schema/iam/user_profiles": {
         "types": "./dist/schema/iam/user_profiles.d.ts",

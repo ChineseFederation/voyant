@@ -1,5 +1,5 @@
 export const adminTripsMessagesRoPart2 = {
-  storefrontComposer: {
+  publicApiComposer: {
     heading: "Construieste o calatorie",
     subheading: "Combina tururi, cazari si servicii operate de staff intr-un singur checkout.",
     actions: {

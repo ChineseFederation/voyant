@@ -6,8 +6,8 @@ const authoring = readFileSync(
   new URL("../../openapi/admin/inventory-authoring.json", import.meta.url),
   "utf8",
 )
-const storefront = readFileSync(
-  new URL("../../openapi/storefront/products.json", import.meta.url),
+const publicApi = readFileSync(
+  new URL("../../openapi/public-api/products.json", import.meta.url),
   "utf8",
 )
 
@@ -31,7 +31,7 @@ describe("product family OpenAPI artifacts", () => {
   it.each([
     ["admin", admin, "admin"],
     ["authoring", authoring, "admin"],
-    ["storefront", storefront, "storefront"],
+    ["public-api", publicApi, "public-api"],
   ])("preserves composition metadata in the %s document", (_name, source, surface) => {
     const parsed = JSON.parse(source) as {
       paths: Record<

@@ -76,7 +76,7 @@ the admin realm:
 ```tsx
 "use client"
 
-import { CustomerAccountProvider } from "@voyant-travel/storefront-react/storefront"
+import { CustomerAccountProvider } from "@voyant-travel/public-api-react/public-api"
 
 const credentialedFetch = (url: string, init?: RequestInit) =>
   fetch(url, { ...init, credentials: "include" })

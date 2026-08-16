@@ -20,15 +20,21 @@ import type { AnyDrizzleDb } from "@voyant-travel/db"
 import { type FlightsRuntime, flightsRuntimePort } from "@voyant-travel/flights"
 import { type PaymentAdapter, paymentAdapterRuntimePort } from "@voyant-travel/payments"
 import {
-  storefrontPaymentLinkRuntimePort,
-  storefrontPaymentReconciliationJobRuntimePort,
-} from "@voyant-travel/storefront"
+  publicApiPaymentLinkRuntimePort,
+  publicApiPaymentReconciliationJobRuntimePort,
+} from "@voyant-travel/public-api"
 import {
-  storefrontOpaqueReferenceIssuerPort,
-  storefrontTripSelectionsRuntimePort,
-} from "@voyant-travel/storefront/shopping"
+  publicApiOpaqueReferenceIssuerPort,
+  publicApiTripSelectionsRuntimePort,
+} from "@voyant-travel/public-api/shopping"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import { createTripBookingSessionCompositeHandler } from "./booking-session-composite-handler.js"
+import {
+  createCommerceCardPaymentRuntime,
+  createStandardPaymentLinkRouteOptions,
+} from "./public-api-payment-link-runtime.js"
+import { publicApiTripOfferResolverPort } from "./public-api-trip-offer-resolver-port.js"
+import { createPublicApiTripSelectionsRuntime } from "./public-api-trip-selections-runtime.js"
 import type { TripsRoutesOptionsProvider } from "./routes.js"
 import { createTripsRoutesRuntime } from "./runtime.js"
 import {
@@ -38,12 +44,6 @@ import {
 } from "./runtime-port.js"
 import { createTripShoppingReferenceRuntime } from "./shopping-opaque-references.js"
 import { tripsSourcingJobRuntimePort } from "./sourcing-job-runtime-port.js"
-import {
-  createCommerceCardPaymentRuntime,
-  createStandardPaymentLinkRouteOptions,
-} from "./storefront-payment-link-runtime.js"
-import { storefrontTripOfferResolverPort } from "./storefront-trip-offer-resolver-port.js"
-import { createStorefrontTripSelectionsRuntime } from "./storefront-trip-selections-runtime.js"
 
 type RuntimePortValue<T> = T | Promise<T>
 
@@ -110,8 +110,8 @@ export function createTripsRuntimePortContribution(
       ),
   })
   const contribution: Record<string, unknown> = {
-    [storefrontPaymentLinkRuntimePort.id]: createStandardPaymentLinkRouteOptions(paymentAdapter),
-    [storefrontPaymentReconciliationJobRuntimePort.id]: {
+    [publicApiPaymentLinkRuntimePort.id]: createStandardPaymentLinkRouteOptions(paymentAdapter),
+    [publicApiPaymentReconciliationJobRuntimePort.id]: {
       resolveDb: (bindings: unknown) =>
         host.primitives.database.resolve<PostgresJsDatabase>(bindings),
       resolveAdapter: () => (paymentAdapter ? Promise.resolve(paymentAdapter) : null),
@@ -120,9 +120,9 @@ export function createTripsRuntimePortContribution(
     },
     [tripsRoutesRuntimePort.id]: tripsRoutes,
     [tripsDatabaseRuntimePort.id]: tripsDatabase,
-    [storefrontOpaqueReferenceIssuerPort.id]: shoppingReferences.issuer,
-    [storefrontTripOfferResolverPort.id]: shoppingReferences.offerResolver,
-    [storefrontTripSelectionsRuntimePort.id]: createStorefrontTripSelectionsRuntime({
+    [publicApiOpaqueReferenceIssuerPort.id]: shoppingReferences.issuer,
+    [publicApiTripOfferResolverPort.id]: shoppingReferences.offerResolver,
+    [publicApiTripSelectionsRuntimePort.id]: createPublicApiTripSelectionsRuntime({
       withTransaction: (operation) =>
         host.primitives.database.transaction(undefined, (database) =>
           operation(database as AnyDrizzleDb),

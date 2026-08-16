@@ -84,41 +84,33 @@
       "types": "./src/team-management-runtime-port.ts",
       "default": "./src/team-management-runtime-port.ts"
     },
-    "./storefront-runtime-port": {
-      "types": "./src/storefront-runtime-port.ts",
-      "default": "./src/storefront-runtime-port.ts"
+    "./public-api-runtime-port": {
+      "types": "./src/public-api-runtime-port.ts",
+      "default": "./src/public-api-runtime-port.ts"
     },
-    "./storefront-admin-contracts": {
-      "types": "./src/storefront-admin-contracts.ts",
-      "default": "./src/storefront-admin-contracts.ts"
+    "./public-api-admin-contracts": {
+      "types": "./src/public-api-admin-contracts.ts",
+      "default": "./src/public-api-admin-contracts.ts"
     },
-    "./linkables": {
-      "types": "./src/linkables.ts",
-      "default": "./src/linkables.ts"
+    "./public-api-graph-runtime": {
+      "types": "./src/public-api-graph-runtime.ts",
+      "default": "./src/public-api-graph-runtime.ts"
     },
-    "./standard-links": {
-      "types": "./src/standard-links.ts",
-      "default": "./src/standard-links.ts"
+    "./public-api-channel-provider": {
+      "types": "./src/public-api-channel-provider.ts",
+      "default": "./src/public-api-channel-provider.ts"
     },
-    "./storefront-graph-runtime": {
-      "types": "./src/storefront-graph-runtime.ts",
-      "default": "./src/storefront-graph-runtime.ts"
+    "./public-api-local-adapter": {
+      "types": "./src/public-api-local-adapter.ts",
+      "default": "./src/public-api-local-adapter.ts"
     },
-    "./storefront-channel-binding-provider": {
-      "types": "./src/storefront-channel-binding-provider.ts",
-      "default": "./src/storefront-channel-binding-provider.ts"
+    "./public-api-customer-auth-resolver": {
+      "types": "./src/public-api-customer-auth-resolver.ts",
+      "default": "./src/public-api-customer-auth-resolver.ts"
     },
-    "./storefront-local-adapter": {
-      "types": "./src/storefront-local-adapter.ts",
-      "default": "./src/storefront-local-adapter.ts"
-    },
-    "./storefront-customer-auth-resolver": {
-      "types": "./src/storefront-customer-auth-resolver.ts",
-      "default": "./src/storefront-customer-auth-resolver.ts"
-    },
-    "./storefront-credentials": {
-      "types": "./src/storefront-credentials.ts",
-      "default": "./src/storefront-credentials.ts"
+    "./public-api-credentials": {
+      "types": "./src/public-api-credentials.ts",
+      "default": "./src/public-api-credentials.ts"
     },
     "./tools": {
       "types": "./src/mcp-runtime.ts",
@@ -131,8 +123,9 @@
     "./openapi/admin/invitations": "./openapi/admin/invitations.json",
     "./openapi/admin/team": "./openapi/admin/team.json",
     "./openapi/admin/customer-business-accounts": "./openapi/admin/customer-business-accounts.json",
-    "./openapi/admin/storefronts": "./openapi/admin/storefronts.json",
-    "./openapi/storefront/invitations": "./openapi/storefront/invitations.json",
+    "./openapi/admin/public-api-keys": "./openapi/admin/public-api-keys.json",
+    "./openapi/admin/customer-accounts": "./openapi/admin/customer-accounts.json",
+    "./openapi/public-api/invitations": "./openapi/public-api/invitations.json",
     "./voyant": {
       "types": "./src/voyant.ts",
       "default": "./src/voyant.ts"
@@ -228,50 +221,40 @@
         "import": "./dist/identity-access-graph-runtime.js",
         "default": "./dist/identity-access-graph-runtime.js"
       },
-      "./storefront-runtime-port": {
-        "types": "./dist/storefront-runtime-port.d.ts",
-        "import": "./dist/storefront-runtime-port.js",
-        "default": "./dist/storefront-runtime-port.js"
+      "./public-api-runtime-port": {
+        "types": "./dist/public-api-runtime-port.d.ts",
+        "import": "./dist/public-api-runtime-port.js",
+        "default": "./dist/public-api-runtime-port.js"
       },
-      "./storefront-admin-contracts": {
-        "types": "./dist/storefront-admin-contracts.d.ts",
-        "import": "./dist/storefront-admin-contracts.js",
-        "default": "./dist/storefront-admin-contracts.js"
+      "./public-api-admin-contracts": {
+        "types": "./dist/public-api-admin-contracts.d.ts",
+        "import": "./dist/public-api-admin-contracts.js",
+        "default": "./dist/public-api-admin-contracts.js"
       },
-      "./linkables": {
-        "types": "./dist/linkables.d.ts",
-        "import": "./dist/linkables.js",
-        "default": "./dist/linkables.js"
+      "./public-api-graph-runtime": {
+        "types": "./dist/public-api-graph-runtime.d.ts",
+        "import": "./dist/public-api-graph-runtime.js",
+        "default": "./dist/public-api-graph-runtime.js"
       },
-      "./standard-links": {
-        "types": "./dist/standard-links.d.ts",
-        "import": "./dist/standard-links.js",
-        "default": "./dist/standard-links.js"
+      "./public-api-channel-provider": {
+        "types": "./dist/public-api-channel-provider.d.ts",
+        "import": "./dist/public-api-channel-provider.js",
+        "default": "./dist/public-api-channel-provider.js"
       },
-      "./storefront-graph-runtime": {
-        "types": "./dist/storefront-graph-runtime.d.ts",
-        "import": "./dist/storefront-graph-runtime.js",
-        "default": "./dist/storefront-graph-runtime.js"
+      "./public-api-local-adapter": {
+        "types": "./dist/public-api-local-adapter.d.ts",
+        "import": "./dist/public-api-local-adapter.js",
+        "default": "./dist/public-api-local-adapter.js"
       },
-      "./storefront-channel-binding-provider": {
-        "types": "./dist/storefront-channel-binding-provider.d.ts",
-        "import": "./dist/storefront-channel-binding-provider.js",
-        "default": "./dist/storefront-channel-binding-provider.js"
+      "./public-api-customer-auth-resolver": {
+        "types": "./dist/public-api-customer-auth-resolver.d.ts",
+        "import": "./dist/public-api-customer-auth-resolver.js",
+        "default": "./dist/public-api-customer-auth-resolver.js"
       },
-      "./storefront-local-adapter": {
-        "types": "./dist/storefront-local-adapter.d.ts",
-        "import": "./dist/storefront-local-adapter.js",
-        "default": "./dist/storefront-local-adapter.js"
-      },
-      "./storefront-customer-auth-resolver": {
-        "types": "./dist/storefront-customer-auth-resolver.d.ts",
-        "import": "./dist/storefront-customer-auth-resolver.js",
-        "default": "./dist/storefront-customer-auth-resolver.js"
-      },
-      "./storefront-credentials": {
-        "types": "./dist/storefront-credentials.d.ts",
-        "import": "./dist/storefront-credentials.js",
-        "default": "./dist/storefront-credentials.js"
+      "./public-api-credentials": {
+        "types": "./dist/public-api-credentials.d.ts",
+        "import": "./dist/public-api-credentials.js",
+        "default": "./dist/public-api-credentials.js"
       },
       "./team-management-runtime-port": {
         "types": "./dist/team-management-runtime-port.d.ts",
@@ -291,8 +274,9 @@
       "./openapi/admin/invitations": "./openapi/admin/invitations.json",
       "./openapi/admin/team": "./openapi/admin/team.json",
       "./openapi/admin/customer-business-accounts": "./openapi/admin/customer-business-accounts.json",
-      "./openapi/admin/storefronts": "./openapi/admin/storefronts.json",
-      "./openapi/storefront/invitations": "./openapi/storefront/invitations.json",
+      "./openapi/admin/public-api-keys": "./openapi/admin/public-api-keys.json",
+      "./openapi/admin/customer-accounts": "./openapi/admin/customer-accounts.json",
+      "./openapi/public-api/invitations": "./openapi/public-api/invitations.json",
       "./voyant": {
         "types": "./dist/voyant.d.ts",
         "import": "./dist/voyant.js",

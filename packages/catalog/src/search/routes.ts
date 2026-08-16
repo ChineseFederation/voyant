@@ -85,7 +85,7 @@ export type CatalogSearchSort = SearchSortOption
 // The request schema reuses `catalogSearchBodySchema` (what the handler already
 // parses). Response schemas are authored here from the handler's literal return
 // shape — `hits` mirror the `IndexerDocument` contract, `cards` the
-// `StorefrontCatalogCard` projection (present only when
+// `PublicApiCatalogCard` projection (present only when
 // `projection: "storefront-card"`), `facets` the engine bucket map.
 //
 // Mounted on both admin + public surfaces, so `/search` appears under
@@ -121,13 +121,13 @@ const searchFacetBucketSchema = z.object({
   count: z.number(),
 })
 
-const storefrontCardTaxonSchema = z.object({
+const publicApiCardTaxonSchema = z.object({
   id: z.string().nullable(),
   name: z.string().nullable(),
   slug: z.string().nullable(),
 })
 
-const storefrontCardOfferSchema = z.object({
+const publicApiCardOfferSchema = z.object({
   id: z.string().nullable(),
   name: z.string().nullable(),
   discountKind: z.string().nullable(),
@@ -136,11 +136,11 @@ const storefrontCardOfferSchema = z.object({
   minPax: z.number().nullable().optional(),
 })
 
-const storefrontCatalogCardSchema = z.object({
+const publicApiCatalogCardSchema = z.object({
   id: z.string(),
   name: z.string().nullable(),
   slug: z.string().nullable(),
-  primaryCategory: storefrontCardTaxonSchema.nullable(),
+  primaryCategory: publicApiCardTaxonSchema.nullable(),
   media: z.object({
     thumbnailUrl: z.string().nullable(),
     coverMediaUrl: z.string().nullable(),
@@ -152,7 +152,7 @@ const storefrontCatalogCardSchema = z.object({
       originalAmountCents: z.number().nullable(),
     })
     .nullable(),
-  offerBadges: z.array(storefrontCardOfferSchema),
+  offerBadges: z.array(publicApiCardOfferSchema),
   departures: z.object({
     upcomingCount: z.number().nullable(),
     /** ISO 8601 instant. */
@@ -190,7 +190,7 @@ const searchResponseSchema = z.object({
   totalRelation: z.enum(["eq", "gte"]).optional(),
   next_cursor: z.string().optional(),
   hits: z.array(searchHitSchema),
-  cards: z.array(storefrontCatalogCardSchema).optional(),
+  cards: z.array(publicApiCatalogCardSchema).optional(),
   facets: z.record(z.string(), z.array(searchFacetBucketSchema)),
 })
 
@@ -228,11 +228,11 @@ const searchRoute = createRoute({
   },
 })
 
-export interface StorefrontCatalogCard {
+export interface PublicApiCatalogCard {
   id: string
   name: string | null
   slug: string | null
-  primaryCategory: StorefrontCatalogCardTaxon | null
+  primaryCategory: PublicApiCatalogCardTaxon | null
   media: {
     thumbnailUrl: string | null
     coverMediaUrl: string | null
@@ -242,7 +242,7 @@ export interface StorefrontCatalogCard {
     currency: string | null
     originalAmountCents: number | null
   } | null
-  offerBadges: StorefrontCatalogCardOffer[]
+  offerBadges: PublicApiCatalogCardOffer[]
   departures: {
     upcomingCount: number | null
     /** ISO 8601 instant. */
@@ -271,13 +271,13 @@ export interface StorefrontCatalogCard {
   } | null
 }
 
-export interface StorefrontCatalogCardTaxon {
+export interface PublicApiCatalogCardTaxon {
   id: string | null
   name: string | null
   slug: string | null
 }
 
-export interface StorefrontCatalogCardOffer {
+export interface PublicApiCatalogCardOffer {
   id: string | null
   name: string | null
   discountKind: string | null
@@ -467,7 +467,7 @@ async function handleSearch(
       hits: results.hits,
       cards:
         body.projection === "storefront-card"
-          ? results.hits.map((hit) => projectStorefrontCatalogCard(hit.document))
+          ? results.hits.map((hit) => projectPublicApiCatalogCard(hit.document))
           : undefined,
       facets: results.facets ?? {},
     })
@@ -492,11 +492,11 @@ function resolveChannel(
   body: CatalogSearchBody,
 ): string | undefined {
   if (options.surface === "public") {
-    const storefrontChannel = c.get("storefrontChannel" as never) as
+    const publicChannel = c.get("publicChannel" as never) as
       | { channelId?: string | null; channelStatus?: string | null }
       | undefined
-    if (storefrontChannel?.channelStatus !== "active") return undefined
-    return storefrontChannel.channelId ?? undefined
+    if (publicChannel?.channelStatus !== "active") return undefined
+    return publicChannel.channelId ?? undefined
   }
   if (body.channel) return body.channel
   return runtime.defaultScope.channel
@@ -562,9 +562,9 @@ async function defaultExecuteSearch(input: CatalogSearchExecuteInput): Promise<S
   return input.adapter.search(input.slice, input.request)
 }
 
-function projectStorefrontCatalogCard(
+function projectPublicApiCatalogCard(
   document: SearchResults["hits"][number]["document"],
-): StorefrontCatalogCard {
+): PublicApiCatalogCard {
   const fields = document.fields
   const priceAmount = numberField(fields, "priceFromAmountCents", "sellAmountCents")
   const latitude = numberField(fields, "latitude")
@@ -620,7 +620,7 @@ function projectStorefrontCatalogCard(
   }
 }
 
-function taxonFromFields(fields: Record<string, unknown>): StorefrontCatalogCardTaxon | null {
+function taxonFromFields(fields: Record<string, unknown>): PublicApiCatalogCardTaxon | null {
   const id = stringField(fields, "primaryCategoryId", "categoryIds")
   const name = stringField(fields, "primaryCategoryName", "categories", "categoryNames")
   const slug = stringField(fields, "primaryCategorySlug", "categorySlugs")
@@ -628,8 +628,8 @@ function taxonFromFields(fields: Record<string, unknown>): StorefrontCatalogCard
   return { id, name, slug }
 }
 
-function offerBadgesFromFields(fields: Record<string, unknown>): StorefrontCatalogCardOffer[] {
-  const badges: StorefrontCatalogCardOffer[] = []
+function offerBadgesFromFields(fields: Record<string, unknown>): PublicApiCatalogCardOffer[] {
+  const badges: PublicApiCatalogCardOffer[] = []
   if (booleanField(fields, "hasOffer")) {
     badges.push({
       id: stringField(fields, "bestOfferId"),

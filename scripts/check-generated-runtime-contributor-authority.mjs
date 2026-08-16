@@ -30,7 +30,7 @@ const packageFactories = {
   realtime: "createRealtimeRuntimePortContribution",
   relationships: "createRelationshipsRuntimePortContribution",
   storage: "createStorageRuntimePortContribution",
-  storefront: "createStorefrontRuntimePortContribution",
+  "public-api": "createPublicApiRuntimePortContribution",
   trips: "createTripsRuntimePortContribution",
 }
 

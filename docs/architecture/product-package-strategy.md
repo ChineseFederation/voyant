@@ -12,7 +12,7 @@ Related:
 
 - [Voyant module, provider, extension, and plugin taxonomy](./module-provider-plugin-taxonomy.md)
 - [Catalog architecture](./catalog-architecture.md)
-- [Storefront and public contract architecture](./storefront-architecture.md)
+- [Storefront and public contract architecture](./public-api-architecture.md)
 - [Schema discipline](./schema-discipline.md)
 - [Accommodation resale boundary](./accommodation-resale-boundary.md)
 - [Inventory Interface](./inventory-interface.md)
@@ -1342,10 +1342,10 @@ stay unchanged.
 | `@voyant-travel/admin-app` | Keep as the first-party admin composition package until the domain-backed core extension can be inverted. | It re-exports the shell helpers for compatibility and owns `core-extension`, because that bundle imports domain React packages that depend back on `@voyant-travel/admin`. First-party shell imports should still move to `@voyant-travel/admin/app/*`. |
 | `@voyant-travel/admin-client`, `@voyant-travel/admin-contracts` | Keep if the framework-neutral admin client contract remains useful. | This is a client/contract seam, not a domain seam. |
 | `@voyant-travel/admin-react` | Keep separate only as the React Query adapter over `admin-client`; fold before v1 if no independent React SDK consumers are confirmed. | It is not part of the packaged shell/runtime surface moved into `admin`. |
-| `@voyant-travel/storefront`, `@voyant-travel/storefront-react` | Keep as the customer-facing runtime/surface concept. | Storefront composes public and authenticated customer flows; it should not own product, price, booking, or finance truth. |
-| retired beta Customer Portal packages | Removed from the v1 workspace surface. | Storefront owns authenticated account/after-booking surfaces through `@voyant-travel/storefront/customer-portal` and `@voyant-travel/storefront-react/customer-portal`. |
-| `@voyant-travel/storefront-sdk` | Keep as a framework-agnostic facade if public flows stay cross-module. | SDK shape may simplify once commerce/bookings/finance consolidate. |
-| retired beta Storefront Verification package | Removed from the v1 workspace surface. | Storefront owns public email/SMS challenge flows through `@voyant-travel/storefront/verification`. |
+| `@voyant-travel/public-api`, `@voyant-travel/public-api-react` | Keep as the customer-facing runtime/surface concept. | Storefront composes public and authenticated customer flows; it should not own product, price, booking, or finance truth. |
+| retired beta Customer Portal packages | Removed from the v1 workspace surface. | Storefront owns authenticated account/after-booking surfaces through `@voyant-travel/public-api/customer-portal` and `@voyant-travel/public-api-react/customer-portal`. |
+| `@voyant-travel/public-api-client` | Keep as a framework-agnostic facade if public flows stay cross-module. | SDK shape may simplify once commerce/bookings/finance consolidate. |
+| retired beta Storefront Verification package | Removed from the v1 workspace surface. | Storefront owns public email/SMS challenge flows through `@voyant-travel/public-api/verification`. |
 
 ### 10.7 Infrastructure, Platform, And Cross-Cutting Packages
 

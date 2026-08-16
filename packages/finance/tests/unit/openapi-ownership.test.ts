@@ -81,12 +81,12 @@ describe("booking tax OpenAPI ownership", () => {
 describe("Travel Credit OpenAPI ownership", () => {
   const financeModule = createFinanceApiModule()
   const adminLive = financeModule.adminRoutes.getOpenAPI31Document(openApiOptions)
-  const storefrontLive = financeModule.publicRoutes.getOpenAPI31Document(openApiOptions)
+  const publicApiLive = financeModule.publicRoutes.getOpenAPI31Document(openApiOptions)
   const adminCommitted = JSON.parse(
     readFileSync(new URL("../../openapi/admin/finance.json", import.meta.url), "utf8"),
   )
-  const storefrontCommitted = JSON.parse(
-    readFileSync(new URL("../../openapi/storefront/finance.json", import.meta.url), "utf8"),
+  const publicApiCommitted = JSON.parse(
+    readFileSync(new URL("../../openapi/public-api/finance.json", import.meta.url), "utf8"),
   )
 
   it.each([
@@ -100,9 +100,9 @@ describe("Travel Credit OpenAPI ownership", () => {
   })
 
   it("keeps the public validation schema in sync", () => {
-    const committedPath = storefrontCommitted.paths["/v1/public/finance/travel-credits/validate"]
+    const committedPath = publicApiCommitted.paths["/v1/public/finance/travel-credits/validate"]
     expect(committedPath).toEqual(
-      withCompositionMetadata(storefrontLive.paths["/travel-credits/validate"], committedPath),
+      withCompositionMetadata(publicApiLive.paths["/travel-credits/validate"], committedPath),
     )
   })
 
@@ -110,7 +110,7 @@ describe("Travel Credit OpenAPI ownership", () => {
     expect(Object.keys(adminCommitted.paths)).not.toContain(
       expect.stringContaining("/finance/vouchers"),
     )
-    expect(Object.keys(storefrontCommitted.paths)).not.toContain(
+    expect(Object.keys(publicApiCommitted.paths)).not.toContain(
       expect.stringContaining("/finance/vouchers"),
     )
   })

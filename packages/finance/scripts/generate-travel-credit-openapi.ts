@@ -25,7 +25,7 @@ const surfaces = [
     ],
   },
   {
-    artifact: "openapi/storefront/finance.json",
+    artifact: "openapi/public-api/finance.json",
     live: createFinanceApiModule().publicRoutes,
     prefix: "/v1/public/finance",
     paths: ["/travel-credits/validate"],

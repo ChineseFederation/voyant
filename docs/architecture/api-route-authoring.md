@@ -43,7 +43,7 @@ surface": committing a booking, opening a payment session and reading a
 customer's documents all live there. Every public route declares which storefront
 key kind may reach it, and a route that declares nothing is secret-key-only — so
 a browser cannot call it until you say so. Read
-[`storefront-key-capability-line.md`](./storefront-key-capability-line.md)
+[`public-api-key-capability-line.md`](./public-api-key-capability-line.md)
 before adding one.
 
 Rule:
@@ -102,8 +102,8 @@ supported.
 
 Voyant should keep `storefront` as the customer-facing package/runtime term:
 
-- `@voyant-travel/storefront`
-- `@voyant-travel/storefront-react`
+- `@voyant-travel/public-api`
+- `@voyant-travel/public-api-react`
 
 But the HTTP surface should stay under `/v1/public/*`, not
 `/v1/public/storefront/*`.

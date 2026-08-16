@@ -18,7 +18,7 @@ describe("bookings storefront OpenAPI coverage", () => {
     })
     const committed = JSON.parse(
       readFileSync(
-        fileURLToPath(new URL("../../openapi/storefront/bookings.json", import.meta.url)),
+        fileURLToPath(new URL("../../openapi/public-api/bookings.json", import.meta.url)),
         "utf8",
       ),
     )

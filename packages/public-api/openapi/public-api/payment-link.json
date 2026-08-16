@@ -1,0 +1,1027 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Voyant Operator API",
+    "version": "0.0.0",
+    "description": "Generated from the composed operator app. Do not edit by hand."
+  },
+  "servers": [
+    {
+      "url": "/",
+      "description": "This deployment (same origin)"
+    }
+  ],
+  "components": {
+    "schemas": {
+      "CatalogSearchFilter": {
+        "anyOf": [
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": ["eq"]
+              },
+              "field": {
+                "type": "string",
+                "minLength": 1
+              },
+              "value": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "boolean"
+                  }
+                ]
+              }
+            },
+            "required": ["kind", "field", "value"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": ["in"]
+              },
+              "field": {
+                "type": "string",
+                "minLength": 1
+              },
+              "values": {
+                "type": "array",
+                "items": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ]
+                }
+              }
+            },
+            "required": ["kind", "field", "values"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": ["range"]
+              },
+              "field": {
+                "type": "string",
+                "minLength": 1
+              },
+              "gte": {
+                "type": "number"
+              },
+              "lte": {
+                "type": "number"
+              }
+            },
+            "required": ["kind", "field"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": ["and"]
+              },
+              "clauses": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/CatalogSearchFilter"
+                }
+              }
+            },
+            "required": ["kind", "clauses"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": ["or"]
+              },
+              "clauses": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/CatalogSearchFilter"
+                }
+              }
+            },
+            "required": ["kind", "clauses"]
+          }
+        ]
+      }
+    },
+    "parameters": {}
+  },
+  "paths": {
+    "/v1/public/payment-link-config": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Public payment-link configuration (checkout base URL + bank-transfer details)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "publicCheckoutBaseUrl": {
+                          "type": ["string", "null"]
+                        },
+                        "bankTransfer": {
+                          "type": ["object", "null"],
+                          "properties": {
+                            "beneficiary": {
+                              "type": "string"
+                            },
+                            "iban": {
+                              "type": "string"
+                            },
+                            "bankName": {
+                              "type": ["string", "null"]
+                            }
+                          },
+                          "required": ["beneficiary", "iban"]
+                        }
+                      },
+                      "required": ["publicCheckoutBaseUrl", "bankTransfer"]
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "getPublicPaymentLinkConfig",
+        "summary": "GET /v1/public/payment-link-config",
+        "tags": ["payment-link"],
+        "x-voyant-module": "payment-link",
+        "x-voyant-surface": "public-api",
+        "x-voyant-api-id": "@voyant-travel/public-api#payment-link.api",
+        "x-voyant-unit-id": "@voyant-travel/public-api#payment-link",
+        "x-voyant-package-name": "@voyant-travel/public-api"
+      }
+    },
+    "/v1/public/payment-link/{sessionId}/retry": {
+      "post": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "sessionId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A fresh (or already-paid) payment session for the link",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "sessionId": {
+                          "type": "string"
+                        },
+                        "alreadyPaid": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": ["sessionId"]
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Session not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Failed to create a fresh payment session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "postPublicPaymentLinkBySessionIdRetry",
+        "summary": "POST /v1/public/payment-link/{sessionId}/retry",
+        "tags": ["payment-link"],
+        "x-voyant-module": "payment-link",
+        "x-voyant-surface": "public-api",
+        "x-voyant-api-id": "@voyant-travel/public-api#payment-link.api",
+        "x-voyant-unit-id": "@voyant-travel/public-api#payment-link",
+        "x-voyant-package-name": "@voyant-travel/public-api"
+      }
+    },
+    "/v1/public/payment-link/resolve": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "name": "ref",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The payment-session id matched by reference",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "sessionId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["sessionId"]
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing ref query param",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Payment session not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "getPublicPaymentLinkResolve",
+        "summary": "GET /v1/public/payment-link/resolve",
+        "tags": ["payment-link"],
+        "x-voyant-module": "payment-link",
+        "x-voyant-surface": "public-api",
+        "x-voyant-api-id": "@voyant-travel/public-api#payment-link.api",
+        "x-voyant-unit-id": "@voyant-travel/public-api#payment-link",
+        "x-voyant-package-name": "@voyant-travel/public-api"
+      }
+    },
+    "/v1/public/payment-link/{sessionId}/start-card": {
+      "post": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "sessionId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "billing": {
+                    "type": "object",
+                    "properties": {
+                      "email": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "phone": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "firstName": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "lastName": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "city": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "country": {
+                        "anyOf": [
+                          {
+                            "type": "number"
+                          },
+                          {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        ]
+                      },
+                      "state": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "postalCode": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "details": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    },
+                    "required": ["email", "firstName"],
+                    "additionalProperties": false
+                  },
+                  "description": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "returnUrl": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "cancelUrl": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "metadata": {
+                    "type": "object",
+                    "additionalProperties": {}
+                  },
+                  "shipping": {
+                    "type": "object",
+                    "additionalProperties": {}
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The card-provider redirect URL for the session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "redirectUrl": {
+                          "type": ["string", "null"]
+                        },
+                        "session": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "status": {
+                              "type": "string"
+                            },
+                            "amountCents": {
+                              "type": "number"
+                            },
+                            "currency": {
+                              "type": "string"
+                            },
+                            "redirectUrl": {
+                              "type": ["string", "null"]
+                            }
+                          },
+                          "required": ["id", "status", "amountCents", "currency", "redirectUrl"]
+                        }
+                      },
+                      "required": ["redirectUrl"]
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Session not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Card processor failed to start the payment",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Card processor not configured",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "postPublicPaymentLinkBySessionIdStartCard",
+        "summary": "POST /v1/public/payment-link/{sessionId}/start-card",
+        "tags": ["payment-link"],
+        "x-voyant-module": "payment-link",
+        "x-voyant-surface": "public-api",
+        "x-voyant-api-id": "@voyant-travel/public-api#payment-link.api",
+        "x-voyant-unit-id": "@voyant-travel/public-api#payment-link",
+        "x-voyant-package-name": "@voyant-travel/public-api"
+      }
+    },
+    "/v1/public/payment-link/{sessionId}/trip-summary": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "sessionId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Trip summary for a trip-issued payment session (null for non-trip sessions)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": ["object", "null"],
+                      "properties": {
+                        "envelopeId": {
+                          "type": "string"
+                        },
+                        "currency": {
+                          "type": "string"
+                        },
+                        "totalAmountCents": {
+                          "type": "number"
+                        },
+                        "components": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "kind": {
+                                "type": "string"
+                              },
+                              "entityModule": {
+                                "type": ["string", "null"]
+                              },
+                              "title": {
+                                "type": "string"
+                              },
+                              "thumbnailUrl": {
+                                "type": ["string", "null"]
+                              },
+                              "thumbnailAlt": {
+                                "type": ["string", "null"]
+                              },
+                              "scheduledStartsAt": {
+                                "type": ["string", "null"]
+                              },
+                              "scheduledEndsAt": {
+                                "type": ["string", "null"]
+                              },
+                              "sourceAmountCents": {
+                                "type": ["number", "null"]
+                              },
+                              "sourceCurrency": {
+                                "type": "string"
+                              },
+                              "targetAmountCents": {
+                                "type": ["number", "null"]
+                              },
+                              "targetCurrency": {
+                                "type": "string"
+                              },
+                              "fx": {
+                                "type": ["object", "null"],
+                                "properties": {
+                                  "rate": {
+                                    "type": "number"
+                                  },
+                                  "quotedAt": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": ["rate", "quotedAt"]
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "kind",
+                              "entityModule",
+                              "title",
+                              "thumbnailUrl",
+                              "thumbnailAlt",
+                              "scheduledStartsAt",
+                              "scheduledEndsAt",
+                              "sourceAmountCents",
+                              "sourceCurrency",
+                              "targetAmountCents",
+                              "targetCurrency",
+                              "fx"
+                            ]
+                          }
+                        }
+                      },
+                      "required": ["envelopeId", "currency", "totalAmountCents", "components"]
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Session not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "getPublicPaymentLinkBySessionIdTripSummary",
+        "summary": "GET /v1/public/payment-link/{sessionId}/trip-summary",
+        "tags": ["payment-link"],
+        "x-voyant-module": "payment-link",
+        "x-voyant-surface": "public-api",
+        "x-voyant-api-id": "@voyant-travel/public-api#payment-link.api",
+        "x-voyant-unit-id": "@voyant-travel/public-api#payment-link",
+        "x-voyant-package-name": "@voyant-travel/public-api"
+      }
+    },
+    "/v1/public/payment-link/{sessionId}/booking-summary": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "sessionId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Booking summary for a booking-attached payment session (null otherwise)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": ["object", "null"],
+                      "properties": {
+                        "bookingId": {
+                          "type": "string"
+                        },
+                        "bookingNumber": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "string"
+                        },
+                        "pax": {
+                          "type": ["number", "null"]
+                        },
+                        "startDate": {
+                          "type": ["string", "null"]
+                        },
+                        "endDate": {
+                          "type": ["string", "null"]
+                        },
+                        "chargeAmountCents": {
+                          "type": "number"
+                        },
+                        "currency": {
+                          "type": "string"
+                        },
+                        "bookingTotalAmountCents": {
+                          "type": ["number", "null"]
+                        },
+                        "bookingCurrency": {
+                          "type": "string"
+                        },
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "productName": {
+                                "type": "string"
+                              },
+                              "optionName": {
+                                "type": ["string", "null"]
+                              },
+                              "unitName": {
+                                "type": ["string", "null"]
+                              },
+                              "departureLabel": {
+                                "type": ["string", "null"]
+                              },
+                              "startsAt": {
+                                "type": ["string", "null"]
+                              },
+                              "endsAt": {
+                                "type": ["string", "null"]
+                              },
+                              "serviceDate": {
+                                "type": ["string", "null"]
+                              },
+                              "quantity": {
+                                "type": "number"
+                              },
+                              "itemType": {
+                                "type": "string"
+                              },
+                              "amountCents": {
+                                "type": ["number", "null"]
+                              },
+                              "currency": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "productName",
+                              "optionName",
+                              "unitName",
+                              "departureLabel",
+                              "startsAt",
+                              "endsAt",
+                              "serviceDate",
+                              "quantity",
+                              "itemType",
+                              "amountCents",
+                              "currency"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "bookingId",
+                        "bookingNumber",
+                        "status",
+                        "pax",
+                        "startDate",
+                        "endDate",
+                        "chargeAmountCents",
+                        "currency",
+                        "bookingTotalAmountCents",
+                        "bookingCurrency",
+                        "items"
+                      ]
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Session not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "getPublicPaymentLinkBySessionIdBookingSummary",
+        "summary": "GET /v1/public/payment-link/{sessionId}/booking-summary",
+        "tags": ["payment-link"],
+        "x-voyant-module": "payment-link",
+        "x-voyant-surface": "public-api",
+        "x-voyant-api-id": "@voyant-travel/public-api#payment-link.api",
+        "x-voyant-unit-id": "@voyant-travel/public-api#payment-link",
+        "x-voyant-package-name": "@voyant-travel/public-api"
+      }
+    },
+    "/v1/public/bookings/{bookingId}/checkout-status": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "bookingId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "name": "session",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "name": "orderId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "name": "ref",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The booking's checkout/payment status with its latest session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "bookingId": {
+                          "type": "string"
+                        },
+                        "bookingNumber": {
+                          "type": "string"
+                        },
+                        "bookingStatus": {
+                          "type": "string"
+                        },
+                        "paymentStatus": {
+                          "type": "string",
+                          "enum": ["paid", "failed", "pending"]
+                        },
+                        "session": {
+                          "type": ["object", "null"],
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "status": {
+                              "type": "string"
+                            },
+                            "amountCents": {
+                              "type": "number"
+                            },
+                            "currency": {
+                              "type": "string"
+                            },
+                            "invoiceId": {
+                              "type": ["string", "null"]
+                            },
+                            "paymentMethod": {
+                              "type": ["string", "null"]
+                            },
+                            "completedAt": {
+                              "type": ["string", "null"]
+                            },
+                            "failedAt": {
+                              "type": ["string", "null"]
+                            },
+                            "updatedAt": {
+                              "type": ["string", "null"]
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "status",
+                            "amountCents",
+                            "currency",
+                            "invoiceId",
+                            "paymentMethod",
+                            "completedAt",
+                            "failedAt",
+                            "updatedAt"
+                          ]
+                        },
+                        "bankTransferInstructions": {
+                          "type": ["object", "null"],
+                          "properties": {
+                            "beneficiary": {
+                              "type": "string"
+                            },
+                            "iban": {
+                              "type": "string"
+                            },
+                            "bankName": {
+                              "type": "string"
+                            },
+                            "reference": {
+                              "type": "string"
+                            },
+                            "amountCents": {
+                              "type": "number"
+                            },
+                            "currency": {
+                              "type": "string"
+                            },
+                            "dueAt": {
+                              "type": ["string", "null"]
+                            },
+                            "proformaNumber": {
+                              "type": ["string", "null"]
+                            }
+                          },
+                          "required": [
+                            "beneficiary",
+                            "iban",
+                            "bankName",
+                            "reference",
+                            "amountCents",
+                            "currency",
+                            "dueAt",
+                            "proformaNumber"
+                          ]
+                        },
+                        "updatedAt": {
+                          "type": ["string", "null"]
+                        }
+                      },
+                      "required": [
+                        "bookingId",
+                        "bookingNumber",
+                        "bookingStatus",
+                        "paymentStatus",
+                        "session",
+                        "bankTransferInstructions",
+                        "updatedAt"
+                      ]
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Booking not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "getPublicBookingsByBookingIdCheckoutStatus",
+        "summary": "GET /v1/public/bookings/{bookingId}/checkout-status",
+        "tags": ["payment-link"],
+        "x-voyant-module": "payment-link",
+        "x-voyant-surface": "public-api",
+        "x-voyant-api-id": "@voyant-travel/public-api#payment-link.api",
+        "x-voyant-unit-id": "@voyant-travel/public-api#payment-link",
+        "x-voyant-package-name": "@voyant-travel/public-api"
+      }
+    }
+  },
+  "webhooks": {}
+}

@@ -212,7 +212,7 @@ export interface CatalogInventoryRuntimeExtension {
       slice: IndexerSlice
     }): boolean | Promise<boolean>
   }): DocumentBuilder
-  createStorefrontCardProjectionExtension(): CatalogProjectionExtension
+  createPublicApiCardProjectionExtension(): CatalogProjectionExtension
   createDestinationsProjectionExtension(): CatalogProjectionExtension
   createTaxonomyProjectionExtension(): CatalogProjectionExtension
   createClassificationProjectionExtension(): CatalogProjectionExtension

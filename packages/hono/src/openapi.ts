@@ -69,11 +69,11 @@ export function generateOpenApiDocument(
  * under `/v1/admin/*` and storefront/public routes under `/v1/public/*`; the
  * legacy `/v1/*` surface is intentionally excluded from the published docs.
  */
-export type ApiSurface = "admin" | "storefront"
+export type ApiSurface = "admin" | "public-api"
 
 const SURFACE_PREFIX: Record<ApiSurface, string> = {
   admin: "/v1/admin",
-  storefront: "/v1/public",
+  "public-api": "/v1/public",
 }
 
 /**
@@ -297,7 +297,7 @@ function moduleNameForPath(path: string, owner: ReadonlyMap<string, string>): st
 /** The API surface a path is served on, or `null` for non-surface routes. */
 function surfaceForPath(path: string): ApiSurface | null {
   if (path.startsWith("/v1/admin/")) return "admin"
-  if (path.startsWith("/v1/public/")) return "storefront"
+  if (path.startsWith("/v1/public/")) return "public-api"
   return null
 }
 

@@ -39,7 +39,7 @@ const DB_AVAILABLE = Boolean(process.env.TEST_DATABASE_URL)
 const ACCESS = {
   actorKind: "anonymous" as const,
   capability: "bcap_postgres_booking_session_capability_1234567890",
-  storefront: { storefrontId: "sf_pg", channelId: "chan_pg" },
+  storefront: { channelId: "chan_pg" },
 }
 const REQUIREMENTS = inMemoryBookingRequirements()
 const PRICING = {
@@ -432,7 +432,6 @@ describe.skipIf(!DB_AVAILABLE)("Booking Session v1 PostgreSQL invariants", () =>
         ownerPrincipalId: winningPrincipal,
         capabilityHash: null,
         capabilityScopes: [],
-        storefrontId: "sf_pg",
         channelId: "chan_pg",
         revision: 2,
       }),

@@ -8,15 +8,15 @@
 
 import { describe, expect, it, vi } from "vitest"
 import {
-  isOwnedProductStorefrontListable,
-  isSourcedEntryStorefrontListable,
+  isOwnedProductPublicApiListable,
+  isSourcedEntryPublicApiListable,
 } from "./catalog-listability.js"
 
-describe("isOwnedProductStorefrontListable", () => {
+describe("isOwnedProductPublicApiListable", () => {
   it("default-denies unchannelled customer slices", async () => {
     const isEffectivelyPublished = vi.fn(async () => true)
 
-    const listable = await isOwnedProductStorefrontListable({
+    const listable = await isOwnedProductPublicApiListable({
       audience: "customer",
       isEffectivelyPublished,
     })
@@ -26,12 +26,12 @@ describe("isOwnedProductStorefrontListable", () => {
   })
 
   it("requires effective publication for channel-scoped customer slices", async () => {
-    const published = await isOwnedProductStorefrontListable({
+    const published = await isOwnedProductPublicApiListable({
       audience: "customer",
       channel: "chan_website",
       isEffectivelyPublished: async () => true,
     })
-    const denied = await isOwnedProductStorefrontListable({
+    const denied = await isOwnedProductPublicApiListable({
       audience: "customer",
       channel: "chan_b2b",
       isEffectivelyPublished: async () => false,
@@ -42,12 +42,12 @@ describe("isOwnedProductStorefrontListable", () => {
   })
 
   it("requires effective publication for external (partner) slices", async () => {
-    const published = await isOwnedProductStorefrontListable({
+    const published = await isOwnedProductPublicApiListable({
       audience: "partner",
       channel: "chan_partner",
       isEffectivelyPublished: async () => true,
     })
-    const denied = await isOwnedProductStorefrontListable({
+    const denied = await isOwnedProductPublicApiListable({
       audience: "partner",
       channel: "chan_partner",
       isEffectivelyPublished: async () => false,
@@ -58,11 +58,11 @@ describe("isOwnedProductStorefrontListable", () => {
   })
 })
 
-describe("isSourcedEntryStorefrontListable", () => {
+describe("isSourcedEntryPublicApiListable", () => {
   it("leaves staff slices ungated so the operator can browse what it may publish", async () => {
     const isEffectivelyPublished = vi.fn(async () => false)
 
-    const listable = await isSourcedEntryStorefrontListable({
+    const listable = await isSourcedEntryPublicApiListable({
       audience: "staff",
       channel: "chan_website",
       isEffectivelyPublished,
@@ -75,7 +75,7 @@ describe("isSourcedEntryStorefrontListable", () => {
   it("default-denies unchannelled customer slices", async () => {
     const isEffectivelyPublished = vi.fn(async () => true)
 
-    const listable = await isSourcedEntryStorefrontListable({
+    const listable = await isSourcedEntryPublicApiListable({
       audience: "customer",
       isEffectivelyPublished,
     })
@@ -85,12 +85,12 @@ describe("isSourcedEntryStorefrontListable", () => {
   })
 
   it("requires effective publication for channel-scoped customer slices", async () => {
-    const published = await isSourcedEntryStorefrontListable({
+    const published = await isSourcedEntryPublicApiListable({
       audience: "customer",
       channel: "chan_website",
       isEffectivelyPublished: async () => true,
     })
-    const denied = await isSourcedEntryStorefrontListable({
+    const denied = await isSourcedEntryPublicApiListable({
       audience: "customer",
       channel: "chan_website",
       isEffectivelyPublished: async () => false,
@@ -103,7 +103,7 @@ describe("isSourcedEntryStorefrontListable", () => {
   it("gates partner and supplier slices on the same rule as customer slices", async () => {
     for (const audience of ["partner", "supplier"] as const) {
       expect(
-        await isSourcedEntryStorefrontListable({
+        await isSourcedEntryPublicApiListable({
           audience,
           channel: "chan_b2b",
           isEffectivelyPublished: async () => false,

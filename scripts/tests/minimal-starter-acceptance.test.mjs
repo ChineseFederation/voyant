@@ -146,7 +146,7 @@ test("packaged minimal starter serves project API and SSR routes", {
     assert.ok(
       graph.modules.some(
         (unit) =>
-          unit.localId === "storefront" &&
+          unit.localId === "public-api" &&
           unit.api?.some((api) => api.surface === "public" && api.mount === "/"),
       ),
     )
@@ -164,7 +164,7 @@ test("packaged minimal starter serves project API and SSR routes", {
     )
     assert.match(projectRuntime, /createRuntimePorts: createGeneratedGraphRuntimePorts/)
     assert.match(projectRuntime, /GENERATED_GRAPH_RUNTIME_CONTRIBUTORS/)
-    assert.match(projectRuntime, /@voyant-travel\/storefront\/dist\/runtime-contributor\.js/)
+    assert.match(projectRuntime, /@voyant-travel\/public-api\/dist\/runtime-contributor\.js/)
     assert.doesNotMatch(
       projectRuntime,
       /^import .* from "@voyant-travel\/accommodations\/runtime-contributor"/m,

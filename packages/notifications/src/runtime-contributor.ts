@@ -8,9 +8,10 @@ import {
   type ProposalsNotificationsRuntime,
   proposalsNotificationsRuntimePort,
 } from "@voyant-travel/proposals/runtime-port"
+import { publicApiVerificationRuntimePort } from "@voyant-travel/public-api"
+import type { PublicApiVerificationRoutesOptions } from "@voyant-travel/public-api/verification"
 import { relationshipsPersonNotificationsRuntimePort } from "@voyant-travel/relationships/runtime-port"
-import { storefrontVerificationRuntimePort } from "@voyant-travel/storefront"
-import type { StorefrontVerificationRoutesOptions } from "@voyant-travel/storefront/verification"
+import { toPublicApiVerificationNotificationProviders } from "./customer-verification-runtime.js"
 import {
   type DurableNotificationProviderRuntime,
   durableNotificationProviderPort,
@@ -21,7 +22,6 @@ import { createProposalsNotificationsRuntime } from "./proposals-runtime.js"
 import { notificationsReminderJobRuntimePort } from "./reminder-job-runtime-port.js"
 import { createNotificationsRuntime } from "./runtime.js"
 import { notificationsRuntimePort } from "./runtime-port.js"
-import { toStorefrontVerificationNotificationProviders } from "./storefront-verification-runtime.js"
 import type { NotificationProvider } from "./types.js"
 
 export interface NotificationsRuntimeContributorHost {
@@ -37,16 +37,16 @@ export function createNotificationsRuntimePortContribution(
   const runtime = createNotificationsRuntime(host.primitives)
   const verification = {
     resolveProviders(bindings: Record<string, unknown>) {
-      return toStorefrontVerificationNotificationProviders(
+      return toPublicApiVerificationNotificationProviders(
         configuredNotificationProviders(host, bindings),
       )
     },
     email: { subject: "Your verification code" },
-  } satisfies StorefrontVerificationRoutesOptions
+  } satisfies PublicApiVerificationRoutesOptions
   const contribution: Record<string, unknown> = {
     [notificationsRuntimePort.id]: runtime,
     [notificationsReminderJobRuntimePort.id]: runtime.resolveReminderJobRuntime(undefined),
-    [storefrontVerificationRuntimePort.id]: verification,
+    [publicApiVerificationRuntimePort.id]: verification,
     [financeNotificationsRuntimePort.id]: createFinanceNotificationsRuntime(
       host.primitives,
     ) satisfies FinanceNotificationsRuntime,

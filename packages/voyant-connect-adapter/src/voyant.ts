@@ -1,6 +1,6 @@
 import { catalogSourcesRuntimeExtensionPort } from "@voyant-travel/catalog/ports"
 import { defineAdapter, providePort } from "@voyant-travel/graph-contracts"
-import { storefrontDynamicPackageSourceProviderPort } from "@voyant-travel/storefront/shopping/runtime-port"
+import { publicApiDynamicPackageSourceProviderPort } from "@voyant-travel/public-api/shopping/runtime-port"
 
 /**
  * Voyant Connect as one catalog inventory channel.
@@ -16,7 +16,7 @@ export const voyantConnectAdapter = defineAdapter({
   provides: {
     ports: [
       providePort(catalogSourcesRuntimeExtensionPort),
-      providePort(storefrontDynamicPackageSourceProviderPort),
+      providePort(publicApiDynamicPackageSourceProviderPort),
     ],
   },
   meta: {

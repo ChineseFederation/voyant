@@ -73,8 +73,8 @@ export interface BookingSessionInternalRecord {
   actorKind: BookingSessionActorKindV1
   ownerPrincipalId?: string
   ownerOrganizationId?: string
-  /** Immutable server-derived public storefront provenance. Never serialized. */
-  storefrontOrigin?: { storefrontId: string; channelId: string }
+  /** Immutable server-derived public-surface provenance. Never serialized. */
+  publicApiOrigin?: { channelId: string }
   /**
    * Exact server-selected sourced inventory identity for an internal composite
    * leaf. This is never accepted from public input, persisted, or serialized.
@@ -536,7 +536,7 @@ export interface BookingSessionAccessContext {
   organizationId?: string
   capability?: string
   /** Trusted request context resolved by the public transport, never session state. */
-  storefront?: { storefrontId: string; channelId: string }
+  storefront?: { channelId: string }
   sessionTtlMs?: number
   staffAuthority?: { admitted: true; reason: string }
   /** Additional Finance + Bookings authority for operator booking details. */
@@ -821,7 +821,7 @@ export function createBookingSessionModule(
       actorKind: access.actorKind,
       principalId: access.actorKind === "anonymous" ? undefined : access.principalId,
       organizationId: access.actorKind === "anonymous" ? undefined : access.organizationId,
-      storefrontOrigin: access.actorKind === "staff" ? undefined : access.storefront,
+      publicApiOrigin: access.actorKind === "staff" ? undefined : access.storefront,
       capabilityHash,
       capabilityScopes,
       target: input.target,
@@ -866,7 +866,7 @@ export function createBookingSessionModule(
       actorKind: access.actorKind,
       ownerPrincipalId: access.actorKind === "anonymous" ? undefined : access.principalId,
       ownerOrganizationId: access.actorKind === "anonymous" ? undefined : access.organizationId,
-      storefrontOrigin: access.actorKind === "staff" ? undefined : access.storefront,
+      publicApiOrigin: access.actorKind === "staff" ? undefined : access.storefront,
       scope,
       state: "active",
       revision: 1,
@@ -973,8 +973,8 @@ export function createBookingSessionModule(
           if (!isOwnedBy(session, access)) {
             return { kind: "rejected", error: { kind: "not_authorized" } }
           }
-          const storefrontRejected = authorizeStorefrontOrigin(session, access)
-          if (storefrontRejected) return storefrontRejected
+          const publicApiRejected = authorizePublicApiOrigin(session, access)
+          if (publicApiRejected) return publicApiRejected
           const claim = await claimOperation(repository, sessionId, "adopt", input, now())
           if (claim.status === "replay") return claim.outcome
           if (claim.status === "conflict") return idempotencyConflict()
@@ -985,8 +985,8 @@ export function createBookingSessionModule(
         }
         const capabilityRejected = await authorizeAnonymousCapability(session, access, "adopt")
         if (capabilityRejected) return capabilityRejected
-        const storefrontRejected = authorizeStorefrontOrigin(session, access)
-        if (storefrontRejected) return storefrontRejected
+        const publicApiRejected = authorizePublicApiOrigin(session, access)
+        if (publicApiRejected) return publicApiRejected
         const at = now()
         if (session.expiresAt <= at || session.state !== "active") {
           if (session.state === "active") {
@@ -2108,7 +2108,7 @@ export function createBookingSessionModule(
           session.capabilityScopes = []
           session.ownerPrincipalId = undefined
           session.ownerOrganizationId = undefined
-          session.storefrontOrigin = undefined
+          session.publicApiOrigin = undefined
           session.purgedAt = at
           session.revision += 1
           session.updatedAt = at
@@ -3176,25 +3176,22 @@ async function authorizeSessionAccess(
   if (session.actorKind === "anonymous") {
     const capabilityRejected = await authorizeAnonymousCapability(session, access, action)
     if (capabilityRejected) return capabilityRejected
-    return authorizeStorefrontOrigin(session, access)
+    return authorizePublicApiOrigin(session, access)
   }
   if (!isOwnedBy(session, access)) {
     return { kind: "rejected", error: { kind: "not_authorized" } }
   }
-  return authorizeStorefrontOrigin(session, access)
+  return authorizePublicApiOrigin(session, access)
 }
 
-function authorizeStorefrontOrigin(
+function authorizePublicApiOrigin(
   session: BookingSessionInternalRecord,
   access: BookingSessionAccessContext,
 ): BookingSessionOutcomeV1 | null {
   if (access.actorKind !== "anonymous" && access.actorKind !== "customer") return null
-  const pinned = session.storefrontOrigin
+  const pinned = session.publicApiOrigin
   const current = access.storefront
-  return pinned &&
-    current &&
-    pinned.storefrontId === current.storefrontId &&
-    pinned.channelId === current.channelId
+  return pinned && current && pinned.channelId === current.channelId
     ? null
     : { kind: "rejected", error: { kind: "not_authorized" } }
 }
@@ -3257,7 +3254,7 @@ async function scopedCreateIdempotencyKey(
     principalId: access.actorKind === "anonymous" ? null : (access.principalId ?? null),
     organizationId: access.actorKind === "anonymous" ? null : (access.organizationId ?? null),
     capabilityHash: capabilityHash ?? null,
-    storefrontOrigin: access.actorKind === "staff" ? null : (access.storefront ?? null),
+    publicApiOrigin: access.actorKind === "staff" ? null : (access.storefront ?? null),
   })
 }
 

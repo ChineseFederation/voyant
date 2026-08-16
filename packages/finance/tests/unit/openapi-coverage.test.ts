@@ -23,7 +23,7 @@ describe("finance storefront OpenAPI coverage", () => {
     })
     const committed = JSON.parse(
       readFileSync(
-        fileURLToPath(new URL("../../openapi/storefront/finance.json", import.meta.url)),
+        fileURLToPath(new URL("../../openapi/public-api/finance.json", import.meta.url)),
         "utf8",
       ),
     )

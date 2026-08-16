@@ -83,12 +83,11 @@ export type VoyantVariables = CoreVoyantVariables & {
   /** Logical app name stamped on telemetry, alongside {@link reporter}. */
   appName?: string
   /**
-   * Server-derived Storefront sales-channel context. Public request parameters
-   * must not set this; auth/middleware derives it from the resolved storefront
-   * identity and its deployment-owned Channel binding.
+   * Server-derived sales-channel context for the public surface. Public request
+   * parameters must not set this; auth/middleware derives it from the presented
+   * key, which names a channel or defaults to the deployment's Direct one.
    */
-  storefrontChannel?: {
-    storefrontId: string
+  publicChannel?: {
     channelId: string
     channelStatus?: string | null
   }

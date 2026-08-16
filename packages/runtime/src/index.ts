@@ -21,18 +21,18 @@ import {
   type OperatorCurrentUser,
   type OperatorShellBootstrapAdditions,
 } from "@voyant-travel/auth/node-runtime"
-import { createLinkServiceStorefrontChannelBindingProvider } from "@voyant-travel/auth/storefront-channel-binding-provider"
+import { createPublicApiChannelProvider } from "@voyant-travel/auth/public-api-channel-provider"
 import {
-  createLocalStorefrontCorsOriginResolver,
-  createLocalStorefrontCustomerAuthResolver,
-  type StorefrontChannelDiagnostic,
-  withResolvedStorefrontChannel,
-} from "@voyant-travel/auth/storefront-customer-auth-resolver"
+  createLocalPublicApiCorsOriginResolver,
+  createLocalPublicApiCustomerAuthResolver,
+  type PublicApiChannelDiagnostic,
+  withResolvedPublicApiChannel,
+} from "@voyant-travel/auth/public-api-customer-auth-resolver"
 import {
-  type StorefrontResolveContext,
-  type StorefrontRuntimeProvider,
-  storefrontRuntimePort,
-} from "@voyant-travel/auth/storefront-runtime-port"
+  type PublicApiResolveContext,
+  type PublicApiRuntimeProvider,
+  publicApiRuntimePort,
+} from "@voyant-travel/auth/public-api-runtime-port"
 import {
   analyticsPort,
   consoleAnalytics,
@@ -142,7 +142,7 @@ export interface LoadVoyantProjectOptions {
      */
     reporter?: Reporter
     storage?: StorageProviderResolver
-    /** Resolve a canonical storefront auth origin and server-side provider credentials. */
+    /** Resolve a canonical public-API auth origin and server-side provider credentials. */
     resolveCustomerAuthContext?: (
       env: OperatorAuthNodeEnv,
       request: Request,
@@ -204,17 +204,17 @@ function withDefaultAnalyticsSink(ports: VoyantGraphRuntimePorts): VoyantGraphRu
 /**
  * Log the states in which a public request ends up without a sales channel.
  * Each one produces the same opaque 403 downstream, so the log line is the only
- * thing that distinguishes "this storefront is unknown here" from "it has no
+ * thing that distinguishes "this key is unknown here" from "it has no
  * binding" from "its channel is not active" — the distinction #4323 had to be
  * reverse-engineered from built image diffs for want of.
  */
-function reportStorefrontChannelDiagnostic(diagnostic: StorefrontChannelDiagnostic): void {
+function reportPublicApiChannelDiagnostic(diagnostic: PublicApiChannelDiagnostic): void {
   if (diagnostic.outcome === "resolved" || diagnostic.outcome === "host_provided") return
-  const { outcome, origin, storefrontId, channelId, channelStatus, error } = diagnostic
-  console.warn("[voyant:storefront-channel] public request has no sales channel", {
+  const { outcome, origin, keyId, channelId, channelStatus, error } = diagnostic
+  console.warn("[voyant:public-channel] public request has no sales channel", {
     outcome,
     origin,
-    ...(storefrontId ? { storefrontId } : {}),
+    ...(keyId ? { keyId } : {}),
     ...(channelId ? { channelId } : {}),
     ...(channelStatus ? { channelStatus } : {}),
     ...(error ? { error: error instanceof Error ? error.message : String(error) } : {}),
@@ -411,16 +411,16 @@ export async function loadVoyantProject(
   }
   const projectLinks =
     options.generatedProjectLinks ?? (await loadGeneratedProjectLinks(artifactRoot))
-  const storefrontRuntimeProvider = deploymentResources.ports[storefrontRuntimePort.id] as
-    | StorefrontRuntimeProvider
+  const publicApiRuntimeProvider = deploymentResources.ports[publicApiRuntimePort.id] as
+    | PublicApiRuntimeProvider
     | undefined
-  const storefrontChannelBinding = createLinkServiceStorefrontChannelBindingProvider()
+  const publicApiChannels = createPublicApiChannelProvider()
   const createRequestLinkService =
     projectLinks.length > 0 ? createLinkServiceFactory(projectLinks) : undefined
-  const openStorefrontResolveContext = async (
+  const openPublicApiResolveContext = async (
     env: OperatorAuthNodeEnv,
-  ): Promise<{ context: StorefrontResolveContext; dispose: () => Promise<void> }> => {
-    const db = resolveNodeDatabase(env) as StorefrontResolveContext["db"]
+  ): Promise<{ context: PublicApiResolveContext; dispose: () => Promise<void> }> => {
+    const db = resolveNodeDatabase(env) as PublicApiResolveContext["db"]
     const bindings: Record<string, unknown> = { ...env }
     return {
       context: {
@@ -431,39 +431,39 @@ export async function loadVoyantProject(
       dispose: async () => {},
     }
   }
-  const localStorefrontCustomerAuth =
-    storefrontRuntimeProvider && !options.host?.resolveCustomerAuthContext
-      ? createLocalStorefrontCustomerAuthResolver({
-          provider: storefrontRuntimeProvider,
-          openResolveContext: openStorefrontResolveContext,
-          resolveStorefrontChannelBinding: (context, storefrontId) =>
-            storefrontChannelBinding.getStorefrontChannelBinding(context, storefrontId),
+  const localPublicApiCustomerAuth =
+    publicApiRuntimeProvider && !options.host?.resolveCustomerAuthContext
+      ? createLocalPublicApiCustomerAuthResolver({
+          provider: publicApiRuntimeProvider,
+          openResolveContext: openPublicApiResolveContext,
+          resolveChannelForKey: (context, channelId) =>
+            publicApiChannels.resolveChannelForKey(context, channelId),
         })
       : undefined
   // A host-supplied resolver (a `voyant-cloud` deployment) authenticates the
-  // storefront against its control plane, which has no channel concept, so the
+  // key against its control plane, which has no channel concept, so the
   // context it returns never carries one and every public catalog read 403s on a
   // guard it cannot satisfy (#4323). The binding rows are local either way —
   // read them here so both auth profiles agree on whether a public surface has
   // a channel.
   const hostCustomerAuthContext = options.host?.resolveCustomerAuthContext
   const customerAuthContextResolver =
-    hostCustomerAuthContext && storefrontRuntimeProvider
-      ? withResolvedStorefrontChannel<OperatorAuthNodeEnv>(hostCustomerAuthContext, {
-          provider: storefrontRuntimeProvider,
-          openResolveContext: openStorefrontResolveContext,
-          resolveStorefrontChannelBinding: (context, storefrontId) =>
-            storefrontChannelBinding.getStorefrontChannelBinding(context, storefrontId),
-          onDiagnostic: reportStorefrontChannelDiagnostic,
+    hostCustomerAuthContext && publicApiRuntimeProvider
+      ? withResolvedPublicApiChannel<OperatorAuthNodeEnv>(hostCustomerAuthContext, {
+          provider: publicApiRuntimeProvider,
+          openResolveContext: openPublicApiResolveContext,
+          resolveChannelForKey: (context, channelId) =>
+            publicApiChannels.resolveChannelForKey(context, channelId),
+          onDiagnostic: reportPublicApiChannelDiagnostic,
         })
-      : (hostCustomerAuthContext ?? localStorefrontCustomerAuth)
-  const localStorefrontCorsOrigin =
-    storefrontRuntimeProvider && !options.host?.resolveCustomerCorsOrigin
-      ? createLocalStorefrontCorsOriginResolver({
-          provider: storefrontRuntimeProvider,
-          openResolveContext: openStorefrontResolveContext,
-          resolveStorefrontChannelBinding: (context, storefrontId) =>
-            storefrontChannelBinding.getStorefrontChannelBinding(context, storefrontId),
+      : (hostCustomerAuthContext ?? localPublicApiCustomerAuth)
+  const localPublicApiCorsOrigin =
+    publicApiRuntimeProvider && !options.host?.resolveCustomerCorsOrigin
+      ? createLocalPublicApiCorsOriginResolver({
+          provider: publicApiRuntimeProvider,
+          openResolveContext: openPublicApiResolveContext,
+          resolveChannelForKey: (context, channelId) =>
+            publicApiChannels.resolveChannelForKey(context, channelId),
         })
       : undefined
   const authRuntime = createOperatorAuthNodeRuntime({
@@ -480,10 +480,10 @@ export async function loadVoyantProject(
     ...(customerAuthContextResolver
       ? { resolveCustomerAuthContext: customerAuthContextResolver }
       : {}),
-    ...(options.host?.resolveCustomerCorsOrigin || localStorefrontCorsOrigin
+    ...(options.host?.resolveCustomerCorsOrigin || localPublicApiCorsOrigin
       ? {
           resolveCustomerCorsOrigin:
-            options.host?.resolveCustomerCorsOrigin ?? localStorefrontCorsOrigin,
+            options.host?.resolveCustomerCorsOrigin ?? localPublicApiCorsOrigin,
         }
       : {}),
   })

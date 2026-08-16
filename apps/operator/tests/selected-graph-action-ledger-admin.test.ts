@@ -26,7 +26,7 @@ describe("selected-graph Action Ledger admin composition", () => {
       "inventory",
       "auth-team",
       "@voyant-travel/auth#customer-business-accounts",
-      "storefronts",
+      "public-api",
       "operations",
       "operator-settings",
       "@voyant-travel/custom-fields",

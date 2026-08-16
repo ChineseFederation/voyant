@@ -31,7 +31,7 @@ everything publishes to the one channel nothing can be published to. Only the
 counterparty list passes `exclude`.
 
 Resolution lives with the consumer, not here: `@voyant-travel/auth` reads the
-row directly in `storefront-channel-binding-provider.ts` (raw SQL, so
+row directly in `public surface-channel-binding-provider.ts` (raw SQL, so
 Distribution's tables are not imported into Auth). It prefers the system row and
 falls back to the oldest active `direct` channel, so a deployment whose operator
 hand-created a self-representing channel before this existed keeps resolving to

@@ -29,7 +29,6 @@ export const submitBookingInquirySchema = z.object({
 
 export const bookingInquiryReceiptSchema = z.object({
   id: z.string(),
-  storefrontId: z.string(),
   channelId: z.string(),
   productId: z.string(),
   departureId: z.string().nullable(),

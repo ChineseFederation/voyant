@@ -66,13 +66,10 @@ describe("@voyant-travel/distribution package exports", () => {
       import: "./dist/publication-catalog-backfill-setup.js",
       default: "./dist/publication-catalog-backfill-setup.js",
     })
-    expect(packageJson.exports["./setup/storefront-channel-bindings"]).toBe(
-      "./src/storefront-channel-binding-setup.ts",
-    )
-    expect(packageJson.publishConfig.exports["./setup/storefront-channel-bindings"]).toEqual({
-      types: "./dist/storefront-channel-binding-setup.d.ts",
-      import: "./dist/storefront-channel-binding-setup.js",
-      default: "./dist/storefront-channel-binding-setup.js",
-    })
+    // The storefront->channel binding cutover is gone with the entity
+    // (voyant#4624): it raised on a missing `storefronts` table, so after that
+    // change it could only ever fail. Its subpath export must stay withdrawn.
+    expect(packageJson.exports["./setup/storefront-channel-bindings"]).toBeUndefined()
+    expect(packageJson.publishConfig.exports["./setup/storefront-channel-bindings"]).toBeUndefined()
   })
 })

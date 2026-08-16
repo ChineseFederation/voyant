@@ -1372,5 +1372,5 @@ Phase 2 (RAG) and Phase 3 (Flights) carry their own glossaries in their respecti
 - [`schema-discipline.md`](./schema-discipline.md) — the intra-domain FK rule and cross-domain link discipline that this architecture builds on.
 - [`cross-module-indexing-and-projection-policy.md`](./cross-module-indexing-and-projection-policy.md) — the broader rule that projections are derived read models, not second sources of truth. This catalog plane is the most substantial concrete projection in Voyant; the rules in that document apply.
 - [`link-metadata-and-relationship-policy.md`](./link-metadata-and-relationship-policy.md) — the `defineLink` infrastructure that Pattern 3 (referenced CatalogEntries) reuses.
-- [`storefront-architecture.md`](./storefront-architecture.md) — the storefront read paths that consume the catalog plane.
+- [`public-api-architecture.md`](./public-api-architecture.md) — the storefront read paths that consume the catalog plane.
 - [`booking-pii.md`](./booking-pii.md) — booking-side concerns; the snapshot graph in §5.3 lives alongside booking storage.

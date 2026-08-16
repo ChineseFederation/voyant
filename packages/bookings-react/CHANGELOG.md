@@ -433,7 +433,7 @@
   - @voyant-travel/inventory-react@0.162.0
   - @voyant-travel/operations-react@0.161.0
   - @voyant-travel/finance@0.248.0
-  - @voyant-travel/storefront-react@0.282.0
+  - @voyant-travel/public-api-react@0.282.0
   - @voyant-travel/accommodations@0.207.0
   - @voyant-travel/distribution-react@0.270.0
   - @voyant-travel/identity-react@0.280.0
@@ -510,7 +510,7 @@
   - @voyant-travel/catalog-react@0.277.0
   - @voyant-travel/inventory-react@0.161.0
   - @voyant-travel/products-contracts@0.111.4
-  - @voyant-travel/storefront-react@0.281.0
+  - @voyant-travel/public-api-react@0.281.0
   - @voyant-travel/commerce-react@0.161.0
 
 ## 0.278.0
@@ -559,7 +559,7 @@
   - @voyant-travel/operations-react@0.159.0
   - @voyant-travel/commerce-react@0.160.0
   - @voyant-travel/identity-react@0.278.0
-  - @voyant-travel/storefront-react@0.280.0
+  - @voyant-travel/public-api-react@0.280.0
 
 ## 0.277.0
 
@@ -570,7 +570,7 @@
   - @voyant-travel/catalog-react@0.275.0
   - @voyant-travel/inventory-react@0.159.0
   - @voyant-travel/products-contracts@0.111.3
-  - @voyant-travel/storefront-react@0.279.0
+  - @voyant-travel/public-api-react@0.279.0
   - @voyant-travel/commerce-react@0.159.0
   - @voyant-travel/distribution-react@0.267.0
   - @voyant-travel/finance-react@0.277.0
@@ -594,7 +594,7 @@
   - @voyant-travel/operations-react@0.157.0
   - @voyant-travel/catalog-react@0.274.0
   - @voyant-travel/commerce-react@0.158.0
-  - @voyant-travel/storefront-react@0.278.0
+  - @voyant-travel/public-api-react@0.278.0
   - @voyant-travel/relationships-react@0.276.0
 
 ## 0.275.0
@@ -611,7 +611,7 @@
   - @voyant-travel/catalog-contracts@0.131.0
   - @voyant-travel/catalog@0.253.0
   - @voyant-travel/finance-react@0.275.0
-  - @voyant-travel/storefront-react@0.277.0
+  - @voyant-travel/public-api-react@0.277.0
   - @voyant-travel/catalog-react@0.273.0
   - @voyant-travel/inventory-react@0.157.0
   - @voyant-travel/products-contracts@0.111.2
@@ -629,7 +629,7 @@
 - Updated dependencies [6b672c0]
 - Updated dependencies [03a91d0]
   - @voyant-travel/catalog-contracts@0.130.0
-  - @voyant-travel/storefront-react@0.276.0
+  - @voyant-travel/public-api-react@0.276.0
   - @voyant-travel/catalog-react@0.272.0
   - @voyant-travel/inventory-react@0.156.0
   - @voyant-travel/products-contracts@0.111.1
@@ -656,7 +656,7 @@
   - @voyant-travel/identity-react@0.273.0
   - @voyant-travel/operations-react@0.154.0
   - @voyant-travel/inventory-react@0.155.0
-  - @voyant-travel/storefront-react@0.275.0
+  - @voyant-travel/public-api-react@0.275.0
   - @voyant-travel/relationships-react@0.273.0
 
 ## 0.272.0
@@ -664,7 +664,7 @@
 ### Patch Changes
 
 - @voyant-travel/accommodations@0.205.0
-- @voyant-travel/storefront-react@0.274.0
+- @voyant-travel/public-api-react@0.274.0
 - @voyant-travel/distribution-react@0.262.0
 - @voyant-travel/finance-react@0.272.0
 - @voyant-travel/identity-react@0.272.0
@@ -684,7 +684,7 @@
   - @voyant-travel/catalog@0.252.0
   - @voyant-travel/catalog-react@0.269.0
   - @voyant-travel/inventory-react@0.153.0
-  - @voyant-travel/storefront-react@0.273.0
+  - @voyant-travel/public-api-react@0.273.0
   - @voyant-travel/distribution-react@0.261.0
   - @voyant-travel/finance-react@0.271.0
   - @voyant-travel/identity-react@0.271.0
@@ -707,7 +707,7 @@
   - @voyant-travel/operations-react@0.151.0
   - @voyant-travel/catalog-react@0.268.0
   - @voyant-travel/commerce-react@0.152.0
-  - @voyant-travel/storefront-react@0.272.0
+  - @voyant-travel/public-api-react@0.272.0
   - @voyant-travel/relationships-react@0.270.0
 
 ## 0.269.0
@@ -725,7 +725,7 @@
   - @voyant-travel/legal-react@0.269.0
   - @voyant-travel/operations-react@0.150.0
   - @voyant-travel/relationships-react@0.269.0
-  - @voyant-travel/storefront-react@0.271.0
+  - @voyant-travel/public-api-react@0.271.0
   - @voyant-travel/types@0.109.13
   - @voyant-travel/identity-react@0.269.0
 
@@ -738,7 +738,7 @@
   - @voyant-travel/catalog-react@0.266.0
   - @voyant-travel/catalog@0.251.0
   - @voyant-travel/inventory-react@0.150.0
-  - @voyant-travel/storefront-react@0.270.0
+  - @voyant-travel/public-api-react@0.270.0
   - @voyant-travel/distribution-react@0.258.0
   - @voyant-travel/finance-react@0.268.0
   - @voyant-travel/identity-react@0.268.0
@@ -756,7 +756,7 @@
   - @voyant-travel/catalog-react@0.265.0
   - @voyant-travel/catalog@0.250.0
   - @voyant-travel/inventory-react@0.149.0
-  - @voyant-travel/storefront-react@0.269.0
+  - @voyant-travel/public-api-react@0.269.0
   - @voyant-travel/distribution-react@0.257.0
   - @voyant-travel/finance-react@0.267.0
   - @voyant-travel/identity-react@0.267.0
@@ -888,7 +888,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
   - @voyant-travel/catalog-react@0.264.0
   - @voyant-travel/commerce-react@0.148.0
   - @voyant-travel/relationships-react@0.266.0
-  - @voyant-travel/storefront-react@0.268.0
+  - @voyant-travel/public-api-react@0.268.0
 
 ## 0.265.0
 
@@ -900,7 +900,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
   - @voyant-travel/catalog@0.249.0
   - @voyant-travel/catalog-react@0.263.0
   - @voyant-travel/admin@0.135.0
-  - @voyant-travel/storefront-react@0.267.0
+  - @voyant-travel/public-api-react@0.267.0
   - @voyant-travel/inventory@0.40.0
   - @voyant-travel/inventory-react@0.147.0
   - @voyant-travel/i18n@0.122.1
@@ -1002,7 +1002,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
   - @voyant-travel/catalog-react@0.262.0
   - @voyant-travel/commerce-react@0.146.0
   - @voyant-travel/relationships-react@0.264.0
-  - @voyant-travel/storefront-react@0.266.0
+  - @voyant-travel/public-api-react@0.266.0
 
 ## 0.263.0
 
@@ -1063,7 +1063,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
   - @voyant-travel/finance-react@0.263.0
   - @voyant-travel/catalog-react@0.261.0
   - @voyant-travel/inventory-react@0.145.0
-  - @voyant-travel/storefront-react@0.265.0
+  - @voyant-travel/public-api-react@0.265.0
   - @voyant-travel/accommodations@0.204.0
   - @voyant-travel/distribution-react@0.253.0
   - @voyant-travel/identity-react@0.263.0
@@ -1082,7 +1082,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
   - @voyant-travel/catalog@0.247.0
   - @voyant-travel/finance-react@0.262.0
   - @voyant-travel/inventory-react@0.144.0
-  - @voyant-travel/storefront-react@0.264.0
+  - @voyant-travel/public-api-react@0.264.0
   - @voyant-travel/distribution-react@0.252.0
   - @voyant-travel/identity-react@0.262.0
   - @voyant-travel/legal-react@0.262.0
@@ -1095,7 +1095,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
 
 ### Patch Changes
 
-- @voyant-travel/storefront-react@0.263.0
+- @voyant-travel/public-api-react@0.263.0
 - @voyant-travel/inventory-react@0.143.0
 - @voyant-travel/distribution-react@0.251.0
 - @voyant-travel/finance-react@0.261.0
@@ -1193,7 +1193,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
   - @voyant-travel/legal-react@0.260.0
   - @voyant-travel/catalog-react@0.258.0
   - @voyant-travel/commerce-react@0.142.0
-  - @voyant-travel/storefront-react@0.262.0
+  - @voyant-travel/public-api-react@0.262.0
   - @voyant-travel/relationships-react@0.260.0
 
 ## 0.259.0
@@ -1212,7 +1212,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
   - @voyant-travel/identity-react@0.259.0
   - @voyant-travel/legal-react@0.259.0
   - @voyant-travel/operations-react@0.140.0
-  - @voyant-travel/storefront-react@0.261.0
+  - @voyant-travel/public-api-react@0.261.0
   - @voyant-travel/relationships-react@0.259.0
 
 ## 0.258.0
@@ -1255,7 +1255,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
   - @voyant-travel/inventory@0.35.0
   - @voyant-travel/catalog-react@0.256.0
   - @voyant-travel/inventory-react@0.140.0
-  - @voyant-travel/storefront-react@0.260.0
+  - @voyant-travel/public-api-react@0.260.0
   - @voyant-travel/commerce-react@0.140.0
   - @voyant-travel/distribution-react@0.248.0
   - @voyant-travel/finance-react@0.258.0
@@ -1276,7 +1276,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
 - @voyant-travel/finance-react@0.257.0
 - @voyant-travel/identity-react@0.257.0
 - @voyant-travel/legal-react@0.257.0
-- @voyant-travel/storefront-react@0.259.0
+- @voyant-travel/public-api-react@0.259.0
 - @voyant-travel/relationships-react@0.257.0
 
 ## 0.256.0
@@ -1294,7 +1294,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
   - @voyant-travel/identity-react@0.256.0
   - @voyant-travel/legal-react@0.256.0
   - @voyant-travel/relationships-react@0.256.0
-  - @voyant-travel/storefront-react@0.258.0
+  - @voyant-travel/public-api-react@0.258.0
 
 ## 0.255.0
 
@@ -1332,7 +1332,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
 - Updated dependencies [f569b10]
   - @voyant-travel/catalog-react@0.253.0
   - @voyant-travel/inventory-react@0.137.0
-  - @voyant-travel/storefront-react@0.257.0
+  - @voyant-travel/public-api-react@0.257.0
   - @voyant-travel/distribution-react@0.245.0
   - @voyant-travel/finance-react@0.255.0
   - @voyant-travel/identity-react@0.255.0
@@ -1350,7 +1350,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
   - @voyant-travel/catalog-contracts@0.124.0
   - @voyant-travel/catalog@0.244.0
   - @voyant-travel/catalog-react@0.252.0
-  - @voyant-travel/storefront-react@0.256.0
+  - @voyant-travel/public-api-react@0.256.0
   - @voyant-travel/inventory-react@0.136.0
   - @voyant-travel/commerce-react@0.136.0
   - @voyant-travel/distribution-react@0.244.0
@@ -1405,7 +1405,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
   - @voyant-travel/catalog@0.243.0
   - @voyant-travel/catalog-react@0.251.0
   - @voyant-travel/inventory-react@0.135.0
-  - @voyant-travel/storefront-react@0.255.0
+  - @voyant-travel/public-api-react@0.255.0
   - @voyant-travel/distribution-react@0.243.0
   - @voyant-travel/finance-react@0.253.0
   - @voyant-travel/identity-react@0.253.0
@@ -1423,7 +1423,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
   - @voyant-travel/catalog@0.242.0
   - @voyant-travel/catalog-react@0.250.0
   - @voyant-travel/inventory-react@0.134.0
-  - @voyant-travel/storefront-react@0.254.0
+  - @voyant-travel/public-api-react@0.254.0
   - @voyant-travel/distribution-react@0.242.0
   - @voyant-travel/finance-react@0.252.0
   - @voyant-travel/identity-react@0.252.0
@@ -1446,7 +1446,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
   - @voyant-travel/identity-react@0.251.0
   - @voyant-travel/legal-react@0.251.0
   - @voyant-travel/operations-react@0.132.0
-  - @voyant-travel/storefront-react@0.253.0
+  - @voyant-travel/public-api-react@0.253.0
   - @voyant-travel/relationships-react@0.251.0
 
 ## 0.250.0
@@ -1460,7 +1460,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
   - @voyant-travel/operations-react@0.131.0
   - @voyant-travel/catalog-react@0.248.0
   - @voyant-travel/inventory-react@0.132.0
-  - @voyant-travel/storefront-react@0.252.0
+  - @voyant-travel/public-api-react@0.252.0
   - @voyant-travel/finance-react@0.250.0
   - @voyant-travel/distribution-react@0.240.0
   - @voyant-travel/identity-react@0.250.0
@@ -1537,7 +1537,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
   - @voyant-travel/inventory@0.33.0
   - @voyant-travel/inventory-react@0.131.0
   - @voyant-travel/catalog-react@0.247.0
-  - @voyant-travel/storefront-react@0.251.0
+  - @voyant-travel/public-api-react@0.251.0
   - @voyant-travel/commerce-react@0.131.0
   - @voyant-travel/distribution-react@0.239.0
   - @voyant-travel/finance-react@0.249.0
@@ -1558,7 +1558,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
   - @voyant-travel/inventory@0.32.0
   - @voyant-travel/catalog-react@0.246.0
   - @voyant-travel/inventory-react@0.130.0
-  - @voyant-travel/storefront-react@0.250.0
+  - @voyant-travel/public-api-react@0.250.0
   - @voyant-travel/distribution-react@0.238.0
   - @voyant-travel/finance-react@0.248.0
   - @voyant-travel/identity-react@0.248.0
@@ -1591,7 +1591,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
   - @voyant-travel/inventory@0.31.0
   - @voyant-travel/catalog-react@0.245.0
   - @voyant-travel/inventory-react@0.129.0
-  - @voyant-travel/storefront-react@0.249.0
+  - @voyant-travel/public-api-react@0.249.0
   - @voyant-travel/distribution-react@0.237.0
   - @voyant-travel/finance-react@0.247.0
   - @voyant-travel/identity-react@0.247.0
@@ -1613,7 +1613,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
   - @voyant-travel/distribution-react@0.236.0
   - @voyant-travel/identity-react@0.246.0
   - @voyant-travel/legal-react@0.246.0
-  - @voyant-travel/storefront-react@0.248.0
+  - @voyant-travel/public-api-react@0.248.0
   - @voyant-travel/relationships-react@0.246.0
 
 ## 0.245.0
@@ -1635,7 +1635,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
   - @voyant-travel/identity-react@0.245.0
   - @voyant-travel/legal-react@0.245.0
   - @voyant-travel/relationships-react@0.245.0
-  - @voyant-travel/storefront-react@0.247.0
+  - @voyant-travel/public-api-react@0.247.0
 
 ## 0.244.0
 
@@ -1649,7 +1649,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
 - @voyant-travel/finance-react@0.244.0
 - @voyant-travel/identity-react@0.244.0
 - @voyant-travel/legal-react@0.244.0
-- @voyant-travel/storefront-react@0.246.0
+- @voyant-travel/public-api-react@0.246.0
 - @voyant-travel/relationships-react@0.244.0
 
 ## 0.243.0
@@ -1664,7 +1664,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
 - @voyant-travel/finance-react@0.243.0
 - @voyant-travel/identity-react@0.243.0
 - @voyant-travel/legal-react@0.243.0
-- @voyant-travel/storefront-react@0.245.0
+- @voyant-travel/public-api-react@0.245.0
 - @voyant-travel/relationships-react@0.243.0
 
 ## 0.242.0
@@ -1681,7 +1681,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
   - @voyant-travel/finance-react@0.242.0
   - @voyant-travel/identity-react@0.242.0
   - @voyant-travel/legal-react@0.242.0
-  - @voyant-travel/storefront-react@0.244.0
+  - @voyant-travel/public-api-react@0.244.0
   - @voyant-travel/relationships-react@0.242.0
 
 ## 0.241.0
@@ -1735,7 +1735,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
   - @voyant-travel/operations-react@0.122.0
   - @voyant-travel/commerce-react@0.123.0
   - @voyant-travel/relationships-react@0.241.0
-  - @voyant-travel/storefront-react@0.243.0
+  - @voyant-travel/public-api-react@0.243.0
 
 ## 0.240.0
 
@@ -1752,7 +1752,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
   - @voyant-travel/commerce-react@0.122.0
   - @voyant-travel/inventory-react@0.122.0
   - @voyant-travel/relationships-react@0.240.0
-  - @voyant-travel/storefront-react@0.242.0
+  - @voyant-travel/public-api-react@0.242.0
 
 ## 0.239.0
 
@@ -1769,7 +1769,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
   - @voyant-travel/identity-react@0.239.0
   - @voyant-travel/legal-react@0.239.0
   - @voyant-travel/inventory-react@0.121.0
-  - @voyant-travel/storefront-react@0.241.0
+  - @voyant-travel/public-api-react@0.241.0
   - @voyant-travel/operations-react@0.120.0
   - @voyant-travel/relationships-react@0.239.0
 
@@ -1787,7 +1787,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
 - @voyant-travel/finance-react@0.238.0
 - @voyant-travel/identity-react@0.238.0
 - @voyant-travel/operations-react@0.119.0
-- @voyant-travel/storefront-react@0.240.0
+- @voyant-travel/public-api-react@0.240.0
 
 ## 0.237.0
 
@@ -1816,7 +1816,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
   - @voyant-travel/legal-react@0.237.0
   - @voyant-travel/commerce-react@0.119.0
   - @voyant-travel/inventory-react@0.119.0
-  - @voyant-travel/storefront-react@0.239.0
+  - @voyant-travel/public-api-react@0.239.0
   - @voyant-travel/catalog-react@0.235.0
   - @voyant-travel/relationships-react@0.237.0
 
@@ -1838,7 +1838,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
   - @voyant-travel/operations-react@0.117.0
   - @voyant-travel/catalog-react@0.234.0
   - @voyant-travel/commerce-react@0.118.0
-  - @voyant-travel/storefront-react@0.238.0
+  - @voyant-travel/public-api-react@0.238.0
   - @voyant-travel/relationships-react@0.236.0
   - @voyant-travel/bookings@0.236.0
 
@@ -1847,7 +1847,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
 ### Patch Changes
 
 - @voyant-travel/finance@0.235.0
-- @voyant-travel/storefront-react@0.237.0
+- @voyant-travel/public-api-react@0.237.0
 - @voyant-travel/inventory-react@0.117.0
 - @voyant-travel/distribution-react@0.225.0
 - @voyant-travel/finance-react@0.235.0
@@ -1882,7 +1882,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
   - @voyant-travel/bookings@0.234.0
   - @voyant-travel/finance@0.234.0
   - @voyant-travel/finance-react@0.234.0
-  - @voyant-travel/storefront-react@0.236.0
+  - @voyant-travel/public-api-react@0.236.0
   - @voyant-travel/accommodations@0.194.0
   - @voyant-travel/cruises@0.233.0
   - @voyant-travel/inventory-react@0.116.0
@@ -1911,7 +1911,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
   - @voyant-travel/identity-react@0.233.0
   - @voyant-travel/legal-react@0.233.0
   - @voyant-travel/operations-react@0.114.0
-  - @voyant-travel/storefront-react@0.235.0
+  - @voyant-travel/public-api-react@0.235.0
   - @voyant-travel/catalog-react@0.231.0
   - @voyant-travel/commerce-react@0.115.0
   - @voyant-travel/relationships-react@0.233.0
@@ -1925,7 +1925,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
   - @voyant-travel/catalog@0.230.0
   - @voyant-travel/catalog-react@0.230.0
   - @voyant-travel/inventory-react@0.114.0
-  - @voyant-travel/storefront-react@0.234.0
+  - @voyant-travel/public-api-react@0.234.0
   - @voyant-travel/accommodations@0.192.0
   - @voyant-travel/cruises@0.231.0
   - @voyant-travel/distribution-react@0.222.0
@@ -1962,7 +1962,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
   - @voyant-travel/finance-react@0.231.0
   - @voyant-travel/identity-react@0.231.0
   - @voyant-travel/legal-react@0.231.0
-  - @voyant-travel/storefront-react@0.233.0
+  - @voyant-travel/public-api-react@0.233.0
   - @voyant-travel/accommodations@0.191.0
   - @voyant-travel/relationships-react@0.231.0
   - @voyant-travel/bookings@0.231.0
@@ -1986,7 +1986,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
   - @voyant-travel/accommodations@0.190.0
   - @voyant-travel/catalog-react@0.228.0
   - @voyant-travel/inventory-react@0.112.0
-  - @voyant-travel/storefront-react@0.232.0
+  - @voyant-travel/public-api-react@0.232.0
   - @voyant-travel/distribution-react@0.220.0
   - @voyant-travel/finance-react@0.230.0
   - @voyant-travel/identity-react@0.230.0
@@ -2004,7 +2004,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
 - Updated dependencies [2601445]
   - @voyant-travel/catalog@0.227.0
   - @voyant-travel/catalog-contracts@0.113.0
-  - @voyant-travel/storefront-react@0.231.0
+  - @voyant-travel/public-api-react@0.231.0
   - @voyant-travel/finance@0.229.0
   - @voyant-travel/accommodations@0.189.0
   - @voyant-travel/cruises@0.228.0
@@ -2033,7 +2033,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
   - @voyant-travel/legal-react@0.228.0
   - @voyant-travel/operations-react@0.109.0
   - @voyant-travel/relationships-react@0.228.0
-  - @voyant-travel/storefront-react@0.230.0
+  - @voyant-travel/public-api-react@0.230.0
   - @voyant-travel/identity-react@0.228.0
   - @voyant-travel/bookings@0.228.0
   - @voyant-travel/catalog@0.226.0
@@ -2057,7 +2057,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
   - @voyant-travel/commerce-react@0.109.0
   - @voyant-travel/distribution-react@0.217.0
   - @voyant-travel/identity-react@0.227.0
-  - @voyant-travel/storefront-react@0.229.0
+  - @voyant-travel/public-api-react@0.229.0
   - @voyant-travel/finance-react@0.227.0
   - @voyant-travel/operations-react@0.108.0
   - @voyant-travel/inventory-react@0.109.0
@@ -2083,7 +2083,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
   - @voyant-travel/commerce-react@0.108.0
   - @voyant-travel/inventory-react@0.108.0
   - @voyant-travel/relationships-react@0.226.0
-  - @voyant-travel/storefront-react@0.228.0
+  - @voyant-travel/public-api-react@0.228.0
   - @voyant-travel/cruises@0.225.0
 
 ## 0.225.0
@@ -2141,7 +2141,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
   - @voyant-travel/legal-react@0.225.0
   - @voyant-travel/operations-react@0.106.0
   - @voyant-travel/bookings@0.225.0
-  - @voyant-travel/storefront-react@0.227.0
+  - @voyant-travel/public-api-react@0.227.0
   - @voyant-travel/catalog-react@0.223.0
   - @voyant-travel/commerce-react@0.107.0
   - @voyant-travel/relationships-react@0.225.0
@@ -2161,7 +2161,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
 - @voyant-travel/finance-react@0.224.0
 - @voyant-travel/identity-react@0.224.0
 - @voyant-travel/legal-react@0.224.0
-- @voyant-travel/storefront-react@0.226.0
+- @voyant-travel/public-api-react@0.226.0
 - @voyant-travel/commerce-react@0.106.0
 - @voyant-travel/inventory-react@0.106.0
 - @voyant-travel/operations-react@0.105.0
@@ -2187,14 +2187,14 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
   - @voyant-travel/operations-react@0.104.0
   - @voyant-travel/catalog-react@0.221.0
   - @voyant-travel/commerce-react@0.105.0
-  - @voyant-travel/storefront-react@0.225.0
+  - @voyant-travel/public-api-react@0.225.0
   - @voyant-travel/relationships-react@0.223.0
 
 ## 0.222.0
 
 ### Patch Changes
 
-- @voyant-travel/storefront-react@0.224.0
+- @voyant-travel/public-api-react@0.224.0
 - @voyant-travel/inventory-react@0.104.0
 - @voyant-travel/distribution-react@0.212.0
 - @voyant-travel/finance-react@0.222.0
@@ -2232,7 +2232,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
   - @voyant-travel/catalog@0.219.0
   - @voyant-travel/bookings@0.221.0
   - @voyant-travel/finance@0.221.0
-  - @voyant-travel/storefront-react@0.223.0
+  - @voyant-travel/public-api-react@0.223.0
   - @voyant-travel/inventory@0.24.0
   - @voyant-travel/accommodations@0.181.0
   - @voyant-travel/cruises@0.220.0
@@ -2263,7 +2263,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
   - @voyant-travel/finance-react@0.220.0
   - @voyant-travel/inventory-react@0.102.0
   - @voyant-travel/types@0.109.10
-  - @voyant-travel/storefront-react@0.222.0
+  - @voyant-travel/public-api-react@0.222.0
   - @voyant-travel/admin@0.131.1
   - @voyant-travel/catalog-react@0.218.0
   - @voyant-travel/commerce-react@0.102.0
@@ -2278,7 +2278,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
 ### Patch Changes
 
 - @voyant-travel/legal-react@0.219.0
-- @voyant-travel/storefront-react@0.221.0
+- @voyant-travel/public-api-react@0.221.0
 - @voyant-travel/distribution-react@0.209.0
 - @voyant-travel/finance-react@0.219.0
 - @voyant-travel/identity-react@0.219.0
@@ -2335,7 +2335,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
   - @voyant-travel/catalog-react@0.216.0
   - @voyant-travel/commerce-react@0.100.0
   - @voyant-travel/relationships-react@0.218.0
-  - @voyant-travel/storefront-react@0.220.0
+  - @voyant-travel/public-api-react@0.220.0
 
 ## 0.217.0
 
@@ -2352,7 +2352,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
   - @voyant-travel/finance-react@0.217.0
   - @voyant-travel/identity-react@0.217.0
   - @voyant-travel/legal-react@0.217.0
-  - @voyant-travel/storefront-react@0.219.0
+  - @voyant-travel/public-api-react@0.219.0
   - @voyant-travel/relationships-react@0.217.0
   - @voyant-travel/bookings@0.217.0
   - @voyant-travel/catalog@0.215.0
@@ -2377,7 +2377,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
   - @voyant-travel/catalog-react@0.214.1
   - @voyant-travel/distribution-react@0.206.1
   - @voyant-travel/legal-react@0.216.1
-  - @voyant-travel/storefront-react@0.218.1
+  - @voyant-travel/public-api-react@0.218.1
 
 ## 0.216.1
 
@@ -2424,7 +2424,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
   - @voyant-travel/catalog-react@0.214.0
   - @voyant-travel/commerce-react@0.98.0
   - @voyant-travel/relationships-react@0.216.0
-  - @voyant-travel/storefront-react@0.218.0
+  - @voyant-travel/public-api-react@0.218.0
   - @voyant-travel/cruises@0.215.0
 
 ## 0.215.0
@@ -2435,7 +2435,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
   - @voyant-travel/i18n@0.118.2
   - @voyant-travel/finance@0.215.0
   - @voyant-travel/inventory@0.22.2
-  - @voyant-travel/storefront-react@0.217.0
+  - @voyant-travel/public-api-react@0.217.0
   - @voyant-travel/inventory-react@0.97.0
   - @voyant-travel/distribution-react@0.205.0
   - @voyant-travel/finance-react@0.215.0
@@ -2467,7 +2467,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
   - @voyant-travel/legal-react@0.214.0
   - @voyant-travel/operations-react@0.95.0
   - @voyant-travel/relationships-react@0.214.0
-  - @voyant-travel/storefront-react@0.216.0
+  - @voyant-travel/public-api-react@0.216.0
   - @voyant-travel/bookings@0.214.0
   - @voyant-travel/catalog@0.212.0
   - @voyant-travel/cruises@0.213.0
@@ -2489,7 +2489,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
   - @voyant-travel/operations-react@0.94.0
   - @voyant-travel/catalog-react@0.211.0
   - @voyant-travel/commerce-react@0.95.0
-  - @voyant-travel/storefront-react@0.215.0
+  - @voyant-travel/public-api-react@0.215.0
   - @voyant-travel/relationships-react@0.213.0
   - @voyant-travel/bookings@0.213.0
   - @voyant-travel/catalog@0.211.0
@@ -2515,7 +2515,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
   - @voyant-travel/commerce-react@0.94.0
   - @voyant-travel/inventory-react@0.94.0
   - @voyant-travel/relationships-react@0.212.0
-  - @voyant-travel/storefront-react@0.214.0
+  - @voyant-travel/public-api-react@0.214.0
   - @voyant-travel/bookings@0.212.0
   - @voyant-travel/finance@0.212.0
 
@@ -2537,7 +2537,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
   - @voyant-travel/commerce-react@0.93.0
   - @voyant-travel/inventory-react@0.93.0
   - @voyant-travel/relationships-react@0.211.0
-  - @voyant-travel/storefront-react@0.213.0
+  - @voyant-travel/public-api-react@0.213.0
   - @voyant-travel/bookings@0.211.0
   - @voyant-travel/finance@0.211.0
 
@@ -2546,7 +2546,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
 ### Patch Changes
 
 - @voyant-travel/accommodations@0.170.0
-- @voyant-travel/storefront-react@0.212.0
+- @voyant-travel/public-api-react@0.212.0
 - @voyant-travel/distribution-react@0.200.0
 - @voyant-travel/finance-react@0.210.0
 - @voyant-travel/identity-react@0.210.0
@@ -2584,7 +2584,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
 - @voyant-travel/catalog-react@0.207.0
 - @voyant-travel/commerce-react@0.91.0
 - @voyant-travel/relationships-react@0.209.0
-- @voyant-travel/storefront-react@0.211.0
+- @voyant-travel/public-api-react@0.211.0
 - @voyant-travel/bookings@0.209.0
 - @voyant-travel/catalog@0.207.0
 - @voyant-travel/cruises@0.208.0
@@ -2605,7 +2605,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
   - @voyant-travel/legal-react@0.208.0
   - @voyant-travel/operations-react@0.89.0
   - @voyant-travel/relationships-react@0.208.0
-  - @voyant-travel/storefront-react@0.210.0
+  - @voyant-travel/public-api-react@0.210.0
   - @voyant-travel/identity-react@0.208.0
   - @voyant-travel/bookings@0.208.0
   - @voyant-travel/catalog@0.206.0
@@ -2645,7 +2645,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
   - @voyant-travel/cruises@0.206.1
   - @voyant-travel/inventory@0.21.3
   - @voyant-travel/catalog-react@0.205.1
-  - @voyant-travel/storefront-react@0.209.2
+  - @voyant-travel/public-api-react@0.209.2
 
 ## 0.207.0
 
@@ -2686,7 +2686,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
   - @voyant-travel/commerce-react@0.89.0
   - @voyant-travel/inventory-react@0.89.0
   - @voyant-travel/relationships-react@0.207.0
-  - @voyant-travel/storefront-react@0.209.0
+  - @voyant-travel/public-api-react@0.209.0
   - @voyant-travel/cruises@0.206.0
 
 ## 0.206.0
@@ -2697,7 +2697,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
   - @voyant-travel/i18n@0.117.3
   - @voyant-travel/finance@0.206.0
   - @voyant-travel/inventory@0.21.1
-  - @voyant-travel/storefront-react@0.208.0
+  - @voyant-travel/public-api-react@0.208.0
   - @voyant-travel/inventory-react@0.88.0
   - @voyant-travel/distribution-react@0.196.0
   - @voyant-travel/finance-react@0.206.0
@@ -2727,7 +2727,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
   - @voyant-travel/inventory-react@0.87.0
   - @voyant-travel/catalog@0.203.0
   - @voyant-travel/cruises@0.204.0
-  - @voyant-travel/storefront-react@0.207.0
+  - @voyant-travel/public-api-react@0.207.0
   - @voyant-travel/distribution-react@0.195.0
   - @voyant-travel/identity-react@0.205.0
   - @voyant-travel/catalog-react@0.203.0
@@ -2747,7 +2747,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
   - @voyant-travel/identity-react@0.204.0
   - @voyant-travel/legal-react@0.204.0
   - @voyant-travel/operations-react@0.85.0
-  - @voyant-travel/storefront-react@0.206.0
+  - @voyant-travel/public-api-react@0.206.0
   - @voyant-travel/relationships-react@0.204.0
   - @voyant-travel/bookings@0.204.0
   - @voyant-travel/catalog@0.202.0
@@ -2792,7 +2792,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
   - @voyant-travel/accommodations@0.163.0
   - @voyant-travel/finance-react@0.203.0
   - @voyant-travel/inventory-react@0.85.0
-  - @voyant-travel/storefront-react@0.205.0
+  - @voyant-travel/public-api-react@0.205.0
   - @voyant-travel/distribution-react@0.193.0
   - @voyant-travel/identity-react@0.203.0
   - @voyant-travel/legal-react@0.203.0
@@ -2804,7 +2804,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
 ### Patch Changes
 
 - @voyant-travel/accommodations@0.162.0
-- @voyant-travel/storefront-react@0.204.0
+- @voyant-travel/public-api-react@0.204.0
 - @voyant-travel/distribution-react@0.192.0
 - @voyant-travel/finance-react@0.202.0
 - @voyant-travel/identity-react@0.202.0
@@ -2836,7 +2836,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
   - @voyant-travel/finance-react@0.201.1
   - @voyant-travel/identity-react@0.201.1
   - @voyant-travel/legal-react@0.201.1
-  - @voyant-travel/storefront-react@0.203.1
+  - @voyant-travel/public-api-react@0.203.1
 
 ## 0.201.0
 
@@ -2850,7 +2850,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
   - @voyant-travel/finance-react@0.201.0
   - @voyant-travel/inventory@0.19.4
   - @voyant-travel/inventory-react@0.83.0
-  - @voyant-travel/storefront-react@0.203.0
+  - @voyant-travel/public-api-react@0.203.0
   - @voyant-travel/distribution-react@0.191.0
   - @voyant-travel/identity-react@0.201.0
   - @voyant-travel/legal-react@0.201.0
@@ -2899,7 +2899,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
   - @voyant-travel/inventory-react@0.82.0
   - @voyant-travel/relationships-react@0.200.0
   - @voyant-travel/ui@0.109.6
-  - @voyant-travel/storefront-react@0.202.0
+  - @voyant-travel/public-api-react@0.202.0
   - @voyant-travel/catalog-react@0.198.0
 
 ## 0.199.0
@@ -2922,7 +2922,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
   - @voyant-travel/commerce-react@0.81.0
   - @voyant-travel/inventory-react@0.81.0
   - @voyant-travel/relationships-react@0.199.0
-  - @voyant-travel/storefront-react@0.201.0
+  - @voyant-travel/public-api-react@0.201.0
 
 ## 0.198.1
 
@@ -3033,7 +3033,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
   - @voyant-travel/finance-react@0.198.1
   - @voyant-travel/relationships-react@0.198.1
   - @voyant-travel/legal-react@0.198.1
-  - @voyant-travel/storefront-react@0.200.1
+  - @voyant-travel/public-api-react@0.200.1
   - @voyant-travel/admin@0.129.1
   - @voyant-travel/catalog-react@0.196.1
   - @voyant-travel/distribution-react@0.188.1
@@ -3057,7 +3057,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
 - @voyant-travel/accommodations@0.158.0
 - @voyant-travel/distribution-react@0.188.0
 - @voyant-travel/identity-react@0.198.0
-- @voyant-travel/storefront-react@0.200.0
+- @voyant-travel/public-api-react@0.200.0
 - @voyant-travel/finance-react@0.198.0
 - @voyant-travel/operations-react@0.79.0
 - @voyant-travel/catalog-react@0.196.0
@@ -3083,7 +3083,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
   - @voyant-travel/legal-react@0.197.0
   - @voyant-travel/relationships-react@0.197.0
   - @voyant-travel/inventory-react@0.79.0
-  - @voyant-travel/storefront-react@0.199.0
+  - @voyant-travel/public-api-react@0.199.0
   - @voyant-travel/catalog-react@0.195.0
   - @voyant-travel/distribution-react@0.187.0
   - @voyant-travel/finance-react@0.197.0
@@ -3109,7 +3109,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
   - @voyant-travel/distribution-react@0.186.0
   - @voyant-travel/legal-react@0.196.0
   - @voyant-travel/inventory-react@0.78.0
-  - @voyant-travel/storefront-react@0.198.0
+  - @voyant-travel/public-api-react@0.198.0
   - @voyant-travel/commerce-react@0.78.0
   - @voyant-travel/relationships-react@0.196.0
   - @voyant-travel/finance-react@0.196.0
@@ -3137,7 +3137,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
   - @voyant-travel/commerce-react@0.77.0
   - @voyant-travel/inventory-react@0.77.0
   - @voyant-travel/relationships-react@0.195.0
-  - @voyant-travel/storefront-react@0.197.0
+  - @voyant-travel/public-api-react@0.197.0
 
 ## 0.194.1
 
@@ -3167,7 +3167,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
   - @voyant-travel/commerce-react@0.76.0
   - @voyant-travel/inventory-react@0.76.0
   - @voyant-travel/relationships-react@0.194.0
-  - @voyant-travel/storefront-react@0.196.0
+  - @voyant-travel/public-api-react@0.196.0
   - @voyant-travel/bookings@0.194.0
   - @voyant-travel/finance@0.194.0
 
@@ -3193,7 +3193,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
   - @voyant-travel/legal-react@0.193.0
   - @voyant-travel/operations-react@0.74.0
   - @voyant-travel/relationships-react@0.193.0
-  - @voyant-travel/storefront-react@0.195.0
+  - @voyant-travel/public-api-react@0.195.0
   - @voyant-travel/identity-react@0.193.0
   - @voyant-travel/bookings@0.193.0
   - @voyant-travel/finance@0.193.0
@@ -3213,7 +3213,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
 - @voyant-travel/finance-react@0.192.1
 - @voyant-travel/identity-react@0.192.1
 - @voyant-travel/legal-react@0.192.1
-- @voyant-travel/storefront-react@0.194.1
+- @voyant-travel/public-api-react@0.194.1
 
 ## 0.192.0
 
@@ -3222,7 +3222,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
 - Updated dependencies [e68a705]
   - @voyant-travel/finance@0.192.0
   - @voyant-travel/finance-react@0.192.0
-  - @voyant-travel/storefront-react@0.194.0
+  - @voyant-travel/public-api-react@0.194.0
   - @voyant-travel/inventory-react@0.74.0
   - @voyant-travel/distribution-react@0.182.0
   - @voyant-travel/identity-react@0.192.0
@@ -3256,7 +3256,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
   - @voyant-travel/catalog-react@0.189.0
   - @voyant-travel/commerce-react@0.73.0
   - @voyant-travel/relationships-react@0.191.0
-  - @voyant-travel/storefront-react@0.193.0
+  - @voyant-travel/public-api-react@0.193.0
   - @voyant-travel/bookings@0.191.0
 
 ## 0.190.0
@@ -3276,7 +3276,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
   - @voyant-travel/types@0.109.9
   - @voyant-travel/distribution-react@0.180.0
   - @voyant-travel/inventory-react@0.72.0
-  - @voyant-travel/storefront-react@0.192.0
+  - @voyant-travel/public-api-react@0.192.0
   - @voyant-travel/finance-react@0.190.0
   - @voyant-travel/identity-react@0.190.0
   - @voyant-travel/legal-react@0.190.0
@@ -3296,7 +3296,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
   - @voyant-travel/inventory@0.14.28
   - @voyant-travel/catalog-react@0.187.0
   - @voyant-travel/inventory-react@0.71.0
-  - @voyant-travel/storefront-react@0.191.0
+  - @voyant-travel/public-api-react@0.191.0
   - @voyant-travel/distribution-react@0.179.0
   - @voyant-travel/finance-react@0.189.0
   - @voyant-travel/identity-react@0.189.0
@@ -3327,7 +3327,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
 - @voyant-travel/finance-react@0.188.0
 - @voyant-travel/identity-react@0.188.0
 - @voyant-travel/operations-react@0.69.0
-- @voyant-travel/storefront-react@0.190.0
+- @voyant-travel/public-api-react@0.190.0
 
 ## 0.187.0
 
@@ -3342,7 +3342,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
   - @voyant-travel/identity-react@0.187.0
   - @voyant-travel/legal-react@0.187.0
   - @voyant-travel/operations-react@0.68.0
-  - @voyant-travel/storefront-react@0.189.0
+  - @voyant-travel/public-api-react@0.189.0
   - @voyant-travel/relationships-react@0.187.0
   - @voyant-travel/bookings@0.187.0
   - @voyant-travel/catalog@0.185.0
@@ -3371,7 +3371,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
   - @voyant-travel/identity-react@0.186.0
   - @voyant-travel/legal-react@0.186.0
   - @voyant-travel/operations-react@0.67.0
-  - @voyant-travel/storefront-react@0.188.0
+  - @voyant-travel/public-api-react@0.188.0
   - @voyant-travel/relationships-react@0.186.0
   - @voyant-travel/bookings@0.186.0
   - @voyant-travel/catalog@0.184.0
@@ -3399,7 +3399,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
   - @voyant-travel/catalog-react@0.183.0
   - @voyant-travel/commerce-react@0.67.0
   - @voyant-travel/relationships-react@0.185.0
-  - @voyant-travel/storefront-react@0.187.0
+  - @voyant-travel/public-api-react@0.187.0
   - @voyant-travel/bookings@0.185.0
 
 ## 0.184.0
@@ -3416,7 +3416,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
   - @voyant-travel/identity-react@0.184.0
   - @voyant-travel/legal-react@0.184.0
   - @voyant-travel/operations-react@0.65.0
-  - @voyant-travel/storefront-react@0.186.0
+  - @voyant-travel/public-api-react@0.186.0
   - @voyant-travel/relationships-react@0.184.0
   - @voyant-travel/bookings@0.184.0
   - @voyant-travel/catalog@0.182.0
@@ -3429,7 +3429,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
 ### Patch Changes
 
 - @voyant-travel/finance@0.183.0
-- @voyant-travel/storefront-react@0.185.0
+- @voyant-travel/public-api-react@0.185.0
 - @voyant-travel/inventory-react@0.65.0
 - @voyant-travel/distribution-react@0.173.0
 - @voyant-travel/finance-react@0.183.0
@@ -3461,7 +3461,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
   - @voyant-travel/legal-react@0.182.4
   - @voyant-travel/operations-react@0.63.1
   - @voyant-travel/relationships-react@0.182.1
-  - @voyant-travel/storefront-react@0.184.2
+  - @voyant-travel/public-api-react@0.184.2
   - @voyant-travel/bookings@0.182.2
   - @voyant-travel/catalog@0.180.2
   - @voyant-travel/cruises@0.181.2
@@ -3482,13 +3482,13 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
 - @voyant-travel/finance-react@0.182.3
 - @voyant-travel/identity-react@0.182.1
 - @voyant-travel/legal-react@0.182.3
-- @voyant-travel/storefront-react@0.184.1
+- @voyant-travel/public-api-react@0.184.1
 
 ## 0.182.0
 
 ### Patch Changes
 
-- @voyant-travel/storefront-react@0.184.0
+- @voyant-travel/public-api-react@0.184.0
 - @voyant-travel/inventory-react@0.64.0
 - @voyant-travel/distribution-react@0.172.0
 - @voyant-travel/finance-react@0.182.0
@@ -3527,7 +3527,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
   - @voyant-travel/catalog-react@0.179.0
   - @voyant-travel/commerce-react@0.63.0
   - @voyant-travel/relationships-react@0.181.0
-  - @voyant-travel/storefront-react@0.183.0
+  - @voyant-travel/public-api-react@0.183.0
 
 ## 0.180.1
 
@@ -3547,7 +3547,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
   - @voyant-travel/legal-react@0.180.1
   - @voyant-travel/operations-react@0.61.1
   - @voyant-travel/relationships-react@0.180.1
-  - @voyant-travel/storefront-react@0.182.1
+  - @voyant-travel/public-api-react@0.182.1
   - @voyant-travel/bookings@0.180.1
   - @voyant-travel/catalog@0.178.1
   - @voyant-travel/cruises@0.179.1
@@ -3557,7 +3557,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
 ### Patch Changes
 
 - Updated dependencies [ecf1680]
-  - @voyant-travel/storefront-react@0.182.0
+  - @voyant-travel/public-api-react@0.182.0
   - @voyant-travel/i18n@0.114.0
   - @voyant-travel/inventory-react@0.62.0
   - @voyant-travel/admin@0.128.1
@@ -3580,7 +3580,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
 
 ### Patch Changes
 
-- @voyant-travel/storefront-react@0.181.0
+- @voyant-travel/public-api-react@0.181.0
 - @voyant-travel/inventory-react@0.61.0
 - @voyant-travel/distribution-react@0.169.0
 - @voyant-travel/finance-react@0.179.0
@@ -3612,7 +3612,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
   - @voyant-travel/legal-react@0.178.0
   - @voyant-travel/operations-react@0.59.0
   - @voyant-travel/relationships-react@0.178.0
-  - @voyant-travel/storefront-react@0.180.0
+  - @voyant-travel/public-api-react@0.180.0
   - @voyant-travel/identity-react@0.178.0
   - @voyant-travel/bookings@0.178.0
   - @voyant-travel/catalog@0.176.0
@@ -3632,7 +3632,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
 - @voyant-travel/finance@0.177.0
 - @voyant-travel/inventory@0.14.8
 - @voyant-travel/types@0.109.8
-- @voyant-travel/storefront-react@0.179.0
+- @voyant-travel/public-api-react@0.179.0
 - @voyant-travel/inventory-react@0.59.0
 - @voyant-travel/distribution-react@0.167.0
 - @voyant-travel/finance-react@0.177.0
@@ -3648,7 +3648,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
 ### Patch Changes
 
 - Updated dependencies [abc32b6]
-  - @voyant-travel/storefront-react@0.178.0
+  - @voyant-travel/public-api-react@0.178.0
   - @voyant-travel/accommodations@0.136.0
   - @voyant-travel/bookings@0.176.0
   - @voyant-travel/catalog@0.174.0
@@ -3672,7 +3672,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
 
 - Updated dependencies [a160a81]
   - @voyant-travel/bookings@0.175.0
-  - @voyant-travel/storefront-react@0.177.0
+  - @voyant-travel/public-api-react@0.177.0
   - @voyant-travel/accommodations@0.135.0
   - @voyant-travel/catalog@0.173.0
   - @voyant-travel/cruises@0.174.0
@@ -3708,14 +3708,14 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
   - @voyant-travel/operations-react@0.55.0
   - @voyant-travel/catalog-react@0.172.0
   - @voyant-travel/commerce-react@0.56.0
-  - @voyant-travel/storefront-react@0.176.0
+  - @voyant-travel/public-api-react@0.176.0
   - @voyant-travel/relationships-react@0.174.0
 
 ## 0.173.0
 
 ### Patch Changes
 
-- @voyant-travel/storefront-react@0.175.0
+- @voyant-travel/public-api-react@0.175.0
 - @voyant-travel/inventory-react@0.55.0
 - @voyant-travel/distribution-react@0.163.0
 - @voyant-travel/finance-react@0.173.0
@@ -3745,7 +3745,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
   - @voyant-travel/inventory@0.14.3
   - @voyant-travel/finance-react@0.172.0
   - @voyant-travel/inventory-react@0.54.0
-  - @voyant-travel/storefront-react@0.174.0
+  - @voyant-travel/public-api-react@0.174.0
   - @voyant-travel/commerce-react@0.54.0
   - @voyant-travel/legal-react@0.172.0
   - @voyant-travel/relationships-react@0.172.0
@@ -3779,7 +3779,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
 - @voyant-travel/finance-react@0.171.1
 - @voyant-travel/identity-react@0.171.1
 - @voyant-travel/legal-react@0.171.1
-- @voyant-travel/storefront-react@0.173.1
+- @voyant-travel/public-api-react@0.173.1
 
 ## 0.171.0
 
@@ -3800,7 +3800,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
   - @voyant-travel/catalog-react@0.169.0
   - @voyant-travel/commerce-react@0.53.0
   - @voyant-travel/relationships-react@0.171.0
-  - @voyant-travel/storefront-react@0.173.0
+  - @voyant-travel/public-api-react@0.173.0
   - @voyant-travel/bookings@0.171.0
 
 ## 0.170.0
@@ -3817,7 +3817,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
   - @voyant-travel/cruises@0.169.0
   - @voyant-travel/finance@0.170.0
   - @voyant-travel/inventory-react@0.52.0
-  - @voyant-travel/storefront-react@0.172.0
+  - @voyant-travel/public-api-react@0.172.0
   - @voyant-travel/distribution-react@0.160.0
   - @voyant-travel/finance-react@0.170.0
   - @voyant-travel/identity-react@0.170.0
@@ -3841,7 +3841,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
 - @voyant-travel/finance-react@0.169.2
 - @voyant-travel/identity-react@0.169.1
 - @voyant-travel/legal-react@0.169.1
-- @voyant-travel/storefront-react@0.171.1
+- @voyant-travel/public-api-react@0.171.1
 
 ## 0.169.0
 
@@ -3861,7 +3861,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
   - @voyant-travel/legal-react@0.169.0
   - @voyant-travel/operations-react@0.50.0
   - @voyant-travel/relationships-react@0.169.0
-  - @voyant-travel/storefront-react@0.171.0
+  - @voyant-travel/public-api-react@0.171.0
   - @voyant-travel/identity-react@0.169.0
   - @voyant-travel/bookings@0.169.0
   - @voyant-travel/catalog@0.167.0
@@ -3887,7 +3887,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
   - @voyant-travel/catalog-react@0.166.0
   - @voyant-travel/commerce-react@0.50.0
   - @voyant-travel/relationships-react@0.168.0
-  - @voyant-travel/storefront-react@0.170.0
+  - @voyant-travel/public-api-react@0.170.0
   - @voyant-travel/bookings@0.168.0
 
 ## 0.167.0
@@ -3908,7 +3908,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
   - @voyant-travel/distribution-react@0.157.0
   - @voyant-travel/identity-react@0.167.0
   - @voyant-travel/operations-react@0.48.0
-  - @voyant-travel/storefront-react@0.169.0
+  - @voyant-travel/public-api-react@0.169.0
   - @voyant-travel/relationships-react@0.167.0
   - @voyant-travel/bookings@0.167.0
 
@@ -3936,7 +3936,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
   - @voyant-travel/legal-react@0.166.0
   - @voyant-travel/operations-react@0.47.0
   - @voyant-travel/relationships-react@0.166.0
-  - @voyant-travel/storefront-react@0.168.0
+  - @voyant-travel/public-api-react@0.168.0
   - @voyant-travel/bookings@0.166.0
 
 ## 0.165.0
@@ -3958,7 +3958,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
   - @voyant-travel/catalog-react@0.163.0
   - @voyant-travel/commerce-react@0.47.0
   - @voyant-travel/relationships-react@0.165.0
-  - @voyant-travel/storefront-react@0.167.0
+  - @voyant-travel/public-api-react@0.167.0
   - @voyant-travel/bookings@0.165.0
 
 ## 0.164.0
@@ -3979,7 +3979,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
   - @voyant-travel/commerce-react@0.46.0
   - @voyant-travel/inventory-react@0.46.0
   - @voyant-travel/relationships-react@0.164.0
-  - @voyant-travel/storefront-react@0.166.0
+  - @voyant-travel/public-api-react@0.166.0
   - @voyant-travel/bookings@0.164.0
   - @voyant-travel/finance@0.164.0
 
@@ -4005,7 +4005,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
   - @voyant-travel/finance-react@0.163.0
   - @voyant-travel/operations-react@0.44.0
   - @voyant-travel/inventory-react@0.45.0
-  - @voyant-travel/storefront-react@0.165.0
+  - @voyant-travel/public-api-react@0.165.0
   - @voyant-travel/catalog-react@0.161.0
   - @voyant-travel/commerce-react@0.45.0
 
@@ -4061,7 +4061,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
   - @voyant-travel/cruises@0.161.0
   - @voyant-travel/finance@0.162.0
   - @voyant-travel/inventory@0.12.0
-  - @voyant-travel/storefront-react@0.164.0
+  - @voyant-travel/public-api-react@0.164.0
   - @voyant-travel/commerce-react@0.44.0
   - @voyant-travel/distribution-react@0.152.0
   - @voyant-travel/finance-react@0.162.0
@@ -4088,7 +4088,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
   - @voyant-travel/legal-react@0.161.0
   - @voyant-travel/operations-react@0.42.0
   - @voyant-travel/relationships-react@0.161.0
-  - @voyant-travel/storefront-react@0.163.0
+  - @voyant-travel/public-api-react@0.163.0
   - @voyant-travel/identity-react@0.161.0
   - @voyant-travel/bookings@0.161.0
   - @voyant-travel/catalog@0.159.0
@@ -4117,7 +4117,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
   - @voyant-travel/catalog@0.158.0
   - @voyant-travel/inventory@0.11.0
   - @voyant-travel/cruises@0.159.0
-  - @voyant-travel/storefront-react@0.162.0
+  - @voyant-travel/public-api-react@0.162.0
   - @voyant-travel/finance-react@0.160.0
   - @voyant-travel/inventory-react@0.42.0
   - @voyant-travel/commerce-react@0.42.0
@@ -4159,7 +4159,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
   - @voyant-travel/inventory@0.10.4
   - @voyant-travel/commerce-react@0.41.0
   - @voyant-travel/finance-react@0.159.0
-  - @voyant-travel/storefront-react@0.161.0
+  - @voyant-travel/public-api-react@0.161.0
   - @voyant-travel/operations-react@0.40.0
   - @voyant-travel/catalog-react@0.157.0
   - @voyant-travel/identity-react@0.159.0
@@ -4198,7 +4198,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
   - @voyant-travel/operations-react@0.39.0
   - @voyant-travel/relationships-react@0.158.0
   - @voyant-travel/types@0.109.2
-  - @voyant-travel/storefront-react@0.160.0
+  - @voyant-travel/public-api-react@0.160.0
 
 ## 0.157.0
 
@@ -4208,7 +4208,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
   - @voyant-travel/catalog-contracts@0.111.0
   - @voyant-travel/catalog@0.155.0
   - @voyant-travel/catalog-react@0.155.0
-  - @voyant-travel/storefront-react@0.159.0
+  - @voyant-travel/public-api-react@0.159.0
   - @voyant-travel/inventory-react@0.39.0
   - @voyant-travel/distribution-react@0.147.0
   - @voyant-travel/finance-react@0.157.0
@@ -4252,7 +4252,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
   - @voyant-travel/operations-react@0.37.1
   - @voyant-travel/react@0.104.2
   - @voyant-travel/relationships-react@0.156.1
-  - @voyant-travel/storefront-react@0.158.1
+  - @voyant-travel/public-api-react@0.158.1
   - @voyant-travel/ui@0.109.1
 
 ## 0.156.0
@@ -4275,7 +4275,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
   - @voyant-travel/catalog-contracts@0.110.0
   - @voyant-travel/inventory@0.10.0
   - @voyant-travel/i18n@0.111.0
-  - @voyant-travel/storefront-react@0.158.0
+  - @voyant-travel/public-api-react@0.158.0
   - @voyant-travel/accommodations@0.116.0
   - @voyant-travel/catalog@0.154.0
   - @voyant-travel/cruises@0.155.0
@@ -4297,7 +4297,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
   - @voyant-travel/admin@0.123.1
   - @voyant-travel/bookings@0.155.2
   - @voyant-travel/finance@0.155.2
-  - @voyant-travel/storefront-react@0.157.2
+  - @voyant-travel/public-api-react@0.157.2
   - @voyant-travel/finance-react@0.155.2
 
 ## 0.155.1
@@ -4316,7 +4316,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
   - @voyant-travel/finance-react@0.155.1
   - @voyant-travel/identity-react@0.155.1
   - @voyant-travel/legal-react@0.155.1
-  - @voyant-travel/storefront-react@0.157.1
+  - @voyant-travel/public-api-react@0.157.1
 
 ## 0.155.0
 
@@ -4329,7 +4329,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
 - @voyant-travel/cruises@0.154.0
 - @voyant-travel/finance@0.155.0
 - @voyant-travel/inventory@0.9.2
-- @voyant-travel/storefront-react@0.157.0
+- @voyant-travel/public-api-react@0.157.0
 - @voyant-travel/inventory-react@0.37.0
 - @voyant-travel/distribution-react@0.145.0
 - @voyant-travel/finance-react@0.155.0
@@ -4363,7 +4363,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
   - @voyant-travel/operations-react@0.35.0
   - @voyant-travel/relationships-react@0.154.0
   - @voyant-travel/catalog-react@0.152.0
-  - @voyant-travel/storefront-react@0.156.0
+  - @voyant-travel/public-api-react@0.156.0
 
 ## 0.153.0
 
@@ -4433,7 +4433,7 @@ counterparty_offset | other`, and a self-hosted deployment with no card processo
   - @voyant-travel/legal-react@0.153.0
   - @voyant-travel/operations-react@0.34.0
   - @voyant-travel/relationships-react@0.153.0
-  - @voyant-travel/storefront-react@0.155.0
+  - @voyant-travel/public-api-react@0.155.0
   - @voyant-travel/catalog-react@0.151.0
   - @voyant-travel/inventory-react@0.35.0
   - @voyant-travel/types@0.108.1

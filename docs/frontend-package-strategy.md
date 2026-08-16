@@ -12,7 +12,7 @@ Voyant separates frontend acceleration into three layers:
 1. `@voyant-travel/<module>`
    Domain and runtime logic. These packages stay transport- and framework-agnostic where possible.
 2. Framework-agnostic SDK packages when a cross-module public workflow needs a
-   stable client facade, for example `@voyant-travel/storefront-sdk`.
+   stable client facade, for example `@voyant-travel/public-api-client`.
 3. `@voyant-travel/<module>-react`
    React runtime helpers and reusable module UI for a module. These packages
    provide hooks, query keys, typed clients, providers, frontend view-model

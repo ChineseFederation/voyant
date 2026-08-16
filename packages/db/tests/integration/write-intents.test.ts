@@ -73,7 +73,7 @@ describe.skipIf(!DB_AVAILABLE)("write intents", () => {
 
   it("enqueues with a generated idempotency key and reads back", async () => {
     const { intent, created } = await enqueueWriteIntent(db, {
-      kind: "storefront.booking.bootstrap",
+      kind: "public-api.booking.bootstrap",
       payload: { input: { a: 1 } },
     })
 

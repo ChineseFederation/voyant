@@ -54,16 +54,16 @@ import {
   proposalsRuntimePort,
   proposalsSnapshotRuntimePort,
 } from "@voyant-travel/proposals"
+import {
+  publicApiCustomerPortalRuntimePort,
+  publicApiIntakeRuntimePort,
+  publicApiOffersRuntimePort,
+  publicApiPaymentLinkRuntimePort,
+  publicApiVerificationRuntimePort,
+} from "@voyant-travel/public-api"
 import { realtimeRuntimePort } from "@voyant-travel/realtime"
 import { relationshipsRouteRuntimePort } from "@voyant-travel/relationships/voyant"
 import { storageMediaRuntimePort } from "@voyant-travel/storage/routes"
-import {
-  storefrontCustomerPortalRuntimePort,
-  storefrontIntakeRuntimePort,
-  storefrontOffersRuntimePort,
-  storefrontPaymentLinkRuntimePort,
-  storefrontVerificationRuntimePort,
-} from "@voyant-travel/storefront"
 import { TRIPS_PAYMENT_SUBSCRIBER_RUNTIME_KEY } from "@voyant-travel/trips/payment-subscribers"
 import { tripsDatabaseRuntimePort, tripsRoutesRuntimePort } from "@voyant-travel/trips/voyant"
 import { describe, expect, it, vi } from "vitest"
@@ -544,11 +544,11 @@ describe("selected Operator graph runtime composition", () => {
         proposalsSnapshotRuntimePort.id,
         realtimeRuntimePort.id,
         storageMediaRuntimePort.id,
-        storefrontCustomerPortalRuntimePort.id,
-        storefrontIntakeRuntimePort.id,
-        storefrontOffersRuntimePort.id,
-        storefrontPaymentLinkRuntimePort.id,
-        storefrontVerificationRuntimePort.id,
+        publicApiCustomerPortalRuntimePort.id,
+        publicApiIntakeRuntimePort.id,
+        publicApiOffersRuntimePort.id,
+        publicApiPaymentLinkRuntimePort.id,
+        publicApiVerificationRuntimePort.id,
         promotionRedemptionDatabaseRuntimePort.id,
         promotionsBulkReindexRuntimePort.id,
         channelPushRuntimePort.id,

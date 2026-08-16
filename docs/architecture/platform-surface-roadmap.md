@@ -39,7 +39,7 @@ For the shared admin runtime, extension surface, and localization model, see
 [Voyant Admin Architecture](./admin-architecture.md).
 
 For customer-facing storefront and public-contract rules, see
-[Voyant Storefront And Public Contract Architecture](./storefront-architecture.md).
+[Voyant Storefront And Public Contract Architecture](./public-api-architecture.md).
 
 For AI-assisted itinerary planning, cross-vertical composition, and
 reserve/buy orchestration, see
@@ -119,8 +119,8 @@ Resolved upstream for contracts, partially resolved for reusable UI:
 Resolved upstream for the base platform contract, adoption still incomplete in
   downstream apps:
 
-- `@voyant-travel/storefront/customer-portal` and
-  `@voyant-travel/storefront-react/customer-portal` own the portal runtime and
+- `@voyant-travel/public-api/customer-portal` and
+  `@voyant-travel/public-api-react/customer-portal` own the portal runtime and
   React surface; the beta `@voyant-travel/customer-portal` package names are not
   part of the v1 workspace package surface
 - public/authenticated routes now cover bootstrap, profile, companions,
@@ -178,9 +178,9 @@ Still missing:
 Partially resolved:
 
 - public pricing and availability routes now cover snapshot-style reads
-- `@voyant-travel/storefront` now exposes first-class public departure list/detail
+- `@voyant-travel/public-api` now exposes first-class public departure list/detail
   reads plus departure price preview over slots, pricing, and extras
-- `@voyant-travel/storefront` now also exposes product extensions and departure
+- `@voyant-travel/public-api` now also exposes product extensions and departure
   itinerary reads so storefront booking flows do not need app-local wrappers
   for those payloads
 - `@voyant-travel/commerce/promotions` now exposes storefront promotional-offer
@@ -218,10 +218,10 @@ Canonical surface for Booking v1:
 - bookings now expose a first-class admin overview lookup route and service
   helper that can resolve by booking id / booking number / booking code without
   requiring the public `bookingNumber + email` contract
-- `@voyant-travel/storefront-react` now exposes typed operations, query helpers, and
+- `@voyant-travel/public-api-react` now exposes typed operations, query helpers, and
   hooks for the public storefront contract over settings, departures, pricing
   preview, itinerary, extensions, and promotional offers
-- `@voyant-travel/storefront-sdk` now provides the framework-agnostic TypeScript
+- `@voyant-travel/public-api-client` now provides the framework-agnostic TypeScript
   facade for custom storefronts, wrapping existing public storefront, booking
   session, committed Booking overview, and checkout collection contracts
 
@@ -229,7 +229,7 @@ Still missing:
 
 - transactionally classify and cut over beta booking-session/draft rows before
   removing their retained physical tables
-- migrate React storefront helpers to delegate to `@voyant-travel/storefront-sdk`
+- migrate React storefront helpers to delegate to `@voyant-travel/public-api-client`
   instead of maintaining parallel fetch wrappers
 - lifecycle contracts for legal previews, explicit payment result polling, and
   finalized checkout side effects still need backend route support before the
@@ -332,9 +332,9 @@ Now covered across finance + notifications:
 
 Resolved upstream in source after `0.3.1`:
 
-- first-class storefront settings contract via `@voyant-travel/storefront`
+- first-class storefront settings contract via `@voyant-travel/public-api`
 - generic email/SMS verification challenge flow via
-  `@voyant-travel/storefront/verification`
+  `@voyant-travel/public-api/verification`
 - transport requirements for passport/document rules via
   `@voyant-travel/bookings/requirements`
 
@@ -352,7 +352,7 @@ Optional future upstream candidates:
 
 Now covered as a pluggable storefront contract:
 
-- `@voyant-travel/storefront` can expose product/departure-applicable promotional
+- `@voyant-travel/public-api` can expose product/departure-applicable promotional
   offers and slug-based offer detail through injected resolvers, without
   forcing Voyant core to adopt a CMS-specific promo schema
 - `@voyant-travel/commerce/promotions` now ships a shared resolver factory and
@@ -426,12 +426,12 @@ Completed in the current source tree:
 - legal default active contract-template selector with language fallback
 - legal public template preview route
 - public catalog localized slug/SEO fields and slug lookup route
-- storefront settings via `@voyant-travel/storefront`
+- storefront settings via `@voyant-travel/public-api`
 - storefront departure list/detail and departure price preview via
-  `@voyant-travel/storefront`
+  `@voyant-travel/public-api`
 - storefront product extensions and departure itinerary via
-  `@voyant-travel/storefront`
-- storefront verification via `@voyant-travel/storefront/verification`
+  `@voyant-travel/public-api`
+- storefront verification via `@voyant-travel/public-api/verification`
 - transport requirements via `@voyant-travel/bookings/requirements`
 - booking-session state storage and repricing
 - public finance booking documents

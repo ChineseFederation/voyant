@@ -19,14 +19,14 @@ brew install k6        # macOS
 
 | Script | Traffic | Mutates? | Thresholds (run fails on breach) |
 |---|---|---|---|
-| `storefront-firehose.js` | ramping arrival rate 50→500 rps over 5m, sustained 2m, across catalog list / product detail / departures | No | `http_req_failed` rate < 1%; `http_req_duration` p(95) < 300ms; p(95) < 100ms for the `cached:yes` subset; `storefront_cache_hits` (X-Cache HIT ratio after 60s warmup) ≥ 70% |
+| `public-api-firehose.js` | ramping arrival rate 50→500 rps over 5m, sustained 2m, across catalog list / product detail / departures | No | `http_req_failed` rate < 1%; `http_req_duration` p(95) < 300ms; p(95) < 100ms for the `cached:yes` subset; `storefront_cache_hits` (X-Cache HIT ratio after 60s warmup) ≥ 70% |
 | `mixed.js` | 85/15 read/quote at a constant `RATE` (default 50 rps) for `DURATION` (default 5m) | No | `http_req_failed` rate < 2%; p(95) < 300ms (`kind:read`), < 800ms (`kind:quote`) |
 
 ## Running locally
 
 ```sh
 # Read-only firehose
-k6 run -e TARGET_URL=https://staging-tenant.example.com scripts/load/storefront-firehose.js
+k6 run -e TARGET_URL=https://staging-tenant.example.com scripts/load/public-api-firehose.js
 
 # Mixed read/quote load
 k6 run -e TARGET_URL=https://staging-tenant.example.com scripts/load/mixed.js
@@ -53,7 +53,7 @@ k6 run --summary-export=k6-summary.json -e TARGET_URL=... scripts/load/mixed.js
 
 Scenarios need real ids on the target tenant:
 
-- **storefront-firehose** — published catalog products reachable via
+- **public-api-firehose** — published catalog products reachable via
   `GET /v1/public/products`. If `PRODUCT_IDS` is unset, the script runs a *discovery mode* in
   `setup()`: it calls `GET /v1/public/products?limit=20` and uses the returned ids/slugs. The run
   aborts if discovery returns nothing — seed the tenant (any published product works) or pass

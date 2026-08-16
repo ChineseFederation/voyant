@@ -53,8 +53,8 @@ const temporaryPackages = packageList(`
   @voyant-travel/availability-react|facade|@voyant-travel/operations-react/availability|@voyant-travel/operations-react
   @voyant-travel/booking-requirements|orphan|@voyant-travel/bookings/requirements|@voyant-travel/bookings
   @voyant-travel/booking-requirements-react|orphan|@voyant-travel/bookings-react/requirements|@voyant-travel/bookings-react
-  @voyant-travel/customer-portal|orphan|@voyant-travel/storefront/customer-portal|@voyant-travel/storefront
-  @voyant-travel/customer-portal-react|orphan|@voyant-travel/storefront-react/customer-portal|@voyant-travel/storefront-react
+  @voyant-travel/customer-portal|orphan|@voyant-travel/public-api/customer-portal|@voyant-travel/public-api
+  @voyant-travel/customer-portal-react|orphan|@voyant-travel/public-api-react/customer-portal|@voyant-travel/public-api-react
   @voyant-travel/external-refs|facade|@voyant-travel/distribution/external-refs|@voyant-travel/distribution
   @voyant-travel/external-refs-react|facade|@voyant-travel/distribution-react/external-refs|@voyant-travel/distribution-react
   @voyant-travel/extras|orphan|@voyant-travel/inventory/extras + @voyant-travel/bookings/extras|@voyant-travel/inventory,@voyant-travel/bookings

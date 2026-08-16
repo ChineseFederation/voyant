@@ -33,7 +33,7 @@ const requestIdParams = z.object({ requestId: z.string().min(1) })
 const provisionOpenApiSchema = z
   .object({
     idempotencyKey: z.string().min(8).max(200),
-    storefrontOrigin: z.url(),
+    publicApiOrigin: z.url(),
     owner: z.object({ userId: z.string().min(1).optional(), email: z.email().optional() }).strict(),
     relationshipOrganizationId: z.string().min(1).optional(),
     profile: z

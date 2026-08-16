@@ -187,7 +187,7 @@ export const customerAuthBusinessAccountRequest = customerAuthSchema.table(
     requesterUserId: text("requester_user_id")
       .notNull()
       .references(() => customerAuthUser.id, { onDelete: "cascade" }),
-    storefrontOrigin: text("storefront_origin").notNull(),
+    publicApiOrigin: text("storefront_origin").notNull(),
     mode: text("mode").notNull(),
     name: text("name").notNull(),
     legalName: text("legal_name"),

@@ -42,8 +42,8 @@ import type {
 import type { AnyDrizzleDb } from "@voyant-travel/db"
 
 import {
-  isOwnedProductStorefrontListable,
-  isSourcedEntryStorefrontListable,
+  isOwnedProductPublicApiListable,
+  isSourcedEntryPublicApiListable,
 } from "./catalog-listability.js"
 import { catalogRuntimeExtensions } from "./host.js"
 
@@ -129,7 +129,7 @@ export function createProductsDocumentBuilder(
     sellerOperatorId: context.sellerOperatorId,
     registry,
     extensions: [
-      inventory.createStorefrontCardProjectionExtension(),
+      inventory.createPublicApiCardProjectionExtension(),
       inventory.createDestinationsProjectionExtension(),
       inventory.createTaxonomyProjectionExtension(),
       // After storefront-card so the resolved classification duration (explicit
@@ -140,7 +140,7 @@ export function createProductsDocumentBuilder(
       commerce.createPromotionsProjectionExtension(),
     ],
     isPublicAudienceListable: ({ db, product, slice }) =>
-      isOwnedProductStorefrontListable({
+      isOwnedProductPublicApiListable({
         audience: slice.audience,
         channel: slice.channel,
         isEffectivelyPublished: () =>
@@ -231,7 +231,7 @@ export async function buildSourcedEntryDocument(
   if (!entry || entry.status !== "active") return null
 
   const { distribution } = catalogRuntimeExtensions()
-  const listable = await isSourcedEntryStorefrontListable({
+  const listable = await isSourcedEntryPublicApiListable({
     audience: slice.audience,
     channel: slice.channel,
     isEffectivelyPublished: () =>

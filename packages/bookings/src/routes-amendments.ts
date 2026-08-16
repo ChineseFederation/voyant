@@ -16,7 +16,7 @@ import { type GuestBookingAccessAction, requireGuestBookingAccess } from "./chec
 import { redactTravelerIdentity, shouldRevealBookingPii } from "./pii-redaction.js"
 import { BOOKING_ROUTE_RUNTIME_CONTAINER_KEY, type BookingRouteRuntime } from "./route-runtime.js"
 import { createBookingsAdminRoute, createBookingsPublicRoute } from "./routes-openapi.js"
-import { requireBookingStorefrontOrigin } from "./routes-public.js"
+import { requireBookingPublicApiOrigin } from "./routes-public.js"
 import { type Env, getRuntimeEnv } from "./routes-shared.js"
 import { bookingPiiAccessLog } from "./schema.js"
 import {
@@ -45,7 +45,7 @@ const errorSchema = z.object({
  * method and throwing `bookingAmendmentSchema.openapi is not a function`.
  *
  * Whether that happened was pure import-order luck: it broke
- * `@voyant-travel/storefront`'s unit suite while every Bookings entrypoint kept
+ * `@voyant-travel/public-api`'s unit suite while every Bookings entrypoint kept
  * working. `.meta({ id })` is native zod v4 and writes to the same
  * `z.globalRegistry` the OpenAPI generator reads, so it produces an identical
  * `#/components/schemas/BookingAmendment` reference with no ordering
@@ -671,7 +671,7 @@ async function requirePublicAccess(
   bookingId: string,
   action: GuestBookingAccessAction,
 ) {
-  const denied = await requireBookingStorefrontOrigin(c, bookingId)
+  const denied = await requireBookingPublicApiOrigin(c, bookingId)
   if (denied) return denied
 
   if (c.get("realm") === "customer") {

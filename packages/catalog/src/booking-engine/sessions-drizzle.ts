@@ -44,8 +44,7 @@ export function createDrizzleBookingSessionRepository(
           actorKind: record.actorKind,
           ownerPrincipalId: record.ownerPrincipalId ?? null,
           ownerOrganizationId: record.ownerOrganizationId ?? null,
-          storefrontId: record.storefrontOrigin?.storefrontId ?? null,
-          channelId: record.storefrontOrigin?.channelId ?? null,
+          channelId: record.publicApiOrigin?.channelId ?? null,
           locale: record.scope.locale,
           market: record.scope.market,
           currency: record.scope.currency ?? null,
@@ -109,8 +108,7 @@ export function createDrizzleBookingSessionRepository(
           actorKind: record.actorKind,
           ownerPrincipalId: record.ownerPrincipalId ?? null,
           ownerOrganizationId: record.ownerOrganizationId ?? null,
-          storefrontId: record.storefrontOrigin?.storefrontId ?? null,
-          channelId: record.storefrontOrigin?.channelId ?? null,
+          channelId: record.publicApiOrigin?.channelId ?? null,
           // `locale` / `market` / `currency` are deliberately absent: the
           // Session's commercial scope is fixed at create, so no update path
           // can move a live Session into another market.
@@ -506,10 +504,7 @@ function mapSession(row: SelectBookingSession): BookingSessionInternalRecord {
     actorKind: row.actorKind as BookingSessionInternalRecord["actorKind"],
     ownerPrincipalId: row.ownerPrincipalId ?? undefined,
     ownerOrganizationId: row.ownerOrganizationId ?? undefined,
-    storefrontOrigin:
-      row.storefrontId && row.channelId
-        ? { storefrontId: row.storefrontId, channelId: row.channelId }
-        : undefined,
+    publicApiOrigin: row.channelId ? { channelId: row.channelId } : undefined,
     scope: {
       locale: row.locale,
       market: row.market,

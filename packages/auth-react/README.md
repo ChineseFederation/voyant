@@ -494,6 +494,6 @@ The selected `createSelectedCustomerBusinessAccountsAdminExtension` contributes
 the provider-neutral `/business-accounts` operator page. It loads capabilities
 before request data, supports approve/reject actions, and provisions access for
 an existing customer by normalized email using either a new business profile or
-an existing CRM organization. This surface manages storefront customer
+an existing CRM organization. This surface manages public surface customer
 accounts; it does not reuse staff organization UI or expose an identity-provider
 choice.

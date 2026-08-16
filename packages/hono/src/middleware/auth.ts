@@ -1,18 +1,18 @@
 // agent-quality: file-size exception -- auth middleware is a shared policy surface spanning sessions, API keys, and anonymous public contexts.
 import type { Actor, VoyantAuthContext } from "@voyant-travel/core"
 import {
-  classifyStorefrontKeyToken,
-  hashStorefrontKeyToken,
-  STOREFRONT_KEY_HEADER,
+  classifyPublicApiKeyToken,
+  hashPublicApiKeyToken,
+  PUBLIC_API_KEY_HEADER,
 } from "@voyant-travel/core"
 import {
   apikeyTable,
   cloudAuthUserLinks,
+  publicApiKeys,
   type SelectApikey,
-  storefrontApiKeys,
 } from "@voyant-travel/db/schema/iam"
 import { API_KEY_AUDIENCES, permissionsToStrings } from "@voyant-travel/types/api-keys"
-import { STOREFRONT_SECRET_KEY_DEFAULT_SCOPES } from "@voyant-travel/types/storefront-key-scopes"
+import { PUBLIC_API_SECRET_KEY_DEFAULT_SCOPES } from "@voyant-travel/types/public-api-key-scopes"
 import type { KVStore } from "@voyant-travel/utils/cache"
 import { and, eq, isNull, or, sql } from "drizzle-orm"
 import type { MiddlewareHandler } from "hono"
@@ -201,8 +201,8 @@ function applyAuthContext(
   if (auth.relationshipPersonId !== undefined) {
     c.set("relationshipPersonId", auth.relationshipPersonId ?? undefined)
   }
-  if (auth.storefrontChannel !== undefined) {
-    c.set("storefrontChannel", auth.storefrontChannel)
+  if (auth.publicChannel !== undefined) {
+    c.set("publicChannel", auth.publicChannel)
   }
   if (auth.buyerMembershipId !== undefined) {
     c.set("buyerMembershipId", auth.buyerMembershipId ?? undefined)
@@ -210,7 +210,7 @@ function applyAuthContext(
   if (auth.buyerMembershipRole !== undefined) {
     c.set("buyerMembershipRole", auth.buyerMembershipRole ?? undefined)
   }
-  if (auth.storefrontKeyKind) c.set("storefrontKeyKind", auth.storefrontKeyKind)
+  if (auth.publicApiKeyKind) c.set("publicApiKeyKind", auth.publicApiKeyKind)
   if (auth.callerType) c.set("callerType", auth.callerType)
   if (auth.actor) c.set("actor", auth.actor)
   if (auth.audience !== undefined) {
@@ -351,45 +351,45 @@ export function requireAuth<TBindings extends VoyantBindings>(
     // One `vsk_` covers `/v1/public/*` and `/v1/admin/*` on a deployment,
     // replacing the deployment admin key it sits in front of here. Only admin
     // is resolved in this strategy: on `/v1/public/*` the same key is resolved
-    // by the customer-auth resolver, which also derives the storefront channel
-    // — admitting it here would skip that and hand the request a public context
-    // with no storefront behind it.
+    // by the customer-auth resolver, which also derives the public channel —
+    // admitting it here would skip that and hand the request a public context
+    // with no channel behind it.
     //
     // A publishable key is never accepted: this is the grant half of the same
     // rule the capability middleware states, kept in the place that grants.
     const isAdminApi = p === "/v1/admin" || p.startsWith("/v1/admin/")
-    const storefrontKeyToken = c.req.header(STOREFRONT_KEY_HEADER)?.trim() || token
+    const publicApiKeyToken = c.req.header(PUBLIC_API_KEY_HEADER)?.trim() || token
     if (
       isAdminApi &&
-      storefrontKeyToken &&
-      classifyStorefrontKeyToken(storefrontKeyToken) === "secret"
+      publicApiKeyToken &&
+      classifyPublicApiKeyToken(publicApiKeyToken) === "secret"
     ) {
       const lease = acquireRequestDb(c, dbFactory)
       try {
         const [row] = await lease.db
           .select()
-          .from(storefrontApiKeys)
+          .from(publicApiKeys)
           .where(
             and(
-              eq(storefrontApiKeys.tokenHash, await hashStorefrontKeyToken(storefrontKeyToken)),
-              eq(storefrontApiKeys.kind, "secret"),
-              isNull(storefrontApiKeys.revokedAt),
+              eq(publicApiKeys.tokenHash, await hashPublicApiKeyToken(publicApiKeyToken)),
+              eq(publicApiKeys.kind, "secret"),
+              isNull(publicApiKeys.revokedAt),
             ),
           )
           .limit(1)
-        if (!row) return c.json({ error: "Invalid storefront key" }, 401)
+        if (!row) return c.json({ error: "Invalid public API key" }, 401)
 
         applyAuthContext(c, {
           // A secret key minted before scopes existed carries `null`. It never
           // had admin reach to preserve, so it gets the commerce-shaped default
           // rather than the unrestricted grant — new capability, narrow start.
-          scopes: permissionsToStrings(row.scopes ?? STOREFRONT_SECRET_KEY_DEFAULT_SCOPES),
+          scopes: permissionsToStrings(row.scopes ?? PUBLIC_API_SECRET_KEY_DEFAULT_SCOPES),
           callerType: "api_key",
           apiKeyId: row.id,
           actor: "staff",
           audience: "staff",
           realm: "admin",
-          storefrontKeyKind: "secret",
+          publicApiKeyKind: "secret",
         })
         // `await` is load-bearing — see strategy 2.
         return await next()

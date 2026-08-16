@@ -22,7 +22,7 @@ export type Actor = "staff" | "customer" | "partner" | "supplier"
  * before authentication is what lets one middleware decide, for every route,
  * whether a browser-resident credential may reach it at all.
  */
-export type VoyantStorefrontKeyKind = "publishable" | "secret"
+export type VoyantPublicApiKeyKind = "publishable" | "secret"
 
 /** Immutable host context carried by an online token minted for an app extension. */
 export interface VoyantAppContextConstraint {
@@ -47,9 +47,8 @@ export interface VoyantAuthContext {
   relationshipOrganizationId?: string | null
   /** Canonical Relationships Person id for the customer identity, including B2B-only users. */
   relationshipPersonId?: string | null
-  /** Server-derived Storefront sales-channel context for public storefront requests. */
-  storefrontChannel?: {
-    storefrontId: string
+  /** Server-derived sales-channel context for public-API requests. */
+  publicChannel?: {
     channelId: string
     channelStatus?: string | null
   }
@@ -86,7 +85,7 @@ export interface VoyantAuthContext {
    * Set from the token prefix before any credential is verified, so guards can
    * refuse a browser-resident key on a route that must never accept one.
    */
-  storefrontKeyKind?: VoyantStorefrontKeyKind
+  publicApiKeyKind?: VoyantPublicApiKeyKind
   email?: string | null
 }
 

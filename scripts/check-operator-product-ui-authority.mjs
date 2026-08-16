@@ -20,20 +20,20 @@ if (applicationFiles.length > applicationFileRatchet) {
 }
 
 for (const relativePath of [
-  "packages/proposals-react/src/storefront/public-proposal-page.tsx",
-  "packages/finance-react/src/storefront/payment-link-resolver-page.tsx",
-  "packages/finance-react/src/storefront/public-payment-link-page.tsx",
-  "packages/finance-react/src/storefront/payment-link-booking-summary.tsx",
-  "packages/finance-react/src/storefront/payment-link-trip-summary.tsx",
-  "packages/storefront-react/src/storefront/confirmation-page.tsx",
-  "packages/storefront-react/src/storefront/customer-account-page.tsx",
-  "packages/storefront-react/src/storefront/customer-account-provider.tsx",
-  "packages/storefront-react/src/storefront/customer-auth-pages.tsx",
-  "packages/storefront-react/src/storefront/market-selector.tsx",
-  "packages/storefront-react/src/storefront/messages.tsx",
-  "packages/storefront-react/src/storefront/scope.tsx",
-  "packages/storefront-react/src/storefront/shell.tsx",
-  "packages/trips-react/src/storefront/storefront-composer-block.tsx",
+  "packages/proposals-react/src/public-api/public-proposal-page.tsx",
+  "packages/finance-react/src/public-api/payment-link-resolver-page.tsx",
+  "packages/finance-react/src/public-api/public-payment-link-page.tsx",
+  "packages/finance-react/src/public-api/payment-link-booking-summary.tsx",
+  "packages/finance-react/src/public-api/payment-link-trip-summary.tsx",
+  "packages/public-api-react/src/public-api/confirmation-page.tsx",
+  "packages/public-api-react/src/public-api/customer-account-page.tsx",
+  "packages/public-api-react/src/public-api/customer-account-provider.tsx",
+  "packages/public-api-react/src/public-api/customer-auth-pages.tsx",
+  "packages/public-api-react/src/public-api/market-selector.tsx",
+  "packages/public-api-react/src/public-api/messages.tsx",
+  "packages/public-api-react/src/public-api/scope.tsx",
+  "packages/public-api-react/src/public-api/shell.tsx",
+  "packages/trips-react/src/public-api/public-api-composer-block.tsx",
 ]) {
   const path = join(root, relativePath)
   if (!existsSync(path)) {
@@ -66,46 +66,46 @@ if (existsSync(join(root, "apps/operator/src/custom-fields"))) {
 }
 
 const requiredTokens = new Map([
-  ["packages/bookings-react/src/storefront/index.ts", ["resolveContractVariables"]],
-  ["packages/bookings-react/package.json", ['"./storefront": "./src/storefront/index.ts"']],
-  ["packages/proposals-react/package.json", ['"./storefront": "./src/storefront/index.ts"']],
-  ["packages/finance-react/package.json", ['"./storefront": "./src/storefront/index.ts"']],
-  ["packages/proposals-react/src/storefront/index.ts", ["PublicProposalPage"]],
+  ["packages/bookings-react/src/public-api/index.ts", ["resolveContractVariables"]],
+  ["packages/bookings-react/package.json", ['"./public-api": "./src/public-api/index.ts"']],
+  ["packages/proposals-react/package.json", ['"./public-api": "./src/public-api/index.ts"']],
+  ["packages/finance-react/package.json", ['"./public-api": "./src/public-api/index.ts"']],
+  ["packages/proposals-react/src/public-api/index.ts", ["PublicProposalPage"]],
   [
-    "packages/finance-react/src/storefront/index.ts",
+    "packages/finance-react/src/public-api/index.ts",
     ["PaymentLinkResolverPage", "PublicPaymentLinkPage"],
   ],
   [
-    "packages/catalog-react/src/storefront/index.ts",
+    "packages/catalog-react/src/public-api/index.ts",
     ["fetchContent", "buildPublicCatalogSlotsUrl"],
   ],
-  ["packages/catalog-react/package.json", ['"./storefront": "./src/storefront/index.ts"']],
-  ["packages/cruises-react/src/storefront/index.ts", ["CruiseDetailPage"]],
-  ["packages/cruises-react/package.json", ['"./storefront": "./src/storefront/index.ts"']],
-  ["packages/inventory-react/src/storefront/index.ts", ["ProductDetailPageProducts"]],
-  ["packages/inventory-react/package.json", ['"./storefront": "./src/storefront/index.ts"']],
+  ["packages/catalog-react/package.json", ['"./public-api": "./src/public-api/index.ts"']],
+  ["packages/cruises-react/src/public-api/index.ts", ["CruiseDetailPage"]],
+  ["packages/cruises-react/package.json", ['"./public-api": "./src/public-api/index.ts"']],
+  ["packages/inventory-react/src/public-api/index.ts", ["ProductDetailPageProducts"]],
+  ["packages/inventory-react/package.json", ['"./public-api": "./src/public-api/index.ts"']],
   [
-    "packages/storefront-react/src/storefront/index.ts",
+    "packages/public-api-react/src/public-api/index.ts",
     [
-      "StorefrontBrowsePage",
+      "PublicApiBrowsePage",
       "AccommodationDetailPage",
-      "StorefrontUiProvider",
+      "PublicApiUiProvider",
       "CustomerAccountPage",
       "CustomerSignInPage",
-      "StorefrontConfirmationPage",
-      "StorefrontMarketSelector",
-      "StorefrontMessagesProvider",
-      "StorefrontScopeProvider",
-      "StorefrontShell",
-      "createStorefrontPresentationContribution",
+      "PublicApiConfirmationPage",
+      "PublicApiMarketSelector",
+      "PublicApiMessagesProvider",
+      "PublicApiScopeProvider",
+      "PublicApiShell",
+      "createPublicApiPresentationContribution",
     ],
   ],
-  ["packages/storefront-react/package.json", ['"./storefront": "./src/storefront/index.ts"']],
+  ["packages/public-api-react/package.json", ['"./public-api": "./src/public-api/index.ts"']],
   [
-    "packages/trips-react/src/storefront/index.ts",
-    ["StorefrontComposerBlock", "StorefrontComposerPage"],
+    "packages/trips-react/src/public-api/index.ts",
+    ["PublicApiComposerBlock", "PublicApiComposerPage"],
   ],
-  ["packages/trips-react/package.json", ['"./storefront": "./src/storefront/index.ts"']],
+  ["packages/trips-react/package.json", ['"./public-api": "./src/public-api/index.ts"']],
   [
     "packages/operator-standard/src/standard-route-files.ts",
     [
@@ -124,12 +124,12 @@ const requiredTokens = new Map([
   [
     "packages/operator-standard/src/standard-frontend.tsx",
     [
-      '"@voyant-travel/cruises-react/storefront"',
-      '"@voyant-travel/inventory-react/storefront"',
-      '"@voyant-travel/storefront-react/storefront/presentation-routes"',
-      '"@voyant-travel/trips-react/storefront"',
+      '"@voyant-travel/cruises-react/public-api"',
+      '"@voyant-travel/inventory-react/public-api"',
+      '"@voyant-travel/public-api-react/public-api/presentation-routes"',
+      '"@voyant-travel/trips-react/public-api"',
       "presentationFactories",
-      '"@voyant-travel/storefront#presentation.customer"',
+      '"@voyant-travel/public-api#presentation.customer"',
       "createFinancePublicRouteContribution",
       "createProposalsPublicRouteContribution",
       "createAdminHostPresentation",
@@ -164,7 +164,7 @@ const standardFrontend = readFileSync(
   join(root, "packages/operator-standard/src/standard-frontend.tsx"),
   "utf8",
 )
-if (standardFrontend.includes("createStorefrontPresentationContribution")) {
+if (standardFrontend.includes("createPublicApiPresentationContribution")) {
   failures.push("operator-standard must consume the graph-selected Storefront presentation factory")
 }
 
@@ -199,7 +199,7 @@ const productReactPackages = [
   "@voyant-travel/proposals-react",
   "@voyant-travel/realtime-react",
   "@voyant-travel/relationships-react",
-  "@voyant-travel/storefront-react",
+  "@voyant-travel/public-api-react",
   "@voyant-travel/trips-react",
 ]
 for (const packageName of productReactPackages) {

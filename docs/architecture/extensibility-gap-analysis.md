@@ -91,7 +91,7 @@ feature roadmap or expansion work, not as rubric-alignment debt.
 Use these docs for future changes:
 
 - [Voyant Admin Architecture](./admin-architecture.md)
-- [Voyant Storefront And Public Contract Architecture](./storefront-architecture.md)
+- [Voyant Storefront And Public Contract Architecture](./public-api-architecture.md)
 - [Voyant Storage Architecture](./storage-architecture.md)
 - [Voyant Notifications Architecture](./notifications-architecture.md)
 - [Voyant Execution Architecture](./execution-architecture.md)

@@ -51,7 +51,7 @@
     "./openapi/admin/authoring": "./openapi/admin/inventory-authoring.json",
     "./openapi/admin/booking": "./openapi/admin/inventory-booking.json",
     "./openapi/admin/extras": "./openapi/admin/extras.json",
-    "./openapi/storefront": "./openapi/storefront/products.json",
+    "./openapi/public-api": "./openapi/public-api/products.json",
     "./catalog-runtime-extension": "./src/catalog-runtime-extension.ts"
   },
   "scripts": {
@@ -62,7 +62,7 @@
     "clean": "rm -rf dist tsconfig.tsbuildinfo",
     "prepack": "pnpm run build",
     "db:generate": "drizzle-kit generate --config=drizzle.migrations.config.ts --name=inventory_baseline && node ../../scripts/migrations/guard-create-type.mjs ./migrations && node ../../scripts/migrations/ensure-extensions.mjs ./migrations",
-    "generate:openapi": "tsx scripts/generate-openapi.ts && biome format --write openapi/admin/products.json openapi/admin/inventory-authoring.json openapi/storefront/products.json"
+    "generate:openapi": "tsx scripts/generate-openapi.ts && biome format --write openapi/admin/products.json openapi/admin/inventory-authoring.json openapi/public-api/products.json"
   },
   "dependencies": {
     "@hono/zod-openapi": "catalog:",
@@ -327,7 +327,7 @@
       "./openapi/admin/authoring": "./openapi/admin/inventory-authoring.json",
       "./openapi/admin/booking": "./openapi/admin/inventory-booking.json",
       "./openapi/admin/extras": "./openapi/admin/extras.json",
-      "./openapi/storefront": "./openapi/storefront/products.json",
+      "./openapi/public-api": "./openapi/public-api/products.json",
       "./catalog-runtime-extension": {
         "types": "./dist/catalog-runtime-extension.d.ts",
         "import": "./dist/catalog-runtime-extension.js",

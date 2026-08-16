@@ -3,7 +3,7 @@
 The legal client tier: headless data hooks/clients plus the styled UI
 components and page-level compositions (formerly `@voyant-travel/legal-ui`).
 
-Headless consumers (storefronts, portals) import from the root, `./hooks`,
+Headless consumers (public surfaces, portals) import from the root, `./hooks`,
 `./client`, or `./query-keys` — these pull no styling peers. Styled surfaces
 live under `./ui`, `./components/*`, `./admin`, `./i18n`, and `./styles.css`,
 whose heavier peers (`@voyant-travel/ui`, `@voyant-travel/admin`, `react-hook-form`, and

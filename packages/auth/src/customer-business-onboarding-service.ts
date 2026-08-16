@@ -144,7 +144,7 @@ function requestDto(
     requesterUserId: row.requesterUserId,
     requesterEmail: requester.email,
     requesterName: requester.name,
-    storefrontOrigin: row.storefrontOrigin,
+    publicApiOrigin: row.publicApiOrigin,
     mode: row.mode,
     profile: requestProfile(row),
     status: row.status,
@@ -175,7 +175,7 @@ export async function createCustomerBusinessAccountRequest(
   db: VoyantDb,
   input: {
     requesterUserId: string
-    storefrontOrigin: string
+    publicApiOrigin: string
     mode: CustomerBusinessOnboardingMode
     idempotencyKey: string
     profile: CustomerBusinessProfile
@@ -194,7 +194,7 @@ export async function createCustomerBusinessAccountRequest(
     .limit(1)
   if (existing) {
     const samePayload =
-      existing.storefrontOrigin === input.storefrontOrigin &&
+      existing.publicApiOrigin === input.publicApiOrigin &&
       existing.mode === input.mode &&
       existing.name === profile.name &&
       existing.legalName === profile.legalName &&
@@ -213,7 +213,7 @@ export async function createCustomerBusinessAccountRequest(
     .values({
       id: opaqueId(),
       requesterUserId: input.requesterUserId,
-      storefrontOrigin: input.storefrontOrigin,
+      publicApiOrigin: input.publicApiOrigin,
       mode: input.mode,
       name: profile.name,
       legalName: profile.legalName,
@@ -237,7 +237,7 @@ export async function createCustomerBusinessAccountRequest(
     .limit(1)
   if (racedIdempotent) {
     const samePayload =
-      racedIdempotent.storefrontOrigin === input.storefrontOrigin &&
+      racedIdempotent.publicApiOrigin === input.publicApiOrigin &&
       racedIdempotent.mode === input.mode &&
       racedIdempotent.name === profile.name &&
       racedIdempotent.legalName === profile.legalName &&

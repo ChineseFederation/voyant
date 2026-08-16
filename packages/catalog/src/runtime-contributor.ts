@@ -270,12 +270,12 @@ export function createCatalogRuntimePortContribution(
             ? {
                 actorKind: "customer",
                 principalId: input.ownerUserId,
-                storefront: input.storefront,
+                storefront: input.channel,
               }
             : {
                 actorKind: "anonymous",
                 capability: input.capability,
-                storefront: input.storefront,
+                storefront: input.channel,
               },
         )
       },

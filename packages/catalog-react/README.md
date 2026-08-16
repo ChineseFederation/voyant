@@ -3,7 +3,7 @@
 The catalog client tier: headless data hooks/clients plus the styled UI
 primitives and page-level compositions (formerly `@voyant-travel/catalog-ui`).
 
-Headless consumers (storefronts, portals) import from the root, `./hooks`,
+Headless consumers (public surfaces, portals) import from the root, `./hooks`,
 `./client`, or `./booking-engine` — these pull no styling peers. Styled
 surfaces live under `./ui`, `./components/*`, `./admin`, `./i18n`, and
 `./styles.css`, whose heavier peers (`@voyant-travel/ui`, `@voyant-travel/admin`,

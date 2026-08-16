@@ -1,0 +1,3849 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Voyant Operator API",
+    "version": "0.0.0",
+    "description": "Generated from the composed operator app. Do not edit by hand."
+  },
+  "servers": [
+    {
+      "url": "/",
+      "description": "This deployment (same origin)"
+    }
+  ],
+  "components": {
+    "schemas": {
+      "CatalogSearchFilter": {
+        "anyOf": [
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": ["eq"]
+              },
+              "field": {
+                "type": "string",
+                "minLength": 1
+              },
+              "value": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "boolean"
+                  }
+                ]
+              }
+            },
+            "required": ["kind", "field", "value"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": ["in"]
+              },
+              "field": {
+                "type": "string",
+                "minLength": 1
+              },
+              "values": {
+                "type": "array",
+                "items": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ]
+                }
+              }
+            },
+            "required": ["kind", "field", "values"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": ["range"]
+              },
+              "field": {
+                "type": "string",
+                "minLength": 1
+              },
+              "gte": {
+                "type": "number"
+              },
+              "lte": {
+                "type": "number"
+              }
+            },
+            "required": ["kind", "field"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": ["and"]
+              },
+              "clauses": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/CatalogSearchFilter"
+                }
+              }
+            },
+            "required": ["kind", "clauses"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": ["or"]
+              },
+              "clauses": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/CatalogSearchFilter"
+                }
+              }
+            },
+            "required": ["kind", "clauses"]
+          }
+        ]
+      }
+    },
+    "parameters": {}
+  },
+  "paths": {
+    "/v1/public/finance/travel-credits/validate": {
+      "post": {
+        "x-voyant-api-id": "@voyant-travel/finance#api.public",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "code": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 255
+                  },
+                  "bookingId": {
+                    "type": ["string", "null"]
+                  },
+                  "currency": {
+                    "type": ["string", "null"],
+                    "minLength": 3,
+                    "maxLength": 3
+                  },
+                  "amountCents": {
+                    "type": ["integer", "null"],
+                    "minimum": 1
+                  }
+                },
+                "required": ["code"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Travel credit validity result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "valid": {
+                          "type": "boolean"
+                        },
+                        "reason": {
+                          "type": ["string", "null"],
+                          "enum": [
+                            "not_found",
+                            "inactive",
+                            "not_started",
+                            "expired",
+                            "booking_mismatch",
+                            "currency_mismatch",
+                            "insufficient_balance",
+                            null
+                          ]
+                        },
+                        "travelCredit": {
+                          "type": ["object", "null"],
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "code": {
+                              "type": "string"
+                            },
+                            "currency": {
+                              "type": ["string", "null"]
+                            },
+                            "amountCents": {
+                              "type": ["integer", "null"]
+                            },
+                            "remainingAmountCents": {
+                              "type": ["integer", "null"]
+                            },
+                            "expiresAt": {
+                              "type": ["string", "null"]
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "code",
+                            "currency",
+                            "amountCents",
+                            "remainingAmountCents",
+                            "expiresAt"
+                          ]
+                        }
+                      },
+                      "required": ["valid", "reason", "travelCredit"]
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing or mismatched active storefront channel context",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "postPublicFinanceTravelCreditsValidate",
+        "summary": "POST /v1/public/finance/travel-credits/validate",
+        "tags": ["finance"],
+        "x-voyant-module": "finance",
+        "x-voyant-surface": "public-api"
+      }
+    },
+    "/v1/public/finance/documents/by-reference": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 255
+            },
+            "required": true,
+            "name": "reference",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": ["invoice", "proforma", "credit_note"]
+            },
+            "required": false,
+            "name": "invoiceType",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Finance document resolved by external reference",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "invoiceId": {
+                          "type": "string"
+                        },
+                        "invoiceNumber": {
+                          "type": "string"
+                        },
+                        "invoiceType": {
+                          "type": "string",
+                          "enum": ["invoice", "proforma", "credit_note"]
+                        },
+                        "invoiceStatus": {
+                          "type": "string",
+                          "enum": [
+                            "draft",
+                            "pending_external_allocation",
+                            "issued",
+                            "partially_paid",
+                            "paid",
+                            "overdue",
+                            "void"
+                          ]
+                        },
+                        "currency": {
+                          "type": "string"
+                        },
+                        "totalCents": {
+                          "type": "integer"
+                        },
+                        "paidCents": {
+                          "type": "integer"
+                        },
+                        "balanceDueCents": {
+                          "type": "integer"
+                        },
+                        "issueDate": {
+                          "type": "string"
+                        },
+                        "dueDate": {
+                          "type": "string"
+                        },
+                        "renditionId": {
+                          "type": ["string", "null"]
+                        },
+                        "documentStatus": {
+                          "type": "string",
+                          "enum": ["missing", "pending", "ready", "failed", "stale"]
+                        },
+                        "format": {
+                          "type": ["string", "null"],
+                          "enum": ["html", "pdf", "xml", "json", null]
+                        },
+                        "language": {
+                          "type": ["string", "null"]
+                        },
+                        "generatedAt": {
+                          "type": ["string", "null"]
+                        },
+                        "fileSize": {
+                          "type": ["integer", "null"]
+                        },
+                        "checksum": {
+                          "type": ["string", "null"]
+                        },
+                        "downloadUrl": {
+                          "type": ["string", "null"]
+                        },
+                        "bookingId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "invoiceId",
+                        "invoiceNumber",
+                        "invoiceType",
+                        "invoiceStatus",
+                        "currency",
+                        "totalCents",
+                        "paidCents",
+                        "balanceDueCents",
+                        "issueDate",
+                        "dueDate",
+                        "renditionId",
+                        "documentStatus",
+                        "format",
+                        "language",
+                        "generatedAt",
+                        "fileSize",
+                        "checksum",
+                        "downloadUrl",
+                        "bookingId"
+                      ]
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing or mismatched active storefront channel context",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Finance document not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "getPublicFinanceDocumentsByReference",
+        "summary": "GET /v1/public/finance/documents/by-reference",
+        "tags": ["finance"],
+        "x-voyant-module": "finance",
+        "x-voyant-surface": "public-api"
+      }
+    },
+    "/v1/public/finance/bookings/{bookingId}/documents": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "bookingId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Finance documents for a booking",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "bookingId": {
+                          "type": "string"
+                        },
+                        "documents": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "invoiceId": {
+                                "type": "string"
+                              },
+                              "invoiceNumber": {
+                                "type": "string"
+                              },
+                              "invoiceType": {
+                                "type": "string",
+                                "enum": ["invoice", "proforma", "credit_note"]
+                              },
+                              "invoiceStatus": {
+                                "type": "string",
+                                "enum": [
+                                  "draft",
+                                  "pending_external_allocation",
+                                  "issued",
+                                  "partially_paid",
+                                  "paid",
+                                  "overdue",
+                                  "void"
+                                ]
+                              },
+                              "currency": {
+                                "type": "string"
+                              },
+                              "totalCents": {
+                                "type": "integer"
+                              },
+                              "paidCents": {
+                                "type": "integer"
+                              },
+                              "balanceDueCents": {
+                                "type": "integer"
+                              },
+                              "issueDate": {
+                                "type": "string"
+                              },
+                              "dueDate": {
+                                "type": "string"
+                              },
+                              "renditionId": {
+                                "type": ["string", "null"]
+                              },
+                              "documentStatus": {
+                                "type": "string",
+                                "enum": ["missing", "pending", "ready", "failed", "stale"]
+                              },
+                              "format": {
+                                "type": ["string", "null"],
+                                "enum": ["html", "pdf", "xml", "json", null]
+                              },
+                              "language": {
+                                "type": ["string", "null"]
+                              },
+                              "generatedAt": {
+                                "type": ["string", "null"]
+                              },
+                              "fileSize": {
+                                "type": ["integer", "null"]
+                              },
+                              "checksum": {
+                                "type": ["string", "null"]
+                              },
+                              "downloadUrl": {
+                                "type": ["string", "null"]
+                              }
+                            },
+                            "required": [
+                              "invoiceId",
+                              "invoiceNumber",
+                              "invoiceType",
+                              "invoiceStatus",
+                              "currency",
+                              "totalCents",
+                              "paidCents",
+                              "balanceDueCents",
+                              "issueDate",
+                              "dueDate",
+                              "renditionId",
+                              "documentStatus",
+                              "format",
+                              "language",
+                              "generatedAt",
+                              "fileSize",
+                              "checksum",
+                              "downloadUrl"
+                            ]
+                          }
+                        }
+                      },
+                      "required": ["bookingId", "documents"]
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing or mismatched active storefront channel context",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Booking documents not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "getPublicFinanceBookingsByBookingIdDocuments",
+        "summary": "GET /v1/public/finance/bookings/{bookingId}/documents",
+        "tags": ["finance"],
+        "x-voyant-module": "finance",
+        "x-voyant-surface": "public-api"
+      }
+    },
+    "/v1/public/finance/bookings/{bookingId}/documents/by-reference": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "bookingId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 255
+            },
+            "required": true,
+            "name": "reference",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": ["invoice", "proforma", "credit_note"]
+            },
+            "required": false,
+            "name": "invoiceType",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Finance document for a booking resolved by external reference",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "invoiceId": {
+                          "type": "string"
+                        },
+                        "invoiceNumber": {
+                          "type": "string"
+                        },
+                        "invoiceType": {
+                          "type": "string",
+                          "enum": ["invoice", "proforma", "credit_note"]
+                        },
+                        "invoiceStatus": {
+                          "type": "string",
+                          "enum": [
+                            "draft",
+                            "pending_external_allocation",
+                            "issued",
+                            "partially_paid",
+                            "paid",
+                            "overdue",
+                            "void"
+                          ]
+                        },
+                        "currency": {
+                          "type": "string"
+                        },
+                        "totalCents": {
+                          "type": "integer"
+                        },
+                        "paidCents": {
+                          "type": "integer"
+                        },
+                        "balanceDueCents": {
+                          "type": "integer"
+                        },
+                        "issueDate": {
+                          "type": "string"
+                        },
+                        "dueDate": {
+                          "type": "string"
+                        },
+                        "renditionId": {
+                          "type": ["string", "null"]
+                        },
+                        "documentStatus": {
+                          "type": "string",
+                          "enum": ["missing", "pending", "ready", "failed", "stale"]
+                        },
+                        "format": {
+                          "type": ["string", "null"],
+                          "enum": ["html", "pdf", "xml", "json", null]
+                        },
+                        "language": {
+                          "type": ["string", "null"]
+                        },
+                        "generatedAt": {
+                          "type": ["string", "null"]
+                        },
+                        "fileSize": {
+                          "type": ["integer", "null"]
+                        },
+                        "checksum": {
+                          "type": ["string", "null"]
+                        },
+                        "downloadUrl": {
+                          "type": ["string", "null"]
+                        },
+                        "bookingId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "invoiceId",
+                        "invoiceNumber",
+                        "invoiceType",
+                        "invoiceStatus",
+                        "currency",
+                        "totalCents",
+                        "paidCents",
+                        "balanceDueCents",
+                        "issueDate",
+                        "dueDate",
+                        "renditionId",
+                        "documentStatus",
+                        "format",
+                        "language",
+                        "generatedAt",
+                        "fileSize",
+                        "checksum",
+                        "downloadUrl",
+                        "bookingId"
+                      ]
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing or mismatched active storefront channel context",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Finance document not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "getPublicFinanceBookingsByBookingIdDocumentsByReference",
+        "summary": "GET /v1/public/finance/bookings/{bookingId}/documents/by-reference",
+        "tags": ["finance"],
+        "x-voyant-module": "finance",
+        "x-voyant-surface": "public-api"
+      }
+    },
+    "/v1/public/finance/bookings/{bookingId}/payments": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "bookingId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payments recorded against a booking",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "bookingId": {
+                          "type": "string"
+                        },
+                        "payments": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "source": {
+                                "type": "string",
+                                "enum": ["payment", "travel_credit_redemption"],
+                                "default": "payment"
+                              },
+                              "invoiceId": {
+                                "type": ["string", "null"]
+                              },
+                              "invoiceNumber": {
+                                "type": ["string", "null"]
+                              },
+                              "invoiceType": {
+                                "type": ["string", "null"],
+                                "enum": ["invoice", "proforma", "credit_note", null]
+                              },
+                              "status": {
+                                "type": "string",
+                                "enum": ["pending", "completed", "failed", "refunded"]
+                              },
+                              "paymentMethod": {
+                                "type": "string",
+                                "enum": [
+                                  "bank_transfer",
+                                  "credit_card",
+                                  "debit_card",
+                                  "cash",
+                                  "cheque",
+                                  "wallet",
+                                  "direct_bill",
+                                  "travel_credit",
+                                  "other"
+                                ]
+                              },
+                              "amountCents": {
+                                "type": "integer"
+                              },
+                              "currency": {
+                                "type": "string"
+                              },
+                              "baseCurrency": {
+                                "type": ["string", "null"]
+                              },
+                              "baseAmountCents": {
+                                "type": ["integer", "null"]
+                              },
+                              "paymentDate": {
+                                "type": "string"
+                              },
+                              "referenceNumber": {
+                                "type": ["string", "null"]
+                              },
+                              "notes": {
+                                "type": ["string", "null"]
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "invoiceId",
+                              "invoiceNumber",
+                              "invoiceType",
+                              "status",
+                              "paymentMethod",
+                              "amountCents",
+                              "currency",
+                              "baseCurrency",
+                              "baseAmountCents",
+                              "paymentDate",
+                              "referenceNumber",
+                              "notes"
+                            ]
+                          }
+                        }
+                      },
+                      "required": ["bookingId", "payments"]
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing or mismatched active storefront channel context",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Booking payments not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "getPublicFinanceBookingsByBookingIdPayments",
+        "summary": "GET /v1/public/finance/bookings/{bookingId}/payments",
+        "tags": ["finance"],
+        "x-voyant-module": "finance",
+        "x-voyant-surface": "public-api"
+      }
+    },
+    "/v1/public/finance/bookings/{bookingId}/payment-options": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "bookingId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "name": "personId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "name": "organizationId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "name": "provider",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "credit_card",
+                "debit_card",
+                "bank_account",
+                "wallet",
+                "travel_credit",
+                "direct_bill",
+                "cash",
+                "other"
+              ]
+            },
+            "required": false,
+            "name": "instrumentType",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": ["boolean", "null"],
+              "default": false
+            },
+            "required": false,
+            "name": "includeInactive",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payment options (instruments, schedules, guarantees) for a booking",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "bookingId": {
+                          "type": "string"
+                        },
+                        "accounts": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "label": {
+                                "type": "string"
+                              },
+                              "provider": {
+                                "type": ["string", "null"]
+                              },
+                              "instrumentType": {
+                                "type": "string",
+                                "enum": [
+                                  "credit_card",
+                                  "debit_card",
+                                  "bank_account",
+                                  "wallet",
+                                  "travel_credit",
+                                  "direct_bill",
+                                  "cash",
+                                  "other"
+                                ]
+                              },
+                              "status": {
+                                "type": "string",
+                                "enum": [
+                                  "active",
+                                  "inactive",
+                                  "expired",
+                                  "revoked",
+                                  "failed_verification"
+                                ]
+                              },
+                              "brand": {
+                                "type": ["string", "null"]
+                              },
+                              "last4": {
+                                "type": ["string", "null"]
+                              },
+                              "expiryMonth": {
+                                "type": ["integer", "null"]
+                              },
+                              "expiryYear": {
+                                "type": ["integer", "null"]
+                              },
+                              "isDefault": {
+                                "type": "boolean"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "label",
+                              "provider",
+                              "instrumentType",
+                              "status",
+                              "brand",
+                              "last4",
+                              "expiryMonth",
+                              "expiryYear",
+                              "isDefault"
+                            ]
+                          }
+                        },
+                        "schedules": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "scheduleType": {
+                                "type": "string",
+                                "enum": ["deposit", "installment", "balance", "hold", "other"]
+                              },
+                              "status": {
+                                "type": "string",
+                                "enum": ["pending", "due", "paid", "waived", "cancelled", "expired"]
+                              },
+                              "dueDate": {
+                                "type": "string"
+                              },
+                              "dueTimeZone": {
+                                "type": "string"
+                              },
+                              "currency": {
+                                "type": "string"
+                              },
+                              "amountCents": {
+                                "type": "integer"
+                              },
+                              "notes": {
+                                "type": ["string", "null"]
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "scheduleType",
+                              "status",
+                              "dueDate",
+                              "dueTimeZone",
+                              "currency",
+                              "amountCents",
+                              "notes"
+                            ]
+                          }
+                        },
+                        "guarantees": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "bookingPaymentScheduleId": {
+                                "type": ["string", "null"]
+                              },
+                              "guaranteeType": {
+                                "type": "string"
+                              },
+                              "status": {
+                                "type": "string"
+                              },
+                              "currency": {
+                                "type": ["string", "null"]
+                              },
+                              "amountCents": {
+                                "type": ["integer", "null"]
+                              },
+                              "provider": {
+                                "type": ["string", "null"]
+                              },
+                              "referenceNumber": {
+                                "type": ["string", "null"]
+                              },
+                              "expiresAt": {
+                                "type": ["string", "null"]
+                              },
+                              "notes": {
+                                "type": ["string", "null"]
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "bookingPaymentScheduleId",
+                              "guaranteeType",
+                              "status",
+                              "currency",
+                              "amountCents",
+                              "provider",
+                              "referenceNumber",
+                              "expiresAt",
+                              "notes"
+                            ]
+                          }
+                        },
+                        "recommendedTarget": {
+                          "type": ["object", "null"],
+                          "properties": {
+                            "targetType": {
+                              "type": ["string", "null"],
+                              "enum": ["booking_payment_schedule", "booking_guarantee", null]
+                            },
+                            "targetId": {
+                              "type": ["string", "null"]
+                            }
+                          },
+                          "required": ["targetType", "targetId"]
+                        }
+                      },
+                      "required": [
+                        "bookingId",
+                        "accounts",
+                        "schedules",
+                        "guarantees",
+                        "recommendedTarget"
+                      ]
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing or mismatched active storefront channel context",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Booking payment options not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "getPublicFinanceBookingsByBookingIdPaymentOptions",
+        "summary": "GET /v1/public/finance/bookings/{bookingId}/payment-options",
+        "tags": ["finance"],
+        "x-voyant-module": "finance",
+        "x-voyant-surface": "public-api"
+      }
+    },
+    "/v1/public/finance/payment-sessions/{sessionId}": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "sessionId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A redacted public payment-session projection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "target": {
+                          "oneOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "enum": ["booking"]
+                                },
+                                "bookingId": {
+                                  "type": "string",
+                                  "minLength": 1
+                                }
+                              },
+                              "required": ["type", "bookingId"]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "enum": ["invoice"]
+                                },
+                                "invoiceId": {
+                                  "type": "string",
+                                  "minLength": 1
+                                }
+                              },
+                              "required": ["type", "invoiceId"]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "enum": ["booking_payment_schedule"]
+                                },
+                                "bookingPaymentScheduleId": {
+                                  "type": "string",
+                                  "minLength": 1
+                                }
+                              },
+                              "required": ["type", "bookingPaymentScheduleId"]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "enum": ["booking_guarantee"]
+                                },
+                                "bookingGuaranteeId": {
+                                  "type": "string",
+                                  "minLength": 1
+                                }
+                              },
+                              "required": ["type", "bookingGuaranteeId"]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "enum": ["flight_order"]
+                                },
+                                "flightOrderId": {
+                                  "type": "string",
+                                  "minLength": 1
+                                }
+                              },
+                              "required": ["type", "flightOrderId"]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "enum": ["program"]
+                                },
+                                "programId": {
+                                  "type": "string",
+                                  "minLength": 1
+                                }
+                              },
+                              "required": ["type", "programId"]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "enum": ["supplier_settlement"]
+                                },
+                                "supplierSettlementId": {
+                                  "type": "string",
+                                  "minLength": 1
+                                }
+                              },
+                              "required": ["type", "supplierSettlementId"]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "enum": ["channel_settlement"]
+                                },
+                                "channelSettlementId": {
+                                  "type": "string",
+                                  "minLength": 1
+                                }
+                              },
+                              "required": ["type", "channelSettlementId"]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "enum": ["provider_reference"]
+                                },
+                                "provider": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 255
+                                },
+                                "reference": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 255
+                                }
+                              },
+                              "required": ["type", "provider", "reference"]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "enum": ["legacy_order"]
+                                },
+                                "legacyOrderId": {
+                                  "type": "string",
+                                  "minLength": 1
+                                }
+                              },
+                              "required": ["type", "legacyOrderId"]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "provenance": {
+                          "type": ["object", "null"],
+                          "properties": {
+                            "source": {
+                              "type": "string",
+                              "enum": [
+                                "operator",
+                                "storefront",
+                                "customer_portal",
+                                "payment_provider",
+                                "supplier_channel",
+                                "migration",
+                                "other"
+                              ],
+                              "default": "operator"
+                            },
+                            "provider": {
+                              "type": ["string", "null"],
+                              "maxLength": 255
+                            },
+                            "reference": {
+                              "type": ["string", "null"],
+                              "maxLength": 255
+                            },
+                            "idempotencyKey": {
+                              "type": ["string", "null"],
+                              "maxLength": 255
+                            }
+                          }
+                        },
+                        "targetType": {
+                          "type": "string",
+                          "enum": [
+                            "booking",
+                            "order",
+                            "invoice",
+                            "booking_payment_schedule",
+                            "booking_guarantee",
+                            "flight_order",
+                            "other"
+                          ]
+                        },
+                        "targetId": {
+                          "type": ["string", "null"]
+                        },
+                        "bookingId": {
+                          "type": ["string", "null"]
+                        },
+                        "legacyOrderId": {
+                          "type": ["string", "null"]
+                        },
+                        "invoiceId": {
+                          "type": ["string", "null"]
+                        },
+                        "bookingPaymentScheduleId": {
+                          "type": ["string", "null"]
+                        },
+                        "bookingGuaranteeId": {
+                          "type": ["string", "null"]
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "pending",
+                            "requires_redirect",
+                            "processing",
+                            "authorized",
+                            "paid",
+                            "failed",
+                            "cancelled",
+                            "expired"
+                          ]
+                        },
+                        "provider": {
+                          "type": ["string", "null"]
+                        },
+                        "providerSessionId": {
+                          "type": ["string", "null"]
+                        },
+                        "providerPaymentId": {
+                          "type": ["string", "null"]
+                        },
+                        "externalReference": {
+                          "type": ["string", "null"]
+                        },
+                        "clientReference": {
+                          "type": ["string", "null"]
+                        },
+                        "currency": {
+                          "type": "string"
+                        },
+                        "amountCents": {
+                          "type": "integer"
+                        },
+                        "paymentMethod": {
+                          "type": ["string", "null"],
+                          "enum": [
+                            "bank_transfer",
+                            "credit_card",
+                            "debit_card",
+                            "cash",
+                            "cheque",
+                            "wallet",
+                            "direct_bill",
+                            "travel_credit",
+                            "other",
+                            null
+                          ]
+                        },
+                        "payerEmail": {
+                          "type": ["string", "null"]
+                        },
+                        "payerName": {
+                          "type": ["string", "null"]
+                        },
+                        "redirectUrl": {
+                          "type": ["string", "null"]
+                        },
+                        "returnUrl": {
+                          "type": ["string", "null"]
+                        },
+                        "cancelUrl": {
+                          "type": ["string", "null"]
+                        },
+                        "expiresAt": {
+                          "type": ["string", "null"]
+                        },
+                        "completedAt": {
+                          "type": ["string", "null"]
+                        },
+                        "failureCode": {
+                          "type": ["string", "null"]
+                        },
+                        "failureMessage": {
+                          "type": ["string", "null"]
+                        },
+                        "notes": {
+                          "type": ["string", "null"]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "targetType",
+                        "targetId",
+                        "bookingId",
+                        "invoiceId",
+                        "bookingPaymentScheduleId",
+                        "bookingGuaranteeId",
+                        "status",
+                        "provider",
+                        "providerSessionId",
+                        "providerPaymentId",
+                        "externalReference",
+                        "clientReference",
+                        "currency",
+                        "amountCents",
+                        "paymentMethod",
+                        "payerEmail",
+                        "payerName",
+                        "redirectUrl",
+                        "returnUrl",
+                        "cancelUrl",
+                        "expiresAt",
+                        "completedAt",
+                        "failureCode",
+                        "failureMessage",
+                        "notes"
+                      ]
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing or mismatched active storefront channel context",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Payment session not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "getPublicFinancePaymentSessionsBySessionId",
+        "summary": "GET /v1/public/finance/payment-sessions/{sessionId}",
+        "tags": ["finance"],
+        "x-voyant-module": "finance",
+        "x-voyant-surface": "public-api"
+      }
+    },
+    "/v1/public/finance/bookings/{bookingId}/payment-schedules/{scheduleId}/payment-session": {
+      "post": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "bookingId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "scheduleId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "target": {
+                    "oneOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string",
+                            "enum": ["booking"]
+                          },
+                          "bookingId": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": ["type", "bookingId"]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string",
+                            "enum": ["invoice"]
+                          },
+                          "invoiceId": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": ["type", "invoiceId"]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string",
+                            "enum": ["booking_payment_schedule"]
+                          },
+                          "bookingPaymentScheduleId": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": ["type", "bookingPaymentScheduleId"]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string",
+                            "enum": ["booking_guarantee"]
+                          },
+                          "bookingGuaranteeId": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": ["type", "bookingGuaranteeId"]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string",
+                            "enum": ["flight_order"]
+                          },
+                          "flightOrderId": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": ["type", "flightOrderId"]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string",
+                            "enum": ["program"]
+                          },
+                          "programId": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": ["type", "programId"]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string",
+                            "enum": ["supplier_settlement"]
+                          },
+                          "supplierSettlementId": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": ["type", "supplierSettlementId"]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string",
+                            "enum": ["channel_settlement"]
+                          },
+                          "channelSettlementId": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": ["type", "channelSettlementId"]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string",
+                            "enum": ["provider_reference"]
+                          },
+                          "provider": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 255
+                          },
+                          "reference": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 255
+                          }
+                        },
+                        "required": ["type", "provider", "reference"]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string",
+                            "enum": ["legacy_order"]
+                          },
+                          "legacyOrderId": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": ["type", "legacyOrderId"]
+                      }
+                    ]
+                  },
+                  "provenance": {
+                    "type": "object",
+                    "properties": {
+                      "source": {
+                        "type": "string",
+                        "enum": [
+                          "operator",
+                          "storefront",
+                          "customer_portal",
+                          "payment_provider",
+                          "supplier_channel",
+                          "migration",
+                          "other"
+                        ],
+                        "default": "operator"
+                      },
+                      "provider": {
+                        "type": ["string", "null"],
+                        "maxLength": 255
+                      },
+                      "reference": {
+                        "type": ["string", "null"],
+                        "maxLength": 255
+                      },
+                      "idempotencyKey": {
+                        "type": ["string", "null"],
+                        "maxLength": 255
+                      }
+                    }
+                  },
+                  "provider": {
+                    "type": ["string", "null"],
+                    "maxLength": 255
+                  },
+                  "paymentMethod": {
+                    "type": ["string", "null"],
+                    "enum": [
+                      "bank_transfer",
+                      "credit_card",
+                      "debit_card",
+                      "cash",
+                      "cheque",
+                      "wallet",
+                      "direct_bill",
+                      "travel_credit",
+                      "other",
+                      null
+                    ]
+                  },
+                  "paymentInstrumentId": {
+                    "type": ["string", "null"]
+                  },
+                  "payerPersonId": {
+                    "type": ["string", "null"]
+                  },
+                  "payerOrganizationId": {
+                    "type": ["string", "null"]
+                  },
+                  "payerEmail": {
+                    "type": ["string", "null"],
+                    "format": "email"
+                  },
+                  "payerName": {
+                    "type": ["string", "null"],
+                    "maxLength": 255
+                  },
+                  "externalReference": {
+                    "type": ["string", "null"],
+                    "maxLength": 255
+                  },
+                  "idempotencyKey": {
+                    "type": ["string", "null"],
+                    "maxLength": 255
+                  },
+                  "clientReference": {
+                    "type": ["string", "null"],
+                    "maxLength": 255
+                  },
+                  "returnUrl": {
+                    "type": ["string", "null"],
+                    "format": "uri"
+                  },
+                  "cancelUrl": {
+                    "type": ["string", "null"],
+                    "format": "uri"
+                  },
+                  "callbackUrl": {
+                    "type": ["string", "null"],
+                    "format": "uri"
+                  },
+                  "expiresAt": {
+                    "type": ["string", "null"]
+                  },
+                  "notes": {
+                    "type": ["string", "null"]
+                  },
+                  "providerPayload": {
+                    "type": ["object", "null"],
+                    "additionalProperties": {}
+                  },
+                  "metadata": {
+                    "type": ["object", "null"],
+                    "additionalProperties": {}
+                  },
+                  "providerConnectionId": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "nullable": true,
+                    "description": "Selects a specific payment provider connection when the deployment has more than one."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Started payment session for a booking payment schedule",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "target": {
+                          "oneOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "enum": ["booking"]
+                                },
+                                "bookingId": {
+                                  "type": "string",
+                                  "minLength": 1
+                                }
+                              },
+                              "required": ["type", "bookingId"]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "enum": ["invoice"]
+                                },
+                                "invoiceId": {
+                                  "type": "string",
+                                  "minLength": 1
+                                }
+                              },
+                              "required": ["type", "invoiceId"]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "enum": ["booking_payment_schedule"]
+                                },
+                                "bookingPaymentScheduleId": {
+                                  "type": "string",
+                                  "minLength": 1
+                                }
+                              },
+                              "required": ["type", "bookingPaymentScheduleId"]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "enum": ["booking_guarantee"]
+                                },
+                                "bookingGuaranteeId": {
+                                  "type": "string",
+                                  "minLength": 1
+                                }
+                              },
+                              "required": ["type", "bookingGuaranteeId"]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "enum": ["flight_order"]
+                                },
+                                "flightOrderId": {
+                                  "type": "string",
+                                  "minLength": 1
+                                }
+                              },
+                              "required": ["type", "flightOrderId"]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "enum": ["program"]
+                                },
+                                "programId": {
+                                  "type": "string",
+                                  "minLength": 1
+                                }
+                              },
+                              "required": ["type", "programId"]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "enum": ["supplier_settlement"]
+                                },
+                                "supplierSettlementId": {
+                                  "type": "string",
+                                  "minLength": 1
+                                }
+                              },
+                              "required": ["type", "supplierSettlementId"]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "enum": ["channel_settlement"]
+                                },
+                                "channelSettlementId": {
+                                  "type": "string",
+                                  "minLength": 1
+                                }
+                              },
+                              "required": ["type", "channelSettlementId"]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "enum": ["provider_reference"]
+                                },
+                                "provider": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 255
+                                },
+                                "reference": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 255
+                                }
+                              },
+                              "required": ["type", "provider", "reference"]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "enum": ["legacy_order"]
+                                },
+                                "legacyOrderId": {
+                                  "type": "string",
+                                  "minLength": 1
+                                }
+                              },
+                              "required": ["type", "legacyOrderId"]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "provenance": {
+                          "type": ["object", "null"],
+                          "properties": {
+                            "source": {
+                              "type": "string",
+                              "enum": [
+                                "operator",
+                                "storefront",
+                                "customer_portal",
+                                "payment_provider",
+                                "supplier_channel",
+                                "migration",
+                                "other"
+                              ],
+                              "default": "operator"
+                            },
+                            "provider": {
+                              "type": ["string", "null"],
+                              "maxLength": 255
+                            },
+                            "reference": {
+                              "type": ["string", "null"],
+                              "maxLength": 255
+                            },
+                            "idempotencyKey": {
+                              "type": ["string", "null"],
+                              "maxLength": 255
+                            }
+                          }
+                        },
+                        "targetType": {
+                          "type": "string",
+                          "enum": [
+                            "booking",
+                            "order",
+                            "invoice",
+                            "booking_payment_schedule",
+                            "booking_guarantee",
+                            "flight_order",
+                            "other"
+                          ]
+                        },
+                        "targetId": {
+                          "type": ["string", "null"]
+                        },
+                        "bookingId": {
+                          "type": ["string", "null"]
+                        },
+                        "legacyOrderId": {
+                          "type": ["string", "null"]
+                        },
+                        "invoiceId": {
+                          "type": ["string", "null"]
+                        },
+                        "bookingPaymentScheduleId": {
+                          "type": ["string", "null"]
+                        },
+                        "bookingGuaranteeId": {
+                          "type": ["string", "null"]
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "pending",
+                            "requires_redirect",
+                            "processing",
+                            "authorized",
+                            "paid",
+                            "failed",
+                            "cancelled",
+                            "expired"
+                          ]
+                        },
+                        "provider": {
+                          "type": ["string", "null"]
+                        },
+                        "providerSessionId": {
+                          "type": ["string", "null"]
+                        },
+                        "providerPaymentId": {
+                          "type": ["string", "null"]
+                        },
+                        "externalReference": {
+                          "type": ["string", "null"]
+                        },
+                        "clientReference": {
+                          "type": ["string", "null"]
+                        },
+                        "currency": {
+                          "type": "string"
+                        },
+                        "amountCents": {
+                          "type": "integer"
+                        },
+                        "paymentMethod": {
+                          "type": ["string", "null"],
+                          "enum": [
+                            "bank_transfer",
+                            "credit_card",
+                            "debit_card",
+                            "cash",
+                            "cheque",
+                            "wallet",
+                            "direct_bill",
+                            "travel_credit",
+                            "other",
+                            null
+                          ]
+                        },
+                        "payerEmail": {
+                          "type": ["string", "null"]
+                        },
+                        "payerName": {
+                          "type": ["string", "null"]
+                        },
+                        "redirectUrl": {
+                          "type": ["string", "null"]
+                        },
+                        "returnUrl": {
+                          "type": ["string", "null"]
+                        },
+                        "cancelUrl": {
+                          "type": ["string", "null"]
+                        },
+                        "expiresAt": {
+                          "type": ["string", "null"]
+                        },
+                        "completedAt": {
+                          "type": ["string", "null"]
+                        },
+                        "failureCode": {
+                          "type": ["string", "null"]
+                        },
+                        "failureMessage": {
+                          "type": ["string", "null"]
+                        },
+                        "notes": {
+                          "type": ["string", "null"]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "targetType",
+                        "targetId",
+                        "bookingId",
+                        "invoiceId",
+                        "bookingPaymentScheduleId",
+                        "bookingGuaranteeId",
+                        "status",
+                        "provider",
+                        "providerSessionId",
+                        "providerPaymentId",
+                        "externalReference",
+                        "clientReference",
+                        "currency",
+                        "amountCents",
+                        "paymentMethod",
+                        "payerEmail",
+                        "payerName",
+                        "redirectUrl",
+                        "returnUrl",
+                        "cancelUrl",
+                        "expiresAt",
+                        "completedAt",
+                        "failureCode",
+                        "failureMessage",
+                        "notes"
+                      ]
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing or mismatched active storefront channel context",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Booking payment schedule not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Payment session could not be started",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "postPublicFinanceBookingsByBookingIdPaymentSchedulesByScheduleIdPaymentSession",
+        "summary": "POST /v1/public/finance/bookings/{bookingId}/payment-schedules/{scheduleId}/payment-session",
+        "tags": ["finance"],
+        "x-voyant-module": "finance",
+        "x-voyant-surface": "public-api"
+      }
+    },
+    "/v1/public/finance/bookings/{bookingId}/guarantees/{guaranteeId}/payment-session": {
+      "post": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "bookingId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "guaranteeId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "target": {
+                    "oneOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string",
+                            "enum": ["booking"]
+                          },
+                          "bookingId": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": ["type", "bookingId"]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string",
+                            "enum": ["invoice"]
+                          },
+                          "invoiceId": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": ["type", "invoiceId"]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string",
+                            "enum": ["booking_payment_schedule"]
+                          },
+                          "bookingPaymentScheduleId": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": ["type", "bookingPaymentScheduleId"]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string",
+                            "enum": ["booking_guarantee"]
+                          },
+                          "bookingGuaranteeId": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": ["type", "bookingGuaranteeId"]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string",
+                            "enum": ["flight_order"]
+                          },
+                          "flightOrderId": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": ["type", "flightOrderId"]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string",
+                            "enum": ["program"]
+                          },
+                          "programId": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": ["type", "programId"]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string",
+                            "enum": ["supplier_settlement"]
+                          },
+                          "supplierSettlementId": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": ["type", "supplierSettlementId"]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string",
+                            "enum": ["channel_settlement"]
+                          },
+                          "channelSettlementId": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": ["type", "channelSettlementId"]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string",
+                            "enum": ["provider_reference"]
+                          },
+                          "provider": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 255
+                          },
+                          "reference": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 255
+                          }
+                        },
+                        "required": ["type", "provider", "reference"]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string",
+                            "enum": ["legacy_order"]
+                          },
+                          "legacyOrderId": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": ["type", "legacyOrderId"]
+                      }
+                    ]
+                  },
+                  "provenance": {
+                    "type": "object",
+                    "properties": {
+                      "source": {
+                        "type": "string",
+                        "enum": [
+                          "operator",
+                          "storefront",
+                          "customer_portal",
+                          "payment_provider",
+                          "supplier_channel",
+                          "migration",
+                          "other"
+                        ],
+                        "default": "operator"
+                      },
+                      "provider": {
+                        "type": ["string", "null"],
+                        "maxLength": 255
+                      },
+                      "reference": {
+                        "type": ["string", "null"],
+                        "maxLength": 255
+                      },
+                      "idempotencyKey": {
+                        "type": ["string", "null"],
+                        "maxLength": 255
+                      }
+                    }
+                  },
+                  "provider": {
+                    "type": ["string", "null"],
+                    "maxLength": 255
+                  },
+                  "paymentMethod": {
+                    "type": ["string", "null"],
+                    "enum": [
+                      "bank_transfer",
+                      "credit_card",
+                      "debit_card",
+                      "cash",
+                      "cheque",
+                      "wallet",
+                      "direct_bill",
+                      "travel_credit",
+                      "other",
+                      null
+                    ]
+                  },
+                  "paymentInstrumentId": {
+                    "type": ["string", "null"]
+                  },
+                  "payerPersonId": {
+                    "type": ["string", "null"]
+                  },
+                  "payerOrganizationId": {
+                    "type": ["string", "null"]
+                  },
+                  "payerEmail": {
+                    "type": ["string", "null"],
+                    "format": "email"
+                  },
+                  "payerName": {
+                    "type": ["string", "null"],
+                    "maxLength": 255
+                  },
+                  "externalReference": {
+                    "type": ["string", "null"],
+                    "maxLength": 255
+                  },
+                  "idempotencyKey": {
+                    "type": ["string", "null"],
+                    "maxLength": 255
+                  },
+                  "clientReference": {
+                    "type": ["string", "null"],
+                    "maxLength": 255
+                  },
+                  "returnUrl": {
+                    "type": ["string", "null"],
+                    "format": "uri"
+                  },
+                  "cancelUrl": {
+                    "type": ["string", "null"],
+                    "format": "uri"
+                  },
+                  "callbackUrl": {
+                    "type": ["string", "null"],
+                    "format": "uri"
+                  },
+                  "expiresAt": {
+                    "type": ["string", "null"]
+                  },
+                  "notes": {
+                    "type": ["string", "null"]
+                  },
+                  "providerPayload": {
+                    "type": ["object", "null"],
+                    "additionalProperties": {}
+                  },
+                  "metadata": {
+                    "type": ["object", "null"],
+                    "additionalProperties": {}
+                  },
+                  "providerConnectionId": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "nullable": true,
+                    "description": "Selects a specific payment provider connection when the deployment has more than one."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Started payment session for a booking guarantee",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "target": {
+                          "oneOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "enum": ["booking"]
+                                },
+                                "bookingId": {
+                                  "type": "string",
+                                  "minLength": 1
+                                }
+                              },
+                              "required": ["type", "bookingId"]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "enum": ["invoice"]
+                                },
+                                "invoiceId": {
+                                  "type": "string",
+                                  "minLength": 1
+                                }
+                              },
+                              "required": ["type", "invoiceId"]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "enum": ["booking_payment_schedule"]
+                                },
+                                "bookingPaymentScheduleId": {
+                                  "type": "string",
+                                  "minLength": 1
+                                }
+                              },
+                              "required": ["type", "bookingPaymentScheduleId"]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "enum": ["booking_guarantee"]
+                                },
+                                "bookingGuaranteeId": {
+                                  "type": "string",
+                                  "minLength": 1
+                                }
+                              },
+                              "required": ["type", "bookingGuaranteeId"]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "enum": ["flight_order"]
+                                },
+                                "flightOrderId": {
+                                  "type": "string",
+                                  "minLength": 1
+                                }
+                              },
+                              "required": ["type", "flightOrderId"]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "enum": ["program"]
+                                },
+                                "programId": {
+                                  "type": "string",
+                                  "minLength": 1
+                                }
+                              },
+                              "required": ["type", "programId"]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "enum": ["supplier_settlement"]
+                                },
+                                "supplierSettlementId": {
+                                  "type": "string",
+                                  "minLength": 1
+                                }
+                              },
+                              "required": ["type", "supplierSettlementId"]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "enum": ["channel_settlement"]
+                                },
+                                "channelSettlementId": {
+                                  "type": "string",
+                                  "minLength": 1
+                                }
+                              },
+                              "required": ["type", "channelSettlementId"]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "enum": ["provider_reference"]
+                                },
+                                "provider": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 255
+                                },
+                                "reference": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 255
+                                }
+                              },
+                              "required": ["type", "provider", "reference"]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "enum": ["legacy_order"]
+                                },
+                                "legacyOrderId": {
+                                  "type": "string",
+                                  "minLength": 1
+                                }
+                              },
+                              "required": ["type", "legacyOrderId"]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "provenance": {
+                          "type": ["object", "null"],
+                          "properties": {
+                            "source": {
+                              "type": "string",
+                              "enum": [
+                                "operator",
+                                "storefront",
+                                "customer_portal",
+                                "payment_provider",
+                                "supplier_channel",
+                                "migration",
+                                "other"
+                              ],
+                              "default": "operator"
+                            },
+                            "provider": {
+                              "type": ["string", "null"],
+                              "maxLength": 255
+                            },
+                            "reference": {
+                              "type": ["string", "null"],
+                              "maxLength": 255
+                            },
+                            "idempotencyKey": {
+                              "type": ["string", "null"],
+                              "maxLength": 255
+                            }
+                          }
+                        },
+                        "targetType": {
+                          "type": "string",
+                          "enum": [
+                            "booking",
+                            "order",
+                            "invoice",
+                            "booking_payment_schedule",
+                            "booking_guarantee",
+                            "flight_order",
+                            "other"
+                          ]
+                        },
+                        "targetId": {
+                          "type": ["string", "null"]
+                        },
+                        "bookingId": {
+                          "type": ["string", "null"]
+                        },
+                        "legacyOrderId": {
+                          "type": ["string", "null"]
+                        },
+                        "invoiceId": {
+                          "type": ["string", "null"]
+                        },
+                        "bookingPaymentScheduleId": {
+                          "type": ["string", "null"]
+                        },
+                        "bookingGuaranteeId": {
+                          "type": ["string", "null"]
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "pending",
+                            "requires_redirect",
+                            "processing",
+                            "authorized",
+                            "paid",
+                            "failed",
+                            "cancelled",
+                            "expired"
+                          ]
+                        },
+                        "provider": {
+                          "type": ["string", "null"]
+                        },
+                        "providerSessionId": {
+                          "type": ["string", "null"]
+                        },
+                        "providerPaymentId": {
+                          "type": ["string", "null"]
+                        },
+                        "externalReference": {
+                          "type": ["string", "null"]
+                        },
+                        "clientReference": {
+                          "type": ["string", "null"]
+                        },
+                        "currency": {
+                          "type": "string"
+                        },
+                        "amountCents": {
+                          "type": "integer"
+                        },
+                        "paymentMethod": {
+                          "type": ["string", "null"],
+                          "enum": [
+                            "bank_transfer",
+                            "credit_card",
+                            "debit_card",
+                            "cash",
+                            "cheque",
+                            "wallet",
+                            "direct_bill",
+                            "travel_credit",
+                            "other",
+                            null
+                          ]
+                        },
+                        "payerEmail": {
+                          "type": ["string", "null"]
+                        },
+                        "payerName": {
+                          "type": ["string", "null"]
+                        },
+                        "redirectUrl": {
+                          "type": ["string", "null"]
+                        },
+                        "returnUrl": {
+                          "type": ["string", "null"]
+                        },
+                        "cancelUrl": {
+                          "type": ["string", "null"]
+                        },
+                        "expiresAt": {
+                          "type": ["string", "null"]
+                        },
+                        "completedAt": {
+                          "type": ["string", "null"]
+                        },
+                        "failureCode": {
+                          "type": ["string", "null"]
+                        },
+                        "failureMessage": {
+                          "type": ["string", "null"]
+                        },
+                        "notes": {
+                          "type": ["string", "null"]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "targetType",
+                        "targetId",
+                        "bookingId",
+                        "invoiceId",
+                        "bookingPaymentScheduleId",
+                        "bookingGuaranteeId",
+                        "status",
+                        "provider",
+                        "providerSessionId",
+                        "providerPaymentId",
+                        "externalReference",
+                        "clientReference",
+                        "currency",
+                        "amountCents",
+                        "paymentMethod",
+                        "payerEmail",
+                        "payerName",
+                        "redirectUrl",
+                        "returnUrl",
+                        "cancelUrl",
+                        "expiresAt",
+                        "completedAt",
+                        "failureCode",
+                        "failureMessage",
+                        "notes"
+                      ]
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing or mismatched active storefront channel context",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Booking guarantee not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Payment session could not be started",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "postPublicFinanceBookingsByBookingIdGuaranteesByGuaranteeIdPaymentSession",
+        "summary": "POST /v1/public/finance/bookings/{bookingId}/guarantees/{guaranteeId}/payment-session",
+        "tags": ["finance"],
+        "x-voyant-module": "finance",
+        "x-voyant-surface": "public-api"
+      }
+    },
+    "/v1/public/finance/invoices/{invoiceId}/payment-session": {
+      "post": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "invoiceId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "target": {
+                    "oneOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string",
+                            "enum": ["booking"]
+                          },
+                          "bookingId": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": ["type", "bookingId"]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string",
+                            "enum": ["invoice"]
+                          },
+                          "invoiceId": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": ["type", "invoiceId"]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string",
+                            "enum": ["booking_payment_schedule"]
+                          },
+                          "bookingPaymentScheduleId": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": ["type", "bookingPaymentScheduleId"]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string",
+                            "enum": ["booking_guarantee"]
+                          },
+                          "bookingGuaranteeId": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": ["type", "bookingGuaranteeId"]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string",
+                            "enum": ["flight_order"]
+                          },
+                          "flightOrderId": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": ["type", "flightOrderId"]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string",
+                            "enum": ["program"]
+                          },
+                          "programId": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": ["type", "programId"]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string",
+                            "enum": ["supplier_settlement"]
+                          },
+                          "supplierSettlementId": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": ["type", "supplierSettlementId"]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string",
+                            "enum": ["channel_settlement"]
+                          },
+                          "channelSettlementId": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": ["type", "channelSettlementId"]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string",
+                            "enum": ["provider_reference"]
+                          },
+                          "provider": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 255
+                          },
+                          "reference": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 255
+                          }
+                        },
+                        "required": ["type", "provider", "reference"]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string",
+                            "enum": ["legacy_order"]
+                          },
+                          "legacyOrderId": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": ["type", "legacyOrderId"]
+                      }
+                    ]
+                  },
+                  "provenance": {
+                    "type": "object",
+                    "properties": {
+                      "source": {
+                        "type": "string",
+                        "enum": [
+                          "operator",
+                          "storefront",
+                          "customer_portal",
+                          "payment_provider",
+                          "supplier_channel",
+                          "migration",
+                          "other"
+                        ],
+                        "default": "operator"
+                      },
+                      "provider": {
+                        "type": ["string", "null"],
+                        "maxLength": 255
+                      },
+                      "reference": {
+                        "type": ["string", "null"],
+                        "maxLength": 255
+                      },
+                      "idempotencyKey": {
+                        "type": ["string", "null"],
+                        "maxLength": 255
+                      }
+                    }
+                  },
+                  "provider": {
+                    "type": ["string", "null"],
+                    "maxLength": 255
+                  },
+                  "paymentMethod": {
+                    "type": ["string", "null"],
+                    "enum": [
+                      "bank_transfer",
+                      "credit_card",
+                      "debit_card",
+                      "cash",
+                      "cheque",
+                      "wallet",
+                      "direct_bill",
+                      "travel_credit",
+                      "other",
+                      null
+                    ]
+                  },
+                  "paymentInstrumentId": {
+                    "type": ["string", "null"]
+                  },
+                  "payerPersonId": {
+                    "type": ["string", "null"]
+                  },
+                  "payerOrganizationId": {
+                    "type": ["string", "null"]
+                  },
+                  "payerEmail": {
+                    "type": ["string", "null"],
+                    "format": "email"
+                  },
+                  "payerName": {
+                    "type": ["string", "null"],
+                    "maxLength": 255
+                  },
+                  "externalReference": {
+                    "type": ["string", "null"],
+                    "maxLength": 255
+                  },
+                  "idempotencyKey": {
+                    "type": ["string", "null"],
+                    "maxLength": 255
+                  },
+                  "clientReference": {
+                    "type": ["string", "null"],
+                    "maxLength": 255
+                  },
+                  "returnUrl": {
+                    "type": ["string", "null"],
+                    "format": "uri"
+                  },
+                  "cancelUrl": {
+                    "type": ["string", "null"],
+                    "format": "uri"
+                  },
+                  "callbackUrl": {
+                    "type": ["string", "null"],
+                    "format": "uri"
+                  },
+                  "expiresAt": {
+                    "type": ["string", "null"]
+                  },
+                  "notes": {
+                    "type": ["string", "null"]
+                  },
+                  "providerPayload": {
+                    "type": ["object", "null"],
+                    "additionalProperties": {}
+                  },
+                  "metadata": {
+                    "type": ["object", "null"],
+                    "additionalProperties": {}
+                  },
+                  "providerConnectionId": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "nullable": true,
+                    "description": "Selects a specific payment provider connection when the deployment has more than one."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Started payment session for an invoice",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "target": {
+                          "oneOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "enum": ["booking"]
+                                },
+                                "bookingId": {
+                                  "type": "string",
+                                  "minLength": 1
+                                }
+                              },
+                              "required": ["type", "bookingId"]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "enum": ["invoice"]
+                                },
+                                "invoiceId": {
+                                  "type": "string",
+                                  "minLength": 1
+                                }
+                              },
+                              "required": ["type", "invoiceId"]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "enum": ["booking_payment_schedule"]
+                                },
+                                "bookingPaymentScheduleId": {
+                                  "type": "string",
+                                  "minLength": 1
+                                }
+                              },
+                              "required": ["type", "bookingPaymentScheduleId"]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "enum": ["booking_guarantee"]
+                                },
+                                "bookingGuaranteeId": {
+                                  "type": "string",
+                                  "minLength": 1
+                                }
+                              },
+                              "required": ["type", "bookingGuaranteeId"]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "enum": ["flight_order"]
+                                },
+                                "flightOrderId": {
+                                  "type": "string",
+                                  "minLength": 1
+                                }
+                              },
+                              "required": ["type", "flightOrderId"]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "enum": ["program"]
+                                },
+                                "programId": {
+                                  "type": "string",
+                                  "minLength": 1
+                                }
+                              },
+                              "required": ["type", "programId"]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "enum": ["supplier_settlement"]
+                                },
+                                "supplierSettlementId": {
+                                  "type": "string",
+                                  "minLength": 1
+                                }
+                              },
+                              "required": ["type", "supplierSettlementId"]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "enum": ["channel_settlement"]
+                                },
+                                "channelSettlementId": {
+                                  "type": "string",
+                                  "minLength": 1
+                                }
+                              },
+                              "required": ["type", "channelSettlementId"]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "enum": ["provider_reference"]
+                                },
+                                "provider": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 255
+                                },
+                                "reference": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 255
+                                }
+                              },
+                              "required": ["type", "provider", "reference"]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "enum": ["legacy_order"]
+                                },
+                                "legacyOrderId": {
+                                  "type": "string",
+                                  "minLength": 1
+                                }
+                              },
+                              "required": ["type", "legacyOrderId"]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "provenance": {
+                          "type": ["object", "null"],
+                          "properties": {
+                            "source": {
+                              "type": "string",
+                              "enum": [
+                                "operator",
+                                "storefront",
+                                "customer_portal",
+                                "payment_provider",
+                                "supplier_channel",
+                                "migration",
+                                "other"
+                              ],
+                              "default": "operator"
+                            },
+                            "provider": {
+                              "type": ["string", "null"],
+                              "maxLength": 255
+                            },
+                            "reference": {
+                              "type": ["string", "null"],
+                              "maxLength": 255
+                            },
+                            "idempotencyKey": {
+                              "type": ["string", "null"],
+                              "maxLength": 255
+                            }
+                          }
+                        },
+                        "targetType": {
+                          "type": "string",
+                          "enum": [
+                            "booking",
+                            "order",
+                            "invoice",
+                            "booking_payment_schedule",
+                            "booking_guarantee",
+                            "flight_order",
+                            "other"
+                          ]
+                        },
+                        "targetId": {
+                          "type": ["string", "null"]
+                        },
+                        "bookingId": {
+                          "type": ["string", "null"]
+                        },
+                        "legacyOrderId": {
+                          "type": ["string", "null"]
+                        },
+                        "invoiceId": {
+                          "type": ["string", "null"]
+                        },
+                        "bookingPaymentScheduleId": {
+                          "type": ["string", "null"]
+                        },
+                        "bookingGuaranteeId": {
+                          "type": ["string", "null"]
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "pending",
+                            "requires_redirect",
+                            "processing",
+                            "authorized",
+                            "paid",
+                            "failed",
+                            "cancelled",
+                            "expired"
+                          ]
+                        },
+                        "provider": {
+                          "type": ["string", "null"]
+                        },
+                        "providerSessionId": {
+                          "type": ["string", "null"]
+                        },
+                        "providerPaymentId": {
+                          "type": ["string", "null"]
+                        },
+                        "externalReference": {
+                          "type": ["string", "null"]
+                        },
+                        "clientReference": {
+                          "type": ["string", "null"]
+                        },
+                        "currency": {
+                          "type": "string"
+                        },
+                        "amountCents": {
+                          "type": "integer"
+                        },
+                        "paymentMethod": {
+                          "type": ["string", "null"],
+                          "enum": [
+                            "bank_transfer",
+                            "credit_card",
+                            "debit_card",
+                            "cash",
+                            "cheque",
+                            "wallet",
+                            "direct_bill",
+                            "travel_credit",
+                            "other",
+                            null
+                          ]
+                        },
+                        "payerEmail": {
+                          "type": ["string", "null"]
+                        },
+                        "payerName": {
+                          "type": ["string", "null"]
+                        },
+                        "redirectUrl": {
+                          "type": ["string", "null"]
+                        },
+                        "returnUrl": {
+                          "type": ["string", "null"]
+                        },
+                        "cancelUrl": {
+                          "type": ["string", "null"]
+                        },
+                        "expiresAt": {
+                          "type": ["string", "null"]
+                        },
+                        "completedAt": {
+                          "type": ["string", "null"]
+                        },
+                        "failureCode": {
+                          "type": ["string", "null"]
+                        },
+                        "failureMessage": {
+                          "type": ["string", "null"]
+                        },
+                        "notes": {
+                          "type": ["string", "null"]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "targetType",
+                        "targetId",
+                        "bookingId",
+                        "invoiceId",
+                        "bookingPaymentScheduleId",
+                        "bookingGuaranteeId",
+                        "status",
+                        "provider",
+                        "providerSessionId",
+                        "providerPaymentId",
+                        "externalReference",
+                        "clientReference",
+                        "currency",
+                        "amountCents",
+                        "paymentMethod",
+                        "payerEmail",
+                        "payerName",
+                        "redirectUrl",
+                        "returnUrl",
+                        "cancelUrl",
+                        "expiresAt",
+                        "completedAt",
+                        "failureCode",
+                        "failureMessage",
+                        "notes"
+                      ]
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing or mismatched active storefront channel context",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Invoice not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Payment session could not be started",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "postPublicFinanceInvoicesByInvoiceIdPaymentSession",
+        "summary": "POST /v1/public/finance/invoices/{invoiceId}/payment-session",
+        "tags": ["finance"],
+        "x-voyant-module": "finance",
+        "x-voyant-surface": "public-api"
+      }
+    },
+    "/v1/public/finance/accountant/{token}/summary": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "token",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Accountant share profitability summary (scope + departure/product rollups)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "scope": {
+                          "type": "object",
+                          "properties": {
+                            "from": {
+                              "type": ["string", "null"]
+                            },
+                            "to": {
+                              "type": ["string", "null"]
+                            }
+                          }
+                        },
+                        "departures": {},
+                        "products": {}
+                      },
+                      "required": ["scope"]
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Share not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Share expired or revoked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "getPublicFinanceAccountantByTokenSummary",
+        "summary": "GET /v1/public/finance/accountant/{token}/summary",
+        "tags": ["finance"],
+        "x-voyant-module": "finance",
+        "x-voyant-surface": "public-api"
+      }
+    },
+    "/v1/public/finance/accountant/{token}/invoices": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "token",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Invoices (with attachments) visible to an accountant share",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {}
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Share not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Share expired or revoked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "getPublicFinanceAccountantByTokenInvoices",
+        "summary": "GET /v1/public/finance/accountant/{token}/invoices",
+        "tags": ["finance"],
+        "x-voyant-module": "finance",
+        "x-voyant-surface": "public-api"
+      }
+    }
+  },
+  "webhooks": {}
+}

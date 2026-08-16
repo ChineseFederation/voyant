@@ -63,7 +63,7 @@ const DEFAULT_ALLOWED_REQUEST_HEADERS = new Set([
   "x-request-id",
   "x-voyant-checkout-capability",
   "x-voyant-guest-booking-access",
-  "x-voyant-storefront-origin",
+  "x-voyant-public-origin",
 ])
 
 function allowedRequestHeaders(requested: string | undefined): string {

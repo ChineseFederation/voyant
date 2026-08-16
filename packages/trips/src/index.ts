@@ -61,6 +61,33 @@ export {
   type FlightComponentAdapterOptions,
   previewFlightCancellation,
 } from "./flight-component.js"
+export {
+  type CreatePublicApiTripInput,
+  createPublicApiTrip,
+  createPublicApiTripCapability,
+  PUBLIC_API_TRIP_CAPABILITY_HEADER,
+  PUBLIC_API_TRIP_CAPABILITY_TTL_MS,
+  type PublicApiTripAccessOptions,
+  type PublicApiTripAccessResolution,
+  type PublicApiTripContext,
+  type PublicApiTripHandle,
+  type PublicApiTripScope,
+  publicApiTripScopeSchema,
+  resolvePublicApiTripAccess,
+} from "./public-api-access.js"
+export {
+  type PublicApiTripOfferResolutionInput,
+  type PublicApiTripOfferResolver,
+  publicApiTripOfferResolverPort,
+} from "./public-api-trip-offer-resolver-port.js"
+export {
+  createPublicApiTripSelectionsRuntime,
+  PublicApiTripSelectionAccessError,
+  PublicApiTripSelectionConflictError,
+  PublicApiTripSelectionMutationError,
+  type PublicApiTripSelectionsRuntimeOptions,
+  PublicApiTripSelectionUnavailableError,
+} from "./public-api-trip-selections-runtime.js"
 export type {
   TripsRoutes,
   TripsRoutesOptions,
@@ -80,33 +107,6 @@ export {
   type TripShoppingReferenceRuntimeOptions,
   type TripShoppingReferenceStore,
 } from "./shopping-opaque-references.js"
-export {
-  type CreateStorefrontTripInput,
-  createStorefrontTrip,
-  createStorefrontTripCapability,
-  resolveStorefrontTripAccess,
-  STOREFRONT_TRIP_CAPABILITY_HEADER,
-  STOREFRONT_TRIP_CAPABILITY_TTL_MS,
-  type StorefrontTripAccessOptions,
-  type StorefrontTripAccessResolution,
-  type StorefrontTripContext,
-  type StorefrontTripHandle,
-  type StorefrontTripScope,
-  storefrontTripScopeSchema,
-} from "./storefront-access.js"
-export {
-  type StorefrontTripOfferResolutionInput,
-  type StorefrontTripOfferResolver,
-  storefrontTripOfferResolverPort,
-} from "./storefront-trip-offer-resolver-port.js"
-export {
-  createStorefrontTripSelectionsRuntime,
-  StorefrontTripSelectionAccessError,
-  StorefrontTripSelectionConflictError,
-  StorefrontTripSelectionMutationError,
-  type StorefrontTripSelectionsRuntimeOptions,
-  StorefrontTripSelectionUnavailableError,
-} from "./storefront-trip-selections-runtime.js"
 
 export const tripsModule: Module = {
   name: "trips",

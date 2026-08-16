@@ -7,7 +7,7 @@ overrides.
 
 ## First extraction: customer booking journey
 
-`@voyant-travel/bookings-react/storefront` owns the customer booking wrapper,
+`@voyant-travel/bookings-react/public-api` owns the customer booking wrapper,
 public booking and checkout dispatch, contract preview variables, payment-policy
 resolution, and customer-safe error mapping. The Operator booking route adapts
 TanStack Router params to that interface and supplies localized messages,
@@ -20,12 +20,12 @@ from the standard Node Operator and a dedicated storefront.
 
 ## Public proposal and payment pages
 
-`@voyant-travel/proposals-react/storefront` owns the public proposal query,
+`@voyant-travel/proposals-react/public-api` owns the public proposal query,
 lifecycle mutations, and presentation. The Operator proposal route supplies the
 proposal-version path parameter, API base URL, and deployment-local customer
 messages.
 
-`@voyant-travel/finance-react/storefront` owns payment-reference resolution,
+`@voyant-travel/finance-react/public-api` owns payment-reference resolution,
 the universal payment-session page, and the booking/trip payment summaries.
 The Operator payment routes adapt search/path parameters, localized messages,
 and TanStack Router redirects. The accountant-token route remains a minimal
@@ -50,12 +50,12 @@ invitations/team, and starter link definitions are outside this extraction.
 
 ## Second extraction: storefront product discovery
 
-`@voyant-travel/catalog-react/storefront` owns public content resolution and
-catalog-slot helpers. `@voyant-travel/storefront-react/storefront` owns the
+`@voyant-travel/catalog-react/public-api` owns public content resolution and
+catalog-slot helpers. `@voyant-travel/public-api-react/public-api` owns the
 host-neutral storefront context, catalog browse page, shared detail primitives,
 and accommodation detail page. Product and cruise details are exposed from the
-matching `@voyant-travel/inventory-react/storefront` and
-`@voyant-travel/cruises-react/storefront` package surfaces.
+matching `@voyant-travel/inventory-react/public-api` and
+`@voyant-travel/cruises-react/public-api` package surfaces.
 
 The Operator browse and detail route files only validate or read TanStack Router
 state, supply API URL, selected storefront scope, localized messages, and
@@ -65,7 +65,7 @@ aliases, environment helpers, message contexts, or TanStack Router.
 ## Selected customer presentation
 
 The Storefront module declares
-`@voyant-travel/storefront#presentation.customer` in its typed `presentations`
+`@voyant-travel/public-api#presentation.customer` in its typed `presentations`
 graph facet. Project resolution emits only selected presentation factories into
 `.voyant/presentations/selected-graph-presentations.generated.js`.
 `@voyant-travel/operator-standard` consumes that generated factory map and emits

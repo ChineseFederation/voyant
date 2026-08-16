@@ -27,7 +27,7 @@
     "./payment-policy-runtime": "./src/payment-policy-runtime.ts",
     "./voyant": "./src/voyant.ts",
     "./openapi/admin": "./openapi/admin/accommodations.json",
-    "./openapi/storefront": "./openapi/storefront/accommodations-content-public.json",
+    "./openapi/public-api": "./openapi/public-api/accommodations-content-public.json",
     "./catalog-runtime-extension": "./src/catalog-runtime-extension.ts"
   },
   "scripts": {
@@ -186,7 +186,7 @@
         "default": "./dist/voyant.js"
       },
       "./openapi/admin": "./openapi/admin/accommodations.json",
-      "./openapi/storefront": "./openapi/storefront/accommodations-content-public.json",
+      "./openapi/public-api": "./openapi/public-api/accommodations-content-public.json",
       "./catalog-runtime-extension": {
         "types": "./dist/catalog-runtime-extension.d.ts",
         "import": "./dist/catalog-runtime-extension.js",

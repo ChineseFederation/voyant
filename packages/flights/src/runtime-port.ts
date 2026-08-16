@@ -8,8 +8,7 @@ import type { FlightCardBilling } from "./payment-integration.js"
  * Trusted Storefront authority used to enumerate flight supply. Every field is
  * resolved server-side; no provider or connection selector is accepted.
  */
-export interface FlightStorefrontShoppingContext {
-  storefrontId: string
+export interface FlightPublicApiShoppingContext {
   channelId: string
   marketId: string
   locale: string
@@ -32,7 +31,7 @@ export interface FlightsRuntime {
    * `resolveAdapter()` or infer supply from credentials.
    */
   listAdmittedShoppingSources(
-    context: FlightStorefrontShoppingContext,
+    context: FlightPublicApiShoppingContext,
   ): Promise<readonly AdmittedFlightShoppingSource[]>
   startCardPayment(c: Context, sessionId: string, billing: FlightCardBilling): Promise<void>
 }

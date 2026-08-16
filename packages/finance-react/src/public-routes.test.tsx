@@ -6,7 +6,7 @@ describe("finance public presentation", () => {
   it("matches the package-owned presentation declaration", () => {
     const contribution = createFinancePublicRouteContribution({
       getApiUrl: vi.fn(() => "/api"),
-      StorefrontMessagesProvider: ({ children }: { children: ReactNode }) => children,
+      PublicApiMessagesProvider: ({ children }: { children: ReactNode }) => children,
       usePaymentResolverMessages: vi.fn(),
       usePaymentLinkMessages: vi.fn(),
     } as never)

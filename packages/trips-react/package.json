@@ -16,7 +16,7 @@
     "./client": "./src/client.ts",
     "./query-keys": "./src/query-keys.ts",
     "./admin": "./src/admin/index.tsx",
-    "./storefront": "./src/storefront/index.ts"
+    "./public-api": "./src/public-api/index.ts"
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
@@ -137,10 +137,10 @@
         "import": "./dist/admin/index.js",
         "default": "./dist/admin/index.js"
       },
-      "./storefront": {
-        "types": "./dist/storefront/index.d.ts",
-        "import": "./dist/storefront/index.js",
-        "default": "./dist/storefront/index.js"
+      "./public-api": {
+        "types": "./dist/public-api/index.d.ts",
+        "import": "./dist/public-api/index.js",
+        "default": "./dist/public-api/index.js"
       }
     },
     "main": "./dist/index.js",

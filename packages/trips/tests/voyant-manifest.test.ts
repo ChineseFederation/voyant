@@ -9,14 +9,14 @@ import {
   paymentAdapterRuntimePort,
 } from "@voyant-travel/payments"
 import {
-  storefrontOpaqueReferenceIssuerPort,
-  storefrontTripSelectionsRuntimePort,
-} from "@voyant-travel/storefront/shopping"
+  publicApiOpaqueReferenceIssuerPort,
+  publicApiTripSelectionsRuntimePort,
+} from "@voyant-travel/public-api/shopping"
 import { describe, expect, it, vi } from "vitest"
 
 import {
   createTripsVoyantRuntime,
-  storefrontTripOfferResolverPort,
+  publicApiTripOfferResolverPort,
   type TripsDatabaseRuntime,
   tripsDatabaseRuntimePort,
   tripsRoutesRuntimePort,
@@ -35,11 +35,11 @@ describe("trips deployment manifest", () => {
       provides: {
         ports: [
           { id: "commerce.card-payment.runtime" },
-          { id: "storefront.payment-link.runtime" },
-          { id: "storefront.payment-reconciliation-job.runtime" },
-          { id: "storefront.shopping.opaque-reference-issuer" },
-          { id: "trips.storefront-offer-resolver.runtime" },
-          { id: "storefront.trip-selections.runtime" },
+          { id: "public-api.payment-link.runtime" },
+          { id: "public-api.payment-reconciliation-job.runtime" },
+          { id: "public-api.shopping.opaque-reference-issuer" },
+          { id: "trips.public-offer-resolver.runtime" },
+          { id: "public-api.trip-selections.runtime" },
           { id: "trips.routes-runtime" },
           { id: "trips.database-runtime" },
           { id: "trips.sourcing-job-runtime" },
@@ -156,10 +156,10 @@ describe("trips deployment manifest", () => {
       getRuntimePort: stubRequiredRuntimePortResolver(),
     })
 
-    expect(contribution).toHaveProperty(storefrontOpaqueReferenceIssuerPort.id)
-    expect(contribution).toHaveProperty(storefrontTripOfferResolverPort.id)
-    expect(contribution).toHaveProperty(storefrontTripSelectionsRuntimePort.id)
-    expect(() => storefrontTripOfferResolverPort.test({} as never)).toThrow(/resolve/)
+    expect(contribution).toHaveProperty(publicApiOpaqueReferenceIssuerPort.id)
+    expect(contribution).toHaveProperty(publicApiTripOfferResolverPort.id)
+    expect(contribution).toHaveProperty(publicApiTripSelectionsRuntimePort.id)
+    expect(() => publicApiTripOfferResolverPort.test({} as never)).toThrow(/resolve/)
   })
 
   it("does not resolve the optional flights runtime when flights are not selected", async () => {
@@ -359,7 +359,7 @@ describe("trips deployment manifest", () => {
 
   it("marks every public OpenAPI operation with its graph API id", () => {
     const document = JSON.parse(
-      readFileSync(new URL("../openapi/storefront/trips.json", import.meta.url), "utf8"),
+      readFileSync(new URL("../openapi/public-api/trips.json", import.meta.url), "utf8"),
     )
 
     expect(publicOperationApiIds(document)).not.toHaveLength(0)

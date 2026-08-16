@@ -454,7 +454,7 @@ describe("Voyant project tooling", () => {
   it("loads selected presentation routes from the product BOM package", async () => {
     const projectRoot = await createTemporaryDirectory()
     await writeProductBom(projectRoot, "@voyant-travel/operator-standard", [
-      { id: "@voyant-travel/storefront#presentation.customer" },
+      { id: "@voyant-travel/public-api#presentation.customer" },
     ])
     const packageRoot = path.join(projectRoot, "node_modules/@voyant-travel/operator-standard")
     await mkdir(packageRoot, { recursive: true })
@@ -478,7 +478,7 @@ export function createStandardOperatorRouteFiles(options: { presentations: reado
     await expect(loadStandardRouteFiles(projectRoot)).resolves.toEqual([
       {
         path: "project.tsx",
-        source: "@voyant-travel/storefront#presentation.customer",
+        source: "@voyant-travel/public-api#presentation.customer",
       },
     ])
   })

@@ -31,13 +31,13 @@ const BASE_PRICING = {
 }
 
 const TEST_CAPABILITY = `bcap_${"a".repeat(43)}`
-const STOREFRONT_ACCESS = {
-  storefront: { storefrontId: "sf_public", channelId: "chan_public" },
+const PUBLIC_API_ACCESS = {
+  storefront: { channelId: "chan_public" },
 } as const
 const ANONYMOUS_ACCESS = {
   actorKind: "anonymous" as const,
   capability: TEST_CAPABILITY,
-  ...STOREFRONT_ACCESS,
+  ...PUBLIC_API_ACCESS,
 }
 let createCounter = 0
 
@@ -980,8 +980,8 @@ describe("Booking Session v1 owned tracer", () => {
     )
     if (created.kind !== "session_created") throw new Error("session not created")
 
-    expect(harness.repository.sessions.get(created.session.id)?.storefrontOrigin).toEqual(
-      STOREFRONT_ACCESS.storefront,
+    expect(harness.repository.sessions.get(created.session.id)?.publicApiOrigin).toEqual(
+      PUBLIC_API_ACCESS.storefront,
     )
     expect(JSON.stringify(created)).not.toContain("sf_public")
     expect(JSON.stringify(created)).not.toContain("chan_public")
@@ -1009,7 +1009,7 @@ describe("Booking Session v1 owned tracer", () => {
     await expect(
       harness.module.resumeSession(created.session.id, {
         ...ANONYMOUS_ACCESS,
-        storefront: { storefrontId: "sf_other", channelId: "chan_other" },
+        storefront: { channelId: "chan_other" },
       }),
     ).resolves.toMatchObject({ kind: "rejected", error: { kind: "not_authorized" } })
   })
@@ -1029,7 +1029,7 @@ describe("Booking Session v1 owned tracer", () => {
       harness.module.resumeSession(created.session.id, {
         actorKind: "anonymous",
         capability: `bcap_${"b".repeat(43)}`,
-        storefront: { storefrontId: "sf_other", channelId: "chan_other" },
+        storefront: { channelId: "chan_other" },
       }),
     ).resolves.toMatchObject({ kind: "rejected", error: { kind: "capability_required" } })
 
@@ -1041,7 +1041,7 @@ describe("Booking Session v1 owned tracer", () => {
           actorKind: "customer",
           principalId: "customer_1",
           capability: `bcap_${"b".repeat(43)}`,
-          storefront: { storefrontId: "sf_other", channelId: "chan_other" },
+          storefront: { channelId: "chan_other" },
         },
       ),
     ).resolves.toMatchObject({ kind: "rejected", error: { kind: "capability_required" } })
@@ -1059,7 +1059,7 @@ describe("Booking Session v1 owned tracer", () => {
     if (anonymous.kind !== "session_created") throw new Error("session not created")
     const legacy = harness.repository.sessions.get(anonymous.session.id)
     if (!legacy) throw new Error("session not persisted")
-    legacy.storefrontOrigin = undefined
+    legacy.publicApiOrigin = undefined
     await harness.repository.saveSession(legacy)
 
     await expect(
@@ -2159,7 +2159,7 @@ describe("Booking Session v1 owned tracer", () => {
           actorKind: "customer",
           principalId: "customer_1",
           capability: TEST_CAPABILITY,
-          ...STOREFRONT_ACCESS,
+          ...PUBLIC_API_ACCESS,
         },
       ),
       harness.module.adoptSession(
@@ -2169,7 +2169,7 @@ describe("Booking Session v1 owned tracer", () => {
           actorKind: "customer",
           principalId: "customer_2",
           capability: TEST_CAPABILITY,
-          ...STOREFRONT_ACCESS,
+          ...PUBLIC_API_ACCESS,
         },
       ),
     ])
@@ -2179,7 +2179,7 @@ describe("Booking Session v1 owned tracer", () => {
     expect(harness.repository.sessions.get(created.session.id)).toMatchObject({
       actorKind: "customer",
       ownerPrincipalId: winningPrincipal,
-      storefrontOrigin: STOREFRONT_ACCESS.storefront,
+      publicApiOrigin: PUBLIC_API_ACCESS.storefront,
       capabilityHash: undefined,
       capabilityScopes: [],
       revision: 2,
@@ -2191,7 +2191,7 @@ describe("Booking Session v1 owned tracer", () => {
       harness.module.resumeSession(created.session.id, {
         actorKind: "customer",
         principalId: winningPrincipal,
-        ...STOREFRONT_ACCESS,
+        ...PUBLIC_API_ACCESS,
       }),
     ).resolves.toMatchObject({
       kind: "session_resumed",
@@ -2251,7 +2251,7 @@ describe("Booking Session v1 owned tracer", () => {
       actorKind: "customer" as const,
       principalId: "customer_purge_1",
       capability: TEST_CAPABILITY,
-      ...STOREFRONT_ACCESS,
+      ...PUBLIC_API_ACCESS,
     }
     await expect(
       harness.module.adoptSession(
@@ -2290,7 +2290,7 @@ describe("Booking Session v1 owned tracer", () => {
       capabilityScopes: [],
       ownerPrincipalId: undefined,
       ownerOrganizationId: undefined,
-      storefrontOrigin: undefined,
+      publicApiOrigin: undefined,
       revision: 4,
       purgedAt: expect.any(Date),
     })
@@ -2322,7 +2322,7 @@ describe("Booking Session v1 owned tracer", () => {
       actorKind: "customer" as const,
       principalId: "customer_1",
       organizationId: "org_1",
-      ...STOREFRONT_ACCESS,
+      ...PUBLIC_API_ACCESS,
     }
     const created = await harness.module.createSession(
       {
@@ -2354,7 +2354,7 @@ describe("Booking Session v1 owned tracer", () => {
       statePayload: {},
       ownerPrincipalId: undefined,
       ownerOrganizationId: undefined,
-      storefrontOrigin: undefined,
+      publicApiOrigin: undefined,
       purgedAt: expect.any(Date),
     })
   })
@@ -2837,7 +2837,7 @@ describe("Booking Session v1 authority under a publishable key", () => {
     await expect(
       harness.module.resumeSession(created.session.id, {
         actorKind: "anonymous",
-        ...STOREFRONT_ACCESS,
+        ...PUBLIC_API_ACCESS,
       }),
     ).resolves.toMatchObject({ kind: "rejected", error: { kind: "capability_required" } })
   })
@@ -2908,7 +2908,7 @@ describe("Booking Session v1 authority under a publishable key", () => {
       harness.module.resumeSession(created.session.id, {
         actorKind: "anonymous",
         capability: TEST_CAPABILITY,
-        storefront: { storefrontId: "sf_other", channelId: "chan_other" },
+        storefront: { channelId: "chan_other" },
       }),
     ).resolves.toMatchObject({ kind: "rejected", error: { kind: "not_authorized" } })
   })

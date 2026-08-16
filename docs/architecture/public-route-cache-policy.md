@@ -22,7 +22,7 @@ Cloudflare Cache API.
 > ahead of auth on purpose), so a secret-key-only route that marked itself
 > `public, s-maxage=…` would be readable with a publishable key — on top of
 > already being readable by anyone, which is the older bug. See
-> [`storefront-key-capability-line.md`](./storefront-key-capability-line.md).
+> [`public-api-key-capability-line.md`](./public-api-key-capability-line.md).
 
 ## Policy Classes
 

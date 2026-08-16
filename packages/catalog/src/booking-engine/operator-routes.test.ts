@@ -203,7 +203,7 @@ describe("mountCatalogBookingRoutes", () => {
     ) as { paths: Record<string, unknown> }
     const storefront = JSON.parse(
       readFileSync(
-        new URL("../../openapi/storefront/catalog-booking.json", import.meta.url),
+        new URL("../../openapi/public-api/catalog-booking.json", import.meta.url),
         "utf8",
       ),
     ) as { paths: Record<string, unknown> }

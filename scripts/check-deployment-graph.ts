@@ -334,8 +334,8 @@ async function main(): Promise<void> {
     failures.push("expected generated bookings linkables to come from its package-owned manifest")
   }
   for (const id of [
-    "@voyant-travel/storefront#customer-portal",
-    "@voyant-travel/storefront#verification",
+    "@voyant-travel/public-api#customer-portal",
+    "@voyant-travel/public-api#verification",
   ]) {
     if (!operatorModuleIds.has(id)) {
       failures.push(`expected operator graph to preserve customer surface ${id}`)

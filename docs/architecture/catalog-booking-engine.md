@@ -269,8 +269,8 @@ composition rather than becoming a second booking authority.
 
 The dependency-light Storefront contract is exported from
 `@voyant-travel/catalog-contracts/booking-engine/session-contracts`. The
-reference SDK and React hook are exported from `@voyant-travel/storefront-sdk`
-and `@voyant-travel/storefront-react`; they hide the route sequence while
+reference SDK and React hook are exported from `@voyant-travel/public-api-client`
+and `@voyant-travel/public-api-react`; they hide the route sequence while
 preserving returned revision, capability, Quote, Hold, and stable idempotency
 semantics.
 

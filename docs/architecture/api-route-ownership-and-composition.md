@@ -100,7 +100,7 @@ The current repo has two route-authoring patterns:
 
 - Package-owned routes, such as `@voyant-travel/bookings`,
   `@voyant-travel/finance`, `@voyant-travel/inventory`, and
-  `@voyant-travel/storefront`, export route-bearing `ApiModule`s.
+  `@voyant-travel/public-api`, export route-bearing `ApiModule`s.
 - Operator-owned routes under `apps/operator/src/api` mount either local
   handlers or package route factories through `additionalRoutes`.
 

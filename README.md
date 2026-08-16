@@ -190,7 +190,7 @@ what may be published and why.
 | [`@voyant-travel/proposals`](./packages/proposals/README.md) | Proposals and trip revisions |
 | [`@voyant-travel/trips`](./packages/trips) | Trip composition and itineraries |
 | [`@voyant-travel/identity`](./packages/identity/README.md) | Contact points, addresses, and named contacts |
-| [`@voyant-travel/storefront`](./packages/storefront) | Public booking-portal surface |
+| [`@voyant-travel/public-api`](./packages/storefront) | Public booking-portal surface |
 | [`@voyant-travel/accommodations`](./packages/accommodations) | Accommodation resale inventory |
 | [`@voyant-travel/charters`](./packages/charters/README.md) | Charter products |
 | [`@voyant-travel/cruises`](./packages/cruises/README.md) | Cruise products |

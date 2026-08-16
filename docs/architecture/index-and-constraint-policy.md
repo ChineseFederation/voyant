@@ -166,13 +166,13 @@ in generic database folklore.
 
 Query:
 
-- [`getLatestChallenge(...)`](../../packages/storefront/src/verification/service.ts)
+- [`getLatestChallenge(...)`](../../packages/public-api/src/verification/service.ts)
   filters by `channel`, `destination`, and `purpose`, then orders the latest
   row by timestamps.
 
 Schema:
 
-- [`storefrontVerificationChallenges`](../../packages/storefront/src/verification/schema.ts)
+- [`customerVerificationChallenges`](../../packages/public-api/src/verification/schema.ts)
   already has:
   - single-column indexes for `channel`, `destination`, `purpose`, and `status`
   - composite lookup index

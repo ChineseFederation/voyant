@@ -37,7 +37,7 @@ export type ResolveBookingTravelSnapshot = (
 /**
  * Best-effort contact snapshot an existing booking-session update hands to
  * the caller's person resolver. Mirrors the storefront
- * lead-intake `StorefrontLeadContact` shape so the same resolver can
+ * lead-intake `PublicApiLeadContact` shape so the same resolver can
  * service both surfaces.
  */
 export interface BookingPersonResolverContact {

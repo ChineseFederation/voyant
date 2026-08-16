@@ -10,8 +10,8 @@ import { legalVoyantModule } from "@voyant-travel/legal/voyant"
 import navigationPreferencesVoyantModule from "@voyant-travel/navigation-preferences/voyant"
 import { notificationsVoyantModule } from "@voyant-travel/notifications/voyant"
 import { operationsVoyantModule } from "@voyant-travel/operations/voyant"
+import { publicApiVoyantModule } from "@voyant-travel/public-api/voyant"
 import reportingVoyantModule from "@voyant-travel/reporting/voyant"
-import { storefrontVoyantModule } from "@voyant-travel/storefront/voyant"
 import { tripsVoyantModule } from "@voyant-travel/trips/voyant"
 import operatorWebhooksVoyantModule from "@voyant-travel/webhook-delivery/voyant"
 import { describe, expect, it } from "vitest"
@@ -81,38 +81,38 @@ describe("standard package manifests", () => {
   })
 
   it("keeps the Storefront presentation as selected graph authority", async () => {
-    expect(validateGraphUnitManifest(storefrontVoyantModule)).toEqual([])
+    expect(validateGraphUnitManifest(publicApiVoyantModule)).toEqual([])
     expect(validateGraphUnitManifest(financeVoyantModule)).toEqual([])
-    expect(storefrontVoyantModule.meta).not.toHaveProperty("presentation")
+    expect(publicApiVoyantModule.meta).not.toHaveProperty("presentation")
 
     const graph = await resolveDeploymentGraph({
-      project: defineProject({ modules: [storefrontVoyantModule] }),
+      project: defineProject({ modules: [publicApiVoyantModule] }),
       target: "node",
       mode: "self-hosted",
       packageRecords: [
-        { packageName: "@voyant-travel/storefront", source: { kind: "workspace" } },
-        { packageName: "@voyant-travel/storefront-react", source: { kind: "workspace" } },
+        { packageName: "@voyant-travel/public-api", source: { kind: "workspace" } },
+        { packageName: "@voyant-travel/public-api-react", source: { kind: "workspace" } },
       ],
     })
     expect(graph.modules[0]?.presentations).toEqual([
       {
-        id: "@voyant-travel/storefront#presentation.customer",
+        id: "@voyant-travel/public-api#presentation.customer",
         runtime: {
-          entry: "@voyant-travel/storefront-react/storefront/presentation-routes",
-          export: "createStorefrontPresentationContribution",
+          entry: "@voyant-travel/public-api-react/public-api/presentation-routes",
+          export: "createPublicApiPresentationContribution",
         },
-        contribution: "storefront",
+        contribution: "publicApi",
         routes: [
-          { route: "/(storefront)", member: "layout" },
-          { route: "/(storefront)/shop", member: "shop" },
-          { route: "/(storefront)/shop_/account", member: "account" },
-          { route: "/(storefront)/shop_/account/sign-in", member: "accountSignIn" },
-          { route: "/(storefront)/shop_/account/sign-up", member: "accountSignUp" },
-          { route: "/(storefront)/shop_/account/verify-email", member: "accountVerifyEmail" },
-          { route: "/(storefront)/shop_/composer", member: "composer" },
-          { route: "/(storefront)/shop_/confirmation/$bookingId", member: "confirmation" },
+          { route: "/(public-api)", member: "layout" },
+          { route: "/(public-api)/shop", member: "shop" },
+          { route: "/(public-api)/shop_/account", member: "account" },
+          { route: "/(public-api)/shop_/account/sign-in", member: "accountSignIn" },
+          { route: "/(public-api)/shop_/account/sign-up", member: "accountSignUp" },
+          { route: "/(public-api)/shop_/account/verify-email", member: "accountVerifyEmail" },
+          { route: "/(public-api)/shop_/composer", member: "composer" },
+          { route: "/(public-api)/shop_/confirmation/$bookingId", member: "confirmation" },
           {
-            route: "/(storefront)/shop_/products/$entityModule/$entityId",
+            route: "/(public-api)/shop_/products/$entityModule/$entityId",
             member: "productDetail",
           },
         ],
@@ -137,7 +137,7 @@ describe("standard package manifests", () => {
           legalVoyantModule,
           notificationsVoyantModule,
           operationsVoyantModule,
-          storefrontVoyantModule,
+          publicApiVoyantModule,
           tripsVoyantModule,
         ],
         extensions: [distributionChannelPushVoyantPlugin],

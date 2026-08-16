@@ -2,7 +2,7 @@
   "@voyant-travel/accommodations": 1,
   "@voyant-travel/action-ledger": 3,
   "@voyant-travel/apps": 17,
-  "@voyant-travel/auth": 11,
+  "@voyant-travel/auth": 9,
   "@voyant-travel/bookings": 15,
   "@voyant-travel/catalog": 9,
   "@voyant-travel/charters": 6,
@@ -25,7 +25,7 @@
   "@voyant-travel/relationships": 20,
   "@voyant-travel/reporting": 4,
   "@voyant-travel/storage": 2,
-  "@voyant-travel/storefront": 1,
+  "@voyant-travel/public-api": 1,
   "@voyant-travel/trips": 6,
   "@voyant-travel/webhook-delivery": 3
 }

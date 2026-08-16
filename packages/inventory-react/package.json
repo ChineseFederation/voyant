@@ -17,7 +17,7 @@
     "./query-keys": "./src/query-keys.ts",
     "./ui": "./src/ui.ts",
     "./styles.css": "./src/styles.css",
-    "./storefront": "./src/storefront/index.ts",
+    "./public-api": "./src/public-api/index.ts",
     "./i18n": "./src/i18n.ts",
     "./i18n/en": "./src/i18n-en.ts",
     "./i18n/ro": "./src/i18n-ro.ts",
@@ -44,7 +44,7 @@
     "@voyant-travel/inventory": "workspace:^",
     "@voyant-travel/media-react": "workspace:^",
     "@voyant-travel/operations": "workspace:^",
-    "@voyant-travel/storefront-react": "workspace:^",
+    "@voyant-travel/public-api-react": "workspace:^",
     "@voyant-travel/ui": "workspace:^",
     "@voyant-travel/utils": "workspace:^",
     "react": "^19.0.0",
@@ -68,7 +68,7 @@
     "@voyant-travel/media-react": {
       "optional": true
     },
-    "@voyant-travel/storefront-react": {
+    "@voyant-travel/public-api-react": {
       "optional": true
     },
     "@voyant-travel/ui": {
@@ -100,7 +100,7 @@
     "@voyant-travel/inventory": "workspace:^",
     "@voyant-travel/media-react": "workspace:^",
     "@voyant-travel/operations": "workspace:^",
-    "@voyant-travel/storefront-react": "workspace:^",
+    "@voyant-travel/public-api-react": "workspace:^",
     "@voyant-travel/react": "workspace:^",
     "@voyant-travel/ui": "workspace:^",
     "@voyant-travel/utils": "workspace:^",
@@ -153,10 +153,10 @@
       "./styles.css": {
         "default": "./src/styles.css"
       },
-      "./storefront": {
-        "types": "./dist/storefront/index.d.ts",
-        "import": "./dist/storefront/index.js",
-        "default": "./dist/storefront/index.js"
+      "./public-api": {
+        "types": "./dist/public-api/index.d.ts",
+        "import": "./dist/public-api/index.js",
+        "default": "./dist/public-api/index.js"
       },
       "./i18n": {
         "types": "./dist/i18n.d.ts",

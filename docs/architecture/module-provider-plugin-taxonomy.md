@@ -345,7 +345,7 @@ Prefer names that reveal whether the package is:
 Examples:
 
 - `@voyant-travel/bookings`
-- `@voyant-travel/storefront-react`
+- `@voyant-travel/public-api-react`
 - `@voyant-travel/admin`
 - `@voyant-travel/plugin-netopia`
 

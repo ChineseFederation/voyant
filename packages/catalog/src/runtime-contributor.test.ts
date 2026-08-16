@@ -147,7 +147,7 @@ describe("createCatalogRuntimePortContribution", () => {
         extrasFieldPolicy: [],
         listCanonicalProductIds: vi.fn(async () => ["product_1"]),
         createDocumentBuilder: createProductBuilder,
-        createStorefrontCardProjectionExtension: () => emptyProjection,
+        createPublicApiCardProjectionExtension: () => emptyProjection,
         createDestinationsProjectionExtension: () => emptyProjection,
         createTaxonomyProjectionExtension: () => emptyProjection,
         createClassificationProjectionExtension: () => emptyProjection,

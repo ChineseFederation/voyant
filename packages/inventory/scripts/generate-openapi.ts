@@ -50,7 +50,7 @@ const generatedAdminRoutes = new OpenAPIHono()
   .route("/", productRoutes)
   .route("/", createProductBrochureRoutes({ resolveStorage: () => null }))
   .route("/", contentRoutes())
-const generatedStorefrontRoutes = new OpenAPIHono()
+const generatedPublicApiRoutes = new OpenAPIHono()
   .route("/", publicProductRoutes)
   .route("/", contentRoutes())
 
@@ -64,7 +64,7 @@ await Promise.all([
     withPrefix(generateOpenApiDocument(inventoryAuthoringRoutes, options), "/v1/admin/products"),
   ),
   writeDocument(
-    "../openapi/storefront/products.json",
-    withPrefix(generateOpenApiDocument(generatedStorefrontRoutes, options), "/v1/public/products"),
+    "../openapi/public-api/products.json",
+    withPrefix(generateOpenApiDocument(generatedPublicApiRoutes, options), "/v1/public/products"),
   ),
 ])

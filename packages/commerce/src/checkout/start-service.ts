@@ -50,8 +50,7 @@ export interface CatalogCheckoutStartContext {
   eventBus?: EventBus
   resolveRuntime?: (key: string) => unknown
   requestMeta?: CheckoutStartRequestMeta
-  storefrontChannel?: {
-    storefrontId: string
+  publicChannel?: {
     channelId: string
     channelStatus?: string | null
   } | null
@@ -109,7 +108,7 @@ export async function startCatalogCheckout(
   context: CatalogCheckoutStartContext,
   body: CheckoutStartInput,
 ): Promise<CatalogCheckoutStartResult> {
-  const storefrontChannel = requireActiveStorefrontChannel(context)
+  const publicChannel = requireActivePublicApiChannel(context)
   const db = context.db
   const booking: typeof bookings.$inferSelect | null =
     (await db.select().from(bookings).where(eq(bookings.id, body.bookingId)).limit(1))[0] ?? null
@@ -119,15 +118,10 @@ export async function startCatalogCheckout(
   }
 
   const bookingOrigin = await getBookingOriginByBookingId(db, booking.id)
-  if (
-    !bookingOrigin?.storefrontId ||
-    !bookingOrigin.channelId ||
-    bookingOrigin.storefrontId !== storefrontChannel.storefrontId ||
-    bookingOrigin.channelId !== storefrontChannel.channelId
-  ) {
-    throw new CatalogCheckoutStartError("booking_storefront_origin_mismatch", 409)
+  if (!bookingOrigin?.channelId || bookingOrigin.channelId !== publicChannel.channelId) {
+    throw new CatalogCheckoutStartError("booking_channel_mismatch", 409)
   }
-  await ensureBookingPublishedForCheckout(context, booking.id, storefrontChannel)
+  await ensureBookingPublishedForCheckout(context, booking.id, publicChannel)
 
   // Pre-create a Legal-owned contract draft carrying the acceptance fingerprint
   // in `metadata.acceptance`. The auto-generate-contract subscriber
@@ -173,24 +167,20 @@ export async function startCatalogCheckout(
   }
 }
 
-function requireActiveStorefrontChannel(
+function requireActivePublicApiChannel(
   context: CatalogCheckoutStartContext,
-): NonNullable<CatalogCheckoutStartContext["storefrontChannel"]> {
-  const storefrontChannel = context.storefrontChannel
-  if (
-    !storefrontChannel?.storefrontId ||
-    !storefrontChannel.channelId ||
-    storefrontChannel.channelStatus !== "active"
-  ) {
-    throw new CatalogCheckoutStartError("active_storefront_channel_required", 409)
+): NonNullable<CatalogCheckoutStartContext["publicChannel"]> {
+  const publicChannel = context.publicChannel
+  if (!publicChannel?.channelId || publicChannel.channelStatus !== "active") {
+    throw new CatalogCheckoutStartError("active_channel_required", 409)
   }
-  return storefrontChannel
+  return publicChannel
 }
 
 async function ensureBookingPublishedForCheckout(
   context: CatalogCheckoutStartContext,
   bookingId: string,
-  storefrontChannel: NonNullable<CatalogCheckoutStartContext["storefrontChannel"]>,
+  publicChannel: NonNullable<CatalogCheckoutStartContext["publicChannel"]>,
 ): Promise<void> {
   const publication = context.options.publication
   if (!publication) {
@@ -218,8 +208,7 @@ async function ensureBookingPublishedForCheckout(
       db: context.db,
       bookingId,
       productId,
-      storefrontId: storefrontChannel.storefrontId,
-      channelId: storefrontChannel.channelId,
+      channelId: publicChannel.channelId,
     })
     if (!published) {
       throw new CatalogCheckoutStartError("product_not_published", 409)

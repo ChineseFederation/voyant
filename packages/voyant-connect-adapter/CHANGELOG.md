@@ -107,7 +107,7 @@
 - Updated dependencies [c911139]
   - @voyant-travel/catalog-contracts@0.133.0
   - @voyant-travel/catalog@0.254.0
-  - @voyant-travel/storefront@0.256.0
+  - @voyant-travel/public-api@0.256.0
 
 ## 0.28.0
 
@@ -116,7 +116,7 @@
 - 5850e1d: Accept the Storefront shopping contract's free-text package destination and map it to Connect's city search while continuing to reject unsupported coordinate filters.
 - Updated dependencies [c164b40]
   - @voyant-travel/catalog-contracts@0.132.0
-  - @voyant-travel/storefront@0.255.7
+  - @voyant-travel/public-api@0.255.7
 
 ## 0.27.1
 
@@ -124,7 +124,7 @@
 
 - 1a98c8a: Carry server-resolved sourced-stay identities and exact date, room, rate, and occupancy pins through opaque Trip selections, then revalidate price, lock, and confirm through the managed Connect lifecycle without exposing supplier authority to storefront clients.
 - Updated dependencies [1a98c8a]
-  - @voyant-travel/storefront@0.255.4
+  - @voyant-travel/public-api@0.255.4
 
 ## 0.27.0
 
@@ -150,7 +150,7 @@
 - Updated dependencies [27140ec]
   - @voyant-travel/catalog-contracts@0.131.0
   - @voyant-travel/catalog@0.253.0
-  - @voyant-travel/storefront@0.255.0
+  - @voyant-travel/public-api@0.255.0
 
 ## 0.26.0
 

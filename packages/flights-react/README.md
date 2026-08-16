@@ -3,7 +3,7 @@
 The flights client tier: headless data hooks/clients plus the styled UI
 components and page compositions (formerly `@voyant-travel/flights-ui`).
 
-Headless consumers (storefronts, portals) import from the root, `./hooks`,
+Headless consumers (public surfaces, portals) import from the root, `./hooks`,
 `./client`, or `./query-keys` — these pull no styling peers. Styled surfaces
 live under `./ui`, `./components/*`, `./i18n`, and `./styles.css`, whose
 heavier peers (`@voyant-travel/ui`, `@voyant-travel/relationships-react`, `@voyant-travel/finance-react/checkout-ui`,

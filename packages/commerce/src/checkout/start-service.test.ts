@@ -11,8 +11,7 @@ import {
   startCatalogCheckout as startCatalogCheckoutService,
 } from "./start-service.js"
 
-const DEFAULT_STOREFRONT_CHANNEL = {
-  storefrontId: "sf_1",
+const DEFAULT_PUBLIC_CHANNEL = {
   channelId: "chan_1",
   channelStatus: "active",
 } as const
@@ -24,10 +23,8 @@ function startCatalogCheckout(
   return startCatalogCheckoutService(
     {
       ...context,
-      storefrontChannel:
-        context.storefrontChannel === undefined
-          ? DEFAULT_STOREFRONT_CHANNEL
-          : context.storefrontChannel,
+      publicChannel:
+        context.publicChannel === undefined ? DEFAULT_PUBLIC_CHANNEL : context.publicChannel,
     },
     body,
   )
@@ -110,12 +107,11 @@ describe("startCatalogCheckout", () => {
   beforeEach(() => {
     vi.restoreAllMocks()
     vi.spyOn(bookingsModule, "getBookingOriginByBookingId").mockResolvedValue({
-      storefrontId: DEFAULT_STOREFRONT_CHANNEL.storefrontId,
-      channelId: DEFAULT_STOREFRONT_CHANNEL.channelId,
+      channelId: DEFAULT_PUBLIC_CHANNEL.channelId,
     } as never)
   })
 
-  it("rejects checkout without active storefront channel context before side effects", async () => {
+  it("rejects checkout without active channel context before side effects", async () => {
     const publication = { isProductPublished: vi.fn().mockResolvedValue(true) }
     const persistAcceptanceDraftContract = vi.fn()
 
@@ -123,22 +119,21 @@ describe("startCatalogCheckout", () => {
       {
         db: stubDb([{ id: "bk_1", status: "confirmed" }]),
         env: {},
-        storefrontChannel: null,
+        publicChannel: null,
         options: stubOptions({ publication, persistAcceptanceDraftContract }),
       },
       { bookingId: "bk_1", paymentIntent: "card" },
     ).catch((error: unknown) => error)
 
     expect(err).toBeInstanceOf(CatalogCheckoutStartError)
-    expect(err).toMatchObject({ code: "active_storefront_channel_required", status: 409 })
+    expect(err).toMatchObject({ code: "active_channel_required", status: 409 })
     expect(publication.isProductPublished).not.toHaveBeenCalled()
     expect(persistAcceptanceDraftContract).not.toHaveBeenCalled()
   })
 
   it.each([
     ["missing origin", null],
-    ["storefront mismatch", { storefrontId: "sf_other", channelId: "chan_1" }],
-    ["channel mismatch", { storefrontId: "sf_1", channelId: "chan_other" }],
+    ["channel mismatch", { channelId: "chan_other" }],
   ])("rejects checkout for immutable booking origin %s", async (_case, bookingOrigin) => {
     vi.mocked(bookingsModule.getBookingOriginByBookingId).mockResolvedValueOnce(
       bookingOrigin as never,
@@ -156,7 +151,7 @@ describe("startCatalogCheckout", () => {
     ).catch((error: unknown) => error)
 
     expect(err).toBeInstanceOf(CatalogCheckoutStartError)
-    expect(err).toMatchObject({ code: "booking_storefront_origin_mismatch", status: 409 })
+    expect(err).toMatchObject({ code: "booking_channel_mismatch", status: 409 })
     expect(publication.isProductPublished).not.toHaveBeenCalled()
     expect(persistAcceptanceDraftContract).not.toHaveBeenCalled()
   })
@@ -172,8 +167,7 @@ describe("startCatalogCheckout", () => {
       {
         db,
         env: {},
-        storefrontChannel: {
-          storefrontId: "sf_1",
+        publicChannel: {
           channelId: "chan_1",
           channelStatus: "active",
         },
@@ -188,7 +182,6 @@ describe("startCatalogCheckout", () => {
       db,
       bookingId: "bk_1",
       productId: "prod_unpublished",
-      storefrontId: "sf_1",
       channelId: "chan_1",
     })
   })
@@ -200,8 +193,7 @@ describe("startCatalogCheckout", () => {
       {
         db: stubDb([{ id: "bk_1", status: "confirmed" }]),
         env: {},
-        storefrontChannel: {
-          storefrontId: "sf_1",
+        publicChannel: {
           channelId: "chan_inactive",
           channelStatus: "inactive",
         },
@@ -211,7 +203,7 @@ describe("startCatalogCheckout", () => {
     ).catch((error: unknown) => error)
 
     expect(err).toBeInstanceOf(CatalogCheckoutStartError)
-    expect(err).toMatchObject({ code: "active_storefront_channel_required", status: 409 })
+    expect(err).toMatchObject({ code: "active_channel_required", status: 409 })
     expect(publication.isProductPublished).not.toHaveBeenCalled()
   })
 

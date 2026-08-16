@@ -68,43 +68,33 @@ function getRouteRuntime(c: Context): BookingRouteRuntime {
   }
 }
 
-export function activeStorefrontOrigin(c: Context<Env>) {
-  const storefrontChannel = c.get("storefrontChannel")
-  if (
-    !storefrontChannel?.storefrontId ||
-    !storefrontChannel.channelId ||
-    storefrontChannel.channelStatus !== "active"
-  ) {
+export function activePublicApiOrigin(c: Context<Env>) {
+  const publicChannel = c.get("publicChannel")
+  if (!publicChannel?.channelId || publicChannel.channelStatus !== "active") {
     return null
   }
 
-  return {
-    storefrontId: storefrontChannel.storefrontId,
-    channelId: storefrontChannel.channelId,
-  }
+  return { channelId: publicChannel.channelId }
 }
 
-export function activeStorefrontChannelGuard(): MiddlewareHandler<Env> {
+export function activePublicApiChannelGuard(): MiddlewareHandler<Env> {
   return async (c, next) => {
-    if (!activeStorefrontOrigin(c)) {
-      return c.json({ error: "active_storefront_channel_required" }, 403)
+    if (!activePublicApiOrigin(c)) {
+      return c.json({ error: "active_channel_required" }, 403)
     }
     await next()
   }
 }
 
-export async function requireBookingStorefrontOrigin(c: Context<Env>, bookingId: string) {
-  const requestOrigin = activeStorefrontOrigin(c)
+export async function requireBookingPublicApiOrigin(c: Context<Env>, bookingId: string) {
+  const requestOrigin = activePublicApiOrigin(c)
   if (!requestOrigin) {
-    return c.json({ error: "active_storefront_channel_required" }, 403)
+    return c.json({ error: "active_channel_required" }, 403)
   }
 
   const bookingOrigin = await getBookingOriginByBookingId(c.get("db"), bookingId)
-  if (
-    bookingOrigin?.storefrontId !== requestOrigin.storefrontId ||
-    bookingOrigin.channelId !== requestOrigin.channelId
-  ) {
-    return c.json({ error: "booking_storefront_origin_mismatch" }, 403)
+  if (bookingOrigin?.channelId !== requestOrigin.channelId) {
+    return c.json({ error: "booking_channel_mismatch" }, 403)
   }
 
   return null
@@ -170,8 +160,8 @@ const guestLookupRoute = createRoute({
 })
 
 const publicBookingApp = new OpenAPIHono<Env>({ defaultHook: openApiValidationHook })
-publicBookingApp.use("/overview", activeStorefrontChannelGuard())
-publicBookingApp.use("/guest-lookup", activeStorefrontChannelGuard())
+publicBookingApp.use("/overview", activePublicApiChannelGuard())
+publicBookingApp.use("/guest-lookup", activePublicApiChannelGuard())
 
 export const publicBookingRoutes = publicBookingApp
   .openapi(overviewRoute, async (c) => {
@@ -209,7 +199,7 @@ export const publicBookingRoutes = publicBookingApp
       await requireGuestBookingAccess(c, overview.bookingId, "overview:read", getRuntimeEnv(c))
     }
 
-    const denied = await requireBookingStorefrontOrigin(c, overview.bookingId)
+    const denied = await requireBookingPublicApiOrigin(c, overview.bookingId)
     if (denied) return denied
 
     return c.json({ data: overview }, 200)
@@ -232,7 +222,7 @@ export const publicBookingRoutes = publicBookingApp
       return notFound(c, "Booking overview not found")
     }
 
-    const denied = await requireBookingStorefrontOrigin(c, overview.bookingId)
+    const denied = await requireBookingPublicApiOrigin(c, overview.bookingId)
     if (denied) return denied
 
     const capability = await issueGuestBookingAccess(overview.bookingId, getRuntimeEnv(c))

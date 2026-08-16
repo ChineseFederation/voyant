@@ -55,7 +55,7 @@ export function createSelfServiceCreateRuntime(deps: SelfServiceCreateRuntimeDep
       quoteId: string
       caller: { personId?: string; verifiedEmail?: string; verifiedPhone?: string }
       /** Required by public callers; omitted by trusted staff workflows. */
-      storefront?: { storefrontId: string; channelId: string }
+      storefront?: { channelId: string }
       idempotencyKey: string
       /** Proves the caller holds the anonymous Session. */
       sessionCapability?: string
@@ -103,7 +103,7 @@ export function createSelfServiceCreateRuntime(deps: SelfServiceCreateRuntimeDep
         commandInput: {
           ...resolved.command,
           bookingNumber,
-          ...(input.storefront ? { storefrontOrigin: input.storefront } : {}),
+          ...(input.storefront ? { publicApiOrigin: input.storefront } : {}),
         } as never,
         admitted: deps.admit("customer", input.idempotencyKey),
         ...(deps.runtime ? { runtime: deps.runtime } : {}),

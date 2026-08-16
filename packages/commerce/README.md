@@ -22,7 +22,7 @@ The package intentionally exposes the Commerce Interface from the root:
 - `createCommerceAdapterRegistry(...)`
 - `recordCommercialSnapshot(decision, target, repository)`
 - `createCommerceApiModules()`
-- `createCommerceStorefrontOfferResolvers()`
+- `createCommercePublicApiOfferResolvers()`
 - decision, adapter, trace, pricing, promotion, FX, and snapshot types
 
 Pricing, markets, promotions, and sellability source folders are internal

@@ -7,16 +7,17 @@ import {
   isCustomerCorsSurface,
 } from "../../src/node-runtime.js"
 import {
-  createLocalStorefrontCorsOriginResolver,
-  createLocalStorefrontCustomerAuthResolver,
-  STOREFRONT_KEY_HEADER,
-  STOREFRONT_ORIGIN_HEADER,
-} from "../../src/storefront-customer-auth-resolver.js"
+  createLocalPublicApiCorsOriginResolver,
+  createLocalPublicApiCustomerAuthResolver,
+  PUBLIC_API_KEY_HEADER,
+  PUBLIC_API_ORIGIN_HEADER,
+} from "../../src/public-api-customer-auth-resolver.js"
 import type {
-  StorefrontChannelBindingDto,
-  StorefrontDto,
-  StorefrontRuntimeProvider,
-} from "../../src/storefront-runtime-port.js"
+  CustomerAccountSettingsDto,
+  PublicApiKeyDto,
+  PublicApiRuntimeProvider,
+  ResolvedPublicApiChannel,
+} from "../../src/public-api-runtime-port.js"
 
 describe("buildBetterAuthCookieAdvancedOptions", () => {
   it("leaves Better Auth cookie defaults untouched when the domain is unset", () => {
@@ -560,14 +561,22 @@ describe("createOperatorAuthNodeRuntime", () => {
   })
 })
 
-describe("createOperatorAuthNodeRuntime storefront customer-auth failures", () => {
-  const STOREFRONT: StorefrontDto = {
-    id: "sf_1",
-    name: "Shop",
-    slug: "shop",
-    hostingKind: "external",
-    siteId: null,
+describe("createOperatorAuthNodeRuntime public-API customer-auth failures", () => {
+  const KEY: PublicApiKeyDto = {
+    id: "pak_1",
+    kind: "publishable",
+    scopes: null,
+    tokenPreview: "vpk_ab12cd",
+    name: null,
     allowedOrigins: ["https://shop.example.com"],
+    channelId: null,
+    hostOnlyCookies: true,
+    lastUsedAt: null,
+    revokedAt: null,
+    createdAt: "2026-07-19T00:00:00.000Z",
+    updatedAt: "2026-07-19T00:00:00.000Z",
+  }
+  const SETTINGS: CustomerAccountSettingsDto = {
     methods: {
       emailCode: true,
       emailPassword: false,
@@ -580,40 +589,35 @@ describe("createOperatorAuthNodeRuntime storefront customer-auth failures", () =
       personalSignup: "open",
       businessOnboarding: "disabled",
     },
-    hostOnlyCookies: true,
-    createdAt: "2026-07-19T00:00:00.000Z",
     updatedAt: "2026-07-19T00:00:00.000Z",
   }
-  const ACTIVE_BINDING: StorefrontChannelBindingDto = {
-    storefrontId: "sf_1",
+  const ACTIVE_CHANNEL: ResolvedPublicApiChannel = {
     channelId: "chan_web",
     channelName: "Web",
     channelStatus: "active",
-    createdAt: "2026-08-01T00:00:00.000Z",
-    updatedAt: "2026-08-01T00:00:00.000Z",
+    implicit: false,
   }
 
-  function fakeProvider(
-    resolveStorefrontByApiKey?: () => Promise<unknown>,
-  ): StorefrontRuntimeProvider {
-    const provider: Partial<StorefrontRuntimeProvider> = {
-      resolveStorefrontByApiKey:
-        resolveStorefrontByApiKey ?? (async () => ({ storefront: STOREFRONT, key: null })),
+  function fakeProvider(resolveApiKeyByToken?: () => Promise<unknown>): PublicApiRuntimeProvider {
+    const provider: Partial<PublicApiRuntimeProvider> = {
+      resolveApiKeyByToken: (resolveApiKeyByToken ??
+        (async () => KEY)) as PublicApiRuntimeProvider["resolveApiKeyByToken"],
+      getCustomerAccountSettings: async () => SETTINGS,
       resolveProviderCredentials: async () => ({}),
     }
-    return provider as StorefrontRuntimeProvider
+    return provider as PublicApiRuntimeProvider
   }
 
-  function makeRuntime(provider: StorefrontRuntimeProvider) {
+  function makeRuntime(provider: PublicApiRuntimeProvider) {
     return createOperatorAuthNodeRuntime({
       accessCatalog: { resources: [], presets: [] },
       appName: "auth-test",
       authMode: "local",
       reporter: { captureException: vi.fn() },
       openDatabase: () => ({ db: {} as never, dispose: async () => {} }),
-      resolveCustomerAuthContext: createLocalStorefrontCustomerAuthResolver({
+      resolveCustomerAuthContext: createLocalPublicApiCustomerAuthResolver({
         provider,
-        resolveStorefrontChannelBinding: async () => ACTIVE_BINDING,
+        resolveChannelForKey: async () => ACTIVE_CHANNEL,
         openResolveContext: async () => ({
           context: { bindings: {}, db: {} as never },
           dispose: async () => {},
@@ -636,14 +640,14 @@ describe("createOperatorAuthNodeRuntime storefront customer-auth failures", () =
     )
   }
 
-  it("returns 401 when the storefront key is missing", async () => {
-    const response = await configRequest({ [STOREFRONT_ORIGIN_HEADER]: "https://shop.example.com" })
+  it("returns 401 when the public API key is missing", async () => {
+    const response = await configRequest({ [PUBLIC_API_ORIGIN_HEADER]: "https://shop.example.com" })
     expect(response.status).toBe(401)
     expect(await response.json()).toEqual({ error: "unauthorized" })
   })
 
-  it("returns 401 when the storefront origin header is missing", async () => {
-    const response = await configRequest({ [STOREFRONT_KEY_HEADER]: "vpk_token" })
+  it("returns 401 when the public API origin header is missing", async () => {
+    const response = await configRequest({ [PUBLIC_API_KEY_HEADER]: "vpk_token" })
     expect(response.status).toBe(401)
     expect(await response.json()).toEqual({ error: "unauthorized" })
   })
@@ -652,8 +656,8 @@ describe("createOperatorAuthNodeRuntime storefront customer-auth failures", () =
     const response = await makeRuntime(fakeProvider(async () => null)).handler.fetch(
       new Request("https://shop.example.com/auth/customer/config", {
         headers: {
-          [STOREFRONT_ORIGIN_HEADER]: "https://shop.example.com",
-          [STOREFRONT_KEY_HEADER]: "vpk_secret_value",
+          [PUBLIC_API_ORIGIN_HEADER]: "https://shop.example.com",
+          [PUBLIC_API_KEY_HEADER]: "vpk_secret_value",
         },
       }),
       ENV,
@@ -667,23 +671,23 @@ describe("createOperatorAuthNodeRuntime storefront customer-auth failures", () =
 
   it("returns 403 for a known key presented from a disallowed origin", async () => {
     const response = await configRequest({
-      [STOREFRONT_ORIGIN_HEADER]: "https://evil.example.com",
-      [STOREFRONT_KEY_HEADER]: "vpk_token",
+      [PUBLIC_API_ORIGIN_HEADER]: "https://evil.example.com",
+      [PUBLIC_API_KEY_HEADER]: "vpk_token",
     })
     expect(response.status).toBe(403)
     expect(await response.json()).toEqual({ error: "forbidden" })
   })
 
-  it("returns 403 when a valid storefront has no active channel binding", async () => {
+  it("returns 403 when a valid key resolves to no active channel", async () => {
     const response = await createOperatorAuthNodeRuntime({
       accessCatalog: { resources: [], presets: [] },
       appName: "auth-test",
       authMode: "local",
       reporter: { captureException: vi.fn() },
       openDatabase: () => ({ db: {} as never, dispose: async () => {} }),
-      resolveCustomerAuthContext: createLocalStorefrontCustomerAuthResolver({
+      resolveCustomerAuthContext: createLocalPublicApiCustomerAuthResolver({
         provider: fakeProvider(),
-        resolveStorefrontChannelBinding: async () => null,
+        resolveChannelForKey: async () => null,
         openResolveContext: async () => ({
           context: { bindings: {}, db: {} as never },
           dispose: async () => {},
@@ -692,8 +696,8 @@ describe("createOperatorAuthNodeRuntime storefront customer-auth failures", () =
     }).handler.fetch(
       new Request("https://shop.example.com/auth/customer/config", {
         headers: {
-          [STOREFRONT_ORIGIN_HEADER]: "https://shop.example.com",
-          [STOREFRONT_KEY_HEADER]: "vpk_token",
+          [PUBLIC_API_ORIGIN_HEADER]: "https://shop.example.com",
+          [PUBLIC_API_KEY_HEADER]: "vpk_token",
         },
       }),
       ENV,
@@ -706,8 +710,8 @@ describe("createOperatorAuthNodeRuntime storefront customer-auth failures", () =
 
   it("still resolves a valid key + allowed origin (200 path unaffected)", async () => {
     const response = await configRequest({
-      [STOREFRONT_ORIGIN_HEADER]: "https://shop.example.com",
-      [STOREFRONT_KEY_HEADER]: "vpk_token",
+      [PUBLIC_API_ORIGIN_HEADER]: "https://shop.example.com",
+      [PUBLIC_API_KEY_HEADER]: "vpk_token",
     })
     expect(response.status).toBe(200)
     expect(await response.json()).toMatchObject({
@@ -716,29 +720,29 @@ describe("createOperatorAuthNodeRuntime storefront customer-auth failures", () =
   })
 
   it.each([
-    { label: "missing key", headers: { [STOREFRONT_ORIGIN_HEADER]: "https://shop.example.com" } },
+    { label: "missing key", headers: { [PUBLIC_API_ORIGIN_HEADER]: "https://shop.example.com" } },
     {
       label: "unknown/revoked key",
       headers: {
-        [STOREFRONT_ORIGIN_HEADER]: "https://shop.example.com",
-        [STOREFRONT_KEY_HEADER]: "vpk_secret_value",
+        [PUBLIC_API_ORIGIN_HEADER]: "https://shop.example.com",
+        [PUBLIC_API_KEY_HEADER]: "vpk_secret_value",
       },
-      resolveStorefrontByApiKey: async () => null,
+      resolveApiKeyByToken: async () => null,
     },
     {
       label: "disallowed origin",
       headers: {
-        [STOREFRONT_ORIGIN_HEADER]: "https://evil.example.com",
-        [STOREFRONT_KEY_HEADER]: "vpk_token",
+        [PUBLIC_API_ORIGIN_HEADER]: "https://evil.example.com",
+        [PUBLIC_API_KEY_HEADER]: "vpk_token",
       },
     },
-  ])("maps a public-API storefront resolver failure ($label) to unauthorized (null → 401)", async ({
+  ])("maps a public-API resolver failure ($label) to unauthorized (null → 401)", async ({
     headers,
-    resolveStorefrontByApiKey,
+    resolveApiKeyByToken,
   }) => {
     // On /v1/public/*, a storefront key/origin failure must resolve to
     // "unauthorized" (null) so the framework returns 401 — never a 500.
-    const result = await makeRuntime(fakeProvider(resolveStorefrontByApiKey)).resolveAuthRequest(
+    const result = await makeRuntime(fakeProvider(resolveApiKeyByToken)).resolveAuthRequest(
       new Request("https://shop.example.com/v1/public/catalog", { headers }),
       ENV,
     )
@@ -789,13 +793,21 @@ describe("isCustomerCorsSurface", () => {
 })
 
 describe("createOperatorAuthNodeRuntime customer dynamic CORS", () => {
-  const STOREFRONT: StorefrontDto = {
-    id: "sf_cors",
-    name: "Shop",
-    slug: "shop",
-    hostingKind: "external",
-    siteId: null,
+  const KEY: PublicApiKeyDto = {
+    id: "pak_cors",
+    kind: "publishable",
+    scopes: null,
+    tokenPreview: "vpk_ab12cd",
+    name: null,
     allowedOrigins: ["https://shop.example.com", "https://*.example.com"],
+    channelId: null,
+    hostOnlyCookies: true,
+    lastUsedAt: null,
+    revokedAt: null,
+    createdAt: "2026-07-19T00:00:00.000Z",
+    updatedAt: "2026-07-19T00:00:00.000Z",
+  }
+  const SETTINGS: CustomerAccountSettingsDto = {
     methods: {
       emailCode: true,
       emailPassword: false,
@@ -808,30 +820,24 @@ describe("createOperatorAuthNodeRuntime customer dynamic CORS", () => {
       personalSignup: "open",
       businessOnboarding: "disabled",
     },
-    hostOnlyCookies: true,
-    createdAt: "2026-07-19T00:00:00.000Z",
     updatedAt: "2026-07-19T00:00:00.000Z",
   }
-  const ACTIVE_BINDING: StorefrontChannelBindingDto = {
-    storefrontId: "sf_cors",
+  const ACTIVE_CHANNEL: ResolvedPublicApiChannel = {
     channelId: "chan_web",
     channelName: "Web",
     channelStatus: "active",
-    createdAt: "2026-08-01T00:00:00.000Z",
-    updatedAt: "2026-08-01T00:00:00.000Z",
+    implicit: false,
   }
 
-  function corsProvider(): StorefrontRuntimeProvider {
-    const provider: Partial<StorefrontRuntimeProvider> = {
-      resolveStorefrontByApiKey: async (_context: unknown, token: string) =>
-        token ? { storefront: STOREFRONT, key: null } : null,
-      resolveStorefrontByOrigin: async (_context: unknown, origin: string) =>
-        ["https://shop.example.com", "https://preview.example.com"].includes(origin)
-          ? STOREFRONT
-          : null,
+  function corsProvider(): PublicApiRuntimeProvider {
+    const provider: Partial<PublicApiRuntimeProvider> = {
+      resolveApiKeyByToken: async (_context: unknown, token: string) => (token ? KEY : null),
+      resolveApiKeysByOrigin: async (_context: unknown, origin: string) =>
+        ["https://shop.example.com", "https://preview.example.com"].includes(origin) ? [KEY] : [],
+      getCustomerAccountSettings: async () => SETTINGS,
       resolveProviderCredentials: async () => ({}),
     }
-    return provider as StorefrontRuntimeProvider
+    return provider as PublicApiRuntimeProvider
   }
 
   function makeRuntime() {
@@ -841,9 +847,9 @@ describe("createOperatorAuthNodeRuntime customer dynamic CORS", () => {
       authMode: "local",
       reporter: { captureException: vi.fn() },
       openDatabase: () => ({ db: {} as never, dispose: async () => {} }),
-      resolveCustomerCorsOrigin: createLocalStorefrontCorsOriginResolver({
+      resolveCustomerCorsOrigin: createLocalPublicApiCorsOriginResolver({
         provider: corsProvider(),
-        resolveStorefrontChannelBinding: async () => ACTIVE_BINDING,
+        resolveChannelForKey: async () => ACTIVE_CHANNEL,
         openResolveContext: async () => ({
           context: { bindings: {}, db: {} as never },
           dispose: async () => {},
@@ -858,7 +864,7 @@ describe("createOperatorAuthNodeRuntime customer dynamic CORS", () => {
     const runtime = makeRuntime()
     const origin = await runtime.resolveCustomerCorsOrigin(
       new Request("https://api.example.com/v1/public/catalog", {
-        headers: { origin: "https://shop.example.com", [STOREFRONT_KEY_HEADER]: "vpk_token" },
+        headers: { origin: "https://shop.example.com", [PUBLIC_API_KEY_HEADER]: "vpk_token" },
       }),
       ENV,
     )
@@ -882,7 +888,7 @@ describe("createOperatorAuthNodeRuntime customer dynamic CORS", () => {
     expect(
       await runtime.resolveCustomerCorsOrigin(
         new Request("https://api.example.com/v1/public/catalog", {
-          headers: { origin: "https://evil.com", [STOREFRONT_KEY_HEADER]: "vpk_token" },
+          headers: { origin: "https://evil.com", [PUBLIC_API_KEY_HEADER]: "vpk_token" },
         }),
         ENV,
       ),
@@ -894,7 +900,7 @@ describe("createOperatorAuthNodeRuntime customer dynamic CORS", () => {
     expect(
       await runtime.resolveCustomerCorsOrigin(
         new Request("https://api.example.com/v1/admin/catalog", {
-          headers: { origin: "https://shop.example.com", [STOREFRONT_KEY_HEADER]: "vpk_token" },
+          headers: { origin: "https://shop.example.com", [PUBLIC_API_KEY_HEADER]: "vpk_token" },
         }),
         ENV,
       ),
@@ -906,7 +912,7 @@ describe("createOperatorAuthNodeRuntime customer dynamic CORS", () => {
     expect(
       await runtime.resolveCustomerCorsOrigin(
         new Request("https://api.example.com/v1/public/catalog", {
-          headers: { origin: "https://shop.example.com", [STOREFRONT_KEY_HEADER]: "vpk_token" },
+          headers: { origin: "https://shop.example.com", [PUBLIC_API_KEY_HEADER]: "vpk_token" },
         }),
         { ...ENV, VOYANT_CUSTOMER_AUTH_MODE: "disabled" },
       ),
@@ -924,7 +930,7 @@ describe("createOperatorAuthNodeRuntime customer dynamic CORS", () => {
     expect(
       await runtime.resolveCustomerCorsOrigin(
         new Request("https://api.example.com/v1/public/catalog", {
-          headers: { origin: "https://shop.example.com", [STOREFRONT_KEY_HEADER]: "vpk_token" },
+          headers: { origin: "https://shop.example.com", [PUBLIC_API_KEY_HEADER]: "vpk_token" },
         }),
         ENV,
       ),

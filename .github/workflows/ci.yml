@@ -373,7 +373,7 @@ jobs:
               pnpm --filter @voyant-travel/cruises exec vitest run \
                 tests/integration/created-target-tools.test.ts
               pnpm --filter @voyant-travel/auth exec vitest run \
-                tests/integration/storefront-channel-binding.test.ts
+                tests/integration/public-api-channel.test.ts
               pnpm --filter @voyant-travel/distribution exec vitest run \
                 tests/integration/routes.channel-presets.test.ts
               pnpm --filter @voyant-travel/distribution exec vitest run \
@@ -398,7 +398,9 @@ jobs:
                 tests/integration/invoice-document-fulfilment.test.ts
               pnpm --filter @voyant-travel/finance exec vitest run \
                 tests/integration/unperformed-services-report.test.ts
-              pnpm --filter @voyant-travel/storefront exec vitest run \
+              pnpm --filter @voyant-travel/finance exec vitest run \
+                tests/integration/public-routes.test.ts
+              pnpm --filter @voyant-travel/public-api exec vitest run \
                 tests/integration/payment-reconciliation-job.test.ts
               pnpm --filter @voyant-travel/bookings exec vitest run \
                 tests/integration/booking-amendments.test.ts
@@ -449,7 +451,7 @@ jobs:
               pnpm --filter @voyant-travel/flights exec vitest run \
                 tests/integration/durable-action-command.test.ts
               pnpm --filter @voyant-travel/auth exec vitest run \
-                tests/integration/local-storefront.test.ts
+                tests/integration/local-public-api.test.ts
               ;;
           esac
 

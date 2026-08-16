@@ -591,8 +591,8 @@ const STANDARD_CAPABILITY_PREFIXES = new Set([
   "legal",
   "operations",
   "proposals",
+  "public-api",
   "relationships",
-  "storefront",
   "trips",
 ])
 

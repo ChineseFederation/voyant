@@ -86,84 +86,114 @@ export function createSelectedCustomerBusinessAccountsAdminExtension(
 }
 
 /**
- * Selected-graph "Storefronts" admin surface owned by Auth React.
+ * Selected-graph "Public API" and "Customer accounts" admin surfaces owned by
+ * Auth React.
  *
- * The former top-level "Sites" surface is reparented here as a sub-view of
- * Storefronts: the nav entry and route live under Storefronts, and a
- * `cloud_site` storefront's hosting/deployment aspect is a managed-only
- * capability that plugs into the reparented `/storefronts/sites` route.
+ * One extension, two surfaces, because retiring the storefront entity
+ * (voyant#4624) split what the "Storefronts" page conflated: the credentials a
+ * frontend presents, and how customers sign in. The former "Sites" sub-view
+ * stays a seam whatever fills the runtime port can plug into.
  */
-export function createSelectedStorefrontAdminExtension(
+export function createSelectedPublicApiAdminExtension(
   context?: SelectedAdminExtensionFactoryContext,
 ): AdminExtension {
-  const label = context?.navMessages.storefronts ?? "Storefronts"
-  const sitesLabel = context?.navMessages.storefrontSites ?? "Sites"
+  const publicApiLabel = context?.navMessages.publicApi ?? "Public API"
+  const customerAccountsLabel = context?.navMessages.customerAccounts ?? "Customer accounts"
+  const sitesLabel = context?.navMessages.publicApiSites ?? "Sites"
   const routeMessagesProvider = () =>
     import("./i18n/index.js").then((module) => ({ default: module.AuthUiMessagesProvider }))
   return defineAdminExtension({
-    id: "storefronts",
+    id: "public-api",
     navigation: [
       {
         order: 46,
         items: [
           {
-            id: "storefronts",
-            title: label,
-            url: "/storefronts",
+            id: "public-api",
+            title: publicApiLabel,
+            url: "/public-api",
             icon: Store,
             items: [
-              { id: "storefronts-all", title: label, url: "/storefronts", icon: Store },
-              // Reparented Sites entry (was the top-level "Sites" nav item).
-              {
-                id: "storefronts-sites",
-                title: sitesLabel,
-                url: "/storefronts/sites",
-                icon: Globe,
-              },
+              { id: "public-api-keys", title: publicApiLabel, url: "/public-api", icon: Store },
+              { id: "public-api-sites", title: sitesLabel, url: "/public-api/sites", icon: Globe },
             ],
+          },
+          {
+            id: "customer-accounts",
+            title: customerAccountsLabel,
+            url: "/customer-accounts",
+            icon: Users,
           },
         ],
       },
     ],
     routes: [
       {
-        id: "storefronts",
-        path: "/storefronts",
-        title: label,
+        id: "public-api",
+        path: "/public-api",
+        title: publicApiLabel,
         ssr: "data-only",
         page: () =>
-          import("./components/storefronts-page.js").then((module) =>
-            adminRoutePageModule(module.StorefrontsPage),
+          import("./components/public-api-page.js").then((module) =>
+            adminRoutePageModule(module.PublicApiPage),
           ),
-        loader: loadStorefronts,
+        loader: loadPublicApi,
         routeMessagesProvider,
       },
       {
-        // Reparented Sites route: the managed sites surface plugs in here.
-        id: "storefront-sites",
-        path: "/storefronts/sites",
+        // The sites seam renames with the module; the concept it exposes
+        // belongs to whatever fills the runtime port.
+        id: "public-api-sites",
+        path: "/public-api/sites",
         title: sitesLabel,
         ssr: "data-only",
         page: () =>
-          import("./components/storefront-sites-page.js").then((module) =>
-            adminRoutePageModule(module.StorefrontSitesPage),
+          import("./components/public-api-sites-page.js").then((module) =>
+            adminRoutePageModule(module.PublicApiSitesPage),
           ),
+        routeMessagesProvider,
+      },
+      {
+        id: "customer-accounts",
+        path: "/customer-accounts",
+        title: customerAccountsLabel,
+        ssr: "data-only",
+        page: () =>
+          import("./components/customer-accounts-page.js").then((module) =>
+            adminRoutePageModule(module.CustomerAccountsPage),
+          ),
+        loader: loadCustomerAccounts,
         routeMessagesProvider,
       },
     ],
   })
 }
 
-async function loadStorefronts({ queryClient, runtime }: AdminRouteLoaderContext): Promise<void> {
-  const {
-    createStorefrontsAdminApi,
-    storefrontCapabilitiesQueryOptions,
-    storefrontListQueryOptions,
-  } = await import("./storefronts-admin-api.js")
-  const api = createStorefrontsAdminApi(runtime.baseUrl, runtime.fetcher ?? fetch)
+async function loadPublicApi({ queryClient, runtime }: AdminRouteLoaderContext): Promise<void> {
+  const { createPublicApiAdminApi, publicApiChannelsQueryOptions, publicApiKeysQueryOptions } =
+    await import("./public-api-admin-api.js")
+  const api = createPublicApiAdminApi(runtime.baseUrl, runtime.fetcher ?? fetch)
   await Promise.all([
-    queryClient.prefetchQuery(storefrontCapabilitiesQueryOptions(api)),
-    queryClient.prefetchQuery(storefrontListQueryOptions(api)),
+    queryClient.prefetchQuery(publicApiKeysQueryOptions(api)),
+    queryClient.prefetchQuery(publicApiChannelsQueryOptions(api)),
+  ])
+}
+
+async function loadCustomerAccounts({
+  queryClient,
+  runtime,
+}: AdminRouteLoaderContext): Promise<void> {
+  const {
+    createCustomerAccountsAdminApi,
+    customerAccountCapabilitiesQueryOptions,
+    customerAccountCredentialsQueryOptions,
+    customerAccountSettingsQueryOptions,
+  } = await import("./public-api-admin-api.js")
+  const api = createCustomerAccountsAdminApi(runtime.baseUrl, runtime.fetcher ?? fetch)
+  await Promise.all([
+    queryClient.prefetchQuery(customerAccountCapabilitiesQueryOptions(api)),
+    queryClient.prefetchQuery(customerAccountSettingsQueryOptions(api)),
+    queryClient.prefetchQuery(customerAccountCredentialsQueryOptions(api)),
   ])
 }
 

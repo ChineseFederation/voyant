@@ -2760,7 +2760,7 @@ value: "gateway" }`, and the Node runtime provider plan accepts `storage:
   - @voyant-travel/core@0.118.0
   - @voyant-travel/inventory@0.8.6
   - @voyant-travel/accommodations@0.112.5
-  - @voyant-travel/storefront@0.154.0
+  - @voyant-travel/public-api@0.154.0
   - @voyant-travel/legal@0.152.0
   - @voyant-travel/action-ledger@0.107.0
   - @voyant-travel/relationships@0.124.0
@@ -2820,7 +2820,7 @@ value: "gateway" }`, and the Node runtime provider plan accepts `storage:
   - @voyant-travel/operator-settings@0.3.4
   - @voyant-travel/quotes@0.126.4
   - @voyant-travel/relationships@0.123.4
-  - @voyant-travel/storefront@0.153.4
+  - @voyant-travel/public-api@0.153.4
   - @voyant-travel/trips@0.142.4
   - @voyant-travel/runtime-core@0.5.2
   - @voyant-travel/workflows@0.115.2
@@ -2852,7 +2852,7 @@ value: "gateway" }`, and the Node runtime provider plan accepts `storage:
   - @voyant-travel/operator-settings@0.3.3
   - @voyant-travel/quotes@0.126.3
   - @voyant-travel/relationships@0.123.3
-  - @voyant-travel/storefront@0.153.3
+  - @voyant-travel/public-api@0.153.3
   - @voyant-travel/trips@0.142.3
   - @voyant-travel/types@0.107.3
   - @voyant-travel/workflows@0.115.1
@@ -2887,7 +2887,7 @@ value: "gateway" }`, and the Node runtime provider plan accepts `storage:
   - @voyant-travel/quotes@0.126.2
   - @voyant-travel/relationships@0.123.2
   - @voyant-travel/storage@0.107.2
-  - @voyant-travel/storefront@0.153.2
+  - @voyant-travel/public-api@0.153.2
   - @voyant-travel/trips@0.142.2
   - @voyant-travel/workflows-orchestrator@0.115.0
 
@@ -2952,7 +2952,7 @@ value: "gateway" }`, and the Node runtime provider plan accepts `storage:
   - @voyant-travel/operator-settings@0.3.1
   - @voyant-travel/relationships@0.123.1
   - @voyant-travel/storage@0.107.1
-  - @voyant-travel/storefront@0.153.1
+  - @voyant-travel/public-api@0.153.1
   - @voyant-travel/trips@0.142.1
   - @voyant-travel/workflows-orchestrator@0.113.0
 
@@ -3030,7 +3030,7 @@ value: "gateway" }`, and the Node runtime provider plan accepts `storage:
   - @voyant-travel/commerce@0.33.0
   - @voyant-travel/inventory@0.8.0
   - @voyant-travel/legal@0.151.0
-  - @voyant-travel/storefront@0.153.0
+  - @voyant-travel/public-api@0.153.0
   - @voyant-travel/finance@0.151.0
   - @voyant-travel/bookings@0.151.0
   - @voyant-travel/distribution@0.141.0
@@ -3075,7 +3075,7 @@ value: "gateway" }`, and the Node runtime provider plan accepts `storage:
   - @voyant-travel/finance@0.150.0
   - @voyant-travel/legal@0.150.0
   - @voyant-travel/notifications@0.122.2
-  - @voyant-travel/storefront@0.152.0
+  - @voyant-travel/public-api@0.152.0
   - @voyant-travel/trips@0.141.0
   - @voyant-travel/action-ledger@0.105.15
   - @voyant-travel/catalog@0.148.0
@@ -3151,7 +3151,7 @@ value: "gateway" }`, and the Node runtime provider plan accepts `storage:
   - @voyant-travel/operator-settings@0.2.34
   - @voyant-travel/quotes@0.125.8
   - @voyant-travel/relationships@0.122.11
-  - @voyant-travel/storefront@0.151.1
+  - @voyant-travel/public-api@0.151.1
   - @voyant-travel/trips@0.140.1
   - @voyant-travel/hono@0.122.2
   - @voyant-travel/workflows@0.111.19
@@ -3442,7 +3442,7 @@ value: "gateway" }`, and the Node runtime provider plan accepts `storage:
 - @voyant-travel/trips@0.140.0
 - @voyant-travel/accommodations@0.111.4
 - @voyant-travel/commerce@0.31.0
-- @voyant-travel/storefront@0.151.0
+- @voyant-travel/public-api@0.151.0
 - @voyant-travel/inventory@0.7.9
 - @voyant-travel/operations@0.5.21
 - @voyant-travel/operator-settings@0.2.33
@@ -3482,7 +3482,7 @@ value: "gateway" }`, and the Node runtime provider plan accepts `storage:
 - @voyant-travel/trips@0.139.0
 - @voyant-travel/accommodations@0.111.3
 - @voyant-travel/commerce@0.30.0
-- @voyant-travel/storefront@0.150.0
+- @voyant-travel/public-api@0.150.0
 - @voyant-travel/inventory@0.7.8
 - @voyant-travel/operations@0.5.20
 - @voyant-travel/operator-settings@0.2.32
@@ -3506,7 +3506,7 @@ value: "gateway" }`, and the Node runtime provider plan accepts `storage:
 - @voyant-travel/trips@0.138.0
 - @voyant-travel/accommodations@0.111.2
 - @voyant-travel/commerce@0.29.0
-- @voyant-travel/storefront@0.149.0
+- @voyant-travel/public-api@0.149.0
 - @voyant-travel/inventory@0.7.7
 - @voyant-travel/operations@0.5.19
 - @voyant-travel/operator-settings@0.2.31
@@ -3530,7 +3530,7 @@ value: "gateway" }`, and the Node runtime provider plan accepts `storage:
 - @voyant-travel/trips@0.137.0
 - @voyant-travel/accommodations@0.111.1
 - @voyant-travel/commerce@0.28.0
-- @voyant-travel/storefront@0.148.0
+- @voyant-travel/public-api@0.148.0
 - @voyant-travel/inventory@0.7.6
 - @voyant-travel/operations@0.5.18
 - @voyant-travel/operator-settings@0.2.30
@@ -3580,7 +3580,7 @@ value: "gateway" }`, and the Node runtime provider plan accepts `storage:
   - @voyant-travel/identity@0.145.0
   - @voyant-travel/legal@0.145.0
   - @voyant-travel/notifications@0.118.6
-  - @voyant-travel/storefront@0.147.0
+  - @voyant-travel/public-api@0.147.0
   - @voyant-travel/operator-settings@0.2.29
   - @voyant-travel/relationships@0.122.6
 
@@ -3616,7 +3616,7 @@ value: "gateway" }`, and the Node runtime provider plan accepts `storage:
   - @voyant-travel/finance@0.144.0
   - @voyant-travel/legal@0.144.0
   - @voyant-travel/notifications@0.118.5
-  - @voyant-travel/storefront@0.146.0
+  - @voyant-travel/public-api@0.146.0
   - @voyant-travel/trips@0.135.0
   - @voyant-travel/mice@0.6.7
   - @voyant-travel/catalog@0.142.0
@@ -3666,7 +3666,7 @@ value: "gateway" }`, and the Node runtime provider plan accepts `storage:
   - @voyant-travel/finance@0.143.0
   - @voyant-travel/legal@0.143.0
   - @voyant-travel/relationships@0.122.4
-  - @voyant-travel/storefront@0.145.0
+  - @voyant-travel/public-api@0.145.0
   - @voyant-travel/accommodations@0.109.11
   - @voyant-travel/action-ledger@0.105.13
   - @voyant-travel/catalog@0.141.0
@@ -3726,7 +3726,7 @@ value: "gateway" }`, and the Node runtime provider plan accepts `storage:
   - @voyant-travel/flights@0.142.0
   - @voyant-travel/quotes@0.125.0
   - @voyant-travel/inventory@0.7.2
-  - @voyant-travel/storefront@0.144.0
+  - @voyant-travel/public-api@0.144.0
   - @voyant-travel/bookings@0.142.0
   - @voyant-travel/catalog@0.140.0
   - @voyant-travel/finance@0.142.0
@@ -3816,7 +3816,7 @@ value: "gateway" }`, and the Node runtime provider plan accepts `storage:
   - @voyant-travel/legal@0.141.0
   - @voyant-travel/quotes@0.124.2
   - @voyant-travel/notifications@0.118.1
-  - @voyant-travel/storefront@0.143.0
+  - @voyant-travel/public-api@0.143.0
   - @voyant-travel/operator-settings@0.2.25
   - @voyant-travel/relationships@0.122.2
 
@@ -3856,7 +3856,7 @@ value: "gateway" }`, and the Node runtime provider plan accepts `storage:
   - @voyant-travel/inventory@0.7.0
   - @voyant-travel/trips@0.131.0
   - @voyant-travel/commerce@0.22.0
-  - @voyant-travel/storefront@0.142.0
+  - @voyant-travel/public-api@0.142.0
   - @voyant-travel/bookings@0.140.0
   - @voyant-travel/catalog@0.138.0
   - @voyant-travel/distribution@0.130.0
@@ -3888,7 +3888,7 @@ value: "gateway" }`, and the Node runtime provider plan accepts `storage:
 ### Patch Changes
 
 - Updated dependencies [ec207bd]
-  - @voyant-travel/storefront@0.141.2
+  - @voyant-travel/public-api@0.141.2
 
 ## 0.12.9
 
@@ -3939,7 +3939,7 @@ value: "gateway" }`, and the Node runtime provider plan accepts `storage:
 - Updated dependencies [ecff8cf]
   - @voyant-travel/operations@0.5.11
   - @voyant-travel/bookings@0.139.2
-  - @voyant-travel/storefront@0.141.1
+  - @voyant-travel/public-api@0.141.1
 
 ## 0.12.3
 
@@ -4002,7 +4002,7 @@ value: "gateway" }`, and the Node runtime provider plan accepts `storage:
   - @voyant-travel/inventory@0.6.0
   - @voyant-travel/mice@0.6.5
   - @voyant-travel/commerce@0.21.0
-  - @voyant-travel/storefront@0.141.0
+  - @voyant-travel/public-api@0.141.0
   - @voyant-travel/distribution@0.129.0
   - @voyant-travel/trips@0.130.0
   - @voyant-travel/identity@0.139.0
@@ -4088,7 +4088,7 @@ value: "gateway" }`, and the Node runtime provider plan accepts `storage:
   - @voyant-travel/operator-settings@0.2.22
   - @voyant-travel/quotes@0.123.14
   - @voyant-travel/relationships@0.121.10
-  - @voyant-travel/storefront@0.140.2
+  - @voyant-travel/public-api@0.140.2
   - @voyant-travel/trips@0.129.2
 
 ## 0.10.0
@@ -4116,7 +4116,7 @@ value: "gateway" }`, and the Node runtime provider plan accepts `storage:
   - @voyant-travel/operator-settings@0.2.21
   - @voyant-travel/quotes@0.123.13
   - @voyant-travel/relationships@0.121.9
-  - @voyant-travel/storefront@0.140.1
+  - @voyant-travel/public-api@0.140.1
   - @voyant-travel/trips@0.129.1
 
 ## 0.9.47
@@ -4216,7 +4216,7 @@ value: "gateway" }`, and the Node runtime provider plan accepts `storage:
   - @voyant-travel/identity@0.138.0
   - @voyant-travel/trips@0.129.0
   - @voyant-travel/notifications@0.116.11
-  - @voyant-travel/storefront@0.140.0
+  - @voyant-travel/public-api@0.140.0
   - @voyant-travel/accommodations@0.109.2
   - @voyant-travel/inventory@0.5.13
   - @voyant-travel/operations@0.5.6
@@ -4239,7 +4239,7 @@ value: "gateway" }`, and the Node runtime provider plan accepts `storage:
 - Updated dependencies [04aa601]
   - @voyant-travel/legal@0.137.9
   - @voyant-travel/distribution@0.127.3
-  - @voyant-travel/storefront@0.139.5
+  - @voyant-travel/public-api@0.139.5
 
 ## 0.9.36
 
@@ -4251,7 +4251,7 @@ value: "gateway" }`, and the Node runtime provider plan accepts `storage:
   - @voyant-travel/catalog@0.135.8
   - @voyant-travel/legal@0.137.8
   - @voyant-travel/bookings@0.137.6
-  - @voyant-travel/storefront@0.139.4
+  - @voyant-travel/public-api@0.139.4
 
 ## 0.9.35
 
@@ -4329,7 +4329,7 @@ value: "gateway" }`, and the Node runtime provider plan accepts `storage:
 
 ### Patch Changes
 
-- @voyant-travel/storefront@0.139.3
+- @voyant-travel/public-api@0.139.3
 
 ## 0.9.26
 
@@ -4368,7 +4368,7 @@ value: "gateway" }`, and the Node runtime provider plan accepts `storage:
 ### Patch Changes
 
 - Updated dependencies [ce0f92d]
-  - @voyant-travel/storefront@0.139.2
+  - @voyant-travel/public-api@0.139.2
   - @voyant-travel/finance@0.137.7
 
 ## 0.9.21
@@ -4552,7 +4552,7 @@ value: "gateway" }`, and the Node runtime provider plan accepts `storage:
 
 - Updated dependencies [9a1197b]
   - @voyant-travel/hono@0.118.0
-  - @voyant-travel/storefront@0.139.1
+  - @voyant-travel/public-api@0.139.1
   - @voyant-travel/finance@0.137.1
   - @voyant-travel/inventory@0.5.6
   - @voyant-travel/legal@0.137.1
@@ -4602,7 +4602,7 @@ value: "gateway" }`, and the Node runtime provider plan accepts `storage:
   - @voyant-travel/operator-settings@0.2.18
   - @voyant-travel/quotes@0.123.5
   - @voyant-travel/relationships@0.121.5
-  - @voyant-travel/storefront@0.139.0
+  - @voyant-travel/public-api@0.139.0
   - @voyant-travel/trips@0.128.0
 
 ## 0.7.7
@@ -4676,7 +4676,7 @@ value: "gateway" }`, and the Node runtime provider plan accepts `storage:
   - @voyant-travel/operations@0.5.0
   - @voyant-travel/hono@0.116.1
   - @voyant-travel/inventory@0.5.3
-  - @voyant-travel/storefront@0.138.0
+  - @voyant-travel/public-api@0.138.0
   - @voyant-travel/bookings@0.136.0
   - @voyant-travel/catalog@0.134.0
   - @voyant-travel/distribution@0.126.0
@@ -4715,7 +4715,7 @@ value: "gateway" }`, and the Node runtime provider plan accepts `storage:
   - @voyant-travel/mice@0.2.0
   - @voyant-travel/operations@0.4.0
   - @voyant-travel/inventory@0.5.2
-  - @voyant-travel/storefront@0.137.0
+  - @voyant-travel/public-api@0.137.0
   - @voyant-travel/bookings@0.135.0
   - @voyant-travel/catalog@0.133.0
   - @voyant-travel/distribution@0.125.0
@@ -4767,7 +4767,7 @@ value: "gateway" }`, and the Node runtime provider plan accepts `storage:
   - @voyant-travel/operator-settings@0.2.15
   - @voyant-travel/quotes@0.123.1
   - @voyant-travel/relationships@0.121.1
-  - @voyant-travel/storefront@0.136.1
+  - @voyant-travel/public-api@0.136.1
   - @voyant-travel/trips@0.125.1
 
 ## 0.5.0
@@ -4809,7 +4809,7 @@ value: "gateway" }`, and the Node runtime provider plan accepts `storage:
   - @voyant-travel/catalog@0.132.0
   - @voyant-travel/flights@0.134.0
   - @voyant-travel/operator-settings@0.2.14
-  - @voyant-travel/storefront@0.136.0
+  - @voyant-travel/public-api@0.136.0
   - @voyant-travel/trips@0.125.0
 
 ## 0.4.0
@@ -4836,7 +4836,7 @@ value: "gateway" }`, and the Node runtime provider plan accepts `storage:
   - @voyant-travel/operator-settings@0.2.13
   - @voyant-travel/quotes@0.122.11
   - @voyant-travel/relationships@0.120.13
-  - @voyant-travel/storefront@0.135.0
+  - @voyant-travel/public-api@0.135.0
 
 ## 0.3.1
 
@@ -4856,7 +4856,7 @@ value: "gateway" }`, and the Node runtime provider plan accepts `storage:
   - @voyant-travel/identity@0.132.0
   - @voyant-travel/legal@0.132.0
   - @voyant-travel/notifications@0.114.9
-  - @voyant-travel/storefront@0.134.0
+  - @voyant-travel/public-api@0.134.0
   - @voyant-travel/operator-settings@0.2.12
   - @voyant-travel/relationships@0.120.12
 
@@ -4881,7 +4881,7 @@ value: "gateway" }`, and the Node runtime provider plan accepts `storage:
   - @voyant-travel/operator-settings@0.2.11
   - @voyant-travel/quotes@0.122.9
   - @voyant-travel/relationships@0.120.11
-  - @voyant-travel/storefront@0.133.1
+  - @voyant-travel/public-api@0.133.1
   - @voyant-travel/trips@0.122.1
 
 ## 0.2.22
@@ -4919,7 +4919,7 @@ value: "gateway" }`, and the Node runtime provider plan accepts `storage:
 - @voyant-travel/trips@0.122.0
 - @voyant-travel/commerce@0.13.0
 - @voyant-travel/notifications@0.114.7
-- @voyant-travel/storefront@0.133.0
+- @voyant-travel/public-api@0.133.0
 - @voyant-travel/inventory@0.4.3
 - @voyant-travel/operations@0.2.4
 - @voyant-travel/operator-settings@0.2.10
@@ -4940,7 +4940,7 @@ value: "gateway" }`, and the Node runtime provider plan accepts `storage:
 - @voyant-travel/trips@0.121.0
 - @voyant-travel/commerce@0.12.0
 - @voyant-travel/notifications@0.114.6
-- @voyant-travel/storefront@0.132.0
+- @voyant-travel/public-api@0.132.0
 - @voyant-travel/inventory@0.4.2
 - @voyant-travel/operations@0.2.3
 - @voyant-travel/operator-settings@0.2.9
@@ -4953,7 +4953,7 @@ value: "gateway" }`, and the Node runtime provider plan accepts `storage:
 
 - Updated dependencies [733bf33]
   - @voyant-travel/commerce@0.11.1
-  - @voyant-travel/storefront@0.131.1
+  - @voyant-travel/public-api@0.131.1
 
 ## 0.2.16
 
@@ -5009,7 +5009,7 @@ value: "gateway" }`, and the Node runtime provider plan accepts `storage:
   - @voyant-travel/identity@0.129.0
   - @voyant-travel/legal@0.129.0
   - @voyant-travel/notifications@0.114.5
-  - @voyant-travel/storefront@0.131.0
+  - @voyant-travel/public-api@0.131.0
   - @voyant-travel/operator-settings@0.2.8
   - @voyant-travel/relationships@0.120.7
 
@@ -5018,7 +5018,7 @@ value: "gateway" }`, and the Node runtime provider plan accepts `storage:
 ### Patch Changes
 
 - Updated dependencies [63e99ca]
-  - @voyant-travel/storefront@0.130.0
+  - @voyant-travel/public-api@0.130.0
 
 ## 0.2.9
 
@@ -5026,7 +5026,7 @@ value: "gateway" }`, and the Node runtime provider plan accepts `storage:
 
 - Updated dependencies [9c47b00]
   - @voyant-travel/inventory@0.4.0
-  - @voyant-travel/storefront@0.129.0
+  - @voyant-travel/public-api@0.129.0
   - @voyant-travel/bookings@0.128.0
   - @voyant-travel/catalog@0.126.0
   - @voyant-travel/distribution@0.118.0
@@ -5052,7 +5052,7 @@ value: "gateway" }`, and the Node runtime provider plan accepts `storage:
   - @voyant-travel/bookings@0.127.0
   - @voyant-travel/flights@0.127.0
   - @voyant-travel/inventory@0.3.9
-  - @voyant-travel/storefront@0.128.0
+  - @voyant-travel/public-api@0.128.0
   - @voyant-travel/commerce@0.9.0
   - @voyant-travel/distribution@0.117.0
   - @voyant-travel/finance@0.127.0
@@ -5088,7 +5088,7 @@ value: "gateway" }`, and the Node runtime provider plan accepts `storage:
   - @voyant-travel/finance@0.126.1
   - @voyant-travel/notifications@0.114.2
   - @voyant-travel/legal@0.126.1
-  - @voyant-travel/storefront@0.127.1
+  - @voyant-travel/public-api@0.127.1
   - @voyant-travel/operator-settings@0.2.5
   - @voyant-travel/action-ledger@0.105.3
   - @voyant-travel/trips@0.117.1
@@ -5102,7 +5102,7 @@ value: "gateway" }`, and the Node runtime provider plan accepts `storage:
   - @voyant-travel/legal@0.126.0
   - @voyant-travel/commerce@0.8.0
   - @voyant-travel/notifications@0.114.1
-  - @voyant-travel/storefront@0.127.0
+  - @voyant-travel/public-api@0.127.0
   - @voyant-travel/inventory@0.3.6
   - @voyant-travel/bookings@0.126.0
   - @voyant-travel/catalog@0.124.0
@@ -5139,7 +5139,7 @@ value: "gateway" }`, and the Node runtime provider plan accepts `storage:
   - @voyant-travel/quotes@0.122.0
   - @voyant-travel/commerce@0.7.0
   - @voyant-travel/inventory@0.3.5
-  - @voyant-travel/storefront@0.126.0
+  - @voyant-travel/public-api@0.126.0
   - @voyant-travel/bookings@0.125.0
   - @voyant-travel/catalog@0.123.0
   - @voyant-travel/distribution@0.115.0
@@ -5167,7 +5167,7 @@ value: "gateway" }`, and the Node runtime provider plan accepts `storage:
 - @voyant-travel/identity@0.124.0
 - @voyant-travel/legal@0.124.0
 - @voyant-travel/notifications@0.113.0
-- @voyant-travel/storefront@0.125.0
+- @voyant-travel/public-api@0.125.0
 - @voyant-travel/trips@0.115.0
 - @voyant-travel/commerce@0.6.0
 - @voyant-travel/inventory@0.3.4
@@ -5309,7 +5309,7 @@ value: "gateway" }`, and the Node runtime provider plan accepts `storage:
   - @voyant-travel/distribution@0.113.0
   - @voyant-travel/legal@0.123.0
   - @voyant-travel/notifications@0.112.0
-  - @voyant-travel/storefront@0.124.0
+  - @voyant-travel/public-api@0.124.0
   - @voyant-travel/trips@0.114.0
   - @voyant-travel/action-ledger@0.105.1
   - @voyant-travel/catalog@0.121.0

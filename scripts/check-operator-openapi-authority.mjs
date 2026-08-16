@@ -127,8 +127,10 @@ function readManifestOpenApiClaims(files) {
   for (const file of files) {
     const source = readFileSync(file, "utf8")
     for (const match of source.matchAll(declaration)) {
-      const surface = match[2] === "public" ? "storefront" : match[2]
-      if (surface === "admin" || surface === "storefront") {
+      // The public surface's documents live under `openapi/public-api/`
+      // since the storefront entity was retired (voyant#4624).
+      const surface = match[2] === "public" ? "public-api" : match[2]
+      if (surface === "admin" || surface === "public-api") {
         claims.add(`${surface}:${match[3]}`)
       }
     }

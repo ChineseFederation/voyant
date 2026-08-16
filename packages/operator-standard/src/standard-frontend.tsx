@@ -45,14 +45,14 @@ import type {
   createProposalsPublicRouteContribution,
   ProposalsPublicRouteRuntime,
 } from "@voyant-travel/proposals-react/public-routes"
-import { AdminWorkspaceRealtimeProvider } from "@voyant-travel/realtime-react"
-import { useStorefrontMessages } from "@voyant-travel/storefront-react/storefront/messages"
+import { usePublicApiMessages } from "@voyant-travel/public-api-react/public-api/messages"
 import {
-  createStorefrontMessagesProvider,
-  type StorefrontComposerRouteProps,
-  type StorefrontPresentationContribution,
-  type StorefrontPresentationRuntime,
-} from "@voyant-travel/storefront-react/storefront/presentation-routes"
+  createPublicApiMessagesProvider,
+  type PublicApiComposerRouteProps,
+  type PublicApiPresentationContribution,
+  type PublicApiPresentationRuntime,
+} from "@voyant-travel/public-api-react/public-api/presentation-routes"
+import { AdminWorkspaceRealtimeProvider } from "@voyant-travel/realtime-react"
 import type { AccessCatalog } from "@voyant-travel/types/api-keys"
 import { ConfirmDialogHost, PromptDialogHost } from "@voyant-travel/ui/components"
 import { TooltipProvider } from "@voyant-travel/ui/components/tooltip"
@@ -63,27 +63,27 @@ import { lazy, Suspense, useMemo } from "react"
 import { createApiDocsRouteOptions, type OpenApiSpecLoaders } from "./standard-api-docs.js"
 
 const AccommodationDetailPage = lazy(() =>
-  import("@voyant-travel/storefront-react/storefront").then((module) => ({
+  import("@voyant-travel/public-api-react/public-api").then((module) => ({
     default: module.AccommodationDetailPage,
   })),
 )
 const CruiseDetailPage = lazy(() =>
-  import("@voyant-travel/cruises-react/storefront").then((module) => ({
+  import("@voyant-travel/cruises-react/public-api").then((module) => ({
     default: module.CruiseDetailPage,
   })),
 )
 const ProductDetailPageProducts = lazy(() =>
-  import("@voyant-travel/inventory-react/storefront").then((module) => ({
+  import("@voyant-travel/inventory-react/public-api").then((module) => ({
     default: module.ProductDetailPageProducts,
   })),
 )
-const StorefrontComposerPage = lazy(() =>
-  import("@voyant-travel/trips-react/storefront").then((module) => ({
-    default: module.StorefrontComposerPage,
+const PublicApiComposerPage = lazy(() =>
+  import("@voyant-travel/trips-react/public-api").then((module) => ({
+    default: module.PublicApiComposerPage,
   })),
 )
 
-function StorefrontPageFallback() {
+function PublicApiPageFallback() {
   return <div className="min-h-48" />
 }
 
@@ -137,7 +137,7 @@ export interface StandardOperatorFrontend {
     localAuth?: LocalAuthRouteContribution["routes"]
     mcpConsent?: McpConsentRouteContribution["routes"]
     proposals?: ReturnType<typeof createProposalsPublicRouteContribution>["routes"]
-    storefront?: StorefrontPresentationContribution["routes"]
+    publicApi?: PublicApiPresentationContribution["routes"]
   }
   createRouter<TRouteTree extends AnyRoute>(options: {
     routeTree: TRouteTree
@@ -321,13 +321,13 @@ async function apiCall<T>(path: string, options: RequestInit = {}): Promise<T> {
   return response.json() as Promise<T>
 }
 
-const useStorefrontLocale = () => useLocale().resolvedLocale
+const usePublicApiLocale = () => useLocale().resolvedLocale
 
 function createPresentationRuntime(
   presentation: AdminHostPresentation,
   presentationFactories: Readonly<Record<string, StandardOperatorPresentationFactory>>,
 ) {
-  const StorefrontMessagesProvider = createStorefrontMessagesProvider(useStorefrontLocale)
+  const PublicApiMessagesProvider = createPublicApiMessagesProvider(usePublicApiLocale)
   const localAuthFactory = presentationFactories["@voyant-travel/auth#presentation.local-auth"] as
     | LocalAuthPresentationFactory
     | undefined
@@ -342,15 +342,15 @@ function createPresentationRuntime(
   const proposalsFactory = presentationFactories["@voyant-travel/proposals#presentation.public"] as
     | ProposalsPublicPresentationFactory
     | undefined
-  const storefrontFactory = presentationFactories[
-    "@voyant-travel/storefront#presentation.customer"
-  ] as ((runtime: StorefrontPresentationRuntime) => StorefrontPresentationContribution) | undefined
-  const storefront = storefrontFactory?.({
-    ComposerPage: StandardStorefrontComposerPage,
+  const publicApiFactory = presentationFactories[
+    "@voyant-travel/public-api#presentation.customer"
+  ] as ((runtime: PublicApiPresentationRuntime) => PublicApiPresentationContribution) | undefined
+  const publicApi = publicApiFactory?.({
+    ComposerPage: StandardPublicApiComposerPage,
     getApiUrl: getAdminApiUrl,
     projectFetcher: adminFetcher,
     renderProductDetail: (entityModule, entityId) => (
-      <Suspense fallback={<StorefrontPageFallback />}>
+      <Suspense fallback={<PublicApiPageFallback />}>
         {entityModule === "accommodations" ? (
           <AccommodationDetailPage entityId={entityId} />
         ) : entityModule === "cruises" ? (
@@ -391,23 +391,23 @@ function createPresentationRuntime(
       if (result.error) throw new Error(result.error.message ?? "Could not sign out.")
       return result.data
     },
-    useLocale: useStorefrontLocale,
+    useLocale: usePublicApiLocale,
     useSession: () => customerAuthClient.useSession(),
   })
   const finance = financeFactory?.({
     getApiUrl: getAdminApiUrl,
-    StorefrontMessagesProvider,
-    usePaymentResolverMessages: () => useStorefrontMessages().pay,
+    PublicApiMessagesProvider,
+    usePaymentResolverMessages: () => usePublicApiMessages().pay,
     usePaymentLinkMessages: () => ({
-      ...useStorefrontMessages().pay,
+      ...usePublicApiMessages().pay,
       bookingSummary: useOperatorAdminMessages().bookings.detail.paymentLinkSummary,
       tripSummary: useOperatorAdminMessages().trips.paymentLinkSummary,
     }),
   })
   const proposals = proposalsFactory?.({
     getApiUrl: getAdminApiUrl,
-    StorefrontMessagesProvider,
-    useProposalMessages: () => useStorefrontMessages().proposal,
+    PublicApiMessagesProvider,
+    useProposalMessages: () => usePublicApiMessages().proposal,
   })
   const localAuth = localAuthFactory?.({
     getCurrentUser,
@@ -462,7 +462,7 @@ function createPresentationRuntime(
     },
   })
   const mcpConsent = mcpConsentFactory?.()
-  return { finance, localAuth, mcpConsent, proposals, storefront, workspace }
+  return { finance, localAuth, mcpConsent, proposals, publicApi, workspace }
 }
 
 export function createStandardOperatorFrontend(
@@ -482,7 +482,7 @@ export function createStandardOperatorFrontend(
     // Admin Better Auth routes live under `/auth/admin/*` (the isolated admin
     // realm). auth-react hooks (useSignUp/useSignIn/useAuthStatus) target the
     // default `/auth/*` surface, so scope the shared admin fetcher to the admin
-    // realm — mirroring the storefront's `/auth/customer` rewrite. Non-auth URLs
+    // realm — mirroring the public surface's `/auth/customer` rewrite. Non-auth URLs
     // pass through unchanged, so domain data hooks are unaffected.
     const adminAuthFetcher = useMemo(
       () =>
@@ -517,7 +517,7 @@ export function createStandardOperatorFrontend(
       ...(runtime.localAuth ? { localAuth: runtime.localAuth.routes } : {}),
       ...(runtime.mcpConsent ? { mcpConsent: runtime.mcpConsent.routes } : {}),
       ...(runtime.proposals ? { proposals: runtime.proposals.routes } : {}),
-      ...(runtime.storefront ? { storefront: runtime.storefront.routes } : {}),
+      ...(runtime.publicApi ? { publicApi: runtime.publicApi.routes } : {}),
     },
     createRouter<TRouteTree extends AnyRoute>({
       routeTree,
@@ -552,12 +552,12 @@ type ProposalsPublicPresentationFactory = (
   runtime: ProposalsPublicRouteRuntime,
 ) => ReturnType<typeof createProposalsPublicRouteContribution>
 
-function StandardStorefrontComposerPage(props: StorefrontComposerRouteProps) {
+function StandardPublicApiComposerPage(props: PublicApiComposerRouteProps) {
   return (
-    <Suspense fallback={<StorefrontPageFallback />}>
-      <StorefrontComposerPage
+    <Suspense fallback={<PublicApiPageFallback />}>
+      <PublicApiComposerPage
         {...props}
-        messages={useOperatorAdminMessages().trips.storefrontComposer}
+        messages={useOperatorAdminMessages().trips.publicApiComposer}
       />
     </Suspense>
   )

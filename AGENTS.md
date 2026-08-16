@@ -24,7 +24,7 @@ and promote repeated review feedback into scripts or docs.
   `docs/architecture/module-provider-plugin-taxonomy.md`
 - External systems as sources of truth:
   `docs/architecture/federated-operating-mode.md`
-- Deployment targets (Node-first for the operator; Workers for storefronts/
+- Deployment targets (Node-first for the operator; Workers for public surfaces/
   federated): `docs/architecture/deployment-targets.md`
 - Unified package manifests and deployment authority:
   `docs/architecture/unified-deployment-graph.md`
@@ -35,8 +35,8 @@ checker when a rule is mechanical enough to enforce.
 
 - Module boundaries and what the package split is for:
   `docs/adr/0016-modules-as-components-of-one-deployable.md`
-- Which storefront key kind may reach a public route (and why origin binding is
-  not the boundary): `docs/architecture/storefront-key-capability-line.md`
+- Which public API key kind may reach a public route (and why origin binding is
+  not the boundary): `docs/architecture/public-api-key-capability-line.md`
 
 ## Architecture Checkers
 
@@ -53,7 +53,7 @@ rules as data rather than code:
 | `verify:supply-chain` | no tracked lockfile resolves a known-compromised release | `scripts/checks/supply-chain/compromised-packages.json` |
 | `verify:route-conformance` | a mounted route array matches the doc that describes it | `scripts/checks/routes/route-sets.json` |
 | `verify:openapi-drift` | a generated OpenAPI document matches the routes it came from | `scripts/checks/openapi/generated-specs.json` |
-| `verify:openapi-key-kind` | every public route states which storefront key kind may call it, and every published operation is stamped with it | `scripts/checks/openapi/secret-only-public-bundles.json` |
+| `verify:openapi-key-kind` | every public route states which public API key kind may call it, and every published operation is stamped with it | `scripts/checks/openapi/secret-only-public-bundles.json` |
 
 `verify:symbol-policy` takes rules in two polarities. `absentFrom` is
 default-allow — it names the files a symbol may not appear in, and every new
@@ -321,7 +321,7 @@ focused on product code, architecture docs, and quality checkers.
   deployment boundaries.
 - New package routes should use `parseJsonBody(...)` and `parseQuery(...)`
   instead of raw `c.req.json()` or manual `searchParams` parsing.
-- A new `/v1/public/*` route is reachable only with a SECRET storefront key
+- A new `/v1/public/*` route is reachable only with a SECRET public API key
   until its API bundle declares `publishable` (or `guardedIntake`, for routes
   that capture person data with nothing challenging the submitter). Silence is a
   denial, not an omission — `/v1/public/*` names the audience, not the trust

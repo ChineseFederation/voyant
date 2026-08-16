@@ -509,7 +509,7 @@ function copyReferencedPropertyValue(
  * customer catalog slice directly renderable by denormalizing localized
  * routing, card media, duration, and map coordinates into the search doc.
  */
-export function createProductStorefrontCardProjectionExtension(): ProductProjectionExtension {
+export function createProductPublicApiCardProjectionExtension(): ProductProjectionExtension {
   return {
     name: "products:storefront-card",
     async project(db, productId, slice) {

@@ -19,7 +19,7 @@
     "starters/federated-operator/voyant.config.ts",
     // GitHub Actions selects k6 scenarios by string interpolation in
     // .github/workflows/load-test.yml; scenario imports keep shared helpers live.
-    "scripts/load/storefront-firehose.js",
+    "scripts/load/public-api-firehose.js",
     "scripts/load/payday-spike.js",
     "scripts/load/mixed.js",
     // Migration collector validation harnesses are documented architecture

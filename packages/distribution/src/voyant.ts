@@ -159,19 +159,6 @@ export const distributionVoyantModule = defineModule({
       // supplier silently drops out of the storefront.
       dependsOn: ["@voyant-travel/catalog#migrations", "@voyant-travel/distribution#migrations"],
     },
-    {
-      id: "@voyant-travel/distribution#setup.storefront-channel-bindings.v1",
-      source: "@voyant-travel/distribution/setup/storefront-channel-bindings",
-      runtime: {
-        entry: "@voyant-travel/distribution/setup/storefront-channel-bindings",
-        export: "runStorefrontChannelBindingSetupMigration",
-      },
-      dependsOn: [
-        "@voyant-travel/db#migrations",
-        "@voyant-travel/distribution#migrations",
-        "@voyant-travel/storefront#migrations",
-      ],
-    },
   ],
   access: {
     resources: [

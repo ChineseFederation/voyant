@@ -41,8 +41,8 @@ const proposalsPublic = presentation("@voyant-travel/proposals#presentation.publ
   { route: "/proposal/$proposalVersionId", member: "proposal" },
 ])
 
-const storefrontCustomer = presentation(
-  "@voyant-travel/storefront#presentation.customer",
+const publicApiCustomer = presentation(
+  "@voyant-travel/public-api#presentation.customer",
   "storefront",
   [
     { route: "/(storefront)", member: "layout" },
@@ -57,7 +57,7 @@ const storefrontCustomer = presentation(
   ],
 )
 
-const allPresentations = [localAuth, financePublic, mcpConsent, proposalsPublic, storefrontCustomer]
+const allPresentations = [localAuth, financePublic, mcpConsent, proposalsPublic, publicApiCustomer]
 
 describe("createStandardOperatorRouteFiles", () => {
   it("routes every standard frontend surface through the package runtime", () => {
@@ -74,7 +74,7 @@ describe("createStandardOperatorRouteFiles", () => {
       'import { accessCatalog } from "../../access/selected-access-catalog.generated.js"',
     )
     expect(runtime?.source).toContain('import.meta.glob("../../../src/admin/*/index.tsx"')
-    expect(runtime?.source).toContain("packages/*/openapi/{admin,storefront}/*.json")
+    expect(runtime?.source).toContain("packages/*/openapi/{admin,public-api}/*.json")
 
     for (const file of standardOperatorRouteFiles.filter(
       (candidate) => candidate.path !== "_lib/operator-frontend.tsx",
@@ -116,7 +116,7 @@ describe("createStandardOperatorRouteFiles", () => {
 
   it("emits Storefront routes only when its presentation is selected", () => {
     const selected = createStandardOperatorRouteFiles({
-      presentations: [storefrontCustomer],
+      presentations: [publicApiCustomer],
     })
     const absent = createStandardOperatorRouteFiles({ presentations: [] })
 
@@ -128,7 +128,7 @@ describe("createStandardOperatorRouteFiles", () => {
   })
 
   it("keeps the authenticated workspace client-rendered without disabling public SSR", () => {
-    const files = createStandardOperatorRouteFiles({ presentations: [storefrontCustomer] })
+    const files = createStandardOperatorRouteFiles({ presentations: [publicApiCustomer] })
     const workspace = files.find((file) => file.path === "_workspace/route.tsx")
     const storefront = files.find((file) => file.path === "(storefront)/route.tsx")
 
@@ -162,7 +162,7 @@ describe("createStandardOperatorRouteFiles", () => {
   it("orders presentation families by presentation id", () => {
     const files = createStandardOperatorRouteFiles({
       // Deliberately shuffled to prove the generator sorts by presentation id.
-      presentations: [storefrontCustomer, localAuth, proposalsPublic, financePublic, mcpConsent],
+      presentations: [publicApiCustomer, localAuth, proposalsPublic, financePublic, mcpConsent],
     })
     const familyPaths = files
       .map(({ path }) => path)

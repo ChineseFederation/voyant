@@ -10,7 +10,6 @@ import { createBookingSessionRoutes } from "./sessions-routes.js"
 import { createBookingSessionModule } from "./sessions-service.js"
 
 const ACTIVE_STOREFRONT = {
-  storefrontId: "sf_public",
   channelId: "chan_public",
   channelStatus: "active",
 } as const
@@ -56,13 +55,12 @@ const SUPPLIER_OPERATION = {
 }
 
 function createApp(
-  storefrontChannel: {
-    storefrontId: string
+  publicChannel: {
     channelId: string
     channelStatus: string | null
   } | null = ACTIVE_STOREFRONT,
 ) {
-  let currentStorefrontChannel = storefrontChannel
+  let currentPublicChannel = publicChannel
   const repository = createInMemoryBookingSessionRepository()
   const inventory = createInMemoryOwnedInventoryPorts()
   inventory.setCapacity("product:prod_owned_1", 2)
@@ -97,8 +95,8 @@ function createApp(
   }
   const app = new Hono()
   app.use("/v1/public/catalog/*", async (c, next) => {
-    if (currentStorefrontChannel) {
-      c.set("storefrontChannel" as never, currentStorefrontChannel as never)
+    if (currentPublicChannel) {
+      c.set("publicChannel" as never, currentPublicChannel as never)
     }
     await next()
   })
@@ -124,14 +122,13 @@ function createApp(
     inventory,
     module,
     supplierOperations,
-    setStorefrontChannel(
+    setPublicChannel(
       next: {
-        storefrontId: string
         channelId: string
         channelStatus: string | null
       } | null,
     ) {
-      currentStorefrontChannel = next
+      currentPublicChannel = next
     },
   }
 }
@@ -140,9 +137,9 @@ describe("Booking Session v1 routes", () => {
   it.each([
     ["missing", null],
     ["inactive", { ...ACTIVE_STOREFRONT, channelStatus: "inactive" }],
-    ["blank", { storefrontId: "  ", channelId: "  ", channelStatus: "active" }],
-  ])("fails closed for %s public storefront context", async (_label, storefrontChannel) => {
-    const { app } = createApp(storefrontChannel)
+    ["blank", { channelId: "  ", channelStatus: "active" }],
+  ])("fails closed for %s public storefront context", async (_label, publicChannel) => {
+    const { app } = createApp(publicChannel)
 
     const response = await app.request("/v1/public/catalog/booking-sessions", {
       method: "POST",
@@ -176,7 +173,7 @@ describe("Booking Session v1 routes", () => {
       body: JSON.stringify({
         idempotencyKey: "route_create_trusted_origin",
         target: { kind: "product", productId: "prod_owned_1" },
-        storefront: { storefrontId: "sf_untrusted", channelId: "chan_untrusted" },
+        storefront: { channelId: "chan_untrusted" },
       }),
     })
 
@@ -185,7 +182,7 @@ describe("Booking Session v1 routes", () => {
       expect.not.objectContaining({ storefront: expect.anything() }),
       expect.objectContaining({
         actorKind: "anonymous",
-        storefront: { storefrontId: "sf_public", channelId: "chan_public" },
+        storefront: { channelId: "chan_public" },
       }),
     )
   })
@@ -194,7 +191,7 @@ describe("Booking Session v1 routes", () => {
     ["missing", null],
     ["inactive", { ...ACTIVE_STOREFRONT, channelStatus: "inactive" }],
   ])("rejects %s storefront context for public reads and mutations", async (_label, next) => {
-    const { app, setStorefrontChannel } = createApp()
+    const { app, setPublicChannel } = createApp()
     const createdResponse = await app.request("/v1/public/catalog/booking-sessions", {
       method: "POST",
       headers: {
@@ -207,7 +204,7 @@ describe("Booking Session v1 routes", () => {
       }),
     })
     const created = (await createdResponse.json()) as { session: { id: string; revision: number } }
-    setStorefrontChannel(next)
+    setPublicChannel(next)
 
     const read = await app.request(`/v1/public/catalog/booking-sessions/${created.session.id}`, {
       headers: { "Voyant-Booking-Session-Capability": PUBLIC_CAPABILITY },
@@ -233,7 +230,7 @@ describe("Booking Session v1 routes", () => {
   })
 
   it("rejects a capability replayed from another active storefront", async () => {
-    const { app, setStorefrontChannel } = createApp()
+    const { app, setPublicChannel } = createApp()
     const createdResponse = await app.request("/v1/public/catalog/booking-sessions", {
       method: "POST",
       headers: {
@@ -246,8 +243,7 @@ describe("Booking Session v1 routes", () => {
       }),
     })
     const created = (await createdResponse.json()) as { session: { id: string } }
-    setStorefrontChannel({
-      storefrontId: "sf_other",
+    setPublicChannel({
       channelId: "chan_other",
       channelStatus: "active",
     })
@@ -357,7 +353,7 @@ describe("Booking Session v1 routes", () => {
     })
     expect(createSession.mock.calls[0]?.[1]).toMatchObject({
       actorKind: "anonymous",
-      storefront: { storefrontId: "sf_public", channelId: "chan_public" },
+      storefront: { channelId: "chan_public" },
     })
     expect(createSession.mock.calls[1]?.[1]).toEqual({
       actorKind: "staff",

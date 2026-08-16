@@ -23,7 +23,7 @@ describe("relationships deployment manifest", () => {
       packageName: "@voyant-travel/relationships",
       provides: {
         ports: [
-          { id: "storefront.intake.runtime" },
+          { id: "public-api.intake.runtime" },
           { id: relationshipsMiceRuntimePort.id },
           { id: bookingsRelationshipsRuntimePort.id },
           { id: financeStoredInstrumentRuntimePort.id },

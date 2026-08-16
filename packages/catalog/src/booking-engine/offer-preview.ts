@@ -191,7 +191,7 @@ function ephemeralPreviewSession(
     ...(access.actorKind === "anonymous" ? {} : { ownerPrincipalId: access.principalId }),
     ...(access.actorKind === "staff" || !access.storefront
       ? {}
-      : { storefrontOrigin: access.storefront }),
+      : { publicApiOrigin: access.storefront }),
     // Rebuilt field by field rather than spread: the request schema already
     // strips an `audience` the caller named, and reconstructing it here means
     // a direct service caller cannot smuggle one in either.

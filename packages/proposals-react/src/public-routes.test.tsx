@@ -6,7 +6,7 @@ describe("proposals public presentation", () => {
   it("matches the package-owned presentation declaration", () => {
     const contribution = createProposalsPublicRouteContribution({
       getApiUrl: vi.fn(() => "/api"),
-      StorefrontMessagesProvider: ({ children }: { children: ReactNode }) => children,
+      PublicApiMessagesProvider: ({ children }: { children: ReactNode }) => children,
       useProposalMessages: vi.fn(),
     } as never)
 

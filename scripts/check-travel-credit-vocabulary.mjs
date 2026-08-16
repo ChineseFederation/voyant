@@ -47,9 +47,9 @@ for (const path of [
 
 for (const path of [
   "packages/bookings/openapi/admin/bookings.json",
-  "packages/bookings/openapi/storefront/bookings.json",
+  "packages/bookings/openapi/public-api/bookings.json",
   "packages/inventory/openapi/admin/products.json",
-  "packages/storefront/openapi/storefront/customer-portal.json",
+  "packages/public-api/openapi/public-api/customer-portal.json",
 ]) {
   const source = readFileSync(resolve(root, path), "utf8")
   for (const pattern of [/"voucher"/, /\bvoucherRedemption\b/, /\bvoucherId\b/]) {
@@ -60,8 +60,8 @@ for (const path of [
 }
 
 for (const path of [
-  "packages/storefront/src/validation-settings.ts",
-  "packages/storefront/src/service.ts",
+  "packages/public-api/src/validation-settings.ts",
+  "packages/public-api/src/service.ts",
 ]) {
   const source = readFileSync(resolve(root, path), "utf8")
   if (/\bvoucher\b/i.test(source)) {
@@ -70,7 +70,7 @@ for (const path of [
 }
 
 const customerPortalSchemas = readFileSync(
-  resolve(root, "packages/storefront/src/customer-portal/validation-public/common.ts"),
+  resolve(root, "packages/public-api/src/customer-portal/validation-public/common.ts"),
   "utf8",
 )
 const paymentMethodSchema = customerPortalSchemas.match(
@@ -78,7 +78,7 @@ const paymentMethodSchema = customerPortalSchemas.match(
 )?.[1]
 if (!paymentMethodSchema || /\bvoucher\b/i.test(paymentMethodSchema)) {
   violations.push(
-    "packages/storefront/src/customer-portal/validation-public/common.ts: Finance payment methods must use travel_credit",
+    "packages/public-api/src/customer-portal/validation-public/common.ts: Finance payment methods must use travel_credit",
   )
 }
 
@@ -91,7 +91,7 @@ for (const path of [
   "packages/inventory/src/schema-shared.ts",
   "packages/inventory/src/schema-settings.ts",
   "packages/inventory/src/routes-configuration.ts",
-  "packages/storefront/src/customer-portal/validation-public/common.ts",
+  "packages/public-api/src/customer-portal/validation-public/common.ts",
 ]) {
   const source = readFileSync(resolve(root, path), "utf8")
   for (const pattern of [

@@ -231,7 +231,7 @@ schemas and types from `@voyant-travel/catalog-contracts/adapter/schemas` and
 
 `@voyant-travel/catalog` exports `createCatalogBookingEngineApiModule(...)` for
 Booking Session v1. The module mounts the same Session lifecycle for staff and
-storefront callers. Session Commit is the only booking creation authority; it
+public surface callers. Session Commit is the only booking creation authority; it
 derives and executes Finance's durable command only after the exact Session
 revision, Quote, Hold, buyer, and policy state have been validated:
 
@@ -260,7 +260,7 @@ template.
 
 `@voyant-travel/catalog` also exports `createCatalogSearchApiModule(...)`,
 `createCatalogSearchRoutes(...)`, and `mountCatalogSearchRoutes(...)` for the
-plain JSON catalog search endpoint used by admin and storefront UIs:
+plain JSON catalog search endpoint used by admin and public surface UIs:
 
 - `POST /v1/admin/catalog/search`
 - `POST /v1/public/catalog/search`
@@ -293,7 +293,7 @@ Search defaults to hybrid mode, downgrades to keyword when no embeddings are
 available, and retries semantic/hybrid execution as keyword when the semantic
 path fails. Pass `fallbackToKeywordOnSearchError: false` to fail closed instead.
 
-Storefront listing pages can request typed index-layer sorting and a compact
+Public API listing pages can request typed index-layer sorting and a compact
 card projection from the public route:
 
 ```typescript
@@ -304,7 +304,7 @@ await fetch("/v1/public/catalog/search", {
     query: "",
     mode: "keyword",
     sort: "price-asc",
-    projection: "storefront-card",
+    projection: "public surface-card",
     pagination: { limit: 12 },
     facets: [{ field: "categorySlugs[]" }, { field: "departureMonths[]" }],
   }),
@@ -316,8 +316,8 @@ Supported sort values are `relevance`, `price-asc`, `price-desc`,
 safe indexed fields such as `priceFromAmountCents` and `nextDepartureDate`; they
 are not applied after app-side hydration.
 
-When `projection: "storefront-card"` is present, the response keeps the raw
+When `projection: "public surface-card"` is present, the response keeps the raw
 `hits`, `total`, and engine facet counts, and also includes `cards` with the
-fields storefront product grids commonly need: localized name/slug, primary
+fields public surface product grids commonly need: localized name/slug, primary
 category, media URLs, price-from and offer badge data, departure aggregates,
 destinations, and coordinates.

@@ -1,0 +1,91 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Voyant Customer Accounts Admin API",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/v1/admin/customer-accounts/capabilities": {
+      "get": {
+        "operationId": "getCustomerAccountCapabilities",
+        "tags": ["Customer accounts"],
+        "x-voyant-api-id": "@voyant-travel/auth#customer-accounts.api.admin",
+        "responses": {
+          "200": {
+            "description": "Customer-account capabilities for this deployment."
+          }
+        }
+      }
+    },
+    "/v1/admin/customer-accounts/settings": {
+      "get": {
+        "operationId": "getCustomerAccountSettings",
+        "tags": ["Customer accounts"],
+        "x-voyant-api-id": "@voyant-travel/auth#customer-accounts.api.admin",
+        "responses": {
+          "200": {
+            "description": "Deployment customer-account settings."
+          }
+        }
+      }
+    },
+    "/v1/admin/customer-accounts/settings/methods": {
+      "put": {
+        "operationId": "updateCustomerAuthMethods",
+        "tags": ["Customer accounts"],
+        "x-voyant-api-id": "@voyant-travel/auth#customer-accounts.api.admin",
+        "responses": {
+          "200": {
+            "description": "Updated sign-in methods."
+          }
+        }
+      }
+    },
+    "/v1/admin/customer-accounts/settings/account-policy": {
+      "put": {
+        "operationId": "updateCustomerAccountPolicy",
+        "tags": ["Customer accounts"],
+        "x-voyant-api-id": "@voyant-travel/auth#customer-accounts.api.admin",
+        "responses": {
+          "200": {
+            "description": "Updated buyer-account policy."
+          }
+        }
+      }
+    },
+    "/v1/admin/customer-accounts/provider-credentials": {
+      "get": {
+        "operationId": "listCustomerProviderCredentials",
+        "tags": ["Customer accounts"],
+        "x-voyant-api-id": "@voyant-travel/auth#customer-accounts.api.admin",
+        "responses": {
+          "200": {
+            "description": "Provider credential status, never the secrets."
+          }
+        }
+      }
+    },
+    "/v1/admin/customer-accounts/provider-credentials/{provider}": {
+      "put": {
+        "operationId": "putCustomerProviderCredential",
+        "tags": ["Customer accounts"],
+        "x-voyant-api-id": "@voyant-travel/auth#customer-accounts.api.admin",
+        "responses": {
+          "204": {
+            "description": "Credential stored."
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteCustomerProviderCredential",
+        "tags": ["Customer accounts"],
+        "x-voyant-api-id": "@voyant-travel/auth#customer-accounts.api.admin",
+        "responses": {
+          "204": {
+            "description": "Credential removed."
+          }
+        }
+      }
+    }
+  }
+}

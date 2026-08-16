@@ -32,7 +32,7 @@
     "./i18n/en": "./src/i18n/en.ts",
     "./i18n/ro": "./src/i18n/ro.ts",
     "./journey": "./src/journey/index.ts",
-    "./storefront": "./src/storefront/index.ts",
+    "./public-api": "./src/public-api/index.ts",
     "./extras": "./src/extras.ts",
     "./admin": "./src/admin/index.tsx",
     "./admin/*": "./src/admin/*.tsx",
@@ -65,7 +65,7 @@
     "@voyant-travel/cruises": "workspace:^",
     "@voyant-travel/inventory-react": "workspace:^",
     "@voyant-travel/inventory": "workspace:^",
-    "@voyant-travel/storefront-react": "workspace:^",
+    "@voyant-travel/public-api-react": "workspace:^",
     "@voyant-travel/ui": "workspace:^",
     "lucide-react": "^0.475.0 || ^1.0.0",
     "react": "^19.0.0",
@@ -120,7 +120,7 @@
     "@voyant-travel/inventory": {
       "optional": true
     },
-    "@voyant-travel/storefront-react": {
+    "@voyant-travel/public-api-react": {
       "optional": true
     },
     "@voyant-travel/ui": {
@@ -166,7 +166,7 @@
     "@voyant-travel/inventory-react": "workspace:^",
     "@voyant-travel/inventory": "workspace:^",
     "@voyant-travel/react": "workspace:^",
-    "@voyant-travel/storefront-react": "workspace:^",
+    "@voyant-travel/public-api-react": "workspace:^",
     "@voyant-travel/ui": "workspace:^",
     "@voyant-travel/voyant-typescript-config": "workspace:^",
     "lucide-react": "^1.23.0",
@@ -293,10 +293,10 @@
         "import": "./dist/journey/index.js",
         "default": "./dist/journey/index.js"
       },
-      "./storefront": {
-        "types": "./dist/storefront/index.d.ts",
-        "import": "./dist/storefront/index.js",
-        "default": "./dist/storefront/index.js"
+      "./public-api": {
+        "types": "./dist/public-api/index.d.ts",
+        "import": "./dist/public-api/index.js",
+        "default": "./dist/public-api/index.js"
       },
       "./extras": {
         "types": "./dist/extras.d.ts",

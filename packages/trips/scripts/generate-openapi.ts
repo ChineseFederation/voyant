@@ -1,7 +1,7 @@
 /**
  * Regenerate the package-owned operator API documents for Trips.
  *
- * `openapi/admin/trips.json` and `openapi/storefront/trips.json` had no
+ * `openapi/admin/trips.json` and `openapi/public-api/trips.json` had no
  * generator, so they were only ever as current as the last person who
  * remembered to hand-edit a document whose own header says "Do not edit by
  * hand". Nothing compared them to the routes: the deployment-graph coverage
@@ -50,7 +50,7 @@ const targets = [
     apiId: "@voyant-travel/trips#api.admin",
   },
   {
-    file: "../openapi/storefront/trips.json",
+    file: "../openapi/public-api/trips.json",
     prefix: "/v1/public/trips",
     apiId: "@voyant-travel/trips#api.public",
   },

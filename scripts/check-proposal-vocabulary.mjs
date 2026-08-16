@@ -52,7 +52,7 @@ const allowedPricingQuotePaths = [
   /^docs\/architecture\/ai-travel-experience-composition\.md$/,
   /^docs\/architecture\/booking-journey-architecture\.md$/,
   /^docs\/architecture\/catalog-/,
-  /^packages\/bookings\/openapi\/storefront\/bookings\.json$/,
+  /^packages\/bookings\/openapi\/public-api\/bookings\.json$/,
   /^packages\/catalog(?:-|\/)/,
   /^packages\/commerce\/src\/checkout\/start-service(?:\.test)?\.ts$/,
   /^packages\/core\/src\/links\.ts$/,

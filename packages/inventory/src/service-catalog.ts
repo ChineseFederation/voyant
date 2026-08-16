@@ -70,7 +70,7 @@ export type CatalogItineraryDay = {
 
 /**
  * The product's default itinerary, folded into the read-model document.
- * Departure-specific overrides stay on `getStorefrontDepartureItinerary`;
+ * Departure-specific overrides stay on `getPublicApiDepartureItinerary`;
  * this is the product-level default only (issue voyant#2910).
  */
 export type CatalogItinerary = {
@@ -170,7 +170,7 @@ function groupBy<T, K>(rows: T[], keyOf: (row: T) => K): Map<K, T[]> {
  * by the same fallback-locale chain the rest of the document uses — and the
  * first per-day media as a thumbnail. All inventory-owned tables. Only the
  * product default (`is_default = true`) is folded here; departure overrides
- * stay on `getStorefrontDepartureItinerary` (issue voyant#2910).
+ * stay on `getPublicApiDepartureItinerary` (issue voyant#2910).
  */
 async function loadDefaultItineraries(
   db: PostgresJsDatabase,

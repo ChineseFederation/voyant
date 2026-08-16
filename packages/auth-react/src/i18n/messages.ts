@@ -258,9 +258,9 @@ export interface CustomerBusinessAccountsPageMessages {
   provision: {
     title: string
     description: string
-    storefrontOriginLabel: string
-    storefrontOriginPlaceholder: string
-    storefrontOriginRequired: string
+    publicApiOriginLabel: string
+    publicApiOriginPlaceholder: string
+    publicApiOriginRequired: string
     customerEmailLabel: string
     customerEmailPlaceholder: string
     businessNameLabel: string
@@ -402,7 +402,73 @@ export interface VerifyEmailPageMessages {
   changeEmail: string
 }
 
-export interface StorefrontsPageMessages {
+export interface PublicApiPageMessages {
+  title: string
+  description: string
+  loading: string
+  loadFailed: string
+  actionFailed: string
+  refresh: string
+  list: {
+    title: string
+    empty: string
+    publishableBadge: string
+    secretBadge: string
+    revokedBadge: string
+    originsSummary: (count: number) => string
+    lastUsedNever: string
+    channelDirect: string
+    channelImplicit: string
+  }
+  issue: {
+    title: string
+    description: string
+    kindLabel: string
+    kindPublishable: string
+    kindSecret: string
+    nameLabel: string
+    namePlaceholder: string
+    originsLabel: string
+    originsPlaceholder: string
+    channelLabel: string
+    channelDirectOption: string
+    submit: string
+    submitting: string
+    failed: string
+    originsRequired: string
+  }
+  token: {
+    title: string
+    description: string
+    copy: string
+    copied: string
+    done: string
+  }
+  sites: {
+    title: string
+    description: string
+    seam: string
+  }
+  key: {
+    rotate: string
+    rotating: string
+    revoke: string
+    revokeConfirm: string
+    save: string
+    saving: string
+    originsTitle: string
+    originsDescription: string
+    addOrigin: string
+    removeOrigin: string
+    noOrigins: string
+    localhostHint: string
+    channelTitle: string
+    channelDescription: string
+    hostOnlyCookies: string
+  }
+}
+
+export interface CustomerAccountsPageMessages {
   title: string
   description: string
   loading: string
@@ -410,137 +476,48 @@ export interface StorefrontsPageMessages {
   actionFailed: string
   refresh: string
   businessUnsupported: string
-  create: {
+  methods: {
     title: string
     description: string
-    nameLabel: string
-    namePlaceholder: string
-    slugLabel: string
-    slugPlaceholder: string
-    hostingLabel: string
-    hostingExternal: string
-    hostingCloudSite: string
-    siteIdLabel: string
-    siteIdPlaceholder: string
-    submit: string
-    submitting: string
-    nameRequired: string
-    slugRequired: string
-    createFailed: string
-  }
-  list: {
-    title: string
-    empty: string
-    externalBadge: string
-    cloudSiteBadge: string
-    originsSummary: (count: number) => string
-  }
-  detail: {
-    overviewTitle: string
-    nameLabel: string
-    slugLabel: string
-    hostingLabel: string
+    emailCode: string
+    emailPassword: string
+    google: string
+    facebook: string
+    apple: string
     save: string
     saving: string
-    delete: string
-    deleteConfirm: string
-    close: string
+    atLeastOne: string
   }
-  origins: {
+  policy: {
     title: string
     description: string
-    addPlaceholder: string
-    add: string
-    remove: string
-    empty: string
-    localhostHint: string
-  }
-  channel: {
-    title: string
-    description: string
-    unavailable: string
-    directDefault: string
-    selectLabel: string
-    selectPlaceholder: string
-    loading: string
-    noActiveChannels: string
-    boundStatus: string
-    implicitStatus: string
-    unboundStatus: string
-    inactiveWarning: string
-    save: string
-    saving: string
-    clear: string
-    clearConfirm: string
-  }
-  keys: {
-    title: string
-    description: string
-    namePlaceholder: string
-    issuePublishable: string
-    issueSecret: string
-    empty: string
-    revoke: string
-    revokeConfirm: string
-    rotate: string
-    rotateConfirm: string
-    kindPublishable: string
-    kindSecret: string
-    scopesLabel: string
-    scopesFullAccess: string
-    scopesFullAccessWarning: string
-    scopesLegacy: string
-    revoked: string
-    active: string
-    revealTitle: string
-    revealDescription: string
-    copy: string
-    copied: string
-    dismiss: string
-  }
-  account: {
-    methodsTitle: string
-    methodsDescription: string
-    methodEmailCode: string
-    methodEmailPassword: string
-    methodGoogle: string
-    methodFacebook: string
-    methodApple: string
-    saveMethods: string
-    policyTitle: string
-    policyDescription: string
-    allowPersonal: string
-    allowBusiness: string
+    allowedKinds: string
+    personal: string
+    business: string
     personalSignup: string
     personalSignupOpen: string
     personalSignupDisabled: string
     businessOnboarding: string
-    businessOnboardingDisabled: string
-    businessOnboardingOpen: string
-    businessOnboardingRequest: string
-    businessOnboardingInviteOnly: string
-    savePolicy: string
+    onboardingDisabled: string
+    onboardingOpen: string
+    onboardingRequest: string
+    onboardingInvite: string
+    save: string
     saving: string
   }
-  providers: {
+  credentials: {
     title: string
     description: string
     configured: string
     notConfigured: string
     clientIdLabel: string
     clientSecretLabel: string
-    secretHint: string
     save: string
-    clear: string
-    clearConfirm: string
-    providerGoogle: string
-    providerFacebook: string
-    providerApple: string
-  }
-  sites: {
-    title: string
-    description: string
-    seam: string
+    saving: string
+    remove: string
+    removeConfirm: string
+    updatedAt: string
+    never: string
   }
 }
 
@@ -551,7 +528,8 @@ export type AuthUiMessages = {
   organizationMembersPage: OrganizationMembersPageMessages
   teamManagementPage: TeamManagementPageMessages
   customerBusinessAccountsPage: CustomerBusinessAccountsPageMessages
-  storefrontsPage: StorefrontsPageMessages
+  publicApiPage: PublicApiPageMessages
+  customerAccountsPage: CustomerAccountsPageMessages
   onboardingPage: OnboardingPageMessages
   resetPasswordPage: ResetPasswordPageMessages
   signInPage: SignInPageMessages

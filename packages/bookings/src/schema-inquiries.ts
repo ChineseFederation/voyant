@@ -8,7 +8,6 @@ export const bookingInquiries = pgTable(
     id: typeId("booking_inquiries"),
     idempotencyKey: text("idempotency_key").notNull(),
     requestFingerprint: text("request_fingerprint").notNull(),
-    storefrontId: text("storefront_id").notNull(),
     channelId: text("channel_id").notNull(),
     productId: text("product_id").notNull(),
     departureId: text("departure_id"),
@@ -25,7 +24,6 @@ export const bookingInquiries = pgTable(
   (table) => [
     check("ck_booking_inquiries_status", sql`${table.status} IN ('open', 'closed')`),
     uniqueIndex("uq_booking_inquiries_channel_idempotency").on(
-      table.storefrontId,
       table.channelId,
       table.idempotencyKey,
     ),

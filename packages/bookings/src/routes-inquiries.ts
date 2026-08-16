@@ -2,7 +2,7 @@ import { OpenAPIHono } from "@hono/zod-openapi"
 import { openApiValidationHook } from "@voyant-travel/hono"
 import { z } from "zod"
 import { createBookingsAdminRoute, createBookingsPublicRoute } from "./routes-openapi.js"
-import { activeStorefrontChannelGuard, activeStorefrontOrigin } from "./routes-public.js"
+import { activePublicApiChannelGuard, activePublicApiOrigin } from "./routes-public.js"
 import type { Env } from "./routes-shared.js"
 import type { BookingInquiry } from "./schema-inquiries.js"
 import { bookingInquiriesService } from "./service-inquiries.js"
@@ -13,7 +13,6 @@ type BookingInquiryService = Pick<typeof bookingInquiriesService, "submit" | "ge
 function receipt(inquiry: BookingInquiry) {
   return {
     id: inquiry.id,
-    storefrontId: inquiry.storefrontId,
     channelId: inquiry.channelId,
     productId: inquiry.productId,
     departureId: inquiry.departureId,
@@ -70,7 +69,7 @@ export function createBookingInquiryPublicRoutes(
   service: BookingInquiryService = bookingInquiriesService,
 ) {
   const app = new OpenAPIHono<Env>({ defaultHook: openApiValidationHook })
-  app.use("/inquiries", activeStorefrontChannelGuard())
+  app.use("/inquiries", activePublicApiChannelGuard())
   return app.openapi(submitRoute, async (c) => {
     const idempotencyKey = c.req.header("Idempotency-Key")?.trim()
     if (!idempotencyKey) return c.json({ error: "Idempotency-Key header is required" }, 400)
@@ -78,7 +77,7 @@ export function createBookingInquiryPublicRoutes(
       return c.json({ error: "Idempotency-Key must be 255 characters or fewer" }, 400)
     }
 
-    const origin = activeStorefrontOrigin(c)
+    const origin = activePublicApiOrigin(c)
     if (!origin) return c.json({ error: "active_storefront_channel_required" }, 403)
     const input = c.req.valid("json")
     const result = await service.submit(
@@ -87,7 +86,6 @@ export function createBookingInquiryPublicRoutes(
         ...input,
         departureId: input.departureId ?? null,
         idempotencyKey,
-        storefrontId: origin.storefrontId,
         channelId: origin.channelId,
       },
       { eventBus: c.get("eventBus") },

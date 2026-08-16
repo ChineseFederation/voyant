@@ -33,7 +33,7 @@
     "./payment-policy-runtime": "./src/payment-policy-runtime.ts",
     "./voyant": "./src/voyant.ts",
     "./openapi/admin": "./openapi/admin/cruises.json",
-    "./openapi/storefront": "./openapi/storefront/cruises.json",
+    "./openapi/public-api": "./openapi/public-api/cruises.json",
     "./catalog-runtime-extension": "./src/catalog-runtime-extension.ts",
     "./tools": "./src/mcp-runtime.ts"
   },
@@ -218,7 +218,7 @@
         "default": "./dist/voyant.js"
       },
       "./openapi/admin": "./openapi/admin/cruises.json",
-      "./openapi/storefront": "./openapi/storefront/cruises.json",
+      "./openapi/public-api": "./openapi/public-api/cruises.json",
       "./catalog-runtime-extension": {
         "types": "./dist/catalog-runtime-extension.d.ts",
         "import": "./dist/catalog-runtime-extension.js",

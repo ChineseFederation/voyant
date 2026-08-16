@@ -18,7 +18,7 @@ export interface CustomerBusinessOnboardingContext {
 
 export interface CustomerBusinessAccountOperationInput {
   requesterUserId: string
-  storefrontOrigin: string
+  publicApiOrigin: string
   idempotencyKey: string
   profile: CustomerBusinessProfile
 }

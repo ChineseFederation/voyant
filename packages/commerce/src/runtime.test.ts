@@ -8,7 +8,7 @@ import {
 import {
   commerceRuntimeModuleNames,
   createCommerceApiModules,
-  createCommerceStorefrontOfferResolvers,
+  createCommercePublicApiOfferResolvers,
 } from "./index.js"
 import { marketsApiModule } from "./markets/index.js"
 import { pricingApiModule } from "./pricing/index.js"
@@ -40,7 +40,7 @@ describe("commerce runtime", () => {
   })
 
   it("exports a Commerce-named storefront offer resolver factory", () => {
-    const resolvers = createCommerceStorefrontOfferResolvers()
+    const resolvers = createCommercePublicApiOfferResolvers()
 
     expect(typeof resolvers.listApplicableOffers).toBe("function")
     expect(typeof resolvers.getOfferBySlug).toBe("function")

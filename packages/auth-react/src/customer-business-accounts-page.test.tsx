@@ -123,7 +123,7 @@ describe("customer business-account admin surface", () => {
     await vi.waitFor(() => expect(api.provisionAccount).toHaveBeenCalledOnce())
     expect(api.provisionAccount).toHaveBeenCalledWith(
       expect.objectContaining({
-        storefrontOrigin: "https://shop.example.com",
+        publicApiOrigin: "https://shop.example.com",
         owner: { email: "buyer@example.com" },
         relationshipOrganizationId: "crm-org-1",
       }),
@@ -186,7 +186,7 @@ const businessRequest = {
   requesterUserId: "customer-1",
   requesterEmail: "customer@example.com",
   requesterName: null,
-  storefrontOrigin: "https://shop.example.com",
+  publicApiOrigin: "https://shop.example.com",
   mode: "request" as const,
   profile,
   status: "pending" as const,

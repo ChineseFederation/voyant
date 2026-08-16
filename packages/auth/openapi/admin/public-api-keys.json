@@ -1,0 +1,75 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Voyant Public API Admin API",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/v1/admin/public-api-keys/keys": {
+      "get": {
+        "operationId": "listPublicApiKeys",
+        "tags": ["Public API"],
+        "x-voyant-api-id": "@voyant-travel/auth#public-api-keys.api.admin",
+        "responses": {
+          "200": {
+            "description": "Issued public API keys."
+          }
+        }
+      },
+      "post": {
+        "operationId": "issuePublicApiKey",
+        "tags": ["Public API"],
+        "x-voyant-api-id": "@voyant-travel/auth#public-api-keys.api.admin",
+        "responses": {
+          "201": {
+            "description": "Issued key, including its plaintext token exactly once."
+          }
+        }
+      }
+    },
+    "/v1/admin/public-api-keys/keys/{keyId}": {
+      "get": {
+        "operationId": "getPublicApiKey",
+        "tags": ["Public API"],
+        "x-voyant-api-id": "@voyant-travel/auth#public-api-keys.api.admin",
+        "responses": {
+          "200": {
+            "description": "One public API key."
+          }
+        }
+      },
+      "patch": {
+        "operationId": "updatePublicApiKey",
+        "tags": ["Public API"],
+        "x-voyant-api-id": "@voyant-travel/auth#public-api-keys.api.admin",
+        "responses": {
+          "200": {
+            "description": "Updated public API key."
+          }
+        }
+      },
+      "delete": {
+        "operationId": "revokePublicApiKey",
+        "tags": ["Public API"],
+        "x-voyant-api-id": "@voyant-travel/auth#public-api-keys.api.admin",
+        "responses": {
+          "204": {
+            "description": "Key revoked."
+          }
+        }
+      }
+    },
+    "/v1/admin/public-api-keys/keys/{keyId}/rotate": {
+      "post": {
+        "operationId": "rotatePublicApiKey",
+        "tags": ["Public API"],
+        "x-voyant-api-id": "@voyant-travel/auth#public-api-keys.api.admin",
+        "responses": {
+          "201": {
+            "description": "Rotated key, including its new plaintext token exactly once."
+          }
+        }
+      }
+    }
+  }
+}

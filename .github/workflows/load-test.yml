@@ -14,9 +14,9 @@ on:
         description: "Which scenario to run"
         required: true
         type: choice
-        default: storefront-firehose
+        default: public-api-firehose
         options:
-          - storefront-firehose
+          - public-api-firehose
           - mixed
       product_ids:
         description: "Optional comma-separated product ids (skips discovery)"

@@ -19,7 +19,7 @@ import {
 
 const DEFAULT_GRAPH = "apps/operator/.voyant/deployment-graph.generated.json"
 const DEFAULT_OPENAPI_DIR = "packages"
-const CHECKED_SURFACES = new Set(["admin", "storefront"])
+const CHECKED_SURFACES = new Set(["admin", "public-api"])
 // Ratchet only. The document names and owners remain authoritative in package
 // manifests; this prevents migrated bundles from silently falling back to the
 // Operator compatibility partition.
@@ -267,7 +267,7 @@ function readOpenApiCoverage(openapiDirPaths) {
 }
 
 function discoverOpenApiRoots(root) {
-  const hasSurfaceDirectories = ["admin", "storefront"].some((surface) =>
+  const hasSurfaceDirectories = ["admin", "public-api"].some((surface) =>
     containsOpenApiDocument(path.join(root, surface)),
   )
   if (hasSurfaceDirectories) return [root]
@@ -392,7 +392,7 @@ function candidateModules(unit, api) {
   const fragment = graphFragment(unitId)
   const apiFragment = graphFragment(apiId)
     .replace(/^api\.?/, "")
-    .replace(/\.?api(\.(admin|public|storefront))?$/, "")
+    .replace(/\.?api(\.(admin|public|public-api))?$/, "")
   addSlugCandidates(candidates, packageSlug)
   addSlugCandidates(candidates, fragment)
   addSlugCandidates(candidates, apiFragment)
@@ -417,7 +417,9 @@ function addSlugCandidates(candidates, value) {
 }
 
 function normalizeSurface(surface) {
-  if (surface === "public") return "storefront"
+  // The public surface's documents live in `openapi/public-api/` since the
+  // storefront entity was retired (voyant#4624).
+  if (surface === "public") return "public-api"
   return String(surface ?? "").trim()
 }
 
@@ -437,9 +439,9 @@ function slugify(value) {
     .replace(/^@voyant-travel\//, "")
     .replace(/^operator[/.]/, "")
     .replace(/[/#.]/g, "-")
-    .replace(/-api(?:-(?:admin|public|storefront))?$/, "")
+    .replace(/-api(?:-(?:admin|public|public-api))?$/, "")
     .replace(/^api-?/, "")
-    .replace(/-(admin|public|storefront)$/, "")
+    .replace(/-(admin|public|public-api)$/, "")
     .replace(/--+/g, "-")
     .replace(/^-|-$/g, "")
 }

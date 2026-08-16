@@ -323,7 +323,7 @@ describe("buildSelectedGraphOpenApiDocuments", () => {
   })
 
   it("requires exact operation ownership for root-mounted bundles", async () => {
-    const apiId = "@voyant-travel/storefront#api.public"
+    const apiId = "@voyant-travel/public-api#api.public"
     const ownedPath = "/v1/public/storefront"
     const unrelatedPath = "/v1/public/bookings"
     const app = documentedApp([unrelatedPath])
@@ -341,7 +341,7 @@ describe("buildSelectedGraphOpenApiDocuments", () => {
       }),
       (context) => context.json({ ok: true }),
     )
-    const storefront = unit("@voyant-travel/storefront", [route(apiId, "/", "storefront", ["GET"])])
+    const storefront = unit("@voyant-travel/public-api", [route(apiId, "/", "storefront", ["GET"])])
 
     await expect(
       buildSelectedGraphOpenApiDocuments({ runtime: runtime([storefront]), app, options }),
@@ -382,24 +382,24 @@ describe("buildSelectedGraphOpenApiDocuments", () => {
       "/v1/public/storefront/exports",
       "/v1/admin/storefront/offers",
     ])
-    const storefront = unit("@voyant-travel/storefront", [
+    const storefront = unit("@voyant-travel/public-api", [
       {
-        id: "@voyant-travel/storefront#api.public",
+        id: "@voyant-travel/public-api#api.public",
         surface: "public",
         mount: "storefront",
         openapi: { document: "storefront" },
         publishable: ["/departures"],
         guardedIntake: ["/leads"],
-        runtime: { entry: "@voyant-travel/storefront" },
+        runtime: { entry: "@voyant-travel/public-api" },
       },
       {
-        id: "@voyant-travel/storefront#api.admin",
+        id: "@voyant-travel/public-api#api.admin",
         surface: "admin",
         mount: "storefront",
         openapi: { document: "storefront" },
         // An admin bundle cannot make a path publishable, however it declares.
         publishable: true,
-        runtime: { entry: "@voyant-travel/storefront" },
+        runtime: { entry: "@voyant-travel/public-api" },
       },
     ])
 

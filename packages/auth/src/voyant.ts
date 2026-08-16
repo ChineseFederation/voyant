@@ -1,14 +1,14 @@
 import { defineModule, providePort, requirePort } from "@voyant-travel/core/project"
 import { customerBusinessAccountOnboardingRuntimePort } from "./customer-business-onboarding-runtime-port.js"
 import { identityAccessRuntimePort } from "./identity-access-runtime-port.js"
-import { storefrontRuntimePort } from "./storefront-runtime-port.js"
+import { publicApiRuntimePort } from "./public-api-runtime-port.js"
 import { teamManagementRuntimePort } from "./team-management-runtime-port.js"
 
 export const authCustomerBusinessAccountsVoyantModule = defineModule({
   id: "@voyant-travel/auth#customer-business-accounts",
   packageName: "@voyant-travel/auth",
   localId: "auth.customer-business-accounts",
-  requires: { capabilities: ["storefront.data-owner"] },
+  requires: { capabilities: ["public-api.data-owner"] },
   runtimePorts: [requirePort(customerBusinessAccountOnboardingRuntimePort)],
   api: [
     {
@@ -243,70 +243,92 @@ export const authTeamVoyantModule = defineModule({
   },
 })
 
-export const authStorefrontVoyantModule = defineModule({
-  id: "@voyant-travel/auth#storefront",
+export const authPublicApiVoyantModule = defineModule({
+  id: "@voyant-travel/auth#public-api",
   packageName: "@voyant-travel/auth",
-  localId: "auth.storefront",
-  // Self-host storefront access model: keys, operator-declared origins, and
-  // KMS-encrypted provider credentials backing the local customer-auth
-  // resolver, surfaced through the operator "Storefronts" admin surface. The
-  // managed cloud storefront adapter is a follow-up.
-  provides: { ports: [providePort(storefrontRuntimePort)] },
+  localId: "auth.public-api",
+  // Self-host public-API access model: keys carrying their own origins and
+  // channel, plus the deployment's customer-account configuration and its
+  // KMS-encrypted provider credentials, backing the local customer-auth
+  // resolver. There is no storefront entity above any of it (voyant#4624).
+  provides: { ports: [providePort(publicApiRuntimePort)] },
   runtimePorts: [
-    requirePort(storefrontRuntimePort),
+    requirePort(publicApiRuntimePort),
     requirePort(customerBusinessAccountOnboardingRuntimePort, { optional: true }),
   ],
+  // Two API surfaces, because the retired storefronts module was two things
+  // wearing one name: the credentials a frontend presents, and how customers
+  // sign in. They have different audiences, different blast radius on a
+  // mistake, and no reason to share a scope.
   api: [
     {
-      id: "@voyant-travel/auth#storefront.api.admin",
+      id: "@voyant-travel/auth#public-api-keys.api.admin",
       surface: "admin",
-      mount: "storefronts",
-      resource: "storefronts",
-      openapi: { document: "storefronts" },
+      mount: "public-api-keys",
+      resource: "public-api-keys",
+      openapi: { document: "public-api-keys" },
       transactional: true,
       runtime: {
-        entry: "@voyant-travel/auth/storefront-graph-runtime",
-        export: "createStorefrontVoyantRuntime",
+        entry: "@voyant-travel/auth/public-api-graph-runtime",
+        export: "createPublicApiVoyantRuntime",
       },
     },
-  ],
-  links: [
     {
-      id: "@voyant-travel/auth#linkable.storefront",
-      kind: "linkable",
-      source: "@voyant-travel/auth/linkables",
-    },
-    {
-      id: "@voyant-travel/auth#link.storefront-channel",
-      kind: "definition",
-      source: "@voyant-travel/auth/standard-links",
-      export: "storefrontChannelLink",
+      id: "@voyant-travel/auth#customer-accounts.api.admin",
+      surface: "admin",
+      mount: "customer-accounts",
+      resource: "customer-accounts",
+      openapi: { document: "customer-accounts" },
+      transactional: true,
+      runtime: {
+        entry: "@voyant-travel/auth/public-api-graph-runtime",
+        export: "createCustomerAccountsVoyantRuntime",
+      },
     },
   ],
   access: {
     resources: [
       {
-        id: "@voyant-travel/auth#access.storefronts",
-        resource: "storefronts",
-        label: "Storefronts",
-        description: "Manage storefront access keys, origins, and customer auth.",
+        id: "@voyant-travel/auth#access.public-api-keys",
+        resource: "public-api-keys",
+        label: "Public API keys",
+        description: "Manage public API keys, their allowed origins, and their channel.",
         actions: [
           {
             action: "read",
-            label: "View storefronts",
-            description: "View storefront configuration, keys, and provider status.",
+            label: "View public API keys",
+            description: "View issued keys, their origins, channel, and last use.",
           },
           {
             action: "write",
-            label: "Manage storefronts",
-            description:
-              "Create storefronts, issue keys, and configure origins, methods, and provider credentials.",
+            label: "Manage public API keys",
+            description: "Issue and rotate keys and configure their origins and channel.",
             sensitive: true,
           },
           {
             action: "delete",
-            label: "Delete storefronts",
-            description: "Delete storefronts and revoke their access keys.",
+            label: "Revoke public API keys",
+            description: "Revoke issued public API keys.",
+            sensitive: true,
+          },
+        ],
+      },
+      {
+        id: "@voyant-travel/auth#access.customer-accounts",
+        resource: "customer-accounts",
+        label: "Customer accounts",
+        description: "Configure how customers sign in and what a buyer account may be.",
+        actions: [
+          {
+            action: "read",
+            label: "View customer account settings",
+            description: "View sign-in methods, buyer account policy, and provider status.",
+          },
+          {
+            action: "write",
+            label: "Manage customer account settings",
+            description:
+              "Configure sign-in methods, buyer account policy, and OAuth provider credentials.",
             sensitive: true,
           },
         ],
@@ -317,12 +339,12 @@ export const authStorefrontVoyantModule = defineModule({
     compositionOrder: 7,
     runtime: {
       entry: "@voyant-travel/auth-react/admin",
-      export: "createSelectedStorefrontAdminExtension",
+      export: "createSelectedPublicApiAdminExtension",
     },
     copy: [
       {
-        id: "@voyant-travel/auth#storefront.admin.copy",
-        namespace: "auth.admin.storefronts",
+        id: "@voyant-travel/auth#public-api-keys.admin.copy",
+        namespace: "auth.admin.publicApi",
         fallbackLocale: "en",
         runtime: {
           entry: "@voyant-travel/auth-react/i18n",
@@ -332,12 +354,21 @@ export const authStorefrontVoyantModule = defineModule({
     ],
     routes: [
       {
-        id: "@voyant-travel/auth#storefront.admin.route",
-        path: "/storefronts",
-        requiredScopes: ["storefronts:read"],
+        id: "@voyant-travel/auth#public-api-keys.admin.route",
+        path: "/public-api",
+        requiredScopes: ["public-api-keys:read"],
         runtime: {
           entry: "@voyant-travel/auth-react/admin",
-          export: "createSelectedStorefrontAdminExtension",
+          export: "createSelectedPublicApiAdminExtension",
+        },
+      },
+      {
+        id: "@voyant-travel/auth#customer-accounts.admin.route",
+        path: "/customer-accounts",
+        requiredScopes: ["customer-accounts:read"],
+        runtime: {
+          entry: "@voyant-travel/auth-react/admin",
+          export: "createSelectedPublicApiAdminExtension",
         },
       },
     ],
@@ -347,7 +378,7 @@ export const authStorefrontVoyantModule = defineModule({
     agentTools: {
       posture: "not-applicable",
       rationale:
-        "Storefront access configuration is operator-owned; it is exposed through guarded admin surfaces, not agent tools.",
+        "Public API and customer-account configuration is operator-owned; it is exposed through guarded admin surfaces, not agent tools.",
     },
   },
 })

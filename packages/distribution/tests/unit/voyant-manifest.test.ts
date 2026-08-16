@@ -90,18 +90,6 @@ describe("distribution deployment manifests", () => {
             "@voyant-travel/distribution#migrations",
           ],
         },
-        {
-          id: "@voyant-travel/distribution#setup.storefront-channel-bindings.v1",
-          runtime: {
-            entry: "@voyant-travel/distribution/setup/storefront-channel-bindings",
-            export: "runStorefrontChannelBindingSetupMigration",
-          },
-          dependsOn: [
-            "@voyant-travel/db#migrations",
-            "@voyant-travel/distribution#migrations",
-            "@voyant-travel/storefront#migrations",
-          ],
-        },
       ],
       links: [
         { id: "@voyant-travel/distribution#linkable.channel" },

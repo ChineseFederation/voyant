@@ -1,7 +1,7 @@
 # @voyant-travel/cruises
 
 Opt-in cruises module for OTA, tour-operator, and DMC deployments. Provides the
-canonical schema, services, and admin/storefront/booking integration for cruise
+canonical schema, services, and admin/public surface/booking integration for cruise
 inventory - both self-managed (a tour operator or DMC publishes its own
 small-scale or specialized cruises) and external (sourced from a registered
 adapter package).

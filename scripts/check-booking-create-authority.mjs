@@ -32,7 +32,7 @@ for (const [file, path, method] of [
   ["packages/bookings/openapi/admin/bookings.json", "/v1/admin/bookings/reserve", "post"],
   ["packages/bookings/openapi/admin/bookings.json", "/v1/admin/bookings/from-product", "post"],
   ["packages/catalog/openapi/admin/catalog-booking.json", "/v1/admin/catalog/book", "post"],
-  ["packages/catalog/openapi/storefront/catalog-booking.json", "/v1/public/catalog/book", "post"],
+  ["packages/catalog/openapi/public-api/catalog-booking.json", "/v1/public/catalog/book", "post"],
 ]) {
   const document = JSON.parse(readFileSync(file, "utf8"))
   if (document.paths?.[path]?.[method]) fail(file, `forbidden OpenAPI operation ${method} ${path}`)

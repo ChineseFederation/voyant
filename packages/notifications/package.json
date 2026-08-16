@@ -46,7 +46,7 @@
     "@voyant-travel/operator-settings": "workspace:^",
     "@voyant-travel/proposals": "workspace:^",
     "@voyant-travel/relationships": "workspace:^",
-    "@voyant-travel/storefront": "workspace:^",
+    "@voyant-travel/public-api": "workspace:^",
     "@voyant-travel/tools": "workspace:^",
     "@voyant-travel/types": "workspace:^",
     "drizzle-orm": "catalog:",

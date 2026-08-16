@@ -2,18 +2,17 @@ import { identifiedUserId } from "@voyant-travel/core"
 import type { AnyDrizzleDb } from "@voyant-travel/db"
 import { randomBytesHex, sha256Hex } from "@voyant-travel/hono"
 import type {
-  StorefrontOpaqueReferenceIssuer,
-  StorefrontShoppingContext,
-} from "@voyant-travel/storefront/shopping"
+  PublicApiOpaqueReferenceIssuer,
+  PublicApiShoppingContext,
+} from "@voyant-travel/public-api/shopping"
 import { and, eq, gt, isNull, sql } from "drizzle-orm"
 import { z } from "zod"
-
+import type {
+  PublicApiTripOfferComponent,
+  PublicApiTripOfferResolver,
+} from "./public-api-trip-offer-resolver-port.js"
 import type { TripShoppingReference } from "./schema.js"
 import { tripShoppingReferences } from "./schema.js"
-import type {
-  StorefrontTripOfferComponent,
-  StorefrontTripOfferResolver,
-} from "./storefront-trip-offer-resolver-port.js"
 import { tripComponentPricingSnapshotSchema } from "./validation.js"
 
 const MAX_REFERENCE_TTL_SECONDS = 24 * 60 * 60
@@ -160,7 +159,6 @@ export interface TripShoppingReferenceRuntimeOptions {
 export interface ShoppingReferenceBoundary {
   referenceDigest: string
   purpose: ShoppingReferencePurpose
-  storefrontId: string
   channelId: string
   ownerUserId: string | null
   ownerBuyerAccountId: string | null
@@ -180,8 +178,8 @@ export interface TripShoppingReferenceStore {
 }
 
 export interface TripShoppingReferenceRuntime {
-  issuer: StorefrontOpaqueReferenceIssuer
-  offerResolver: StorefrontTripOfferResolver
+  issuer: PublicApiOpaqueReferenceIssuer
+  offerResolver: PublicApiTripOfferResolver
 }
 
 /**
@@ -246,13 +244,12 @@ export function createTripShoppingReferenceRuntimeWithStore(
 
 async function redeemContinuation(
   store: TripShoppingReferenceStore,
-  input: Parameters<StorefrontOpaqueReferenceIssuer["redeem"]>[0],
+  input: Parameters<PublicApiOpaqueReferenceIssuer["redeem"]>[0],
   now: () => Date,
 ): Promise<{ payload: Readonly<Record<string, unknown>> } | null> {
   const resolution = await redeemShoppingReference(store, input.ref, {
     purpose: "live-continuation",
     context: {
-      storefrontId: input.storefrontId,
       channelId: input.channelId,
       userId: input.owner.userId,
       buyerAccountId: input.owner.buyerAccountId,
@@ -275,7 +272,7 @@ async function redeemContinuation(
 /** Creates a 256-bit capability and persists only its SHA-256 digest. */
 export async function issueTripShoppingReference(
   db: AnyDrizzleDb,
-  rawInput: Parameters<StorefrontOpaqueReferenceIssuer["issue"]>[0],
+  rawInput: Parameters<PublicApiOpaqueReferenceIssuer["issue"]>[0],
   options: { now?: () => Date; createReference?: () => string } = {},
 ): Promise<{ ref: string; expiresAt: string }> {
   return issueShoppingReference(postgresShoppingReferenceStore(db), rawInput, options)
@@ -283,7 +280,7 @@ export async function issueTripShoppingReference(
 
 async function issueShoppingReference(
   store: TripShoppingReferenceStore,
-  rawInput: Parameters<StorefrontOpaqueReferenceIssuer["issue"]>[0],
+  rawInput: Parameters<PublicApiOpaqueReferenceIssuer["issue"]>[0],
   options: { now?: () => Date; createReference?: () => string } = {},
 ): Promise<{ ref: string; expiresAt: string }> {
   const purpose = purposeSchema.parse(rawInput.purpose)
@@ -296,7 +293,6 @@ async function issueShoppingReference(
     .min(1)
     .max(MAX_REFERENCE_TTL_SECONDS)
     .parse(rawInput.ttlSeconds)
-  const storefrontId = requiredBinding(rawInput.storefrontId)
   const channelId = requiredBinding(rawInput.channelId)
   const ownerUserId = managedUserId(rawInput.owner.userId)
   const ownerBuyerAccountId = optionalBinding(rawInput.owner.buyerAccountId)
@@ -311,7 +307,6 @@ async function issueShoppingReference(
     await store.insert({
       referenceDigest,
       purpose,
-      storefrontId,
       channelId,
       ownerUserId,
       ownerBuyerAccountId,
@@ -342,7 +337,7 @@ export async function redeemTripShoppingReference(
   rawReference: string,
   input: {
     purpose: ShoppingReferencePurpose
-    context: StorefrontShoppingContext
+    context: PublicApiShoppingContext
     scope: { marketId: string; locale: string; currency: string }
     continuationBinding?: {
       kind: "flight" | "stay" | "package"
@@ -359,7 +354,7 @@ async function redeemShoppingReference(
   rawReference: string,
   input: {
     purpose: ShoppingReferencePurpose
-    context: StorefrontShoppingContext
+    context: PublicApiShoppingContext
     scope: { marketId: string; locale: string; currency: string }
     continuationBinding?: {
       kind: "flight" | "stay" | "package"
@@ -371,7 +366,6 @@ async function redeemShoppingReference(
   if (!referenceSchema.safeParse(rawReference).success) return { ok: false, reason: "invalid" }
   const purpose = purposeSchema.parse(input.purpose)
   const scope = scopeSchema.parse(input.scope)
-  const storefrontId = requiredBinding(input.context.storefrontId)
   const channelId = requiredBinding(input.context.channelId)
   const ownerUserId = managedUserId(input.context.userId)
   const ownerBuyerAccountId = optionalBinding(input.context.buyerAccountId)
@@ -380,7 +374,6 @@ async function redeemShoppingReference(
   const boundary: ShoppingReferenceBoundary = {
     referenceDigest,
     purpose,
-    storefrontId,
     channelId,
     ownerUserId,
     ownerBuyerAccountId,
@@ -407,7 +400,6 @@ function postgresShoppingReferenceStore(db: AnyDrizzleDb): TripShoppingReference
     and(
       eq(tripShoppingReferences.referenceDigest, boundary.referenceDigest),
       eq(tripShoppingReferences.purpose, boundary.purpose),
-      eq(tripShoppingReferences.storefrontId, boundary.storefrontId),
       eq(tripShoppingReferences.channelId, boundary.channelId),
       boundary.ownerUserId === null
         ? isNull(tripShoppingReferences.ownerUserId)
@@ -464,10 +456,10 @@ function postgresShoppingReferenceStore(db: AnyDrizzleDb): TripShoppingReference
 
 async function resolveShoppingReference(
   store: TripShoppingReferenceStore,
-  context: StorefrontShoppingContext,
-  input: Parameters<StorefrontTripOfferResolver["resolve"]>[1],
+  context: PublicApiShoppingContext,
+  input: Parameters<PublicApiTripOfferResolver["resolve"]>[1],
   now: () => Date,
-): Promise<{ component: StorefrontTripOfferComponent } | null> {
+): Promise<{ component: PublicApiTripOfferComponent } | null> {
   const resolvedAt = now()
   const resolution = await redeemShoppingReference(store, input.offerRef, {
     purpose: purposeForSelectionKind(input.kind),
@@ -481,7 +473,7 @@ async function resolveShoppingReference(
 function componentFromReference(
   reference: TripShoppingReference,
   now: Date,
-): StorefrontTripOfferComponent {
+): PublicApiTripOfferComponent {
   const payload = payloadSchema.parse(reference.payload)
   if (reference.purpose === "catalog-item") {
     const catalog = z
@@ -599,7 +591,7 @@ function componentFromReference(
           },
           configure,
         },
-        storefrontShopping: {
+        publicApiShopping: {
           version: 1,
           purpose: reference.purpose,
           selection: payload.selection,
@@ -628,20 +620,20 @@ function componentFromReference(
         ...(offer.estimatedPricing ? { estimatedPricing: offer.estimatedPricing } : {}),
         metadata: {
           flightDraft: { selectedOffer: offer.selection },
-          storefrontShopping: durableSelection,
+          publicApiShopping: durableSelection,
         },
       }
     : {
         kind: "catalog_booking",
         ...(offer.estimatedPricing ? { estimatedPricing: offer.estimatedPricing } : {}),
-        metadata: { storefrontShopping: durableSelection },
+        metadata: { publicApiShopping: durableSelection },
       }
 }
 
 function resolvedComponent(
   reference: TripShoppingReference,
   now: Date,
-): { component: StorefrontTripOfferComponent } | null {
+): { component: PublicApiTripOfferComponent } | null {
   try {
     return { component: componentFromReference(reference, now) }
   } catch {
@@ -664,7 +656,7 @@ function purposeForSelectionKind(kind: "product" | "flight" | "stay" | "package"
 
 function requiredBinding(value: string): string {
   const normalized = value.trim()
-  if (!normalized) throw new Error("active_storefront_channel_required")
+  if (!normalized) throw new Error("active_channel_required")
   return normalized
 }
 

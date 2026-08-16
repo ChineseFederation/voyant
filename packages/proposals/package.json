@@ -18,7 +18,7 @@
     "./openapi/admin": "./openapi/admin/proposals.json",
     "./openapi/admin/proposals-booking": "./openapi/admin/proposals-booking.json",
     "./openapi/admin/proposal-version-snapshot": "./openapi/admin/proposal-version-snapshot.json",
-    "./openapi/storefront": "./openapi/storefront/proposals-public.json"
+    "./openapi/public-api": "./openapi/public-api/proposals-public.json"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.typecheck.json",
@@ -119,7 +119,7 @@
       "./openapi/admin": "./openapi/admin/proposals.json",
       "./openapi/admin/proposals-booking": "./openapi/admin/proposals-booking.json",
       "./openapi/admin/proposal-version-snapshot": "./openapi/admin/proposal-version-snapshot.json",
-      "./openapi/storefront": "./openapi/storefront/proposals-public.json"
+      "./openapi/public-api": "./openapi/public-api/proposals-public.json"
     },
     "main": "./dist/index.js",
     "types": "./dist/index.d.ts"

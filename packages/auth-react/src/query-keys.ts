@@ -35,16 +35,13 @@ export const authQueryKeys = {
     [...authQueryKeys.customerBusinessAccounts(), "capabilities"] as const,
   customerBusinessAccountRequests: (filters: CustomerBusinessAccountRequestListFilters = {}) =>
     [...authQueryKeys.customerBusinessAccounts(), "requests", filters] as const,
-  storefronts: () => [...authQueryKeys.all, "storefronts"] as const,
-  storefrontCapabilities: () => [...authQueryKeys.storefronts(), "capabilities"] as const,
-  storefrontList: () => [...authQueryKeys.storefronts(), "list"] as const,
-  storefront: (storefrontId: string) =>
-    [...authQueryKeys.storefronts(), "detail", storefrontId] as const,
-  storefrontApiKeys: (storefrontId: string) =>
-    [...authQueryKeys.storefront(storefrontId), "keys"] as const,
-  storefrontProviderCredentials: (storefrontId: string) =>
-    [...authQueryKeys.storefront(storefrontId), "provider-credentials"] as const,
-  storefrontChannels: () => [...authQueryKeys.storefronts(), "channels"] as const,
-  storefrontChannelBinding: (storefrontId: string) =>
-    [...authQueryKeys.storefront(storefrontId), "channel-binding"] as const,
+  publicApi: () => [...authQueryKeys.all, "public-api"] as const,
+  publicApiKeys: () => [...authQueryKeys.publicApi(), "keys"] as const,
+  publicApiKey: (keyId: string) => [...authQueryKeys.publicApi(), "keys", keyId] as const,
+  publicApiChannels: () => [...authQueryKeys.publicApi(), "channels"] as const,
+  customerAccounts: () => [...authQueryKeys.all, "customer-accounts"] as const,
+  customerAccountCapabilities: () => [...authQueryKeys.customerAccounts(), "capabilities"] as const,
+  customerAccountSettings: () => [...authQueryKeys.customerAccounts(), "settings"] as const,
+  customerAccountCredentials: () =>
+    [...authQueryKeys.customerAccounts(), "provider-credentials"] as const,
 }

@@ -42,7 +42,7 @@ const app = createApp({
 ```
 
 Custom `resolve` adapters must return an explicit realm alongside the actor:
-admin sessions return `{ actor: "staff", realm: "admin" }`, while storefront
+admin sessions return `{ actor: "staff", realm: "admin" }`, while public surface
 sessions return a non-staff actor with `realm: "customer"`. Realm/actor
 mismatches are rejected before protected routes run.
 

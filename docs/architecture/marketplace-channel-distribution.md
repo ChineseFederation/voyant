@@ -516,7 +516,7 @@ approved origin, not from caller-submitted Channel input.
 system Channel per deployment (`system_key = 'direct'`) and a Storefront resolves
 to it unless deployment-composed link data binds it elsewhere. Binding is how you
 sell a Storefront through a *counterparty*; it is not a prerequisite for selling
-through yourself. See `docs/architecture/storefront-architecture.md` §6.
+through yourself. See `docs/architecture/public-api-architecture.md` §6.
 
 The DB package migration owns only the link-table DDL and Storefront-local
 origin-overlap validation. The original binding backfill ran as a

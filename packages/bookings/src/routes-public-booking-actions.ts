@@ -4,7 +4,7 @@ import { openApiValidationHook } from "@voyant-travel/hono"
 
 import { requireGuestBookingAccess } from "./checkout-capability.js"
 import { createBookingsPublicRoute } from "./routes-openapi.js"
-import { requireBookingStorefrontOrigin } from "./routes-public.js"
+import { requireBookingPublicApiOrigin } from "./routes-public.js"
 import { type Env, getRuntimeEnv } from "./routes-shared.js"
 import type { BookingActionProjectionRuntime } from "./runtime-port.js"
 
@@ -31,7 +31,7 @@ export function createPublicBookingActionRoutes(projection?: BookingActionProjec
     if (!projection) return c.json({ error: "booking_actions_not_available" }, 501)
     const { bookingId } = c.req.valid("param")
     await requireGuestBookingAccess(c, bookingId, "overview:read", getRuntimeEnv(c))
-    const denied = await requireBookingStorefrontOrigin(c, bookingId)
+    const denied = await requireBookingPublicApiOrigin(c, bookingId)
     if (denied) return denied
     return c.json(await projection.create(c.get("db")).listCustomer(bookingId), 200)
   })

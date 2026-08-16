@@ -11,7 +11,7 @@
  * reaches the contracts package first.
  *
  * That is exactly what happened: every Bookings entrypoint kept working while
- * `@voyant-travel/storefront`'s unit suite failed to collect at all, because
+ * `@voyant-travel/public-api`'s unit suite failed to collect at all, because
  * its import graph happened to evaluate the contracts package first.
  *
  * This test pins the behaviour rather than the mechanism — a schema constructed

@@ -1,0 +1,1372 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Voyant Operator API",
+    "version": "0.0.0",
+    "description": "Generated from the composed operator app. Do not edit by hand."
+  },
+  "servers": [
+    {
+      "url": "/",
+      "description": "This deployment (same origin)"
+    }
+  ],
+  "components": {
+    "schemas": {
+      "CatalogSearchFilter": {
+        "anyOf": [
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": ["eq"]
+              },
+              "field": {
+                "type": "string",
+                "minLength": 1
+              },
+              "value": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "boolean"
+                  }
+                ]
+              }
+            },
+            "required": ["kind", "field", "value"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": ["in"]
+              },
+              "field": {
+                "type": "string",
+                "minLength": 1
+              },
+              "values": {
+                "type": "array",
+                "items": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ]
+                }
+              }
+            },
+            "required": ["kind", "field", "values"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": ["range"]
+              },
+              "field": {
+                "type": "string",
+                "minLength": 1
+              },
+              "gte": {
+                "type": "number"
+              },
+              "lte": {
+                "type": "number"
+              }
+            },
+            "required": ["kind", "field"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": ["and"]
+              },
+              "clauses": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/CatalogSearchFilter"
+                }
+              }
+            },
+            "required": ["kind", "clauses"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": ["or"]
+              },
+              "clauses": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/CatalogSearchFilter"
+                }
+              }
+            },
+            "required": ["kind", "clauses"]
+          }
+        ]
+      }
+    },
+    "parameters": {}
+  },
+  "paths": {
+    "/v1/admin/storefront/settings": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "The deployment's storefront settings",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "support": {
+                          "type": "object",
+                          "properties": {
+                            "email": {
+                              "type": ["string", "null"],
+                              "format": "email"
+                            },
+                            "phone": {
+                              "type": ["string", "null"],
+                              "minLength": 1
+                            },
+                            "links": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "label": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "url": {
+                                    "type": "string",
+                                    "format": "uri"
+                                  }
+                                },
+                                "required": ["label", "url"]
+                              }
+                            }
+                          },
+                          "required": ["email", "phone", "links"]
+                        },
+                        "legal": {
+                          "type": "object",
+                          "properties": {
+                            "termsUrl": {
+                              "type": ["string", "null"],
+                              "format": "uri"
+                            },
+                            "privacyUrl": {
+                              "type": ["string", "null"],
+                              "format": "uri"
+                            },
+                            "cancellationUrl": {
+                              "type": ["string", "null"],
+                              "format": "uri"
+                            },
+                            "defaultContractTemplateId": {
+                              "type": ["string", "null"],
+                              "minLength": 1
+                            }
+                          },
+                          "required": [
+                            "termsUrl",
+                            "privacyUrl",
+                            "cancellationUrl",
+                            "defaultContractTemplateId"
+                          ]
+                        },
+                        "localization": {
+                          "type": "object",
+                          "properties": {
+                            "defaultLocale": {
+                              "type": ["string", "null"],
+                              "pattern": "^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$"
+                            },
+                            "currencyDisplay": {
+                              "type": "string",
+                              "enum": ["code", "symbol", "name"]
+                            }
+                          },
+                          "required": ["defaultLocale", "currencyDisplay"]
+                        },
+                        "forms": {
+                          "type": "object",
+                          "properties": {
+                            "billing": {
+                              "type": "object",
+                              "properties": {
+                                "fields": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "key": {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      "label": {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      "type": {
+                                        "type": "string",
+                                        "enum": [
+                                          "text",
+                                          "email",
+                                          "tel",
+                                          "textarea",
+                                          "select",
+                                          "checkbox",
+                                          "date",
+                                          "country"
+                                        ]
+                                      },
+                                      "required": {
+                                        "type": "boolean"
+                                      },
+                                      "placeholder": {
+                                        "type": ["string", "null"],
+                                        "minLength": 1
+                                      },
+                                      "description": {
+                                        "type": ["string", "null"],
+                                        "minLength": 1
+                                      },
+                                      "autocomplete": {
+                                        "type": ["string", "null"],
+                                        "minLength": 1
+                                      },
+                                      "options": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "properties": {
+                                            "value": {
+                                              "type": "string",
+                                              "minLength": 1
+                                            },
+                                            "label": {
+                                              "type": "string",
+                                              "minLength": 1
+                                            }
+                                          },
+                                          "required": ["value", "label"]
+                                        }
+                                      }
+                                    },
+                                    "required": [
+                                      "key",
+                                      "label",
+                                      "type",
+                                      "required",
+                                      "placeholder",
+                                      "description",
+                                      "autocomplete",
+                                      "options"
+                                    ]
+                                  }
+                                }
+                              },
+                              "required": ["fields"]
+                            },
+                            "travelers": {
+                              "type": "object",
+                              "properties": {
+                                "fields": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "key": {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      "label": {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      "type": {
+                                        "type": "string",
+                                        "enum": [
+                                          "text",
+                                          "email",
+                                          "tel",
+                                          "textarea",
+                                          "select",
+                                          "checkbox",
+                                          "date",
+                                          "country"
+                                        ]
+                                      },
+                                      "required": {
+                                        "type": "boolean"
+                                      },
+                                      "placeholder": {
+                                        "type": ["string", "null"],
+                                        "minLength": 1
+                                      },
+                                      "description": {
+                                        "type": ["string", "null"],
+                                        "minLength": 1
+                                      },
+                                      "autocomplete": {
+                                        "type": ["string", "null"],
+                                        "minLength": 1
+                                      },
+                                      "options": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "properties": {
+                                            "value": {
+                                              "type": "string",
+                                              "minLength": 1
+                                            },
+                                            "label": {
+                                              "type": "string",
+                                              "minLength": 1
+                                            }
+                                          },
+                                          "required": ["value", "label"]
+                                        }
+                                      }
+                                    },
+                                    "required": [
+                                      "key",
+                                      "label",
+                                      "type",
+                                      "required",
+                                      "placeholder",
+                                      "description",
+                                      "autocomplete",
+                                      "options"
+                                    ]
+                                  }
+                                }
+                              },
+                              "required": ["fields"]
+                            }
+                          },
+                          "required": ["billing", "travelers"]
+                        },
+                        "payment": {
+                          "type": "object",
+                          "properties": {
+                            "defaultMethod": {
+                              "type": ["string", "null"],
+                              "enum": [
+                                "card",
+                                "bank_transfer",
+                                "cash",
+                                "travel_credit",
+                                "invoice",
+                                null
+                              ]
+                            },
+                            "methods": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "code": {
+                                    "type": "string",
+                                    "enum": [
+                                      "card",
+                                      "bank_transfer",
+                                      "cash",
+                                      "travel_credit",
+                                      "invoice"
+                                    ]
+                                  },
+                                  "label": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "description": {
+                                    "type": ["string", "null"],
+                                    "minLength": 1
+                                  },
+                                  "enabled": {
+                                    "type": "boolean"
+                                  }
+                                },
+                                "required": ["code", "label", "description", "enabled"]
+                              }
+                            },
+                            "structure": {
+                              "type": "string",
+                              "enum": ["full", "split"]
+                            },
+                            "schedule": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "percent": {
+                                    "type": "number",
+                                    "minimum": 0,
+                                    "maximum": 100
+                                  },
+                                  "dueInDays": {
+                                    "type": "integer",
+                                    "minimum": 0
+                                  },
+                                  "dueCondition": {
+                                    "type": "string",
+                                    "enum": ["after_booking", "before_departure"]
+                                  }
+                                },
+                                "required": ["percent", "dueInDays", "dueCondition"]
+                              }
+                            },
+                            "defaultSchedule": {
+                              "type": ["object", "null"],
+                              "properties": {
+                                "depositPercent": {
+                                  "type": ["number", "null"],
+                                  "minimum": 0,
+                                  "maximum": 100
+                                },
+                                "balanceDueDaysBeforeDeparture": {
+                                  "type": ["integer", "null"],
+                                  "minimum": 0
+                                }
+                              },
+                              "required": ["depositPercent", "balanceDueDaysBeforeDeparture"]
+                            },
+                            "bankTransfer": {
+                              "type": ["object", "null"],
+                              "properties": {
+                                "dueDays": {
+                                  "type": ["integer", "null"],
+                                  "minimum": 0
+                                },
+                                "account": {
+                                  "type": ["object", "null"],
+                                  "properties": {
+                                    "provider": {
+                                      "type": ["string", "null"],
+                                      "minLength": 1
+                                    },
+                                    "currency": {
+                                      "type": ["string", "null"],
+                                      "minLength": 1
+                                    },
+                                    "iban": {
+                                      "type": "string",
+                                      "minLength": 1
+                                    },
+                                    "beneficiary": {
+                                      "type": "string",
+                                      "minLength": 1
+                                    },
+                                    "bank": {
+                                      "type": "string",
+                                      "minLength": 1
+                                    }
+                                  },
+                                  "required": [
+                                    "provider",
+                                    "currency",
+                                    "iban",
+                                    "beneficiary",
+                                    "bank"
+                                  ]
+                                },
+                                "accountHolder": {
+                                  "type": ["string", "null"],
+                                  "minLength": 1
+                                },
+                                "bankName": {
+                                  "type": ["string", "null"],
+                                  "minLength": 1
+                                },
+                                "iban": {
+                                  "type": ["string", "null"],
+                                  "minLength": 1
+                                },
+                                "bic": {
+                                  "type": ["string", "null"],
+                                  "minLength": 1
+                                },
+                                "paymentReference": {
+                                  "type": ["string", "null"],
+                                  "minLength": 1
+                                },
+                                "instructions": {
+                                  "type": ["string", "null"],
+                                  "minLength": 1
+                                }
+                              },
+                              "required": [
+                                "dueDays",
+                                "account",
+                                "accountHolder",
+                                "bankName",
+                                "iban",
+                                "bic",
+                                "paymentReference",
+                                "instructions"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "defaultMethod",
+                            "methods",
+                            "structure",
+                            "schedule",
+                            "defaultSchedule",
+                            "bankTransfer"
+                          ]
+                        }
+                      },
+                      "required": ["support", "legal", "localization", "forms", "payment"]
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "getAdminStorefrontSettings",
+        "summary": "GET /v1/admin/storefront/settings",
+        "tags": ["storefront"],
+        "x-voyant-module": "storefront",
+        "x-voyant-surface": "admin",
+        "x-voyant-api-id": "@voyant-travel/public-api#api.admin",
+        "x-voyant-unit-id": "@voyant-travel/public-api",
+        "x-voyant-package-name": "@voyant-travel/public-api"
+      },
+      "patch": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "support": {
+                    "type": "object",
+                    "properties": {
+                      "email": {
+                        "type": ["string", "null"],
+                        "format": "email"
+                      },
+                      "phone": {
+                        "type": ["string", "null"],
+                        "minLength": 1
+                      },
+                      "links": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "label": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "url": {
+                              "type": "string",
+                              "format": "uri"
+                            }
+                          },
+                          "required": ["label", "url"]
+                        }
+                      }
+                    }
+                  },
+                  "legal": {
+                    "type": "object",
+                    "properties": {
+                      "termsUrl": {
+                        "type": ["string", "null"],
+                        "format": "uri"
+                      },
+                      "privacyUrl": {
+                        "type": ["string", "null"],
+                        "format": "uri"
+                      },
+                      "cancellationUrl": {
+                        "type": ["string", "null"],
+                        "format": "uri"
+                      },
+                      "defaultContractTemplateId": {
+                        "type": ["string", "null"],
+                        "minLength": 1
+                      }
+                    }
+                  },
+                  "localization": {
+                    "type": "object",
+                    "properties": {
+                      "defaultLocale": {
+                        "type": ["string", "null"],
+                        "pattern": "^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$"
+                      },
+                      "currencyDisplay": {
+                        "type": "string",
+                        "enum": ["code", "symbol", "name"]
+                      }
+                    }
+                  },
+                  "forms": {
+                    "type": "object",
+                    "properties": {
+                      "billing": {
+                        "type": "object",
+                        "properties": {
+                          "fields": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "key": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "label": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "type": {
+                                  "type": "string",
+                                  "enum": [
+                                    "text",
+                                    "email",
+                                    "tel",
+                                    "textarea",
+                                    "select",
+                                    "checkbox",
+                                    "date",
+                                    "country"
+                                  ],
+                                  "default": "text"
+                                },
+                                "required": {
+                                  "type": "boolean",
+                                  "default": false
+                                },
+                                "placeholder": {
+                                  "type": ["string", "null"],
+                                  "minLength": 1
+                                },
+                                "description": {
+                                  "type": ["string", "null"],
+                                  "minLength": 1
+                                },
+                                "autocomplete": {
+                                  "type": ["string", "null"],
+                                  "minLength": 1
+                                },
+                                "options": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "value": {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      "label": {
+                                        "type": "string",
+                                        "minLength": 1
+                                      }
+                                    },
+                                    "required": ["value", "label"]
+                                  },
+                                  "default": []
+                                }
+                              },
+                              "required": ["key", "label"]
+                            },
+                            "default": []
+                          }
+                        }
+                      },
+                      "travelers": {
+                        "type": "object",
+                        "properties": {
+                          "fields": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "key": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "label": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "type": {
+                                  "type": "string",
+                                  "enum": [
+                                    "text",
+                                    "email",
+                                    "tel",
+                                    "textarea",
+                                    "select",
+                                    "checkbox",
+                                    "date",
+                                    "country"
+                                  ],
+                                  "default": "text"
+                                },
+                                "required": {
+                                  "type": "boolean",
+                                  "default": false
+                                },
+                                "placeholder": {
+                                  "type": ["string", "null"],
+                                  "minLength": 1
+                                },
+                                "description": {
+                                  "type": ["string", "null"],
+                                  "minLength": 1
+                                },
+                                "autocomplete": {
+                                  "type": ["string", "null"],
+                                  "minLength": 1
+                                },
+                                "options": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "value": {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      "label": {
+                                        "type": "string",
+                                        "minLength": 1
+                                      }
+                                    },
+                                    "required": ["value", "label"]
+                                  },
+                                  "default": []
+                                }
+                              },
+                              "required": ["key", "label"]
+                            },
+                            "default": []
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "payment": {
+                    "type": "object",
+                    "properties": {
+                      "defaultMethod": {
+                        "type": ["string", "null"],
+                        "enum": ["card", "bank_transfer", "cash", "travel_credit", "invoice", null]
+                      },
+                      "methods": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "code": {
+                              "type": "string",
+                              "enum": ["card", "bank_transfer", "cash", "travel_credit", "invoice"]
+                            },
+                            "label": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "description": {
+                              "type": ["string", "null"],
+                              "minLength": 1
+                            },
+                            "enabled": {
+                              "type": "boolean",
+                              "default": true
+                            }
+                          },
+                          "required": ["code"]
+                        }
+                      },
+                      "structure": {
+                        "type": "string",
+                        "enum": ["full", "split"]
+                      },
+                      "schedule": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "percent": {
+                              "type": "number",
+                              "minimum": 0,
+                              "maximum": 100
+                            },
+                            "dueInDays": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "dueCondition": {
+                              "type": "string",
+                              "enum": ["after_booking", "before_departure"]
+                            }
+                          },
+                          "required": ["percent", "dueInDays", "dueCondition"]
+                        }
+                      },
+                      "defaultSchedule": {
+                        "type": ["object", "null"],
+                        "properties": {
+                          "depositPercent": {
+                            "type": ["number", "null"],
+                            "minimum": 0,
+                            "maximum": 100
+                          },
+                          "balanceDueDaysBeforeDeparture": {
+                            "type": ["integer", "null"],
+                            "minimum": 0
+                          }
+                        }
+                      },
+                      "bankTransfer": {
+                        "type": ["object", "null"],
+                        "properties": {
+                          "dueDays": {
+                            "type": ["integer", "null"],
+                            "minimum": 0
+                          },
+                          "account": {
+                            "type": ["object", "null"],
+                            "properties": {
+                              "provider": {
+                                "type": ["string", "null"],
+                                "minLength": 1
+                              },
+                              "currency": {
+                                "type": ["string", "null"],
+                                "minLength": 1
+                              },
+                              "iban": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "beneficiary": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "bank": {
+                                "type": "string",
+                                "minLength": 1
+                              }
+                            },
+                            "required": ["iban", "beneficiary", "bank"]
+                          },
+                          "accountHolder": {
+                            "type": ["string", "null"],
+                            "minLength": 1
+                          },
+                          "bankName": {
+                            "type": ["string", "null"],
+                            "minLength": 1
+                          },
+                          "iban": {
+                            "type": ["string", "null"],
+                            "minLength": 1
+                          },
+                          "bic": {
+                            "type": ["string", "null"],
+                            "minLength": 1
+                          },
+                          "paymentReference": {
+                            "type": ["string", "null"],
+                            "minLength": 1
+                          },
+                          "instructions": {
+                            "type": ["string", "null"],
+                            "minLength": 1
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The updated storefront settings",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "support": {
+                          "type": "object",
+                          "properties": {
+                            "email": {
+                              "type": ["string", "null"],
+                              "format": "email"
+                            },
+                            "phone": {
+                              "type": ["string", "null"],
+                              "minLength": 1
+                            },
+                            "links": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "label": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "url": {
+                                    "type": "string",
+                                    "format": "uri"
+                                  }
+                                },
+                                "required": ["label", "url"]
+                              }
+                            }
+                          },
+                          "required": ["email", "phone", "links"]
+                        },
+                        "legal": {
+                          "type": "object",
+                          "properties": {
+                            "termsUrl": {
+                              "type": ["string", "null"],
+                              "format": "uri"
+                            },
+                            "privacyUrl": {
+                              "type": ["string", "null"],
+                              "format": "uri"
+                            },
+                            "cancellationUrl": {
+                              "type": ["string", "null"],
+                              "format": "uri"
+                            },
+                            "defaultContractTemplateId": {
+                              "type": ["string", "null"],
+                              "minLength": 1
+                            }
+                          },
+                          "required": [
+                            "termsUrl",
+                            "privacyUrl",
+                            "cancellationUrl",
+                            "defaultContractTemplateId"
+                          ]
+                        },
+                        "localization": {
+                          "type": "object",
+                          "properties": {
+                            "defaultLocale": {
+                              "type": ["string", "null"],
+                              "pattern": "^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$"
+                            },
+                            "currencyDisplay": {
+                              "type": "string",
+                              "enum": ["code", "symbol", "name"]
+                            }
+                          },
+                          "required": ["defaultLocale", "currencyDisplay"]
+                        },
+                        "forms": {
+                          "type": "object",
+                          "properties": {
+                            "billing": {
+                              "type": "object",
+                              "properties": {
+                                "fields": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "key": {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      "label": {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      "type": {
+                                        "type": "string",
+                                        "enum": [
+                                          "text",
+                                          "email",
+                                          "tel",
+                                          "textarea",
+                                          "select",
+                                          "checkbox",
+                                          "date",
+                                          "country"
+                                        ]
+                                      },
+                                      "required": {
+                                        "type": "boolean"
+                                      },
+                                      "placeholder": {
+                                        "type": ["string", "null"],
+                                        "minLength": 1
+                                      },
+                                      "description": {
+                                        "type": ["string", "null"],
+                                        "minLength": 1
+                                      },
+                                      "autocomplete": {
+                                        "type": ["string", "null"],
+                                        "minLength": 1
+                                      },
+                                      "options": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "properties": {
+                                            "value": {
+                                              "type": "string",
+                                              "minLength": 1
+                                            },
+                                            "label": {
+                                              "type": "string",
+                                              "minLength": 1
+                                            }
+                                          },
+                                          "required": ["value", "label"]
+                                        }
+                                      }
+                                    },
+                                    "required": [
+                                      "key",
+                                      "label",
+                                      "type",
+                                      "required",
+                                      "placeholder",
+                                      "description",
+                                      "autocomplete",
+                                      "options"
+                                    ]
+                                  }
+                                }
+                              },
+                              "required": ["fields"]
+                            },
+                            "travelers": {
+                              "type": "object",
+                              "properties": {
+                                "fields": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "key": {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      "label": {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      "type": {
+                                        "type": "string",
+                                        "enum": [
+                                          "text",
+                                          "email",
+                                          "tel",
+                                          "textarea",
+                                          "select",
+                                          "checkbox",
+                                          "date",
+                                          "country"
+                                        ]
+                                      },
+                                      "required": {
+                                        "type": "boolean"
+                                      },
+                                      "placeholder": {
+                                        "type": ["string", "null"],
+                                        "minLength": 1
+                                      },
+                                      "description": {
+                                        "type": ["string", "null"],
+                                        "minLength": 1
+                                      },
+                                      "autocomplete": {
+                                        "type": ["string", "null"],
+                                        "minLength": 1
+                                      },
+                                      "options": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "properties": {
+                                            "value": {
+                                              "type": "string",
+                                              "minLength": 1
+                                            },
+                                            "label": {
+                                              "type": "string",
+                                              "minLength": 1
+                                            }
+                                          },
+                                          "required": ["value", "label"]
+                                        }
+                                      }
+                                    },
+                                    "required": [
+                                      "key",
+                                      "label",
+                                      "type",
+                                      "required",
+                                      "placeholder",
+                                      "description",
+                                      "autocomplete",
+                                      "options"
+                                    ]
+                                  }
+                                }
+                              },
+                              "required": ["fields"]
+                            }
+                          },
+                          "required": ["billing", "travelers"]
+                        },
+                        "payment": {
+                          "type": "object",
+                          "properties": {
+                            "defaultMethod": {
+                              "type": ["string", "null"],
+                              "enum": [
+                                "card",
+                                "bank_transfer",
+                                "cash",
+                                "travel_credit",
+                                "invoice",
+                                null
+                              ]
+                            },
+                            "methods": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "code": {
+                                    "type": "string",
+                                    "enum": [
+                                      "card",
+                                      "bank_transfer",
+                                      "cash",
+                                      "travel_credit",
+                                      "invoice"
+                                    ]
+                                  },
+                                  "label": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "description": {
+                                    "type": ["string", "null"],
+                                    "minLength": 1
+                                  },
+                                  "enabled": {
+                                    "type": "boolean"
+                                  }
+                                },
+                                "required": ["code", "label", "description", "enabled"]
+                              }
+                            },
+                            "structure": {
+                              "type": "string",
+                              "enum": ["full", "split"]
+                            },
+                            "schedule": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "percent": {
+                                    "type": "number",
+                                    "minimum": 0,
+                                    "maximum": 100
+                                  },
+                                  "dueInDays": {
+                                    "type": "integer",
+                                    "minimum": 0
+                                  },
+                                  "dueCondition": {
+                                    "type": "string",
+                                    "enum": ["after_booking", "before_departure"]
+                                  }
+                                },
+                                "required": ["percent", "dueInDays", "dueCondition"]
+                              }
+                            },
+                            "defaultSchedule": {
+                              "type": ["object", "null"],
+                              "properties": {
+                                "depositPercent": {
+                                  "type": ["number", "null"],
+                                  "minimum": 0,
+                                  "maximum": 100
+                                },
+                                "balanceDueDaysBeforeDeparture": {
+                                  "type": ["integer", "null"],
+                                  "minimum": 0
+                                }
+                              },
+                              "required": ["depositPercent", "balanceDueDaysBeforeDeparture"]
+                            },
+                            "bankTransfer": {
+                              "type": ["object", "null"],
+                              "properties": {
+                                "dueDays": {
+                                  "type": ["integer", "null"],
+                                  "minimum": 0
+                                },
+                                "account": {
+                                  "type": ["object", "null"],
+                                  "properties": {
+                                    "provider": {
+                                      "type": ["string", "null"],
+                                      "minLength": 1
+                                    },
+                                    "currency": {
+                                      "type": ["string", "null"],
+                                      "minLength": 1
+                                    },
+                                    "iban": {
+                                      "type": "string",
+                                      "minLength": 1
+                                    },
+                                    "beneficiary": {
+                                      "type": "string",
+                                      "minLength": 1
+                                    },
+                                    "bank": {
+                                      "type": "string",
+                                      "minLength": 1
+                                    }
+                                  },
+                                  "required": [
+                                    "provider",
+                                    "currency",
+                                    "iban",
+                                    "beneficiary",
+                                    "bank"
+                                  ]
+                                },
+                                "accountHolder": {
+                                  "type": ["string", "null"],
+                                  "minLength": 1
+                                },
+                                "bankName": {
+                                  "type": ["string", "null"],
+                                  "minLength": 1
+                                },
+                                "iban": {
+                                  "type": ["string", "null"],
+                                  "minLength": 1
+                                },
+                                "bic": {
+                                  "type": ["string", "null"],
+                                  "minLength": 1
+                                },
+                                "paymentReference": {
+                                  "type": ["string", "null"],
+                                  "minLength": 1
+                                },
+                                "instructions": {
+                                  "type": ["string", "null"],
+                                  "minLength": 1
+                                }
+                              },
+                              "required": [
+                                "dueDays",
+                                "account",
+                                "accountHolder",
+                                "bankName",
+                                "iban",
+                                "bic",
+                                "paymentReference",
+                                "instructions"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "defaultMethod",
+                            "methods",
+                            "structure",
+                            "schedule",
+                            "defaultSchedule",
+                            "bankTransfer"
+                          ]
+                        }
+                      },
+                      "required": ["support", "legal", "localization", "forms", "payment"]
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Storefront settings updates are not configured for this deployment",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "patchAdminStorefrontSettings",
+        "summary": "PATCH /v1/admin/storefront/settings",
+        "tags": ["storefront"],
+        "x-voyant-module": "storefront",
+        "x-voyant-surface": "admin",
+        "x-voyant-api-id": "@voyant-travel/public-api#api.admin",
+        "x-voyant-unit-id": "@voyant-travel/public-api",
+        "x-voyant-package-name": "@voyant-travel/public-api"
+      }
+    }
+  },
+  "webhooks": {}
+}

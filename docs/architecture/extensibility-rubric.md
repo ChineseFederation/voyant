@@ -175,7 +175,7 @@ surface:
 - [Voyant Notifications Architecture](./notifications-architecture.md)
 - [Voyant Auth And Identity Architecture](./auth-identity-architecture.md)
 - [Voyant Admin Architecture](./admin-architecture.md)
-- [Voyant Storefront And Public Contract Architecture](./storefront-architecture.md)
+- [Voyant Storefront And Public Contract Architecture](./public-api-architecture.md)
 - [Voyant Future Architecture Considerations](./future-architecture-considerations.md)
 
 ## Summary Rules

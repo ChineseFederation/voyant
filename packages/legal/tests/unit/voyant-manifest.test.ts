@@ -284,7 +284,7 @@ describe("legal deployment manifest", () => {
 
   it("marks every public OpenAPI operation with its graph API id", () => {
     const document = JSON.parse(
-      readFileSync(new URL("../../openapi/storefront/legal.json", import.meta.url), "utf8"),
+      readFileSync(new URL("../../openapi/public-api/legal.json", import.meta.url), "utf8"),
     )
 
     expect(publicOperationApiIds(document)).not.toHaveLength(0)

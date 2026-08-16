@@ -60,7 +60,6 @@ export interface CheckoutPublicationGuard {
     db: PostgresJsDatabase
     bookingId: string
     productId: string
-    storefrontId: string
     channelId: string
   }): Promise<boolean>
 }

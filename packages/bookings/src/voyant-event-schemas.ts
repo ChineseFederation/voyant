@@ -48,10 +48,9 @@ export const bookingCancelledPayloadSchema = {
 
 export const bookingInquiryCreatedPayloadSchema = {
   type: "object",
-  required: ["inquiryId", "storefrontId", "channelId", "productId", "departureId"],
+  required: ["inquiryId", "channelId", "productId", "departureId"],
   properties: {
     inquiryId: { type: "string" },
-    storefrontId: { type: "string" },
     channelId: { type: "string" },
     productId: { type: "string" },
     departureId: { type: ["string", "null"] },

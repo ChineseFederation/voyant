@@ -39,7 +39,7 @@
     "./openapi/admin": "./openapi/admin/finance.json",
     "./openapi/admin/booking-tax-settings": "./openapi/admin/booking-tax-settings.json",
     "./openapi/admin/booking-tax-preview": "./openapi/admin/booking-tax-preview.json",
-    "./openapi/storefront": "./openapi/storefront/finance.json",
+    "./openapi/public-api": "./openapi/public-api/finance.json",
     "./self-service-booking-source": "./src/self-service-booking-source.ts"
   },
   "scripts": {
@@ -49,7 +49,7 @@
     "build": "NODE_OPTIONS=--max-old-space-size=8192 tsc -p tsconfig.build.json",
     "clean": "rm -rf dist tsconfig.tsbuildinfo",
     "prepack": "pnpm run build",
-    "generate:openapi": "node --import tsx scripts/generate-travel-credit-openapi.ts && biome format --write openapi/storefront/finance.json",
+    "generate:openapi": "node --import tsx scripts/generate-travel-credit-openapi.ts && biome format --write openapi/public-api/finance.json",
     "migrate:travel-credits": "node --experimental-strip-types --experimental-transform-types scripts/migrate-travel-credits.ts",
     "db:generate": "drizzle-kit generate --config=drizzle.migrations.config.ts --name=finance_baseline && node ../../scripts/migrations/guard-create-type.mjs ./migrations && node ../../scripts/migrations/ensure-extensions.mjs ./migrations"
   },
@@ -256,7 +256,7 @@
       "./openapi/admin": "./openapi/admin/finance.json",
       "./openapi/admin/booking-tax-settings": "./openapi/admin/booking-tax-settings.json",
       "./openapi/admin/booking-tax-preview": "./openapi/admin/booking-tax-preview.json",
-      "./openapi/storefront": "./openapi/storefront/finance.json",
+      "./openapi/public-api": "./openapi/public-api/finance.json",
       "./self-service-booking-source": {
         "types": "./dist/self-service-booking-source.d.ts",
         "import": "./dist/self-service-booking-source.js",

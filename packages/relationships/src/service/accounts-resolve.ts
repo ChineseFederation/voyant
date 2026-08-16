@@ -54,7 +54,7 @@ function splitName(name: string | null | undefined): {
 
 /**
  * Derives `{ firstName, lastName }` for a CRM person from whatever
- * contact bits the caller has. Mirrors the storefront-intake helpers
+ * contact bits the caller has. Mirrors the public-api-intake helpers
  * (`personNameFromContact` / `personNameFromNewsletter`) so identity
  * resolution from booking/traveler payloads stays symmetric. Falls
  * back to the email local-part before resorting to literal placeholders

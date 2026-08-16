@@ -16,7 +16,6 @@ import {
 } from "./sessions-service.js"
 
 const ACTIVE_STOREFRONT = {
-  storefrontId: "sf_public",
   channelId: "chan_public",
   channelStatus: "active",
 } as const
@@ -68,7 +67,7 @@ function createHarness(
 function createApp(harness: ReturnType<typeof createHarness>) {
   const app = new Hono()
   app.use("/v1/public/catalog/*", async (c, next) => {
-    c.set("storefrontChannel" as never, ACTIVE_STOREFRONT as never)
+    c.set("publicChannel" as never, ACTIVE_STOREFRONT as never)
     await next()
   })
   app.route(

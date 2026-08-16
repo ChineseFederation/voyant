@@ -53,7 +53,7 @@ async function call(options: CallOptions = {}) {
         : { publicIntakeGuarded: options.publicIntakeGuarded }),
     }),
   )
-  app.all("*", (c) => c.json({ ok: true, keyKind: c.get("storefrontKeyKind") ?? null }))
+  app.all("*", (c) => c.json({ ok: true, keyKind: c.get("publicApiKeyKind") ?? null }))
 
   const headers = new Headers()
   if (options.key) headers.set("x-api-key", options.key)

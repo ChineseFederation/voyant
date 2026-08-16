@@ -41,8 +41,7 @@ export interface PublicFinanceRouteOptions {
 
 const errorResponseSchema = z.object({ error: z.string() })
 
-type BookingStorefrontOriginRow = {
-  storefrontId: string | null
+type BookingPublicApiOriginRow = {
   channelId: string | null
 }
 
@@ -66,42 +65,32 @@ async function requireBookingCheckoutCapability(
   await requireCheckoutCapability(c, bookingId, action, getRuntimeEnv(c))
 }
 
-function activeStorefrontOrigin(c: Context<Env>) {
-  const storefrontChannel = c.get("storefrontChannel")
-  if (
-    !storefrontChannel?.storefrontId ||
-    !storefrontChannel.channelId ||
-    storefrontChannel.channelStatus !== "active"
-  ) {
+function activePublicApiOrigin(c: Context<Env>) {
+  const publicChannel = c.get("publicChannel")
+  if (!publicChannel?.channelId || publicChannel.channelStatus !== "active") {
     return null
   }
 
-  return {
-    storefrontId: storefrontChannel.storefrontId,
-    channelId: storefrontChannel.channelId,
-  }
+  return { channelId: publicChannel.channelId }
 }
 
-async function requireBookingStorefrontOrigin(c: Context<Env>, bookingId: string) {
-  const requestOrigin = activeStorefrontOrigin(c)
+async function requireBookingPublicApiOrigin(c: Context<Env>, bookingId: string) {
+  const requestOrigin = activePublicApiOrigin(c)
   if (!requestOrigin) {
-    return c.json({ error: "active_storefront_channel_required" }, 403)
+    return c.json({ error: "active_channel_required" }, 403)
   }
 
   // agent-quality: raw SQL keeps Finance from importing Bookings' origin table.
-  const bookingOrigin = rowsOf<BookingStorefrontOriginRow>(
+  const bookingOrigin = rowsOf<BookingPublicApiOriginRow>(
     await c.get("db").execute(sql`
-      SELECT storefront_id AS "storefrontId", channel_id AS "channelId"
+      SELECT channel_id AS "channelId"
       FROM booking_origins
       WHERE booking_id = ${bookingId}
       LIMIT 1
     `),
   )[0]
-  if (
-    bookingOrigin?.storefrontId !== requestOrigin.storefrontId ||
-    bookingOrigin.channelId !== requestOrigin.channelId
-  ) {
-    return c.json({ error: "booking_storefront_origin_mismatch" }, 403)
+  if (bookingOrigin?.channelId !== requestOrigin.channelId) {
+    return c.json({ error: "booking_channel_mismatch" }, 403)
   }
 
   return null
@@ -115,7 +104,7 @@ function bookingCheckoutCapability(action: CheckoutCapabilityAction): Middleware
     }
 
     await requireBookingCheckoutCapability(c, bookingId, action)
-    const denied = await requireBookingStorefrontOrigin(c, bookingId)
+    const denied = await requireBookingPublicApiOrigin(c, bookingId)
     if (denied) return denied
     await next()
   }
@@ -134,7 +123,7 @@ function invoiceCheckoutCapability(action: CheckoutCapabilityAction): Middleware
     }
 
     await requireBookingCheckoutCapability(c, bookingId, action)
-    const denied = await requireBookingStorefrontOrigin(c, bookingId)
+    const denied = await requireBookingPublicApiOrigin(c, bookingId)
     if (denied) return denied
     await next()
   }
@@ -418,7 +407,7 @@ export function createPublicFinanceRoutes(options: PublicFinanceRouteOptions = {
       const input = c.req.valid("json")
       if (input.bookingId) {
         await requireBookingCheckoutCapability(c, input.bookingId, "payment:read")
-        const denied = await requireBookingStorefrontOrigin(c, input.bookingId)
+        const denied = await requireBookingPublicApiOrigin(c, input.bookingId)
         if (denied) return denied
       }
 
@@ -434,7 +423,7 @@ export function createPublicFinanceRoutes(options: PublicFinanceRouteOptions = {
 
       if (document?.bookingId) {
         await requireBookingCheckoutCapability(c, document.bookingId, "payment:read")
-        const denied = await requireBookingStorefrontOrigin(c, document.bookingId)
+        const denied = await requireBookingPublicApiOrigin(c, document.bookingId)
         if (denied) return denied
       }
 
@@ -445,7 +434,7 @@ export function createPublicFinanceRoutes(options: PublicFinanceRouteOptions = {
     .openapi(bookingDocumentsRoute, async (c) => {
       const { bookingId } = c.req.valid("param")
       await requireBookingCheckoutCapability(c, bookingId, "payment:read")
-      const denied = await requireBookingStorefrontOrigin(c, bookingId)
+      const denied = await requireBookingPublicApiOrigin(c, bookingId)
       if (denied) return denied
 
       const documents = await publicFinanceService.getBookingDocuments(c.get("db"), bookingId, {
@@ -459,7 +448,7 @@ export function createPublicFinanceRoutes(options: PublicFinanceRouteOptions = {
     .openapi(bookingDocumentByReferenceRoute, async (c) => {
       const { bookingId } = c.req.valid("param")
       await requireBookingCheckoutCapability(c, bookingId, "payment:read")
-      const denied = await requireBookingStorefrontOrigin(c, bookingId)
+      const denied = await requireBookingPublicApiOrigin(c, bookingId)
       if (denied) return denied
       const query = c.req.valid("query")
 
@@ -477,7 +466,7 @@ export function createPublicFinanceRoutes(options: PublicFinanceRouteOptions = {
     .openapi(bookingPaymentsRoute, async (c) => {
       const { bookingId } = c.req.valid("param")
       await requireBookingCheckoutCapability(c, bookingId, "payment:read")
-      const denied = await requireBookingStorefrontOrigin(c, bookingId)
+      const denied = await requireBookingPublicApiOrigin(c, bookingId)
       if (denied) return denied
 
       const payments = await publicFinanceService.getBookingPayments(c.get("db"), bookingId)
@@ -487,7 +476,7 @@ export function createPublicFinanceRoutes(options: PublicFinanceRouteOptions = {
     .openapi(bookingPaymentOptionsRoute, async (c) => {
       const { bookingId } = c.req.valid("param")
       await requireBookingCheckoutCapability(c, bookingId, "payment:read")
-      const denied = await requireBookingStorefrontOrigin(c, bookingId)
+      const denied = await requireBookingPublicApiOrigin(c, bookingId)
       if (denied) return denied
 
       const paymentOptions = await publicFinanceService.getBookingPaymentOptions(
@@ -525,7 +514,7 @@ export function createPublicFinanceRoutes(options: PublicFinanceRouteOptions = {
 
       const session = await publicFinanceService.getPaymentSession(c.get("db"), paymentSessionId)
       if (session?.bookingId) {
-        const denied = await requireBookingStorefrontOrigin(c, session.bookingId)
+        const denied = await requireBookingPublicApiOrigin(c, session.bookingId)
         if (denied) return denied
       }
       if (!session?.bookingId && session?.invoiceId) {
@@ -534,7 +523,7 @@ export function createPublicFinanceRoutes(options: PublicFinanceRouteOptions = {
           session.invoiceId,
         )
         if (bookingId) {
-          const denied = await requireBookingStorefrontOrigin(c, bookingId)
+          const denied = await requireBookingPublicApiOrigin(c, bookingId)
           if (denied) return denied
         }
       }

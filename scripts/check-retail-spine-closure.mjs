@@ -30,9 +30,9 @@ const retailSpineRoots = [
   {
     area: "Storefront",
     packages: [
-      "@voyant-travel/storefront",
-      "@voyant-travel/storefront-react",
-      "@voyant-travel/storefront-sdk",
+      "@voyant-travel/public-api",
+      "@voyant-travel/public-api-react",
+      "@voyant-travel/public-api-client",
     ],
   },
   {
@@ -95,7 +95,7 @@ const optionalEdgeAllowlist = [
       "Distribution React admin components can attach Relationships context when a host installs it",
   },
   {
-    from: "@voyant-travel/storefront",
+    from: "@voyant-travel/public-api",
     type: "peerDependencies",
     to: "@voyant-travel/relationships",
     reason:

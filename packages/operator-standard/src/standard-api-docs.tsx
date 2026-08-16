@@ -10,7 +10,7 @@ export type OpenApiSpecLoaders = Record<string, () => Promise<{ default: Record<
 
 interface SpecEntry {
   key: string
-  surface: "admin" | "storefront"
+  surface: "admin" | "public-api"
   module: string
   load: OpenApiSpecLoaders[string]
 }
@@ -28,7 +28,7 @@ export function withOperatorApiServer(
 function buildEntries(loaders: OpenApiSpecLoaders): SpecEntry[] {
   const entries = new Map<string, SpecEntry>()
   for (const [path, load] of Object.entries(loaders)) {
-    const match = /\/openapi\/(admin|storefront)\/([^/]+)\.json$/.exec(path)
+    const match = /\/openapi\/(admin|public-api)\/([^/]+)\.json$/.exec(path)
     if (!match) continue
     const surface = match[1] as SpecEntry["surface"]
     const module = match[2]
@@ -77,7 +77,7 @@ export function createApiDocsRouteOptions(loaders: OpenApiSpecLoaders) {
               value={selectedKey}
               onChange={(event) => setSelectedKey(event.target.value)}
             >
-              {(["admin", "storefront"] as const).map((surface) => (
+              {(["admin", "public-api"] as const).map((surface) => (
                 <optgroup key={surface} label={surface === "admin" ? "Admin" : "Storefront"}>
                   {entries
                     .filter((entry) => entry.surface === surface)

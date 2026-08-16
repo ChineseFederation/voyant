@@ -170,7 +170,7 @@ describe("stampModuleMetadata", () => {
     expect(op("/v1/admin/bookings/list", "get").summary).toBe("GET /v1/admin/bookings/list")
     // publicPath override → authoritative owner, not the `booking-engine` prefix.
     expect(op("/v1/public/booking-engine/hold", "post")["x-voyant-module"]).toBe("commerce")
-    expect(op("/v1/public/booking-engine/hold", "post")["x-voyant-surface"]).toBe("storefront")
+    expect(op("/v1/public/booking-engine/hold", "post")["x-voyant-surface"]).toBe("public-api")
     // Non-surface route: module stamped, surface omitted.
     expect(op("/v1/webhooks/netopia", "post")["x-voyant-module"]).toBe("webhooks")
     expect(op("/v1/webhooks/netopia", "post")["x-voyant-surface"]).toBeUndefined()

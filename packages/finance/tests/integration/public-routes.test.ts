@@ -22,7 +22,6 @@ import {
 const DB_AVAILABLE = !!process.env.TEST_DATABASE_URL
 const ORIGINAL_TEST_DATABASE_URL = process.env.TEST_DATABASE_URL
 const ORIGINAL_CHECKOUT_CAPABILITY_SECRET = process.env.VOYANT_CHECKOUT_CAPABILITY_SECRET
-const TEST_STOREFRONT_ID = "stfr_public_finance_test"
 const TEST_CHANNEL_ID = "chan_public_finance_test"
 
 const json = (body: Record<string, unknown>) => ({
@@ -121,15 +120,15 @@ describe.skipIf(!DB_AVAILABLE)("Public finance routes", () => {
 
     app = new Hono()
     app.onError(handleApiError)
-    // voyant#4050 made the public finance routes storefront-scoped: they read
-    // the active channel off the context and match it against the booking's
-    // origin snapshot. Without both, every route here answers 403 — which is
-    // the guard working, not the routes being broken.
+    // voyant#4050 made the public finance routes channel-scoped: they read the
+    // active channel off the context and match it against the booking's origin
+    // snapshot. Without both, every route here answers 403 — which is the guard
+    // working, not the routes being broken. voyant#4624 retired the storefront
+    // half of that pair, so the channel alone is the scope.
     app.use("*", async (c, next) => {
       c.set("db" as never, db)
       c.set("userId" as never, "public-finance-test-user")
-      c.set("storefrontChannel" as never, {
-        storefrontId: TEST_STOREFRONT_ID,
+      c.set("publicChannel" as never, {
         channelId: TEST_CHANNEL_ID,
         channelStatus: "active",
       })
@@ -175,8 +174,8 @@ describe.skipIf(!DB_AVAILABLE)("Public finance routes", () => {
     // agent-quality: raw-sql reviewed -- owner: finance; the origin snapshot
     // belongs to Bookings and the ids are parameter-bound.
     await db.execute(sql`
-      INSERT INTO booking_origins (booking_id, storefront_id, channel_id)
-      VALUES (${row!.id}, ${TEST_STOREFRONT_ID}, ${TEST_CHANNEL_ID})
+      INSERT INTO booking_origins (booking_id, channel_id)
+      VALUES (${row!.id}, ${TEST_CHANNEL_ID})
       ON CONFLICT (booking_id) DO NOTHING
     `)
 

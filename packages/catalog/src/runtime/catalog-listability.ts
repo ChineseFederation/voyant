@@ -15,7 +15,7 @@
 
 import type { IndexerSlice } from "@voyant-travel/catalog-contracts/indexer/contract"
 
-export type OwnedProductStorefrontListabilityInput = {
+export type OwnedProductPublicApiListabilityInput = {
   audience: IndexerSlice["audience"]
   channel?: string
   /** Resolves Distribution-owned effective product publication for the channel. */
@@ -34,14 +34,14 @@ export type OwnedProductStorefrontListabilityInput = {
  * Unchannelled customer slices remain buildable for compatibility with existing
  * index infrastructure, but they are no longer an authorization fallback.
  */
-export async function isOwnedProductStorefrontListable(
-  input: OwnedProductStorefrontListabilityInput,
+export async function isOwnedProductPublicApiListable(
+  input: OwnedProductPublicApiListabilityInput,
 ): Promise<boolean> {
   if (!input.channel) return false
   return input.isEffectivelyPublished()
 }
 
-export type SourcedEntryStorefrontListabilityInput = {
+export type SourcedEntryPublicApiListabilityInput = {
   audience: IndexerSlice["audience"]
   channel?: string
   /** Resolves Distribution-owned effective source publication for the channel. */
@@ -69,8 +69,8 @@ export function isPublicAudienceSlice(audience: IndexerSlice["audience"]): boole
  * Customer-facing slices are default-deny and require an explicit
  * server-derived channel, exactly as owned products do.
  */
-export async function isSourcedEntryStorefrontListable(
-  input: SourcedEntryStorefrontListabilityInput,
+export async function isSourcedEntryPublicApiListable(
+  input: SourcedEntryPublicApiListabilityInput,
 ): Promise<boolean> {
   if (!isPublicAudienceSlice(input.audience)) return true
   if (!input.channel) return false

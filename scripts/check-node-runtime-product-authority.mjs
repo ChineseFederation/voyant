@@ -286,7 +286,7 @@ const packageAuthority = [
   ["packages/proposals/src/voyant.ts", "createProposalsVoyantRuntime"],
   ["packages/relationships/src/voyant.ts", "createRelationshipsVoyantRuntime"],
   ["packages/storage/src/voyant.ts", "storageMediaRuntimePort"],
-  ["packages/storefront/src/voyant.ts", "createStorefrontVoyantRuntime"],
+  ["packages/public-api/src/voyant.ts", "createPublicApiVoyantRuntime"],
   ["packages/trips/src/voyant.ts", "createTripsVoyantRuntime"],
 ]
 

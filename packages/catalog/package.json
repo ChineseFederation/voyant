@@ -66,8 +66,8 @@
     "./voyant": "./src/voyant.ts",
     "./openapi/admin": "./openapi/admin/catalog.json",
     "./openapi/admin/booking": "./openapi/admin/catalog-booking.json",
-    "./openapi/storefront": "./openapi/storefront/catalog.json",
-    "./openapi/storefront/booking": "./openapi/storefront/catalog-booking.json",
+    "./openapi/public-api": "./openapi/public-api/catalog.json",
+    "./openapi/public-api/booking": "./openapi/public-api/catalog-booking.json",
     "./runtime-contracts": "./src/runtime-contracts.ts",
     "./ports": "./src/runtime-contracts.ts"
   },
@@ -101,7 +101,7 @@
     "test": "vitest run",
     "build": "tsc -p tsconfig.build.json",
     "clean": "rm -rf dist tsconfig.tsbuildinfo",
-    "generate:openapi": "tsx scripts/generate-booking-openapi.ts && biome format --write openapi/admin/catalog-booking.json openapi/storefront/catalog-booking.json",
+    "generate:openapi": "tsx scripts/generate-booking-openapi.ts && biome format --write openapi/admin/catalog-booking.json openapi/public-api/catalog-booking.json",
     "prepack": "pnpm run build",
     "db:generate": "drizzle-kit generate --config=drizzle.migrations.config.ts --name=catalog_baseline && node ../../scripts/migrations/guard-create-type.mjs ./migrations && node ../../scripts/migrations/ensure-extensions.mjs ./migrations"
   },
@@ -416,8 +416,8 @@
       },
       "./openapi/admin": "./openapi/admin/catalog.json",
       "./openapi/admin/booking": "./openapi/admin/catalog-booking.json",
-      "./openapi/storefront": "./openapi/storefront/catalog.json",
-      "./openapi/storefront/booking": "./openapi/storefront/catalog-booking.json",
+      "./openapi/public-api": "./openapi/public-api/catalog.json",
+      "./openapi/public-api/booking": "./openapi/public-api/catalog-booking.json",
       "./runtime-contracts": {
         "types": "./dist/runtime-contracts.d.ts",
         "import": "./dist/runtime-contracts.js",

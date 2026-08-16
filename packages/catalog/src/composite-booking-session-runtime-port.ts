@@ -10,7 +10,7 @@ export interface CatalogCompositeBookingSessionRuntime {
     tripEnvelopeId: string
     capability: string
     ownerUserId: string | null
-    storefront: { storefrontId: string; channelId: string }
+    channel: { channelId: string }
     scope: { locale: string; market: string; currency: string }
   }): Promise<BookingSessionOutcomeV1>
 }

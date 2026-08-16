@@ -49,7 +49,6 @@ export interface CreateSourcedBookingCommitmentInput {
   sourceConnectionId: string
   sourceRef: string
   upstreamRef: string
-  storefrontId?: string | null
   channelId?: string | null
   supplierOperationId: string
   now: Date
@@ -196,7 +195,6 @@ export async function createSourcedBookingCommitment(
     providerSourceConnectionId: input.sourceConnectionId,
     providerSourceRef: input.sourceRef,
     providerOrderRef: input.upstreamRef,
-    storefrontId: input.storefrontId ?? null,
     channelId: input.channelId ?? null,
     metadata: {
       entityModule: input.entityModule,

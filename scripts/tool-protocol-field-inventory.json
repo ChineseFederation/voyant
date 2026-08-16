@@ -133,7 +133,7 @@
       "rationale": "Retained because the caller chooses the stable identity of this retryable business command."
     },
     {
-      "id": "@voyant-travel/storefront:create_invoice_payment_link:input.idempotencyKey",
+      "id": "@voyant-travel/public-api:create_invoice_payment_link:input.idempotencyKey",
       "ownership": "caller-owned-command-identity",
       "rationale": "Retained because the caller chooses the stable identity of this retryable business command."
     }

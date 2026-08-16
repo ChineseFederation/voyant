@@ -21,11 +21,11 @@
     "./routes": "./src/routes.ts",
     "./runtime-contributor": "./src/runtime-contributor.ts",
     "./runtime-port": "./src/runtime-port.ts",
-    "./storefront-trip-offer-resolver-port": "./src/storefront-trip-offer-resolver-port.ts",
-    "./storefront-trip-selections-runtime": "./src/storefront-trip-selections-runtime.ts",
+    "./public-api-trip-offer-resolver-port": "./src/public-api-trip-offer-resolver-port.ts",
+    "./public-api-trip-selections-runtime": "./src/public-api-trip-selections-runtime.ts",
     "./voyant": "./src/voyant.ts",
     "./openapi/admin": "./openapi/admin/trips.json",
-    "./openapi/storefront": "./openapi/storefront/trips.json"
+    "./openapi/public-api": "./openapi/public-api/trips.json"
   },
   "voyant": {
     "schemaVersion": "voyant.package.v1",
@@ -59,7 +59,7 @@
     "clean": "rm -rf dist tsconfig.tsbuildinfo",
     "prepack": "pnpm run build",
     "db:generate": "drizzle-kit generate --config=drizzle.migrations.config.ts --name=trips_baseline && node ../../scripts/migrations/guard-create-type.mjs ./migrations && node ../../scripts/migrations/ensure-extensions.mjs ./migrations",
-    "generate:openapi": "tsx scripts/generate-openapi.ts && biome format --write openapi/admin/trips.json openapi/storefront/trips.json"
+    "generate:openapi": "tsx scripts/generate-openapi.ts && biome format --write openapi/admin/trips.json openapi/public-api/trips.json"
   },
   "dependencies": {
     "@voyant-travel/action-ledger": "workspace:^",
@@ -76,7 +76,7 @@
     "@voyant-travel/inventory": "workspace:^",
     "@voyant-travel/operator-settings": "workspace:^",
     "@voyant-travel/payments": "workspace:^",
-    "@voyant-travel/storefront": "workspace:^",
+    "@voyant-travel/public-api": "workspace:^",
     "@voyant-travel/tools": "workspace:^",
     "@voyant-travel/types": "workspace:^",
     "drizzle-orm": "catalog:",
@@ -183,15 +183,15 @@
         "import": "./dist/runtime-port.js",
         "default": "./dist/runtime-port.js"
       },
-      "./storefront-trip-offer-resolver-port": {
-        "types": "./dist/storefront-trip-offer-resolver-port.d.ts",
-        "import": "./dist/storefront-trip-offer-resolver-port.js",
-        "default": "./dist/storefront-trip-offer-resolver-port.js"
+      "./public-api-trip-offer-resolver-port": {
+        "types": "./dist/public-api-trip-offer-resolver-port.d.ts",
+        "import": "./dist/public-api-trip-offer-resolver-port.js",
+        "default": "./dist/public-api-trip-offer-resolver-port.js"
       },
-      "./storefront-trip-selections-runtime": {
-        "types": "./dist/storefront-trip-selections-runtime.d.ts",
-        "import": "./dist/storefront-trip-selections-runtime.js",
-        "default": "./dist/storefront-trip-selections-runtime.js"
+      "./public-api-trip-selections-runtime": {
+        "types": "./dist/public-api-trip-selections-runtime.d.ts",
+        "import": "./dist/public-api-trip-selections-runtime.js",
+        "default": "./dist/public-api-trip-selections-runtime.js"
       },
       "./voyant": {
         "types": "./dist/voyant.d.ts",
@@ -199,7 +199,7 @@
         "default": "./dist/voyant.js"
       },
       "./openapi/admin": "./openapi/admin/trips.json",
-      "./openapi/storefront": "./openapi/storefront/trips.json"
+      "./openapi/public-api": "./openapi/public-api/trips.json"
     },
     "main": "./dist/index.js",
     "types": "./dist/index.d.ts"

@@ -199,7 +199,7 @@
         "VoyantProvider": ["packages/operator-standard/src/standard-frontend.tsx"],
         "VoyantResourcesProvider": ["packages/operator-standard/src/standard-frontend.tsx"],
         "VoyantSellabilityProvider": ["packages/operator-standard/src/standard-frontend.tsx"],
-        "VoyantStorefrontProvider": ["packages/operator-standard/src/standard-frontend.tsx"],
+        "VoyantPublicApiProvider": ["packages/operator-standard/src/standard-frontend.tsx"],
         "VoyantSuppliersProvider": ["packages/operator-standard/src/standard-frontend.tsx"],
         "VoyantTripsProvider": ["packages/operator-standard/src/standard-frontend.tsx"]
       }

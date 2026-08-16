@@ -25,7 +25,6 @@ describe("booking origins", () => {
         providerSourceConnectionId: "src_conn_1797",
         providerSourceRef: "sailing_1797",
         providerOrderRef: "provider_order_1797",
-        storefrontId: "sf_1797",
         channelId: "chan_1797",
         legacyTransactionOfferId: "off_legacy_1797",
         legacyTransactionOrderId: "ord_legacy_1797",
@@ -47,7 +46,6 @@ describe("booking origins", () => {
       providerSourceConnectionId: "src_conn_1797",
       providerSourceRef: "sailing_1797",
       providerOrderRef: "provider_order_1797",
-      storefrontId: "sf_1797",
       channelId: "chan_1797",
       legacyTransactionOfferId: "off_legacy_1797",
       legacyTransactionOrderId: "ord_legacy_1797",
@@ -61,11 +59,10 @@ describe("booking origins", () => {
     })
   })
 
-  it("builds direct storefront provenance from booking session items", () => {
+  it("builds direct public-surface provenance from booking session items", () => {
     const input = toDirectB2CBookingOriginInput({
       bookingId: "book_direct_1797",
       externalBookingRef: "storefront-cart-123",
-      storefrontId: "sf_direct",
       channelId: "chan_direct",
       items: [
         { sourceSnapshotId: "bcsn_1" },
@@ -78,7 +75,6 @@ describe("booking origins", () => {
       bookingId: "book_direct_1797",
       originSource: "direct_b2c",
       catalogSnapshotId: null,
-      storefrontId: "sf_direct",
       channelId: "chan_direct",
       metadata: {
         source: "public_bookings_service.create_session",
@@ -102,7 +98,6 @@ describe("booking origins", () => {
       providerSourceConnectionId: "src_conn_1797",
       providerSourceRef: "departure_1797",
       providerOrderRef: "ord_provider_1797",
-      storefrontId: "sf_trip",
       channelId: "chan_trip",
       metadata: { entityModule: "products", entityId: "prod_1797" },
     })
@@ -118,7 +113,6 @@ describe("booking origins", () => {
       providerSourceConnectionId: "src_conn_1797",
       providerSourceRef: "departure_1797",
       providerOrderRef: "ord_provider_1797",
-      storefrontId: "sf_trip",
       channelId: "chan_trip",
       metadata: {
         source: "bookings.submit_reservation_plan",
@@ -130,12 +124,11 @@ describe("booking origins", () => {
     })
   })
 
-  it("keeps the first persisted booking storefront/channel origin immutable", async () => {
+  it("keeps the first persisted booking channel origin immutable", async () => {
     const existing = {
       ...toBookingOriginInsert({
         bookingId: "book_direct_1797",
         originSource: "direct_b2c",
-        storefrontId: "sf_first",
         channelId: "chan_first",
       }),
       createdAt: new Date("2026-06-13T12:00:00.000Z"),
@@ -163,11 +156,9 @@ describe("booking origins", () => {
     const result = await upsertBookingOrigin(db as never, {
       bookingId: "book_direct_1797",
       originSource: "direct_b2c",
-      storefrontId: "sf_second",
       channelId: "chan_second",
     })
 
-    expect(result.storefrontId).toBe("sf_first")
     expect(result.channelId).toBe("chan_first")
     expect(update).not.toHaveBeenCalled()
   })

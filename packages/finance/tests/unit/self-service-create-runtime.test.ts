@@ -20,8 +20,8 @@ describe("Finance self-service create runtime storefront origin", () => {
   it.each([
     [
       "public",
-      { storefront: { storefrontId: "sf_public", channelId: "chan_public" } },
-      { storefrontOrigin: { storefrontId: "sf_public", channelId: "chan_public" } },
+      { storefront: { channelId: "chan_public" } },
+      { publicApiOrigin: { channelId: "chan_public" } },
     ],
     ["staff", {}, {}],
   ])("persists origin only when the trusted %s caller supplies it", async (_label, extra, expected) => {
@@ -47,7 +47,7 @@ describe("Finance self-service create runtime storefront origin", () => {
       expect.objectContaining({ commandInput: expect.objectContaining(expected) }),
     )
     if (!("storefront" in extra)) {
-      expect(executeCreate.mock.calls[0]?.[0]?.commandInput).not.toHaveProperty("storefrontOrigin")
+      expect(executeCreate.mock.calls[0]?.[0]?.commandInput).not.toHaveProperty("publicApiOrigin")
     }
   })
 })

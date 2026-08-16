@@ -67,7 +67,7 @@ responsible for adding matching columns and migrations to the auth user table.
 By default, `createBetterAuth` keeps Voyant's single-tenant guard for admin
 signups: once any user exists, another user without explicit surfaces, or with
 the `admin` surface, cannot self-register. Customer-facing auth plugins can
-still create users by setting a non-admin surface such as `storefront`.
+still create users by setting a non-admin surface such as `public surface`.
 
 The guarded surfaces are privileged signup surfaces. The default privileged
 surface is `admin`; pass `disableSignupWhenUsersExist.surfaces` if a deployment
@@ -111,7 +111,7 @@ const auth = createBetterAuth({
       },
     },
   },
-  customerSignupSurfaces: ["storefront"],
+  customerSignupSurfaces: ["public surface"],
   disableSignupWhenUsersExist: {
     surfaces: ["admin"],
   },

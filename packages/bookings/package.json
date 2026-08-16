@@ -39,8 +39,8 @@
     "./openapi/admin": "./openapi/admin/bookings.json",
     "./openapi/admin/booking-extras": "./openapi/admin/booking-extras.json",
     "./openapi/admin/booking-requirements": "./openapi/admin/booking-requirements.json",
-    "./openapi/storefront": "./openapi/storefront/bookings.json",
-    "./openapi/storefront/booking-requirements": "./openapi/storefront/booking-requirements.json"
+    "./openapi/public-api": "./openapi/public-api/bookings.json",
+    "./openapi/public-api/booking-requirements": "./openapi/public-api/booking-requirements.json"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.typecheck.json",
@@ -245,8 +245,8 @@
       "./openapi/admin": "./openapi/admin/bookings.json",
       "./openapi/admin/booking-extras": "./openapi/admin/booking-extras.json",
       "./openapi/admin/booking-requirements": "./openapi/admin/booking-requirements.json",
-      "./openapi/storefront": "./openapi/storefront/bookings.json",
-      "./openapi/storefront/booking-requirements": "./openapi/storefront/booking-requirements.json"
+      "./openapi/public-api": "./openapi/public-api/bookings.json",
+      "./openapi/public-api/booking-requirements": "./openapi/public-api/booking-requirements.json"
     },
     "main": "./dist/index.js",
     "types": "./dist/index.d.ts"

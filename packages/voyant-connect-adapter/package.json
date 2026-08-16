@@ -41,7 +41,7 @@
     "@voyant-travel/core": "workspace:^",
     "@voyant-travel/data-sdk": "^0.8.0",
     "@voyant-travel/graph-contracts": "workspace:^",
-    "@voyant-travel/storefront": "workspace:^"
+    "@voyant-travel/public-api": "workspace:^"
   },
   "peerDependencies": {
     "@voyant-travel/catalog": "workspace:^",

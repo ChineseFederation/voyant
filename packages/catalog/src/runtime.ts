@@ -17,7 +17,7 @@ import {
   getOwnedBookingHandlerRegistryFromContext,
 } from "./runtime/booking-engine-runtime.js"
 import { createOperatorCatalogBookingRouteModuleOptions } from "./runtime/booking-runtime.js"
-import { isSourcedEntryStorefrontListable } from "./runtime/catalog-listability.js"
+import { isSourcedEntryPublicApiListable } from "./runtime/catalog-listability.js"
 import {
   buildEmbeddingProvider,
   createCatalogDocumentBuilder,
@@ -160,7 +160,7 @@ export function createCatalogRuntime(
     createProductsDocumentBuilder,
     createCatalogDocumentBuilder,
     isSourcedEntryListable: ({ db, slice, provenance }) =>
-      isSourcedEntryStorefrontListable({
+      isSourcedEntryPublicApiListable({
         audience: slice.audience,
         channel: slice.channel,
         isEffectivelyPublished: () =>
@@ -234,7 +234,14 @@ function resolveCatalogDefaultScope(context: unknown): CatalogSearchRuntime["def
     locale: stringValue(env.DEFAULT_LOCALE) ?? "en-GB",
     audience,
     market: stringValue(env.DEFAULT_MARKET) ?? "default",
-    channel: stringValue(env.VOYANT_STOREFRONT_CHANNEL_ID),
+    // Renamed with the storefront entity (voyant#4624). The OLD spelling is
+    // still accepted, unlike the renamed request headers, because this one
+    // fails SILENTLY: an unset variable resolves to the deployment's Direct
+    // channel, so a deployment that had deliberately pinned another channel
+    // would quietly re-route its sales instead of getting a loud 401.
+    channel:
+      stringValue(env.VOYANT_PUBLIC_API_CHANNEL_ID) ??
+      stringValue(env.VOYANT_STOREFRONT_CHANNEL_ID),
   }
 }
 

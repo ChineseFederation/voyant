@@ -13,7 +13,7 @@ const browserRoots = [
   "packages/mice-react/src",
   "packages/notifications-react/src",
   "packages/operations-react/src",
-  "packages/storefront-react/src",
+  "packages/public-api-react/src",
   "apps/operator/src/components",
   "apps/operator/src/links",
   "apps/operator/src/routes",
@@ -31,8 +31,8 @@ const browserFiles = [
 
 const forbiddenImports = [
   {
-    module: "@voyant-travel/storefront/customer-portal",
-    replacement: "@voyant-travel/storefront/customer-portal/public-validation",
+    module: "@voyant-travel/public-api/customer-portal",
+    replacement: "@voyant-travel/public-api/customer-portal/public-validation",
     reason:
       "the customer-portal barrel mixes browser schemas with Hono routes and Node runtime code; browser code must use the validation subpath",
   },

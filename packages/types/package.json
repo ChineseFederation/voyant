@@ -13,7 +13,7 @@
     ".": "./src/index.ts",
     "./api-keys": "./src/api-keys.ts",
     "./member-roles": "./src/member-roles.ts",
-    "./storefront-key-scopes": "./src/storefront-key-scopes.ts",
+    "./public-api-key-scopes": "./src/public-api-key-scopes.ts",
     "./schemas/*": "./src/schemas/*.ts"
   },
   "publishConfig": {
@@ -36,10 +36,10 @@
         "import": "./dist/member-roles.js",
         "default": "./dist/member-roles.js"
       },
-      "./storefront-key-scopes": {
-        "types": "./dist/storefront-key-scopes.d.ts",
-        "import": "./dist/storefront-key-scopes.js",
-        "default": "./dist/storefront-key-scopes.js"
+      "./public-api-key-scopes": {
+        "types": "./dist/public-api-key-scopes.d.ts",
+        "import": "./dist/public-api-key-scopes.js",
+        "default": "./dist/public-api-key-scopes.js"
       },
       "./schemas/*": {
         "types": "./dist/schemas/*.d.ts",

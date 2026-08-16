@@ -15,8 +15,7 @@ import {
 } from "./routes.js"
 
 const emptyResults: SearchResults = { total: 0, hits: [], facets: {} }
-const activeStorefrontChannel = {
-  storefrontId: "sf_web",
+const activePublicChannel = {
   channelId: "chan_website",
   channelStatus: "active",
 }
@@ -45,13 +44,13 @@ function createIndexer(
 
 function routeApp(
   options: Parameters<typeof createCatalogSearchRoutes>[0],
-  storefrontChannel: typeof activeStorefrontChannel | null = activeStorefrontChannel,
+  publicChannel: typeof activePublicChannel | null = activePublicChannel,
 ) {
   const app = new Hono()
   app.onError(handleApiError)
-  if (options.surface === "public" && storefrontChannel) {
+  if (options.surface === "public" && publicChannel) {
     app.use("*", async (c, next) => {
-      c.set("storefrontChannel" as never, storefrontChannel as never)
+      c.set("publicChannel" as never, publicChannel as never)
       await next()
     })
   }
@@ -103,7 +102,7 @@ describe("createCatalogSearchRoutes", () => {
     app.onError(handleApiError)
     if (surface === "public") {
       app.use("*", async (c, next) => {
-        c.set("storefrontChannel" as never, activeStorefrontChannel as never)
+        c.set("publicChannel" as never, activePublicChannel as never)
         await next()
       })
     }
@@ -198,7 +197,7 @@ describe("createCatalogSearchRoutes", () => {
     })
     const app = new Hono()
     app.use("/v1/public/*", async (c, next) => {
-      c.set("storefrontChannel" as never, activeStorefrontChannel as never)
+      c.set("publicChannel" as never, activePublicChannel as never)
       await next()
     })
     app.route("/v1/admin/catalog", module.adminRoutes!)
@@ -248,7 +247,7 @@ describe("createCatalogSearchRoutes", () => {
     })
     const app = new Hono()
     app.use("/v1/public/*", async (c, next) => {
-      c.set("storefrontChannel" as never, activeStorefrontChannel as never)
+      c.set("publicChannel" as never, activePublicChannel as never)
       await next()
     })
     app.route("/v1/admin/catalog", module.adminRoutes!)
@@ -282,7 +281,7 @@ describe("createCatalogSearchRoutes", () => {
     })
     const app = new Hono()
     app.use("/v1/public/*", async (c, next) => {
-      c.set("storefrontChannel" as never, activeStorefrontChannel as never)
+      c.set("publicChannel" as never, activePublicChannel as never)
       await next()
     })
     app.route("/v1/admin/catalog", module.adminRoutes!)
@@ -470,7 +469,7 @@ describe("createCatalogSearchRoutes", () => {
     })
     const app = new Hono()
     app.use("/v1/public/*", async (c, next) => {
-      c.set("storefrontChannel" as never, activeStorefrontChannel as never)
+      c.set("publicChannel" as never, activePublicChannel as never)
       await next()
     })
     app.route("/v1/public/catalog", module.publicRoutes!)

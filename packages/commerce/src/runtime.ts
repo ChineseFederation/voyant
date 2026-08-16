@@ -31,7 +31,7 @@ import type {
   PromotionRedemptionDatabaseRuntime,
   PromotionsBulkReindexRuntime,
 } from "./promotions/runtime-ports.js"
-import { createPromotionsStorefrontResolvers } from "./promotions/service-storefront.js"
+import { createPromotionsPublicApiResolvers } from "./promotions/service-public-api.js"
 import type {
   CommerceCardPaymentRuntime,
   CommerceInventoryRuntime,
@@ -68,7 +68,7 @@ export function createCommerceApiModules(options: CommerceApiModulesOptions = {}
   ]
 }
 
-export const createCommerceStorefrontOfferResolvers = createPromotionsStorefrontResolvers
+export const createCommercePublicApiOfferResolvers = createPromotionsPublicApiResolvers
 
 interface CommerceRuntimeRequirements {
   primitives: VoyantRuntimeHostPrimitives

@@ -43,7 +43,6 @@ describe("commerce publication runtime wiring", () => {
             db: PostgresJsDatabase
             bookingId: string
             productId: string
-            storefrontId: string
             channelId: string
           }): Promise<boolean>
         }
@@ -56,7 +55,6 @@ describe("commerce publication runtime wiring", () => {
         db,
         bookingId: "book_1",
         productId: "prod_1",
-        storefrontId: "sf_1",
         channelId: "chan_1",
       }),
     ).resolves.toBe(true)

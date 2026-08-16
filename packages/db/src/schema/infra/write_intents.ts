@@ -30,7 +30,7 @@ export const writeIntentsTable = pgTable(
   "write_intents",
   {
     id: typeId("write_intents"),
-    /** Handler routing key, e.g. "storefront.booking.bootstrap". */
+    /** Handler routing key, e.g. "public-api.booking.bootstrap". */
     kind: text("kind").notNull(),
     /** The validated request payload the handler will execute. */
     payload: jsonb("payload").notNull(),

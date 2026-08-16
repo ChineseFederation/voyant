@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest"
 import { productDestinationsCatalogPolicy } from "../../src/catalog-policy-destinations.js"
 import {
   createProductDocumentBuilder,
-  createProductStorefrontCardProjectionExtension,
+  createProductPublicApiCardProjectionExtension,
   createProductsRegistry,
   type ProductProjectionExtension,
 } from "../../src/service-catalog-plane.js"
@@ -372,7 +372,7 @@ describe("createProductDocumentBuilder — projection extensions", () => {
       db as any,
       {
         sellerOperatorId: "op_xyz",
-        extensions: [createProductStorefrontCardProjectionExtension()],
+        extensions: [createProductPublicApiCardProjectionExtension()],
       },
     )
 
@@ -399,7 +399,7 @@ describe("createProductDocumentBuilder — projection extensions", () => {
       db as any,
       {
         sellerOperatorId: "op_xyz",
-        extensions: [createProductStorefrontCardProjectionExtension()],
+        extensions: [createProductPublicApiCardProjectionExtension()],
       },
     )
 

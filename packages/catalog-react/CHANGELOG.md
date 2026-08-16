@@ -4317,7 +4317,7 @@ routeId, runtime)` returns router-facing route options (lazy component,
   - **`./service-catalog-evaluator`** — `createCatalogPromotionEvaluator(db)` adapter factory. Bridges catalog's `PromotionEvaluationInput` / `PromotionEvaluationOutput` to the package's internal evaluator (PR2). Operator template wires it via `resolveEvaluatePromotions`.
   - **`./service-booking-confirmed`** — `recordPromotionRedemptionsForBooking(db, bookingId)`. Reads `pricing_applied_offers` from `catalog_quotes` joined to the booking via `consumed_booking_id` (NOT from the snapshot, to avoid an ordering race with `captureSnapshotGraph`). Aggregates per-offer (sums `discount_applied_cents` across multiple line-item snapshots; first non-null `appliedCode` wins). Idempotent upsert into `promotional_offer_redemptions` via `(offer_id, booking_id)` unique index — replay-safe.
   - **`./service-storefront`** — `createPromotionsStorefrontResolvers()` returning `StorefrontOfferResolvers`. Maps offer rows to the `StorefrontPromotionalOffer` DTO (single `discountValue` string for both `percentage` and `fixed_amount` flavors; `applicableDepartureIds: []` per v1 limitation).
-  - New deps: `@voyant-travel/catalog`, `@voyant-travel/storefront` (workspace).
+  - New deps: `@voyant-travel/catalog`, `@voyant-travel/public-api` (workspace).
 
   **Operator template** —
 
@@ -4328,7 +4328,7 @@ routeId, runtime)` returns router-facing route options (lazy component,
 
   **Validation**:
 
-  - `pnpm -F (@voyant-travel/catalog, @voyant-travel/promotions, @voyant-travel/storefront, operator) typecheck` — clean (operator runs with `NODE_OPTIONS=--max-old-space-size=8192` due to large workspace heap requirements).
+  - `pnpm -F (@voyant-travel/catalog, @voyant-travel/promotions, @voyant-travel/public-api, operator) typecheck` — clean (operator runs with `NODE_OPTIONS=--max-old-space-size=8192` due to large workspace heap requirements).
   - `pnpm -F @voyant-travel/promotions test` — 84 unit tests pass; 32 integration tests skip without `TEST_DATABASE_URL` (added 6 new for the redemption recorder, 8 new for storefront resolver).
   - Biome lint clean across all touched files.
 

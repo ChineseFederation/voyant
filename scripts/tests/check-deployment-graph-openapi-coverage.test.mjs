@@ -83,7 +83,7 @@ describe("check-deployment-graph-openapi-coverage", () => {
     assert.match(result.stdout, /1 covered graph API bundles/)
   })
 
-  it("does not mistake package directories named admin or storefront for OpenAPI surfaces", async () => {
+  it("does not mistake package directories named admin or public-api for OpenAPI surfaces", async () => {
     const apiId = "@voyant-travel/bookings#api"
     const root = await createFixture({
       "graph.json": graph([
@@ -100,7 +100,7 @@ describe("check-deployment-graph-openapi-coverage", () => {
         },
       ]),
       "packages/admin/package.json": "{}\n",
-      "packages/storefront/package.json": "{}\n",
+      "packages/public-api/package.json": "{}\n",
       "packages/bookings/openapi/admin/bookings.json": openapi({
         "/v1/admin/bookings": {
           get: { responses: { 200: { description: "OK" } }, "x-voyant-api-id": apiId },
@@ -146,7 +146,7 @@ describe("check-deployment-graph-openapi-coverage", () => {
           },
         },
       }),
-      "openapi/storefront/bookings.json": openapi({
+      "openapi/public-api/bookings.json": openapi({
         "/v1/public/bookings": {
           get: {
             responses: { 200: { description: "OK" } },
@@ -161,7 +161,7 @@ describe("check-deployment-graph-openapi-coverage", () => {
     assert.match(result.stdout, /2 covered graph API bundles/)
   })
 
-  it("normalizes graph public surface to the storefront OpenAPI surface", async () => {
+  it("normalizes graph public surface to the public-api OpenAPI surface", async () => {
     const apiId = "@voyant-travel/operator#charters.api.public"
     const root = await createFixture({
       "graph.json": graph([
@@ -179,12 +179,12 @@ describe("check-deployment-graph-openapi-coverage", () => {
           ],
         },
       ]),
-      "openapi/storefront/charters.json": openapi({
+      "openapi/public-api/charters.json": openapi({
         "/v1/public/charters": {
           get: {
             responses: { 200: { description: "OK" } },
             "x-voyant-module": "charters",
-            "x-voyant-surface": "storefront",
+            "x-voyant-surface": "public-api",
             "x-voyant-api-id": apiId,
           },
         },
@@ -579,7 +579,7 @@ describe("check-deployment-graph-openapi-coverage", () => {
           post: { responses: { 200: { description: "OK" } }, "x-voyant-api-id": apiIds.flights },
         },
       }),
-      "openapi/storefront/accommodations-content-public.json": openapi({
+      "openapi/public-api/accommodations-content-public.json": openapi({
         "/v1/public/accommodations/{id}/content": {
           get: {
             responses: { 200: { description: "OK" } },
@@ -587,7 +587,7 @@ describe("check-deployment-graph-openapi-coverage", () => {
           },
         },
       }),
-      "openapi/storefront/proposals-proposal-public.json": openapi({
+      "openapi/public-api/proposals-proposal-public.json": openapi({
         "/v1/public/proposals/{proposalVersionId}": {
           get: { responses: { 200: { description: "OK" } }, "x-voyant-api-id": apiIds.proposals },
         },

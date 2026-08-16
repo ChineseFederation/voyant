@@ -3,8 +3,8 @@
 import { Navigate, useParams, useSearch } from "@tanstack/react-router"
 import { type ComponentType, lazy, type ReactNode, Suspense } from "react"
 import { z } from "zod"
-import type { PaymentLinkResolverMessages } from "./storefront/payment-link-resolver-page.js"
-import type { PublicPaymentLinkPageMessages } from "./storefront/public-payment-link-page.js"
+import type { PaymentLinkResolverMessages } from "./public-api/payment-link-resolver-page.js"
+import type { PublicPaymentLinkPageMessages } from "./public-api/public-payment-link-page.js"
 
 const AccountantPortal = lazy(() =>
   import("./components/accountant-portal.js").then((module) => ({
@@ -12,12 +12,12 @@ const AccountantPortal = lazy(() =>
   })),
 )
 const PaymentLinkResolverPage = lazy(() =>
-  import("./storefront/payment-link-resolver-page.js").then((module) => ({
+  import("./public-api/payment-link-resolver-page.js").then((module) => ({
     default: module.PaymentLinkResolverPage,
   })),
 )
 const PublicPaymentLinkPage = lazy(() =>
-  import("./storefront/public-payment-link-page.js").then((module) => ({
+  import("./public-api/public-payment-link-page.js").then((module) => ({
     default: module.PublicPaymentLinkPage,
   })),
 )
@@ -34,7 +34,7 @@ const paymentSearchSchema = z.object({
 
 export interface FinancePublicRouteRuntime {
   getApiUrl(): string
-  StorefrontMessagesProvider: ComponentType<{ children: ReactNode }>
+  PublicApiMessagesProvider: ComponentType<{ children: ReactNode }>
   usePaymentResolverMessages(): PaymentLinkResolverMessages
   usePaymentLinkMessages(): PublicPaymentLinkPageMessages
 }
@@ -42,11 +42,11 @@ export interface FinancePublicRouteRuntime {
 export function createFinancePublicRouteContribution(runtime: FinancePublicRouteRuntime) {
   function PayRoute() {
     return (
-      <runtime.StorefrontMessagesProvider>
+      <runtime.PublicApiMessagesProvider>
         <Suspense fallback={<PublicFinanceRouteFallback />}>
           <PayRouteContent />
         </Suspense>
-      </runtime.StorefrontMessagesProvider>
+      </runtime.PublicApiMessagesProvider>
     )
   }
 
@@ -67,11 +67,11 @@ export function createFinancePublicRouteContribution(runtime: FinancePublicRoute
 
   function PaymentLinkRoute() {
     return (
-      <runtime.StorefrontMessagesProvider>
+      <runtime.PublicApiMessagesProvider>
         <Suspense fallback={<PublicFinanceRouteFallback />}>
           <PaymentLinkRouteContent />
         </Suspense>
-      </runtime.StorefrontMessagesProvider>
+      </runtime.PublicApiMessagesProvider>
     )
   }
 

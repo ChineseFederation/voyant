@@ -15,9 +15,9 @@ import {
   type CruisesListFilters,
   cruisesQueryKeys,
   type PricesListFilters,
+  type PublicApiListFilters,
   type SailingsListFilters,
   type ShipsListFilters,
-  type StorefrontListFilters,
 } from "./query-keys.js"
 import {
   adminCruiseListResponse,
@@ -252,12 +252,12 @@ export function getEnrichmentProgramsQueryOptions(
 
 // ---------- storefront (public) ----------
 
-export function getStorefrontCruisesQueryOptions(
+export function getPublicApiCruisesQueryOptions(
   client: FetchWithValidationOptions,
-  filters: StorefrontListFilters = {},
+  filters: PublicApiListFilters = {},
 ) {
   return queryOptions({
-    queryKey: cruisesQueryKeys.storefrontList(filters),
+    queryKey: cruisesQueryKeys.publicApiList(filters),
     queryFn: () =>
       fetchWithValidation(
         `/v1/public/cruises${buildQueryString(filters as Record<string, unknown>)}`,

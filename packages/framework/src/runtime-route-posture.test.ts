@@ -120,8 +120,8 @@ describe("graph runtime route posture", () => {
     const runtime = createVoyantGraphRuntime({
       graphHash: "sha256:existing-anonymous-forms",
       entries: {
-        "@voyant-travel/storefront": async () => ({
-          createStorefrontModule: createModule("storefront"),
+        "@voyant-travel/public-api": async () => ({
+          createPublicApiModule: createModule("storefront"),
         }),
         "@voyant-travel/finance": async () => ({
           createFinanceModule: createModule("finance"),
@@ -129,25 +129,25 @@ describe("graph runtime route posture", () => {
       },
       modules: [
         {
-          id: "@voyant-travel/storefront",
+          id: "@voyant-travel/public-api",
           kind: "module",
-          packageName: "@voyant-travel/storefront",
+          packageName: "@voyant-travel/public-api",
           order: 0,
           references: [
             {
               id: "storefront-public-route",
-              unitId: "@voyant-travel/storefront",
+              unitId: "@voyant-travel/public-api",
               facet: "api",
-              entityId: "@voyant-travel/storefront#api.public",
+              entityId: "@voyant-travel/public-api#api.public",
               runtime: {
-                entry: "@voyant-travel/storefront",
-                export: "createStorefrontModule",
+                entry: "@voyant-travel/public-api",
+                export: "createPublicApiModule",
               },
-              importEntry: "@voyant-travel/storefront",
+              importEntry: "@voyant-travel/public-api",
             },
           ],
           selectedIds: {
-            routes: ["@voyant-travel/storefront#api.public"],
+            routes: ["@voyant-travel/public-api#api.public"],
             tools: [],
             events: [],
             webhooks: [],
@@ -155,16 +155,16 @@ describe("graph runtime route posture", () => {
           routes: [
             {
               route: {
-                id: "@voyant-travel/storefront#api.public",
+                id: "@voyant-travel/public-api#api.public",
                 surface: "public",
                 mount: "/",
                 anonymous: ["/leads", "/newsletter", "offers"],
                 runtime: {
-                  entry: "@voyant-travel/storefront",
-                  export: "createStorefrontModule",
+                  entry: "@voyant-travel/public-api",
+                  export: "createPublicApiModule",
                 },
               },
-              importEntry: "@voyant-travel/storefront",
+              importEntry: "@voyant-travel/public-api",
               referenceId: "storefront-public-route",
             },
           ],
@@ -245,7 +245,7 @@ describe("graph runtime route posture", () => {
     const runtime = createVoyantGraphRuntime({
       graphHash: "sha256:payment-link-root-posture",
       entries: {
-        "@voyant-travel/storefront/payment-link": async () => ({
+        "@voyant-travel/public-api/payment-link": async () => ({
           createPaymentLinkModule: () => ({
             module: { name: "payment-link" },
             publicPath: "/",
@@ -254,26 +254,26 @@ describe("graph runtime route posture", () => {
       },
       modules: [
         {
-          id: "@voyant-travel/storefront#payment-link",
-          localId: "storefront.payment-link",
+          id: "@voyant-travel/public-api#payment-link",
+          localId: "public-api.payment-link",
           kind: "module",
-          packageName: "@voyant-travel/storefront",
+          packageName: "@voyant-travel/public-api",
           order: 0,
           references: [
             {
               id: "payment-link-public-route",
-              unitId: "@voyant-travel/storefront#payment-link",
+              unitId: "@voyant-travel/public-api#payment-link",
               facet: "api",
-              entityId: "@voyant-travel/storefront#payment-link.api",
+              entityId: "@voyant-travel/public-api#payment-link.api",
               runtime: {
-                entry: "@voyant-travel/storefront/payment-link",
+                entry: "@voyant-travel/public-api/payment-link",
                 export: "createPaymentLinkModule",
               },
-              importEntry: "@voyant-travel/storefront/payment-link",
+              importEntry: "@voyant-travel/public-api/payment-link",
             },
           ],
           selectedIds: {
-            routes: ["@voyant-travel/storefront#payment-link.api"],
+            routes: ["@voyant-travel/public-api#payment-link.api"],
             tools: [],
             events: [],
             webhooks: [],
@@ -281,16 +281,16 @@ describe("graph runtime route posture", () => {
           routes: [
             {
               route: {
-                id: "@voyant-travel/storefront#payment-link.api",
+                id: "@voyant-travel/public-api#payment-link.api",
                 surface: "public",
                 mount: "/",
                 anonymous: ["payment-link-config", "payment-link"],
                 runtime: {
-                  entry: "@voyant-travel/storefront/payment-link",
+                  entry: "@voyant-travel/public-api/payment-link",
                   export: "createPaymentLinkModule",
                 },
               },
-              importEntry: "@voyant-travel/storefront/payment-link",
+              importEntry: "@voyant-travel/public-api/payment-link",
               referenceId: "payment-link-public-route",
             },
           ],
@@ -318,31 +318,31 @@ describe("graph runtime route posture", () => {
     const runtime = createVoyantGraphRuntime({
       graphHash: "sha256:capability-line",
       entries: {
-        "@voyant-travel/storefront": async () => ({
-          createStorefrontModule: () => ({ module: { name: "storefront" } }),
+        "@voyant-travel/public-api": async () => ({
+          createPublicApiModule: () => ({ module: { name: "storefront" } }),
         }),
       },
       modules: [
         {
-          id: "@voyant-travel/storefront",
+          id: "@voyant-travel/public-api",
           kind: "module",
-          packageName: "@voyant-travel/storefront",
+          packageName: "@voyant-travel/public-api",
           order: 0,
           references: [
             {
               id: "storefront-public-route",
-              unitId: "@voyant-travel/storefront",
+              unitId: "@voyant-travel/public-api",
               facet: "api",
-              entityId: "@voyant-travel/storefront#api.public",
+              entityId: "@voyant-travel/public-api#api.public",
               runtime: {
-                entry: "@voyant-travel/storefront",
-                export: "createStorefrontModule",
+                entry: "@voyant-travel/public-api",
+                export: "createPublicApiModule",
               },
-              importEntry: "@voyant-travel/storefront",
+              importEntry: "@voyant-travel/public-api",
             },
           ],
           selectedIds: {
-            routes: ["@voyant-travel/storefront#api.public"],
+            routes: ["@voyant-travel/public-api#api.public"],
             tools: [],
             events: [],
             webhooks: [],
@@ -350,18 +350,18 @@ describe("graph runtime route posture", () => {
           routes: [
             {
               route: {
-                id: "@voyant-travel/storefront#api.public",
+                id: "@voyant-travel/public-api#api.public",
                 surface: "public",
                 mount: "/",
                 anonymous: ["/leads", "/departures"],
                 publishable: ["/departures", "offers"],
                 guardedIntake: ["/leads"],
                 runtime: {
-                  entry: "@voyant-travel/storefront",
-                  export: "createStorefrontModule",
+                  entry: "@voyant-travel/public-api",
+                  export: "createPublicApiModule",
                 },
               },
-              importEntry: "@voyant-travel/storefront",
+              importEntry: "@voyant-travel/public-api",
               referenceId: "storefront-public-route",
             },
           ],

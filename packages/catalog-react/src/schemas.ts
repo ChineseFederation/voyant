@@ -19,13 +19,13 @@ const facetBucketSchema = z.object({
   count: z.number(),
 })
 
-const storefrontCatalogCardTaxonSchema = z.object({
+const publicApiCatalogCardTaxonSchema = z.object({
   id: z.string().nullable(),
   name: z.string().nullable(),
   slug: z.string().nullable(),
 })
 
-const storefrontCatalogCardOfferSchema = z.object({
+const publicApiCatalogCardOfferSchema = z.object({
   id: z.string().nullable(),
   name: z.string().nullable(),
   discountKind: z.string().nullable(),
@@ -34,11 +34,11 @@ const storefrontCatalogCardOfferSchema = z.object({
   minPax: z.number().nullable().optional(),
 })
 
-const storefrontCatalogCardSchema = z.object({
+const publicApiCatalogCardSchema = z.object({
   id: z.string(),
   name: z.string().nullable(),
   slug: z.string().nullable(),
-  primaryCategory: storefrontCatalogCardTaxonSchema.nullable(),
+  primaryCategory: publicApiCatalogCardTaxonSchema.nullable(),
   media: z.object({
     thumbnailUrl: z.string().nullable(),
     coverMediaUrl: z.string().nullable(),
@@ -50,7 +50,7 @@ const storefrontCatalogCardSchema = z.object({
       originalAmountCents: z.number().nullable(),
     })
     .nullable(),
-  offerBadges: z.array(storefrontCatalogCardOfferSchema),
+  offerBadges: z.array(publicApiCatalogCardOfferSchema),
   departures: z.object({
     upcomingCount: z.number().nullable(),
     /** ISO 8601 instant. */
@@ -88,7 +88,7 @@ export const catalogSearchResponseSchema = z.object({
   totalRelation: z.enum(["eq", "gte"]).optional(),
   next_cursor: z.string().optional(),
   hits: z.array(searchHitSchema),
-  cards: z.array(storefrontCatalogCardSchema).optional(),
+  cards: z.array(publicApiCatalogCardSchema).optional(),
   facets: z.record(z.string(), z.array(facetBucketSchema)).optional(),
 })
 

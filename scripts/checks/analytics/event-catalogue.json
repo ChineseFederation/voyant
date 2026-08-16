@@ -48,8 +48,8 @@
         "packages/admin-react/src",
         "packages/catalog/src",
         "packages/catalog-react/src",
-        "packages/storefront/src",
-        "packages/storefront-react/src"
+        "packages/public-api/src",
+        "packages/public-api-react/src"
       ]
     }
   ]

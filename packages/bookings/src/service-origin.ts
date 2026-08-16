@@ -23,7 +23,6 @@ export interface UpsertBookingOriginInput {
   providerSourceConnectionId?: string | null
   providerSourceRef?: string | null
   providerOrderRef?: string | null
-  storefrontId?: string | null
   channelId?: string | null
   legacyTransactionOfferId?: string | null
   legacyTransactionOrderId?: string | null
@@ -39,7 +38,6 @@ export interface DirectB2CBookingOriginItemInput {
 export interface DirectB2CBookingOriginInput {
   bookingId: string
   externalBookingRef?: string | null
-  storefrontId?: string | null
   channelId?: string | null
   items?: DirectB2CBookingOriginItemInput[]
   buyerKind?: "guest" | "personal" | "business"
@@ -57,7 +55,6 @@ export interface CatalogReservationBookingOriginInput {
   providerSourceConnectionId?: string | null
   providerSourceRef?: string | null
   providerOrderRef?: string | null
-  storefrontId?: string | null
   channelId?: string | null
   metadata?: Record<string, unknown> | null
 }
@@ -116,7 +113,6 @@ export function toBookingOriginInsert(
     providerSourceConnectionId: nullable(input.providerSourceConnectionId),
     providerSourceRef: nullable(input.providerSourceRef),
     providerOrderRef: nullable(input.providerOrderRef),
-    storefrontId: nullable(input.storefrontId),
     channelId: nullable(input.channelId),
     legacyTransactionOfferId: nullable(input.legacyTransactionOfferId),
     legacyTransactionOrderId: nullable(input.legacyTransactionOrderId),
@@ -144,7 +140,6 @@ export function toDirectB2CBookingOriginInput(
     bookingId: input.bookingId,
     originSource: "direct_b2c",
     catalogSnapshotId: singleOrNull(catalogSnapshotIds),
-    storefrontId: nullable(input.storefrontId),
     channelId: nullable(input.channelId),
     metadata: {
       source: "public_bookings_service.create_session",
@@ -170,7 +165,6 @@ export function toCatalogReservationBookingOriginInput(
     providerSourceConnectionId: nullable(input.providerSourceConnectionId),
     providerSourceRef: nullable(input.providerSourceRef),
     providerOrderRef: nullable(input.providerOrderRef),
-    storefrontId: nullable(input.storefrontId),
     channelId: nullable(input.channelId),
     metadata: {
       source: "bookings.submit_reservation_plan",
@@ -236,7 +230,6 @@ export async function setAcceptedProposalBookingOrigin(
     providerSourceConnectionId: existing?.providerSourceConnectionId,
     providerSourceRef: existing?.providerSourceRef,
     providerOrderRef: existing?.providerOrderRef,
-    storefrontId: existing?.storefrontId,
     channelId: existing?.channelId,
     metadata,
   })
@@ -255,7 +248,6 @@ export async function setAcceptedProposalBookingOrigin(
         providerSourceConnectionId: values.providerSourceConnectionId,
         providerSourceRef: values.providerSourceRef,
         providerOrderRef: values.providerOrderRef,
-        storefrontId: values.storefrontId,
         channelId: values.channelId,
         metadata: values.metadata,
         updatedAt: values.updatedAt,

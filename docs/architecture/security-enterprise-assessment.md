@@ -75,9 +75,9 @@ Three compounding facts:
 **Fix:** A distributed limiter (Cloudflare Rate Limiting binding or Durable-Object counter) keyed by `cf-connecting-ip` + route, mounted by default in `createApp` and applied to `/auth/*` and all anonymous write endpoints; configure Better Auth `rateLimit` against KV/DO secondary storage; layer Cloudflare WAF/Rate-Limiting rules at the edge.
 
 ### C3 — SMS toll fraud / email bombing via anonymous verification start
-**`packages/storefront/src/verification/routes-public.ts`, `apps/operator/src/api/composition.ts`, `packages/storefront/src/verification/service.ts`**
+**`packages/public-api/src/verification/routes-public.ts`, `apps/operator/src/api/composition.ts`, `packages/public-api/src/verification/service.ts`**
 
-`POST /v1/public/storefront-verification/sms/start` and `/email/start` are in `publicPaths` and, in the operator, wired to **live Voyant Cloud SMS + email providers**. The destination is attacker-supplied; there is **no rate limit, no captcha, and no resend throttle**. `startChallenge` re-sends on every call to a pending challenge — it records `lastSentAt` but never uses it to gate resends.
+`POST /v1/public/customer-verification/sms/start` and `/email/start` are in `publicPaths` and, in the operator, wired to **live Voyant Cloud SMS + email providers**. The destination is attacker-supplied; there is **no rate limit, no captcha, and no resend throttle**. `startChallenge` re-sends on every call to a pending challenge — it records `lastSentAt` but never uses it to gate resends.
 
 **Impact:** (1) SMS toll fraud / smishing — every `/sms/start` call with an arbitrary phone number sends a billable SMS, so an attacker drives unbounded spend and can SMS-bomb victims; (2) email bombing of arbitrary inboxes.
 **Fix:** Per-destination and per-IP resend cooldowns (e.g. 1/30s, N/hour), a daily cap per destination, and a captcha/Turnstile gate before dispatch.
@@ -155,7 +155,7 @@ that access is explicitly present.
 public paths change.
 
 ### H6 — Unbounded anonymous row creation (CRM intake + outbox flooding)
-**`packages/storefront/src/service-intake.ts:101,160-225`, `packages/storefront/src/routes-public.ts:269-299`**
+**`packages/public-api/src/service-intake.ts:101,160-225`, `packages/public-api/src/routes-public.ts:269-299`**
 
 `POST /v1/public/leads` / `newsletter` creates a `crm.person` + `customer_signal` per request; dedup is only by a client-supplied `sourceSubmissionId`, so omitting it inserts new rows on every call. The operator wires no intake guard (only a comment that hosts "can wire captcha").
 

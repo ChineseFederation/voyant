@@ -28,7 +28,7 @@
  *
  * Holding the KEYLESS request to the same list is the load-bearing part. The
  * storefront behind a public request is resolved by key *or* by origin
- * (`resolveStorefrontByOrigin`), so a caller who simply omits the `vpk_` still
+ * (`resolvePublicApiByOrigin`), so a caller who simply omits the `vpk_` still
  * gets a storefront channel. If only `vpk_`-bearing requests were checked, the
  * whole line would be bypassed by deleting a header.
  *
@@ -36,7 +36,7 @@
  * route needs no customer session; `publishable` says a credential that ships
  * in a browser bundle may call it. A route can be both, either, or neither.
  */
-import { classifyStorefrontKeyToken, STOREFRONT_KEY_HEADER } from "@voyant-travel/core"
+import { classifyPublicApiKeyToken, PUBLIC_API_KEY_HEADER } from "@voyant-travel/core"
 import type { MiddlewareHandler } from "hono"
 
 import { extractBearerToken } from "../auth/session-jwt.js"
@@ -77,7 +77,7 @@ export interface KeyCapabilityOptions {
  * storefront-specific one, so a bearer token cannot be used to talk the line
  * out of looking at the `x-api-key` that is actually doing the work.
  */
-function presentedStorefrontKey(
+function presentedPublicApiKey(
   headerValue: string | undefined,
   authorization: string | undefined,
 ): string | undefined {
@@ -97,13 +97,13 @@ export function requireKeyCapability<TBindings extends VoyantBindings>(
     // decided elsewhere and a 403 here would break the real request's preflight.
     if (c.req.method === "OPTIONS") return next()
 
-    const kind = classifyStorefrontKeyToken(
-      presentedStorefrontKey(
-        c.req.header(STOREFRONT_KEY_HEADER),
+    const kind = classifyPublicApiKeyToken(
+      presentedPublicApiKey(
+        c.req.header(PUBLIC_API_KEY_HEADER),
         c.req.header("authorization") ?? c.req.header("Authorization"),
       ),
     )
-    if (kind) c.set("storefrontKeyKind", kind)
+    if (kind) c.set("publicApiKeyKind", kind)
 
     const pathname = normalizePathname(new URL(c.req.url).pathname, { basePath: opts.basePath })
     const isPublicSurface = pathname === "/v1/public" || pathname.startsWith("/v1/public/")

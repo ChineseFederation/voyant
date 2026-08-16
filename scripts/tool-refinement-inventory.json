@@ -138,22 +138,22 @@
       "note": "Documented. The Tool description tells the caller to supply either field on its own, which is exactly what the refinement requires: at least one of `bedPreference` or `roomTypeId`. The refinement's own message names both fields too."
     },
     {
-      "id": "@voyant-travel/storefront:bootstrap_my_customer_portal:<root>",
+      "id": "@voyant-travel/public-api:bootstrap_my_customer_portal:<root>",
       "documented": false,
       "note": "Not stated. The claim-conflict precondition is named in the description but its actual cross-field requirement is not."
     },
     {
-      "id": "@voyant-travel/storefront:bootstrap_my_customer_portal:customerRecord.billingAddress",
+      "id": "@voyant-travel/public-api:bootstrap_my_customer_portal:customerRecord.billingAddress",
       "documented": false,
       "note": "Not stated. The billing-address completeness rule has no description on the field."
     },
     {
-      "id": "@voyant-travel/storefront:update_my_customer_portal_profile:<root>",
+      "id": "@voyant-travel/public-api:update_my_customer_portal_profile:<root>",
       "documented": false,
       "note": "Not stated. The refinement's cross-field requirement is absent from the description."
     },
     {
-      "id": "@voyant-travel/storefront:update_my_customer_portal_profile:customerRecord.billingAddress",
+      "id": "@voyant-travel/public-api:update_my_customer_portal_profile:customerRecord.billingAddress",
       "documented": false,
       "note": "Not stated. Same billing-address completeness rule as bootstrap_my_customer_portal."
     },

@@ -40,7 +40,7 @@ async function writeDocument(path: string, document: OpenApiDocument) {
 await Promise.all([
   writeDocument("../openapi/admin/catalog-booking.json", selectSurface(complete, "admin")),
   writeDocument(
-    "../openapi/storefront/catalog-booking.json",
-    selectSurface(complete, "storefront"),
+    "../openapi/public-api/catalog-booking.json",
+    selectSurface(complete, "public-api"),
   ),
 ])

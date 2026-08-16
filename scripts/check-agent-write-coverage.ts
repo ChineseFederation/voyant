@@ -70,13 +70,6 @@ const ALLOWLIST = new Map<string, { rationale: string }>([
     },
   ],
   [
-    "@voyant-travel/auth:storefront/channel-binding",
-    {
-      rationale:
-        "Storefront channel binding is a deployment-owned cutover control; keep it human-admin only until a reviewed agent Tool workflow exists.",
-    },
-  ],
-  [
     "@voyant-travel/distribution:distribution/product-publication",
     {
       rationale:

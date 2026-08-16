@@ -54,7 +54,7 @@ export type {
   VoyantAuthContext,
   VoyantCallerType,
   VoyantPermission,
-  VoyantStorefrontKeyKind,
+  VoyantPublicApiKeyKind,
   VoyantVariables,
 } from "./env.js"
 export { ANONYMOUS_STOREFRONT_USER_ID, identifiedUserId } from "./env.js"
@@ -172,6 +172,12 @@ export type {
   VoyantGraphUnitManifest,
 } from "./project.js"
 export { VOYANT_EVENT_CATALOG_SCHEMA_VERSION } from "./project.js"
+export {
+  classifyPublicApiKeyToken,
+  hashPublicApiKeyToken,
+  PUBLIC_API_KEY_HEADER,
+  PUBLIC_API_KEY_PREFIXES,
+} from "./public-api-key-kind.js"
 export type {
   EntityFetcher,
   EntityFetcherArgs,
@@ -213,9 +219,3 @@ export type {
   StepRunFn,
 } from "./saga.js"
 export { createSaga, SagaError, sagaStep } from "./saga.js"
-export {
-  classifyStorefrontKeyToken,
-  hashStorefrontKeyToken,
-  STOREFRONT_KEY_HEADER,
-  STOREFRONT_KEY_PREFIXES,
-} from "./storefront-key-kind.js"

@@ -3,9 +3,9 @@
 The bookings client tier: headless data hooks/clients plus the styled UI
 components and page-level compositions (formerly `@voyant-travel/bookings-ui`).
 
-Headless consumers (storefronts, portals) import from the root, `./hooks`,
+Headless consumers (public surfaces, portals) import from the root, `./hooks`,
 `./client`, or `./query-keys` — these pull no styling peers. Styled surfaces
-live under `./ui`, `./components/*`, `./journey`, `./storefront`, `./admin`, `./i18n`, and
+live under `./ui`, `./components/*`, `./journey`, `./public surface`, `./admin`, `./i18n`, and
 `./styles.css`, whose heavier peers (`@voyant-travel/ui`, `@voyant-travel/admin`,
 `@tanstack/react-table`, `lucide-react`, the other modules' `*-react`/`*-ui`
 packages) are optional and only needed when you import those subpaths.
@@ -19,8 +19,8 @@ Those helpers target existing public booking sessions for customer-portal
 state and room-selection repricing. They do not create bookings.
 
 The `./journey` subpath retains composable booking-draft sections for trip and
-staff Booking Session composition. The retired routed admin/storefront creation
-shell is not part of the public API. The `./storefront` subpath retains only
+staff Booking Session composition. The retired routed admin/public surface creation
+shell is not part of the public API. The `./public surface` subpath retains only
 contract-variable mapping for customer documents.
 
 ## UI components

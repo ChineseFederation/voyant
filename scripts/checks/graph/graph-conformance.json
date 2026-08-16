@@ -28,9 +28,9 @@
       "portIds": [
         "trips.routes-runtime",
         "trips.database-runtime",
-        "storefront.shopping.opaque-reference-issuer",
-        "storefront.trip-selections.runtime",
-        "trips.storefront-offer-resolver.runtime",
+        "public-api.shopping.opaque-reference-issuer",
+        "public-api.trip-selections.runtime",
+        "trips.public-offer-resolver.runtime",
         "catalog.runtime-services",
         "commerce.checkout-api-options",
         "flights.runtime"

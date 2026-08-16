@@ -7,7 +7,6 @@ const inquiry = {
   id: "bkin_01kzexample00000000000000",
   idempotencyKey: "ask-1",
   requestFingerprint: "fingerprint",
-  storefrontId: "storefront_1",
   channelId: "channel_1",
   productId: "prod_1",
   departureId: "departure_1",
@@ -31,8 +30,7 @@ function appWith(submit: ReturnType<typeof vi.fn>) {
   const app = new OpenAPIHono()
   app.use("*", async (c, next) => {
     c.set("db" as never, {})
-    c.set("storefrontChannel" as never, {
-      storefrontId: "storefront_1",
+    c.set("publicChannel" as never, {
       channelId: "channel_1",
       channelStatus: "active",
     })
@@ -51,7 +49,7 @@ const requestBody = {
 }
 
 describe("booking inquiry public route", () => {
-  it("returns an authoritative receipt scoped to the active storefront channel", async () => {
+  it("returns an authoritative receipt scoped to the active channel", async () => {
     const submit = vi.fn().mockResolvedValue({ status: "created", inquiry })
     const response = await appWith(submit).request("/inquiries", {
       method: "POST",
@@ -61,13 +59,12 @@ describe("booking inquiry public route", () => {
 
     expect(response.status).toBe(201)
     await expect(response.json()).resolves.toMatchObject({
-      data: { id: inquiry.id, storefrontId: "storefront_1", channelId: "channel_1" },
+      data: { id: inquiry.id, channelId: "channel_1" },
     })
     expect(submit).toHaveBeenCalledWith(
       {},
       expect.objectContaining({
         idempotencyKey: "ask-1",
-        storefrontId: "storefront_1",
         channelId: "channel_1",
         productId: "prod_1",
       }),

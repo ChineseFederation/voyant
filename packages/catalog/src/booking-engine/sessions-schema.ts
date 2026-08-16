@@ -27,7 +27,6 @@ export const bookingSessionsTable = pgTable(
     actorKind: text("actor_kind").notNull(),
     ownerPrincipalId: text("owner_principal_id"),
     ownerOrganizationId: text("owner_organization_id"),
-    storefrontId: text("storefront_id"),
     channelId: text("channel_id"),
     /**
      * Commercial scope, fixed at create. Requirements labels are
@@ -69,8 +68,7 @@ export const bookingSessionsTable = pgTable(
     ),
     check(
       "booking_sessions_storefront_origin",
-      sql`(${table.storefrontId} IS NULL AND ${table.channelId} IS NULL)
-        OR (${table.purgedAt} IS NULL AND ${table.storefrontId} IS NOT NULL AND ${table.channelId} IS NOT NULL)`,
+      sql`${table.channelId} IS NULL OR ${table.purgedAt} IS NULL`,
     ),
     check(
       "booking_sessions_target_exactly_one",

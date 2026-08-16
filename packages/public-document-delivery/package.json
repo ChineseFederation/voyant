@@ -7,7 +7,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./voyant": "./src/voyant.ts",
-    "./openapi/storefront": "./openapi/storefront/public-document-delivery.json"
+    "./openapi/public-api": "./openapi/public-api/public-document-delivery.json"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.typecheck.json",
@@ -49,7 +49,7 @@
         "import": "./dist/voyant.js",
         "default": "./dist/voyant.js"
       },
-      "./openapi/storefront": "./openapi/storefront/public-document-delivery.json"
+      "./openapi/public-api": "./openapi/public-api/public-document-delivery.json"
     }
   },
   "repository": {

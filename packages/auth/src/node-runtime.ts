@@ -80,6 +80,7 @@ import {
   resolveMcpGrantScopes,
   withPublicApiEndpoints,
 } from "./mcp-oauth.js"
+import { PublicApiCustomerAuthResolutionError } from "./public-api-customer-auth-resolver.js"
 import {
   type CreateBetterAuthOptions,
   type CustomerAuthMethods,
@@ -89,7 +90,6 @@ import {
   handleOrganizationMembersRequest,
 } from "./server.js"
 import { resolveStaffAccess } from "./staff-access.js"
-import { StorefrontCustomerAuthResolutionError } from "./storefront-customer-auth-resolver.js"
 import { ensureCurrentUserProfile } from "./workspace.js"
 
 // Type ctx so that `c.get("db")` resolves to the parent app's middleware-
@@ -295,9 +295,12 @@ export interface CustomerAuthRuntimeContext {
   methods: CustomerAuthMethods
   /** Buyer capabilities are independent from identity sign-up methods. */
   accountPolicy?: CustomerBuyerAccountPolicy | null
-  /** Server-derived Storefront sales-channel context for downstream public routes. */
-  storefrontChannel?: {
-    storefrontId: string
+  /**
+   * Server-derived sales-channel context for downstream public routes. The
+   * channel a presented key publishes to — the deployment's Direct channel
+   * unless the key names another (voyant#4633).
+   */
+  publicChannel?: {
     channelId: string
     channelStatus?: string | null
   }
@@ -447,12 +450,12 @@ export function createOperatorAuthNodeRuntime<Env extends OperatorAuthNodeEnv>(
     }
   })
   auth.onError((err, c) => {
-    // A storefront customer-auth resolution failure is a client-side auth
-    // failure (missing/invalid storefront key or a disallowed origin), not a
+    // A public-API customer-auth resolution failure is a client-side auth
+    // failure (missing/invalid key or a disallowed origin), not a
     // server fault. Translate it into a clean 401/403 with a stable, non-leaky
     // body instead of letting it fall through to `handleApiError`'s 500. The
     // catch is narrowed to this error type so genuine server faults still 500.
-    if (err instanceof StorefrontCustomerAuthResolutionError) {
+    if (err instanceof PublicApiCustomerAuthResolutionError) {
       c.header("Cache-Control", "no-store")
       return c.json({ error: err.code }, err.status)
     }
@@ -1201,7 +1204,7 @@ export function createOperatorAuthNodeRuntime<Env extends OperatorAuthNodeEnv>(
         try {
           customerContext = await resolveCustomerAuthContext(env, request)
         } catch (error) {
-          if (error instanceof StorefrontCustomerAuthResolutionError) return null
+          if (error instanceof PublicApiCustomerAuthResolutionError) return null
           throw error
         }
       }
@@ -1211,7 +1214,7 @@ export function createOperatorAuthNodeRuntime<Env extends OperatorAuthNodeEnv>(
       const session = await auth.api.getSession({ headers: request.headers })
 
       if (!session) {
-        if (customerSurface && customerContext?.storefrontChannel) {
+        if (customerSurface && customerContext?.publicChannel) {
           return {
             isAnonymousRequest: true,
             userId: ANONYMOUS_STOREFRONT_USER_ID,
@@ -1221,7 +1224,7 @@ export function createOperatorAuthNodeRuntime<Env extends OperatorAuthNodeEnv>(
             audience: "customer",
             realm: "customer",
             scopes: [],
-            storefrontChannel: customerContext.storefrontChannel,
+            publicChannel: customerContext.publicChannel,
           }
         }
         return null
@@ -1276,8 +1279,8 @@ export function createOperatorAuthNodeRuntime<Env extends OperatorAuthNodeEnv>(
           realm: "customer" as const,
           scopes: [],
           email: session.user.email ?? null,
-          ...(customerContext?.storefrontChannel
-            ? { storefrontChannel: customerContext.storefrontChannel }
+          ...(customerContext?.publicChannel
+            ? { publicChannel: customerContext.publicChannel }
             : {}),
         }
         if (!buyer) {
@@ -1926,7 +1929,7 @@ export function createOperatorAuthNodeRuntime<Env extends OperatorAuthNodeEnv>(
           { bindings: c.env, db },
           {
             requesterUserId: session.user.id,
-            storefrontOrigin: new URL(context.invitationAcceptBaseURL).origin,
+            publicApiOrigin: new URL(context.invitationAcceptBaseURL).origin,
             idempotencyKey: input.idempotencyKey,
             profile: input.profile,
           },
@@ -2010,7 +2013,7 @@ export function createOperatorAuthNodeRuntime<Env extends OperatorAuthNodeEnv>(
           { bindings: c.env, db },
           {
             requesterUserId: session.user.id,
-            storefrontOrigin: new URL(context.invitationAcceptBaseURL).origin,
+            publicApiOrigin: new URL(context.invitationAcceptBaseURL).origin,
             idempotencyKey: input.idempotencyKey,
             profile: input.profile,
           },

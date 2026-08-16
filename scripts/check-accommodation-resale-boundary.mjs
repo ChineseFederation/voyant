@@ -168,7 +168,7 @@ const FILE_CHECKS = [
     patterns: [/\bhospitality\b/i],
   },
   {
-    file: "apps/operator/src/components/voyant/trips/storefront-composer-block.tsx",
+    file: "apps/operator/src/components/voyant/trips/public-api-composer-block.tsx",
     patterns: [/\bhospitality\b/i],
   },
   {

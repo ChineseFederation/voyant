@@ -2,28 +2,28 @@
 
 import { useParams } from "@tanstack/react-router"
 import { type ComponentType, lazy, type ReactNode, Suspense } from "react"
-import type { PublicProposalPageMessages } from "./storefront/public-proposal-page.js"
+import type { PublicProposalPageMessages } from "./public-api/public-proposal-page.js"
 
 const PublicProposalPage = lazy(() =>
-  import("./storefront/public-proposal-page.js").then((module) => ({
+  import("./public-api/public-proposal-page.js").then((module) => ({
     default: module.PublicProposalPage,
   })),
 )
 
 export interface ProposalsPublicRouteRuntime {
   getApiUrl(): string
-  StorefrontMessagesProvider: ComponentType<{ children: ReactNode }>
+  PublicApiMessagesProvider: ComponentType<{ children: ReactNode }>
   useProposalMessages(): PublicProposalPageMessages
 }
 
 export function createProposalsPublicRouteContribution(runtime: ProposalsPublicRouteRuntime) {
   function ProposalRoute() {
     return (
-      <runtime.StorefrontMessagesProvider>
+      <runtime.PublicApiMessagesProvider>
         <Suspense fallback={<div className="min-h-screen bg-background" />}>
           <ProposalRouteContent />
         </Suspense>
-      </runtime.StorefrontMessagesProvider>
+      </runtime.PublicApiMessagesProvider>
     )
   }
 

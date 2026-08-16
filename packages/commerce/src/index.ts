@@ -30,7 +30,7 @@ export {
   type CommerceRuntimeModuleName,
   commerceRuntimeModuleNames,
   createCommerceApiModules,
-  createCommerceStorefrontOfferResolvers,
+  createCommercePublicApiOfferResolvers,
 } from "./runtime.js"
 export * from "./sellability/index.js"
 export type {

@@ -1,17 +1,17 @@
 import { commerceCardPaymentRuntimePort } from "@voyant-travel/commerce/runtime-port"
 import { defineModule, providePort, requirePort } from "@voyant-travel/core/project"
 import {
-  storefrontPaymentLinkRuntimePort,
-  storefrontPaymentReconciliationJobRuntimePort,
-} from "@voyant-travel/storefront/runtime-port"
+  publicApiPaymentLinkRuntimePort,
+  publicApiPaymentReconciliationJobRuntimePort,
+} from "@voyant-travel/public-api/runtime-port"
 import {
-  storefrontOpaqueReferenceIssuerPort,
-  storefrontTripSelectionsRuntimePort,
-} from "@voyant-travel/storefront/shopping/runtime-port"
+  publicApiOpaqueReferenceIssuerPort,
+  publicApiTripSelectionsRuntimePort,
+} from "@voyant-travel/public-api/shopping/runtime-port"
 import { durableTripActionRuntimePort } from "./durable-action-runtime-port.js"
+import { publicApiTripOfferResolverPort } from "./public-api-trip-offer-resolver-port.js"
 import { tripsDatabaseRuntimePort, tripsRoutesRuntimePort } from "./runtime-port.js"
 import { tripsSourcingJobRuntimePort } from "./sourcing-job-runtime-port.js"
-import { storefrontTripOfferResolverPort } from "./storefront-trip-offer-resolver-port.js"
 
 const catalogRuntimeServicesPortReference = { id: "catalog.runtime-services" } as const
 const catalogCompositeBookingSessionRuntimePortReference = {
@@ -113,11 +113,11 @@ export const tripsVoyantModule = defineModule({
   provides: {
     ports: [
       providePort(commerceCardPaymentRuntimePort),
-      providePort(storefrontPaymentLinkRuntimePort),
-      providePort(storefrontPaymentReconciliationJobRuntimePort),
-      providePort(storefrontOpaqueReferenceIssuerPort),
-      providePort(storefrontTripOfferResolverPort),
-      providePort(storefrontTripSelectionsRuntimePort),
+      providePort(publicApiPaymentLinkRuntimePort),
+      providePort(publicApiPaymentReconciliationJobRuntimePort),
+      providePort(publicApiOpaqueReferenceIssuerPort),
+      providePort(publicApiTripOfferResolverPort),
+      providePort(publicApiTripSelectionsRuntimePort),
       providePort(tripsRoutesRuntimePort),
       providePort(tripsDatabaseRuntimePort),
       providePort(tripsSourcingJobRuntimePort),

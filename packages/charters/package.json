@@ -19,7 +19,7 @@
     "./requirements": "./src/requirements.ts",
     "./voyant": "./src/voyant.ts",
     "./openapi/admin": "./openapi/admin/charters.json",
-    "./openapi/storefront": "./openapi/storefront/charters.json",
+    "./openapi/public-api": "./openapi/public-api/charters.json",
     "./catalog-runtime-extension": "./src/catalog-runtime-extension.ts",
     "./runtime-contributor": "./src/runtime-contributor.ts",
     "./tools": "./src/mcp-runtime.ts"
@@ -134,7 +134,7 @@
         "default": "./dist/voyant.js"
       },
       "./openapi/admin": "./openapi/admin/charters.json",
-      "./openapi/storefront": "./openapi/storefront/charters.json",
+      "./openapi/public-api": "./openapi/public-api/charters.json",
       "./catalog-runtime-extension": {
         "types": "./dist/catalog-runtime-extension.d.ts",
         "import": "./dist/catalog-runtime-extension.js",

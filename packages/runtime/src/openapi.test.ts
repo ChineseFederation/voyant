@@ -120,7 +120,7 @@ describe("buildOperatorOpenApiDocuments", () => {
       "/v1/public/trips",
     ])
     expect(Object.keys(docs.admin.paths ?? {})).toEqual(["/v1/admin/identity/contacts"])
-    expect(Object.keys(docs.storefront.paths ?? {})).toEqual(["/v1/public/trips"])
+    expect(Object.keys(docs["public-api"].paths ?? {})).toEqual(["/v1/public/trips"])
     expect(docs.full.info.title).toBe("Voyant Operator API")
   })
 

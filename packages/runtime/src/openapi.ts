@@ -21,7 +21,7 @@ const DEFAULT_OPENAPI_OPTIONS: GenerateOpenApiOptions = {
 export interface OperatorOpenApiDocuments {
   full: OpenApiDocument
   admin: OpenApiDocument
-  storefront: OpenApiDocument
+  "public-api": OpenApiDocument
   modules: Map<string, OpenApiDocument>
 }
 
@@ -44,7 +44,7 @@ export async function buildOperatorOpenApiDocuments(
   return {
     full,
     admin: selectSurface(full, "admin"),
-    storefront: selectSurface(full, "storefront"),
+    "public-api": selectSurface(full, "public-api"),
     modules,
   }
 }

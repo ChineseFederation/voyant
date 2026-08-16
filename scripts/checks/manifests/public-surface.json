@@ -114,8 +114,8 @@
         "@voyant-travel/i18n",
         "@voyant-travel/max-embed",
         "@voyant-travel/notifications",
-        "@voyant-travel/storefront",
-        "@voyant-travel/storefront-react",
+        "@voyant-travel/public-api",
+        "@voyant-travel/public-api-react",
         "@voyant-travel/tools",
         "@voyant-travel/trips",
         "@voyant-travel/types",
@@ -220,12 +220,12 @@
       "consumers": ["voyant-travel/plugin-smartbill"],
       "reason": "No successor. See #4059 item 4."
     },
-    "@voyant-travel/storefront": {
+    "@voyant-travel/public-api": {
       "successor": null,
       "consumers": ["voyant-travel/platform"],
       "reason": "No successor. Platform is first-party; see platform#1622."
     },
-    "@voyant-travel/storefront-react": {
+    "@voyant-travel/public-api-react": {
       "successor": null,
       "consumers": ["voyant-travel/platform"],
       "reason": "No successor. Platform is first-party; see platform#1622."

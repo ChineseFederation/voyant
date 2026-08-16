@@ -39,7 +39,7 @@ export interface PricesListFilters {
   offset?: number | undefined
 }
 
-export interface StorefrontListFilters {
+export interface PublicApiListFilters {
   cruiseType?: "ocean" | "river" | "expedition" | "coastal" | undefined
   region?: string | undefined
   theme?: string | undefined
@@ -99,9 +99,9 @@ export const cruisesQueryKeys = {
 
   // Storefront (public)
   storefront: () => [...cruisesQueryKeys.all, "storefront"] as const,
-  storefrontList: (filters: StorefrontListFilters) =>
+  publicApiList: (filters: PublicApiListFilters) =>
     [...cruisesQueryKeys.storefront(), "list", filters] as const,
-  storefrontCruise: (slug: string) => [...cruisesQueryKeys.storefront(), "detail", slug] as const,
-  storefrontSailing: (key: string) => [...cruisesQueryKeys.storefront(), "sailings", key] as const,
-  storefrontShip: (key: string) => [...cruisesQueryKeys.storefront(), "ships", key] as const,
+  publicApiCruise: (slug: string) => [...cruisesQueryKeys.storefront(), "detail", slug] as const,
+  publicApiSailing: (key: string) => [...cruisesQueryKeys.storefront(), "sailings", key] as const,
+  publicApiShip: (key: string) => [...cruisesQueryKeys.storefront(), "ships", key] as const,
 } as const

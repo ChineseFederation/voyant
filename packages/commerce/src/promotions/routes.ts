@@ -5,7 +5,7 @@
  *
  * PR1 ships CRUD only. Public storefront routes are exposed via the
  * existing `/v1/public/products/:productId/offers` endpoints in
- * `@voyant-travel/storefront` once the storefront resolver is wired in PR4.
+ * `@voyant-travel/public-api` once the storefront resolver is wired in PR4.
  */
 
 import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi"

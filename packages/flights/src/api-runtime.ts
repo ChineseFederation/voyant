@@ -472,7 +472,7 @@ export const createFlightsVoyantRuntime = defineGraphRuntimeFactory(async ({ get
 
 export type {
   AdmittedFlightShoppingSource,
-  FlightStorefrontShoppingContext,
+  FlightPublicApiShoppingContext,
   FlightsRuntime,
 } from "./runtime-port.js"
 export { flightsRuntimePort } from "./runtime-port.js"

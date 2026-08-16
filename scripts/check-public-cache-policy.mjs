@@ -164,7 +164,7 @@ function checkSourceMarkers() {
       reason: "inventory public read routes",
     },
     {
-      file: "packages/storefront/src/routes-public.ts",
+      file: "packages/public-api/src/routes-public.ts",
       call: "setPublicCacheHeaders(c)",
       minimum: 7,
       reason: "storefront public read routes",
@@ -218,7 +218,7 @@ function checkSourceMarkers() {
       reason: "public operator settings/profile reads",
     },
     {
-      file: "packages/storefront/src/payment-link/routes.ts",
+      file: "packages/public-api/src/payment-link/routes.ts",
       call: "cachePublicPaymentLinkConfig(c)",
       minimum: 1,
       reason: "public payment-link config read",
@@ -237,7 +237,7 @@ function checkSourceMarkers() {
   )
 
   requireNotMatches(
-    "packages/storefront/src/routes-public.ts",
+    "packages/public-api/src/routes-public.ts",
     /\.get\("\/settings",[\s\S]*?setPublicCacheHeaders\(c\)[\s\S]*?\n\s*\.post\("\/leads"/,
     "storefront settings can vary by request headers and must not use URL-only shared cache",
   )

@@ -29,8 +29,7 @@ import type { SupplierOperationOperatorService } from "./supplier-operations-ope
 
 type Env = {
   Variables: Record<string, unknown> & {
-    storefrontChannel?: {
-      storefrontId: string
+    publicChannel?: {
       channelId: string
       channelStatus?: string | null
     }
@@ -646,16 +645,12 @@ function resolveAccess(
 }
 
 function activeStorefront(c: Context<Env>) {
-  const storefrontChannel = c.get("storefrontChannel")
-  const storefrontId = storefrontChannel?.storefrontId.trim() ?? ""
-  const channelId = storefrontChannel?.channelId.trim() ?? ""
-  if (!storefrontId || !channelId || storefrontChannel?.channelStatus !== "active") {
+  const publicChannel = c.get("publicChannel")
+  const channelId = publicChannel?.channelId.trim() ?? ""
+  if (!channelId || publicChannel?.channelStatus !== "active") {
     return null
   }
-  return {
-    storefrontId,
-    channelId,
-  }
+  return { channelId }
 }
 
 function readAnonymousCapability(c: Context): string | undefined {

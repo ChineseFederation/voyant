@@ -13,7 +13,7 @@ routes, and MCP tools.
 Pricing and reservation have two distinct entry points, and they are not
 interchangeable:
 
-- **Staff and storefront composers** call `POST /{envelopeId}/price` and
+- **Staff and public surface composers** call `POST /{envelopeId}/price` and
   `POST /{envelopeId}/reserve` synchronously, dependency-injected exactly like
   checkout and cancellation. A composer price is a *read*: it resolves a
   non-binding v1 Offer Preview per component and aggregates it onto the
@@ -32,7 +32,7 @@ UIs kept calling routes that no longer existed, and the durable replacement
 cannot run on a deployment that selects no provider.
 
 Checkout and cancellation are dependency-injected so app/runtime packages keep
-owning payment-provider, bank-transfer, storefront URL, supplier, and
+owning payment-provider, bank-transfer, public surface URL, supplier, and
 staff-remediation policy. See
 `docs/architecture/trips-implementation-plan.md` for the full PR
 sequence and remaining slices.

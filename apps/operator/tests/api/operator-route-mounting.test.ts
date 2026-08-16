@@ -30,8 +30,7 @@ function testAuthContext(actor: Actor) {
     realm: actor === "staff" ? ("admin" as const) : ("customer" as const),
     ...(actor === "customer"
       ? {
-          storefrontChannel: {
-            storefrontId: "sf_test",
+          publicChannel: {
             channelId: "chan_test",
             channelStatus: "active",
           },

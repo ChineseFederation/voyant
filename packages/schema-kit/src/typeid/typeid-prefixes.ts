@@ -14,9 +14,9 @@ export const PREFIXES = {
   user_profiles: "usrp",
   user_invitations: "uinv",
   connection_secrets: "secr",
-  storefronts: "sf",
-  storefront_api_keys: "sfk",
-  storefront_customer_auth_credentials: "sfcc",
+  public_api_keys: "pak",
+  customer_account_settings: "cast",
+  customer_account_credentials: "cacr",
 
   // --- INFRA ---
   webhook_subscriptions: "hksub",
@@ -293,7 +293,7 @@ export const PREFIXES = {
   booking_question_option_triggers: "bqot",
   booking_question_extra_triggers: "bqet",
   booking_answers: "bqan",
-  storefront_verification_challenges: "svch",
+  customer_verification_challenges: "cvch",
   offers: "ofr",
   offer_contact_assignments: "ofca",
   offer_participants: "ofpt",

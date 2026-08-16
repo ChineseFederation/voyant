@@ -53,10 +53,10 @@ const loadAccessCatalog = () =>
   import("../../access/selected-access-catalog.generated.js").then((module) => module.accessCatalog)
 
 const workspaceSpecs = import.meta.glob<{ default: Record<string, unknown> }>(
-  "../../../../../packages/*/openapi/{admin,storefront}/*.json",
+  "../../../../../packages/*/openapi/{admin,public-api}/*.json",
 )
 const installedSpecs = import.meta.glob<{ default: Record<string, unknown> }>(
-  "../../../node_modules/@voyant-travel/*/openapi/{admin,storefront}/*.json",
+  "../../../node_modules/@voyant-travel/*/openapi/{admin,public-api}/*.json",
 )
 
 export const operatorFrontend = createStandardOperatorFrontend({
@@ -119,7 +119,7 @@ export const Route = createFileRoute("/_workspace")({
   // The authenticated workspace bootstrap is intentionally browser-owned.
   // Running it during SSR holds the document stream open on a cold runtime,
   // which also delays discovery of the hydration script until auth and data
-  // probes finish. Public/storefront routes remain SSR-enabled.
+  // probes finish. Public routes remain SSR-enabled.
   ssr: false,
   beforeLoad: ({ location, context }) => workspace.beforeLoad({ location, context }),
   loader: ({ context }) => ({ user: context.user }),

@@ -1,5 +1,5 @@
 import { sha256Hex } from "@voyant-travel/hono"
-import type { StorefrontOpaqueReferenceIssuer } from "@voyant-travel/storefront/shopping"
+import type { PublicApiOpaqueReferenceIssuer } from "@voyant-travel/public-api/shopping"
 import { describe, expect, it } from "vitest"
 
 import type { TripShoppingReference } from "../src/schema.js"
@@ -11,7 +11,6 @@ import {
 
 const NOW = new Date("2026-08-08T12:00:00.000Z")
 const CONTEXT = {
-  storefrontId: "storefront_ro",
   channelId: "direct",
   userId: "user_1",
   buyerAccountId: "account_1",
@@ -43,7 +42,7 @@ describe("durable shopping opaque references", () => {
   })
 
   it.each([
-    ["storefront", { context: { ...CONTEXT, storefrontId: "storefront_other" } }],
+    ["channel", { context: { ...CONTEXT, channelId: "chan_other" } }],
     ["channel", { context: { ...CONTEXT, channelId: "partner" } }],
     ["managed user", { context: { ...CONTEXT, userId: "user_other" } }],
     ["buyer account", { context: { ...CONTEXT, buyerAccountId: "account_other" } }],
@@ -140,7 +139,6 @@ describe("durable shopping opaque references", () => {
     const input = {
       ref: CONTINUATION_REF,
       purpose: "live-continuation" as const,
-      storefrontId: CONTEXT.storefrontId,
       channelId: CONTEXT.channelId,
       owner: { userId: CONTEXT.userId, buyerAccountId: CONTEXT.buyerAccountId },
       scope: SCOPE,
@@ -172,7 +170,6 @@ describe("durable shopping opaque references", () => {
     const boundary = {
       ref: CONTINUATION_REF,
       purpose: "live-continuation" as const,
-      storefrontId: CONTEXT.storefrontId,
       channelId: CONTEXT.channelId,
       owner: { userId: CONTEXT.userId, buyerAccountId: CONTEXT.buyerAccountId },
       scope: SCOPE,
@@ -354,7 +351,7 @@ describe("durable shopping opaque references", () => {
               occupancy: 2,
             },
           },
-          storefrontShopping: {
+          publicApiShopping: {
             purpose: "cruise-offer",
             selection: {
               target: {
@@ -402,10 +399,9 @@ describe("durable shopping opaque references", () => {
   })
 })
 
-function flightInput(): Parameters<StorefrontOpaqueReferenceIssuer["issue"]>[0] {
+function flightInput(): Parameters<PublicApiOpaqueReferenceIssuer["issue"]>[0] {
   return {
     purpose: "flight-offer",
-    storefrontId: CONTEXT.storefrontId,
     channelId: CONTEXT.channelId,
     owner: { userId: CONTEXT.userId, buyerAccountId: CONTEXT.buyerAccountId },
     scope: SCOPE,
@@ -418,10 +414,9 @@ function flightInput(): Parameters<StorefrontOpaqueReferenceIssuer["issue"]>[0] 
   }
 }
 
-function catalogInput(): Parameters<StorefrontOpaqueReferenceIssuer["issue"]>[0] {
+function catalogInput(): Parameters<PublicApiOpaqueReferenceIssuer["issue"]>[0] {
   return {
     purpose: "catalog-item",
-    storefrontId: CONTEXT.storefrontId,
     channelId: CONTEXT.channelId,
     owner: { userId: CONTEXT.userId, buyerAccountId: CONTEXT.buyerAccountId },
     scope: SCOPE,
@@ -431,10 +426,9 @@ function catalogInput(): Parameters<StorefrontOpaqueReferenceIssuer["issue"]>[0]
   }
 }
 
-function continuationInput(): Parameters<StorefrontOpaqueReferenceIssuer["issue"]>[0] {
+function continuationInput(): Parameters<PublicApiOpaqueReferenceIssuer["issue"]>[0] {
   return {
     purpose: "live-continuation",
-    storefrontId: CONTEXT.storefrontId,
     channelId: CONTEXT.channelId,
     owner: { userId: CONTEXT.userId, buyerAccountId: CONTEXT.buyerAccountId },
     scope: SCOPE,
@@ -452,10 +446,9 @@ function continuationInput(): Parameters<StorefrontOpaqueReferenceIssuer["issue"
 
 function packageInput(
   offerExpiresAt = "2026-08-08T12:10:00.000Z",
-): Parameters<StorefrontOpaqueReferenceIssuer["issue"]>[0] {
+): Parameters<PublicApiOpaqueReferenceIssuer["issue"]>[0] {
   return {
     purpose: "package-offer",
-    storefrontId: CONTEXT.storefrontId,
     channelId: CONTEXT.channelId,
     owner: { userId: CONTEXT.userId, buyerAccountId: CONTEXT.buyerAccountId },
     scope: SCOPE,
@@ -493,10 +486,9 @@ function packageInput(
   }
 }
 
-function cruiseInput(): Parameters<StorefrontOpaqueReferenceIssuer["issue"]>[0] {
+function cruiseInput(): Parameters<PublicApiOpaqueReferenceIssuer["issue"]>[0] {
   return {
     purpose: "cruise-offer",
-    storefrontId: CONTEXT.storefrontId,
     channelId: CONTEXT.channelId,
     owner: { userId: CONTEXT.userId, buyerAccountId: CONTEXT.buyerAccountId },
     scope: SCOPE,
@@ -525,10 +517,9 @@ function cruiseInput(): Parameters<StorefrontOpaqueReferenceIssuer["issue"]>[0] 
   }
 }
 
-function stayInput(): Parameters<StorefrontOpaqueReferenceIssuer["issue"]>[0] {
+function stayInput(): Parameters<PublicApiOpaqueReferenceIssuer["issue"]>[0] {
   return {
     purpose: "stay-offer",
-    storefrontId: CONTEXT.storefrontId,
     channelId: CONTEXT.channelId,
     owner: { userId: CONTEXT.userId, buyerAccountId: CONTEXT.buyerAccountId },
     scope: SCOPE,
@@ -596,7 +587,6 @@ function matchesBoundary(
 ): boolean {
   return (
     reference.purpose === boundary.purpose &&
-    reference.storefrontId === boundary.storefrontId &&
     reference.channelId === boundary.channelId &&
     reference.ownerUserId === boundary.ownerUserId &&
     reference.ownerBuyerAccountId === boundary.ownerBuyerAccountId &&

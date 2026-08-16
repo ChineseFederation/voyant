@@ -129,7 +129,7 @@ function writeMinimumFixture(root, overrides = {}) {
   )
   write(
     root,
-    "packages/bookings/openapi/storefront/bookings.json",
+    "packages/bookings/openapi/public-api/bookings.json",
     overrides.bookingsStorefrontOpenApi ?? bookingOpenApi,
   )
   write(
@@ -145,7 +145,7 @@ function writeMinimumFixture(root, overrides = {}) {
   )
   write(
     root,
-    "packages/catalog/openapi/storefront/catalog-booking.json",
+    "packages/catalog/openapi/public-api/catalog-booking.json",
     overrides.storefrontBookingOpenApi ?? '{"/v1/public/catalog/booking-sessions":{}}',
   )
   write(
@@ -176,14 +176,14 @@ function writeMinimumFixture(root, overrides = {}) {
   )
   write(
     root,
-    "packages/storefront-sdk/package.json",
+    "packages/public-api-client/package.json",
     JSON.stringify(
       overrides.storefrontSdkPackage ?? { exports: {}, publishConfig: { exports: {} } },
     ),
   )
   write(
     root,
-    "docs/architecture/custom-storefront-sdk.md",
+    "docs/architecture/custom-public-api-client.md",
     overrides.storefrontSdkDocs ?? "Booking Session v1",
   )
 }

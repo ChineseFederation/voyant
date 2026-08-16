@@ -243,21 +243,23 @@ export const tripEnvelopes = pgTable(
 )
 
 /**
- * Storefront ownership for a customer-authored Trip.
+ * Public-surface ownership for a customer-authored Trip.
  *
  * The browser carries a random capability while the database stores only its
- * SHA-256 digest. Storefront/channel and shopping scope come from trusted
- * runtime context, never request selectors, so capabilities cannot cross
- * storefront boundaries.
+ * SHA-256 digest. Channel and shopping scope come from trusted runtime context,
+ * never request selectors, so capabilities cannot cross channel boundaries.
+ *
+ * The scope used to be `(publicApiId, channelId)`. The storefront entity was
+ * retired (voyant#4624) and the channel — which every public surface resolves
+ * to, implicitly Direct — carries the boundary on its own.
  */
-export const tripStorefrontAccess = pgTable(
-  "trip_storefront_access",
+export const tripPublicAccess = pgTable(
+  "trip_public_access",
   {
     envelopeId: typeIdRef("envelope_id")
       .primaryKey()
       .references(() => tripEnvelopes.id, { onDelete: "cascade" }),
     capabilityDigest: text("capability_digest").notNull().unique(),
-    storefrontId: text("storefront_id").notNull(),
     channelId: text("channel_id").notNull(),
     marketId: text("market_id").notNull(),
     locale: text("locale").notNull(),
@@ -270,9 +272,9 @@ export const tripStorefrontAccess = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
-    index("idx_trip_storefront_access_scope").on(table.storefrontId, table.channelId),
-    index("idx_trip_storefront_access_owner").on(table.ownerUserId, table.updatedAt),
-    index("idx_trip_storefront_access_expiry").on(table.expiresAt),
+    index("idx_trip_public_access_scope").on(table.channelId),
+    index("idx_trip_public_access_owner").on(table.ownerUserId, table.updatedAt),
+    index("idx_trip_public_access_expiry").on(table.expiresAt),
   ],
 )
 
@@ -289,7 +291,6 @@ export const tripShoppingReferences = pgTable(
   {
     referenceDigest: text("reference_digest").primaryKey(),
     purpose: text("purpose").notNull(),
-    storefrontId: text("storefront_id").notNull(),
     channelId: text("channel_id").notNull(),
     ownerUserId: text("owner_user_id"),
     ownerBuyerAccountId: text("owner_buyer_account_id"),
@@ -304,11 +305,7 @@ export const tripShoppingReferences = pgTable(
   },
   (table) => [
     index("idx_trip_shopping_references_expiry").on(table.expiresAt),
-    index("idx_trip_shopping_references_scope").on(
-      table.storefrontId,
-      table.channelId,
-      table.marketId,
-    ),
+    index("idx_trip_shopping_references_scope").on(table.channelId, table.marketId),
     index("idx_trip_shopping_references_owner").on(
       table.ownerUserId,
       table.ownerBuyerAccountId,
@@ -318,8 +315,8 @@ export const tripShoppingReferences = pgTable(
 )
 
 /** Durable, digest-only idempotency authority for Storefront Trip conversion. */
-export const tripStorefrontBookingOperations = pgTable(
-  "trip_storefront_booking_operations",
+export const tripPublicBookingOperations = pgTable(
+  "trip_public_booking_operations",
   {
     operationDigest: text("operation_digest").primaryKey(),
     envelopeId: typeIdRef("envelope_id")
@@ -334,7 +331,7 @@ export const tripStorefrontBookingOperations = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (table) => [index("idx_trip_storefront_booking_operations_envelope").on(table.envelopeId)],
+  (table) => [index("idx_trip_public_booking_operations_envelope").on(table.envelopeId)],
 )
 
 export const tripComponents = pgTable(
@@ -691,9 +688,9 @@ export const tripEnvelopeRelations = relations(tripEnvelopes, ({ many }) => ({
   requirements: many(tripRequirements),
 }))
 
-export const tripStorefrontAccessRelations = relations(tripStorefrontAccess, ({ one }) => ({
+export const tripPublicAccessRelations = relations(tripPublicAccess, ({ one }) => ({
   envelope: one(tripEnvelopes, {
-    fields: [tripStorefrontAccess.envelopeId],
+    fields: [tripPublicAccess.envelopeId],
     references: [tripEnvelopes.id],
   }),
 }))
@@ -766,11 +763,11 @@ export const tripRequirementSourcingOperationRelations = relations(
 
 export type TripEnvelope = typeof tripEnvelopes.$inferSelect
 export type NewTripEnvelope = typeof tripEnvelopes.$inferInsert
-export type TripStorefrontAccess = typeof tripStorefrontAccess.$inferSelect
-export type NewTripStorefrontAccess = typeof tripStorefrontAccess.$inferInsert
+export type TripPublicAccess = typeof tripPublicAccess.$inferSelect
+export type NewTripPublicAccess = typeof tripPublicAccess.$inferInsert
 export type TripShoppingReference = typeof tripShoppingReferences.$inferSelect
 export type NewTripShoppingReference = typeof tripShoppingReferences.$inferInsert
-export type TripStorefrontBookingOperation = typeof tripStorefrontBookingOperations.$inferSelect
+export type TripPublicApiBookingOperation = typeof tripPublicBookingOperations.$inferSelect
 export type TripComponent = typeof tripComponents.$inferSelect
 export type NewTripComponent = typeof tripComponents.$inferInsert
 export type TripComponentEvent = typeof tripComponentEvents.$inferSelect

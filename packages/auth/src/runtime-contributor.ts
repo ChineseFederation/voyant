@@ -4,9 +4,9 @@ import {
   type IdentityAccessRuntimeProvider,
   identityAccessRuntimePort,
 } from "./identity-access-runtime-port.js"
-import { createKmsStorefrontCredentialCipher } from "./storefront-credentials.js"
-import { createLocalStorefrontAdapter } from "./storefront-local-adapter.js"
-import { storefrontRuntimePort } from "./storefront-runtime-port.js"
+import { createKmsPublicApiCredentialCipher } from "./public-api-credentials.js"
+import { createLocalPublicApiAdapter } from "./public-api-local-adapter.js"
+import { publicApiRuntimePort } from "./public-api-runtime-port.js"
 import { createCloudTeamManagementAdapter } from "./team-management-cloud-adapter.js"
 import { createLocalTeamManagementAdapter } from "./team-management-local-adapter.js"
 import { createGuardedTeamManagementProvider } from "./team-management-policy.js"
@@ -128,13 +128,13 @@ export function createAuthRuntimePortContribution(
     )
   })
 
-  // Self-host storefront access: keys, declared origins, and KMS-encrypted
-  // provider credentials served from this deployment's own runtime DB. The
-  // managed cloud storefront adapter is a follow-up; the port carries the
-  // storefront config the local customer-auth resolver reads.
-  const storefront = createLocalStorefrontAdapter({
-    resolveCipher: (bindings) =>
-      createKmsStorefrontCredentialCipher(
+  // Self-host public API access: keys carrying their own declared origins and
+  // channel, plus the deployment's customer-account settings and KMS-encrypted
+  // provider credentials, served from this deployment's own runtime DB. The
+  // port carries what the local customer-auth resolver reads.
+  const publicApi = createLocalPublicApiAdapter({
+    resolveCipher: (bindings: Record<string, unknown>) =>
+      createKmsPublicApiCredentialCipher(
         host.primitives.env(bindings) as Record<string, string | undefined>,
       ),
   })
@@ -142,6 +142,6 @@ export function createAuthRuntimePortContribution(
   return {
     [identityAccessRuntimePort.id]: identityAccess,
     [teamManagementRuntimePort.id]: teamManagement,
-    [storefrontRuntimePort.id]: storefront,
+    [publicApiRuntimePort.id]: publicApi,
   }
 }

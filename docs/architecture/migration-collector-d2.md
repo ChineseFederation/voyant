@@ -40,7 +40,7 @@ This is a **topological** collector, not merely an ordered one. Order package so
 
 ### 4. Per-package source identity comes from package metadata, never paths or versions
 
-A source's `name` (the ledger key half) must be **stable across refactors and versions**. Derive it from the package name plus its declared `voyant.schema` entrypoint — *not* the filesystem path and *not* the package version. Schema subpaths vary by package (`@voyant-travel/storefront` → `./verification/schema`; `@voyant-travel/flights` → `./reference/local-postgres`), so the folder location is discovered via metadata, but the **ledger source name is the package identity** and is frozen once shipped. `introducedInVersion` (if ever needed) stays metadata-only, exactly as in D.1.
+A source's `name` (the ledger key half) must be **stable across refactors and versions**. Derive it from the package name plus its declared `voyant.schema` entrypoint — *not* the filesystem path and *not* the package version. Schema subpaths vary by package (`@voyant-travel/public-api` → `./verification/schema`; `@voyant-travel/flights` → `./reference/local-postgres`), so the folder location is discovered via metadata, but the **ledger source name is the package identity** and is frozen once shipped. `introducedInVersion` (if ever needed) stays metadata-only, exactly as in D.1.
 
 ### 5. The D.1 → D.2 transition is **append-only** — execute on fresh, import-baseline on existing
 

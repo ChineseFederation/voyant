@@ -50,7 +50,7 @@ type CheckoutEnv = {
     db: PostgresJsDatabase
     eventBus?: EventBus
     container?: { resolve(key: string): unknown }
-  } & Pick<VoyantVariables, "storefrontChannel">
+  } & Pick<VoyantVariables, "publicChannel">
 }
 
 const errorResponseSchema = z.object({ error: z.string() })
@@ -182,7 +182,7 @@ export function createCatalogCheckoutRoutes(
               eventBus: c.var.eventBus,
               resolveRuntime: (key) => c.var.container?.resolve(key),
               requestMeta: checkoutRequestMeta(c),
-              storefrontChannel: c.get("storefrontChannel"),
+              publicChannel: c.get("publicChannel"),
               options: resolved,
             },
             body,

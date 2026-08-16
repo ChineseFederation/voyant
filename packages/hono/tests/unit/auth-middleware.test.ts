@@ -706,9 +706,8 @@ function makeApiKeyDb(row: Record<string, unknown>) {
  */
 describe("requireAuth storefront secret keys on the admin surface", () => {
   const SECRET = "vsk_admin_secret_key"
-  const storefrontKeyRow = (scopes: Record<string, string[]> | null) => ({
+  const publicApiKeyRow = (scopes: Record<string, string[]> | null) => ({
     id: "sfk_1",
-    storefrontId: "sf_1",
     kind: "secret",
     scopes,
     tokenHash: "hash",
@@ -739,7 +738,7 @@ describe("requireAuth storefront secret keys on the admin surface", () => {
         actor: c.get("actor"),
         realm: c.get("realm"),
         callerType: c.get("callerType"),
-        storefrontKeyKind: c.get("storefrontKeyKind") ?? null,
+        publicApiKeyKind: c.get("publicApiKeyKind") ?? null,
         scopes: c.get("scopes") ?? null,
       }),
     )
@@ -751,7 +750,7 @@ describe("requireAuth storefront secret keys on the admin surface", () => {
     new Request(`http://example.com${path}`, { headers })
 
   it("admits a secret key as staff on the admin realm, carrying its scopes", async () => {
-    const app = adminApp(storefrontKeyRow({ bookings: ["read"] }))
+    const app = adminApp(publicApiKeyRow({ bookings: ["read"] }))
     const response = await app.fetch(
       request("/v1/admin/bookings", { "x-api-key": SECRET }),
       TEST_ENV,
@@ -762,13 +761,13 @@ describe("requireAuth storefront secret keys on the admin surface", () => {
       actor: "staff",
       realm: "admin",
       callerType: "api_key",
-      storefrontKeyKind: "secret",
+      publicApiKeyKind: "secret",
       scopes: ["bookings:read"],
     })
   })
 
   it("accepts the same key as a bearer token", async () => {
-    const app = adminApp(storefrontKeyRow({ bookings: ["read"] }))
+    const app = adminApp(publicApiKeyRow({ bookings: ["read"] }))
     const response = await app.fetch(
       request("/v1/admin/bookings", { authorization: `Bearer ${SECRET}` }),
       TEST_ENV,
@@ -778,7 +777,7 @@ describe("requireAuth storefront secret keys on the admin surface", () => {
   })
 
   it("gives a pre-scopes key the commerce default, never the unrestricted grant", async () => {
-    const app = adminApp(storefrontKeyRow(null))
+    const app = adminApp(publicApiKeyRow(null))
     const response = await app.fetch(
       request("/v1/admin/bookings", { "x-api-key": SECRET }),
       TEST_ENV,
@@ -800,7 +799,7 @@ describe("requireAuth storefront secret keys on the admin surface", () => {
   })
 
   it("never admits a PUBLISHABLE key on the admin surface", async () => {
-    const app = adminApp(storefrontKeyRow({ bookings: ["read"] }))
+    const app = adminApp(publicApiKeyRow({ bookings: ["read"] }))
     const response = await app.fetch(
       request("/v1/admin/bookings", { "x-api-key": "vpk_browser_key" }),
       TEST_ENV,
@@ -813,7 +812,7 @@ describe("requireAuth storefront secret keys on the admin surface", () => {
     // Admitting a secret key here too would skip the resolution that derives
     // the storefront channel, handing the request a public context with no
     // storefront behind it.
-    const app = adminApp(storefrontKeyRow({ bookings: ["read"] }))
+    const app = adminApp(publicApiKeyRow({ bookings: ["read"] }))
     const response = await app.fetch(
       request("/v1/public/catalog", { "x-api-key": SECRET }),
       TEST_ENV,

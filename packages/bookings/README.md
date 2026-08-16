@@ -20,7 +20,7 @@ const app = createApp({
 })
 ```
 
-## Public storefront flow
+## Public public surface flow
 
 Bookings exposes committed-reservation reads:
 

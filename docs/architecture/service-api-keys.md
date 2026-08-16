@@ -9,7 +9,7 @@
 > `VOYANT_DEPLOYMENT_API_KEY_MODE=disabled`, which stops minting as well as
 > authenticating. Admin **sessions** are unaffected,
 > as are `voy_` keys with a customer, partner or supplier audience. See
-> [`storefront-key-capability-line.md`](./storefront-key-capability-line.md).
+> [`public-api-key-capability-line.md`](./public-api-key-capability-line.md).
 
 Voyant API tokens are Better Auth API keys configured for automation and
 cross-runtime integrations. They are intended for CMS sync jobs, storefront

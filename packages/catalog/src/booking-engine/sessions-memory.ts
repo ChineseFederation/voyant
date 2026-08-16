@@ -356,7 +356,7 @@ function cloneSession(record: BookingSessionInternalRecord): BookingSessionInter
   return {
     ...record,
     target: { ...record.target },
-    storefrontOrigin: record.storefrontOrigin ? { ...record.storefrontOrigin } : undefined,
+    publicApiOrigin: record.publicApiOrigin ? { ...record.publicApiOrigin } : undefined,
     scope: { ...record.scope },
     capabilityScopes: [...record.capabilityScopes],
     statePayload: { ...record.statePayload },

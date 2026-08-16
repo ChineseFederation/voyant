@@ -12,7 +12,7 @@ import { createTeamAdminRoutes } from "../../src/team-routes.js"
 import {
   authCustomerBusinessAccountsVoyantModule,
   authInvitationsVoyantModule,
-  authStorefrontVoyantModule,
+  authPublicApiVoyantModule,
   authTeamVoyantModule,
 } from "../../src/voyant.js"
 
@@ -128,36 +128,43 @@ describe("auth identity/access deployment manifests", () => {
     })
   })
 
-  it("declares storefront as a linkable identity and deployment-owned channel link", () => {
-    expect(authStorefrontVoyantModule).toMatchObject({
-      id: "@voyant-travel/auth#storefront",
-      links: [
-        {
-          id: "@voyant-travel/auth#linkable.storefront",
-          kind: "linkable",
-          source: "@voyant-travel/auth/linkables",
-        },
-        {
-          id: "@voyant-travel/auth#link.storefront-channel",
-          kind: "definition",
-          source: "@voyant-travel/auth/standard-links",
-        },
-      ],
+  it("splits the public API and customer accounts into separately grantable surfaces", () => {
+    // The retired storefronts module was two things wearing one name: the
+    // credentials a frontend presents, and how customers sign in. They have
+    // different blast radius on a mistake and no reason to share a scope
+    // (voyant#4624).
+    expect(authPublicApiVoyantModule).toMatchObject({
+      id: "@voyant-travel/auth#public-api",
       api: [
         {
           surface: "admin",
-          mount: "storefronts",
-          resource: "storefronts",
+          // `public-api-keys`, not `public-api`: the composed public surface in
+          // @voyant-travel/public-api owns that name, and the two govern
+          // different things — keys here, offers and intake there.
+          mount: "public-api-keys",
+          resource: "public-api-keys",
+          transactional: true,
+        },
+        {
+          surface: "admin",
+          mount: "customer-accounts",
+          resource: "customer-accounts",
           transactional: true,
         },
       ],
     })
   })
 
+  it("owns no links, because the storefront->channel binding is gone", () => {
+    // A key names its channel or defaults to Direct; there is no pivot table
+    // left to link through.
+    expect(authPublicApiVoyantModule).not.toHaveProperty("links")
+  })
+
   it("claims every package-owned invitations and team OpenAPI operation", async () => {
     const documents = await Promise.all([
       readOpenApi("../../openapi/admin/invitations.json"),
-      readOpenApi("../../openapi/storefront/invitations.json"),
+      readOpenApi("../../openapi/public-api/invitations.json"),
       readOpenApi("../../openapi/admin/team.json"),
       readOpenApi("../../openapi/admin/customer-business-accounts.json"),
     ])

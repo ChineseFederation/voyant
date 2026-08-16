@@ -15,7 +15,6 @@ export interface BookingInquiryContact {
 
 export interface SubmitBookingInquiryInput {
   idempotencyKey: string
-  storefrontId: string
   channelId: string
   productId: string
   departureId: string | null
@@ -26,7 +25,6 @@ export interface SubmitBookingInquiryInput {
 
 export interface BookingInquiryCreatedEvent {
   inquiryId: string
-  storefrontId: string
   channelId: string
   productId: string
   departureId: string | null
@@ -42,7 +40,6 @@ export interface BookingInquiryServiceRuntime {
 
 async function fingerprint(input: SubmitBookingInquiryInput): Promise<string> {
   const canonical = JSON.stringify({
-    storefrontId: input.storefrontId,
     channelId: input.channelId,
     productId: input.productId,
     departureId: input.departureId,
@@ -59,7 +56,6 @@ async function emitCreated(eventBus: EventBus | undefined, inquiry: BookingInqui
     BOOKING_INQUIRY_CREATED_EVENT,
     {
       inquiryId: inquiry.id,
-      storefrontId: inquiry.storefrontId,
       channelId: inquiry.channelId,
       productId: inquiry.productId,
       departureId: inquiry.departureId,
@@ -78,7 +74,6 @@ async function findByIdentity(db: PostgresJsDatabase, input: SubmitBookingInquir
     .from(bookingInquiries)
     .where(
       and(
-        eq(bookingInquiries.storefrontId, input.storefrontId),
         eq(bookingInquiries.channelId, input.channelId),
         eq(bookingInquiries.idempotencyKey, input.idempotencyKey),
       ),
@@ -99,7 +94,6 @@ export const bookingInquiriesService = {
       .values({
         idempotencyKey: input.idempotencyKey,
         requestFingerprint,
-        storefrontId: input.storefrontId,
         channelId: input.channelId,
         productId: input.productId,
         departureId: input.departureId,
@@ -111,11 +105,7 @@ export const bookingInquiriesService = {
         message: input.message,
       })
       .onConflictDoNothing({
-        target: [
-          bookingInquiries.storefrontId,
-          bookingInquiries.channelId,
-          bookingInquiries.idempotencyKey,
-        ],
+        target: [bookingInquiries.channelId, bookingInquiries.idempotencyKey],
       })
       .returning()
 

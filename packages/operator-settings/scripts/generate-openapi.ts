@@ -10,7 +10,7 @@ mountOperatorSettingsRoutes(app)
 
 for (const target of [
   { surface: "admin", prefix: "/v1/admin/" },
-  { surface: "storefront", prefix: "/v1/public/" },
+  { surface: "public-api", prefix: "/v1/public/" },
 ] as const) {
   const artifactPath = resolve(
     import.meta.dirname,

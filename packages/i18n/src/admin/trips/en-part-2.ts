@@ -1,5 +1,5 @@
 export const adminTripsMessagesEnPart2 = {
-  storefrontComposer: {
+  publicApiComposer: {
     heading: "Build a trip",
     subheading: "Bundle tours, stays, and staff-confirmed services into one checkout.",
     actions: {

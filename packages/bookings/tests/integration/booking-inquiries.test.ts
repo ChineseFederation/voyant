@@ -30,7 +30,6 @@ describe.skipIf(!DB_AVAILABLE)("booking inquiry submission", () => {
     eventBus.subscribe("booking.inquiry.created", received)
     const command = {
       idempotencyKey: "ask-first-123",
-      storefrontId: "storefront_1",
       channelId: "channel_1",
       productId: "prod_1",
       departureId: "departure_1",
@@ -64,7 +63,6 @@ describe.skipIf(!DB_AVAILABLE)("booking inquiry submission", () => {
   it("rejects reuse of an inquiry identity with a different request", async () => {
     const command = {
       idempotencyKey: "ask-first-conflict",
-      storefrontId: "storefront_1",
       channelId: "channel_1",
       productId: "prod_1",
       departureId: null,

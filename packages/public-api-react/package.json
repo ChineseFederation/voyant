@@ -1,0 +1,187 @@
+{
+  "name": "@voyant-travel/public-api-react",
+  "version": "0.300.0",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/voyant-travel/voyant.git",
+    "directory": "packages/public-api-react"
+  },
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": "./src/index.ts",
+    "./provider": "./src/provider.tsx",
+    "./hooks": "./src/hooks/index.ts",
+    "./client": "./src/client.ts",
+    "./query-keys": "./src/query-keys.ts",
+    "./styles.css": "./src/styles.css",
+    "./public-api": "./src/public-api/index.ts",
+    "./public-api/messages": "./src/public-api/messages.tsx",
+    "./public-api/presentation-routes": "./src/public-api/presentation-routes.tsx",
+    "./customer-portal": "./src/customer-portal/index.ts",
+    "./customer-portal/client": "./src/customer-portal/client.ts",
+    "./customer-portal/hooks": "./src/customer-portal/hooks/index.ts",
+    "./customer-portal/operations": "./src/customer-portal/operations.ts",
+    "./customer-portal/provider": "./src/customer-portal/provider.tsx",
+    "./customer-portal/query-keys": "./src/customer-portal/query-keys.ts"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "clean": "rm -rf dist tsconfig.tsbuildinfo tsconfig.build.tsbuildinfo",
+    "prepack": "pnpm run build",
+    "typecheck": "tsc -p tsconfig.typecheck.json",
+    "lint": "biome check src/",
+    "test": "vitest run --passWithNoTests"
+  },
+  "peerDependencies": {
+    "@tanstack/react-query": "^5.0.0",
+    "@voyant-travel/admin": "workspace:^",
+    "@tanstack/react-router": "^1.170.17",
+    "@voyant-travel/accommodations": "workspace:^",
+    "@voyant-travel/catalog-contracts": "workspace:^",
+    "@voyant-travel/catalog-react": "workspace:^",
+    "@voyant-travel/auth-react": "workspace:^",
+    "@voyant-travel/public-api": "workspace:^",
+    "@voyant-travel/public-api-client": "workspace:^",
+    "@voyant-travel/ui": "workspace:^",
+    "lucide-react": "^0.475.0 || ^1.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "zod": "^4.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@voyant-travel/admin": {
+      "optional": true
+    },
+    "@voyant-travel/accommodations": {
+      "optional": true
+    },
+    "@voyant-travel/catalog-contracts": {
+      "optional": true
+    },
+    "@voyant-travel/catalog-react": {
+      "optional": true
+    },
+    "@voyant-travel/auth-react": {
+      "optional": true
+    },
+    "@voyant-travel/ui": {
+      "optional": true
+    },
+    "lucide-react": {
+      "optional": true
+    }
+  },
+  "dependencies": {
+    "@voyant-travel/i18n": "workspace:^",
+    "@voyant-travel/react": "workspace:^"
+  },
+  "devDependencies": {
+    "@tanstack/react-query": "^5.101.2",
+    "@tanstack/react-router": "^1.170.17",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@voyant-travel/admin": "workspace:^",
+    "@voyant-travel/accommodations": "workspace:^",
+    "@voyant-travel/auth-react": "workspace:^",
+    "@voyant-travel/catalog-contracts": "workspace:^",
+    "@voyant-travel/catalog-react": "workspace:^",
+    "@voyant-travel/react": "workspace:^",
+    "@voyant-travel/public-api": "workspace:^",
+    "@voyant-travel/public-api-client": "workspace:^",
+    "@voyant-travel/ui": "workspace:^",
+    "@voyant-travel/voyant-typescript-config": "workspace:^",
+    "lucide-react": "^1.23.0",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "typescript": "catalog:",
+    "vitest": "catalog:",
+    "zod": "catalog:"
+  },
+  "files": [
+    "dist",
+    "src/styles.css"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "import": "./dist/index.js",
+        "default": "./dist/index.js"
+      },
+      "./provider": {
+        "types": "./dist/provider.d.ts",
+        "import": "./dist/provider.js",
+        "default": "./dist/provider.js"
+      },
+      "./hooks": {
+        "types": "./dist/hooks/index.d.ts",
+        "import": "./dist/hooks/index.js",
+        "default": "./dist/hooks/index.js"
+      },
+      "./client": {
+        "types": "./dist/client.d.ts",
+        "import": "./dist/client.js",
+        "default": "./dist/client.js"
+      },
+      "./query-keys": {
+        "types": "./dist/query-keys.d.ts",
+        "import": "./dist/query-keys.js",
+        "default": "./dist/query-keys.js"
+      },
+      "./styles.css": {
+        "default": "./src/styles.css"
+      },
+      "./public-api": {
+        "types": "./dist/public-api/index.d.ts",
+        "import": "./dist/public-api/index.js",
+        "default": "./dist/public-api/index.js"
+      },
+      "./public-api/messages": {
+        "types": "./dist/public-api/messages.d.ts",
+        "import": "./dist/public-api/messages.js",
+        "default": "./dist/public-api/messages.js"
+      },
+      "./public-api/presentation-routes": {
+        "types": "./dist/public-api/presentation-routes.d.ts",
+        "import": "./dist/public-api/presentation-routes.js",
+        "default": "./dist/public-api/presentation-routes.js"
+      },
+      "./customer-portal": {
+        "types": "./dist/customer-portal/index.d.ts",
+        "import": "./dist/customer-portal/index.js",
+        "default": "./dist/customer-portal/index.js"
+      },
+      "./customer-portal/client": {
+        "types": "./dist/customer-portal/client.d.ts",
+        "import": "./dist/customer-portal/client.js",
+        "default": "./dist/customer-portal/client.js"
+      },
+      "./customer-portal/hooks": {
+        "types": "./dist/customer-portal/hooks/index.d.ts",
+        "import": "./dist/customer-portal/hooks/index.js",
+        "default": "./dist/customer-portal/hooks/index.js"
+      },
+      "./customer-portal/operations": {
+        "types": "./dist/customer-portal/operations.d.ts",
+        "import": "./dist/customer-portal/operations.js",
+        "default": "./dist/customer-portal/operations.js"
+      },
+      "./customer-portal/provider": {
+        "types": "./dist/customer-portal/provider.d.ts",
+        "import": "./dist/customer-portal/provider.js",
+        "default": "./dist/customer-portal/provider.js"
+      },
+      "./customer-portal/query-keys": {
+        "types": "./dist/customer-portal/query-keys.d.ts",
+        "import": "./dist/customer-portal/query-keys.js",
+        "default": "./dist/customer-portal/query-keys.js"
+      }
+    },
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts"
+  },
+  "private": true
+}

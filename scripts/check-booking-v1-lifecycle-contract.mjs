@@ -206,7 +206,7 @@ rejectText("packages/notifications/src/voyant.ts", notificationsManifest, '"book
 
 for (const path of [
   "packages/bookings/openapi/admin/bookings.json",
-  "packages/bookings/openapi/storefront/bookings.json",
+  "packages/bookings/openapi/public-api/bookings.json",
 ]) {
   const document = read(path)
   for (const legacyBookingStatus of ['"on_hold"', '"awaiting_payment"']) {
@@ -257,7 +257,7 @@ for (const [path, canonicalPath, legacyPath] of [
     '"/v1/admin/catalog/drafts',
   ],
   [
-    "packages/catalog/openapi/storefront/catalog-booking.json",
+    "packages/catalog/openapi/public-api/catalog-booking.json",
     '"/v1/public/catalog/booking-sessions"',
     '"/v1/public/catalog/drafts',
   ],
@@ -303,25 +303,25 @@ for (const requiredCutoverRule of [
   )
 }
 
-const storefrontSdkPackage = JSON.parse(read("packages/storefront-sdk/package.json"))
+const storefrontSdkPackage = JSON.parse(read("packages/public-api-client/package.json"))
 for (const legacyExport of ["./booking-engine", "./engine-state"]) {
   if (storefrontSdkPackage.exports?.[legacyExport]) {
-    failures.push(`packages/storefront-sdk/package.json: forbidden export ${legacyExport}`)
+    failures.push(`packages/public-api-client/package.json: forbidden export ${legacyExport}`)
   }
   if (storefrontSdkPackage.publishConfig?.exports?.[legacyExport]) {
     failures.push(
-      `packages/storefront-sdk/package.json: forbidden published export ${legacyExport}`,
+      `packages/public-api-client/package.json: forbidden published export ${legacyExport}`,
     )
   }
 }
 
-const storefrontSdkDocs = read("docs/architecture/custom-storefront-sdk.md")
+const storefrontSdkDocs = read("docs/architecture/custom-public-api-client.md")
 for (const legacyRoute of [
   "/v1/public/bookings/sessions",
   "bookingEngine.getSnapshot",
   "booking_session_states",
 ]) {
-  rejectText("docs/architecture/custom-storefront-sdk.md", storefrontSdkDocs, legacyRoute)
+  rejectText("docs/architecture/custom-public-api-client.md", storefrontSdkDocs, legacyRoute)
 }
 
 if (failures.length > 0) {

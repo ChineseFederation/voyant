@@ -24,6 +24,7 @@ export {
   type ConnectProductPackageSourceAdapterOptions,
   createConnectProductPackageSourceAdapter,
 } from "./package-products.js"
+export { createVoyantConnectPublicApiPackageSourceProvider } from "./public-api-package-sources.js"
 export {
   createVoyantConnectSources,
   listVoyantConnectSourceConnections,
@@ -32,4 +33,3 @@ export {
   type VoyantConnectSourceRegistration,
   type VoyantConnectSourcesOptions,
 } from "./sources.js"
-export { createVoyantConnectStorefrontPackageSourceProvider } from "./storefront-package-sources.js"

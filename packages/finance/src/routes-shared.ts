@@ -23,8 +23,7 @@ export type Env = {
     workflowRunId?: string
     workflowStepId?: string
     isInternalRequest?: boolean
-    storefrontChannel?: {
-      storefrontId: string
+    publicChannel?: {
       channelId: string
       channelStatus?: string | null
     }

@@ -533,8 +533,7 @@ async function commitSourcedBooking(
       sourceConnectionId: sourced.sourceConnectionId,
       sourceRef: sourced.sourceRef,
       upstreamRef: result.result.upstream_ref,
-      storefrontId: input.session.storefrontOrigin?.storefrontId,
-      channelId: input.session.storefrontOrigin?.channelId,
+      channelId: input.session.publicApiOrigin?.channelId,
       supplierOperationId: operation.id,
       now: input.now,
       cancellationTermsEvidence: cancellationTermsEvidence(input.quote, "supplier_quote"),
@@ -789,7 +788,7 @@ async function commitOwnedBookingInTransaction(
     sessionId: input.session.id,
     quoteId: input.quote.id,
     caller: { personId: billing.personId ?? undefined },
-    ...(input.session.storefrontOrigin ? { storefront: input.session.storefrontOrigin } : {}),
+    ...(input.session.publicApiOrigin ? { storefront: input.session.publicApiOrigin } : {}),
     // The public contract scopes Commit idempotency to a Session. Finance's
     // action-ledger scope is principal-wide, so preserve the Session boundary
     // when crossing into that command protocol.

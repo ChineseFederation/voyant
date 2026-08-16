@@ -127,6 +127,13 @@
       "when": 1787079600000,
       "tag": "20260816090000_outbox_attempt_errors",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1787025600000,
+      "tag": "20260814180000_retire_storefront_entity",
+      "breakpoints": true
     }
   ]
 }

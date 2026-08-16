@@ -8,7 +8,7 @@ import { productCatalogPolicy } from "../../src/catalog-policy.js"
 import { resolveProductClassification } from "../../src/classification.js"
 import type { Product } from "../../src/schema-core.js"
 import {
-  createProductStorefrontCardProjectionExtension,
+  createProductPublicApiCardProjectionExtension,
   deriveProductSupplyModel,
   listResolvedProducts,
   productProvenance,
@@ -356,9 +356,9 @@ describe("listResolvedProducts (batched overlay fetch)", () => {
   })
 })
 
-describe("createProductStorefrontCardProjectionExtension", () => {
+describe("createProductPublicApiCardProjectionExtension", () => {
   it("preserves base rich text fields when a translation is absent", async () => {
-    const extension = createProductStorefrontCardProjectionExtension()
+    const extension = createProductPublicApiCardProjectionExtension()
     const projection = await extension.project(
       projectionDb([[], [], [], []]),
       "prod_abc",
@@ -371,7 +371,7 @@ describe("createProductStorefrontCardProjectionExtension", () => {
   })
 
   it("preserves base rich text fields when the selected translation is partial", async () => {
-    const extension = createProductStorefrontCardProjectionExtension()
+    const extension = createProductPublicApiCardProjectionExtension()
     const projection = await extension.project(
       projectionDb([
         [
@@ -432,7 +432,7 @@ describe("createProductStorefrontCardProjectionExtension", () => {
       },
     }
 
-    const extension = createProductStorefrontCardProjectionExtension()
+    const extension = createProductPublicApiCardProjectionExtension()
     const projection = await extension.project(drizzleDb(db), "prod_abc", customerSlice)
 
     expect(log).toEqual([

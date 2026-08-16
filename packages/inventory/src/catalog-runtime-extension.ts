@@ -22,7 +22,7 @@ import {
   buildProductSnapshotInput,
   createProductClassificationProjectionExtension,
   createProductDocumentBuilder,
-  createProductStorefrontCardProjectionExtension,
+  createProductPublicApiCardProjectionExtension,
 } from "./service-catalog-plane.js"
 import { createProductDestinationsProjectionExtension } from "./service-catalog-plane-destinations.js"
 import { createProductTaxonomyProjectionExtension } from "./service-catalog-plane-taxonomy.js"
@@ -60,7 +60,7 @@ export const catalogInventoryRuntimeExtension = {
       extensions,
       isPublicAudienceListable,
     }),
-  createStorefrontCardProjectionExtension: () => createProductStorefrontCardProjectionExtension(),
+  createPublicApiCardProjectionExtension: () => createProductPublicApiCardProjectionExtension(),
   createDestinationsProjectionExtension: () => createProductDestinationsProjectionExtension(),
   createTaxonomyProjectionExtension: () => createProductTaxonomyProjectionExtension(),
   createClassificationProjectionExtension: () => createProductClassificationProjectionExtension(),

@@ -2,7 +2,7 @@ import { z } from "zod"
 
 const nullableTrimmedString = (max: number) => z.string().trim().min(1).max(max).nullable()
 
-export const storefrontOriginSchema = z
+export const publicApiOriginSchema = z
   .url()
   .refine((value) => {
     const url = new URL(value)
@@ -41,7 +41,7 @@ export const customerBusinessAccountRequestSchema = z
     requesterUserId: z.string().min(1),
     requesterEmail: z.email().nullable(),
     requesterName: z.string().nullable(),
-    storefrontOrigin: storefrontOriginSchema,
+    publicApiOrigin: publicApiOriginSchema,
     mode: customerBusinessOnboardingModeSchema,
     profile: customerBusinessProfileSchema,
     status: customerBusinessAccountRequestStatusSchema,
@@ -105,7 +105,7 @@ const customerOwnerSelectorSchema = z
 const customerBusinessAccountProvisionBaseSchema = z
   .object({
     idempotencyKey: z.string().trim().min(8).max(200),
-    storefrontOrigin: storefrontOriginSchema,
+    publicApiOrigin: publicApiOriginSchema,
     owner: customerOwnerSelectorSchema,
   })
   .strict()

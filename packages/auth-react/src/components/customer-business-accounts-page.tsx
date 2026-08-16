@@ -162,7 +162,7 @@ function CustomerBusinessAccountsView({ api }: { api: CustomerBusinessAccountsAd
                             <TableCell>
                               <div className="font-medium">{request.profile.name}</div>
                               <div className="text-xs text-muted-foreground">
-                                {request.storefrontOrigin}
+                                {request.publicApiOrigin}
                               </div>
                             </TableCell>
                             <TableCell>
@@ -234,7 +234,7 @@ function CustomerBusinessAccountsView({ api }: { api: CustomerBusinessAccountsAd
 function ProvisionBusinessAccountForm({ api }: { api: CustomerBusinessAccountsAdminApi }) {
   const queryClient = useQueryClient()
   const copy = useAuthUiI18nOrDefault().messages.customerBusinessAccountsPage.provision
-  const [storefrontOrigin, setStorefrontOrigin] = useState("")
+  const [publicApiOrigin, setPublicApiOrigin] = useState("")
   const [customerEmail, setCustomerEmail] = useState("")
   const [businessName, setBusinessName] = useState("")
   const [relationshipOrganizationId, setRelationshipOrganizationId] = useState("")
@@ -262,8 +262,8 @@ function ProvisionBusinessAccountForm({ api }: { api: CustomerBusinessAccountsAd
     setSuccess(false)
     const normalizedEmail = customerEmail.trim().toLowerCase()
     const normalizedOrganizationId = relationshipOrganizationId.trim()
-    if (!isExactHttpOrigin(storefrontOrigin)) {
-      setFormError(copy.storefrontOriginRequired)
+    if (!isExactHttpOrigin(publicApiOrigin)) {
+      setFormError(copy.publicApiOriginRequired)
       return
     }
     if (!normalizedEmail.includes("@")) {
@@ -277,7 +277,7 @@ function ProvisionBusinessAccountForm({ api }: { api: CustomerBusinessAccountsAd
     setFormError(null)
     const common = {
       idempotencyKey: crypto.randomUUID(),
-      storefrontOrigin: new URL(storefrontOrigin).origin,
+      publicApiOrigin: new URL(publicApiOrigin).origin,
       owner: { email: normalizedEmail },
     }
     provision.mutate(
@@ -304,15 +304,13 @@ function ProvisionBusinessAccountForm({ api }: { api: CustomerBusinessAccountsAd
       <CardContent>
         <form className="grid gap-4 md:grid-cols-2" onSubmit={submit}>
           <div className="grid gap-2">
-            <Label htmlFor="customer-business-storefront-origin">
-              {copy.storefrontOriginLabel}
-            </Label>
+            <Label htmlFor="customer-business-storefront-origin">{copy.publicApiOriginLabel}</Label>
             <Input
               id="customer-business-storefront-origin"
               type="url"
-              value={storefrontOrigin}
-              placeholder={copy.storefrontOriginPlaceholder}
-              onChange={(event) => setStorefrontOrigin(event.target.value)}
+              value={publicApiOrigin}
+              placeholder={copy.publicApiOriginPlaceholder}
+              onChange={(event) => setPublicApiOrigin(event.target.value)}
             />
           </div>
           <div className="grid gap-2">

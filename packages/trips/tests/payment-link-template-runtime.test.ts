@@ -10,7 +10,7 @@ vi.mock("@voyant-travel/operator-settings", () => ({
   getOperatorProfile: vi.fn(async () => null),
 }))
 
-import { createStandardPaymentLinkRouteOptions } from "../src/storefront-payment-link-runtime.js"
+import { createStandardPaymentLinkRouteOptions } from "../src/public-api-payment-link-runtime.js"
 
 function context(defaultTemplate: string) {
   return {

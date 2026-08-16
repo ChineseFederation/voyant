@@ -20,8 +20,8 @@
     "operations": ["0000_operations_baseline"],
     "operator-settings": ["0000_operator_settings_baseline"],
     "proposals": ["0000_proposals_baseline"],
+    "public-api": ["0000_storefront_baseline"],
     "relationships": ["0000_relationships_baseline"],
-    "storefront": ["0000_storefront_baseline"],
     "trips": ["0000_trips_baseline"]
   },
   "absorbedBy": {

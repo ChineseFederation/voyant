@@ -90,7 +90,7 @@ describe("cors middleware", () => {
     )
   })
 
-  it("advertises the storefront-origin header on preflight", async () => {
+  it("advertises the public-origin header on preflight", async () => {
     const app = new Hono<{ Bindings: VoyantBindings }>()
     app.use("*", cors())
 
@@ -100,19 +100,19 @@ describe("cors middleware", () => {
         headers: {
           origin: "https://dashboard.example",
           "access-control-request-method": "POST",
-          "access-control-request-headers": "x-api-key, authorization, x-voyant-storefront-origin",
+          "access-control-request-headers": "x-api-key, authorization, x-voyant-public-origin",
         },
       }),
       { CORS_ALLOWLIST: "https://dashboard.example" },
     )
 
     expect(response.headers.get("access-control-allow-headers")).toBe(
-      "x-api-key, authorization, x-voyant-storefront-origin",
+      "x-api-key, authorization, x-voyant-public-origin",
     )
   })
 })
 
-describe("cors middleware — per-storefront dynamic origin", () => {
+describe("cors middleware — per-key dynamic origin", () => {
   const ALLOWED = "https://shop.example.com"
 
   function dynamicApp() {

@@ -40,11 +40,11 @@ const migratedPorts = [
   "proposalsRuntimePort",
   "proposalsSnapshotRuntimePort",
   "smartbillRuntimeHostPort",
-  "storefrontCustomerPortalRuntimePort",
-  "storefrontIntakeRuntimePort",
-  "storefrontOffersRuntimePort",
-  "storefrontPaymentLinkRuntimePort",
-  "storefrontVerificationRuntimePort",
+  "publicApiCustomerPortalRuntimePort",
+  "publicApiIntakeRuntimePort",
+  "publicApiOffersRuntimePort",
+  "publicApiPaymentLinkRuntimePort",
+  "publicApiVerificationRuntimePort",
 ]
 
 const violations = []

@@ -3,7 +3,7 @@
 The cruises client tier: headless data hooks/clients plus the styled UI
 components (formerly `@voyant-travel/cruises-ui`).
 
-Headless consumers (storefronts, portals) import from the root, `./hooks`,
+Headless consumers (public surfaces, portals) import from the root, `./hooks`,
 `./client`, or `./query-keys` — these pull no styling peers. Styled surfaces
 live under `./ui`, `./components/*`, `./i18n`, and `./styles.css`, whose
 heavier peers (`@voyant-travel/ui`, `@voyant-travel/catalog-react`) are optional and
@@ -17,7 +17,7 @@ Mirrors the convention used by `@voyant-travel/relationships-react` and `@voyant
 
 ```tsx
 import { VoyantCruisesProvider } from "@voyant-travel/cruises-react/provider"
-import { useStorefrontCruises } from "@voyant-travel/cruises-react"
+import { usePublicApiCruises } from "@voyant-travel/cruises-react"
 
 function App() {
   return (
@@ -28,7 +28,7 @@ function App() {
 }
 
 function CruiseGrid() {
-  const { data, isLoading } = useStorefrontCruises({ cruiseType: "expedition" })
+  const { data, isLoading } = usePublicApiCruises({ cruiseType: "expedition" })
   if (isLoading) return <p>Loading…</p>
   return (
     <ul>

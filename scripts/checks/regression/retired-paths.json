@@ -17,7 +17,7 @@
         "commerce-promotion-subscriber-authority",
         "generic-node-bootstrap-authority",
         "operator-smartbill-authority",
-        "storefront-subscriber-authority",
+        "public-api-subscriber-authority",
         "trips-subscriber-authority"
       ]
     },
@@ -102,7 +102,7 @@
         "realtime-runtime-authority",
         "relationships-runtime-authority",
         "storage-media-runtime-authority",
-        "storefront-subscriber-authority",
+        "public-api-subscriber-authority",
         "trips-runtime-authority",
         "trips-subscriber-authority"
       ]
@@ -116,8 +116,8 @@
       "retiredBy": ["operator-smartbill-authority"]
     },
     {
-      "path": "apps/operator/src/api/runtime/storefront-intake-runtime.ts",
-      "retiredBy": ["storefront-presentation-authority"]
+      "path": "apps/operator/src/api/runtime/public-api-intake-runtime.ts",
+      "retiredBy": ["public-api-presentation-authority"]
     },
     {
       "path": "apps/operator/src/api/runtime/trips-catalog-runtime.ts",
@@ -172,7 +172,7 @@
       "retiredBy": ["operator-product-ui-authority"]
     },
     {
-      "path": "apps/operator/src/components/voyant/trips/storefront-composer-block.tsx",
+      "path": "apps/operator/src/components/voyant/trips/public-api-composer-block.tsx",
       "retiredBy": ["operator-product-ui-authority"]
     },
     {
@@ -288,6 +288,70 @@
       "retiredBy": ["operator-product-ui-authority"]
     },
     {
+      "path": "packages/auth-react/src/components/storefront-account-sections.tsx",
+      "retiredBy": ["storefront-entity-retirement"]
+    },
+    {
+      "path": "packages/auth-react/src/components/storefront-detail.tsx",
+      "retiredBy": ["storefront-entity-retirement"]
+    },
+    {
+      "path": "packages/auth-react/src/components/storefront-sites-page.tsx",
+      "retiredBy": ["storefront-entity-retirement"]
+    },
+    {
+      "path": "packages/auth-react/src/components/storefronts-page.tsx",
+      "retiredBy": ["storefront-entity-retirement"]
+    },
+    {
+      "path": "packages/auth-react/src/storefronts-admin-api.ts",
+      "retiredBy": ["storefront-entity-retirement"]
+    },
+    {
+      "path": "packages/auth/openapi/admin/storefronts.json",
+      "retiredBy": ["storefront-entity-retirement"]
+    },
+    {
+      "path": "packages/auth/src/linkables.ts",
+      "retiredBy": ["storefront-entity-retirement"]
+    },
+    {
+      "path": "packages/auth/src/standard-links.ts",
+      "retiredBy": ["storefront-entity-retirement"]
+    },
+    {
+      "path": "packages/auth/src/storefront-admin-contracts.ts",
+      "retiredBy": ["storefront-entity-retirement"]
+    },
+    {
+      "path": "packages/auth/src/storefront-channel-binding-provider.ts",
+      "retiredBy": ["storefront-entity-retirement"]
+    },
+    {
+      "path": "packages/auth/src/storefront-customer-auth-resolver.ts",
+      "retiredBy": ["storefront-entity-retirement"]
+    },
+    {
+      "path": "packages/auth/src/storefront-graph-runtime.ts",
+      "retiredBy": ["storefront-entity-retirement"]
+    },
+    {
+      "path": "packages/auth/src/storefront-local-adapter.ts",
+      "retiredBy": ["storefront-entity-retirement"]
+    },
+    {
+      "path": "packages/auth/src/storefront-origins.ts",
+      "retiredBy": ["storefront-entity-retirement"]
+    },
+    {
+      "path": "packages/auth/src/storefront-routes.ts",
+      "retiredBy": ["storefront-entity-retirement"]
+    },
+    {
+      "path": "packages/auth/src/storefront-runtime-port.ts",
+      "retiredBy": ["storefront-entity-retirement"]
+    },
+    {
       "path": "packages/bookings-node/package.json",
       "retiredBy": ["node-runtime-product-authority"]
     },
@@ -338,6 +402,14 @@
         "contract methods in packages/charters/src/adapters \u2014 so neither name can",
         "be pinned to nowhere. The path is the only thing left to hold."
       ]
+    },
+    {
+      "path": "packages/db/src/schema/iam/storefronts.ts",
+      "retiredBy": ["storefront-entity-retirement"]
+    },
+    {
+      "path": "packages/distribution/src/storefront-channel-binding-setup.ts",
+      "retiredBy": ["storefront-entity-retirement"]
     },
     {
       "path": "packages/finance/src/standard-node-runtime.ts",
@@ -423,8 +495,8 @@
       "retiredBy": ["custom-fields-settings-authority"]
     },
     {
-      "path": "packages/storefront/src/booking-bootstrap-subscriber-runtime.ts",
-      "retiredBy": ["storefront-subscriber-authority"]
+      "path": "packages/public-api/src/booking-bootstrap-subscriber-runtime.ts",
+      "retiredBy": ["public-api-subscriber-authority"]
     }
   ]
 }
