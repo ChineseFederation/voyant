@@ -152,6 +152,25 @@ describe("LocaleProvider", () => {
     expect(window.localStorage.getItem("admin-locale")).toBe("en")
   })
 
+  it("narrows an account locale on the first render, not the one after", () => {
+    // A profile storing `en-GB` used to mount the authenticated tree at
+    // `en-GB` and re-render it at `en` a tick later, re-keying everything
+    // derived from the locale (voyant#4754).
+    const seen: string[] = []
+    function Probe() {
+      seen.push(useLocale().locale)
+      return null
+    }
+
+    render(
+      <LocaleProvider defaultLocale="en-GB" preferenceAuthority="account">
+        <Probe />
+      </LocaleProvider>,
+    )
+
+    expect(new Set(seen)).toEqual(new Set(["en"]))
+  })
+
   it("uses the nearest locale provider for the document language", async () => {
     render(
       <LocaleProvider defaultLocale="en">

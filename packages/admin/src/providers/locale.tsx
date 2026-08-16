@@ -127,6 +127,16 @@ export function LocaleProvider({
   const providerDepth = (parentContext?.providerDepth ?? -1) + 1
   const documentLocaleId = useRef(Symbol("locale-provider"))
   const [locale, setLocaleState] = useState<string>(() => {
+    // Account authority is derived from props alone, so narrow it here rather
+    // than in the effect below. Doing it a render late meant every member
+    // whose profile stores a regional tag (`en-GB`) mounted the whole
+    // authenticated tree at `en-GB` and re-rendered it at `en` one tick later
+    // — a wasted pass, and a re-key for anything derived from the locale
+    // (voyant#4754). The device branch cannot do this: its inputs are
+    // `localStorage` and `navigator`, which the server does not have.
+    if (preferenceAuthority === "account") {
+      return pickSupportedLocale(defaultLocale, supportedLocales, fallbackLocale)
+    }
     if (defaultLocale) {
       return defaultLocale
     }

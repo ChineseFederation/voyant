@@ -38,14 +38,17 @@
     "@voyant-travel/runtime-core": "workspace:^"
   },
   "devDependencies": {
+    "@tanstack/react-query": "^5.101.2",
     "@tanstack/react-router": "^1.170.17",
     "@tanstack/react-start": "^1.168.27",
+    "@testing-library/react": "^16.0.0",
     "@types/node": "catalog:",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@voyant-travel/admin": "workspace:^",
     "@voyant-travel/admin-app": "workspace:^",
     "@voyant-travel/admin-react": "workspace:^",
+    "@voyant-travel/react": "workspace:^",
     "@voyant-travel/types": "workspace:^",
     "@voyant-travel/voyant-typescript-config": "workspace:^",
     "hono": "catalog:",

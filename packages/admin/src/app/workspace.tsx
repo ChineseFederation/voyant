@@ -27,7 +27,13 @@ import {
   useOperatorAdminMessages,
 } from "../providers/operator-admin-messages.js"
 import type { AdminUser } from "../types.js"
-import type { AdminAuthRuntime, AdminBootstrapStatus } from "./auth-runtime.js"
+import {
+  ADMIN_CURRENT_USER_QUERY_KEY,
+  ADMIN_SESSION_STALE_TIME_MS,
+  ADMIN_SHELL_BOOTSTRAP_QUERY_KEY,
+  type AdminAuthRuntime,
+  type AdminBootstrapStatus,
+} from "./auth-runtime.js"
 
 /**
  * Router-aware sidebar link. SidebarMenuButton with `asChild` wraps this in a
@@ -80,6 +86,11 @@ export interface CreateAdminWorkspaceBeforeLoadOptions<TUser> {
     >,
     queryClient: QueryClient,
   ) => void
+  /**
+   * How long a resolved session is reused before the guard revalidates it.
+   * Defaults to {@link ADMIN_SESSION_STALE_TIME_MS}.
+   */
+  sessionStaleTime?: number
 }
 
 /**
@@ -100,7 +111,38 @@ export function createAdminWorkspaceBeforeLoad<TUser>({
   auth,
   signInPath = "/sign-in",
   hydrateShellBootstrap,
+  sessionStaleTime = ADMIN_SESSION_STALE_TIME_MS,
 }: CreateAdminWorkspaceBeforeLoadOptions<TUser>) {
+  /**
+   * Resolve a session-scoped value through the QueryClient when the router
+   * supplied one. `beforeLoad` runs again for every matched route on every
+   * navigation, so calling the auth port directly turns one cold-load round
+   * trip into one per navigation. A `null` result is dropped rather than
+   * cached: signed-out is the state most likely to change underneath us, and
+   * caching it would keep redirecting a member who has just signed in.
+   */
+  async function resolveSession<TValue>(
+    queryClient: QueryClient | undefined,
+    queryKey: readonly unknown[],
+    load: () => Promise<TValue | null | undefined>,
+  ): Promise<{ value: TValue | null; fromCache: boolean }> {
+    if (!queryClient) return { value: (await load()) ?? null, fromCache: false }
+
+    const cached = queryClient.getQueryData<TValue | null>(queryKey)
+    const value = await queryClient.ensureQueryData<TValue | null>({
+      queryKey,
+      queryFn: async () => (await load()) ?? null,
+      staleTime: sessionStaleTime,
+      // Cached data is returned immediately and refreshed behind the
+      // navigation once it ages past `sessionStaleTime`. Without this the
+      // session would be resolved once and then never again for the life of
+      // the tab, because `ensureQueryData` does not revalidate on its own.
+      revalidateIfStale: true,
+    })
+    if (value === null) queryClient.removeQueries({ queryKey, exact: true })
+    return { value, fromCache: cached !== undefined && Object.is(cached, value) }
+  }
+
   return async ({
     location,
     context,
@@ -108,13 +150,25 @@ export function createAdminWorkspaceBeforeLoad<TUser>({
     location: { href: string }
     context?: { queryClient?: QueryClient }
   }): Promise<{ user: TUser }> => {
-    const usesShellBootstrap = auth.getShellBootstrap !== undefined
-    const shellBootstrap = await auth.getShellBootstrap?.()
-    const user = usesShellBootstrap ? shellBootstrap?.user : await auth.getCurrentUser()
+    const queryClient = context?.queryClient
+    const getShellBootstrap = auth.getShellBootstrap
+    const shellBootstrap = getShellBootstrap
+      ? await resolveSession(queryClient, ADMIN_SHELL_BOOTSTRAP_QUERY_KEY, () =>
+          getShellBootstrap(),
+        )
+      : null
+    const currentUser = shellBootstrap
+      ? null
+      : await resolveSession(queryClient, ADMIN_CURRENT_USER_QUERY_KEY, () => auth.getCurrentUser())
+    const user = shellBootstrap ? shellBootstrap.value?.user : currentUser?.value
 
     if (user) {
-      if (shellBootstrap && context?.queryClient) {
-        hydrateShellBootstrap?.(shellBootstrap, context.queryClient)
+      // Re-seeding on every navigation would overwrite whatever the shell has
+      // since done with these slices (a reordered navigation, a refetched
+      // entitlement) with the snapshot this session started from. Hydrate only
+      // the response that was actually fetched.
+      if (shellBootstrap?.value && !shellBootstrap.fromCache && queryClient) {
+        hydrateShellBootstrap?.(shellBootstrap.value, queryClient)
       }
       return { user }
     }

@@ -21,6 +21,25 @@ export type AdminAuthMode = "local" | "voyant-cloud"
 
 export const ADMIN_ACTIVE_MODULES_QUERY_KEY = ["voyant", "admin", "active-modules"] as const
 
+/**
+ * The cached authenticated shell bootstrap. TanStack re-runs `beforeLoad` for
+ * every matched route on every navigation, so without a cache the guard's one
+ * round trip becomes one round trip *per client-side navigation* — which is
+ * how the previous `getCurrentUser()` guard came to re-request `/auth/me`
+ * on soft navigations (voyant#4754).
+ */
+export const ADMIN_SHELL_BOOTSTRAP_QUERY_KEY = ["voyant", "admin", "shell-bootstrap"] as const
+
+/**
+ * The current-user query. Shared with `UserProvider` in
+ * `@voyant-travel/admin-react` so the guard's resolution seeds the provider
+ * instead of racing it.
+ */
+export const ADMIN_CURRENT_USER_QUERY_KEY = ["current-user"] as const
+
+/** How long the guard reuses a resolved session before revalidating it. */
+export const ADMIN_SESSION_STALE_TIME_MS = 5 * 60 * 1000
+
 /** Whether any user exists yet, plus the identity-broker mode. */
 export interface AdminBootstrapStatus {
   hasUsers: boolean

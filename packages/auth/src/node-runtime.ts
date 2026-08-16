@@ -89,6 +89,11 @@ import {
   handleApiTokenManagementRequest,
   handleOrganizationMembersRequest,
 } from "./server.js"
+import {
+  buildOperatorShellBootstrap,
+  type OperatorCurrentUser,
+  type OperatorShellBootstrapAdditions,
+} from "./shell-bootstrap.js"
 import { resolveStaffAccess } from "./staff-access.js"
 import { ensureCurrentUserProfile } from "./workspace.js"
 
@@ -160,40 +165,12 @@ export interface OperatorAuthNodeEnv extends NodeDatabaseEnv {
   VOYANT_OPERATOR_BROWSER_EVIDENCE?: string
 }
 
-export interface OperatorCurrentUser {
-  id: string
-  email: string
-  firstName: string | null
-  lastName: string | null
-  locale: string
-  timezone: string | null
-  uiPrefs: unknown
-  isSuperAdmin: boolean
-  isSupportUser: boolean
-  createdAt: string
-  profilePictureUrl: string | null
-}
-
-export const OPERATOR_SHELL_BOOTSTRAP_VERSION = 1 as const
-
-export interface OperatorShellBootstrapAdditions {
-  /** Host-owned feature entitlements. Keys are stable capability ids. */
-  entitlements?: Readonly<Record<string, boolean>>
-  /** Effective navigation snapshot, or null when the selected graph has no preference authority. */
-  navigationPreferences?: unknown
-  /** Lightweight, non-secret descriptors only. Full extension manifests remain deferred. */
-  extensions?: readonly Readonly<Record<string, unknown>>[]
-}
-
-export interface OperatorShellBootstrap extends Required<OperatorShellBootstrapAdditions> {
-  version: typeof OPERATOR_SHELL_BOOTSTRAP_VERSION
-  compatibility: {
-    minimumShellVersion: typeof OPERATOR_SHELL_BOOTSTRAP_VERSION
-    capabilities: readonly string[]
-  }
-  user: OperatorCurrentUser
-  activeModules: readonly string[]
-}
+export type {
+  OperatorCurrentUser,
+  OperatorShellBootstrap,
+  OperatorShellBootstrapAdditions,
+} from "./shell-bootstrap.js"
+export { OPERATOR_SHELL_BOOTSTRAP_VERSION } from "./shell-bootstrap.js"
 
 export type OperatorAuthBootstrapStatus = {
   hasUsers: boolean
@@ -1506,34 +1483,18 @@ export function createOperatorAuthNodeRuntime<Env extends OperatorAuthNodeEnv>(
       const user = await getCurrentUserForRequest(c.req.raw, c.env)
       if (!user) return c.json({ error: "Unauthorized" }, 401)
 
-      const additions =
-        (await runtimeOptions.resolveShellBootstrap?.({
-          env: c.env,
-          request: c.req.raw,
-          user,
-        })) ?? {}
-      const capabilities = [
-        "admin.shell-bootstrap.v1",
-        "admin.shell-bootstrap.focus-invalidation",
-        ...(additions.entitlements ? ["admin.shell-bootstrap.entitlements"] : []),
-        ...(additions.navigationPreferences
-          ? ["admin.shell-bootstrap.navigation-preferences"]
-          : []),
-        ...(additions.extensions ? ["admin.shell-bootstrap.extensions"] : []),
-      ]
-      const bootstrap: OperatorShellBootstrap = {
-        version: OPERATOR_SHELL_BOOTSTRAP_VERSION,
-        compatibility: {
-          minimumShellVersion: OPERATOR_SHELL_BOOTSTRAP_VERSION,
-          capabilities,
-        },
+      const additions = await runtimeOptions.resolveShellBootstrap?.({
+        env: c.env,
+        request: c.req.raw,
         user,
-        activeModules: [...(runtimeOptions.activeModules ?? [])],
-        entitlements: { ...(additions.entitlements ?? {}) },
-        navigationPreferences: additions.navigationPreferences ?? null,
-        extensions: [...(additions.extensions ?? [])],
-      }
-      return c.json(bootstrap)
+      })
+      return c.json(
+        buildOperatorShellBootstrap({
+          user,
+          activeModules: runtimeOptions.activeModules,
+          ...(additions ? { additions } : {}),
+        }),
+      )
     } catch (error) {
       if (error instanceof CurrentUserNotFoundError) {
         return c.json({ error: "User not found" }, 404)

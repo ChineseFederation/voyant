@@ -1,3 +1,8 @@
+export {
+  ADMIN_REVALIDATE_CACHE_CONTROL,
+  type AdminRevalidationOptions,
+  adminResponseRevalidation,
+} from "./admin-revalidation.js"
 export { requireAuth } from "./auth.js"
 export {
   DEFAULT_REQUEST_BODY_LIMIT_BYTES,

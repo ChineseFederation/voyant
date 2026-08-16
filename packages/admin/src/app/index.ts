@@ -3,7 +3,12 @@ export type {
   AdminAuthRuntime,
   AdminBootstrapStatus,
 } from "./auth-runtime.js"
-export { ADMIN_ACTIVE_MODULES_QUERY_KEY } from "./auth-runtime.js"
+export {
+  ADMIN_ACTIVE_MODULES_QUERY_KEY,
+  ADMIN_CURRENT_USER_QUERY_KEY,
+  ADMIN_SESSION_STALE_TIME_MS,
+  ADMIN_SHELL_BOOTSTRAP_QUERY_KEY,
+} from "./auth-runtime.js"
 export type {
   AdminExtensionChildRoutesOptions,
   AdminExtensionRouteLoaderArgs,

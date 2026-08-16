@@ -396,6 +396,14 @@ export interface VoyantAppConfig<TBindings extends VoyantBindings = VoyantBindin
    */
   publicCache?: false | import("./middleware/public-cache.js").PublicCacheOptions
   /**
+   * `ETag` + `Cache-Control: private, no-cache` on safe JSON reads of the
+   * staff surface (`/v1/admin/*`), so a repeat navigation revalidates and gets
+   * a bodyless 304 instead of re-downloading the payload. Enabled by default;
+   * a route that sets its own `Cache-Control` is never restamped. Set `false`
+   * to disable, or pass options to widen the eligible media types.
+   */
+  adminRevalidation?: false | import("./middleware/admin-revalidation.js").AdminRevalidationOptions
+  /**
    * Transactional outbox (RFC #1687 Phase 2.1). When `true`, request
    * emits persist the envelope to the `event_outbox` table BEFORE any
    * subscriber runs (durable, at-least-once with retry/dead-letter via

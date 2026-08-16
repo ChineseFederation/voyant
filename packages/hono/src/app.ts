@@ -30,6 +30,7 @@ import { tryGetExecutionCtx } from "./lib/execution-ctx.js"
 import { matchesPublicPath, normalizePathname } from "./lib/public-paths.js"
 import { requestScopedEventBus } from "./lib/request-event-bus.js"
 import { createRequestOutboxStore } from "./lib/request-outbox-store.js"
+import { adminResponseRevalidation } from "./middleware/admin-revalidation.js"
 import { requireAuth } from "./middleware/auth.js"
 import {
   DEFAULT_REQUEST_BODY_LIMIT_BYTES,
@@ -536,6 +537,14 @@ export function mountApp<TBindings extends VoyantBindings>(
 
   if (config.securityHeaders !== false) {
     app.use("*", securityHeaders(config.securityHeaders))
+  }
+
+  // Conditional requests for the staff surface (voyant#4754). Cookie-bearing
+  // admin reads bypass the shared cache above, which left them with no cache
+  // policy at all — so every repeat navigation re-downloaded a body the
+  // browser already had. Stamping an ETag here turns that into a 304.
+  if (config.adminRevalidation !== false) {
+    app.use("/v1/admin/*", adminResponseRevalidation(config.adminRevalidation))
   }
 
   if (config.requestBodyLimit !== false) {
