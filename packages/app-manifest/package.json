@@ -1,6 +1,6 @@
 {
   "name": "@voyant-travel/app-manifest",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "description": "Validate and compile a Voyant app release manifest, and reproduce the release digest the marketplace admits.",
   "license": "Apache-2.0",
   "type": "module",

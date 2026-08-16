@@ -1,5 +1,12 @@
 # @voyant-travel/app-manifest
 
+## 0.2.5
+
+### Patch Changes
+
+- Updated dependencies [b78b724]
+  - @voyant-travel/graph-contracts@0.7.0
+
 ## 0.2.4
 
 ### Patch Changes
