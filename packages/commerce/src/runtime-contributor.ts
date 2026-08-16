@@ -125,6 +125,17 @@ export function createCommerceRuntimePortContribution(
     // is an implicit `any` that only the build catches.
     [catalogCommerceRuntimeExtensionPort.id]: {
       ...catalogCommerceRuntimeExtension,
+      // Bound through the pending contribution rather than resolved here: the
+      // extension is a plain object the catalog reads synchronously, and the
+      // cascade it publishes is composed from ports that settle later.
+      entityPaymentPolicy: {
+        resolveListingPolicyForEntity: async (db, context) =>
+          (await contribution).entityPaymentPolicy.resolveListingPolicyForEntity(db, context),
+        resolveCategoryPolicyForEntity: async (db, context) =>
+          (await contribution).entityPaymentPolicy.resolveCategoryPolicyForEntity(db, context),
+        resolveSupplierPolicyForEntity: async (db, context) =>
+          (await contribution).entityPaymentPolicy.resolveSupplierPolicyForEntity(db, context),
+      },
       // The Booking Session descriptor is composed in catalog, and the sources
       // that price a live third-party offer are bound to a commerce port, so
       // this is where the two meet. Resolved per call rather than captured:

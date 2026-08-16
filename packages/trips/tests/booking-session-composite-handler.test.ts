@@ -22,6 +22,7 @@ import {
   createTripBookingSessionCompositeHandler,
   type TripBookingSessionCompositePersistence,
 } from "../src/booking-session-composite-handler.js"
+import { toBookingSelectionV1 } from "../src/catalog-component-adapter.js"
 import type { TripComponent, TripSnapshot } from "../src/schema.js"
 
 const NOW = new Date("2026-08-02T10:00:00.000Z")
@@ -537,6 +538,86 @@ describe("accepted Proposal Version Booking Session composite", () => {
     })
   })
 })
+
+describe("composite payment context", () => {
+  it("states the trip's own terms and its earliest component departure", async () => {
+    const tour = component({ id: "tcmp_tour" })
+    const stay = component({
+      id: "tcmp_stay",
+      entityModule: "accommodations",
+      entityId: "acco_stay",
+      sequence: 1,
+    })
+    const state = harness([
+      { ...tour, metadata: draftMetadata(tour, { departureDate: "2026-12-05" }) },
+      {
+        ...stay,
+        metadata: draftMetadata(stay, {
+          dateRange: { checkIn: "2026-12-01", checkOut: "2026-12-04" },
+        }),
+      },
+    ])
+    const handler = createTripBookingSessionCompositeHandler(state.persistence)
+
+    await expect(
+      handler.describePaymentContext?.({
+        db: state.db,
+        tripSnapshotId: "trsn_1",
+        tripEnvelopeId: "trip_1",
+        locale: "en-GB",
+      }),
+    ).resolves.toEqual({
+      // A Trip owns no listing, category or supplier terms of its own: it is an
+      // itinerary of other people's inventory priced as one total, so the
+      // operator default decides and the components' policies are deliberately
+      // not merged into several deposits for one journey.
+      listingPolicy: null,
+      categoryPolicy: null,
+      supplierPolicy: null,
+      departureDate: "2026-12-01",
+      name: "Bespoke trip",
+    })
+  })
+
+  it("states no departure when no component travels on a stated date", async () => {
+    const state = harness([component({ id: "tcmp_tour" })])
+    const handler = createTripBookingSessionCompositeHandler(state.persistence)
+
+    await expect(
+      handler.describePaymentContext?.({
+        db: state.db,
+        tripSnapshotId: "trsn_1",
+        tripEnvelopeId: "trip_1",
+        locale: "en-GB",
+      }),
+    ).resolves.toMatchObject({ departureDate: null })
+  })
+
+  it("describes nothing for a snapshot that is not this envelope's", async () => {
+    const state = harness([component({ id: "tcmp_tour" })])
+    const handler = createTripBookingSessionCompositeHandler(state.persistence)
+
+    await expect(
+      handler.describePaymentContext?.({
+        db: state.db,
+        tripSnapshotId: "trsn_1",
+        tripEnvelopeId: "trip_other",
+        locale: "en-GB",
+      }),
+    ).resolves.toBeNull()
+  })
+})
+
+/**
+ * The frozen selection a component travels on, built through the same adapter
+ * production freezes it with so the fixture cannot drift from the schema.
+ */
+function draftMetadata(
+  target: TripComponent,
+  configure: Record<string, unknown>,
+): Record<string, unknown> {
+  return { bookingDraftV1: toBookingSelectionV1(target, { configure: configure as never }) }
+}
 
 function harness(components: TripComponent[]) {
   const snapshot = tripSnapshot(components)

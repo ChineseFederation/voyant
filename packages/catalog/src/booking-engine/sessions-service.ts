@@ -33,6 +33,7 @@ import { PermanentSubscriberError } from "@voyant-travel/core"
 import type { AnalyticsPort } from "@voyant-travel/core/analytics"
 import { createSafeAnalytics } from "@voyant-travel/core/analytics"
 import { newId } from "@voyant-travel/db/lib/typeid"
+import type { PaymentPolicy } from "@voyant-travel/finance"
 import { withBookingSessionAnalytics } from "./analytics.js"
 import type {
   BookingCheckoutIntentV1,
@@ -443,6 +444,53 @@ export interface BookingSessionCompositeHandler {
       db: unknown
     },
   ): Promise<CommitCompositeBookingResult>
+  /**
+   * What the composite target contributes to the payment cascade, and the two
+   * facts the collection schedule is anchored on.
+   *
+   * A composite is one commercial object: one total, one departure, one plan.
+   * Resolving the policy per component would quote a shopper several deposits
+   * with different due dates for a single itinerary, which is not a schedule.
+   *
+   * Optional, and `null` is a real answer: it says this handler has no payment
+   * context for the Trip, and the Session collects nothing. Before voyant#4745
+   * that was not a decision anyone made — every non-product target was refused
+   * a plan before the handler was consulted.
+   */
+  describePaymentContext?(input: {
+    db: unknown
+    tripSnapshotId: string
+    tripEnvelopeId: string
+    locale: string
+  }): Promise<BookingSessionTargetPaymentContext | null>
+}
+
+/**
+ * The payment-policy cascade layers a Session's target contributes, plus what
+ * anchors the schedule built from them.
+ *
+ * One shape for every target kind, so the cascade resolution and the schedule
+ * computation happen once regardless of what is being sold. `null` on a layer
+ * means "inherit from the next-broader one", exactly as
+ * `resolveEffectivePaymentPolicy` reads it.
+ */
+export interface BookingSessionTargetPaymentContext {
+  /** The listing's own override — a rate plan, a cabin category, a product. */
+  listingPolicy: PaymentPolicy | null
+  categoryPolicy: PaymentPolicy | null
+  supplierPolicy: PaymentPolicy | null
+  /**
+   * When the shopper travels. The deposit gate is a distance-to-departure
+   * test and the balance falls due relative to it, so a target that cannot
+   * state this collects the full total rather than guessing at a deposit.
+   */
+  departureDate: string | null
+  /**
+   * What the shopper is paying for, in the Session's locale. The only
+   * product-shaped field a hosted checkout page can render; absent, finance
+   * falls back to the payment session's own notes.
+   */
+  name: string | null
 }
 
 export interface BookingSessionPaymentPorts {

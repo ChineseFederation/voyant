@@ -125,6 +125,34 @@ export function createTripBookingSessionCompositeHandler(
   return {
     composeRequirements,
 
+    /**
+     * The Trip's own payment context.
+     *
+     * A Trip carries no policy of its own at any cascade layer — it is an
+     * itinerary of other people's inventory, priced and frozen as one total —
+     * so all three layers are silent and the operator default decides. That is
+     * deliberate rather than unfinished: taking the components' policies would
+     * quote the shopper several deposits with different due dates for one
+     * itinerary, which is not a schedule anyone can pay.
+     *
+     * What the Trip does own is when it starts. The departure is the earliest
+     * date any frozen component travels on, read off the component's own frozen
+     * booking draft rather than off the live Session — a Trip Snapshot froze its
+     * configuration when the proposal was accepted, so this is a server-side
+     * fact, not something the shopper can restate at Commit to buy a deposit.
+     */
+    async describePaymentContext({ db, tripSnapshotId, tripEnvelopeId }) {
+      const snapshot = await persistence.loadSnapshot(db as PostgresJsDatabase, tripSnapshotId)
+      if (!snapshot || snapshot.envelopeId !== tripEnvelopeId) return null
+      return {
+        listingPolicy: null,
+        categoryPolicy: null,
+        supplierPolicy: null,
+        departureDate: earliestComponentDeparture(frozenComponents(snapshot)),
+        name: snapshot.titleSnapshot ?? null,
+      }
+    },
+
     async composeQuote(input) {
       const database = input.tx as PostgresJsDatabase
       const snapshot = await loadTargetSnapshot(database, input.session, persistence.loadSnapshot)
@@ -463,6 +491,30 @@ async function loadTargetSnapshot(
     throw new Error("trip_snapshot_target_not_found")
   }
   return snapshot
+}
+
+/**
+ * When the itinerary starts: the earliest travel date across its frozen
+ * components.
+ *
+ * A component states its date the way its own vertical does — a departure for a
+ * dated product, a check-in for a stay — and both live on the component's frozen
+ * `BookingSelectionV1`. Anything the deposit gate is measured from has to be the
+ * *first* of them, because that is when the operator's exposure begins.
+ *
+ * Null when no component states one, which has the shopper pay in full rather
+ * than have an unanchored schedule decide a deposit.
+ */
+function earliestComponentDeparture(components: Map<string, TripComponent>): string | null {
+  let earliest: string | null = null
+  for (const component of components.values()) {
+    if (!isCatalogBackedTripComponent(component)) continue
+    const configure = bookingDraftFromComponent(component).configure
+    const candidate = configure.departureDate ?? configure.dateRange?.checkIn ?? null
+    if (!candidate) continue
+    if (!earliest || candidate < earliest) earliest = candidate
+  }
+  return earliest
 }
 
 function frozenComponents(snapshot: TripSnapshot): Map<string, TripComponent> {

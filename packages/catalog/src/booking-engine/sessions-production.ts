@@ -126,6 +126,11 @@ export function createProductionBookingSessionModule(
     ? createProductionBookingSessionPaymentPorts({
         db: deps.db,
         financeRuntime: deps.financeRuntime,
+        // The same handler the composite lifecycle dispatches to, so the Trip
+        // that quotes and commits is the Trip that states its payment terms.
+        ...(deps.resolveCompositeHandler
+          ? { resolveCompositeHandler: deps.resolveCompositeHandler }
+          : {}),
         ...deps.payments,
       })
     : undefined

@@ -1,5 +1,6 @@
 import { createIndexerService } from "@voyant-travel/catalog"
 import type {
+  CatalogEntityPaymentPolicyReaders,
   CatalogPublicationRuntime,
   CatalogRuntimeServices,
 } from "@voyant-travel/catalog/runtime-contracts"
@@ -91,6 +92,14 @@ export interface CommerceRuntime {
   checkoutLegal: CommerceLegalRuntime
   promotionRedemptionDatabase: PromotionRedemptionDatabaseRuntime
   promotionsBulkReindex: PromotionsBulkReindexRuntime
+  /**
+   * The entity-keyed half of the composed payment-policy cascade, published so
+   * the Booking Session checkout can resolve a policy for a target that has no
+   * booking row yet. Commerce already composes the vertical readers for its own
+   * accepted-policy resolution; re-composing them next to the Session would put
+   * the preview a shopper saw and the terms they are charged on two code paths.
+   */
+  entityPaymentPolicy: CatalogEntityPaymentPolicyReaders
 }
 
 /** Compose Commerce from generic host primitives and selected domain providers. */
@@ -124,6 +133,14 @@ export function createCommerceRuntime(requirements: CommerceRuntimeRequirements)
   })
 
   return {
+    entityPaymentPolicy: {
+      resolveListingPolicyForEntity: (db, context) =>
+        paymentPolicy.resolveListingPolicyForEntity(db as PostgresJsDatabase, context),
+      resolveCategoryPolicyForEntity: (db, context) =>
+        paymentPolicy.resolveCategoryPolicyForEntity(db as PostgresJsDatabase, context),
+      resolveSupplierPolicyForEntity: (db, context) =>
+        paymentPolicy.resolveSupplierPolicyForEntity(db as PostgresJsDatabase, context),
+    },
     bookingMaintenance: {
       resolveDb: (context) => primitives.database.fromContext<PostgresJsDatabase>(context),
       resolveBookingTaxSettings: settings.resolveBookingTaxSettings,

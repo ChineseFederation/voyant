@@ -232,6 +232,10 @@ export function createCatalogRuntimePortContribution(
         inventory,
         distribution,
         settings,
+        // Everything a Session can target that is not a single product:
+        // accommodations, cruise cabins and sourced entries all resolve their
+        // policy through this cascade (voyant#4745).
+        ...(commerce.entityPaymentPolicy ? { entityPolicy: commerce.entityPaymentPolicy } : {}),
         async resolvePaymentAdapter() {
           if (host.hasRuntimePort?.(paymentAdapterRuntimePortReference) !== true) return null
           return host.getRuntimePort<PaymentAdapter>(paymentAdapterRuntimePortReference)

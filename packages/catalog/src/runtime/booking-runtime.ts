@@ -72,6 +72,10 @@ export function createOperatorCatalogBookingRouteModuleOptions(options: {
             inventory,
             distribution,
             settings: options.settings,
+            // Accommodations, cruise cabins and sourced entries resolve their
+            // policy through this cascade; without it they collect nothing
+            // (voyant#4745).
+            ...(commerce.entityPaymentPolicy ? { entityPolicy: commerce.entityPaymentPolicy } : {}),
             resolvePaymentAdapter: options.resolvePaymentAdapter,
             paymentAdapterContext: { env: c.env as Readonly<Record<string, unknown>> },
           },
