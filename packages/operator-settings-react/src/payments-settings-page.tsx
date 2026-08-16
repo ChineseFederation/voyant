@@ -47,9 +47,10 @@ import {
   Spinner,
   Switch,
 } from "@voyant-travel/ui/components"
-import { CreditCard, TriangleAlert } from "lucide-react"
+import { Check, CreditCard, TriangleAlert } from "lucide-react"
 import { type ComponentType, useCallback, useRef, useState } from "react"
 import { toast } from "sonner"
+import { PaymentProviderLogo } from "./payment-provider-logo.js"
 
 type ProviderMode = "sandbox" | "test" | "live"
 type ConnectionState =
@@ -74,6 +75,8 @@ interface ProviderDescriptor {
   id: string
   displayName: string
   description: string
+  /** Brand reference resolved by `PaymentProviderLogo`, not a URL. */
+  logoRef?: string
   connectionMethod: "credentials" | "embedded_onboarding" | "read_only"
   credentialFieldSchema: CredentialField[]
   availability: "available" | "coming_soon"
@@ -376,6 +379,121 @@ export function paymentActivationControlState(input: {
   return canActivatePaymentConnection(input.summary) ? "activatable" : "gated"
 }
 
+/**
+ * The single status a processor row reports.
+ *
+ * This screen used to show up to four badges against one connection — `Active`,
+ * `Ready`, `Connected`, `Sandbox` — of which two were the same fact:
+ * `paymentConnectionReadiness` is `state === "connected"`, so `Ready` and
+ * `Connected` could never disagree. Collapsing to one status is what makes the
+ * list readable; mode is rendered as an attribute of a connection, not as a
+ * status, because it answers a different question.
+ *
+ * `not_connected` deliberately has no badge. A processor nobody has set up is
+ * the default state of most rows, and labelling it makes every row shout.
+ */
+export type PaymentProviderStatusId =
+  | "error"
+  | "action_required"
+  | "disconnected"
+  | "active"
+  | "verifying"
+  | "connected"
+  | "coming_soon"
+  | "not_connected"
+
+/**
+ * The connections to render for a processor.
+ *
+ * `connections` is optional on both `ConnectionStatus` and the route schema
+ * (`payment-provider-routes.ts`), so a registry may answer with only the
+ * backward-compatible top-level `activeProviderId`/`status`/`mode`. The old
+ * "Active provider" card read those fields directly; this screen reads
+ * connections, so without this fallback an active processor sitting in `error`
+ * or `restricted` would render no status and no row at all — the failure would
+ * be invisible precisely when it matters.
+ *
+ * The synthesized summary is marked `active` because that is what the
+ * top-level fields describe: the active provider's one connection.
+ */
+export function paymentProviderConnections(
+  provider: Pick<ProviderDescriptor, "id">,
+  status:
+    | Pick<
+        ConnectionStatus,
+        | "activeProviderId"
+        | "status"
+        | "mode"
+        | "activeConnectionId"
+        | "connections"
+        | "requirements"
+        | "lastError"
+        | "readOnly"
+      >
+    | undefined,
+): ConnectionSummary[] {
+  const owned = (status?.connections ?? []).filter(
+    (connection) => connection.providerId === provider.id,
+  )
+  if (owned.length > 0) return owned
+  if (!status || status.activeProviderId !== provider.id) return []
+
+  return [
+    {
+      providerId: provider.id,
+      connectionId: status.activeConnectionId ?? provider.id,
+      state: status.status,
+      readiness: status.status === "connected" ? "ready" : "not_ready",
+      mode: status.mode,
+      active: true,
+      requirements: status.requirements,
+      lastError: status.lastError,
+      readOnly: status.readOnly,
+    },
+  ]
+}
+
+/**
+ * Resolve a processor's headline status from its connections.
+ *
+ * Precedence is deliberate: anything broken or blocked outranks `active`,
+ * because an active processor that cannot take money is the one thing an
+ * operator must not miss. `active` then outranks the healthy-but-secondary
+ * states — a second connection quietly verifying is reported on its own row.
+ *
+ * `disconnected` is one of those blocking states rather than a synonym for
+ * "never set up": `updatePaymentConnectionStatus` patches only the status, so
+ * an active provider can sit at `disconnected` with `activeProviderId` still
+ * pointing at it. It escalates only when it describes the whole processor —
+ * every connection gone, or the active one gone — so a disconnected sandbox
+ * sibling does not mislabel a working live connection.
+ */
+export function paymentProviderStatus(input: {
+  provider: Pick<ProviderDescriptor, "id" | "availability">
+  connections: readonly Pick<ConnectionSummary, "providerId" | "state" | "active">[] | undefined
+  activeProviderId: string | null
+}): PaymentProviderStatusId {
+  const owned = (input.connections ?? []).filter(
+    (connection) => connection.providerId === input.provider.id,
+  )
+  const anyState = (...states: ConnectionState[]) =>
+    owned.some((connection) => states.includes(connection.state))
+
+  if (anyState("error")) return "error"
+  if (anyState("pending_requirements", "restricted")) return "action_required"
+
+  const activeConnection = owned.find((connection) => connection.active)
+  const allDisconnected =
+    owned.length > 0 && owned.every((connection) => connection.state === "disconnected")
+  if (allDisconnected || activeConnection?.state === "disconnected") return "disconnected"
+
+  if (input.activeProviderId === input.provider.id) return "active"
+  if (anyState("pending_verification")) return "verifying"
+  if (anyState("connected")) return "connected"
+  if (input.provider.availability === "coming_soon") return "coming_soon"
+  return "not_connected"
+}
+
 /** Hosted disconnect is fail-closed until the managed control plane exposes it. */
 export function canDisconnectPaymentProvider(
   provider: Pick<ProviderDescriptor, "connectionMethod"> | undefined,
@@ -431,6 +549,40 @@ function RequirementsAlert({
         </ul>
       </AlertDescription>
     </Alert>
+  )
+}
+
+/** Badge treatment per status. `not_connected` renders nothing at all. */
+const providerStatusVariant: Record<
+  PaymentProviderStatusId,
+  "default" | "secondary" | "destructive" | "outline" | null
+> = {
+  error: "destructive",
+  action_required: "destructive",
+  // A connection that exists but is disconnected is not the same as a
+  // processor nobody set up, so unlike `not_connected` it does get a badge.
+  disconnected: "outline",
+  active: "default",
+  verifying: "secondary",
+  connected: "secondary",
+  coming_soon: "outline",
+  not_connected: null,
+}
+
+/** The one badge a processor row is allowed. */
+function ProviderStatusBadge({
+  status,
+  labels,
+}: {
+  status: PaymentProviderStatusId
+  labels: Record<PaymentProviderStatusId, string>
+}) {
+  const variant = providerStatusVariant[status]
+  if (!variant) return null
+  return (
+    <Badge variant={variant} className="shrink-0">
+      {labels[status]}
+    </Badge>
   )
 }
 
@@ -659,7 +811,6 @@ export function PaymentsSettingsPage({ embeddedOnboardingClient }: PaymentsSetti
   const connection = connectionQuery.data
   const providers = providersQuery.data ?? []
   const activeId = connection?.activeProviderId ?? null
-  const activeProvider = providers.find((provider) => provider.id === activeId)
   const statusLabels: Record<ConnectionState, string> = {
     pending_requirements: t.pendingRequirements,
     pending_verification: t.pendingVerification,
@@ -668,10 +819,17 @@ export function PaymentsSettingsPage({ embeddedOnboardingClient }: PaymentsSetti
     error: t.connectionError,
     disconnected: t.disconnected,
   }
-  const statusLabel = paymentConnectionStatusLabel(
-    connection?.status ?? "disconnected",
-    statusLabels,
-  )
+  const statusBadgeLabels: Record<PaymentProviderStatusId, string> = {
+    error: t.connectionError,
+    action_required: t.pendingRequirements,
+    disconnected: t.disconnected,
+    active: t.activeBadge,
+    verifying: t.pendingVerification,
+    connected: t.connected,
+    coming_soon: t.comingSoon,
+    // Never rendered — `providerStatusVariant.not_connected` is null.
+    not_connected: t.disconnected,
+  }
 
   const openConnect = (provider: ProviderDescriptor) => {
     setDialogProvider(provider)
@@ -687,235 +845,213 @@ export function PaymentsSettingsPage({ embeddedOnboardingClient }: PaymentsSetti
   }
 
   return (
-    <div className="mx-auto flex max-w-4xl flex-col gap-6">
+    <div className="mx-auto flex max-w-3xl flex-col gap-6">
       <header>
         <h1 className="text-2xl font-bold tracking-tight">{t.title}</h1>
         <p className="mt-1 text-sm text-muted-foreground">{t.description}</p>
       </header>
 
       {connection?.readOnly ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>{t.activeProvider}</CardTitle>
-            <CardDescription>{t.configuredViaEnv}</CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-2">
-            <div className="flex items-center gap-2">
+        <Alert>
+          <TriangleAlert aria-hidden="true" />
+          <AlertTitle>{t.configuredViaEnv}</AlertTitle>
+          <AlertDescription>{t.configuredViaEnvHint}</AlertDescription>
+        </Alert>
+      ) : null}
+
+      {providers.length === 0 ? (
+        <Empty>
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
               <CreditCard aria-hidden="true" />
-              <span>
-                {providers.find((provider) => provider.id === activeId)?.displayName ??
-                  activeId ??
-                  statusLabel}
-              </span>
-              {activeId ? <Badge variant="secondary">{statusLabel}</Badge> : null}
-            </div>
-            <p className="text-muted-foreground">{t.configuredViaEnvHint}</p>
-          </CardContent>
-        </Card>
+            </EmptyMedia>
+            <EmptyTitle>{t.empty}</EmptyTitle>
+            <EmptyDescription>{t.emptyDescription}</EmptyDescription>
+          </EmptyHeader>
+        </Empty>
       ) : (
-        <>
-          {connection && connection.status !== "disconnected" && activeId ? (
-            <Card>
-              <CardHeader>
-                <CardTitle>{t.activeProvider}</CardTitle>
-                <CardDescription>{t.readinessDescription}</CardDescription>
-              </CardHeader>
-              <CardContent className="flex flex-col gap-4">
-                <div className="flex flex-wrap items-center gap-2">
-                  <CreditCard aria-hidden="true" />
-                  <span>
-                    {providers.find((provider) => provider.id === activeId)?.displayName ??
-                      activeId}
-                  </span>
-                  <Badge variant={connection.status === "error" ? "destructive" : "secondary"}>
-                    {statusLabel}
-                  </Badge>
-                  {connection.mode ? (
-                    <Badge variant="outline">{modeLabel(connection.mode, modeLabels)}</Badge>
+        <ul className="flex list-none flex-col gap-4">
+          {providers.map((provider) => {
+            const isActive = provider.id === activeId
+            // Resolved rather than filtered: a registry that omits the
+            // per-connection projection still has to show its active
+            // processor's real state.
+            const owned = paymentProviderConnections(provider, connection)
+            const status = paymentProviderStatus({
+              provider,
+              connections: owned,
+              activeProviderId: activeId,
+            })
+            const unavailable = !canConfigurePaymentProvider(provider)
+            const hosted = provider.connectionMethod === "embedded_onboarding"
+            const resumable =
+              hosted &&
+              resumablePaymentProviderConnection(provider, connection?.connections) !== null
+            const hasAdditionalHostedMode =
+              hosted &&
+              firstUnconfiguredPaymentProviderMode(provider, connection?.connections) !== null
+            // Preserved verbatim from the pre-redesign screen: a hosted
+            // provider mints a real processor account per mode, so its action
+            // stays available only to resume an unfinished setup or to add a
+            // mode that has none.
+            const setupDisabled =
+              unavailable || (isActive && !hasAdditionalHostedMode && !resumable)
+            const setupLabel = hosted
+              ? resumable
+                ? t.continueOnboarding
+                : t.startOnboarding
+              : owned.length > 0
+                ? t.updateCredentials
+                : t.connect
+
+            return (
+              <li key={provider.id}>
+                <Card
+                  // The active processor is marked by emphasis on the whole
+                  // card, not by another badge in an already crowded row.
+                  className={isActive ? "border-primary/40" : undefined}
+                >
+                  <CardHeader className="flex flex-row items-start gap-4 space-y-0">
+                    <PaymentProviderLogo
+                      logoRef={provider.logoRef}
+                      providerId={provider.id}
+                      displayName={provider.displayName}
+                    />
+                    <div className="flex min-w-0 flex-1 flex-col gap-1">
+                      <CardTitle className="leading-tight">{provider.displayName}</CardTitle>
+                      <CardDescription>{provider.description}</CardDescription>
+                    </div>
+                    <ProviderStatusBadge status={status} labels={statusBadgeLabels} />
+                  </CardHeader>
+
+                  {owned.length > 0 || (isActive && connection?.requirements?.length) ? (
+                    <CardContent className="flex flex-col gap-4">
+                      {owned.length > 0 ? (
+                        <ul className="flex list-none flex-col divide-y rounded-md border">
+                          {owned.map((summary) => {
+                            const control = paymentActivationControlState({
+                              summary,
+                              activatingConnectionId: activate.isPending
+                                ? (activate.variables?.connectionId ?? null)
+                                : null,
+                            })
+                            return (
+                              <li
+                                key={`${summary.providerId}:${summary.connectionId}`}
+                                className="flex flex-wrap items-center gap-x-3 gap-y-2 px-3 py-2.5"
+                              >
+                                <span className="text-sm font-medium">
+                                  {summary.mode
+                                    ? modeLabel(summary.mode, modeLabels)
+                                    : (summary.displayName ?? summary.providerId)}
+                                </span>
+                                <span
+                                  className={
+                                    summary.state === "error"
+                                      ? "text-sm text-destructive"
+                                      : "text-sm text-muted-foreground"
+                                  }
+                                >
+                                  {statusLabels[summary.state]}
+                                </span>
+                                <div className="ms-auto flex items-center gap-2">
+                                  {control === "active" ? (
+                                    <span className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
+                                      <Check aria-hidden="true" className="size-4" />
+                                      {t.defaultBadge}
+                                    </span>
+                                  ) : control === "activating" ? (
+                                    <Button size="sm" variant="outline" disabled aria-busy="true">
+                                      <Spinner data-icon="inline-start" />
+                                      {t.activating}
+                                    </Button>
+                                  ) : control === "activatable" ? (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      // Disabling on any in-flight activation
+                                      // prevents duplicate/concurrent submits.
+                                      disabled={activate.isPending}
+                                      onClick={() => activate.mutate(summary)}
+                                    >
+                                      {t.makeActive}
+                                    </Button>
+                                  ) : (
+                                    <span
+                                      id={`activate-hint-${summary.connectionId}`}
+                                      className="text-sm text-muted-foreground"
+                                    >
+                                      {t.makeActiveNotReady}
+                                    </span>
+                                  )}
+                                </div>
+
+                                {summary.requirements?.length ? (
+                                  <div className="w-full">
+                                    <RequirementsAlert
+                                      requirements={summary.requirements}
+                                      title={t.requirementsTitle}
+                                      deadlineTemplate={t.requirementDeadline}
+                                    />
+                                  </div>
+                                ) : null}
+                              </li>
+                            )
+                          })}
+                        </ul>
+                      ) : null}
+
+                      {/* Only when no row carried them: the synthesized
+                          fallback connection already reports the top-level
+                          requirements, and a registry that populates only the
+                          top level has no row to put them on. */}
+                      {isActive && !owned.some((summary) => summary.requirements?.length) ? (
+                        <RequirementsAlert
+                          requirements={connection?.requirements}
+                          title={t.requirementsTitle}
+                          deadlineTemplate={t.requirementDeadline}
+                        />
+                      ) : null}
+                    </CardContent>
                   ) : null}
-                </div>
 
-                <RequirementsAlert
-                  requirements={connection.requirements}
-                  title={t.requirementsTitle}
-                  deadlineTemplate={t.requirementDeadline}
-                />
-              </CardContent>
-              <CardFooter>
-                {canDisconnectPaymentProvider(activeProvider) ? (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={disconnect.isPending}
-                    onClick={() => disconnect.mutate()}
-                  >
-                    {disconnect.isPending ? <Spinner data-icon="inline-start" /> : null}
-                    {t.disconnect}
-                  </Button>
-                ) : (
-                  <Button variant="outline" size="sm" disabled>
-                    {t.disconnectUnavailable}
-                  </Button>
-                )}
-              </CardFooter>
-            </Card>
-          ) : null}
+                  {connection?.readOnly ? null : (
+                    <CardFooter className="flex flex-wrap items-center gap-3">
+                      <Button
+                        size="sm"
+                        variant={owned.length > 0 ? "outline" : "default"}
+                        disabled={setupDisabled}
+                        onClick={() => openConnect(provider)}
+                      >
+                        {setupLabel}
+                      </Button>
 
-          {connection?.connections?.length ? (
-            <section className="flex flex-col gap-3">
-              <div>
-                <h2 className="text-sm font-semibold text-muted-foreground">
-                  {t.connectionsTitle}
-                </h2>
-                <p className="text-sm text-muted-foreground">{t.connectionsDescription}</p>
-              </div>
-              <ul className="flex list-none flex-col gap-3">
-                {connection.connections.map((summary) => {
-                  const summaryStatusLabel = statusLabels[summary.state]
-                  const control = paymentActivationControlState({
-                    summary,
-                    activatingConnectionId: activate.isPending
-                      ? (activate.variables?.connectionId ?? null)
-                      : null,
-                  })
-                  return (
-                    <li key={`${summary.providerId}:${summary.connectionId}`}>
-                      <Card>
-                        <CardHeader>
-                          <div className="flex flex-wrap items-center gap-2">
-                            <CreditCard aria-hidden="true" />
-                            <CardTitle>{summary.displayName ?? summary.providerId}</CardTitle>
-                            {summary.active ? <Badge>{t.activeBadge}</Badge> : null}
-                            <Badge
-                              variant={summary.readiness === "ready" ? "secondary" : "outline"}
-                            >
-                              {summary.readiness === "ready" ? t.readyBadge : t.notReadyBadge}
-                            </Badge>
-                            <Badge variant={summary.state === "error" ? "destructive" : "outline"}>
-                              {summaryStatusLabel}
-                            </Badge>
-                            {summary.mode ? (
-                              <Badge variant="outline">{modeLabel(summary.mode, modeLabels)}</Badge>
-                            ) : null}
-                          </div>
-                        </CardHeader>
-                        {summary.requirements?.length ? (
-                          <CardContent>
-                            <RequirementsAlert
-                              requirements={summary.requirements}
-                              title={t.requirementsTitle}
-                              deadlineTemplate={t.requirementDeadline}
-                            />
-                          </CardContent>
-                        ) : null}
-                        <CardFooter className="flex flex-wrap items-center gap-3">
-                          {control === "active" ? (
-                            <span className="text-sm font-medium text-muted-foreground">
-                              {t.defaultBadge}
-                            </span>
-                          ) : control === "activating" ? (
-                            <Button size="sm" disabled aria-busy="true">
-                              <Spinner data-icon="inline-start" />
-                              {t.activating}
-                            </Button>
-                          ) : control === "activatable" ? (
-                            <Button
-                              size="sm"
-                              // Disabling on any in-flight activation prevents
-                              // duplicate/concurrent "make active" submissions.
-                              disabled={activate.isPending}
-                              onClick={() => activate.mutate(summary)}
-                            >
-                              {t.makeActive}
-                            </Button>
-                          ) : (
-                            <>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                disabled
-                                aria-disabled="true"
-                                aria-describedby={`activate-hint-${summary.connectionId}`}
-                              >
-                                {t.makeActive}
-                              </Button>
-                              <span
-                                id={`activate-hint-${summary.connectionId}`}
-                                className="text-sm text-muted-foreground"
-                              >
-                                {t.makeActiveNotReady}
-                              </span>
-                            </>
-                          )}
-                        </CardFooter>
-                      </Card>
-                    </li>
-                  )
-                })}
-              </ul>
-            </section>
-          ) : null}
-
-          <section className="flex flex-col gap-3">
-            <h2 className="text-sm font-semibold text-muted-foreground">{t.availableProviders}</h2>
-            {providers.length === 0 ? (
-              <Empty>
-                <EmptyHeader>
-                  <EmptyMedia variant="icon">
-                    <CreditCard aria-hidden="true" />
-                  </EmptyMedia>
-                  <EmptyTitle>{t.empty}</EmptyTitle>
-                  <EmptyDescription>{t.emptyDescription}</EmptyDescription>
-                </EmptyHeader>
-              </Empty>
-            ) : (
-              <div className="grid gap-4 md:grid-cols-2">
-                {providers.map((provider) => {
-                  const isActive = provider.id === activeId
-                  const unavailable = !canConfigurePaymentProvider(provider)
-                  const hosted = provider.connectionMethod === "embedded_onboarding"
-                  const resumable =
-                    hosted &&
-                    resumablePaymentProviderConnection(provider, connection?.connections) !== null
-                  const hasAdditionalHostedMode =
-                    hosted &&
-                    firstUnconfiguredPaymentProviderMode(provider, connection?.connections) !== null
-                  return (
-                    <Card key={provider.id}>
-                      <CardHeader>
-                        <div className="flex items-center justify-between gap-2">
-                          <CardTitle>{provider.displayName}</CardTitle>
-                          {provider.availability === "coming_soon" ? (
-                            <Badge variant="secondary">{t.comingSoon}</Badge>
-                          ) : isActive ? (
-                            <Badge>{statusLabel}</Badge>
-                          ) : null}
-                        </div>
-                        <CardDescription>{provider.description}</CardDescription>
-                      </CardHeader>
-                      <CardFooter>
+                      {isActive && canDisconnectPaymentProvider(provider) ? (
                         <Button
+                          variant="ghost"
                           size="sm"
-                          variant={isActive ? "outline" : "default"}
-                          disabled={
-                            unavailable || (isActive && !hasAdditionalHostedMode && !resumable)
-                          }
-                          onClick={() => openConnect(provider)}
+                          disabled={disconnect.isPending}
+                          onClick={() => disconnect.mutate()}
                         >
-                          {hosted
-                            ? resumable
-                              ? t.continueOnboarding
-                              : t.startOnboarding
-                            : t.connect}
+                          {disconnect.isPending ? <Spinner data-icon="inline-start" /> : null}
+                          {t.disconnect}
                         </Button>
-                      </CardFooter>
-                    </Card>
-                  )
-                })}
-              </div>
-            )}
-          </section>
-        </>
+                      ) : null}
+
+                      {/* Not an action, so not a button: hosted disconnect is
+                          fail-closed and the operator has to ask support. */}
+                      {isActive && !canDisconnectPaymentProvider(provider) ? (
+                        <span className="text-sm text-muted-foreground">
+                          {t.disconnectUnavailable}
+                        </span>
+                      ) : null}
+                    </CardFooter>
+                  )}
+                </Card>
+              </li>
+            )
+          })}
+        </ul>
       )}
 
       <Dialog

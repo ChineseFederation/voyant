@@ -9,7 +9,9 @@ import {
   type PaymentEmbeddedOnboardingClientProps,
   paymentActivationControlState,
   paymentConnectionStatusLabel,
+  paymentProviderConnections,
   paymentProviderSetupMode,
+  paymentProviderStatus,
   requestPaymentOnboardingSession,
   resumablePaymentProviderConnection,
 } from "./payments-settings-page.js"
@@ -332,5 +334,221 @@ describe("payments settings contract", () => {
         summary: { connectionId: "c3", readiness: "not_ready", active: false, readOnly: false },
       }),
     ).toBe("gated")
+  })
+})
+
+/** Mirrors the page's internal `ConnectionState`, which is not exported. */
+type PaymentConnectionStateForTest =
+  | "pending_requirements"
+  | "pending_verification"
+  | "connected"
+  | "restricted"
+  | "error"
+  | "disconnected"
+
+describe("processor status", () => {
+  const provider = { id: "voyant-pay", availability: "available" as const }
+  const connection = (
+    state: PaymentConnectionStateForTest,
+    providerId = "voyant-pay",
+    active = false,
+  ) => ({ providerId, state, active })
+
+  it("reports a processor nobody has set up with no status at all", () => {
+    // The badge for `not_connected` is deliberately absent: it is the default
+    // state of most rows, and labelling it makes every row shout.
+    expect(paymentProviderStatus({ provider, connections: [], activeProviderId: null })).toBe(
+      "not_connected",
+    )
+  })
+
+  it("collapses ready + connected into the single fact they always agreed on", () => {
+    // `paymentConnectionReadiness` is `state === "connected"`, so a separate
+    // readiness badge could never disagree with the lifecycle badge.
+    expect(
+      paymentProviderStatus({
+        provider,
+        connections: [connection("connected")],
+        activeProviderId: null,
+      }),
+    ).toBe("connected")
+  })
+
+  it("marks the active processor without needing a second badge", () => {
+    expect(
+      paymentProviderStatus({
+        provider,
+        connections: [connection("connected")],
+        activeProviderId: "voyant-pay",
+      }),
+    ).toBe("active")
+  })
+
+  it("lets a broken or blocked connection outrank being active", () => {
+    // An active processor that cannot take money is the one thing an operator
+    // must not miss, so `error`/`action_required` win over `active`.
+    for (const [state, expected] of [
+      ["error", "error"],
+      ["pending_requirements", "action_required"],
+      ["restricted", "action_required"],
+    ] as const) {
+      expect(
+        paymentProviderStatus({
+          provider,
+          connections: [connection(state)],
+          activeProviderId: "voyant-pay",
+        }),
+      ).toBe(expected)
+    }
+  })
+
+  it("ignores connections belonging to another processor", () => {
+    expect(
+      paymentProviderStatus({
+        provider,
+        connections: [connection("error", "netopia")],
+        activeProviderId: null,
+      }),
+    ).toBe("not_connected")
+  })
+
+  it("stops calling a processor coming soon once it has a connection", () => {
+    const soon = { id: "voyant-pay", availability: "coming_soon" as const }
+
+    expect(paymentProviderStatus({ provider: soon, connections: [], activeProviderId: null })).toBe(
+      "coming_soon",
+    )
+    expect(
+      paymentProviderStatus({
+        provider: soon,
+        connections: [connection("connected")],
+        activeProviderId: null,
+      }),
+    ).toBe("connected")
+  })
+})
+
+describe("processor connections fallback", () => {
+  const provider = { id: "voyant-pay" }
+
+  it("synthesizes the active connection when the registry omits the projection", () => {
+    // `connections` is optional on the route schema, so a registry may answer
+    // with only the top-level fields. Losing them would hide a failing active
+    // processor entirely — the old "Active provider" card read them directly.
+    const resolved = paymentProviderConnections(provider, {
+      activeProviderId: "voyant-pay",
+      status: "restricted",
+      mode: "live",
+      activeConnectionId: "conn_1",
+      connections: undefined,
+      requirements: [{ code: "docs", message: "Upload documents" }],
+      lastError: null,
+      readOnly: false,
+    })
+
+    expect(resolved).toHaveLength(1)
+    expect(resolved[0]).toMatchObject({
+      providerId: "voyant-pay",
+      connectionId: "conn_1",
+      state: "restricted",
+      readiness: "not_ready",
+      mode: "live",
+      active: true,
+    })
+    expect(resolved[0]?.requirements).toHaveLength(1)
+  })
+
+  it("keeps a failing active processor's status visible through the fallback", () => {
+    for (const state of ["error", "restricted", "disconnected"] as const) {
+      const resolved = paymentProviderConnections(provider, {
+        activeProviderId: "voyant-pay",
+        status: state,
+        mode: null,
+        connections: undefined,
+      })
+      const status = paymentProviderStatus({
+        provider: { id: "voyant-pay", availability: "available" },
+        connections: resolved,
+        activeProviderId: "voyant-pay",
+      })
+      expect(status).not.toBe("active")
+    }
+  })
+
+  it("prefers the real projection and never invents a row for another provider", () => {
+    const real = [
+      {
+        providerId: "voyant-pay",
+        connectionId: "c1",
+        state: "connected" as const,
+        readiness: "ready" as const,
+        mode: "live" as const,
+        active: true,
+      },
+    ]
+
+    // The fallback is a last resort, not a merge: a real projection wins even
+    // when the top-level status disagrees with it.
+    expect(
+      paymentProviderConnections(provider, {
+        activeProviderId: "voyant-pay",
+        status: "error",
+        mode: null,
+        connections: real,
+      }),
+    ).toEqual(real)
+
+    expect(
+      paymentProviderConnections(
+        { id: "netopia" },
+        {
+          activeProviderId: "voyant-pay",
+          status: "connected",
+          mode: "live",
+          connections: undefined,
+        },
+      ),
+    ).toEqual([])
+  })
+})
+
+describe("disconnected connections", () => {
+  const provider = { id: "voyant-pay", availability: "available" as const }
+  const conn = (state: PaymentConnectionStateForTest, active = false) => ({
+    providerId: "voyant-pay",
+    state,
+    active,
+  })
+
+  it("outranks active when the active connection is disconnected", () => {
+    // `updatePaymentConnectionStatus` patches only the status, so
+    // `activeProviderId` can still point at a disconnected connection.
+    expect(
+      paymentProviderStatus({
+        provider,
+        connections: [conn("disconnected", true)],
+        activeProviderId: "voyant-pay",
+      }),
+    ).toBe("disconnected")
+  })
+
+  it("badges an existing disconnected connection rather than staying silent", () => {
+    expect(
+      paymentProviderStatus({
+        provider,
+        connections: [conn("disconnected")],
+        activeProviderId: null,
+      }),
+    ).toBe("disconnected")
+  })
+
+  it("does not let a disconnected sibling mislabel a working connection", () => {
+    expect(
+      paymentProviderStatus({
+        provider,
+        connections: [conn("connected", true), conn("disconnected")],
+        activeProviderId: "voyant-pay",
+      }),
+    ).toBe("active")
   })
 })

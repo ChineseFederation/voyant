@@ -385,6 +385,7 @@ export const operatorAdminSettingsMessagesEnPart1 = {
     comingSoon: "Coming soon",
     availableProviders: "Available providers",
     connect: "Connect",
+    updateCredentials: "Update credentials",
     connecting: "Connecting…",
     disconnect: "Disconnect",
     disconnectUnavailable: "Contact support to disconnect",

@@ -392,6 +392,7 @@ export const operatorAdminSettingsMessagesRoPart1 = {
     comingSoon: "In curand",
     availableProviders: "Procesatoare disponibile",
     connect: "Conecteaza",
+    updateCredentials: "Actualizeaza datele de acces",
     connecting: "Se conecteaza…",
     disconnect: "Deconecteaza",
     disconnectUnavailable: "Contacteaza asistenta pentru deconectare",
