@@ -298,6 +298,8 @@ export const travelerFieldRequirementV1 = z.object({
   required: z.boolean(),
   options: z.array(z.object({ value: z.string(), label: z.string() })).optional(),
   appliesToBands: z.array(z.string()).optional(),
+  /** See {@link bookingFieldRequirementV1}'s `maxLength`. */
+  maxLength: z.number().int().positive().optional(),
 })
 export type TravelerFieldRequirementV1 = z.infer<typeof travelerFieldRequirementV1>
 
@@ -308,6 +310,21 @@ export const bookingFieldRequirementV1 = z.object({
   type: z.string(),
   required: z.boolean(),
   group: z.enum(["billing", "company", "preferences"]),
+  /**
+   * The longest value this field accepts, when it is bounded at all.
+   *
+   * A descriptor that says a field exists but not how wide it is leaves a
+   * client unable to pre-validate even when it wants to: `address.postal` was
+   * published with no length information, accepted at 25 characters by the
+   * Session `PATCH`, and refused at 20 by the commit — after the card was
+   * captured (voyant#4734). Publishing the bound is what lets the refusal
+   * happen at the step instead.
+   *
+   * Optional because most fields are genuinely unbounded. Absent means "no
+   * declared limit", never "unknown": the server bounds a field here whenever
+   * it will bound it later.
+   */
+  maxLength: z.number().int().positive().optional(),
 })
 export type BookingFieldRequirementV1 = z.infer<typeof bookingFieldRequirementV1>
 

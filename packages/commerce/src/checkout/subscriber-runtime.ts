@@ -186,12 +186,38 @@ export function createCheckoutFinalizeSubscriberRuntime<TBindings = unknown>(
               if (!options.settleBookingSession) {
                 throw new Error("Booking Session settlement runtime is not configured")
               }
-              bookingId = (
-                await options.settleBookingSession({
-                  bookingSessionId: data.targetId,
-                  paymentSessionId: data.paymentSessionId,
-                })
-              ).bookingId
+              const bookingSessionId = data.targetId
+              try {
+                bookingId = (
+                  await options.settleBookingSession({
+                    bookingSessionId,
+                    paymentSessionId: data.paymentSessionId,
+                  })
+                ).bookingId
+              } catch (error) {
+                // Money captured, nothing booked. Announce it here because
+                // this is the only place that holds both halves of that fact:
+                // the settlement knows it failed and the payment event knows
+                // the money landed. Without the event the state is reachable
+                // only by querying `payment_sessions` for
+                // `status = 'paid' AND booking_id IS NULL`, which is how the
+                // three wedged sessions in voyant#4733 were eventually found.
+                //
+                // Emitted before the rethrow so the signal survives even
+                // though the handler still fails and is retried — a delivery
+                // that eventually succeeds should leave the failed attempts on
+                // the record, not erase them.
+                await ((context?.eventBus ?? eventBus) as EventBus).emit(
+                  "booking_session.settlement.failed",
+                  {
+                    bookingSessionId,
+                    paymentSessionId: data.paymentSessionId,
+                    reason: error instanceof Error ? error.message : String(error),
+                  },
+                  { category: "internal", source: "service" },
+                )
+                throw error
+              }
             }
             if (!bookingId) return
             const finalizedBookingId = bookingId

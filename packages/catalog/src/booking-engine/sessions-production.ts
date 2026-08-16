@@ -15,8 +15,12 @@ import {
   paxBandsAllowedTotalFrom,
 } from "@voyant-travel/catalog-contracts/booking-engine/requirements-defaults"
 import {
+  BOOKING_SELECTION_BILLING_MAX_LENGTHS,
   BOOKING_SELECTION_PRIVILEGED_KEYS,
   BOOKING_SELECTION_PUBLIC_KEYS,
+  BOOKING_SELECTION_TRAVELER_MAX_LENGTHS,
+  type BookingSelectionBillingFieldKey,
+  type BookingSelectionTravelerFieldKey,
 } from "@voyant-travel/catalog-contracts/booking-engine/selection-contracts"
 import { bookingSessionAudienceForActorV1 } from "@voyant-travel/catalog-contracts/booking-engine/session-contracts"
 import type { AnalyticsPort } from "@voyant-travel/core/analytics"
@@ -825,25 +829,55 @@ async function resolveBilling(
   return personId ? { ...contact, personId: personId.id, organizationId: null } : null
 }
 
+/**
+ * Which Booking `contact_*` field each billing selection path lands in.
+ *
+ * Exported and load-bearing rather than inlined, because the rename it
+ * performs is invisible from outside and was reported as part of the bug: the
+ * commit refused `contactPostalCode`, a name no client had ever sent, for a
+ * value the client wrote as `address.postal` (voyant#4734). A caller that has
+ * to map the two by hand writes a table like this one and gets it wrong; the
+ * one the engine actually uses is the one worth publishing.
+ *
+ * It is also what makes the widths checkable end to end: the width the Session
+ * publishes for a key and the width the Booking create enforces on its target
+ * are two numbers in two packages, and this is the only thing that says which
+ * two are supposed to agree.
+ */
+export const BOOKING_SESSION_BILLING_FIELD_TARGETS = {
+  "contact.firstName": "contactFirstName",
+  "contact.lastName": "contactLastName",
+  "contact.phone": "contactPhone",
+  "address.line1": "contactAddressLine1",
+  "address.line2": "contactAddressLine2",
+  "address.city": "contactCity",
+  "address.region": "contactRegion",
+  "address.postal": "contactPostalCode",
+  "address.country": "contactCountry",
+} as const satisfies Record<BookingSelectionBillingFieldKey, string>
+
 function billingContact(payload: Record<string, unknown>) {
   const billing = asRecord(payload.billing)
   const contact = asRecord(billing?.contact)
   const address = asRecord(billing?.address)
   const staffBooking = asRecord(payload.staffBooking)
   const trim = (value: unknown) => (typeof value === "string" && value.trim() ? value.trim() : null)
+  const group = { contact, address }
+  const mapped: Record<string, string | null> = {}
+  for (const [path, target] of Object.entries(BOOKING_SESSION_BILLING_FIELD_TARGETS)) {
+    const [bucket, key] = path.split(".") as ["contact" | "address", string]
+    mapped[target] = trim(group[bucket]?.[key])
+  }
   return {
     personId: trim(staffBooking?.personId),
     organizationId: trim(staffBooking?.organizationId),
-    contactFirstName: trim(contact?.firstName),
-    contactLastName: trim(contact?.lastName),
+    // Not in the table: `email` is bounded by shape rather than by width, and
+    // its selection key and target name already agree.
     contactEmail: trim(contact?.email),
-    contactPhone: trim(contact?.phone),
-    contactCountry: trim(address?.country),
-    contactRegion: trim(address?.region),
-    contactCity: trim(address?.city),
-    contactAddressLine1: trim(address?.line1),
-    contactAddressLine2: trim(address?.line2),
-    contactPostalCode: trim(address?.postal),
+    ...(mapped as Record<
+      (typeof BOOKING_SESSION_BILLING_FIELD_TARGETS)[BookingSelectionBillingFieldKey],
+      string | null
+    >),
   }
 }
 
@@ -1260,10 +1294,10 @@ export function normalizeBookingSelection(
           ? billing.buyerType
           : undefined,
       contact: pruneEmpty({
-        firstName: stringValue(billingContact?.firstName),
-        lastName: stringValue(billingContact?.lastName),
+        firstName: boundedBillingValue(billingContact?.firstName, "contact.firstName"),
+        lastName: boundedBillingValue(billingContact?.lastName, "contact.lastName"),
         email: stringValue(billingContact?.email),
-        phone: stringValue(billingContact?.phone),
+        phone: boundedBillingValue(billingContact?.phone, "contact.phone"),
       }),
       // The whole declared address, not just the country. The tracer
       // (voyant#4039) projected the rest away, so a caller that filled the
@@ -1272,12 +1306,12 @@ export function normalizeBookingSelection(
       // (voyant#4290); the other four were declared all along and simply
       // never survived to the commit.
       address: pruneEmpty({
-        line1: stringValue(billingAddress?.line1),
-        line2: stringValue(billingAddress?.line2),
-        city: stringValue(billingAddress?.city),
-        region: stringValue(billingAddress?.region),
-        postal: stringValue(billingAddress?.postal),
-        country: stringValue(billingAddress?.country),
+        line1: boundedBillingValue(billingAddress?.line1, "address.line1"),
+        line2: boundedBillingValue(billingAddress?.line2, "address.line2"),
+        city: boundedBillingValue(billingAddress?.city, "address.city"),
+        region: boundedBillingValue(billingAddress?.region, "address.region"),
+        postal: boundedBillingValue(billingAddress?.postal, "address.postal"),
+        country: boundedBillingValue(billingAddress?.country, "address.country"),
       }),
     }),
     travelers: arrayValue(source.travelers)
@@ -1457,15 +1491,15 @@ function normalizeOptionSelection(value: unknown): Record<string, unknown> | nul
   return normalized.optionId && quantity ? normalized : null
 }
 
-function normalizeTraveler(value: unknown): Record<string, unknown> | null {
+function normalizeTraveler(value: unknown, index: number): Record<string, unknown> | null {
   const record = asRecord(value)
   if (!record) return null
   const normalized = pruneEmpty({
     rowId: stringValue(record.rowId),
-    firstName: stringValue(record.firstName),
-    lastName: stringValue(record.lastName),
+    firstName: boundedTravelerValue(record.firstName, "firstName", index),
+    lastName: boundedTravelerValue(record.lastName, "lastName", index),
     email: stringValue(record.email),
-    phone: stringValue(record.phone),
+    phone: boundedTravelerValue(record.phone, "phone", index),
     band: stringValue(record.band),
     travelerCategory: stringValue(record.travelerCategory),
     isPrimary: record.isPrimary === true ? true : undefined,
@@ -1539,6 +1573,50 @@ function arrayValue(value: unknown): unknown[] | undefined {
 
 function stringValue(value: unknown): string | undefined {
   return typeof value === "string" && value.trim() ? value.trim() : undefined
+}
+
+/**
+ * A billing value, refused rather than stored when it is wider than the
+ * commit will accept.
+ *
+ * This projection is why the widths on `bookingSelectionPublicV1` never bound
+ * anything: the Session does not parse the selection, it reads it field by
+ * field, so a `max()` on the schema was documentation. The commit's own
+ * `contact_*` write did parse, which put the only enforcement on the far side
+ * of the card capture — a 25-character postal code accepted at every step and
+ * refused once, when nothing could still be edited (voyant#4734).
+ *
+ * The bound is read from the same table the schema and
+ * `requirements.bookingFields` read, so the three cannot drift apart again,
+ * and the path is the one the caller wrote.
+ */
+function boundedBillingValue(
+  value: unknown,
+  key: BookingSelectionBillingFieldKey,
+): string | undefined {
+  return boundedValue(value, `billing.${key}`, BOOKING_SELECTION_BILLING_MAX_LENGTHS[key])
+}
+
+/** {@link boundedBillingValue} for a traveler row; the path carries its index. */
+function boundedTravelerValue(
+  value: unknown,
+  key: BookingSelectionTravelerFieldKey,
+  index: number,
+): string | undefined {
+  return boundedValue(
+    value,
+    `travelers.${index}.${key}`,
+    BOOKING_SELECTION_TRAVELER_MAX_LENGTHS[key],
+  )
+}
+
+function boundedValue(value: unknown, path: string, maxLength: number): string | undefined {
+  const trimmed = stringValue(value)
+  // Measured after trimming, because that is the value the commit will write.
+  if (trimmed !== undefined && trimmed.length > maxLength) {
+    throw new InvalidBookingSessionSelectionError("value_too_long", path, maxLength)
+  }
+  return trimmed
 }
 
 function positiveInteger(value: unknown): number | undefined {

@@ -554,6 +554,10 @@
                               "items": {
                                 "type": "string"
                               }
+                            },
+                            "maxLength": {
+                              "type": "integer",
+                              "exclusiveMinimum": 0
                             }
                           },
                           "required": ["key", "label", "type", "required"]
@@ -579,6 +583,10 @@
                             "group": {
                               "type": "string",
                               "enum": ["billing", "company", "preferences"]
+                            },
+                            "maxLength": {
+                              "type": "integer",
+                              "exclusiveMinimum": 0
                             }
                           },
                           "required": ["key", "label", "type", "required", "group"]
@@ -944,6 +952,10 @@
                       "bookingFields",
                       "paymentIntents"
                     ]
+                  },
+                  "requirementsFingerprint": {
+                    "type": "string",
+                    "minLength": 1
                   },
                   "expiresAt": {
                     "type": "string",
@@ -1512,6 +1524,10 @@
                               "items": {
                                 "type": "string"
                               }
+                            },
+                            "maxLength": {
+                              "type": "integer",
+                              "exclusiveMinimum": 0
                             }
                           },
                           "required": ["key", "label", "type", "required"]
@@ -1537,6 +1553,10 @@
                             "group": {
                               "type": "string",
                               "enum": ["billing", "company", "preferences"]
+                            },
+                            "maxLength": {
+                              "type": "integer",
+                              "exclusiveMinimum": 0
                             }
                           },
                           "required": ["key", "label", "type", "required", "group"]
@@ -1902,6 +1922,10 @@
                       "bookingFields",
                       "paymentIntents"
                     ]
+                  },
+                  "requirementsFingerprint": {
+                    "type": "string",
+                    "minLength": 1
                   },
                   "expiresAt": {
                     "type": "string",
@@ -2470,6 +2494,10 @@
                               "items": {
                                 "type": "string"
                               }
+                            },
+                            "maxLength": {
+                              "type": "integer",
+                              "exclusiveMinimum": 0
                             }
                           },
                           "required": ["key", "label", "type", "required"]
@@ -2495,6 +2523,10 @@
                             "group": {
                               "type": "string",
                               "enum": ["billing", "company", "preferences"]
+                            },
+                            "maxLength": {
+                              "type": "integer",
+                              "exclusiveMinimum": 0
                             }
                           },
                           "required": ["key", "label", "type", "required", "group"]
@@ -2860,6 +2892,10 @@
                       "bookingFields",
                       "paymentIntents"
                     ]
+                  },
+                  "requirementsFingerprint": {
+                    "type": "string",
+                    "minLength": 1
                   },
                   "expiresAt": {
                     "type": "string",
@@ -3437,6 +3473,10 @@
                               "items": {
                                 "type": "string"
                               }
+                            },
+                            "maxLength": {
+                              "type": "integer",
+                              "exclusiveMinimum": 0
                             }
                           },
                           "required": ["key", "label", "type", "required"]
@@ -3462,6 +3502,10 @@
                             "group": {
                               "type": "string",
                               "enum": ["billing", "company", "preferences"]
+                            },
+                            "maxLength": {
+                              "type": "integer",
+                              "exclusiveMinimum": 0
                             }
                           },
                           "required": ["key", "label", "type", "required", "group"]
@@ -3827,6 +3871,10 @@
                       "bookingFields",
                       "paymentIntents"
                     ]
+                  },
+                  "requirementsFingerprint": {
+                    "type": "string",
+                    "minLength": 1
                   },
                   "expiresAt": {
                     "type": "string",
@@ -4404,6 +4452,10 @@
                               "items": {
                                 "type": "string"
                               }
+                            },
+                            "maxLength": {
+                              "type": "integer",
+                              "exclusiveMinimum": 0
                             }
                           },
                           "required": ["key", "label", "type", "required"]
@@ -4429,6 +4481,10 @@
                             "group": {
                               "type": "string",
                               "enum": ["billing", "company", "preferences"]
+                            },
+                            "maxLength": {
+                              "type": "integer",
+                              "exclusiveMinimum": 0
                             }
                           },
                           "required": ["key", "label", "type", "required", "group"]
@@ -4794,6 +4850,10 @@
                       "bookingFields",
                       "paymentIntents"
                     ]
+                  },
+                  "requirementsFingerprint": {
+                    "type": "string",
+                    "minLength": 1
                   },
                   "expiresAt": {
                     "type": "string",
@@ -5362,6 +5422,10 @@
                               "items": {
                                 "type": "string"
                               }
+                            },
+                            "maxLength": {
+                              "type": "integer",
+                              "exclusiveMinimum": 0
                             }
                           },
                           "required": ["key", "label", "type", "required"]
@@ -5387,6 +5451,10 @@
                             "group": {
                               "type": "string",
                               "enum": ["billing", "company", "preferences"]
+                            },
+                            "maxLength": {
+                              "type": "integer",
+                              "exclusiveMinimum": 0
                             }
                           },
                           "required": ["key", "label", "type", "required", "group"]
@@ -5752,6 +5820,10 @@
                       "bookingFields",
                       "paymentIntents"
                     ]
+                  },
+                  "requirementsFingerprint": {
+                    "type": "string",
+                    "minLength": 1
                   },
                   "expiresAt": {
                     "type": "string",
@@ -6320,6 +6392,10 @@
                               "items": {
                                 "type": "string"
                               }
+                            },
+                            "maxLength": {
+                              "type": "integer",
+                              "exclusiveMinimum": 0
                             }
                           },
                           "required": ["key", "label", "type", "required"]
@@ -6345,6 +6421,10 @@
                             "group": {
                               "type": "string",
                               "enum": ["billing", "company", "preferences"]
+                            },
+                            "maxLength": {
+                              "type": "integer",
+                              "exclusiveMinimum": 0
                             }
                           },
                           "required": ["key", "label", "type", "required", "group"]
@@ -6710,6 +6790,10 @@
                       "bookingFields",
                       "paymentIntents"
                     ]
+                  },
+                  "requirementsFingerprint": {
+                    "type": "string",
+                    "minLength": 1
                   },
                   "expiresAt": {
                     "type": "string",
@@ -7133,6 +7217,10 @@
                               "items": {
                                 "type": "string"
                               }
+                            },
+                            "maxLength": {
+                              "type": "integer",
+                              "exclusiveMinimum": 0
                             }
                           },
                           "required": ["key", "label", "type", "required"]
@@ -7158,6 +7246,10 @@
                             "group": {
                               "type": "string",
                               "enum": ["billing", "company", "preferences"]
+                            },
+                            "maxLength": {
+                              "type": "integer",
+                              "exclusiveMinimum": 0
                             }
                           },
                           "required": ["key", "label", "type", "required", "group"]
@@ -8327,6 +8419,10 @@
                               "items": {
                                 "type": "string"
                               }
+                            },
+                            "maxLength": {
+                              "type": "integer",
+                              "exclusiveMinimum": 0
                             }
                           },
                           "required": ["key", "label", "type", "required"]
@@ -8352,6 +8448,10 @@
                             "group": {
                               "type": "string",
                               "enum": ["billing", "company", "preferences"]
+                            },
+                            "maxLength": {
+                              "type": "integer",
+                              "exclusiveMinimum": 0
                             }
                           },
                           "required": ["key", "label", "type", "required", "group"]
@@ -8717,6 +8817,10 @@
                       "bookingFields",
                       "paymentIntents"
                     ]
+                  },
+                  "requirementsFingerprint": {
+                    "type": "string",
+                    "minLength": 1
                   },
                   "expiresAt": {
                     "type": "string",
@@ -10700,6 +10804,10 @@
                                   "items": {
                                     "type": "string"
                                   }
+                                },
+                                "maxLength": {
+                                  "type": "integer",
+                                  "exclusiveMinimum": 0
                                 }
                               },
                               "required": ["key", "label", "type", "required"]
@@ -10725,6 +10833,10 @@
                                 "group": {
                                   "type": "string",
                                   "enum": ["billing", "company", "preferences"]
+                                },
+                                "maxLength": {
+                                  "type": "integer",
+                                  "exclusiveMinimum": 0
                                 }
                               },
                               "required": ["key", "label", "type", "required", "group"]
@@ -11249,11 +11361,15 @@
                       },
                       "reason": {
                         "type": "string",
-                        "enum": ["unsupported_target", "forbidden_field"]
+                        "enum": ["unsupported_target", "forbidden_field", "value_too_long"]
                       },
                       "path": {
                         "type": "string",
                         "minLength": 1
+                      },
+                      "maxLength": {
+                        "type": "integer",
+                        "exclusiveMinimum": 0
                       }
                     },
                     "required": ["kind", "reason"]
@@ -11758,6 +11874,10 @@
                               "items": {
                                 "type": "string"
                               }
+                            },
+                            "maxLength": {
+                              "type": "integer",
+                              "exclusiveMinimum": 0
                             }
                           },
                           "required": ["key", "label", "type", "required"]
@@ -11783,6 +11903,10 @@
                             "group": {
                               "type": "string",
                               "enum": ["billing", "company", "preferences"]
+                            },
+                            "maxLength": {
+                              "type": "integer",
+                              "exclusiveMinimum": 0
                             }
                           },
                           "required": ["key", "label", "type", "required", "group"]
@@ -12930,6 +13054,10 @@
                                   "items": {
                                     "type": "string"
                                   }
+                                },
+                                "maxLength": {
+                                  "type": "integer",
+                                  "exclusiveMinimum": 0
                                 }
                               },
                               "required": ["key", "label", "type", "required"]
@@ -12955,6 +13083,10 @@
                                 "group": {
                                   "type": "string",
                                   "enum": ["billing", "company", "preferences"]
+                                },
+                                "maxLength": {
+                                  "type": "integer",
+                                  "exclusiveMinimum": 0
                                 }
                               },
                               "required": ["key", "label", "type", "required", "group"]
@@ -13479,11 +13611,15 @@
                       },
                       "reason": {
                         "type": "string",
-                        "enum": ["unsupported_target", "forbidden_field"]
+                        "enum": ["unsupported_target", "forbidden_field", "value_too_long"]
                       },
                       "path": {
                         "type": "string",
                         "minLength": 1
+                      },
+                      "maxLength": {
+                        "type": "integer",
+                        "exclusiveMinimum": 0
                       }
                     },
                     "required": ["kind", "reason"]
@@ -14887,10 +15023,12 @@
                             "properties": {
                               "firstName": {
                                 "type": "string",
+                                "maxLength": 255,
                                 "default": ""
                               },
                               "lastName": {
                                 "type": "string",
+                                "maxLength": 255,
                                 "default": ""
                               },
                               "email": {
@@ -14907,7 +15045,8 @@
                                 "default": ""
                               },
                               "phone": {
-                                "type": "string"
+                                "type": "string",
+                                "maxLength": 50
                               },
                               "personId": {
                                 "type": "string"

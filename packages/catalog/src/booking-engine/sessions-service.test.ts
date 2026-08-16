@@ -689,6 +689,158 @@ describe("Booking Session v1 owned tracer", () => {
     expect(harness.inventory.bookingIds).toEqual([])
   })
 
+  it("settles a paid Session whose own shopping clock has already lapsed", async () => {
+    // voyant#4733. The third half of the same story: the refusal path stopped
+    // tearing the Quote and Hold down, but the Session's own TTL still ran, and
+    // the commit preflight expired a lapsed Session before looking at who was
+    // asking. That expiry releases the Hold, expires the Quote and moves the
+    // Session out of `active` — every input the settlement needs — so the
+    // retry that arrived next answered `session_expired`, and so did every one
+    // after it.
+    //
+    // The window was minutes: the payment session's expiry is the earliest of
+    // the Session, Quote and Hold, so a settlement that failed once for any
+    // reason usually had less than the Session's remaining TTL to recover.
+    const payment = createPaymentHarness()
+    // The Session is the earliest of the three clocks, which is the reported
+    // shape: the payment session's own expiry is `earliest(session, quote,
+    // hold)`, and in the live case it was under four minutes from capture.
+    const harness = createHarness(
+      { sessionTtlMs: 60_000, quoteTtlMs: 600_000, holdTtlMs: 600_000 },
+      payment.ports,
+    )
+    const { session, quote, hold } = await createQuoteAndHold(harness)
+    payment.established = { quoteId: quote.id, holdId: hold.id }
+    payment.inFlight = true
+    harness.advance(120_000)
+
+    const settled = await harness.module.commitPaidSession({
+      bookingSessionId: session.id,
+      paymentSessionId: "payment_session_1",
+    })
+
+    expect(harness.inventory.bookingIds).toEqual([settled.bookingId])
+    expect(harness.repository.quotes.get(quote.id)?.state).toBe("consumed")
+  })
+
+  it("settles a lapsed Session on a payments port that cannot say what is in flight", async () => {
+    // `hasInFlight` is optional on the port, so a runtime that omits it answers
+    // `undefined` — and a guard that asks it reads that as "no money here" and
+    // expires the Session the settlement came to settle. The authority the
+    // caller holds is the fact that does not depend on anyone implementing
+    // anything, so the preflight keys on that too.
+    const payment = createPaymentHarness()
+    const harness = createHarness(
+      { sessionTtlMs: 60_000, quoteTtlMs: 600_000, holdTtlMs: 600_000 },
+      { ...payment.ports, hasInFlight: undefined },
+    )
+    const { session, quote, hold } = await createQuoteAndHold(harness)
+    payment.established = { quoteId: quote.id, holdId: hold.id }
+    harness.advance(120_000)
+
+    const settled = await harness.module.commitPaidSession({
+      bookingSessionId: session.id,
+      paymentSessionId: "payment_session_1",
+    })
+
+    expect(harness.inventory.bookingIds).toEqual([settled.bookingId])
+    expect(harness.repository.quotes.get(quote.id)?.state).toBe("consumed")
+  })
+
+  it("does not sweep away a lapsed Session whose money is with a processor", async () => {
+    // The same door, opened by the expiry sweep rather than the commit. Both
+    // reach `expireSession`, which is where the guard lives.
+    const payment = createPaymentHarness()
+    const harness = createHarness({ sessionTtlMs: 60_000 }, payment.ports)
+    const { session, quote, hold } = await createQuoteAndHold(harness)
+    payment.inFlight = true
+    harness.advance(120_000)
+
+    const swept = await harness.module.expireDueSessions(
+      { limit: 10 },
+      { actorKind: "staff", staffAuthority: { admitted: true, reason: "sweep" } },
+    )
+
+    // Counted as skipped, not as expired: a sweep that reported work it did not
+    // do would go on reporting it every pass.
+    expect(swept).toEqual({ expired: 0 })
+    expect(harness.repository.sessions.get(session.id)?.state).toBe("active")
+    expect(harness.repository.quotes.get(quote.id)?.state).toBe("active")
+    expect(harness.repository.holds.get(hold.id)?.state).toBe("active")
+  })
+
+  it("sweeps a lapsed Session once its handoff has lapsed with it", async () => {
+    // The other direction, which the guard must not break: a shopper who opened
+    // a checkout page and walked away leaves no settled money, so the Session
+    // is still ordinary rubbish and the sweep must still collect it.
+    const payment = createPaymentHarness()
+    const harness = createHarness({ sessionTtlMs: 60_000 }, payment.ports)
+    const { session } = await createQuoteAndHold(harness)
+    harness.advance(120_000)
+
+    const swept = await harness.module.expireDueSessions(
+      { limit: 10 },
+      { actorKind: "staff", staffAuthority: { admitted: true, reason: "sweep" } },
+    )
+
+    expect(swept).toEqual({ expired: 1 })
+    expect(harness.repository.sessions.get(session.id)?.state).toBe("expired")
+  })
+
+  it("refuses to abandon a Session whose money is with a processor", async () => {
+    // Abandon tears down exactly what a settlement needs, and it was the one
+    // lifecycle door with no in-flight guard on it — which is unfortunate,
+    // because it is what a "start over" button calls.
+    const payment = createPaymentHarness()
+    const harness = createHarness({}, payment.ports)
+    const { session, quote, hold } = await createQuoteAndHold(harness)
+    payment.inFlight = true
+
+    const outcome = await harness.module.abandonSession(
+      session.id,
+      { expectedRevision: session.revision, idempotencyKey: "abandon_while_paying" },
+      ANONYMOUS_ACCESS,
+    )
+
+    expect(outcome).toEqual({
+      kind: "rejected",
+      error: { kind: "payment_in_flight", nextAction: "await_payment_outcome" },
+    })
+    expect(harness.repository.sessions.get(session.id)?.state).toBe("active")
+    expect(harness.repository.quotes.get(quote.id)?.state).toBe("active")
+    expect(harness.repository.holds.get(hold.id)?.state).toBe("active")
+  })
+
+  it("publishes a requirementsFingerprint a Commit accepts, without a fresh Quote", async () => {
+    // voyant#4733's first trap: Commit requires a fingerprint and only a Quote
+    // used to produce one, so a host that lost its Quote response had no call
+    // left that could finish a booking it had already been paid for — quoting
+    // is refused while the payment is settled, and correctly so.
+    const payment = createPaymentHarness()
+    const harness = createHarness({}, payment.ports)
+    const { session, quote, hold } = await createQuoteAndHold(harness)
+
+    const resumed = await harness.module.resumeSession(session.id, ANONYMOUS_ACCESS)
+    if (resumed.kind !== "session_resumed") throw new Error("session not resumed")
+    expect(resumed.session.requirementsFingerprint).toBe(quote.requirementsFingerprint)
+
+    payment.established = true
+    const committed = await harness.module.commitSession(
+      session.id,
+      {
+        expectedRevision: resumed.session.revision,
+        quoteId: quote.id,
+        // The value read off the Session, not off the Quote response.
+        requirementsFingerprint: resumed.session.requirementsFingerprint!,
+        holdId: hold.id,
+        idempotencyKey: "commit_from_session_fingerprint",
+      },
+      ANONYMOUS_ACCESS,
+    )
+
+    expect(committed).toMatchObject({ kind: "commit_result", outcome: { kind: "committed" } })
+  })
+
   it("commits a paid Session without the shopper capability and converges retries", async () => {
     const payment = createPaymentHarness()
     payment.established = true

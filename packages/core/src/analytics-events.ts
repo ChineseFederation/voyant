@@ -151,6 +151,11 @@ export const ANALYTICS_FAILURE_REASONS = [
   // `invalid_selection`:
   "unsupported_target",
   "forbidden_field",
+  // Worth watching rather than fixing, like `payment_in_flight` above: it is
+  // the shopper being told at the billing step that a value is too long, which
+  // is the correct place to tell them. A storefront producing many of them is
+  // ignoring the `maxLength` its own requirements publish (voyant#4734).
+  "value_too_long",
   // `renewal_not_allowed`:
   "session_not_active",
   "extension_too_large",

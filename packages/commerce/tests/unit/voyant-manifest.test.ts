@@ -141,6 +141,10 @@ describe("commerce deployment manifest", () => {
           eventType: "checkout.finalized",
         },
         {
+          id: "@voyant-travel/commerce#event.booking-session.settlement-failed",
+          eventType: "booking_session.settlement.failed",
+        },
+        {
           id: "@voyant-travel/commerce#event.promotion.changed",
           eventType: "promotion.changed",
         },

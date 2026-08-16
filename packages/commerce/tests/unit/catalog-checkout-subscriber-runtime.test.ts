@@ -329,6 +329,54 @@ describe("catalog-checkout subscriber runtimes", () => {
     expect(calls).toEqual(["settle", "finalize"])
   })
 
+  it("announces a payment that settled with no booking", async () => {
+    // voyant#4733. Money captured, nothing booked, and the only way anybody
+    // learned of it was querying `payment_sessions` for
+    // `status = 'paid' AND booking_id IS NULL`. Three live sessions on one
+    // tenant were found that way; one was a real customer with a paid trip and
+    // no booking.
+    const db = {} as PostgresJsDatabase
+    const settleBookingSession = vi.fn(async () => {
+      throw new Error("booking_session_settlement_commit_rejected:invalid_request")
+    })
+    const withDb = vi.fn(async (_bindings, operation) => operation(db))
+    const { eventBus, subscriptions } = recordingEventBus()
+    const emitted: Array<{ type: string; payload: unknown }> = []
+    vi.spyOn(eventBus, "emit").mockImplementation(async (type, payload) => {
+      emitted.push({ type, payload: payload as unknown })
+    })
+    const descriptor = createCheckoutFinalizeSubscriberRuntime({
+      withDb,
+      settleBookingSession,
+      logger: { error: vi.fn() },
+    })
+    await descriptor.register({ bindings: {}, container: createContainer(), eventBus })
+
+    // Still rethrown: the handler genuinely failed and the outbox must retry
+    // it. The signal is in addition to the failure, not instead of it.
+    await expect(
+      subscriptions[0]?.handler(
+        event("payment.completed", {
+          bookingId: null,
+          paymentSessionId: "payment_session_1",
+          targetType: "booking_session",
+          targetId: "booking_session_1",
+        }),
+      ),
+    ).rejects.toThrow(/booking_session_settlement_commit_rejected/)
+
+    expect(emitted).toEqual([
+      {
+        type: "booking_session.settlement.failed",
+        payload: {
+          bookingSessionId: "booking_session_1",
+          paymentSessionId: "payment_session_1",
+          reason: "booking_session_settlement_commit_rejected:invalid_request",
+        },
+      },
+    ])
+  })
+
   it("resolves the monthly booking limit per event, not once at registration", async () => {
     let live: number | null | undefined = 10
     const finalize = vi.fn(async () => undefined)

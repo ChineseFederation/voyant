@@ -240,6 +240,17 @@ export function bookingSessionRecoveryV1(
       return "quoteUnavailable"
     case "selection_incomplete":
       return "selectionIncomplete"
+    /**
+     * One arm of `invalid_selection` is the shopper's to fix and the others
+     * are not. `value_too_long` names a field they typed and a width they can
+     * meet, which is the same remedy `selection_incomplete` carries — and
+     * classifying it as `unknown` would put "the Booking Session rejected this
+     * request" in front of somebody whose postal code is five characters too
+     * long (voyant#4734). The other arms are a caller sending a key it may not
+     * send, which no shopper can act on.
+     */
+    case "invalid_selection":
+      return outcome.error.reason === "value_too_long" ? "selectionIncomplete" : "unknown"
     case "requirements_changed":
       return "requirementsChanged"
     case "commit_rejected":
@@ -274,7 +285,6 @@ export function bookingSessionRecoveryV1(
     case "session_consumed":
     case "renewal_not_allowed":
     case "idempotency_conflict":
-    case "invalid_selection":
     case "checkout_intent_not_offered":
     case "hold_quantity_mismatch":
       return "unknown"

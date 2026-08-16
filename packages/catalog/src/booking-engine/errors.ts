@@ -39,8 +39,14 @@ export type BookingEngineErrorCode =
 
 /**
  * A selection payload the Booking Session plane refuses to derive from —
- * either the target does not take a selection at all, or the payload carried a
- * key only the engine or an operator may write.
+ * the target does not take a selection at all, the payload carried a key only
+ * the engine or an operator may write, or a value is longer than the width the
+ * requirements publish for it.
+ *
+ * `value_too_long` carries `maxLength` because the caller has to be able to
+ * act on it without a lookup table: the refusal is the whole point of moving
+ * this check to the write path, and a refusal that only says "too long"
+ * reproduces in miniature the problem it exists to fix (voyant#4734).
  *
  * Lives here rather than beside the Session service because both the Session
  * lifecycle and the stateless Offer Preview raise and recognise it, and a
@@ -48,8 +54,9 @@ export type BookingEngineErrorCode =
  */
 export class InvalidBookingSessionSelectionError extends Error {
   constructor(
-    readonly reason: "unsupported_target" | "forbidden_field",
+    readonly reason: "unsupported_target" | "forbidden_field" | "value_too_long",
     readonly path?: string,
+    readonly maxLength?: number,
   ) {
     super(`booking_session_selection_${reason}${path ? `:${path}` : ""}`)
   }

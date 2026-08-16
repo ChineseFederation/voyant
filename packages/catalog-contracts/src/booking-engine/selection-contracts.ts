@@ -40,15 +40,74 @@ export const travelerBandCodeSchema = z.string().min(1).max(128)
 
 const optionalEmailStringV1 = z.union([z.literal(""), z.email()])
 
+/**
+ * How long each free-text billing value may be, keyed by its path inside the
+ * selection's `billing` block.
+ *
+ * **One table, because three paths need the same number and only one of them
+ * used to have it.** The `max()` calls below are a parse the Session never
+ * runs — `normalizeBookingSelection` projects the billing block value by value
+ * rather than parsing it, so every bound declared here was decorative and the
+ * write path accepted anything. The commit's own `contact_*` write did not,
+ * and a 25-character postal code was therefore accepted a dozen times at the
+ * step where it could still be edited and refused once, after the card was
+ * captured, under a field name (`contactPostalCode`) the client never sent
+ * (voyant#4734).
+ *
+ * So the same table now drives all three:
+ *
+ * 1. the schema below, so a caller that does parse sees the bound;
+ * 2. the Session's selection normalizer, which refuses at `PATCH` naming the
+ *    path the caller wrote;
+ * 3. `requirements.bookingFields[].maxLength`, so a client can refuse before
+ *    the shopper leaves the step.
+ *
+ * Every width is the one the Booking's own create accepts
+ * (`convertProductSchema` in `@voyant-travel/bookings-contracts`). A value
+ * this table admits cannot be rejected by the commit, which is the property
+ * the widths were introduced to have.
+ */
+export const BOOKING_SELECTION_BILLING_MAX_LENGTHS = {
+  "contact.firstName": 255,
+  "contact.lastName": 255,
+  "contact.phone": 50,
+  "address.line1": 500,
+  "address.line2": 500,
+  "address.city": 100,
+  "address.region": 100,
+  "address.postal": 20,
+  "address.country": 2,
+} as const satisfies Record<string, number>
+
+export type BookingSelectionBillingFieldKey = keyof typeof BOOKING_SELECTION_BILLING_MAX_LENGTHS
+
+/**
+ * The same table for a traveler row, keyed by the field key
+ * `requirements.travelerFields` publishes.
+ *
+ * Widths come from `insertTravelerSchema` in
+ * `@voyant-travel/bookings-contracts`, which is what the commit writes each
+ * row through. `email` is absent because it is bounded by shape rather than
+ * length, and `band` is a code the requirements enumerate rather than free
+ * text.
+ */
+export const BOOKING_SELECTION_TRAVELER_MAX_LENGTHS = {
+  firstName: 255,
+  lastName: 255,
+  phone: 50,
+} as const satisfies Record<string, number>
+
+export type BookingSelectionTravelerFieldKey = keyof typeof BOOKING_SELECTION_TRAVELER_MAX_LENGTHS
+
 export const travelerEntryV1 = z.object({
   /** Stable client-side row id — the wizard uses it to keep
    *  travelers stable across re-renders and to attach passengers
    *  to room units. Defaults to a fresh uuid when omitted. */
   rowId: z.string().min(1).optional(),
-  firstName: z.string().min(1).max(255),
-  lastName: z.string().min(1).max(255),
+  firstName: z.string().min(1).max(BOOKING_SELECTION_TRAVELER_MAX_LENGTHS.firstName),
+  lastName: z.string().min(1).max(BOOKING_SELECTION_TRAVELER_MAX_LENGTHS.lastName),
   email: optionalEmailStringV1.optional(),
-  phone: z.string().max(50).optional(),
+  phone: z.string().max(BOOKING_SELECTION_TRAVELER_MAX_LENGTHS.phone).optional(),
   /** Linked CRM person, when the traveler was picked from (or copied as)
    *  an existing contact. Lets the picker reflect the selection and the
    *  commit path attach the traveler to a known person. */
@@ -190,26 +249,33 @@ export const bookingSelectionPublicV1 = z.object({
       /** CRM organization id when a company (B2B) lead was picked. */
       organizationId: z.string().optional(),
       contact: z.object({
-        firstName: z.string().default(""),
-        lastName: z.string().default(""),
+        firstName: z
+          .string()
+          .max(BOOKING_SELECTION_BILLING_MAX_LENGTHS["contact.firstName"])
+          .default(""),
+        lastName: z
+          .string()
+          .max(BOOKING_SELECTION_BILLING_MAX_LENGTHS["contact.lastName"])
+          .default(""),
         email: optionalEmailStringV1.default(""),
-        phone: z.string().optional(),
+        phone: z.string().max(BOOKING_SELECTION_BILLING_MAX_LENGTHS["contact.phone"]).optional(),
         /** CRM person id when the lead was picked from CRM (vs typed). */
         personId: z.string().optional(),
       }),
       /**
        * Billing address.
        *
-       * Field widths match the `contact_*` columns these land in via
-       * booking-create, so an address this schema admits cannot be rejected
-       * later by the commit — the failure belongs at the Session edge, where
-       * the caller can still see which field was too long.
+       * Field widths come from {@link BOOKING_SELECTION_BILLING_MAX_LENGTHS}
+       * and match the `contact_*` columns these land in via booking-create, so
+       * an address this schema admits cannot be rejected later by the commit —
+       * the failure belongs at the Session edge, where the caller can still
+       * see which field was too long.
        */
       address: z
         .object({
-          line1: z.string().max(500).optional(),
-          line2: z.string().max(500).optional(),
-          city: z.string().max(100).optional(),
+          line1: z.string().max(BOOKING_SELECTION_BILLING_MAX_LENGTHS["address.line1"]).optional(),
+          line2: z.string().max(BOOKING_SELECTION_BILLING_MAX_LENGTHS["address.line2"]).optional(),
+          city: z.string().max(BOOKING_SELECTION_BILLING_MAX_LENGTHS["address.city"]).optional(),
           /**
            * Administrative subdivision below the country — state, province,
            * county, `judet`. Free-form because the Booking column it lands in
@@ -223,10 +289,19 @@ export const bookingSelectionPublicV1 = z.object({
            * in `city` and `RO-B` in `region`, not by overloading an address
            * line (voyant#4290).
            */
-          region: z.string().max(100).optional(),
-          postal: z.string().max(20).optional(),
+          region: z
+            .string()
+            .max(BOOKING_SELECTION_BILLING_MAX_LENGTHS["address.region"])
+            .optional(),
+          postal: z
+            .string()
+            .max(BOOKING_SELECTION_BILLING_MAX_LENGTHS["address.postal"])
+            .optional(),
           /** ISO 3166-1 alpha-2 country code. */
-          country: z.string().max(2).optional(),
+          country: z
+            .string()
+            .max(BOOKING_SELECTION_BILLING_MAX_LENGTHS["address.country"])
+            .optional(),
         })
         .default({}),
       company: z

@@ -11,6 +11,10 @@ import type {
   PaxBandSpecV1,
   TravelerFieldRequirementV1,
 } from "./requirements-contracts.js"
+import {
+  BOOKING_SELECTION_BILLING_MAX_LENGTHS,
+  BOOKING_SELECTION_TRAVELER_MAX_LENGTHS,
+} from "./selection-contracts.js"
 
 /**
  * Default pax bands used when a vertical doesn't supply its own.
@@ -146,8 +150,20 @@ export function defaultRequirementsFlags(): Pick<
  */
 export function defaultTravelerFields(): TravelerFieldRequirementV1[] {
   return [
-    { key: "firstName", label: "First name", type: "text", required: true },
-    { key: "lastName", label: "Last name", type: "text", required: true },
+    {
+      key: "firstName",
+      label: "First name",
+      type: "text",
+      required: true,
+      maxLength: BOOKING_SELECTION_TRAVELER_MAX_LENGTHS.firstName,
+    },
+    {
+      key: "lastName",
+      label: "Last name",
+      type: "text",
+      required: true,
+      maxLength: BOOKING_SELECTION_TRAVELER_MAX_LENGTHS.lastName,
+    },
     { key: "email", label: "Email", type: "email", required: false },
     {
       key: "phone",
@@ -155,6 +171,7 @@ export function defaultTravelerFields(): TravelerFieldRequirementV1[] {
       type: "phone",
       required: false,
       appliesToBands: ["adult", "senior", "student", "other"],
+      maxLength: BOOKING_SELECTION_TRAVELER_MAX_LENGTHS.phone,
     },
     {
       key: "dateOfBirth",
@@ -180,6 +197,12 @@ export function defaultTravelerFields(): TravelerFieldRequirementV1[] {
 /**
  * Standard booking-fields set: contact + address. Verticals append
  * VAT / company fields for B2B flows.
+ *
+ * Every address line the selection carries is listed, with the width the
+ * commit will hold it to. Publishing three of the six was what left
+ * `address.postal` unadvertised and unbounded on the wire while the commit
+ * capped it at 20 (voyant#4734): a client that wanted to pre-validate had
+ * nothing to pre-validate against, and the refusal arrived after capture.
  */
 export function defaultBookingFields(): BookingFieldRequirementV1[] {
   return [
@@ -190,14 +213,47 @@ export function defaultBookingFields(): BookingFieldRequirementV1[] {
       type: "text",
       required: false,
       group: "billing",
+      maxLength: BOOKING_SELECTION_BILLING_MAX_LENGTHS["address.line1"],
     },
-    { key: "address.city", label: "City", type: "text", required: false, group: "billing" },
+    {
+      key: "address.line2",
+      label: "Address line 2",
+      type: "text",
+      required: false,
+      group: "billing",
+      maxLength: BOOKING_SELECTION_BILLING_MAX_LENGTHS["address.line2"],
+    },
+    {
+      key: "address.city",
+      label: "City",
+      type: "text",
+      required: false,
+      group: "billing",
+      maxLength: BOOKING_SELECTION_BILLING_MAX_LENGTHS["address.city"],
+    },
+    {
+      key: "address.region",
+      label: "Region",
+      type: "text",
+      required: false,
+      group: "billing",
+      maxLength: BOOKING_SELECTION_BILLING_MAX_LENGTHS["address.region"],
+    },
+    {
+      key: "address.postal",
+      label: "Postal code",
+      type: "text",
+      required: false,
+      group: "billing",
+      maxLength: BOOKING_SELECTION_BILLING_MAX_LENGTHS["address.postal"],
+    },
     {
       key: "address.country",
       label: "Country",
       type: "country",
       required: false,
       group: "billing",
+      maxLength: BOOKING_SELECTION_BILLING_MAX_LENGTHS["address.country"],
     },
   ]
 }

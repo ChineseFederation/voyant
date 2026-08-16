@@ -61,3 +61,27 @@ export const checkoutFinalizedPayloadSchema = {
   },
   additionalProperties: false,
 } as const
+
+/**
+ * The shopper's money is captured and no Booking came out of it.
+ *
+ * Emitted when settling a paid Booking Session raises, which is the only
+ * moment anything in the system knows the two facts together. Until this
+ * existed the state was discoverable solely by querying `payment_sessions`
+ * for `status = 'paid' AND booking_id IS NULL` — three live sessions on one
+ * tenant were found that way, one of them a real customer with a paid trip
+ * and no booking (voyant#4733).
+ *
+ * `reason` is the settlement error's message, which is a stable machine
+ * string (`booking_session_settlement_commit_rejected:<outcome>`), not prose.
+ */
+export const bookingSessionSettlementFailedPayloadSchema = {
+  type: "object",
+  required: ["bookingSessionId", "paymentSessionId", "reason"],
+  properties: {
+    bookingSessionId: { type: "string" },
+    paymentSessionId: { type: "string" },
+    reason: { type: "string" },
+  },
+  additionalProperties: false,
+} as const

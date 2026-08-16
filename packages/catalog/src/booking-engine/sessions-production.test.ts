@@ -45,6 +45,7 @@ import { defaultRequirementsFlags } from "@voyant-travel/catalog-contracts/booki
 import type { SQL } from "drizzle-orm"
 import { PgDialect } from "drizzle-orm/pg-core"
 import type { SourceAdapter } from "../adapter/contract.js"
+import { InvalidBookingSessionSelectionError } from "./errors.js"
 import type { OwnedBookingHandler } from "./owned-handler.js"
 import { createOwnedBookingHandlerRegistry } from "./owned-handler.js"
 import { createSourceAdapterRegistry } from "./registry.js"
@@ -246,6 +247,60 @@ describe("normalizeProductSelection", () => {
     expect(normalized.billing).toEqual({
       address: { region: "Ile-de-France", country: "FR" },
     })
+  })
+
+  it("refuses a billing value the commit would refuse, at the step that can still edit it", () => {
+    // voyant#4734. `bookingSelectionPublicV1` has carried `postal: max(20)`
+    // since #4298 with a comment promising that "an address this schema admits
+    // cannot be rejected later by the commit" — but this function projects the
+    // billing block value by value instead of parsing it, so the bound never
+    // ran. A 25-character postal code was accepted here a dozen times and
+    // refused once, by the Booking's own write, after the card was captured.
+    let thrown: unknown
+    try {
+      normalizeProductSelection(PRODUCT_TARGET, {
+        billing: { address: { postal: "0".repeat(25), country: "RO" } },
+      })
+    } catch (error) {
+      thrown = error
+    }
+
+    expect(thrown).toBeInstanceOf(InvalidBookingSessionSelectionError)
+    expect(thrown).toMatchObject({
+      reason: "value_too_long",
+      // The name the caller wrote, not `contactPostalCode` — the commit
+      // reported the field under a name no client had ever sent.
+      path: "billing.address.postal",
+      maxLength: 20,
+    })
+  })
+
+  it("still accepts a billing value of exactly the published width", () => {
+    const normalized = normalizeProductSelection(PRODUCT_TARGET, {
+      billing: { address: { postal: `  ${"0".repeat(20)}  `, country: "RO" } },
+    })
+
+    // Measured after trimming, because that is the value the commit writes.
+    expect(normalized.billing).toEqual({
+      address: { postal: "0".repeat(20), country: "RO" },
+    })
+  })
+
+  it.each([
+    ["a contact name", { billing: { contact: { firstName: "A".repeat(256) } } }, 255],
+    ["a country that is not an ISO alpha-2 code", { billing: { address: { country: "USA" } } }, 2],
+    ["a traveler name", { travelers: [{ firstName: "A".repeat(256), lastName: "Lovelace" }] }, 255],
+  ])("refuses %s the same way", (_label, selection, maxLength) => {
+    // The same projection dropped the bounds off every free-text field, not
+    // only the postal code the incident happened to hit.
+    expect(() => normalizeProductSelection(PRODUCT_TARGET, selection)).toThrow(
+      /booking_session_selection_value_too_long/,
+    )
+    try {
+      normalizeProductSelection(PRODUCT_TARGET, selection)
+    } catch (error) {
+      expect(error).toMatchObject({ maxLength })
+    }
   })
 
   it.each([
