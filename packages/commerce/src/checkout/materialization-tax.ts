@@ -9,6 +9,7 @@ import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import type { MaterializationSnapshot } from "./materialization.js"
 import { inferSnapshotTaxFacts } from "./materialization-support.js"
 import type { CheckoutModuleOptions } from "./options.js"
+import { type BookingItemPricingTreatmentFacts, isPassThroughLine } from "./pricing-treatment.js"
 
 export async function rebuildBookingItemTaxLines(
   db: PostgresJsDatabase,
@@ -37,8 +38,14 @@ export async function rebuildBookingItemTaxLines(
     let rebuilt = 0
     let itemsWithoutSnapshot = 0
     for (const item of items) {
-      const snapshot = await loadSnapshotForItem(tx, bookingCatalogSnapshotTable, item)
-      if (!snapshot) {
+      // A pass-through line has no catalog snapshot and needs none — its tax
+      // treatment travels on the row itself. Looking one up would only find
+      // the operator's own product, which is not what this line is.
+      const passThrough = isPassThroughLine(item)
+      const snapshot = passThrough
+        ? null
+        : await loadSnapshotForItem(tx, bookingCatalogSnapshotTable, item)
+      if (!passThrough && !snapshot) {
         itemsWithoutSnapshot += 1
         continue
       }
@@ -50,6 +57,7 @@ export async function rebuildBookingItemTaxLines(
         item.totalSellAmountCents ?? 0,
         snapshot,
         options,
+        item,
       )
       rebuilt += 1
     }
@@ -111,21 +119,89 @@ export async function materializeBookingItemTaxLine(
   const { bookingItems: bookingItemsTable } = await import("@voyant-travel/bookings/schema")
   return db.transaction(async (tx) => {
     const [item] = await tx
-      .select({ id: bookingItemsTable.id })
+      .select({
+        id: bookingItemsTable.id,
+        pricingTreatment: bookingItemsTable.pricingTreatment,
+        taxTreatmentCode: bookingItemsTable.taxTreatmentCode,
+      })
       .from(bookingItemsTable)
       .where(eq(bookingItemsTable.id, bookingItemId))
       .limit(1)
       .for("update")
     if (!item) return
+    // The treatment is read from the row, never taken from the caller: the row
+    // is what the invoice and the third party's own document both derive from.
     return materializeBookingItemTaxLineLocked(
       tx,
       booking,
       bookingItemId,
       amountCents,
-      snapshot,
+      isPassThroughLine(item) ? null : snapshot,
       options,
+      item,
     )
   })
+}
+
+/**
+ * Treatments that resolve to no tax at all but still have to be *stated*.
+ *
+ * Writing nothing would leave the invoice with a line that has no tax row,
+ * which reads as "tax not computed yet" rather than "this is exempt". The
+ * explicit zero-rated row is the difference between a treatment and an
+ * omission.
+ */
+const ZERO_RATED_TAX_TREATMENTS = new Set(["exempt", "zero_rated"])
+
+const ZERO_RATED_TAX_TREATMENT_NAMES: Record<string, string> = {
+  exempt: "Exempt",
+  zero_rated: "Zero-rated",
+}
+
+/**
+ * The tax row for a line the operator is only collecting.
+ *
+ * `tax_treatment_code` is namespaced by the module that set it — e.g.
+ * `"insurance/exempt"` — and is written onto the row verbatim, so the invoice
+ * names the treatment and its origin without commerce having to know what
+ * either is. The final segment is the treatment itself.
+ *
+ * Deliberately never reaches `buildSnapshotFallbackTaxLine`: a pass-through
+ * line's tax is whatever the third party applied, and the catalog snapshot
+ * describes the operator's own product. Falling back would put the operator's
+ * tax on someone else's money.
+ */
+function buildPassThroughTaxLine(
+  treatment: BookingItemPricingTreatmentFacts,
+  currency: string,
+): {
+  code: string
+  name: string
+  scope: "included"
+  currency: string
+  amountCents: number
+  rateBasisPoints: number
+  includedInPrice: boolean
+  sortOrder: number
+} | null {
+  const code = treatment.taxTreatmentCode?.trim()
+  if (!code) return null
+  const kind = code.slice(code.lastIndexOf("/") + 1)
+  if (!ZERO_RATED_TAX_TREATMENTS.has(kind)) {
+    throw new Error(
+      `materializeBookingItemTaxLine: unsupported pass-through tax treatment "${code}".`,
+    )
+  }
+  return {
+    code,
+    name: ZERO_RATED_TAX_TREATMENT_NAMES[kind] ?? kind,
+    scope: "included",
+    currency,
+    amountCents: 0,
+    rateBasisPoints: 0,
+    includedInPrice: true,
+    sortOrder: 0,
+  }
 }
 
 async function materializeBookingItemTaxLineLocked(
@@ -133,10 +209,34 @@ async function materializeBookingItemTaxLineLocked(
   booking: typeof bookings.$inferSelect,
   bookingItemId: string,
   amountCents: number,
+  snapshot: MaterializationSnapshot | null,
+  options: Pick<CheckoutModuleOptions, "resolveBookingTaxSettings">,
+  treatment: BookingItemPricingTreatmentFacts,
+) {
+  const currency = booking.sellCurrency ?? snapshot?.pricing_currency ?? "EUR"
+  const taxLine = isPassThroughLine(treatment)
+    ? buildPassThroughTaxLine(treatment, currency)
+    : snapshot
+      ? await resolvePolicyTaxLine(db, snapshot, amountCents, currency, options)
+      : null
+  if (!taxLine) return
+
+  await db
+    .insert(bookingItemTaxLines)
+    .values({
+      bookingItemId,
+      ...taxLine,
+    })
+    .onConflictDoNothing()
+}
+
+async function resolvePolicyTaxLine(
+  db: PostgresJsDatabase,
   snapshot: MaterializationSnapshot,
+  amountCents: number,
+  currency: string,
   options: Pick<CheckoutModuleOptions, "resolveBookingTaxSettings">,
 ) {
-  const currency = booking.sellCurrency ?? snapshot.pricing_currency ?? "EUR"
   const taxRate = await resolveBookingSellTaxRate(
     db,
     {
@@ -154,17 +254,10 @@ async function materializeBookingItemTaxLineLocked(
   // `booking_item_tax_lines`) shows zero — operators see a mismatch.
   // The booking total already includes this tax (sellAmountCents = base +
   // taxes + fees + surcharges), so the row is `includedInPrice: true`.
-  const fallbackLine = policyLine ? null : buildSnapshotFallbackTaxLine(snapshot, currency)
-  const taxLine = policyLine ?? fallbackLine
-  if (!taxLine) return
-
-  await db
-    .insert(bookingItemTaxLines)
-    .values({
-      bookingItemId,
-      ...taxLine,
-    })
-    .onConflictDoNothing()
+  //
+  // Reachable only from the standard path: a pass-through line never gets
+  // here, so it can never inherit the operator's product tax.
+  return policyLine ?? buildSnapshotFallbackTaxLine(snapshot, currency)
 }
 
 function buildSnapshotFallbackTaxLine(snapshot: MaterializationSnapshot, currency: string) {

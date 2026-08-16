@@ -45,6 +45,12 @@ export {
   withBookingSessionAnalytics,
 } from "./analytics.js"
 export {
+  type AncillaryOfferResolver,
+  type AncillaryQuoteRequestV1,
+  ancillaryQuoteRequestFromSelection,
+  enrichRequirementsWithAncillaries,
+} from "./ancillary-enrichment.js"
+export {
   type BookingAppliedOffers,
   readAppliedOffersForBooking,
 } from "./applied-offers.js"

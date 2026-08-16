@@ -440,6 +440,10 @@ jobs:
                 tests/integration/booking-contract-confirmed.test.ts
               pnpm --filter @voyant-travel/legal exec vitest run \
                 tests/integration/admin-booking-contract-lifecycle.test.ts
+              pnpm --filter @voyant-travel/legal exec vitest run \
+                tests/integration/insurer-disclosure-terms.test.ts
+              pnpm --filter @voyant-travel/insurance exec vitest run \
+                tests/integration/durable-issue-command.test.ts
               pnpm --filter @voyant-travel/db exec vitest run \
                 tests/integration/outbox.test.ts
               pnpm --filter @voyant-travel/notifications exec vitest run \

@@ -7,6 +7,7 @@ export {
 export {
   AccommodationStep,
   AddonsStep,
+  AncillariesStep,
   BillingStep,
   DepartureStep,
   OptionsStep,
@@ -24,6 +25,7 @@ export {
   patchPaxCount,
   setAccommodation,
   setAddons,
+  setAncillarySelection,
   setPayment,
   setTravelers,
   totalPax,

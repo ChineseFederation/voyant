@@ -18,6 +18,7 @@
 
 import { z } from "zod"
 
+import { ancillarySelectionV1 } from "./ancillary-contracts.js"
 import { bookingPaymentScheduleV1 } from "./pricing-contracts.js"
 
 /** The canonical traveler categories a pax band can belong to. */
@@ -361,6 +362,14 @@ export const bookingSelectionPublicV1 = z.object({
 
   // Step 5 — Add-ons
   addons: z.array(z.object({ extraId: z.string(), quantity: z.number().int().min(1) })).default([]),
+
+  // Step 5b — Ancillaries
+  /**
+   * Third-party offers quoted live during checkout, and the traveller's
+   * explicit decision on each. An empty array means "not asked"; a `declined`
+   * entry means "asked and refused", and the two are not the same thing.
+   */
+  ancillaries: z.array(ancillarySelectionV1).default([]),
 
   // Step 6 — Payment
   payment: z

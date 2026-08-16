@@ -18,6 +18,7 @@ import type { AnyDrizzleDb } from "@voyant-travel/db"
 import type { PaymentPolicy } from "@voyant-travel/finance"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import type {
+  AncillaryOfferResolver,
   BookingSessionCompositeHandler,
   OwnedBookingHandlerRegistry,
   PromotionEvaluator,
@@ -118,6 +119,17 @@ export interface CatalogCommerceRuntimeExtension {
    * absent means quotes price undiscounted.
    */
   createPromotionEvaluator?(db: AnyDrizzleDb): PromotionEvaluator
+  /**
+   * Fans out across whatever ancillary sources the deployment has bound, so
+   * the Booking Session descriptor can carry live third-party offers.
+   *
+   * Injected through this extension rather than resolved in catalog, because
+   * `commerce.ancillary-offer-source` is commerce's port and catalog does not
+   * depend on commerce. Optional for the same reason
+   * `createPromotionEvaluator` is: absent means nothing is bound, and the
+   * ancillary step then does not exist at all.
+   */
+  resolveAncillaryOffers?: AncillaryOfferResolver
 }
 
 export interface CatalogLegalRuntimeExtension {

@@ -387,6 +387,7 @@ describe("published requirements are enforced, not advisory", () => {
     showsTravelers: true,
     showsAccommodation: false,
     showsAddons: false,
+    showsAncillaries: false,
     showsPayment: true,
     showsReview: true as const,
     paxBands: [{ code: "adult", label: "Adult", minCount: 1, maxCount: 4 }],

@@ -224,6 +224,12 @@ export const STANDARD_OPERATOR_DISTRIBUTION_POLICY: {
     { resolve: "@voyant-travel/operator-settings" },
     { resolve: "@voyant-travel/charters" },
     { resolve: "@voyant-travel/cruises" },
+    // Sells nothing on its own: it is one `commerce.ancillary-offer-source`,
+    // and it offers a traveller nothing until an insurer adapter binds
+    // `insurance.provider-source`. Selecting it on the standard profile costs a
+    // deployment with no insurer connected an unmounted checkout step and an
+    // admin surface that reads an empty table.
+    { resolve: "@voyant-travel/insurance" },
     { resolve: "@voyant-travel/realtime" },
     { resolve: "@voyant-travel/mice" },
     { resolve: "@voyant-travel/db" },

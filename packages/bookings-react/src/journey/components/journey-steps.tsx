@@ -12,6 +12,7 @@
 
 export { AccommodationStep } from "./journey-steps/accommodation-step.js"
 export { AddonsStep } from "./journey-steps/addons-step.js"
+export { AncillariesStep } from "./journey-steps/ancillaries-step.js"
 export { BillingStep } from "./journey-steps/billing-step.js"
 export { DepartureStep, OptionsStep } from "./journey-steps/configure-steps.js"
 export { DocumentsStep } from "./journey-steps/documents-step.js"

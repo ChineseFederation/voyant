@@ -19,6 +19,11 @@ export {
   type GeoNameResolver,
   type GeoNameResolverOptions,
 } from "./geo-resolver.js"
+export {
+  type ConnectInsuranceSourceOptions,
+  createConnectInsuranceProviderSource,
+  createVoyantConnectInsuranceProviderSource,
+} from "./insurance-source.js"
 export { withConnectPackageBookingLifecycle } from "./package-booking.js"
 export {
   type ConnectProductPackageSourceAdapterOptions,

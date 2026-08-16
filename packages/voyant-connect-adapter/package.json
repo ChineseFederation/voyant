@@ -20,6 +20,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./catalog-sources": "./src/catalog-sources-extension.ts",
+    "./insurance-source": "./src/insurance-source.ts",
     "./voyant": "./src/voyant.ts",
     "./runtime-contributor": "./src/runtime-contributor.ts"
   },
@@ -47,13 +48,18 @@
     "@voyant-travel/catalog": "workspace:^",
     "@voyant-travel/catalog-contracts": "workspace:^",
     "@voyant-travel/cruises": "workspace:^",
-    "@voyant-travel/cruises-contracts": "workspace:^"
+    "@voyant-travel/cruises-contracts": "workspace:^",
+    "@voyant-travel/insurance": "workspace:^",
+    "@voyant-travel/insurance-contracts": "workspace:^"
   },
   "peerDependenciesMeta": {
     "@voyant-travel/catalog": {
       "optional": true
     },
     "@voyant-travel/cruises": {
+      "optional": true
+    },
+    "@voyant-travel/insurance": {
       "optional": true
     }
   },
@@ -62,6 +68,8 @@
     "@voyant-travel/catalog-contracts": "workspace:^",
     "@voyant-travel/cruises": "workspace:^",
     "@voyant-travel/cruises-contracts": "workspace:^",
+    "@voyant-travel/insurance": "workspace:^",
+    "@voyant-travel/insurance-contracts": "workspace:^",
     "@voyant-travel/voyant-typescript-config": "workspace:^",
     "typescript": "catalog:",
     "vitest": "catalog:"
@@ -78,6 +86,11 @@
         "types": "./dist/catalog-sources-extension.d.ts",
         "import": "./dist/catalog-sources-extension.js",
         "default": "./dist/catalog-sources-extension.js"
+      },
+      "./insurance-source": {
+        "types": "./dist/insurance-source.d.ts",
+        "import": "./dist/insurance-source.js",
+        "default": "./dist/insurance-source.js"
       },
       "./voyant": {
         "types": "./dist/voyant.d.ts",

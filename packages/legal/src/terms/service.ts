@@ -1,12 +1,14 @@
+import { RequestValidationError } from "@voyant-travel/hono"
 import { listResponse } from "@voyant-travel/types"
 import { and, asc, eq, sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import type { z } from "zod"
 import { legalTerms } from "./schema.js"
-import type {
-  insertLegalTermSchema,
-  legalTermListQuerySchema,
-  updateLegalTermSchema,
+import {
+  type insertLegalTermSchema,
+  legalTermArchivalViolation,
+  type legalTermListQuerySchema,
+  type updateLegalTermSchema,
 } from "./validation.js"
 
 export type CreateLegalTermInput = z.infer<typeof insertLegalTermSchema>
@@ -16,6 +18,23 @@ export type LegalTermListQuery = z.infer<typeof legalTermListQuerySchema>
 function normalizeTimestamp(value?: string | null): Date | null | undefined {
   if (value === undefined) return undefined
   return value ? new Date(value) : null
+}
+
+/**
+ * The archival invariant, decided against the row a patch actually lands on.
+ *
+ * A patch cannot see that row, so `updateLegalTermSchema` can only reject what
+ * is self-evidently wrong in the payload. Merging here is what catches
+ * `PATCH { termType: "insurer_terms" }` against a row that was never archived —
+ * the shape that would otherwise look configured and silently isn't.
+ */
+function assertArchivalInvariant(term: {
+  termType?: string | null
+  sourceVersionId?: string | null
+  archivedStorageKey?: string | null
+}) {
+  const violation = legalTermArchivalViolation(term)
+  if (violation) throw new RequestValidationError(violation)
 }
 
 async function paginate<T extends object>(
@@ -46,6 +65,8 @@ export const legalTermsService = {
     if (query.termType) conditions.push(eq(legalTerms.termType, query.termType))
     if (query.acceptanceStatus)
       conditions.push(eq(legalTerms.acceptanceStatus, query.acceptanceStatus))
+    if (query.sourceVersionId)
+      conditions.push(eq(legalTerms.sourceVersionId, query.sourceVersionId))
     const where = conditions.length ? and(...conditions) : undefined
     return paginate(
       db
@@ -68,6 +89,7 @@ export const legalTermsService = {
 
   async createTerm(db: PostgresJsDatabase, data: CreateLegalTermInput) {
     const { acceptedAt, ...rest } = data
+    assertArchivalInvariant(rest)
     const [row] = await db
       .insert(legalTerms)
       .values({
@@ -80,6 +102,17 @@ export const legalTermsService = {
 
   async updateTerm(db: PostgresJsDatabase, id: string, data: UpdateLegalTermInput) {
     const { acceptedAt, ...rest } = data
+    const [existing] = await db
+      .select({
+        termType: legalTerms.termType,
+        sourceVersionId: legalTerms.sourceVersionId,
+        archivedStorageKey: legalTerms.archivedStorageKey,
+      })
+      .from(legalTerms)
+      .where(eq(legalTerms.id, id))
+      .limit(1)
+    if (!existing) return null
+    assertArchivalInvariant({ ...existing, ...rest })
     const [row] = await db
       .update(legalTerms)
       .set({

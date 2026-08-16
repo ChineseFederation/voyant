@@ -109,6 +109,26 @@ export const bookingItemStatusEnum = pgEnum("booking_item_status", [
   "fulfilled",
 ])
 
+/**
+ * Whether the operator is selling this line or merely collecting it.
+ *
+ * `standard` is every line the operator prices: it may carry a markup, it may
+ * earn a commission, and its tax follows the operator's own tax policy.
+ *
+ * `pass_through` is money the operator collects on someone else's behalf at
+ * exactly the amount that party set — an insurance premium is the first of
+ * these. Marking up such a line is not a pricing decision, it is a
+ * discrepancy: the traveller reads the booking total and the third party's own
+ * document side by side, and they have to agree to the minor unit. The same
+ * goes for tax, which is frequently resolved differently (often not at all)
+ * for the collected amount than for the rest of the cart — hence
+ * `tax_treatment_code` on the line rather than a policy lookup.
+ */
+export const bookingItemPricingTreatmentEnum = pgEnum("booking_item_pricing_treatment", [
+  "standard",
+  "pass_through",
+])
+
 export const bookingAllocationTypeEnum = pgEnum("booking_allocation_type", [
   "unit",
   "pickup",

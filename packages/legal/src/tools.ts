@@ -1,6 +1,7 @@
 // agent-quality: file-size exception -- owner: legal; contract lifecycle tools stay co-located because create/read/update/document handlers share one admission and schema surface.
 
 import { bookingsService } from "@voyant-travel/bookings"
+import { legalTermTypeSchema } from "@voyant-travel/legal-contracts/terms/validation"
 import { emailAddress, emailPattern } from "@voyant-travel/schema-kit/email"
 import {
   admitHandlerActionPolicy,
@@ -174,15 +175,9 @@ const legalTermSchema = z.object({
   policyVersionId: z.string().nullable(),
   targetKind: targetKindSchema.nullable(),
   targetId: z.string().nullable(),
-  termType: z.enum([
-    "terms_and_conditions",
-    "cancellation",
-    "guarantee",
-    "payment",
-    "pricing",
-    "commission",
-    "other",
-  ]),
+  // The canonical list, not a copy of it. A term type added for one surface and
+  // missed here is a tool that cannot read a row the database happily stores.
+  termType: legalTermTypeSchema,
   title: z.string(),
   body: z.string(),
   language: z.string().nullable(),

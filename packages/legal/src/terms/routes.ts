@@ -17,10 +17,14 @@ import { listResponseSchema } from "@voyant-travel/types"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import type { Context } from "hono"
 
+import { acceptLegalTerm } from "./disclosure-archive.js"
 import { legalTermsService } from "./service.js"
 import {
+  acceptLegalTermSchema,
   insertLegalTermSchema,
+  legalTermAcceptanceStatusSchema,
   legalTermListQuerySchema,
+  legalTermTypeSchema,
   updateLegalTermSchema,
 } from "./validation.js"
 
@@ -49,18 +53,13 @@ const idParamSchema = z.object({ id: z.string() })
 // contract is an opaque JSON value (mirrors `contracts/routes.ts`).
 const jsonValue = z.unknown()
 
-const legalTermTypeValues = [
-  "terms_and_conditions",
-  "cancellation",
-  "guarantee",
-  "payment",
-  "pricing",
-  "commission",
-  "other",
-] as const
-const legalTermAcceptanceStatusValues = ["not_required", "pending", "accepted", "declined"] as const
-
-/** Wire shape of a `legal_terms` row (§17 timestamps → strings). */
+/**
+ * Wire shape of a `legal_terms` row (§17 timestamps → strings).
+ *
+ * `termType`/`acceptanceStatus` reuse the legal-contracts enums rather than a
+ * local copy: the local copy had to be remembered, and the insurer-disclosure
+ * kinds are exactly the sort of addition that gets remembered in one place.
+ */
 const legalTermSchema = z.object({
   id: z.string(),
   contractId: z.string().nullable(),
@@ -71,15 +70,18 @@ const legalTermSchema = z.object({
   targetSourceRef: z.string().nullable(),
   legacyTransactionOfferId: z.string().nullable(),
   legacyTransactionOrderId: z.string().nullable(),
-  termType: z.enum(legalTermTypeValues),
+  termType: legalTermTypeSchema,
   title: z.string(),
   body: z.string(),
   language: z.string().nullable(),
   required: z.boolean(),
   sortOrder: z.number().int(),
-  acceptanceStatus: z.enum(legalTermAcceptanceStatusValues),
+  acceptanceStatus: legalTermAcceptanceStatusSchema,
   acceptedAt: z.string().nullable(),
   acceptedBy: z.string().nullable(),
+  sourceVersionId: z.string().nullable(),
+  archivedStorageKey: z.string().nullable(),
+  archivedChecksum: z.string().nullable(),
   metadata: jsonValue,
   createdAt: z.string(),
   updatedAt: z.string(),
@@ -158,6 +160,37 @@ const updateTermRoute = createRoute({
   },
 })
 
+/**
+ * Record acceptance of a term on the existing acceptance columns.
+ *
+ * The body deliberately cannot name a version. For an insurer disclosure the
+ * accepted version is whatever the stored row was archived from, so a later
+ * change to the insurer's current wording is a different row and cannot reach
+ * back into what this acceptance says.
+ */
+const acceptTermRoute = createRoute({
+  method: "post",
+  path: "/{id}/acceptance",
+  request: {
+    params: idParamSchema,
+    body: { required: true, content: { "application/json": { schema: acceptLegalTermSchema } } },
+  },
+  responses: {
+    200: {
+      description: "The accepted legal term",
+      content: { "application/json": { schema: z.object({ data: legalTermSchema }) } },
+    },
+    400: {
+      description: "Invalid request body, or the term carries no archived disclosure",
+      content: { "application/json": { schema: errorResponseSchema } },
+    },
+    404: {
+      description: "Legal term not found",
+      content: { "application/json": { schema: errorResponseSchema } },
+    },
+  },
+})
+
 const deleteTermRoute = createRoute({
   method: "delete",
   path: "/{id}",
@@ -192,6 +225,14 @@ export const legalTermsAdminRoutes = new OpenAPIHono<Env>({ defaultHook: openApi
       c.req.valid("param").id,
       c.req.valid("json"),
     )
+    return row ? c.json({ data: row }, 200) : c.json({ error: "Legal term not found" }, 404)
+  })
+  .openapi(acceptTermRoute, async (c) => {
+    const body = c.req.valid("json")
+    const row = await acceptLegalTerm(c.get("db"), c.req.valid("param").id, {
+      acceptedBy: body.acceptedBy,
+      acceptedAt: body.acceptedAt ? new Date(body.acceptedAt) : undefined,
+    })
     return row ? c.json({ data: row }, 200) : c.json({ error: "Legal term not found" }, 404)
   })
   .openapi(deleteTermRoute, async (c) => {

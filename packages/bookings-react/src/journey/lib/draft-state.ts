@@ -38,6 +38,9 @@ export function emptyDraft(
     },
     travelers: [],
     addons: [],
+    // Empty means "not asked yet" — a `declined` entry is a different, explicit
+    // state, and the ancillaries step will not advance without one per group.
+    ancillaries: [],
     payment: { intent: "hold" },
   }
 }
@@ -90,6 +93,19 @@ export function setAccommodation(draft: Draft, accommodation: Draft["accommodati
 
 export function setAddons(draft: Draft, addons: Draft["addons"]): Draft {
   return { ...draft, addons }
+}
+
+/**
+ * Replace the decision recorded for one ancillary kind, leaving every other
+ * kind untouched. Passing `null` returns the kind to "not asked yet".
+ */
+export function setAncillarySelection(
+  draft: Draft,
+  kind: string,
+  selection: Draft["ancillaries"][number] | null,
+): Draft {
+  const rest = (draft.ancillaries ?? []).filter((entry) => entry.kind !== kind)
+  return { ...draft, ancillaries: selection ? [...rest, selection] : rest }
 }
 
 export function setPayment(draft: Draft, payment: Draft["payment"]): Draft {

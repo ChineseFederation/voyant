@@ -17,6 +17,7 @@ import {
   financeFxRateCaptureRuntimePort,
   financeInventoryPaymentPolicyRuntimePort,
 } from "@voyant-travel/finance/runtime-port"
+import { ancillaryOfferSourceRuntimePort } from "./checkout/ancillary-ports.js"
 import {
   bookingMaintenanceRuntimePort,
   catalogCheckoutApiRuntimePort,
@@ -503,6 +504,11 @@ export const commerceCatalogCheckoutVoyantPlugin = defineExtension({
     requirePort(catalogCheckoutDatabaseRuntimePort),
     requirePort(catalogCheckoutLegalRuntimePort),
     requirePort(catalogBookingSessionSettlementRuntimePort),
+    // Live third-party quotes at purchase time. Optional and many-valued: an
+    // operator may have connected nothing, one source, or several, and zero is
+    // a supported, silent state rather than a misconfiguration — `getPorts`
+    // returns an empty list and checkout carries on.
+    requirePort(ancillaryOfferSourceRuntimePort, { optional: true, cardinality: "many" }),
   ],
   api: [
     {

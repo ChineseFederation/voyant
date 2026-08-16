@@ -22,7 +22,10 @@ import {
   type BookingSelectionBillingFieldKey,
   type BookingSelectionTravelerFieldKey,
 } from "@voyant-travel/catalog-contracts/booking-engine/selection-contracts"
-import { bookingSessionAudienceForActorV1 } from "@voyant-travel/catalog-contracts/booking-engine/session-contracts"
+import {
+  type BookingSessionScopeV1,
+  bookingSessionAudienceForActorV1,
+} from "@voyant-travel/catalog-contracts/booking-engine/session-contracts"
 import type { AnalyticsPort } from "@voyant-travel/core/analytics"
 import type { AnyDrizzleDb } from "@voyant-travel/db"
 import {
@@ -39,6 +42,11 @@ import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import { catalogSourcedEntriesTable } from "../schema-sourced-entries.js"
 import { captureSnapshot } from "../services/snapshot-service.js"
 import type { PricingBasis } from "../snapshot/schema.js"
+import {
+  type AncillaryOfferResolver,
+  ancillaryQuoteRequestFromSelection,
+  enrichRequirementsWithAncillaries,
+} from "./ancillary-enrichment.js"
 import { bookingAllocationsRef, bookingsRef } from "./bookings-ref.js"
 import type { BookingRequirementsV1 } from "./contracts.js"
 import { type PricingBreakdownV1, pricingBreakdownV1 } from "./contracts.js"
@@ -100,6 +108,15 @@ export interface ProductionBookingSessionModuleDeps {
   resolvePromotionEvaluator?(
     db: PostgresJsDatabase,
   ): PromotionEvaluator | undefined | Promise<PromotionEvaluator | undefined>
+  /**
+   * Fans out across whatever the deployment has connected for live third-party
+   * offers. Absent means nothing is connected, and the ancillary step does not
+   * exist — no empty table, no unavailability notice, nothing rendered at all.
+   *
+   * Injected rather than imported so catalog does not depend on commerce; the
+   * deployment supplies it, the same way it supplies the promotion evaluator.
+   */
+  resolveAncillaryOffers?: AncillaryOfferResolver
 }
 
 export function createProductionBookingSessionModule(
@@ -113,6 +130,28 @@ export function createProductionBookingSessionModule(
       })
     : undefined
   const leaf = createProductionCompositeLeafRuntime(deps)
+  /**
+   * Folds live third-party offers into whatever descriptor a vertical produced.
+   *
+   * One place rather than one per handler: the fan-out is the same question for
+   * every vertical, and asking each of them to remember to ask it is how the
+   * step ends up existing on some targets and not others.
+   */
+  const withAncillaries = async (
+    session: { id: string; statePayload: unknown; scope: BookingSessionScopeV1 },
+    requirements: BookingRequirementsV1,
+  ): Promise<BookingRequirementsV1> =>
+    enrichRequirementsWithAncillaries({
+      requirements,
+      request: ancillaryQuoteRequestFromSelection({
+        bookingSessionId: session.id,
+        selection: session.statePayload,
+        currency: session.scope.currency,
+        now: new Date(),
+        locale: session.scope.locale,
+      }),
+      resolve: deps.resolveAncillaryOffers,
+    })
   return createBookingSessionModule({
     ...(deps.analytics ? { analytics: deps.analytics } : {}),
     ports: {
@@ -121,39 +160,45 @@ export function createProductionBookingSessionModule(
         normalizeBookingSelection(target, selection, access),
       composeRequirements: async (input) => {
         const { session } = input
-        if (session.target.kind === "trip_snapshot") {
-          const handler = await deps.resolveCompositeHandler?.()
-          return (
-            (handler
-              ? await handler.composeRequirements({
-                  ...input,
-                  tx: input.tx ?? deps.db,
-                  leaf,
-                })
-              : undefined) ?? {
-              status: "unavailable",
-              reason: "target_not_bookable",
-              nextAction: "contact_operator",
-            }
-          )
+        // A composed trip is the case travel insurance is most often sold
+        // against, so the enrichment has to reach it too. Composite and leaf
+        // both go through `withAncillaries` for that reason — enriching only
+        // the leaf path gave ordinary products an insurance step and trips
+        // none.
+        const composed =
+          session.target.kind === "trip_snapshot"
+            ? ((await (
+                await deps.resolveCompositeHandler?.()
+              )?.composeRequirements({
+                ...input,
+                tx: input.tx ?? deps.db,
+                leaf,
+              })) ?? {
+                status: "unavailable" as const,
+                reason: "target_not_bookable" as const,
+                nextAction: "contact_operator" as const,
+              })
+            : await leaf.composeRequirements(input)
+        if (composed.status !== "available") return composed
+        return {
+          ...composed,
+          requirements: await withAncillaries(session, composed.requirements),
         }
-        return leaf.composeRequirements(input)
       },
       composeQuote: async (input) => {
         const { session } = input
-        if (session.target.kind === "trip_snapshot") {
-          const handler = await deps.resolveCompositeHandler?.()
-          return (
-            (handler
-              ? await handler.composeQuote({ ...input, tx: input.tx ?? deps.db, leaf })
-              : undefined) ?? {
-              status: "unavailable",
-              reason: "target_not_bookable",
-              nextAction: "contact_operator",
-            }
-          )
-        }
-        return leaf.composeQuote(input)
+        const quoted =
+          session.target.kind === "trip_snapshot"
+            ? ((await (
+                await deps.resolveCompositeHandler?.()
+              )?.composeQuote({ ...input, tx: input.tx ?? deps.db, leaf })) ?? {
+                status: "unavailable" as const,
+                reason: "target_not_bookable" as const,
+                nextAction: "contact_operator" as const,
+              })
+            : await leaf.composeQuote(input)
+        if (!quoted.requirements) return quoted
+        return { ...quoted, requirements: await withAncillaries(session, quoted.requirements) }
       },
       placeCapacityHold: async (input) => {
         const { session } = input

@@ -480,6 +480,15 @@ export const PREFIXES = {
   media_folder: "mfld",
   media_folder_member: "mfm",
   asset_usage: "ausg",
+
+  // --- INSURANCE (see voyant#4727) ---
+  // Travel insurance sold as an ancillary at checkout. Insured persons are
+  // stored separately from booking travelers: the insured set and the
+  // travelling set are not the same set, so `insurance_insured_persons` is a
+  // child of the application rather than a projection of `booking_travelers`.
+  insurance_applications: "insa",
+  insurance_policies: "inpo",
+  insurance_insured_persons: "inip",
 } as const
 
 export type PrefixKey = keyof typeof PREFIXES

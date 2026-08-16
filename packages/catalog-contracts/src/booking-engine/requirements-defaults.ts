@@ -112,9 +112,10 @@ export function paxBandsAllowedTotalFrom(bands: readonly PaxBandSpecV1[]): {
 
 /**
  * Default `showsX` flag set: configure + billing + travelers +
- * payment + review on; accommodation + add-ons off. Verticals
- * override the off-by-default flags when they have non-empty
- * accommodation / addons content.
+ * payment + review on; accommodation, add-ons and ancillaries off.
+ * Verticals override the off-by-default flags when they have non-empty
+ * accommodation / addons content; ancillaries are turned on by the
+ * engine's fan-out rather than by a vertical.
  */
 export function defaultRequirementsFlags(): Pick<
   BookingRequirementsV1,
@@ -123,6 +124,7 @@ export function defaultRequirementsFlags(): Pick<
   | "showsTravelers"
   | "showsAccommodation"
   | "showsAddons"
+  | "showsAncillaries"
   | "showsPayment"
   | "showsReview"
 > {
@@ -132,6 +134,9 @@ export function defaultRequirementsFlags(): Pick<
     showsTravelers: true,
     showsAccommodation: false,
     showsAddons: false,
+    // Off unless the deployment has an ancillary source connected. The engine
+    // turns it on after fanning out; a vertical never asserts it.
+    showsAncillaries: false,
     showsPayment: true,
     showsReview: true,
   }

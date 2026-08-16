@@ -1,3 +1,4 @@
+import { handleApiError } from "@voyant-travel/hono"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import { Hono } from "hono"
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest"
@@ -25,6 +26,10 @@ describe.skipIf(!DB_AVAILABLE)("Legal terms routes", () => {
       await next()
     })
     app.route("/", legalTermsAdminRoutes)
+    // The OpenAPI default hook throws `RequestValidationError`; without the
+    // shared boundary a rejected body would surface as a 500 and hide the
+    // contract these routes actually enforce.
+    app.onError(handleApiError)
   })
 
   beforeEach(async () => {
@@ -61,6 +66,21 @@ describe.skipIf(!DB_AVAILABLE)("Legal terms routes", () => {
     const listedBody = await listed.json()
     expect(listedBody.total).toBe(1)
     expect(listedBody.data[0].title).toBe("Proposal terms")
+  })
+
+  it("refuses an insurer disclosure that archives nothing", async () => {
+    const created = await app.request("/", {
+      method: "POST",
+      ...json({
+        targetKind: "booking",
+        targetId: "bkg_route_disclosure",
+        termType: "insurer_terms",
+        title: "Insurer terms",
+        body: "The insurer's terms of cover.",
+      }),
+    })
+
+    expect(created.status).toBe(400)
   })
 
   it("keeps migrated transaction ids under explicit compatibility fields", async () => {

@@ -23,7 +23,8 @@
     "./openapi/admin/sellability": "./openapi/admin/sellability.json",
     "./openapi/public-api/markets": "./openapi/public-api/markets.json",
     "./openapi/public-api/pricing": "./openapi/public-api/pricing.json",
-    "./catalog-runtime-extension": "./src/catalog-runtime-extension.ts"
+    "./catalog-runtime-extension": "./src/catalog-runtime-extension.ts",
+    "./checkout/ancillary-ports": "./src/checkout/ancillary-ports.ts"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.typecheck.json",
@@ -39,6 +40,7 @@
     "@voyant-travel/action-ledger": "workspace:^",
     "@voyant-travel/bookings": "workspace:^",
     "@voyant-travel/catalog": "workspace:^",
+    "@voyant-travel/catalog-contracts": "workspace:^",
     "@voyant-travel/core": "workspace:^",
     "@voyant-travel/db": "workspace:^",
     "@voyant-travel/types": "workspace:^",
@@ -142,6 +144,11 @@
         "types": "./dist/catalog-runtime-extension.d.ts",
         "import": "./dist/catalog-runtime-extension.js",
         "default": "./dist/catalog-runtime-extension.js"
+      },
+      "./checkout/ancillary-ports": {
+        "types": "./dist/checkout/ancillary-ports.d.ts",
+        "import": "./dist/checkout/ancillary-ports.js",
+        "default": "./dist/checkout/ancillary-ports.js"
       }
     },
     "main": "./dist/index.js",

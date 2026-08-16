@@ -9,6 +9,15 @@ import type { BookingMaintenanceRoutesOptions } from "./routes.js"
 export type CatalogCheckoutApiRuntime = (context: Context) => CheckoutStartOptions
 export const CATALOG_CHECKOUT_API_RUNTIME_KEY = "commerce.checkout-api-options" as const
 
+/**
+ * Container key the bound ancillary sources are registered under.
+ *
+ * Always registered, always an array — a deployment with none bound registers
+ * an empty one, so a consumer never has to distinguish "not wired" from "none
+ * connected".
+ */
+export const ANCILLARY_OFFER_SOURCES_RUNTIME_KEY = "commerce.ancillary-offer-sources" as const
+
 export const bookingMaintenanceRuntimePort = definePort<BookingMaintenanceRoutesOptions>({
   id: "commerce.booking-maintenance.runtime",
   test(provider) {

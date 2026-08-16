@@ -415,6 +415,9 @@ importers:
       '@voyant-travel/identity-react':
         specifier: workspace:^
         version: link:../../packages/identity-react
+      '@voyant-travel/insurance':
+        specifier: workspace:^
+        version: link:../../packages/insurance
       '@voyant-travel/inventory':
         specifier: workspace:^
         version: link:../../packages/inventory
@@ -2006,6 +2009,9 @@ importers:
       '@voyant-travel/catalog':
         specifier: workspace:^
         version: link:../catalog
+      '@voyant-travel/catalog-contracts':
+        specifier: workspace:^
+        version: link:../catalog-contracts
       '@voyant-travel/core':
         specifier: workspace:^
         version: link:../core
@@ -3257,6 +3263,138 @@ importers:
       react-hook-form:
         specifier: ^7.80.0
         version: 7.80.0(react@19.2.7)
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.9(@opentelemetry/api@1.9.0)(@types/node@25.5.2)(jsdom@29.1.1(@noble/hashes@2.2.0))(msw@2.12.14(@types/node@25.5.2)(typescript@6.0.3))(vite@8.1.3(@types/node@25.5.2)(esbuild@0.28.1)(jiti@2.7.0)(sass@1.77.4)(terser@5.16.9)(tsx@4.22.4)(yaml@2.8.3))
+      zod:
+        specifier: 'catalog:'
+        version: 4.4.3
+
+  packages/insurance:
+    dependencies:
+      '@hono/zod-openapi':
+        specifier: 'catalog:'
+        version: 1.4.0(hono@4.12.25)(zod@4.4.3)
+      '@voyant-travel/action-ledger':
+        specifier: workspace:^
+        version: link:../action-ledger
+      '@voyant-travel/bookings':
+        specifier: workspace:^
+        version: link:../bookings
+      '@voyant-travel/catalog-contracts':
+        specifier: workspace:^
+        version: link:../catalog-contracts
+      '@voyant-travel/commerce':
+        specifier: workspace:^
+        version: link:../commerce
+      '@voyant-travel/core':
+        specifier: workspace:^
+        version: link:../core
+      '@voyant-travel/db':
+        specifier: workspace:^
+        version: link:../db
+      '@voyant-travel/hono':
+        specifier: workspace:^
+        version: link:../hono
+      '@voyant-travel/insurance-contracts':
+        specifier: workspace:^
+        version: link:../insurance-contracts
+      '@voyant-travel/tools':
+        specifier: workspace:^
+        version: link:../tools
+      '@voyant-travel/types':
+        specifier: workspace:^
+        version: link:../types
+      '@voyant-travel/utils':
+        specifier: workspace:^
+        version: link:../utils
+      drizzle-orm:
+        specifier: 'catalog:'
+        version: 0.45.2(@cloudflare/workers-types@4.20260702.1)(@electric-sql/pglite@0.5.4)(@neondatabase/serverless@1.1.0)(@opentelemetry/api@1.9.0)(@types/pg@8.20.0)(@upstash/redis@1.38.0)(kysely@0.29.2)(pg@8.22.0)(postgres@3.4.9)
+      hono:
+        specifier: 4.12.25
+        version: 4.12.25
+      zod:
+        specifier: 'catalog:'
+        version: 4.4.3
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 25.5.2
+      '@voyant-travel/voyant-test-utils':
+        specifier: workspace:^
+        version: link:../test-utils
+      '@voyant-travel/voyant-typescript-config':
+        specifier: workspace:^
+        version: link:../typescript-config
+      drizzle-kit:
+        specifier: ^0.31.10
+        version: 0.31.10
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.9(@opentelemetry/api@1.9.0)(@types/node@25.5.2)(jsdom@29.1.1(@noble/hashes@2.2.0))(msw@2.12.14(@types/node@25.5.2)(typescript@6.0.3))(vite@8.1.3(@types/node@25.5.2)(esbuild@0.28.1)(jiti@2.7.0)(sass@1.77.4)(terser@5.16.9)(tsx@4.22.4)(yaml@2.8.3))
+
+  packages/insurance-contracts:
+    dependencies:
+      zod:
+        specifier: 'catalog:'
+        version: 4.4.3
+    devDependencies:
+      '@voyant-travel/voyant-typescript-config':
+        specifier: workspace:^
+        version: link:../typescript-config
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.9(@opentelemetry/api@1.9.0)(@types/node@25.5.2)(jsdom@29.1.1(@noble/hashes@2.2.0))(msw@2.12.14(@types/node@25.5.2)(typescript@6.0.3))(vite@8.1.3(@types/node@25.5.2)(esbuild@0.28.1)(jiti@2.7.0)(sass@1.77.4)(terser@5.16.9)(tsx@4.22.4)(yaml@2.8.3))
+
+  packages/insurance-react:
+    dependencies:
+      '@voyant-travel/i18n':
+        specifier: workspace:^
+        version: link:../i18n
+      '@voyant-travel/react':
+        specifier: workspace:^
+        version: link:../react
+    devDependencies:
+      '@tanstack/react-query':
+        specifier: ^5.101.2
+        version: 5.101.2(react@19.2.7)
+      '@types/react':
+        specifier: ^19.2.17
+        version: 19.2.17
+      '@types/react-dom':
+        specifier: ^19.2.3
+        version: 19.2.3(@types/react@19.2.17)
+      '@voyant-travel/insurance-contracts':
+        specifier: workspace:^
+        version: link:../insurance-contracts
+      '@voyant-travel/types':
+        specifier: workspace:^
+        version: link:../types
+      '@voyant-travel/ui':
+        specifier: workspace:^
+        version: link:../ui
+      '@voyant-travel/voyant-typescript-config':
+        specifier: workspace:^
+        version: link:../typescript-config
+      lucide-react:
+        specifier: ^1.23.0
+        version: 1.23.0(react@19.2.7)
+      react:
+        specifier: ^19.2.7
+        version: 19.2.7
+      react-dom:
+        specifier: ^19.2.7
+        version: 19.2.7(react@19.2.7)
       typescript:
         specifier: 'catalog:'
         version: 6.0.3
@@ -4562,6 +4700,9 @@ importers:
       '@voyant-travel/identity-react':
         specifier: workspace:*
         version: link:../identity-react
+      '@voyant-travel/insurance':
+        specifier: workspace:*
+        version: link:../insurance
       '@voyant-travel/inventory':
         specifier: workspace:*
         version: link:../inventory
@@ -6235,6 +6376,12 @@ importers:
       '@voyant-travel/cruises-contracts':
         specifier: workspace:^
         version: link:../cruises-contracts
+      '@voyant-travel/insurance':
+        specifier: workspace:^
+        version: link:../insurance
+      '@voyant-travel/insurance-contracts':
+        specifier: workspace:^
+        version: link:../insurance-contracts
       '@voyant-travel/voyant-typescript-config':
         specifier: workspace:^
         version: link:../typescript-config

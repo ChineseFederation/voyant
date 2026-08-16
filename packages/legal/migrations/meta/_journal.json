@@ -36,6 +36,13 @@
       "when": 1785801720000,
       "tag": "20260804000200_proposal_version_target_kind",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1786838460000,
+      "tag": "20260816000100_insurer_disclosure_terms",
+      "breakpoints": true
     }
   ]
 }

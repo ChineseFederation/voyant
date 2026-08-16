@@ -86,3 +86,24 @@ export const commerceCardPaymentRuntimePort = objectPort<CommerceCardPaymentRunt
   "commerce.card-payment.runtime",
   ["createStartCardPayment"],
 )
+
+/**
+ * The ancillary offer seam, re-exported here so a package manifest can declare
+ * it without importing a checkout subpath.
+ *
+ * `verify:deployment-graph-import-cheap` admits a manifest import only at
+ * `<package>/ports`, `<package>/runtime-port` or a `-manifest` subpath, because
+ * resolving the deployment graph must not drag a package's runtime in behind
+ * it. The definition stays in `./checkout/ancillary-ports.js` where it belongs;
+ * this is the door the graph is allowed to use.
+ */
+export {
+  type AncillaryCancelInput,
+  type AncillaryFulfillInput,
+  type AncillaryFulfillmentResult,
+  type AncillaryOfferSource,
+  type AncillaryPreparedSelection,
+  type AncillaryPrepareInput,
+  type AncillaryQuoteInput,
+  ancillaryOfferSourceRuntimePort,
+} from "./checkout/ancillary-ports.js"

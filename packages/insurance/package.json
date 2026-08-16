@@ -1,0 +1,156 @@
+{
+  "name": "@voyant-travel/insurance",
+  "version": "0.1.0",
+  "description": "Travel insurance module: applications, issued policies, insured persons, the insurer provider port, and the checkout ancillary source that fans out across connected insurers.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./schema": "./src/schema.ts",
+    "./validation": "./src/validation.ts",
+    "./routes": "./src/routes.ts",
+    "./ports": "./src/provider-ports.ts",
+    "./runtime-port": "./src/runtime-port.ts",
+    "./runtime-contributor": "./src/runtime-contributor.ts",
+    "./ancillary-source": "./src/ancillary-source.ts",
+    "./customer-portal-runtime": "./src/customer-portal-runtime.ts",
+    "./tools": "./src/mcp-runtime.ts",
+    "./voyant": "./src/voyant.ts",
+    "./openapi/admin": "./openapi/admin/insurance.json"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.typecheck.json",
+    "lint": "biome check src/",
+    "test": "vitest run",
+    "build": "tsc -p tsconfig.build.json",
+    "clean": "rm -rf dist tsconfig.tsbuildinfo",
+    "prepack": "pnpm run build",
+    "db:generate": "drizzle-kit generate --config=drizzle.migrations.config.ts --name=insurance_baseline && node ../../scripts/migrations/guard-create-type.mjs ./migrations && node ../../scripts/migrations/ensure-extensions.mjs ./migrations",
+    "generate:openapi": "node --import tsx scripts/generate-openapi.ts && biome format --write openapi/admin/insurance.json"
+  },
+  "dependencies": {
+    "@hono/zod-openapi": "catalog:",
+    "@voyant-travel/action-ledger": "workspace:^",
+    "@voyant-travel/bookings": "workspace:^",
+    "@voyant-travel/catalog-contracts": "workspace:^",
+    "@voyant-travel/commerce": "workspace:^",
+    "@voyant-travel/core": "workspace:^",
+    "@voyant-travel/db": "workspace:^",
+    "@voyant-travel/hono": "workspace:^",
+    "@voyant-travel/insurance-contracts": "workspace:^",
+    "@voyant-travel/tools": "workspace:^",
+    "@voyant-travel/types": "workspace:^",
+    "@voyant-travel/utils": "workspace:^",
+    "drizzle-orm": "catalog:",
+    "hono": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "@voyant-travel/voyant-test-utils": "workspace:^",
+    "@voyant-travel/voyant-typescript-config": "workspace:^",
+    "drizzle-kit": "^0.31.10",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  },
+  "files": [
+    "dist",
+    "openapi",
+    "migrations/*.sql",
+    "migrations/meta/_journal.json"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "import": "./dist/index.js",
+        "default": "./dist/index.js"
+      },
+      "./schema": {
+        "types": "./dist/schema.d.ts",
+        "import": "./dist/schema.js",
+        "default": "./dist/schema.js"
+      },
+      "./validation": {
+        "types": "./dist/validation.d.ts",
+        "import": "./dist/validation.js",
+        "default": "./dist/validation.js"
+      },
+      "./routes": {
+        "types": "./dist/routes.d.ts",
+        "import": "./dist/routes.js",
+        "default": "./dist/routes.js"
+      },
+      "./ports": {
+        "types": "./dist/provider-ports.d.ts",
+        "import": "./dist/provider-ports.js",
+        "default": "./dist/provider-ports.js"
+      },
+      "./runtime-port": {
+        "types": "./dist/runtime-port.d.ts",
+        "import": "./dist/runtime-port.js",
+        "default": "./dist/runtime-port.js"
+      },
+      "./runtime-contributor": {
+        "types": "./dist/runtime-contributor.d.ts",
+        "import": "./dist/runtime-contributor.js",
+        "default": "./dist/runtime-contributor.js"
+      },
+      "./ancillary-source": {
+        "types": "./dist/ancillary-source.d.ts",
+        "import": "./dist/ancillary-source.js",
+        "default": "./dist/ancillary-source.js"
+      },
+      "./customer-portal-runtime": {
+        "types": "./dist/customer-portal-runtime.d.ts",
+        "import": "./dist/customer-portal-runtime.js",
+        "default": "./dist/customer-portal-runtime.js"
+      },
+      "./tools": {
+        "types": "./dist/mcp-runtime.d.ts",
+        "import": "./dist/mcp-runtime.js",
+        "default": "./dist/mcp-runtime.js"
+      },
+      "./voyant": {
+        "types": "./dist/voyant.d.ts",
+        "import": "./dist/voyant.js",
+        "default": "./dist/voyant.js"
+      },
+      "./openapi/admin": "./openapi/admin/insurance.json"
+    },
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/voyant-travel/voyant.git",
+    "directory": "packages/insurance"
+  },
+  "voyant": {
+    "schemaVersion": "voyant.package.v1",
+    "kind": "module",
+    "manifest": "./voyant",
+    "runtime": {
+      "entry": "./runtime-contributor",
+      "export": "createInsuranceRuntimePortContribution"
+    },
+    "compatibleWith": {
+      "framework": ">=0.26.0",
+      "targets": [
+        "node"
+      ],
+      "modes": [
+        "local",
+        "managed-cloud",
+        "self-hosted"
+      ]
+    },
+    "schema": "./schema",
+    "requiresSchemas": [
+      "@voyant-travel/db",
+      "@voyant-travel/bookings"
+    ]
+  },
+  "private": true
+}

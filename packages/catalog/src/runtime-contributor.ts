@@ -221,6 +221,9 @@ export function createCatalogRuntimePortContribution(
       db,
       ...(analytics ? { analytics } : {}),
       resolvePromotionEvaluator: (sessionDb) => commerce.createPromotionEvaluator?.(sessionDb),
+      ...(commerce.resolveAncillaryOffers
+        ? { resolveAncillaryOffers: commerce.resolveAncillaryOffers }
+        : {}),
       repository: createDrizzleBookingSessionRepository(db),
       resolveOwnedHandlers: () => services.getOwnedHandlers(host.primitives.env(undefined)),
       resolveSourceRegistry: () => services.ensureSourceRegistry(host.primitives.env(undefined)),

@@ -9,6 +9,7 @@ const fallbackShape: BookingRequirementsV1 = {
   showsTravelers: true,
   showsAccommodation: false,
   showsAddons: false,
+  showsAncillaries: false,
   showsPayment: true,
   showsReview: true,
   configureSubSteps: [{ kind: "departure", required: true }],

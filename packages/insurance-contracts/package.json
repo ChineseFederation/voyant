@@ -1,0 +1,101 @@
+{
+  "name": "@voyant-travel/insurance-contracts",
+  "version": "0.1.0",
+  "description": "Provider-neutral travel insurance contracts: quote requests, quotes, applications, policies, documents, and the insurance provider adapter interface.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./money": "./src/money.ts",
+    "./eligibility": "./src/eligibility.ts",
+    "./cover": "./src/cover.ts",
+    "./disclosure": "./src/disclosure.ts",
+    "./document": "./src/document.ts",
+    "./quote": "./src/quote.ts",
+    "./application": "./src/application.ts",
+    "./policy": "./src/policy.ts",
+    "./provider": "./src/provider.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.typecheck.json",
+    "lint": "biome check src/",
+    "test": "vitest run --passWithNoTests",
+    "build": "tsc -p tsconfig.build.json",
+    "clean": "rm -rf dist tsconfig.tsbuildinfo",
+    "prepack": "pnpm run build"
+  },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "import": "./dist/index.js",
+        "default": "./dist/index.js"
+      },
+      "./money": {
+        "types": "./dist/money.d.ts",
+        "import": "./dist/money.js",
+        "default": "./dist/money.js"
+      },
+      "./eligibility": {
+        "types": "./dist/eligibility.d.ts",
+        "import": "./dist/eligibility.js",
+        "default": "./dist/eligibility.js"
+      },
+      "./cover": {
+        "types": "./dist/cover.d.ts",
+        "import": "./dist/cover.js",
+        "default": "./dist/cover.js"
+      },
+      "./disclosure": {
+        "types": "./dist/disclosure.d.ts",
+        "import": "./dist/disclosure.js",
+        "default": "./dist/disclosure.js"
+      },
+      "./document": {
+        "types": "./dist/document.d.ts",
+        "import": "./dist/document.js",
+        "default": "./dist/document.js"
+      },
+      "./quote": {
+        "types": "./dist/quote.d.ts",
+        "import": "./dist/quote.js",
+        "default": "./dist/quote.js"
+      },
+      "./application": {
+        "types": "./dist/application.d.ts",
+        "import": "./dist/application.js",
+        "default": "./dist/application.js"
+      },
+      "./policy": {
+        "types": "./dist/policy.d.ts",
+        "import": "./dist/policy.js",
+        "default": "./dist/policy.js"
+      },
+      "./provider": {
+        "types": "./dist/provider.d.ts",
+        "import": "./dist/provider.js",
+        "default": "./dist/provider.js"
+      }
+    },
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts"
+  },
+  "dependencies": {
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@voyant-travel/voyant-typescript-config": "workspace:^",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/voyant-travel/voyant.git",
+    "directory": "packages/insurance-contracts"
+  },
+  "private": true
+}

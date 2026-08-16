@@ -127,6 +127,13 @@
       "when": 1787025660000,
       "tag": "20260814180100_drop_storefront_scope",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1787025720000,
+      "tag": "20260816110000_booking_item_pricing_treatment",
+      "breakpoints": true
     }
   ]
 }

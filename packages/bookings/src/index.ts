@@ -118,6 +118,13 @@ export {
   upsertBookingOrigin,
 } from "./service-origin.js"
 export {
+  type AddBookingPassThroughItemInput,
+  type AddedBookingPassThroughItem,
+  addBookingPassThroughItem,
+  type RecordBookingSystemActivityInput,
+  recordBookingSystemActivity,
+} from "./service-pass-through-items.js"
+export {
   type CreateSourcedBookingCommitmentInput,
   type CreateSourcedBookingCommitmentResult,
   createSourcedBookingCommitment,

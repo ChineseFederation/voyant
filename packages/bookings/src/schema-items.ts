@@ -20,6 +20,7 @@ import {
   bookingFulfillmentStatusEnum,
   bookingFulfillmentTypeEnum,
   bookingItemParticipantRoleEnum,
+  bookingItemPricingTreatmentEnum,
   bookingItemStatusEnum,
   bookingItemTypeEnum,
   bookingRedemptionMethodEnum,
@@ -82,6 +83,19 @@ export const bookingItems = pgTable(
     departureLabelSnapshot: text("departure_label_snapshot"),
     sourceSnapshotId: text("source_snapshot_id"),
     sourceOfferId: text("source_offer_id"),
+    // How this line may be priced. `pass_through` money is collected at the
+    // amount a third party set, so nothing may add a margin or a commission to
+    // it. Defaults to `standard`, which is every line that existed before.
+    pricingTreatment: bookingItemPricingTreatmentEnum("pricing_treatment")
+      .notNull()
+      .default("standard"),
+    // The tax treatment this line was sold under, when the operator's own tax
+    // policy is not the authority for it. Namespaced by the module that set it
+    // (`"<module>/<treatment>"`), and written verbatim onto the resulting
+    // `booking_item_tax_lines.code` so an invoice shows the treatment instead
+    // of silently omitting a tax line. Only meaningful on a `pass_through`
+    // line; NULL everywhere else.
+    taxTreatmentCode: text("tax_treatment_code"),
     cancellationTermsSnapshot: jsonb(
       "cancellation_terms_snapshot",
     ).$type<BookingItemCancellationTermsSnapshotV1>(),
@@ -100,6 +114,14 @@ export const bookingItems = pgTable(
       "ck_booking_items_cost_currency_amounts",
       // agent-quality: raw-sql reviewed -- owner: bookings; dynamic SQL interpolation uses Drizzle parameter binding or vetted SQL identifiers.
       sql`(${table.unitCostAmountCents} IS NULL AND ${table.totalCostAmountCents} IS NULL) OR ${table.costCurrency} IS NOT NULL`,
+    ),
+    // A tax treatment only overrides policy resolution for money the operator
+    // is passing through. On a standard line the operator's tax policy is the
+    // authority, and a per-line override there would be a silent way around it.
+    check(
+      "ck_booking_items_tax_treatment_pass_through",
+      // agent-quality: raw-sql reviewed -- owner: bookings; dynamic SQL interpolation uses Drizzle parameter binding or vetted SQL identifiers.
+      sql`${table.pricingTreatment} = 'pass_through' OR ${table.taxTreatmentCode} IS NULL`,
     ),
   ],
 )

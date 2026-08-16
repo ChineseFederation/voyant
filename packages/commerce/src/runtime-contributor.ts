@@ -1,4 +1,5 @@
 import {
+  type CatalogCommerceRuntimeExtension,
   type CatalogPublicationRuntime,
   type CatalogRuntimeServices,
   catalogCommerceRuntimeExtensionPort,
@@ -20,6 +21,12 @@ import {
   financeInventoryPaymentPolicyRuntimePort,
 } from "@voyant-travel/finance/runtime-port"
 import { catalogCommerceRuntimeExtension } from "./catalog-runtime-extension.js"
+import { quoteAncillaryOffers } from "./checkout/ancillary-offers.js"
+import {
+  type AncillaryOfferSource,
+  type AncillaryQuoteInput,
+  ancillaryOfferSourceRuntimePort,
+} from "./checkout/ancillary-ports.js"
 import {
   bookingMaintenanceRuntimePort,
   catalogCheckoutApiRuntimePort,
@@ -50,6 +57,11 @@ export type CommerceRuntimePortContribution = ReturnType<typeof createCommerceRu
 export interface CommerceRuntimeContributorHost {
   primitives: VoyantRuntimeHostPrimitives
   getRuntimePort<T>(port: Pick<VoyantPort<T>, "id">): T | Promise<T>
+  /**
+   * Many-valued read. Absent on a host that predates one, which reads the same
+   * as "nothing bound" — the ancillary step then does not exist.
+   */
+  getRuntimePorts?<T>(port: Pick<VoyantPort<T>, "id">): readonly T[] | Promise<readonly T[]>
 }
 
 /** Register Commerce-owned bindings composed from selected domain providers. */
@@ -107,7 +119,24 @@ export function createCommerceRuntimePortContribution(
         }),
     )
   return {
-    [catalogCommerceRuntimeExtensionPort.id]: catalogCommerceRuntimeExtension,
+    // `satisfies` rather than a bare literal: the value is handed to a
+    // `Record<string, unknown>`, so nothing would otherwise check it against
+    // the extension contract — and an un-contextually-typed callback parameter
+    // is an implicit `any` that only the build catches.
+    [catalogCommerceRuntimeExtensionPort.id]: {
+      ...catalogCommerceRuntimeExtension,
+      // The Booking Session descriptor is composed in catalog, and the sources
+      // that price a live third-party offer are bound to a commerce port, so
+      // this is where the two meet. Resolved per call rather than captured:
+      // an operator connecting an insurer should not need a restart to sell
+      // through it.
+      resolveAncillaryOffers: async (request: AncillaryQuoteInput) =>
+        quoteAncillaryOffers(
+          (await host.getRuntimePorts?.<AncillaryOfferSource>(ancillaryOfferSourceRuntimePort)) ??
+            [],
+          request,
+        ),
+    } satisfies CatalogCommerceRuntimeExtension,
     // Markets owns `fx_rate_sets`/`exchange_rates`, so it is what turns a
     // resolved reference rate into a durable rate-set identity for finance to
     // stamp documents with (voyant#4703).

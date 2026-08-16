@@ -20,6 +20,7 @@
     "./adapter/provider-contracts": "./src/adapter/provider-contracts.ts",
     "./booking-engine/contracts": "./src/booking-engine/contracts.ts",
     "./booking-engine/requirements-contracts": "./src/booking-engine/requirements-contracts.ts",
+    "./booking-engine/ancillary-contracts": "./src/booking-engine/ancillary-contracts.ts",
     "./booking-engine/requirements-defaults": "./src/booking-engine/requirements-defaults.ts",
     "./booking-engine/requirements-validation": "./src/booking-engine/requirements-validation.ts",
     "./booking-engine/selection-contracts": "./src/booking-engine/selection-contracts.ts",
@@ -119,6 +120,11 @@
         "types": "./dist/booking-engine/requirements-contracts.d.ts",
         "import": "./dist/booking-engine/requirements-contracts.js",
         "default": "./dist/booking-engine/requirements-contracts.js"
+      },
+      "./booking-engine/ancillary-contracts": {
+        "types": "./dist/booking-engine/ancillary-contracts.d.ts",
+        "import": "./dist/booking-engine/ancillary-contracts.js",
+        "default": "./dist/booking-engine/ancillary-contracts.js"
       },
       "./booking-engine/requirements-defaults": {
         "types": "./dist/booking-engine/requirements-defaults.d.ts",

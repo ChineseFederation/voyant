@@ -41,6 +41,9 @@ export function createOperatorCatalogBookingRouteModuleOptions(options: {
           db,
           ...(options.analytics ? { analytics: options.analytics } : {}),
           resolvePromotionEvaluator: (sessionDb) => commerce.createPromotionEvaluator?.(sessionDb),
+          ...(commerce.resolveAncillaryOffers
+            ? { resolveAncillaryOffers: commerce.resolveAncillaryOffers }
+            : {}),
           repository: createDrizzleBookingSessionRepository(db),
           resolveOwnedHandlers: () => getOwnedBookingHandlerRegistryFromContext(c),
           resolveSourceRegistry: () => getBookingEngineRegistryFromContext(c),

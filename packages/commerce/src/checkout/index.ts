@@ -21,6 +21,30 @@ export {
   type AcceptanceSignatureLegalPort,
   persistAcceptanceSignature,
 } from "./acceptance-signature.js"
+export {
+  AncillaryPremiumDriftError,
+  type AncillaryPremiumReconciliation,
+  type MaterializeAncillaryPassThroughItemInput,
+  type MaterializedAncillaryItem,
+  materializeAncillaryPassThroughItem,
+  type ReconcileAncillaryPremiumInput,
+  reconcileAncillaryPremium,
+} from "./ancillary-materialization.js"
+export {
+  DEFAULT_ANCILLARY_SOURCE_TIMEOUT_MS,
+  type QuoteAncillaryOffersOptions,
+  quoteAncillaryOffers,
+} from "./ancillary-offers.js"
+export {
+  type AncillaryCancelInput,
+  type AncillaryFulfillInput,
+  type AncillaryFulfillmentResult,
+  type AncillaryOfferSource,
+  type AncillaryPreparedSelection,
+  type AncillaryPrepareInput,
+  type AncillaryQuoteInput,
+  ancillaryOfferSourceRuntimePort,
+} from "./ancillary-ports.js"
 export { createCatalogCheckoutGraphExtension } from "./api-runtime.js"
 export { type FinalizeCheckoutParams, finalizeCheckout } from "./finalize.js"
 export {
@@ -49,7 +73,20 @@ export type {
   CheckoutStartOptions,
 } from "./options.js"
 export {
+  assertChargeableBookingItem,
+  BOOKING_ITEM_PRICING_TREATMENTS,
+  type BookingItemChargeRule,
+  type BookingItemChargeTarget,
+  type BookingItemPricingTreatment,
+  type BookingItemPricingTreatmentFacts,
+  isPassThroughLine,
+  PassThroughLineNotChargeableError,
+  resolveBookingItemChargeTargets,
+  selectChargeableBookingItems,
+} from "./pricing-treatment.js"
+export {
   type BookingMaintenanceRoutesOptions,
+  type CatalogCheckoutRuntimeBindings,
   createBookingMaintenanceApiExtension,
   createBookingMaintenanceRoutes,
   createBookingMaintenanceVoyantRuntime,
@@ -57,6 +94,7 @@ export {
   createCatalogCheckoutRoutes,
 } from "./routes.js"
 export {
+  ANCILLARY_OFFER_SOURCES_RUNTIME_KEY,
   bookingMaintenanceRuntimePort,
   CATALOG_CHECKOUT_API_RUNTIME_KEY,
   type CatalogCheckoutApiRuntime,

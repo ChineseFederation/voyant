@@ -29,6 +29,10 @@
     {
       "command": "pnpm --filter @voyant-travel/flights generate:openapi",
       "files": ["packages/flights/openapi/admin/flights.json"]
+    },
+    {
+      "command": "pnpm --filter @voyant-travel/insurance generate:openapi",
+      "files": ["packages/insurance/openapi/admin/insurance.json"]
     }
   ]
 }

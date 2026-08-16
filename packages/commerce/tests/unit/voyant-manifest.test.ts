@@ -12,6 +12,7 @@ import {
   financeInventoryPaymentPolicyRuntimePort,
 } from "@voyant-travel/finance/runtime-port"
 import { describe, expect, it } from "vitest"
+import { ancillaryOfferSourceRuntimePort } from "../../src/checkout/ancillary-ports.js"
 import {
   bookingMaintenanceRuntimePort,
   catalogCheckoutApiRuntimePort,
@@ -266,6 +267,14 @@ describe("commerce deployment manifest", () => {
         { id: catalogCheckoutDatabaseRuntimePort.id },
         { id: catalogCheckoutLegalRuntimePort.id },
         { id: catalogBookingSessionSettlementRuntimePort.id },
+        // Optional and many-valued: an operator may have connected no live
+        // ancillary source at all, and that has to stay a supported state
+        // rather than an unbound-port failure at composition.
+        {
+          id: ancillaryOfferSourceRuntimePort.id,
+          optional: true,
+          cardinality: "many",
+        },
       ],
       api: [
         {

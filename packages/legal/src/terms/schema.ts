@@ -1,7 +1,8 @@
 import { typeId, typeIdRef } from "@voyant-travel/db/lib/typeid-column"
-import { relations } from "drizzle-orm"
+import { relations, sql } from "drizzle-orm"
 import {
   boolean,
+  check,
   index,
   integer,
   jsonb,
@@ -21,6 +22,11 @@ export const legalTermTypeEnum = pgEnum("legal_term_type", [
   "payment",
   "pricing",
   "commission",
+  // Pre-contractual insurance disclosures. Mirrored by `legalTermTypeSchema`
+  // in `@voyant-travel/legal-contracts/terms/validation`.
+  "insurer_product_information",
+  "insurer_terms",
+  "demands_and_needs",
   "other",
 ])
 
@@ -56,6 +62,16 @@ export const legalTerms = pgTable(
       .default("pending"),
     acceptedAt: timestamp("accepted_at", { withTimezone: true }),
     acceptedBy: text("accepted_by"),
+    /**
+     * The insurer's own identifier for the revision in force when this row was
+     * written. Insurers re-version and replace their wording without notice, so
+     * this is what says which wording the traveller actually agreed to.
+     */
+    sourceVersionId: text("source_version_id"),
+    /** Storage key of the artifact archived from the insurer's document. */
+    archivedStorageKey: text("archived_storage_key"),
+    /** `sha256:<hex>` over the exact bytes at `archivedStorageKey`. */
+    archivedChecksum: text("archived_checksum"),
     metadata: jsonb("metadata"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
@@ -94,6 +110,27 @@ export const legalTerms = pgTable(
       table.acceptanceStatus,
       table.sortOrder,
       table.createdAt,
+    ),
+    index("idx_legal_terms_source_version").on(table.termType, table.sourceVersionId),
+    // A disclosure row of one of the insurer kinds that carries no archived
+    // artifact looks configured and is not: at dispute time it resolves to
+    // whatever the insurer serves that day. The application refuses it too, but
+    // the application is not the only writer.
+    //
+    // The comparison casts the column to text rather than casting the literals
+    // to `legal_term_type`, so the migration that adds these labels can add the
+    // constraint in the same transaction (PostgreSQL forbids reading an enum
+    // label the current transaction created).
+    // agent-quality: raw-sql reviewed -- owner: legal; fixed literals, no interpolation.
+    check(
+      "ck_legal_terms_insurer_disclosure_archive",
+      sql`${table.termType}::text NOT IN ('insurer_product_information', 'insurer_terms', 'demands_and_needs')
+        OR (
+          ${table.sourceVersionId} IS NOT NULL
+          AND length(btrim(${table.sourceVersionId})) > 0
+          AND ${table.archivedStorageKey} IS NOT NULL
+          AND length(btrim(${table.archivedStorageKey})) > 0
+        )`,
     ),
   ],
 )

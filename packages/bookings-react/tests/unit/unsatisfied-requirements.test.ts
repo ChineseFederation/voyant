@@ -105,6 +105,7 @@ describe("unsatisfied requirement copy", () => {
         showsTravelers: true,
         showsAccommodation: false,
         showsAddons: false,
+        showsAncillaries: false,
         showsPayment: true,
         showsReview: true,
         paxBands: [{ code: "adult", label: "Grown-up", minCount: 1, maxCount: 4 }],

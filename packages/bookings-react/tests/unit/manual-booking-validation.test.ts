@@ -99,6 +99,7 @@ describe("manual booking validation", () => {
         showsTravelers: true,
         showsAccommodation: true,
         showsAddons: false,
+        showsAncillaries: false,
         showsPayment: true,
         showsReview: true,
         configureSubSteps: [

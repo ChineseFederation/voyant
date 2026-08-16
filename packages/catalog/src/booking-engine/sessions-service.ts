@@ -5,6 +5,7 @@ import type {
   OfferPreviewRequestV1,
 } from "@voyant-travel/catalog-contracts/booking-engine/preview-contracts"
 import { priceFingerprintInput } from "@voyant-travel/catalog-contracts/booking-engine/pricing-contracts"
+import { requirementsFingerprintInput } from "@voyant-travel/catalog-contracts/booking-engine/requirements-contracts"
 import type {
   AbandonBookingSessionV1,
   AdoptBookingSessionV1,
@@ -1201,7 +1202,7 @@ export function createBookingSessionModule(
           requirements,
           pricing,
           priceFingerprint: await priceFingerprint(pricing),
-          requirementsFingerprint: await stableFingerprint(requirements),
+          requirementsFingerprint: await requirementsFingerprint(requirements),
           quotedAt: at,
           expiresAt: new Date(at.getTime() + quoteTtlMs),
         }
@@ -1657,7 +1658,7 @@ export function createBookingSessionModule(
         // Requirements are checked exactly the way the price is: re-derive,
         // compare against what the client rendered, and refuse rather than
         // book something collected against a descriptor that has moved.
-        const freshRequirementsFingerprint = await stableFingerprint(freshQuote.requirements)
+        const freshRequirementsFingerprint = await requirementsFingerprint(freshQuote.requirements)
         if (
           freshRequirementsFingerprint !== quote.requirementsFingerprint ||
           freshRequirementsFingerprint !== input.requirementsFingerprint
@@ -2272,7 +2273,7 @@ async function consumeCommittedSources(input: {
       if (
         currentQuoteResult.status === "unavailable" ||
         (await priceFingerprint(currentQuoteResult.pricing)) !== currentQuote.priceFingerprint ||
-        (await stableFingerprint(currentQuoteResult.requirements)) !==
+        (await requirementsFingerprint(currentQuoteResult.requirements)) !==
           currentQuote.requirementsFingerprint
       ) {
         currentQuote.state = "superseded"
@@ -3311,6 +3312,21 @@ async function stableFingerprint(value: unknown): Promise<string> {
  */
 async function priceFingerprint(pricing: unknown): Promise<string> {
   return stableFingerprint(priceFingerprintInput(pricing))
+}
+
+/**
+ * The fingerprint that decides whether a Quote's descriptor still stands.
+ *
+ * Same reasoning as `priceFingerprint`: written once at quote time, compared
+ * twice at commit, so it is one function rather than three call sites hashing
+ * the descriptor directly.
+ *
+ * See `requirementsFingerprintInput` for what it deliberately does not depend
+ * on — live third-party offers move on their own and would otherwise supersede
+ * every quote that sat on the payment step for a moment.
+ */
+async function requirementsFingerprint(requirements: unknown): Promise<string> {
+  return stableFingerprint(requirementsFingerprintInput(requirements))
 }
 
 async function sha256Hex(value: string): Promise<string> {

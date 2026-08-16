@@ -1,0 +1,16 @@
+{
+  "extends": [
+    "@voyant-travel/voyant-typescript-config/react-library.json",
+    "../typescript-config/dep-paths.json"
+  ],
+  "compilerOptions": {
+    "composite": false,
+    "outDir": "dist",
+    "rootDir": "src",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "jsx": "react-jsx"
+  },
+  "include": ["src/**/*"],
+  "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx"]
+}

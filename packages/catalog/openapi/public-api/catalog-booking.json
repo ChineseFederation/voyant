@@ -194,6 +194,10 @@
                       "showsAddons": {
                         "type": "boolean"
                       },
+                      "showsAncillaries": {
+                        "type": "boolean",
+                        "default": false
+                      },
                       "showsPayment": {
                         "type": "boolean"
                       },
@@ -927,6 +931,247 @@
                               },
                               "required": ["kind", "label", "perGuestSelection", "items"]
                             }
+                          }
+                        }
+                      },
+                      "ancillaries": {
+                        "type": "object",
+                        "properties": {
+                          "groups": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "kind": {
+                                  "type": "string"
+                                },
+                                "label": {
+                                  "type": "string"
+                                },
+                                "offers": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "offerId": {
+                                        "type": "string"
+                                      },
+                                      "sourceId": {
+                                        "type": "string"
+                                      },
+                                      "providerId": {
+                                        "type": "string"
+                                      },
+                                      "providerLabel": {
+                                        "type": "string"
+                                      },
+                                      "kind": {
+                                        "type": "string"
+                                      },
+                                      "title": {
+                                        "type": "string"
+                                      },
+                                      "summary": {
+                                        "type": ["string", "null"]
+                                      },
+                                      "planLabel": {
+                                        "type": ["string", "null"]
+                                      },
+                                      "price": {
+                                        "type": "object",
+                                        "properties": {
+                                          "amountMinor": {
+                                            "type": "integer"
+                                          },
+                                          "currency": {
+                                            "type": "string",
+                                            "pattern": "^[A-Z]{3}$"
+                                          }
+                                        },
+                                        "required": ["amountMinor", "currency"],
+                                        "additionalProperties": false
+                                      },
+                                      "pricedPerPerson": {
+                                        "type": "boolean",
+                                        "default": false
+                                      },
+                                      "highlights": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "properties": {
+                                            "label": {
+                                              "type": "string"
+                                            },
+                                            "value": {
+                                              "type": "string"
+                                            }
+                                          },
+                                          "required": ["label"],
+                                          "additionalProperties": false
+                                        },
+                                        "default": []
+                                      },
+                                      "eligibility": {
+                                        "type": "object",
+                                        "properties": {
+                                          "status": {
+                                            "type": "string",
+                                            "enum": ["eligible", "ineligible", "referral"]
+                                          },
+                                          "reasons": {
+                                            "type": "array",
+                                            "items": {
+                                              "type": "object",
+                                              "properties": {
+                                                "code": {
+                                                  "type": "string"
+                                                },
+                                                "message": {
+                                                  "type": "string"
+                                                }
+                                              },
+                                              "required": ["code", "message"],
+                                              "additionalProperties": false
+                                            },
+                                            "default": []
+                                          }
+                                        },
+                                        "required": ["status"],
+                                        "additionalProperties": false
+                                      },
+                                      "disclosures": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "properties": {
+                                            "kind": {
+                                              "type": "string"
+                                            },
+                                            "label": {
+                                              "type": "string"
+                                            },
+                                            "versionId": {
+                                              "type": "string"
+                                            },
+                                            "url": {
+                                              "type": "string"
+                                            },
+                                            "required": {
+                                              "type": "boolean"
+                                            }
+                                          },
+                                          "required": ["kind", "label", "versionId", "required"],
+                                          "additionalProperties": false
+                                        },
+                                        "default": []
+                                      },
+                                      "requiredTravelerFields": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "properties": {
+                                            "key": {
+                                              "type": "string"
+                                            },
+                                            "label": {
+                                              "type": "string"
+                                            },
+                                            "type": {
+                                              "type": "string"
+                                            },
+                                            "required": {
+                                              "type": "boolean"
+                                            },
+                                            "sensitive": {
+                                              "type": "boolean",
+                                              "default": false
+                                            },
+                                            "options": {
+                                              "type": "array",
+                                              "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                  "value": {
+                                                    "type": "string"
+                                                  },
+                                                  "label": {
+                                                    "type": "string"
+                                                  }
+                                                },
+                                                "required": ["value", "label"],
+                                                "additionalProperties": false
+                                              }
+                                            },
+                                            "helpText": {
+                                              "type": "string"
+                                            }
+                                          },
+                                          "required": ["key", "label", "type", "required"],
+                                          "additionalProperties": false
+                                        },
+                                        "default": []
+                                      },
+                                      "validUntil": {
+                                        "type": "string"
+                                      },
+                                      "quoteRef": {
+                                        "type": "string"
+                                      },
+                                      "metadata": {
+                                        "type": "object",
+                                        "additionalProperties": {}
+                                      }
+                                    },
+                                    "required": [
+                                      "offerId",
+                                      "sourceId",
+                                      "providerId",
+                                      "providerLabel",
+                                      "kind",
+                                      "title",
+                                      "price",
+                                      "eligibility",
+                                      "validUntil",
+                                      "quoteRef"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  "default": []
+                                },
+                                "diagnostics": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "sourceId": {
+                                        "type": "string"
+                                      },
+                                      "providerId": {
+                                        "type": "string"
+                                      },
+                                      "status": {
+                                        "type": "string",
+                                        "enum": ["ok", "timeout", "error", "unavailable"]
+                                      },
+                                      "message": {
+                                        "type": "string"
+                                      },
+                                      "latencyMs": {
+                                        "type": "integer",
+                                        "minimum": 0
+                                      }
+                                    },
+                                    "required": ["sourceId", "status"],
+                                    "additionalProperties": false
+                                  },
+                                  "default": []
+                                }
+                              },
+                              "required": ["kind", "label"],
+                              "additionalProperties": false
+                            },
+                            "default": []
                           }
                         }
                       },
@@ -1164,6 +1409,10 @@
                       "showsAddons": {
                         "type": "boolean"
                       },
+                      "showsAncillaries": {
+                        "type": "boolean",
+                        "default": false
+                      },
                       "showsPayment": {
                         "type": "boolean"
                       },
@@ -1897,6 +2146,247 @@
                               },
                               "required": ["kind", "label", "perGuestSelection", "items"]
                             }
+                          }
+                        }
+                      },
+                      "ancillaries": {
+                        "type": "object",
+                        "properties": {
+                          "groups": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "kind": {
+                                  "type": "string"
+                                },
+                                "label": {
+                                  "type": "string"
+                                },
+                                "offers": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "offerId": {
+                                        "type": "string"
+                                      },
+                                      "sourceId": {
+                                        "type": "string"
+                                      },
+                                      "providerId": {
+                                        "type": "string"
+                                      },
+                                      "providerLabel": {
+                                        "type": "string"
+                                      },
+                                      "kind": {
+                                        "type": "string"
+                                      },
+                                      "title": {
+                                        "type": "string"
+                                      },
+                                      "summary": {
+                                        "type": ["string", "null"]
+                                      },
+                                      "planLabel": {
+                                        "type": ["string", "null"]
+                                      },
+                                      "price": {
+                                        "type": "object",
+                                        "properties": {
+                                          "amountMinor": {
+                                            "type": "integer"
+                                          },
+                                          "currency": {
+                                            "type": "string",
+                                            "pattern": "^[A-Z]{3}$"
+                                          }
+                                        },
+                                        "required": ["amountMinor", "currency"],
+                                        "additionalProperties": false
+                                      },
+                                      "pricedPerPerson": {
+                                        "type": "boolean",
+                                        "default": false
+                                      },
+                                      "highlights": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "properties": {
+                                            "label": {
+                                              "type": "string"
+                                            },
+                                            "value": {
+                                              "type": "string"
+                                            }
+                                          },
+                                          "required": ["label"],
+                                          "additionalProperties": false
+                                        },
+                                        "default": []
+                                      },
+                                      "eligibility": {
+                                        "type": "object",
+                                        "properties": {
+                                          "status": {
+                                            "type": "string",
+                                            "enum": ["eligible", "ineligible", "referral"]
+                                          },
+                                          "reasons": {
+                                            "type": "array",
+                                            "items": {
+                                              "type": "object",
+                                              "properties": {
+                                                "code": {
+                                                  "type": "string"
+                                                },
+                                                "message": {
+                                                  "type": "string"
+                                                }
+                                              },
+                                              "required": ["code", "message"],
+                                              "additionalProperties": false
+                                            },
+                                            "default": []
+                                          }
+                                        },
+                                        "required": ["status"],
+                                        "additionalProperties": false
+                                      },
+                                      "disclosures": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "properties": {
+                                            "kind": {
+                                              "type": "string"
+                                            },
+                                            "label": {
+                                              "type": "string"
+                                            },
+                                            "versionId": {
+                                              "type": "string"
+                                            },
+                                            "url": {
+                                              "type": "string"
+                                            },
+                                            "required": {
+                                              "type": "boolean"
+                                            }
+                                          },
+                                          "required": ["kind", "label", "versionId", "required"],
+                                          "additionalProperties": false
+                                        },
+                                        "default": []
+                                      },
+                                      "requiredTravelerFields": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "properties": {
+                                            "key": {
+                                              "type": "string"
+                                            },
+                                            "label": {
+                                              "type": "string"
+                                            },
+                                            "type": {
+                                              "type": "string"
+                                            },
+                                            "required": {
+                                              "type": "boolean"
+                                            },
+                                            "sensitive": {
+                                              "type": "boolean",
+                                              "default": false
+                                            },
+                                            "options": {
+                                              "type": "array",
+                                              "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                  "value": {
+                                                    "type": "string"
+                                                  },
+                                                  "label": {
+                                                    "type": "string"
+                                                  }
+                                                },
+                                                "required": ["value", "label"],
+                                                "additionalProperties": false
+                                              }
+                                            },
+                                            "helpText": {
+                                              "type": "string"
+                                            }
+                                          },
+                                          "required": ["key", "label", "type", "required"],
+                                          "additionalProperties": false
+                                        },
+                                        "default": []
+                                      },
+                                      "validUntil": {
+                                        "type": "string"
+                                      },
+                                      "quoteRef": {
+                                        "type": "string"
+                                      },
+                                      "metadata": {
+                                        "type": "object",
+                                        "additionalProperties": {}
+                                      }
+                                    },
+                                    "required": [
+                                      "offerId",
+                                      "sourceId",
+                                      "providerId",
+                                      "providerLabel",
+                                      "kind",
+                                      "title",
+                                      "price",
+                                      "eligibility",
+                                      "validUntil",
+                                      "quoteRef"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  "default": []
+                                },
+                                "diagnostics": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "sourceId": {
+                                        "type": "string"
+                                      },
+                                      "providerId": {
+                                        "type": "string"
+                                      },
+                                      "status": {
+                                        "type": "string",
+                                        "enum": ["ok", "timeout", "error", "unavailable"]
+                                      },
+                                      "message": {
+                                        "type": "string"
+                                      },
+                                      "latencyMs": {
+                                        "type": "integer",
+                                        "minimum": 0
+                                      }
+                                    },
+                                    "required": ["sourceId", "status"],
+                                    "additionalProperties": false
+                                  },
+                                  "default": []
+                                }
+                              },
+                              "required": ["kind", "label"],
+                              "additionalProperties": false
+                            },
+                            "default": []
                           }
                         }
                       },
@@ -2134,6 +2624,10 @@
                       "showsAddons": {
                         "type": "boolean"
                       },
+                      "showsAncillaries": {
+                        "type": "boolean",
+                        "default": false
+                      },
                       "showsPayment": {
                         "type": "boolean"
                       },
@@ -2867,6 +3361,247 @@
                               },
                               "required": ["kind", "label", "perGuestSelection", "items"]
                             }
+                          }
+                        }
+                      },
+                      "ancillaries": {
+                        "type": "object",
+                        "properties": {
+                          "groups": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "kind": {
+                                  "type": "string"
+                                },
+                                "label": {
+                                  "type": "string"
+                                },
+                                "offers": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "offerId": {
+                                        "type": "string"
+                                      },
+                                      "sourceId": {
+                                        "type": "string"
+                                      },
+                                      "providerId": {
+                                        "type": "string"
+                                      },
+                                      "providerLabel": {
+                                        "type": "string"
+                                      },
+                                      "kind": {
+                                        "type": "string"
+                                      },
+                                      "title": {
+                                        "type": "string"
+                                      },
+                                      "summary": {
+                                        "type": ["string", "null"]
+                                      },
+                                      "planLabel": {
+                                        "type": ["string", "null"]
+                                      },
+                                      "price": {
+                                        "type": "object",
+                                        "properties": {
+                                          "amountMinor": {
+                                            "type": "integer"
+                                          },
+                                          "currency": {
+                                            "type": "string",
+                                            "pattern": "^[A-Z]{3}$"
+                                          }
+                                        },
+                                        "required": ["amountMinor", "currency"],
+                                        "additionalProperties": false
+                                      },
+                                      "pricedPerPerson": {
+                                        "type": "boolean",
+                                        "default": false
+                                      },
+                                      "highlights": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "properties": {
+                                            "label": {
+                                              "type": "string"
+                                            },
+                                            "value": {
+                                              "type": "string"
+                                            }
+                                          },
+                                          "required": ["label"],
+                                          "additionalProperties": false
+                                        },
+                                        "default": []
+                                      },
+                                      "eligibility": {
+                                        "type": "object",
+                                        "properties": {
+                                          "status": {
+                                            "type": "string",
+                                            "enum": ["eligible", "ineligible", "referral"]
+                                          },
+                                          "reasons": {
+                                            "type": "array",
+                                            "items": {
+                                              "type": "object",
+                                              "properties": {
+                                                "code": {
+                                                  "type": "string"
+                                                },
+                                                "message": {
+                                                  "type": "string"
+                                                }
+                                              },
+                                              "required": ["code", "message"],
+                                              "additionalProperties": false
+                                            },
+                                            "default": []
+                                          }
+                                        },
+                                        "required": ["status"],
+                                        "additionalProperties": false
+                                      },
+                                      "disclosures": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "properties": {
+                                            "kind": {
+                                              "type": "string"
+                                            },
+                                            "label": {
+                                              "type": "string"
+                                            },
+                                            "versionId": {
+                                              "type": "string"
+                                            },
+                                            "url": {
+                                              "type": "string"
+                                            },
+                                            "required": {
+                                              "type": "boolean"
+                                            }
+                                          },
+                                          "required": ["kind", "label", "versionId", "required"],
+                                          "additionalProperties": false
+                                        },
+                                        "default": []
+                                      },
+                                      "requiredTravelerFields": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "properties": {
+                                            "key": {
+                                              "type": "string"
+                                            },
+                                            "label": {
+                                              "type": "string"
+                                            },
+                                            "type": {
+                                              "type": "string"
+                                            },
+                                            "required": {
+                                              "type": "boolean"
+                                            },
+                                            "sensitive": {
+                                              "type": "boolean",
+                                              "default": false
+                                            },
+                                            "options": {
+                                              "type": "array",
+                                              "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                  "value": {
+                                                    "type": "string"
+                                                  },
+                                                  "label": {
+                                                    "type": "string"
+                                                  }
+                                                },
+                                                "required": ["value", "label"],
+                                                "additionalProperties": false
+                                              }
+                                            },
+                                            "helpText": {
+                                              "type": "string"
+                                            }
+                                          },
+                                          "required": ["key", "label", "type", "required"],
+                                          "additionalProperties": false
+                                        },
+                                        "default": []
+                                      },
+                                      "validUntil": {
+                                        "type": "string"
+                                      },
+                                      "quoteRef": {
+                                        "type": "string"
+                                      },
+                                      "metadata": {
+                                        "type": "object",
+                                        "additionalProperties": {}
+                                      }
+                                    },
+                                    "required": [
+                                      "offerId",
+                                      "sourceId",
+                                      "providerId",
+                                      "providerLabel",
+                                      "kind",
+                                      "title",
+                                      "price",
+                                      "eligibility",
+                                      "validUntil",
+                                      "quoteRef"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  "default": []
+                                },
+                                "diagnostics": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "sourceId": {
+                                        "type": "string"
+                                      },
+                                      "providerId": {
+                                        "type": "string"
+                                      },
+                                      "status": {
+                                        "type": "string",
+                                        "enum": ["ok", "timeout", "error", "unavailable"]
+                                      },
+                                      "message": {
+                                        "type": "string"
+                                      },
+                                      "latencyMs": {
+                                        "type": "integer",
+                                        "minimum": 0
+                                      }
+                                    },
+                                    "required": ["sourceId", "status"],
+                                    "additionalProperties": false
+                                  },
+                                  "default": []
+                                }
+                              },
+                              "required": ["kind", "label"],
+                              "additionalProperties": false
+                            },
+                            "default": []
                           }
                         }
                       },
@@ -3113,6 +3848,10 @@
                       "showsAddons": {
                         "type": "boolean"
                       },
+                      "showsAncillaries": {
+                        "type": "boolean",
+                        "default": false
+                      },
                       "showsPayment": {
                         "type": "boolean"
                       },
@@ -3846,6 +4585,247 @@
                               },
                               "required": ["kind", "label", "perGuestSelection", "items"]
                             }
+                          }
+                        }
+                      },
+                      "ancillaries": {
+                        "type": "object",
+                        "properties": {
+                          "groups": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "kind": {
+                                  "type": "string"
+                                },
+                                "label": {
+                                  "type": "string"
+                                },
+                                "offers": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "offerId": {
+                                        "type": "string"
+                                      },
+                                      "sourceId": {
+                                        "type": "string"
+                                      },
+                                      "providerId": {
+                                        "type": "string"
+                                      },
+                                      "providerLabel": {
+                                        "type": "string"
+                                      },
+                                      "kind": {
+                                        "type": "string"
+                                      },
+                                      "title": {
+                                        "type": "string"
+                                      },
+                                      "summary": {
+                                        "type": ["string", "null"]
+                                      },
+                                      "planLabel": {
+                                        "type": ["string", "null"]
+                                      },
+                                      "price": {
+                                        "type": "object",
+                                        "properties": {
+                                          "amountMinor": {
+                                            "type": "integer"
+                                          },
+                                          "currency": {
+                                            "type": "string",
+                                            "pattern": "^[A-Z]{3}$"
+                                          }
+                                        },
+                                        "required": ["amountMinor", "currency"],
+                                        "additionalProperties": false
+                                      },
+                                      "pricedPerPerson": {
+                                        "type": "boolean",
+                                        "default": false
+                                      },
+                                      "highlights": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "properties": {
+                                            "label": {
+                                              "type": "string"
+                                            },
+                                            "value": {
+                                              "type": "string"
+                                            }
+                                          },
+                                          "required": ["label"],
+                                          "additionalProperties": false
+                                        },
+                                        "default": []
+                                      },
+                                      "eligibility": {
+                                        "type": "object",
+                                        "properties": {
+                                          "status": {
+                                            "type": "string",
+                                            "enum": ["eligible", "ineligible", "referral"]
+                                          },
+                                          "reasons": {
+                                            "type": "array",
+                                            "items": {
+                                              "type": "object",
+                                              "properties": {
+                                                "code": {
+                                                  "type": "string"
+                                                },
+                                                "message": {
+                                                  "type": "string"
+                                                }
+                                              },
+                                              "required": ["code", "message"],
+                                              "additionalProperties": false
+                                            },
+                                            "default": []
+                                          }
+                                        },
+                                        "required": ["status"],
+                                        "additionalProperties": false
+                                      },
+                                      "disclosures": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "properties": {
+                                            "kind": {
+                                              "type": "string"
+                                            },
+                                            "label": {
+                                              "type": "string"
+                                            },
+                                            "versionId": {
+                                              "type": "string"
+                                            },
+                                            "url": {
+                                              "type": "string"
+                                            },
+                                            "required": {
+                                              "type": "boolean"
+                                            }
+                                          },
+                                          "required": ["kind", "label", "versionId", "required"],
+                                          "additionalProperties": false
+                                        },
+                                        "default": []
+                                      },
+                                      "requiredTravelerFields": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "properties": {
+                                            "key": {
+                                              "type": "string"
+                                            },
+                                            "label": {
+                                              "type": "string"
+                                            },
+                                            "type": {
+                                              "type": "string"
+                                            },
+                                            "required": {
+                                              "type": "boolean"
+                                            },
+                                            "sensitive": {
+                                              "type": "boolean",
+                                              "default": false
+                                            },
+                                            "options": {
+                                              "type": "array",
+                                              "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                  "value": {
+                                                    "type": "string"
+                                                  },
+                                                  "label": {
+                                                    "type": "string"
+                                                  }
+                                                },
+                                                "required": ["value", "label"],
+                                                "additionalProperties": false
+                                              }
+                                            },
+                                            "helpText": {
+                                              "type": "string"
+                                            }
+                                          },
+                                          "required": ["key", "label", "type", "required"],
+                                          "additionalProperties": false
+                                        },
+                                        "default": []
+                                      },
+                                      "validUntil": {
+                                        "type": "string"
+                                      },
+                                      "quoteRef": {
+                                        "type": "string"
+                                      },
+                                      "metadata": {
+                                        "type": "object",
+                                        "additionalProperties": {}
+                                      }
+                                    },
+                                    "required": [
+                                      "offerId",
+                                      "sourceId",
+                                      "providerId",
+                                      "providerLabel",
+                                      "kind",
+                                      "title",
+                                      "price",
+                                      "eligibility",
+                                      "validUntil",
+                                      "quoteRef"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  "default": []
+                                },
+                                "diagnostics": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "sourceId": {
+                                        "type": "string"
+                                      },
+                                      "providerId": {
+                                        "type": "string"
+                                      },
+                                      "status": {
+                                        "type": "string",
+                                        "enum": ["ok", "timeout", "error", "unavailable"]
+                                      },
+                                      "message": {
+                                        "type": "string"
+                                      },
+                                      "latencyMs": {
+                                        "type": "integer",
+                                        "minimum": 0
+                                      }
+                                    },
+                                    "required": ["sourceId", "status"],
+                                    "additionalProperties": false
+                                  },
+                                  "default": []
+                                }
+                              },
+                              "required": ["kind", "label"],
+                              "additionalProperties": false
+                            },
+                            "default": []
                           }
                         }
                       },
@@ -4092,6 +5072,10 @@
                       "showsAddons": {
                         "type": "boolean"
                       },
+                      "showsAncillaries": {
+                        "type": "boolean",
+                        "default": false
+                      },
                       "showsPayment": {
                         "type": "boolean"
                       },
@@ -4825,6 +5809,247 @@
                               },
                               "required": ["kind", "label", "perGuestSelection", "items"]
                             }
+                          }
+                        }
+                      },
+                      "ancillaries": {
+                        "type": "object",
+                        "properties": {
+                          "groups": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "kind": {
+                                  "type": "string"
+                                },
+                                "label": {
+                                  "type": "string"
+                                },
+                                "offers": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "offerId": {
+                                        "type": "string"
+                                      },
+                                      "sourceId": {
+                                        "type": "string"
+                                      },
+                                      "providerId": {
+                                        "type": "string"
+                                      },
+                                      "providerLabel": {
+                                        "type": "string"
+                                      },
+                                      "kind": {
+                                        "type": "string"
+                                      },
+                                      "title": {
+                                        "type": "string"
+                                      },
+                                      "summary": {
+                                        "type": ["string", "null"]
+                                      },
+                                      "planLabel": {
+                                        "type": ["string", "null"]
+                                      },
+                                      "price": {
+                                        "type": "object",
+                                        "properties": {
+                                          "amountMinor": {
+                                            "type": "integer"
+                                          },
+                                          "currency": {
+                                            "type": "string",
+                                            "pattern": "^[A-Z]{3}$"
+                                          }
+                                        },
+                                        "required": ["amountMinor", "currency"],
+                                        "additionalProperties": false
+                                      },
+                                      "pricedPerPerson": {
+                                        "type": "boolean",
+                                        "default": false
+                                      },
+                                      "highlights": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "properties": {
+                                            "label": {
+                                              "type": "string"
+                                            },
+                                            "value": {
+                                              "type": "string"
+                                            }
+                                          },
+                                          "required": ["label"],
+                                          "additionalProperties": false
+                                        },
+                                        "default": []
+                                      },
+                                      "eligibility": {
+                                        "type": "object",
+                                        "properties": {
+                                          "status": {
+                                            "type": "string",
+                                            "enum": ["eligible", "ineligible", "referral"]
+                                          },
+                                          "reasons": {
+                                            "type": "array",
+                                            "items": {
+                                              "type": "object",
+                                              "properties": {
+                                                "code": {
+                                                  "type": "string"
+                                                },
+                                                "message": {
+                                                  "type": "string"
+                                                }
+                                              },
+                                              "required": ["code", "message"],
+                                              "additionalProperties": false
+                                            },
+                                            "default": []
+                                          }
+                                        },
+                                        "required": ["status"],
+                                        "additionalProperties": false
+                                      },
+                                      "disclosures": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "properties": {
+                                            "kind": {
+                                              "type": "string"
+                                            },
+                                            "label": {
+                                              "type": "string"
+                                            },
+                                            "versionId": {
+                                              "type": "string"
+                                            },
+                                            "url": {
+                                              "type": "string"
+                                            },
+                                            "required": {
+                                              "type": "boolean"
+                                            }
+                                          },
+                                          "required": ["kind", "label", "versionId", "required"],
+                                          "additionalProperties": false
+                                        },
+                                        "default": []
+                                      },
+                                      "requiredTravelerFields": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "properties": {
+                                            "key": {
+                                              "type": "string"
+                                            },
+                                            "label": {
+                                              "type": "string"
+                                            },
+                                            "type": {
+                                              "type": "string"
+                                            },
+                                            "required": {
+                                              "type": "boolean"
+                                            },
+                                            "sensitive": {
+                                              "type": "boolean",
+                                              "default": false
+                                            },
+                                            "options": {
+                                              "type": "array",
+                                              "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                  "value": {
+                                                    "type": "string"
+                                                  },
+                                                  "label": {
+                                                    "type": "string"
+                                                  }
+                                                },
+                                                "required": ["value", "label"],
+                                                "additionalProperties": false
+                                              }
+                                            },
+                                            "helpText": {
+                                              "type": "string"
+                                            }
+                                          },
+                                          "required": ["key", "label", "type", "required"],
+                                          "additionalProperties": false
+                                        },
+                                        "default": []
+                                      },
+                                      "validUntil": {
+                                        "type": "string"
+                                      },
+                                      "quoteRef": {
+                                        "type": "string"
+                                      },
+                                      "metadata": {
+                                        "type": "object",
+                                        "additionalProperties": {}
+                                      }
+                                    },
+                                    "required": [
+                                      "offerId",
+                                      "sourceId",
+                                      "providerId",
+                                      "providerLabel",
+                                      "kind",
+                                      "title",
+                                      "price",
+                                      "eligibility",
+                                      "validUntil",
+                                      "quoteRef"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  "default": []
+                                },
+                                "diagnostics": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "sourceId": {
+                                        "type": "string"
+                                      },
+                                      "providerId": {
+                                        "type": "string"
+                                      },
+                                      "status": {
+                                        "type": "string",
+                                        "enum": ["ok", "timeout", "error", "unavailable"]
+                                      },
+                                      "message": {
+                                        "type": "string"
+                                      },
+                                      "latencyMs": {
+                                        "type": "integer",
+                                        "minimum": 0
+                                      }
+                                    },
+                                    "required": ["sourceId", "status"],
+                                    "additionalProperties": false
+                                  },
+                                  "default": []
+                                }
+                              },
+                              "required": ["kind", "label"],
+                              "additionalProperties": false
+                            },
+                            "default": []
                           }
                         }
                       },
@@ -5062,6 +6287,10 @@
                       "showsAddons": {
                         "type": "boolean"
                       },
+                      "showsAncillaries": {
+                        "type": "boolean",
+                        "default": false
+                      },
                       "showsPayment": {
                         "type": "boolean"
                       },
@@ -5795,6 +7024,247 @@
                               },
                               "required": ["kind", "label", "perGuestSelection", "items"]
                             }
+                          }
+                        }
+                      },
+                      "ancillaries": {
+                        "type": "object",
+                        "properties": {
+                          "groups": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "kind": {
+                                  "type": "string"
+                                },
+                                "label": {
+                                  "type": "string"
+                                },
+                                "offers": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "offerId": {
+                                        "type": "string"
+                                      },
+                                      "sourceId": {
+                                        "type": "string"
+                                      },
+                                      "providerId": {
+                                        "type": "string"
+                                      },
+                                      "providerLabel": {
+                                        "type": "string"
+                                      },
+                                      "kind": {
+                                        "type": "string"
+                                      },
+                                      "title": {
+                                        "type": "string"
+                                      },
+                                      "summary": {
+                                        "type": ["string", "null"]
+                                      },
+                                      "planLabel": {
+                                        "type": ["string", "null"]
+                                      },
+                                      "price": {
+                                        "type": "object",
+                                        "properties": {
+                                          "amountMinor": {
+                                            "type": "integer"
+                                          },
+                                          "currency": {
+                                            "type": "string",
+                                            "pattern": "^[A-Z]{3}$"
+                                          }
+                                        },
+                                        "required": ["amountMinor", "currency"],
+                                        "additionalProperties": false
+                                      },
+                                      "pricedPerPerson": {
+                                        "type": "boolean",
+                                        "default": false
+                                      },
+                                      "highlights": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "properties": {
+                                            "label": {
+                                              "type": "string"
+                                            },
+                                            "value": {
+                                              "type": "string"
+                                            }
+                                          },
+                                          "required": ["label"],
+                                          "additionalProperties": false
+                                        },
+                                        "default": []
+                                      },
+                                      "eligibility": {
+                                        "type": "object",
+                                        "properties": {
+                                          "status": {
+                                            "type": "string",
+                                            "enum": ["eligible", "ineligible", "referral"]
+                                          },
+                                          "reasons": {
+                                            "type": "array",
+                                            "items": {
+                                              "type": "object",
+                                              "properties": {
+                                                "code": {
+                                                  "type": "string"
+                                                },
+                                                "message": {
+                                                  "type": "string"
+                                                }
+                                              },
+                                              "required": ["code", "message"],
+                                              "additionalProperties": false
+                                            },
+                                            "default": []
+                                          }
+                                        },
+                                        "required": ["status"],
+                                        "additionalProperties": false
+                                      },
+                                      "disclosures": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "properties": {
+                                            "kind": {
+                                              "type": "string"
+                                            },
+                                            "label": {
+                                              "type": "string"
+                                            },
+                                            "versionId": {
+                                              "type": "string"
+                                            },
+                                            "url": {
+                                              "type": "string"
+                                            },
+                                            "required": {
+                                              "type": "boolean"
+                                            }
+                                          },
+                                          "required": ["kind", "label", "versionId", "required"],
+                                          "additionalProperties": false
+                                        },
+                                        "default": []
+                                      },
+                                      "requiredTravelerFields": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "properties": {
+                                            "key": {
+                                              "type": "string"
+                                            },
+                                            "label": {
+                                              "type": "string"
+                                            },
+                                            "type": {
+                                              "type": "string"
+                                            },
+                                            "required": {
+                                              "type": "boolean"
+                                            },
+                                            "sensitive": {
+                                              "type": "boolean",
+                                              "default": false
+                                            },
+                                            "options": {
+                                              "type": "array",
+                                              "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                  "value": {
+                                                    "type": "string"
+                                                  },
+                                                  "label": {
+                                                    "type": "string"
+                                                  }
+                                                },
+                                                "required": ["value", "label"],
+                                                "additionalProperties": false
+                                              }
+                                            },
+                                            "helpText": {
+                                              "type": "string"
+                                            }
+                                          },
+                                          "required": ["key", "label", "type", "required"],
+                                          "additionalProperties": false
+                                        },
+                                        "default": []
+                                      },
+                                      "validUntil": {
+                                        "type": "string"
+                                      },
+                                      "quoteRef": {
+                                        "type": "string"
+                                      },
+                                      "metadata": {
+                                        "type": "object",
+                                        "additionalProperties": {}
+                                      }
+                                    },
+                                    "required": [
+                                      "offerId",
+                                      "sourceId",
+                                      "providerId",
+                                      "providerLabel",
+                                      "kind",
+                                      "title",
+                                      "price",
+                                      "eligibility",
+                                      "validUntil",
+                                      "quoteRef"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  "default": []
+                                },
+                                "diagnostics": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "sourceId": {
+                                        "type": "string"
+                                      },
+                                      "providerId": {
+                                        "type": "string"
+                                      },
+                                      "status": {
+                                        "type": "string",
+                                        "enum": ["ok", "timeout", "error", "unavailable"]
+                                      },
+                                      "message": {
+                                        "type": "string"
+                                      },
+                                      "latencyMs": {
+                                        "type": "integer",
+                                        "minimum": 0
+                                      }
+                                    },
+                                    "required": ["sourceId", "status"],
+                                    "additionalProperties": false
+                                  },
+                                  "default": []
+                                }
+                              },
+                              "required": ["kind", "label"],
+                              "additionalProperties": false
+                            },
+                            "default": []
                           }
                         }
                       },
@@ -6032,6 +7502,10 @@
                       "showsAddons": {
                         "type": "boolean"
                       },
+                      "showsAncillaries": {
+                        "type": "boolean",
+                        "default": false
+                      },
                       "showsPayment": {
                         "type": "boolean"
                       },
@@ -6765,6 +8239,247 @@
                               },
                               "required": ["kind", "label", "perGuestSelection", "items"]
                             }
+                          }
+                        }
+                      },
+                      "ancillaries": {
+                        "type": "object",
+                        "properties": {
+                          "groups": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "kind": {
+                                  "type": "string"
+                                },
+                                "label": {
+                                  "type": "string"
+                                },
+                                "offers": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "offerId": {
+                                        "type": "string"
+                                      },
+                                      "sourceId": {
+                                        "type": "string"
+                                      },
+                                      "providerId": {
+                                        "type": "string"
+                                      },
+                                      "providerLabel": {
+                                        "type": "string"
+                                      },
+                                      "kind": {
+                                        "type": "string"
+                                      },
+                                      "title": {
+                                        "type": "string"
+                                      },
+                                      "summary": {
+                                        "type": ["string", "null"]
+                                      },
+                                      "planLabel": {
+                                        "type": ["string", "null"]
+                                      },
+                                      "price": {
+                                        "type": "object",
+                                        "properties": {
+                                          "amountMinor": {
+                                            "type": "integer"
+                                          },
+                                          "currency": {
+                                            "type": "string",
+                                            "pattern": "^[A-Z]{3}$"
+                                          }
+                                        },
+                                        "required": ["amountMinor", "currency"],
+                                        "additionalProperties": false
+                                      },
+                                      "pricedPerPerson": {
+                                        "type": "boolean",
+                                        "default": false
+                                      },
+                                      "highlights": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "properties": {
+                                            "label": {
+                                              "type": "string"
+                                            },
+                                            "value": {
+                                              "type": "string"
+                                            }
+                                          },
+                                          "required": ["label"],
+                                          "additionalProperties": false
+                                        },
+                                        "default": []
+                                      },
+                                      "eligibility": {
+                                        "type": "object",
+                                        "properties": {
+                                          "status": {
+                                            "type": "string",
+                                            "enum": ["eligible", "ineligible", "referral"]
+                                          },
+                                          "reasons": {
+                                            "type": "array",
+                                            "items": {
+                                              "type": "object",
+                                              "properties": {
+                                                "code": {
+                                                  "type": "string"
+                                                },
+                                                "message": {
+                                                  "type": "string"
+                                                }
+                                              },
+                                              "required": ["code", "message"],
+                                              "additionalProperties": false
+                                            },
+                                            "default": []
+                                          }
+                                        },
+                                        "required": ["status"],
+                                        "additionalProperties": false
+                                      },
+                                      "disclosures": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "properties": {
+                                            "kind": {
+                                              "type": "string"
+                                            },
+                                            "label": {
+                                              "type": "string"
+                                            },
+                                            "versionId": {
+                                              "type": "string"
+                                            },
+                                            "url": {
+                                              "type": "string"
+                                            },
+                                            "required": {
+                                              "type": "boolean"
+                                            }
+                                          },
+                                          "required": ["kind", "label", "versionId", "required"],
+                                          "additionalProperties": false
+                                        },
+                                        "default": []
+                                      },
+                                      "requiredTravelerFields": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "properties": {
+                                            "key": {
+                                              "type": "string"
+                                            },
+                                            "label": {
+                                              "type": "string"
+                                            },
+                                            "type": {
+                                              "type": "string"
+                                            },
+                                            "required": {
+                                              "type": "boolean"
+                                            },
+                                            "sensitive": {
+                                              "type": "boolean",
+                                              "default": false
+                                            },
+                                            "options": {
+                                              "type": "array",
+                                              "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                  "value": {
+                                                    "type": "string"
+                                                  },
+                                                  "label": {
+                                                    "type": "string"
+                                                  }
+                                                },
+                                                "required": ["value", "label"],
+                                                "additionalProperties": false
+                                              }
+                                            },
+                                            "helpText": {
+                                              "type": "string"
+                                            }
+                                          },
+                                          "required": ["key", "label", "type", "required"],
+                                          "additionalProperties": false
+                                        },
+                                        "default": []
+                                      },
+                                      "validUntil": {
+                                        "type": "string"
+                                      },
+                                      "quoteRef": {
+                                        "type": "string"
+                                      },
+                                      "metadata": {
+                                        "type": "object",
+                                        "additionalProperties": {}
+                                      }
+                                    },
+                                    "required": [
+                                      "offerId",
+                                      "sourceId",
+                                      "providerId",
+                                      "providerLabel",
+                                      "kind",
+                                      "title",
+                                      "price",
+                                      "eligibility",
+                                      "validUntil",
+                                      "quoteRef"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  "default": []
+                                },
+                                "diagnostics": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "sourceId": {
+                                        "type": "string"
+                                      },
+                                      "providerId": {
+                                        "type": "string"
+                                      },
+                                      "status": {
+                                        "type": "string",
+                                        "enum": ["ok", "timeout", "error", "unavailable"]
+                                      },
+                                      "message": {
+                                        "type": "string"
+                                      },
+                                      "latencyMs": {
+                                        "type": "integer",
+                                        "minimum": 0
+                                      }
+                                    },
+                                    "required": ["sourceId", "status"],
+                                    "additionalProperties": false
+                                  },
+                                  "default": []
+                                }
+                              },
+                              "required": ["kind", "label"],
+                              "additionalProperties": false
+                            },
+                            "default": []
                           }
                         }
                       },
@@ -6857,6 +8572,10 @@
                       "showsAddons": {
                         "type": "boolean"
                       },
+                      "showsAncillaries": {
+                        "type": "boolean",
+                        "default": false
+                      },
                       "showsPayment": {
                         "type": "boolean"
                       },
@@ -7590,6 +9309,247 @@
                               },
                               "required": ["kind", "label", "perGuestSelection", "items"]
                             }
+                          }
+                        }
+                      },
+                      "ancillaries": {
+                        "type": "object",
+                        "properties": {
+                          "groups": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "kind": {
+                                  "type": "string"
+                                },
+                                "label": {
+                                  "type": "string"
+                                },
+                                "offers": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "offerId": {
+                                        "type": "string"
+                                      },
+                                      "sourceId": {
+                                        "type": "string"
+                                      },
+                                      "providerId": {
+                                        "type": "string"
+                                      },
+                                      "providerLabel": {
+                                        "type": "string"
+                                      },
+                                      "kind": {
+                                        "type": "string"
+                                      },
+                                      "title": {
+                                        "type": "string"
+                                      },
+                                      "summary": {
+                                        "type": ["string", "null"]
+                                      },
+                                      "planLabel": {
+                                        "type": ["string", "null"]
+                                      },
+                                      "price": {
+                                        "type": "object",
+                                        "properties": {
+                                          "amountMinor": {
+                                            "type": "integer"
+                                          },
+                                          "currency": {
+                                            "type": "string",
+                                            "pattern": "^[A-Z]{3}$"
+                                          }
+                                        },
+                                        "required": ["amountMinor", "currency"],
+                                        "additionalProperties": false
+                                      },
+                                      "pricedPerPerson": {
+                                        "type": "boolean",
+                                        "default": false
+                                      },
+                                      "highlights": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "properties": {
+                                            "label": {
+                                              "type": "string"
+                                            },
+                                            "value": {
+                                              "type": "string"
+                                            }
+                                          },
+                                          "required": ["label"],
+                                          "additionalProperties": false
+                                        },
+                                        "default": []
+                                      },
+                                      "eligibility": {
+                                        "type": "object",
+                                        "properties": {
+                                          "status": {
+                                            "type": "string",
+                                            "enum": ["eligible", "ineligible", "referral"]
+                                          },
+                                          "reasons": {
+                                            "type": "array",
+                                            "items": {
+                                              "type": "object",
+                                              "properties": {
+                                                "code": {
+                                                  "type": "string"
+                                                },
+                                                "message": {
+                                                  "type": "string"
+                                                }
+                                              },
+                                              "required": ["code", "message"],
+                                              "additionalProperties": false
+                                            },
+                                            "default": []
+                                          }
+                                        },
+                                        "required": ["status"],
+                                        "additionalProperties": false
+                                      },
+                                      "disclosures": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "properties": {
+                                            "kind": {
+                                              "type": "string"
+                                            },
+                                            "label": {
+                                              "type": "string"
+                                            },
+                                            "versionId": {
+                                              "type": "string"
+                                            },
+                                            "url": {
+                                              "type": "string"
+                                            },
+                                            "required": {
+                                              "type": "boolean"
+                                            }
+                                          },
+                                          "required": ["kind", "label", "versionId", "required"],
+                                          "additionalProperties": false
+                                        },
+                                        "default": []
+                                      },
+                                      "requiredTravelerFields": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "properties": {
+                                            "key": {
+                                              "type": "string"
+                                            },
+                                            "label": {
+                                              "type": "string"
+                                            },
+                                            "type": {
+                                              "type": "string"
+                                            },
+                                            "required": {
+                                              "type": "boolean"
+                                            },
+                                            "sensitive": {
+                                              "type": "boolean",
+                                              "default": false
+                                            },
+                                            "options": {
+                                              "type": "array",
+                                              "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                  "value": {
+                                                    "type": "string"
+                                                  },
+                                                  "label": {
+                                                    "type": "string"
+                                                  }
+                                                },
+                                                "required": ["value", "label"],
+                                                "additionalProperties": false
+                                              }
+                                            },
+                                            "helpText": {
+                                              "type": "string"
+                                            }
+                                          },
+                                          "required": ["key", "label", "type", "required"],
+                                          "additionalProperties": false
+                                        },
+                                        "default": []
+                                      },
+                                      "validUntil": {
+                                        "type": "string"
+                                      },
+                                      "quoteRef": {
+                                        "type": "string"
+                                      },
+                                      "metadata": {
+                                        "type": "object",
+                                        "additionalProperties": {}
+                                      }
+                                    },
+                                    "required": [
+                                      "offerId",
+                                      "sourceId",
+                                      "providerId",
+                                      "providerLabel",
+                                      "kind",
+                                      "title",
+                                      "price",
+                                      "eligibility",
+                                      "validUntil",
+                                      "quoteRef"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  "default": []
+                                },
+                                "diagnostics": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "sourceId": {
+                                        "type": "string"
+                                      },
+                                      "providerId": {
+                                        "type": "string"
+                                      },
+                                      "status": {
+                                        "type": "string",
+                                        "enum": ["ok", "timeout", "error", "unavailable"]
+                                      },
+                                      "message": {
+                                        "type": "string"
+                                      },
+                                      "latencyMs": {
+                                        "type": "integer",
+                                        "minimum": 0
+                                      }
+                                    },
+                                    "required": ["sourceId", "status"],
+                                    "additionalProperties": false
+                                  },
+                                  "default": []
+                                }
+                              },
+                              "required": ["kind", "label"],
+                              "additionalProperties": false
+                            },
+                            "default": []
                           }
                         }
                       },
@@ -8115,6 +10075,10 @@
                       "showsAddons": {
                         "type": "boolean"
                       },
+                      "showsAncillaries": {
+                        "type": "boolean",
+                        "default": false
+                      },
                       "showsPayment": {
                         "type": "boolean"
                       },
@@ -8848,6 +10812,247 @@
                               },
                               "required": ["kind", "label", "perGuestSelection", "items"]
                             }
+                          }
+                        }
+                      },
+                      "ancillaries": {
+                        "type": "object",
+                        "properties": {
+                          "groups": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "kind": {
+                                  "type": "string"
+                                },
+                                "label": {
+                                  "type": "string"
+                                },
+                                "offers": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "offerId": {
+                                        "type": "string"
+                                      },
+                                      "sourceId": {
+                                        "type": "string"
+                                      },
+                                      "providerId": {
+                                        "type": "string"
+                                      },
+                                      "providerLabel": {
+                                        "type": "string"
+                                      },
+                                      "kind": {
+                                        "type": "string"
+                                      },
+                                      "title": {
+                                        "type": "string"
+                                      },
+                                      "summary": {
+                                        "type": ["string", "null"]
+                                      },
+                                      "planLabel": {
+                                        "type": ["string", "null"]
+                                      },
+                                      "price": {
+                                        "type": "object",
+                                        "properties": {
+                                          "amountMinor": {
+                                            "type": "integer"
+                                          },
+                                          "currency": {
+                                            "type": "string",
+                                            "pattern": "^[A-Z]{3}$"
+                                          }
+                                        },
+                                        "required": ["amountMinor", "currency"],
+                                        "additionalProperties": false
+                                      },
+                                      "pricedPerPerson": {
+                                        "type": "boolean",
+                                        "default": false
+                                      },
+                                      "highlights": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "properties": {
+                                            "label": {
+                                              "type": "string"
+                                            },
+                                            "value": {
+                                              "type": "string"
+                                            }
+                                          },
+                                          "required": ["label"],
+                                          "additionalProperties": false
+                                        },
+                                        "default": []
+                                      },
+                                      "eligibility": {
+                                        "type": "object",
+                                        "properties": {
+                                          "status": {
+                                            "type": "string",
+                                            "enum": ["eligible", "ineligible", "referral"]
+                                          },
+                                          "reasons": {
+                                            "type": "array",
+                                            "items": {
+                                              "type": "object",
+                                              "properties": {
+                                                "code": {
+                                                  "type": "string"
+                                                },
+                                                "message": {
+                                                  "type": "string"
+                                                }
+                                              },
+                                              "required": ["code", "message"],
+                                              "additionalProperties": false
+                                            },
+                                            "default": []
+                                          }
+                                        },
+                                        "required": ["status"],
+                                        "additionalProperties": false
+                                      },
+                                      "disclosures": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "properties": {
+                                            "kind": {
+                                              "type": "string"
+                                            },
+                                            "label": {
+                                              "type": "string"
+                                            },
+                                            "versionId": {
+                                              "type": "string"
+                                            },
+                                            "url": {
+                                              "type": "string"
+                                            },
+                                            "required": {
+                                              "type": "boolean"
+                                            }
+                                          },
+                                          "required": ["kind", "label", "versionId", "required"],
+                                          "additionalProperties": false
+                                        },
+                                        "default": []
+                                      },
+                                      "requiredTravelerFields": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "properties": {
+                                            "key": {
+                                              "type": "string"
+                                            },
+                                            "label": {
+                                              "type": "string"
+                                            },
+                                            "type": {
+                                              "type": "string"
+                                            },
+                                            "required": {
+                                              "type": "boolean"
+                                            },
+                                            "sensitive": {
+                                              "type": "boolean",
+                                              "default": false
+                                            },
+                                            "options": {
+                                              "type": "array",
+                                              "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                  "value": {
+                                                    "type": "string"
+                                                  },
+                                                  "label": {
+                                                    "type": "string"
+                                                  }
+                                                },
+                                                "required": ["value", "label"],
+                                                "additionalProperties": false
+                                              }
+                                            },
+                                            "helpText": {
+                                              "type": "string"
+                                            }
+                                          },
+                                          "required": ["key", "label", "type", "required"],
+                                          "additionalProperties": false
+                                        },
+                                        "default": []
+                                      },
+                                      "validUntil": {
+                                        "type": "string"
+                                      },
+                                      "quoteRef": {
+                                        "type": "string"
+                                      },
+                                      "metadata": {
+                                        "type": "object",
+                                        "additionalProperties": {}
+                                      }
+                                    },
+                                    "required": [
+                                      "offerId",
+                                      "sourceId",
+                                      "providerId",
+                                      "providerLabel",
+                                      "kind",
+                                      "title",
+                                      "price",
+                                      "eligibility",
+                                      "validUntil",
+                                      "quoteRef"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  "default": []
+                                },
+                                "diagnostics": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "sourceId": {
+                                        "type": "string"
+                                      },
+                                      "providerId": {
+                                        "type": "string"
+                                      },
+                                      "status": {
+                                        "type": "string",
+                                        "enum": ["ok", "timeout", "error", "unavailable"]
+                                      },
+                                      "message": {
+                                        "type": "string"
+                                      },
+                                      "latencyMs": {
+                                        "type": "integer",
+                                        "minimum": 0
+                                      }
+                                    },
+                                    "required": ["sourceId", "status"],
+                                    "additionalProperties": false
+                                  },
+                                  "default": []
+                                }
+                              },
+                              "required": ["kind", "label"],
+                              "additionalProperties": false
+                            },
+                            "default": []
                           }
                         }
                       },
@@ -10495,6 +12700,10 @@
                           "showsAddons": {
                             "type": "boolean"
                           },
+                          "showsAncillaries": {
+                            "type": "boolean",
+                            "default": false
+                          },
                           "showsPayment": {
                             "type": "boolean"
                           },
@@ -11236,6 +13445,252 @@
                               }
                             }
                           },
+                          "ancillaries": {
+                            "type": "object",
+                            "properties": {
+                              "groups": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": {
+                                      "type": "string"
+                                    },
+                                    "label": {
+                                      "type": "string"
+                                    },
+                                    "offers": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "properties": {
+                                          "offerId": {
+                                            "type": "string"
+                                          },
+                                          "sourceId": {
+                                            "type": "string"
+                                          },
+                                          "providerId": {
+                                            "type": "string"
+                                          },
+                                          "providerLabel": {
+                                            "type": "string"
+                                          },
+                                          "kind": {
+                                            "type": "string"
+                                          },
+                                          "title": {
+                                            "type": "string"
+                                          },
+                                          "summary": {
+                                            "type": ["string", "null"]
+                                          },
+                                          "planLabel": {
+                                            "type": ["string", "null"]
+                                          },
+                                          "price": {
+                                            "type": "object",
+                                            "properties": {
+                                              "amountMinor": {
+                                                "type": "integer"
+                                              },
+                                              "currency": {
+                                                "type": "string",
+                                                "pattern": "^[A-Z]{3}$"
+                                              }
+                                            },
+                                            "required": ["amountMinor", "currency"],
+                                            "additionalProperties": false
+                                          },
+                                          "pricedPerPerson": {
+                                            "type": "boolean",
+                                            "default": false
+                                          },
+                                          "highlights": {
+                                            "type": "array",
+                                            "items": {
+                                              "type": "object",
+                                              "properties": {
+                                                "label": {
+                                                  "type": "string"
+                                                },
+                                                "value": {
+                                                  "type": "string"
+                                                }
+                                              },
+                                              "required": ["label"],
+                                              "additionalProperties": false
+                                            },
+                                            "default": []
+                                          },
+                                          "eligibility": {
+                                            "type": "object",
+                                            "properties": {
+                                              "status": {
+                                                "type": "string",
+                                                "enum": ["eligible", "ineligible", "referral"]
+                                              },
+                                              "reasons": {
+                                                "type": "array",
+                                                "items": {
+                                                  "type": "object",
+                                                  "properties": {
+                                                    "code": {
+                                                      "type": "string"
+                                                    },
+                                                    "message": {
+                                                      "type": "string"
+                                                    }
+                                                  },
+                                                  "required": ["code", "message"],
+                                                  "additionalProperties": false
+                                                },
+                                                "default": []
+                                              }
+                                            },
+                                            "required": ["status"],
+                                            "additionalProperties": false
+                                          },
+                                          "disclosures": {
+                                            "type": "array",
+                                            "items": {
+                                              "type": "object",
+                                              "properties": {
+                                                "kind": {
+                                                  "type": "string"
+                                                },
+                                                "label": {
+                                                  "type": "string"
+                                                },
+                                                "versionId": {
+                                                  "type": "string"
+                                                },
+                                                "url": {
+                                                  "type": "string"
+                                                },
+                                                "required": {
+                                                  "type": "boolean"
+                                                }
+                                              },
+                                              "required": [
+                                                "kind",
+                                                "label",
+                                                "versionId",
+                                                "required"
+                                              ],
+                                              "additionalProperties": false
+                                            },
+                                            "default": []
+                                          },
+                                          "requiredTravelerFields": {
+                                            "type": "array",
+                                            "items": {
+                                              "type": "object",
+                                              "properties": {
+                                                "key": {
+                                                  "type": "string"
+                                                },
+                                                "label": {
+                                                  "type": "string"
+                                                },
+                                                "type": {
+                                                  "type": "string"
+                                                },
+                                                "required": {
+                                                  "type": "boolean"
+                                                },
+                                                "sensitive": {
+                                                  "type": "boolean",
+                                                  "default": false
+                                                },
+                                                "options": {
+                                                  "type": "array",
+                                                  "items": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                      "value": {
+                                                        "type": "string"
+                                                      },
+                                                      "label": {
+                                                        "type": "string"
+                                                      }
+                                                    },
+                                                    "required": ["value", "label"],
+                                                    "additionalProperties": false
+                                                  }
+                                                },
+                                                "helpText": {
+                                                  "type": "string"
+                                                }
+                                              },
+                                              "required": ["key", "label", "type", "required"],
+                                              "additionalProperties": false
+                                            },
+                                            "default": []
+                                          },
+                                          "validUntil": {
+                                            "type": "string"
+                                          },
+                                          "quoteRef": {
+                                            "type": "string"
+                                          },
+                                          "metadata": {
+                                            "type": "object",
+                                            "additionalProperties": {}
+                                          }
+                                        },
+                                        "required": [
+                                          "offerId",
+                                          "sourceId",
+                                          "providerId",
+                                          "providerLabel",
+                                          "kind",
+                                          "title",
+                                          "price",
+                                          "eligibility",
+                                          "validUntil",
+                                          "quoteRef"
+                                        ],
+                                        "additionalProperties": false
+                                      },
+                                      "default": []
+                                    },
+                                    "diagnostics": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "properties": {
+                                          "sourceId": {
+                                            "type": "string"
+                                          },
+                                          "providerId": {
+                                            "type": "string"
+                                          },
+                                          "status": {
+                                            "type": "string",
+                                            "enum": ["ok", "timeout", "error", "unavailable"]
+                                          },
+                                          "message": {
+                                            "type": "string"
+                                          },
+                                          "latencyMs": {
+                                            "type": "integer",
+                                            "minimum": 0
+                                          }
+                                        },
+                                        "required": ["sourceId", "status"],
+                                        "additionalProperties": false
+                                      },
+                                      "default": []
+                                    }
+                                  },
+                                  "required": ["kind", "label"],
+                                  "additionalProperties": false
+                                },
+                                "default": []
+                              }
+                            }
+                          },
                           "paymentIntents": {
                             "type": "array",
                             "items": {
@@ -11569,6 +14024,10 @@
                       },
                       "showsAddons": {
                         "type": "boolean"
+                      },
+                      "showsAncillaries": {
+                        "type": "boolean",
+                        "default": false
                       },
                       "showsPayment": {
                         "type": "boolean"
@@ -12306,6 +14765,247 @@
                           }
                         }
                       },
+                      "ancillaries": {
+                        "type": "object",
+                        "properties": {
+                          "groups": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "kind": {
+                                  "type": "string"
+                                },
+                                "label": {
+                                  "type": "string"
+                                },
+                                "offers": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "offerId": {
+                                        "type": "string"
+                                      },
+                                      "sourceId": {
+                                        "type": "string"
+                                      },
+                                      "providerId": {
+                                        "type": "string"
+                                      },
+                                      "providerLabel": {
+                                        "type": "string"
+                                      },
+                                      "kind": {
+                                        "type": "string"
+                                      },
+                                      "title": {
+                                        "type": "string"
+                                      },
+                                      "summary": {
+                                        "type": ["string", "null"]
+                                      },
+                                      "planLabel": {
+                                        "type": ["string", "null"]
+                                      },
+                                      "price": {
+                                        "type": "object",
+                                        "properties": {
+                                          "amountMinor": {
+                                            "type": "integer"
+                                          },
+                                          "currency": {
+                                            "type": "string",
+                                            "pattern": "^[A-Z]{3}$"
+                                          }
+                                        },
+                                        "required": ["amountMinor", "currency"],
+                                        "additionalProperties": false
+                                      },
+                                      "pricedPerPerson": {
+                                        "type": "boolean",
+                                        "default": false
+                                      },
+                                      "highlights": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "properties": {
+                                            "label": {
+                                              "type": "string"
+                                            },
+                                            "value": {
+                                              "type": "string"
+                                            }
+                                          },
+                                          "required": ["label"],
+                                          "additionalProperties": false
+                                        },
+                                        "default": []
+                                      },
+                                      "eligibility": {
+                                        "type": "object",
+                                        "properties": {
+                                          "status": {
+                                            "type": "string",
+                                            "enum": ["eligible", "ineligible", "referral"]
+                                          },
+                                          "reasons": {
+                                            "type": "array",
+                                            "items": {
+                                              "type": "object",
+                                              "properties": {
+                                                "code": {
+                                                  "type": "string"
+                                                },
+                                                "message": {
+                                                  "type": "string"
+                                                }
+                                              },
+                                              "required": ["code", "message"],
+                                              "additionalProperties": false
+                                            },
+                                            "default": []
+                                          }
+                                        },
+                                        "required": ["status"],
+                                        "additionalProperties": false
+                                      },
+                                      "disclosures": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "properties": {
+                                            "kind": {
+                                              "type": "string"
+                                            },
+                                            "label": {
+                                              "type": "string"
+                                            },
+                                            "versionId": {
+                                              "type": "string"
+                                            },
+                                            "url": {
+                                              "type": "string"
+                                            },
+                                            "required": {
+                                              "type": "boolean"
+                                            }
+                                          },
+                                          "required": ["kind", "label", "versionId", "required"],
+                                          "additionalProperties": false
+                                        },
+                                        "default": []
+                                      },
+                                      "requiredTravelerFields": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "properties": {
+                                            "key": {
+                                              "type": "string"
+                                            },
+                                            "label": {
+                                              "type": "string"
+                                            },
+                                            "type": {
+                                              "type": "string"
+                                            },
+                                            "required": {
+                                              "type": "boolean"
+                                            },
+                                            "sensitive": {
+                                              "type": "boolean",
+                                              "default": false
+                                            },
+                                            "options": {
+                                              "type": "array",
+                                              "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                  "value": {
+                                                    "type": "string"
+                                                  },
+                                                  "label": {
+                                                    "type": "string"
+                                                  }
+                                                },
+                                                "required": ["value", "label"],
+                                                "additionalProperties": false
+                                              }
+                                            },
+                                            "helpText": {
+                                              "type": "string"
+                                            }
+                                          },
+                                          "required": ["key", "label", "type", "required"],
+                                          "additionalProperties": false
+                                        },
+                                        "default": []
+                                      },
+                                      "validUntil": {
+                                        "type": "string"
+                                      },
+                                      "quoteRef": {
+                                        "type": "string"
+                                      },
+                                      "metadata": {
+                                        "type": "object",
+                                        "additionalProperties": {}
+                                      }
+                                    },
+                                    "required": [
+                                      "offerId",
+                                      "sourceId",
+                                      "providerId",
+                                      "providerLabel",
+                                      "kind",
+                                      "title",
+                                      "price",
+                                      "eligibility",
+                                      "validUntil",
+                                      "quoteRef"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  "default": []
+                                },
+                                "diagnostics": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "sourceId": {
+                                        "type": "string"
+                                      },
+                                      "providerId": {
+                                        "type": "string"
+                                      },
+                                      "status": {
+                                        "type": "string",
+                                        "enum": ["ok", "timeout", "error", "unavailable"]
+                                      },
+                                      "message": {
+                                        "type": "string"
+                                      },
+                                      "latencyMs": {
+                                        "type": "integer",
+                                        "minimum": 0
+                                      }
+                                    },
+                                    "required": ["sourceId", "status"],
+                                    "additionalProperties": false
+                                  },
+                                  "default": []
+                                }
+                              },
+                              "required": ["kind", "label"],
+                              "additionalProperties": false
+                            },
+                            "default": []
+                          }
+                        }
+                      },
                       "paymentIntents": {
                         "type": "array",
                         "items": {
@@ -12744,6 +15444,10 @@
                           },
                           "showsAddons": {
                             "type": "boolean"
+                          },
+                          "showsAncillaries": {
+                            "type": "boolean",
+                            "default": false
                           },
                           "showsPayment": {
                             "type": "boolean"
@@ -13483,6 +16187,252 @@
                                   },
                                   "required": ["kind", "label", "perGuestSelection", "items"]
                                 }
+                              }
+                            }
+                          },
+                          "ancillaries": {
+                            "type": "object",
+                            "properties": {
+                              "groups": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": {
+                                      "type": "string"
+                                    },
+                                    "label": {
+                                      "type": "string"
+                                    },
+                                    "offers": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "properties": {
+                                          "offerId": {
+                                            "type": "string"
+                                          },
+                                          "sourceId": {
+                                            "type": "string"
+                                          },
+                                          "providerId": {
+                                            "type": "string"
+                                          },
+                                          "providerLabel": {
+                                            "type": "string"
+                                          },
+                                          "kind": {
+                                            "type": "string"
+                                          },
+                                          "title": {
+                                            "type": "string"
+                                          },
+                                          "summary": {
+                                            "type": ["string", "null"]
+                                          },
+                                          "planLabel": {
+                                            "type": ["string", "null"]
+                                          },
+                                          "price": {
+                                            "type": "object",
+                                            "properties": {
+                                              "amountMinor": {
+                                                "type": "integer"
+                                              },
+                                              "currency": {
+                                                "type": "string",
+                                                "pattern": "^[A-Z]{3}$"
+                                              }
+                                            },
+                                            "required": ["amountMinor", "currency"],
+                                            "additionalProperties": false
+                                          },
+                                          "pricedPerPerson": {
+                                            "type": "boolean",
+                                            "default": false
+                                          },
+                                          "highlights": {
+                                            "type": "array",
+                                            "items": {
+                                              "type": "object",
+                                              "properties": {
+                                                "label": {
+                                                  "type": "string"
+                                                },
+                                                "value": {
+                                                  "type": "string"
+                                                }
+                                              },
+                                              "required": ["label"],
+                                              "additionalProperties": false
+                                            },
+                                            "default": []
+                                          },
+                                          "eligibility": {
+                                            "type": "object",
+                                            "properties": {
+                                              "status": {
+                                                "type": "string",
+                                                "enum": ["eligible", "ineligible", "referral"]
+                                              },
+                                              "reasons": {
+                                                "type": "array",
+                                                "items": {
+                                                  "type": "object",
+                                                  "properties": {
+                                                    "code": {
+                                                      "type": "string"
+                                                    },
+                                                    "message": {
+                                                      "type": "string"
+                                                    }
+                                                  },
+                                                  "required": ["code", "message"],
+                                                  "additionalProperties": false
+                                                },
+                                                "default": []
+                                              }
+                                            },
+                                            "required": ["status"],
+                                            "additionalProperties": false
+                                          },
+                                          "disclosures": {
+                                            "type": "array",
+                                            "items": {
+                                              "type": "object",
+                                              "properties": {
+                                                "kind": {
+                                                  "type": "string"
+                                                },
+                                                "label": {
+                                                  "type": "string"
+                                                },
+                                                "versionId": {
+                                                  "type": "string"
+                                                },
+                                                "url": {
+                                                  "type": "string"
+                                                },
+                                                "required": {
+                                                  "type": "boolean"
+                                                }
+                                              },
+                                              "required": [
+                                                "kind",
+                                                "label",
+                                                "versionId",
+                                                "required"
+                                              ],
+                                              "additionalProperties": false
+                                            },
+                                            "default": []
+                                          },
+                                          "requiredTravelerFields": {
+                                            "type": "array",
+                                            "items": {
+                                              "type": "object",
+                                              "properties": {
+                                                "key": {
+                                                  "type": "string"
+                                                },
+                                                "label": {
+                                                  "type": "string"
+                                                },
+                                                "type": {
+                                                  "type": "string"
+                                                },
+                                                "required": {
+                                                  "type": "boolean"
+                                                },
+                                                "sensitive": {
+                                                  "type": "boolean",
+                                                  "default": false
+                                                },
+                                                "options": {
+                                                  "type": "array",
+                                                  "items": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                      "value": {
+                                                        "type": "string"
+                                                      },
+                                                      "label": {
+                                                        "type": "string"
+                                                      }
+                                                    },
+                                                    "required": ["value", "label"],
+                                                    "additionalProperties": false
+                                                  }
+                                                },
+                                                "helpText": {
+                                                  "type": "string"
+                                                }
+                                              },
+                                              "required": ["key", "label", "type", "required"],
+                                              "additionalProperties": false
+                                            },
+                                            "default": []
+                                          },
+                                          "validUntil": {
+                                            "type": "string"
+                                          },
+                                          "quoteRef": {
+                                            "type": "string"
+                                          },
+                                          "metadata": {
+                                            "type": "object",
+                                            "additionalProperties": {}
+                                          }
+                                        },
+                                        "required": [
+                                          "offerId",
+                                          "sourceId",
+                                          "providerId",
+                                          "providerLabel",
+                                          "kind",
+                                          "title",
+                                          "price",
+                                          "eligibility",
+                                          "validUntil",
+                                          "quoteRef"
+                                        ],
+                                        "additionalProperties": false
+                                      },
+                                      "default": []
+                                    },
+                                    "diagnostics": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "properties": {
+                                          "sourceId": {
+                                            "type": "string"
+                                          },
+                                          "providerId": {
+                                            "type": "string"
+                                          },
+                                          "status": {
+                                            "type": "string",
+                                            "enum": ["ok", "timeout", "error", "unavailable"]
+                                          },
+                                          "message": {
+                                            "type": "string"
+                                          },
+                                          "latencyMs": {
+                                            "type": "integer",
+                                            "minimum": 0
+                                          }
+                                        },
+                                        "required": ["sourceId", "status"],
+                                        "additionalProperties": false
+                                      },
+                                      "default": []
+                                    }
+                                  },
+                                  "required": ["kind", "label"],
+                                  "additionalProperties": false
+                                },
+                                "default": []
                               }
                             }
                           },
@@ -15323,6 +18273,84 @@
                             }
                           },
                           "required": ["extraId", "quantity"]
+                        },
+                        "default": []
+                      },
+                      "ancillaries": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "kind": {
+                              "type": "string"
+                            },
+                            "decision": {
+                              "type": "string",
+                              "enum": ["accepted", "declined"]
+                            },
+                            "offerId": {
+                              "type": "string"
+                            },
+                            "sourceId": {
+                              "type": "string"
+                            },
+                            "providerId": {
+                              "type": "string"
+                            },
+                            "quoteRef": {
+                              "type": "string"
+                            },
+                            "travelers": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "ref": {
+                                    "type": "string"
+                                  },
+                                  "fields": {
+                                    "type": "object",
+                                    "additionalProperties": {
+                                      "type": "string"
+                                    },
+                                    "default": {}
+                                  }
+                                },
+                                "required": ["ref"],
+                                "additionalProperties": false
+                              },
+                              "default": []
+                            },
+                            "selectedOptionIds": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              },
+                              "default": []
+                            },
+                            "acceptedDisclosures": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "kind": {
+                                    "type": "string"
+                                  },
+                                  "versionId": {
+                                    "type": "string"
+                                  },
+                                  "acceptedAt": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": ["kind", "versionId", "acceptedAt"],
+                                "additionalProperties": false
+                              },
+                              "default": []
+                            }
+                          },
+                          "required": ["kind", "decision"],
+                          "additionalProperties": false
                         },
                         "default": []
                       },

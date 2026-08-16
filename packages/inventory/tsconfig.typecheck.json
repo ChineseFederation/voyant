@@ -418,6 +418,9 @@
       "@voyant-travel/catalog-contracts/adapter/schemas": [
         "../catalog-contracts/dist/adapter/schemas.d.ts"
       ],
+      "@voyant-travel/catalog-contracts/booking-engine/ancillary-contracts": [
+        "../catalog-contracts/dist/booking-engine/ancillary-contracts.d.ts"
+      ],
       "@voyant-travel/catalog-contracts/booking-engine/contracts": [
         "../catalog-contracts/dist/booking-engine/contracts.d.ts"
       ],
@@ -729,6 +732,9 @@
         "../commerce/dist/catalog-runtime-extension.d.ts"
       ],
       "@voyant-travel/commerce/checkout": ["../commerce/dist/checkout/index.d.ts"],
+      "@voyant-travel/commerce/checkout/ancillary-ports": [
+        "../commerce/dist/checkout/ancillary-ports.d.ts"
+      ],
       "@voyant-travel/commerce/promotion-boundary-job": [
         "../commerce/dist/promotions/job-boundary-scheduler.d.ts"
       ],
@@ -1299,6 +1305,45 @@
       "@voyant-travel/identity/tools": ["../identity/dist/mcp-runtime.d.ts"],
       "@voyant-travel/identity/validation": ["../identity/dist/validation.d.ts"],
       "@voyant-travel/identity/voyant": ["../identity/dist/voyant.d.ts"],
+      "@voyant-travel/insurance": ["../insurance/dist/index.d.ts"],
+      "@voyant-travel/insurance-contracts": ["../insurance-contracts/dist/index.d.ts"],
+      "@voyant-travel/insurance-contracts/application": [
+        "../insurance-contracts/dist/application.d.ts"
+      ],
+      "@voyant-travel/insurance-contracts/cover": ["../insurance-contracts/dist/cover.d.ts"],
+      "@voyant-travel/insurance-contracts/disclosure": [
+        "../insurance-contracts/dist/disclosure.d.ts"
+      ],
+      "@voyant-travel/insurance-contracts/document": ["../insurance-contracts/dist/document.d.ts"],
+      "@voyant-travel/insurance-contracts/eligibility": [
+        "../insurance-contracts/dist/eligibility.d.ts"
+      ],
+      "@voyant-travel/insurance-contracts/money": ["../insurance-contracts/dist/money.d.ts"],
+      "@voyant-travel/insurance-contracts/policy": ["../insurance-contracts/dist/policy.d.ts"],
+      "@voyant-travel/insurance-contracts/provider": ["../insurance-contracts/dist/provider.d.ts"],
+      "@voyant-travel/insurance-contracts/quote": ["../insurance-contracts/dist/quote.d.ts"],
+      "@voyant-travel/insurance-react": ["../insurance-react/dist/index.d.ts"],
+      "@voyant-travel/insurance-react/client": ["../insurance-react/dist/client.d.ts"],
+      "@voyant-travel/insurance-react/components/*": ["../insurance-react/dist/components/*.d.ts"],
+      "@voyant-travel/insurance-react/hooks": ["../insurance-react/dist/hooks/index.d.ts"],
+      "@voyant-travel/insurance-react/i18n": ["../insurance-react/dist/i18n/index.d.ts"],
+      "@voyant-travel/insurance-react/i18n/en": ["../insurance-react/dist/i18n/en.d.ts"],
+      "@voyant-travel/insurance-react/i18n/ro": ["../insurance-react/dist/i18n/ro.d.ts"],
+      "@voyant-travel/insurance-react/query-keys": ["../insurance-react/dist/query-keys.d.ts"],
+      "@voyant-travel/insurance/ancillary-source": ["../insurance/dist/ancillary-source.d.ts"],
+      "@voyant-travel/insurance/customer-portal-runtime": [
+        "../insurance/dist/customer-portal-runtime.d.ts"
+      ],
+      "@voyant-travel/insurance/ports": ["../insurance/dist/provider-ports.d.ts"],
+      "@voyant-travel/insurance/routes": ["../insurance/dist/routes.d.ts"],
+      "@voyant-travel/insurance/runtime-contributor": [
+        "../insurance/dist/runtime-contributor.d.ts"
+      ],
+      "@voyant-travel/insurance/runtime-port": ["../insurance/dist/runtime-port.d.ts"],
+      "@voyant-travel/insurance/schema": ["../insurance/dist/schema.d.ts"],
+      "@voyant-travel/insurance/tools": ["../insurance/dist/mcp-runtime.d.ts"],
+      "@voyant-travel/insurance/validation": ["../insurance/dist/validation.d.ts"],
+      "@voyant-travel/insurance/voyant": ["../insurance/dist/voyant.d.ts"],
       "@voyant-travel/inventory-react": ["../inventory-react/dist/index.d.ts"],
       "@voyant-travel/inventory-react/admin": ["../inventory-react/dist/admin/index.d.ts"],
       "@voyant-travel/inventory-react/client": ["../inventory-react/dist/client.d.ts"],
@@ -2060,6 +2105,9 @@
       "@voyant-travel/voyant-connect-adapter": ["../voyant-connect-adapter/dist/index.d.ts"],
       "@voyant-travel/voyant-connect-adapter/catalog-sources": [
         "../voyant-connect-adapter/dist/catalog-sources-extension.d.ts"
+      ],
+      "@voyant-travel/voyant-connect-adapter/insurance-source": [
+        "../voyant-connect-adapter/dist/insurance-source.d.ts"
       ],
       "@voyant-travel/voyant-connect-adapter/runtime-contributor": [
         "../voyant-connect-adapter/dist/runtime-contributor.d.ts"

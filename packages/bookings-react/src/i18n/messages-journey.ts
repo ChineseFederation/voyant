@@ -9,6 +9,7 @@ export type BookingsUiJourneyMessages = {
       | "options"
       | "accommodation"
       | "addons"
+      | "ancillaries"
       | "payment"
       | "documents"
       | "review",
@@ -134,6 +135,36 @@ export type BookingsUiJourneyMessages = {
       title: string
       empty: string
       otherBucket: string
+    }
+    /**
+     * Copy for the live third-party offer step.
+     *
+     * Deliberately vertical-neutral: the step renders whatever ancillary kinds
+     * the deployment has connected, and the group's own label comes from the
+     * offer data. Nothing here may name a vertical.
+     */
+    ancillaries: {
+      decisionLegend: string
+      declineLabel: string
+      declineDescription: string
+      providedBy: string
+      perPerson: string
+      perBooking: string
+      priceHeldUntil: string
+      detailsToggle: string
+      notAvailable: string
+      documentsTitle: string
+      documentOpensInNewTab: string
+      acknowledgeLabel: string
+      acknowledgeRequired: string
+      multipleProvidersTitle: string
+      multipleProvidersHint: string
+      sourceUnavailableTitle: string
+      sourceUnavailableBody: string
+      travelerFieldsTitle: string
+      travelerFieldsHint: string
+      travelerNumber: string
+      sensitiveHint: string
     }
     payment: {
       title: string

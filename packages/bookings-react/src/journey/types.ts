@@ -16,6 +16,13 @@ export type JourneyStep =
   | "options"
   | "accommodation"
   | "addons"
+  /**
+   * Third-party offers quoted live during checkout. Sits after the operator's
+   * own add-ons — the traveller has settled what they are buying from the
+   * operator before anything is offered on top of it — and before payment,
+   * because an accepted offer changes what is due.
+   */
+  | "ancillaries"
   | "payment"
   | "documents"
   | "review"
@@ -27,6 +34,7 @@ export const JOURNEY_STEP_ORDER: ReadonlyArray<JourneyStep> = [
   "options",
   "accommodation",
   "addons",
+  "ancillaries",
   "payment",
   "documents",
   "review",

@@ -143,6 +143,7 @@ export function Field({
   type,
   placeholder,
   error,
+  autoComplete,
 }: {
   id: string
   label: string
@@ -151,6 +152,12 @@ export function Field({
   type?: string
   placeholder?: string
   error?: string
+  /**
+   * Browser autofill hint. Callers collecting something the browser has no
+   * business remembering — a third party's one-off identity question — pass
+   * `"off"`.
+   */
+  autoComplete?: string
 }): React.ReactElement {
   const errorId = `${id}-error`
   return (
@@ -161,6 +168,7 @@ export function Field({
         type={type ?? "text"}
         value={value}
         placeholder={placeholder}
+        autoComplete={autoComplete}
         aria-invalid={error ? true : undefined}
         aria-describedby={error ? errorId : undefined}
         onChange={(e) => onChange(e.target.value)}

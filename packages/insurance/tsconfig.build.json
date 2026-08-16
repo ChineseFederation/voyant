@@ -1,0 +1,9 @@
+{
+  "extends": ["./tsconfig.json", "../typescript-config/dep-paths.json"],
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": "src"
+  },
+  "include": ["src/**/*"],
+  "exclude": ["src/**/*.test.ts", "tests/**/*"]
+}

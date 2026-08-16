@@ -34,9 +34,14 @@ import {
 import type { ApiExtension } from "@voyant-travel/hono/module"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import type { Context } from "hono"
+import type { AncillaryOfferSource } from "./ancillary-ports.js"
 import { rebuildBookingItemTaxLines } from "./materialization-tax.js"
 import type { CheckoutModuleOptions, CheckoutStartOptions } from "./options.js"
-import { bookingMaintenanceRuntimePort, CATALOG_CHECKOUT_API_RUNTIME_KEY } from "./runtime-ports.js"
+import {
+  ANCILLARY_OFFER_SOURCES_RUNTIME_KEY,
+  bookingMaintenanceRuntimePort,
+  CATALOG_CHECKOUT_API_RUNTIME_KEY,
+} from "./runtime-ports.js"
 import {
   CatalogCheckoutStartError,
   type CheckoutStartRequestMeta,
@@ -250,9 +255,19 @@ export function createBookingMaintenanceRoutes(
   )
 }
 
+/** What the deployment's bound runtime ports contribute to checkout. */
+export interface CatalogCheckoutRuntimeBindings {
+  /**
+   * Sources that quote something live at purchase time. Empty when the
+   * operator has connected none, which is the normal case and not an error.
+   */
+  ancillaryOfferSources?: readonly AncillaryOfferSource[]
+}
+
 /** Package-owned checkout descriptor; payment and product providers stay injected. */
 export function createCatalogCheckoutApiExtension(
   options: CheckoutStartOptions | ((c: Context) => CheckoutStartOptions),
+  bindings: CatalogCheckoutRuntimeBindings = {},
 ): ApiExtension {
   return {
     extension: {
@@ -262,6 +277,10 @@ export function createCatalogCheckoutApiExtension(
         container.register(
           CATALOG_CHECKOUT_API_RUNTIME_KEY,
           typeof options === "function" ? options : () => options,
+        )
+        container.register(
+          ANCILLARY_OFFER_SOURCES_RUNTIME_KEY,
+          () => bindings.ancillaryOfferSources ?? [],
         )
       },
     },

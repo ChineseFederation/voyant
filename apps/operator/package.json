@@ -73,6 +73,7 @@
     "@voyant-travel/i18n": "workspace:^",
     "@voyant-travel/identity": "workspace:^",
     "@voyant-travel/identity-react": "workspace:^",
+    "@voyant-travel/insurance": "workspace:^",
     "@voyant-travel/inventory": "workspace:^",
     "@voyant-travel/inventory-react": "workspace:^",
     "@voyant-travel/legal": "workspace:^",
