@@ -29,7 +29,7 @@ const [
 const packagePorts = {
   storefront: ["publicApiOffersRuntimePort", "publicApiCustomerPortalRuntimePort"],
   relationships: ["publicApiIntakeRuntimePort"],
-  notifications: ["publicApiVerificationRuntimePort"],
+  notifications: ["customerVerificationRuntimePort"],
   trips: ["publicApiPaymentLinkRuntimePort"],
   legal: ["legalRuntimePort", "legalContractDocumentRuntimePort"],
   inventory: ["inventoryRuntimePort", "inventoryBrochureRuntimePort"],
@@ -96,11 +96,11 @@ if ((residualRegistrations?.length ?? 0) > 0) {
 
 if (violations.length > 0) {
   throw new Error(
-    `check-operator-storefront-legal-inventory-runtime-authority:\n- ${violations.join("\n- ")}`,
+    `check-operator-public-api-legal-inventory-runtime-authority:\n- ${violations.join("\n- ")}`,
   )
 }
 
 const movedCount = Object.values(packagePorts).flat().length
 console.log(
-  `check-operator-storefront-legal-inventory-runtime-authority: OK (${movedCount} package-owned registrations; ${residualRegistrations?.length ?? 0} direct registrations remain)`,
+  `check-operator-public-api-legal-inventory-runtime-authority: OK (${movedCount} package-owned registrations; ${residualRegistrations?.length ?? 0} direct registrations remain)`,
 )

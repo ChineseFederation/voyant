@@ -1,10 +1,10 @@
 import { describe, expect, it, vi } from "vitest"
 import {
-  createPublicApiVerificationSendersFromProviders,
-  type PublicApiVerificationNotificationProvider,
+  type CustomerVerificationNotificationProvider,
+  createCustomerVerificationSendersFromProviders,
 } from "../../../src/verification/service.js"
 
-function fakeProvider(name: string, channels: string[]): PublicApiVerificationNotificationProvider {
+function fakeProvider(name: string, channels: string[]): CustomerVerificationNotificationProvider {
   return {
     name,
     channels,
@@ -12,11 +12,11 @@ function fakeProvider(name: string, channels: string[]): PublicApiVerificationNo
   }
 }
 
-describe("createPublicApiVerificationSendersFromProviders", () => {
+describe("createCustomerVerificationSendersFromProviders", () => {
   it("routes email and sms challenges through matching providers", async () => {
     const email = fakeProvider("resend", ["email"])
     const sms = fakeProvider("twilio", ["sms"])
-    const senders = createPublicApiVerificationSendersFromProviders([email, sms], {
+    const senders = createCustomerVerificationSendersFromProviders([email, sms], {
       email: { template: "verify-email", subject: "Verify your email" },
       sms: { template: "verify-sms" },
     })

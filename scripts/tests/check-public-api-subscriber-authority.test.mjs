@@ -31,7 +31,7 @@ runtimePorts: [
     "packages/relationships/src/runtime-contributor.ts":
       "[publicApiIntakeRuntimePortReference.id]: createPublicApiIntakePersistence()\n",
     "packages/notifications/src/runtime-contributor.ts":
-      "[publicApiVerificationRuntimePort.id]: verification\n",
+      "[customerVerificationRuntimePort.id]: verification\n",
     "packages/trips/src/runtime-contributor.ts":
       "[publicApiPaymentLinkRuntimePort.id]: createStandardPaymentLinkRouteOptions()\n",
     ...overrides,

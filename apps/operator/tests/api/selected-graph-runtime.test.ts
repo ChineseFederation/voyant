@@ -39,6 +39,7 @@ import {
 import { BOOKING_SCHEDULE_SUBSCRIBER_RUNTIME_KEY } from "@voyant-travel/finance/booking-schedule-subscriber"
 import { flightsRuntimePort } from "@voyant-travel/flights"
 import { composeVoyantGraphRuntime } from "@voyant-travel/framework"
+import { customerVerificationRuntimePort } from "@voyant-travel/identity/runtime-port"
 import {
   inventoryBrochureRuntimePort,
   inventoryRuntimePort,
@@ -59,7 +60,6 @@ import {
   publicApiIntakeRuntimePort,
   publicApiOffersRuntimePort,
   publicApiPaymentLinkRuntimePort,
-  publicApiVerificationRuntimePort,
 } from "@voyant-travel/public-api"
 import { realtimeRuntimePort } from "@voyant-travel/realtime"
 import { relationshipsRouteRuntimePort } from "@voyant-travel/relationships/voyant"
@@ -548,7 +548,7 @@ describe("selected Operator graph runtime composition", () => {
         publicApiIntakeRuntimePort.id,
         publicApiOffersRuntimePort.id,
         publicApiPaymentLinkRuntimePort.id,
-        publicApiVerificationRuntimePort.id,
+        customerVerificationRuntimePort.id,
         promotionRedemptionDatabaseRuntimePort.id,
         promotionsBulkReindexRuntimePort.id,
         channelPushRuntimePort.id,

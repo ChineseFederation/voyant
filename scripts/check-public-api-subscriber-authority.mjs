@@ -82,7 +82,7 @@ requireMatch(
 )
 requireMatch(
   sources.notificationsContributor,
-  /\[publicApiVerificationRuntimePort\.id\]:\s*verification/,
+  /\[customerVerificationRuntimePort\.id\]:\s*verification/,
   "Notifications contributor must own Storefront verification providers",
 )
 rejectMatch(

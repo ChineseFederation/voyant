@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { identityVoyantModule } from "../../src/voyant.js"
+import { customerVerificationVoyantModule, identityVoyantModule } from "../../src/voyant.js"
 
 describe("identity deployment manifest", () => {
   it("owns the package deployment surfaces", () => {
@@ -60,5 +60,46 @@ describe("identity deployment manifest", () => {
         ),
       ).toMatchObject({ commandTargetField: "id" })
     }
+  })
+
+  it("owns the customer verification domain that moved off the public API layer", () => {
+    // voyant#4627. The table, its migrations, the service, the public routes
+    // and the runtime port belong to the module that owns customer identity.
+    // The "verify MY email" Tools stay in public-api, because resolving "my"
+    // needs the customer portal's composed profile.
+    expect(customerVerificationVoyantModule).toMatchObject({
+      schemaVersion: "voyant.module.v1",
+      id: "@voyant-travel/identity#verification",
+      packageName: "@voyant-travel/identity",
+      localId: "identity.verification",
+      requires: { capabilities: ["identity.data-owner"] },
+      runtimePorts: [{ id: "identity.verification.runtime" }],
+      api: [
+        {
+          id: "@voyant-travel/identity#verification.api",
+          surface: "public",
+          mount: "customer-verification",
+          openapi: { document: "identity-verification" },
+          anonymous: true,
+        },
+      ],
+    })
+    expect(customerVerificationVoyantModule.tools ?? []).toHaveLength(0)
+    expect(customerVerificationVoyantModule.actions ?? []).toHaveLength(0)
+  })
+
+  it("adopts the ledger identity the challenges table carried before it moved", () => {
+    // A deployment ran these migrations under "storefront" before voyant#4624
+    // and under "public-api" after it. Both must be claimed or the runner
+    // replays them and the CREATE TABLE fails on an existing table.
+    expect(identityVoyantModule).toMatchObject({
+      links: [
+        {
+          id: "@voyant-travel/identity#linkable.customerVerificationChallenge",
+          source: "@voyant-travel/identity/verification",
+          export: "customerVerificationLinkable",
+        },
+      ],
+    })
   })
 })

@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url"
 import { diffOpenApiCoverage, generateOpenApiDocument } from "@voyant-travel/hono/openapi"
 import { describe, expect, it } from "vitest"
 
-import { createPublicApiVerificationApiModule } from "../../../src/verification/index.js"
+import { createCustomerVerificationApiModule } from "../../../src/verification/index.js"
 
 /**
  * Binding a challenge to a subject added `subjectRef` to both public start
@@ -14,14 +14,14 @@ import { createPublicApiVerificationApiModule } from "../../../src/verification/
  */
 describe("storefront verification OpenAPI coverage", () => {
   it("documents every public route it serves, and serves every one it documents", () => {
-    const apiModule = createPublicApiVerificationApiModule()
+    const apiModule = createCustomerVerificationApiModule()
     const runtime = generateOpenApiDocument(apiModule.publicRoutes as never, {
       info: { title: "storefront-verification", version: "0" },
     })
     const committed = JSON.parse(
       readFileSync(
         fileURLToPath(
-          new URL("../../../openapi/public-api/public-api-verification.json", import.meta.url),
+          new URL("../../../openapi/public-api/identity-verification.json", import.meta.url),
         ),
         "utf8",
       ),

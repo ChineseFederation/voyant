@@ -4,14 +4,14 @@ import {
   type FinanceNotificationsRuntime,
   financeNotificationsRuntimePort,
 } from "@voyant-travel/finance/runtime-port"
+import { customerVerificationRuntimePort } from "@voyant-travel/identity/runtime-port"
+import type { CustomerVerificationRoutesOptions } from "@voyant-travel/identity/verification"
 import {
   type ProposalsNotificationsRuntime,
   proposalsNotificationsRuntimePort,
 } from "@voyant-travel/proposals/runtime-port"
-import { publicApiVerificationRuntimePort } from "@voyant-travel/public-api"
-import type { PublicApiVerificationRoutesOptions } from "@voyant-travel/public-api/verification"
 import { relationshipsPersonNotificationsRuntimePort } from "@voyant-travel/relationships/runtime-port"
-import { toPublicApiVerificationNotificationProviders } from "./customer-verification-runtime.js"
+import { toCustomerVerificationNotificationProviders } from "./customer-verification-runtime.js"
 import {
   type DurableNotificationProviderRuntime,
   durableNotificationProviderPort,
@@ -37,16 +37,16 @@ export function createNotificationsRuntimePortContribution(
   const runtime = createNotificationsRuntime(host.primitives)
   const verification = {
     resolveProviders(bindings: Record<string, unknown>) {
-      return toPublicApiVerificationNotificationProviders(
+      return toCustomerVerificationNotificationProviders(
         configuredNotificationProviders(host, bindings),
       )
     },
     email: { subject: "Your verification code" },
-  } satisfies PublicApiVerificationRoutesOptions
+  } satisfies CustomerVerificationRoutesOptions
   const contribution: Record<string, unknown> = {
     [notificationsRuntimePort.id]: runtime,
     [notificationsReminderJobRuntimePort.id]: runtime.resolveReminderJobRuntime(undefined),
-    [publicApiVerificationRuntimePort.id]: verification,
+    [customerVerificationRuntimePort.id]: verification,
     [financeNotificationsRuntimePort.id]: createFinanceNotificationsRuntime(
       host.primitives,
     ) satisfies FinanceNotificationsRuntime,

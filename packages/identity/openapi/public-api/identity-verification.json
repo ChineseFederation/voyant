@@ -294,8 +294,8 @@
         "tags": ["storefront-verification"],
         "x-voyant-module": "storefront-verification",
         "x-voyant-surface": "public-api",
-        "x-voyant-api-id": "@voyant-travel/public-api#verification.api",
-        "x-voyant-unit-id": "@voyant-travel/public-api#verification",
+        "x-voyant-api-id": "@voyant-travel/identity#verification.api",
+        "x-voyant-unit-id": "@voyant-travel/identity#verification",
         "x-voyant-package-name": "@voyant-travel/public-api"
       }
     },
@@ -467,8 +467,8 @@
         "tags": ["storefront-verification"],
         "x-voyant-module": "storefront-verification",
         "x-voyant-surface": "public-api",
-        "x-voyant-api-id": "@voyant-travel/public-api#verification.api",
-        "x-voyant-unit-id": "@voyant-travel/public-api#verification",
+        "x-voyant-api-id": "@voyant-travel/identity#verification.api",
+        "x-voyant-unit-id": "@voyant-travel/identity#verification",
         "x-voyant-package-name": "@voyant-travel/public-api"
       }
     },
@@ -646,8 +646,8 @@
         "tags": ["storefront-verification"],
         "x-voyant-module": "storefront-verification",
         "x-voyant-surface": "public-api",
-        "x-voyant-api-id": "@voyant-travel/public-api#verification.api",
-        "x-voyant-unit-id": "@voyant-travel/public-api#verification",
+        "x-voyant-api-id": "@voyant-travel/identity#verification.api",
+        "x-voyant-unit-id": "@voyant-travel/identity#verification",
         "x-voyant-package-name": "@voyant-travel/public-api"
       }
     },
@@ -826,8 +826,8 @@
         "tags": ["storefront-verification"],
         "x-voyant-module": "storefront-verification",
         "x-voyant-surface": "public-api",
-        "x-voyant-api-id": "@voyant-travel/public-api#verification.api",
-        "x-voyant-unit-id": "@voyant-travel/public-api#verification",
+        "x-voyant-api-id": "@voyant-travel/identity#verification.api",
+        "x-voyant-unit-id": "@voyant-travel/identity#verification",
         "x-voyant-package-name": "@voyant-travel/public-api"
       }
     }

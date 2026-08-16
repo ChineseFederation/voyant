@@ -3,7 +3,7 @@ import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import { Hono } from "hono"
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest"
 
-import { createPublicApiVerificationPublicRoutes } from "../../../src/verification/routes-public.js"
+import { createCustomerVerificationPublicRoutes } from "../../../src/verification/routes-public.js"
 
 const DB_AVAILABLE = !!process.env.TEST_DATABASE_URL
 
@@ -76,7 +76,7 @@ describe.skipIf(!DB_AVAILABLE)("Storefront verification public routes", () => {
     })
     app.route(
       "/",
-      createPublicApiVerificationPublicRoutes({
+      createCustomerVerificationPublicRoutes({
         sendEmailChallenge,
         sendSmsChallenge,
       }),

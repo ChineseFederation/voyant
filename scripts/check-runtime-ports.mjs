@@ -44,7 +44,7 @@ const migratedPorts = [
   "publicApiIntakeRuntimePort",
   "publicApiOffersRuntimePort",
   "publicApiPaymentLinkRuntimePort",
-  "publicApiVerificationRuntimePort",
+  "customerVerificationRuntimePort",
 ]
 
 const violations = []

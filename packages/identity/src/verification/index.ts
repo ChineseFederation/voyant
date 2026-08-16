@@ -2,15 +2,15 @@ import type { Module } from "@voyant-travel/core"
 import { defineGraphRuntimeFactory } from "@voyant-travel/core/project"
 import { stampOpenApiRegistryApiId } from "@voyant-travel/hono"
 import type { ApiModule } from "@voyant-travel/hono/module"
-import { publicApiVerificationRuntimePort } from "../runtime-port.js"
+import { customerVerificationRuntimePort } from "../runtime-port.js"
 import {
-  buildPublicApiVerificationSenderBundle,
-  createPublicApiVerificationPublicRoutes,
+  buildCustomerVerificationSenderBundle,
+  type CustomerVerificationChannelCoverage,
+  type CustomerVerificationRoutesOptions,
+  createCustomerVerificationPublicRoutes,
   PUBLIC_API_VERIFICATION_SENDERS_CONTAINER_KEY,
-  type PublicApiVerificationChannelCoverage,
-  type PublicApiVerificationRoutesOptions,
 } from "./routes-public.js"
-import { publicApiVerificationModule } from "./schema.js"
+import { customerVerificationModule } from "./schema.js"
 
 export type {
   ConsumeVerifiedChallengeInput,
@@ -22,17 +22,17 @@ export {
   peekVerifiedChallengeDestination,
 } from "./consume.js"
 export type {
-  PublicApiVerificationChannelCoverage,
-  PublicApiVerificationPublicRoutes,
-  PublicApiVerificationRoutesOptions,
-  PublicApiVerificationSenderBundle,
+  CustomerVerificationChannelCoverage,
+  CustomerVerificationPublicRoutes,
+  CustomerVerificationRoutesOptions,
+  CustomerVerificationSenderBundle,
 } from "./routes-public.js"
 export {
-  buildPublicApiVerificationSenderBundle,
-  buildPublicApiVerificationSenders,
-  createPublicApiVerificationPublicRoutes,
+  buildCustomerVerificationSenderBundle,
+  buildCustomerVerificationSenders,
+  createCustomerVerificationPublicRoutes,
   PUBLIC_API_VERIFICATION_SENDERS_CONTAINER_KEY,
-  resolvePublicApiVerificationChannelCoverage,
+  resolveCustomerVerificationChannelCoverage,
 } from "./routes-public.js"
 export type {
   CustomerVerificationChallenge,
@@ -40,47 +40,47 @@ export type {
 } from "./schema.js"
 export {
   customerVerificationChallenges,
-  publicApiVerificationChannelEnum,
-  publicApiVerificationLinkable,
-  publicApiVerificationModule,
-  publicApiVerificationStatusEnum,
+  customerVerificationChannelEnum,
+  customerVerificationLinkable,
+  customerVerificationModule,
+  customerVerificationStatusEnum,
 } from "./schema.js"
 export type {
-  PublicApiVerificationDeliveryResult,
-  PublicApiVerificationEmailSendInput,
-  PublicApiVerificationNotificationChannel,
-  PublicApiVerificationNotificationPayload,
-  PublicApiVerificationNotificationProvider,
-  PublicApiVerificationNotificationResult,
-  PublicApiVerificationProviderOptions,
-  PublicApiVerificationSenders,
-  PublicApiVerificationServiceOptions,
-  PublicApiVerificationSmsSendInput,
+  CustomerVerificationDeliveryResult,
+  CustomerVerificationEmailSendInput,
+  CustomerVerificationNotificationChannel,
+  CustomerVerificationNotificationPayload,
+  CustomerVerificationNotificationProvider,
+  CustomerVerificationNotificationResult,
+  CustomerVerificationProviderOptions,
+  CustomerVerificationSenders,
+  CustomerVerificationServiceOptions,
+  CustomerVerificationSmsSendInput,
 } from "./service.js"
 export {
-  createPublicApiVerificationSendersFromProviders,
-  createPublicApiVerificationService,
-  PublicApiVerificationError,
+  CustomerVerificationError,
+  createCustomerVerificationSendersFromProviders,
+  createCustomerVerificationService,
 } from "./service.js"
 export type {
   ConfirmEmailVerificationChallengeInput,
   ConfirmSmsVerificationChallengeInput,
   CustomerVerificationChallengeRecord,
-  PublicApiVerificationChannel,
-  PublicApiVerificationConfirmResult,
-  PublicApiVerificationStartResult,
-  PublicApiVerificationStatus,
+  CustomerVerificationChannel,
+  CustomerVerificationConfirmResult,
+  CustomerVerificationStartResult,
+  CustomerVerificationStatus,
   StartEmailVerificationChallengeInput,
   StartSmsVerificationChallengeInput,
 } from "./validation.js"
 export {
   confirmEmailVerificationChallengeSchema,
   confirmSmsVerificationChallengeSchema,
-  publicApiVerificationChallengeRecordSchema,
-  publicApiVerificationChannelSchema,
-  publicApiVerificationConfirmResultSchema,
-  publicApiVerificationStartResultSchema,
-  publicApiVerificationStatusSchema,
+  customerVerificationChallengeRecordSchema,
+  customerVerificationChannelSchema,
+  customerVerificationConfirmResultSchema,
+  customerVerificationStartResultSchema,
+  customerVerificationStatusSchema,
   startEmailVerificationChallengeSchema,
   startSmsVerificationChallengeSchema,
 } from "./validation.js"
@@ -104,7 +104,7 @@ export {
 function warnUndeliverableChannels({
   supported,
   unsupported,
-}: PublicApiVerificationChannelCoverage) {
+}: CustomerVerificationChannelCoverage) {
   if (unsupported.length === 0 || supported.length === 0) return
 
   console.warn(
@@ -115,13 +115,13 @@ function warnUndeliverableChannels({
   )
 }
 
-export function createPublicApiVerificationApiModule(
-  options?: PublicApiVerificationRoutesOptions,
+export function createCustomerVerificationApiModule(
+  options?: CustomerVerificationRoutesOptions,
 ): ApiModule {
   const module: Module = {
-    ...publicApiVerificationModule,
+    ...customerVerificationModule,
     bootstrap: ({ bindings, container }) => {
-      const { senders, coverage } = buildPublicApiVerificationSenderBundle(
+      const { senders, coverage } = buildCustomerVerificationSenderBundle(
         bindings as Record<string, unknown>,
         options,
       )
@@ -133,13 +133,13 @@ export function createPublicApiVerificationApiModule(
   return {
     module,
     publicRoutes: stampOpenApiRegistryApiId(
-      createPublicApiVerificationPublicRoutes(options),
+      createCustomerVerificationPublicRoutes(options),
       "@voyant-travel/public-api#verification.api",
     ),
   }
 }
 
-export const createPublicApiVerificationVoyantRuntime = defineGraphRuntimeFactory(
+export const createCustomerVerificationVoyantRuntime = defineGraphRuntimeFactory(
   async ({ getPort }) =>
-    createPublicApiVerificationApiModule(await getPort(publicApiVerificationRuntimePort)),
+    createCustomerVerificationApiModule(await getPort(customerVerificationRuntimePort)),
 )

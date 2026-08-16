@@ -1,6 +1,6 @@
 import { financeNotificationsRuntimePort } from "@voyant-travel/finance/runtime-port"
+import { customerVerificationRuntimePort } from "@voyant-travel/identity/runtime-port"
 import { proposalsNotificationsRuntimePort } from "@voyant-travel/proposals/runtime-port"
-import { publicApiVerificationRuntimePort } from "@voyant-travel/public-api/runtime-port"
 import { describe, expect, it } from "vitest"
 import { durableNotificationProviderPort } from "../../src/durable-provider-port.js"
 import { staffAlertSubscriberRuntimeDescriptors } from "../../src/staff-alert-subscriber.js"
@@ -19,7 +19,7 @@ describe("notifications deployment manifest", () => {
       provides: {
         capabilities: ["notifications.delivery"],
         ports: [
-          { id: publicApiVerificationRuntimePort.id },
+          { id: customerVerificationRuntimePort.id },
           { id: financeNotificationsRuntimePort.id },
           { id: "notifications.runtime" },
           { id: "notifications.reminder-job" },

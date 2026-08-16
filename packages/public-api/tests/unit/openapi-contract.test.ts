@@ -1,3 +1,8 @@
+import type { CustomerVerificationChallengeRecord } from "@voyant-travel/identity/verification/validation"
+import {
+  customerVerificationConfirmResponseSchema,
+  customerVerificationStartResponseSchema,
+} from "@voyant-travel/identity/verification/validation"
 import { describe, expect, it } from "vitest"
 import type { z } from "zod"
 import {
@@ -23,11 +28,6 @@ import {
   publicApiNewsletterSubscribeEnvelopeSchema,
 } from "../../src/validation/intake.js"
 import { publicApiSettingsSchema } from "../../src/validation-settings.js"
-import type { CustomerVerificationChallengeRecord } from "../../src/verification/validation.js"
-import {
-  publicApiVerificationConfirmResponseSchema,
-  publicApiVerificationStartResponseSchema,
-} from "../../src/verification/validation.js"
 
 /**
  * Contract tests (api-route-authoring.md §17): the declared response schema is
@@ -72,7 +72,7 @@ describe("storefront intake response contracts", () => {
   })
 })
 
-describe("storefront verification response contracts", () => {
+describe("customer verification response contracts", () => {
   const baseRecord: CustomerVerificationChallengeRecord = {
     id: "sfvc_123",
     channel: "email",
@@ -86,7 +86,7 @@ describe("storefront verification response contracts", () => {
   }
 
   it("a started challenge serializes to the documented start envelope (Date -> string)", () => {
-    const parsed = publicApiVerificationStartResponseSchema.safeParse(jsonRoundTrip(baseRecord))
+    const parsed = customerVerificationStartResponseSchema.safeParse(jsonRoundTrip(baseRecord))
     expect(parsed.success).toBe(true)
   })
 
@@ -97,7 +97,7 @@ describe("storefront verification response contracts", () => {
       verifiedAt: new Date("2026-06-23T11:30:00.000Z"),
     }
 
-    const parsed = publicApiVerificationConfirmResponseSchema.safeParse(jsonRoundTrip(confirmed))
+    const parsed = customerVerificationConfirmResponseSchema.safeParse(jsonRoundTrip(confirmed))
     expect(parsed.success).toBe(true)
   })
 
@@ -105,7 +105,7 @@ describe("storefront verification response contracts", () => {
     // Guards the contract: a handler that forgot to serialize the Drizzle row
     // would emit `Date` instances, which the wire schema must reject.
     const schemaInput = { data: baseRecord }
-    const parsed = publicApiVerificationStartResponseSchema.safeParse(schemaInput)
+    const parsed = customerVerificationStartResponseSchema.safeParse(schemaInput)
     expect(parsed.success).toBe(false)
   })
 })

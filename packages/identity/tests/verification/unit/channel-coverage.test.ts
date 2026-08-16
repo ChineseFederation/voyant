@@ -2,11 +2,11 @@ import { createContainer, createEventBus } from "@voyant-travel/core"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
 import {
-  buildPublicApiVerificationSenderBundle,
-  createPublicApiVerificationApiModule,
-  createPublicApiVerificationSendersFromProviders,
-  PublicApiVerificationError,
-  resolvePublicApiVerificationChannelCoverage,
+  buildCustomerVerificationSenderBundle,
+  CustomerVerificationError,
+  createCustomerVerificationApiModule,
+  createCustomerVerificationSendersFromProviders,
+  resolveCustomerVerificationChannelCoverage,
 } from "../../../src/verification/index.js"
 
 function emailOnlyProvider() {
@@ -17,8 +17,8 @@ function emailOnlyProvider() {
   }
 }
 
-async function bootstrap(options: Parameters<typeof createPublicApiVerificationApiModule>[0]) {
-  const module = createPublicApiVerificationApiModule(options)
+async function bootstrap(options: Parameters<typeof createCustomerVerificationApiModule>[0]) {
+  const module = createCustomerVerificationApiModule(options)
   await module.module.bootstrap?.({
     bindings: {},
     container: createContainer(),
@@ -33,13 +33,13 @@ afterEach(() => {
 describe("verification channel coverage (voyant#3948)", () => {
   it("reports sms as unsupported when only an email provider is configured", () => {
     expect(
-      resolvePublicApiVerificationChannelCoverage({}, { providers: [emailOnlyProvider()] }),
+      resolveCustomerVerificationChannelCoverage({}, { providers: [emailOnlyProvider()] }),
     ).toEqual({ supported: ["email"], unsupported: ["sms"] })
   })
 
   it("counts an explicitly injected sender as coverage", () => {
     expect(
-      resolvePublicApiVerificationChannelCoverage(
+      resolveCustomerVerificationChannelCoverage(
         {},
         { providers: [emailOnlyProvider()], sendSmsChallenge: async () => ({}) },
       ),
@@ -47,7 +47,7 @@ describe("verification channel coverage (voyant#3948)", () => {
   })
 
   it("reports both channels unsupported when nothing is configured", () => {
-    expect(resolvePublicApiVerificationChannelCoverage({}, {})).toEqual({
+    expect(resolveCustomerVerificationChannelCoverage({}, {})).toEqual({
       supported: [],
       unsupported: ["email", "sms"],
     })
@@ -55,7 +55,7 @@ describe("verification channel coverage (voyant#3948)", () => {
 
   it("resolves providers from bindings", () => {
     const resolveProviders = vi.fn(() => [emailOnlyProvider()])
-    const coverage = resolvePublicApiVerificationChannelCoverage(
+    const coverage = resolveCustomerVerificationChannelCoverage(
       { DEPLOYMENT: "managed" },
       { resolveProviders },
     )
@@ -65,7 +65,7 @@ describe("verification channel coverage (voyant#3948)", () => {
 
   it("resolves the app's provider set once for senders and coverage together", () => {
     const resolveProviders = vi.fn(() => [emailOnlyProvider()])
-    const { senders, coverage } = buildPublicApiVerificationSenderBundle({}, { resolveProviders })
+    const { senders, coverage } = buildCustomerVerificationSenderBundle({}, { resolveProviders })
 
     expect(resolveProviders).toHaveBeenCalledOnce()
     expect(senders.sendEmailChallenge).toBeTypeOf("function")
@@ -74,7 +74,7 @@ describe("verification channel coverage (voyant#3948)", () => {
 
   it("never resolves providers when every channel has an injected sender", () => {
     const resolveProviders = vi.fn(() => [emailOnlyProvider()])
-    const { coverage } = buildPublicApiVerificationSenderBundle(
+    const { coverage } = buildCustomerVerificationSenderBundle(
       {},
       {
         resolveProviders,
@@ -121,7 +121,7 @@ describe("verification channel coverage (voyant#3948)", () => {
 
 describe("sender_not_configured message (voyant#3948)", () => {
   it("names the channels that are covered", async () => {
-    const senders = createPublicApiVerificationSendersFromProviders([emailOnlyProvider()])
+    const senders = createCustomerVerificationSendersFromProviders([emailOnlyProvider()])
 
     await expect(
       senders.sendSmsChallenge?.({
@@ -136,7 +136,7 @@ describe("sender_not_configured message (voyant#3948)", () => {
   })
 
   it("says so plainly when no provider is registered at all", async () => {
-    const senders = createPublicApiVerificationSendersFromProviders([])
+    const senders = createCustomerVerificationSendersFromProviders([])
 
     await expect(
       senders.sendEmailChallenge?.({
@@ -149,7 +149,7 @@ describe("sender_not_configured message (voyant#3948)", () => {
   })
 
   it("keeps the sender_not_configured code so the route still answers 501", async () => {
-    const senders = createPublicApiVerificationSendersFromProviders([emailOnlyProvider()])
+    const senders = createCustomerVerificationSendersFromProviders([emailOnlyProvider()])
 
     await expect(
       senders.sendSmsChallenge?.({
@@ -159,7 +159,7 @@ describe("sender_not_configured message (voyant#3948)", () => {
         expiresAt: new Date("2026-01-01T00:10:00.000Z"),
       }),
     ).rejects.toMatchObject({
-      name: "PublicApiVerificationError",
+      name: "CustomerVerificationError",
       code: "sender_not_configured",
     })
     await expect(
@@ -169,11 +169,11 @@ describe("sender_not_configured message (voyant#3948)", () => {
         purpose: "booking_create",
         expiresAt: new Date("2026-01-01T00:10:00.000Z"),
       }),
-    ).rejects.toBeInstanceOf(PublicApiVerificationError)
+    ).rejects.toBeInstanceOf(CustomerVerificationError)
   })
 
   it("names the provider when an unknown one was requested explicitly", async () => {
-    const senders = createPublicApiVerificationSendersFromProviders([emailOnlyProvider()], {
+    const senders = createCustomerVerificationSendersFromProviders([emailOnlyProvider()], {
       email: { provider: "missing-provider" },
     })
 

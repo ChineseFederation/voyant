@@ -7,6 +7,16 @@ import {
   requireCustomerBuyerContext,
   requireCustomerIdentityContext,
 } from "@voyant-travel/hono"
+import { customerVerificationRuntimePort } from "@voyant-travel/identity/runtime-port"
+import {
+  buildCustomerVerificationSenders,
+  type CustomerVerificationRoutesOptions,
+  enforceVerificationStartLimits,
+} from "@voyant-travel/identity/verification/public-routes"
+import {
+  CustomerVerificationError,
+  createCustomerVerificationService,
+} from "@voyant-travel/identity/verification/service"
 import {
   defineToolContextContribution,
   requireService,
@@ -15,7 +25,6 @@ import {
 } from "@voyant-travel/tools"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import type { Context } from "hono"
-
 import { buildPublicCustomerPortalRouteRuntime } from "./customer-portal/route-runtime.js"
 import type { PublicCustomerPortalRouteOptions } from "./customer-portal/routes-public.js"
 import { publicCustomerPortalService } from "./customer-portal/service-public.js"
@@ -23,22 +32,12 @@ import type { PaymentLinkRoutesOptions } from "./payment-link/routes.js"
 import {
   publicApiCustomerPortalRuntimePort,
   publicApiPaymentLinkRuntimePort,
-  publicApiVerificationRuntimePort,
 } from "./runtime-port.js"
 import type {
+  CustomerVerificationToolServices,
   PublicApiCustomerPortalToolServices,
   PublicApiPaymentLinkToolServices,
-  PublicApiVerificationToolServices,
 } from "./tools.js"
-import {
-  buildPublicApiVerificationSenders,
-  enforceVerificationStartLimits,
-  type PublicApiVerificationRoutesOptions,
-} from "./verification/routes-public.js"
-import {
-  createPublicApiVerificationService,
-  PublicApiVerificationError,
-} from "./verification/service.js"
 
 export * from "./tools.js"
 
@@ -48,7 +47,7 @@ type PublicApiMcpContext = Context<{
 }>
 
 export const voyantToolContextContribution = defineToolContextContribution({
-  context: ["publicApiCustomerPortal", "publicApiPaymentLink", "publicApiVerification"],
+  context: ["publicApiCustomerPortal", "publicApiPaymentLink", "customerVerification"],
   async contribute({ request, context, resources }) {
     const c = request as PublicApiMcpContext
     const db = requireService((c.get("db") ?? context.db) as PostgresJsDatabase | undefined, "db")
@@ -58,8 +57,8 @@ export const voyantToolContextContribution = defineToolContextContribution({
     const paymentLinkOptions = resources[publicApiPaymentLinkRuntimePort.id] as
       | PaymentLinkRoutesOptions
       | undefined
-    const verificationOptions = resources[publicApiVerificationRuntimePort.id] as
-      | PublicApiVerificationRoutesOptions
+    const verificationOptions = resources[customerVerificationRuntimePort.id] as
+      | CustomerVerificationRoutesOptions
       | undefined
     const portalRuntime = buildPublicCustomerPortalRouteRuntime(c.env, customerPortalOptions)
 
@@ -81,7 +80,7 @@ export const voyantToolContextContribution = defineToolContextContribution({
         : {}),
       ...(verificationOptions
         ? {
-            publicApiVerification: createVerificationToolServices({
+            customerVerification: createVerificationToolServices({
               db,
               request: c,
               userId: () => requireCustomerUserId(c),
@@ -408,10 +407,10 @@ export function createVerificationToolServices(input: {
   db: PostgresJsDatabase
   request: PublicApiMcpContext
   userId: () => string
-  options: PublicApiVerificationRoutesOptions
-}): PublicApiVerificationToolServices {
-  const service = createPublicApiVerificationService(input.options)
-  const senders = buildPublicApiVerificationSenders(input.request.env, input.options)
+  options: CustomerVerificationRoutesOptions
+}): CustomerVerificationToolServices {
+  const service = createCustomerVerificationService(input.options)
+  const senders = buildCustomerVerificationSenders(input.request.env, input.options)
   const destination = async (channel: "email" | "sms") => {
     const profile = await publicCustomerPortalService.getProfile(input.db, input.userId())
     const value = channel === "email" ? profile?.email : profile?.phoneNumber
@@ -450,7 +449,7 @@ export function createVerificationToolServices(input: {
   }
   const mapVerificationError = (error: unknown): never => {
     if (error instanceof ToolError) throw error
-    if (error instanceof PublicApiVerificationError) {
+    if (error instanceof CustomerVerificationError) {
       const code =
         error.code === "sender_not_configured"
           ? "MISSING_SERVICE"

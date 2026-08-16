@@ -335,7 +335,7 @@ async function main(): Promise<void> {
   }
   for (const id of [
     "@voyant-travel/public-api#customer-portal",
-    "@voyant-travel/public-api#verification",
+    "@voyant-travel/identity#verification",
   ]) {
     if (!operatorModuleIds.has(id)) {
       failures.push(`expected operator graph to preserve customer surface ${id}`)

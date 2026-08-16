@@ -1,7 +1,7 @@
 import { z } from "zod"
 
-export const publicApiVerificationChannelSchema = z.enum(["email", "sms"])
-export const publicApiVerificationStatusSchema = z.enum([
+export const customerVerificationChannelSchema = z.enum(["email", "sms"])
+export const customerVerificationStatusSchema = z.enum([
   "pending",
   "verified",
   "expired",
@@ -52,22 +52,22 @@ export const confirmSmsVerificationChallengeSchema = z.object({
   purpose: purposeSchema,
 })
 
-export const publicApiVerificationChallengeRecordSchema = z.object({
+export const customerVerificationChallengeRecordSchema = z.object({
   id: z.string(),
-  channel: publicApiVerificationChannelSchema,
+  channel: customerVerificationChannelSchema,
   destination: z.string(),
   purpose: z.string(),
-  status: publicApiVerificationStatusSchema,
+  status: customerVerificationStatusSchema,
   expiresAt: z.date(),
   verifiedAt: z.date().nullable(),
   createdAt: z.date(),
   updatedAt: z.date(),
 })
 
-export const publicApiVerificationStartResultSchema = publicApiVerificationChallengeRecordSchema
+export const customerVerificationStartResultSchema = customerVerificationChallengeRecordSchema
 
-export const publicApiVerificationConfirmResultSchema =
-  publicApiVerificationChallengeRecordSchema.extend({
+export const customerVerificationConfirmResultSchema =
+  customerVerificationChallengeRecordSchema.extend({
     status: z.literal("verified"),
   })
 
@@ -79,12 +79,12 @@ export const publicApiVerificationConfirmResultSchema =
  * `z.date()` — to be an honest contract. The contract test round-trips a real
  * record through `JSON.parse(JSON.stringify(...))` to keep these in step.
  */
-export const publicApiVerificationChallengeRecordWireSchema = z.object({
+export const customerVerificationChallengeRecordWireSchema = z.object({
   id: z.string(),
-  channel: publicApiVerificationChannelSchema,
+  channel: customerVerificationChannelSchema,
   destination: z.string(),
   purpose: z.string(),
-  status: publicApiVerificationStatusSchema,
+  status: customerVerificationStatusSchema,
   expiresAt: z.string().datetime(),
   verifiedAt: z.string().datetime().nullable(),
   createdAt: z.string().datetime(),
@@ -92,25 +92,25 @@ export const publicApiVerificationChallengeRecordWireSchema = z.object({
 })
 
 /** `{ data }` envelope for the start routes (POST email/sms start). */
-export const publicApiVerificationStartResponseSchema = z.object({
-  data: publicApiVerificationChallengeRecordWireSchema,
+export const customerVerificationStartResponseSchema = z.object({
+  data: customerVerificationChallengeRecordWireSchema,
 })
 
 /** `{ data }` envelope for the confirm routes; status is always `verified`. */
-export const publicApiVerificationConfirmResponseSchema = z.object({
-  data: publicApiVerificationChallengeRecordWireSchema.extend({
+export const customerVerificationConfirmResponseSchema = z.object({
+  data: customerVerificationChallengeRecordWireSchema.extend({
     status: z.literal("verified"),
   }),
 })
 
 /** Error envelope shared by the verification non-2xx responses. */
-export const publicApiVerificationErrorResponseSchema = z.object({
+export const customerVerificationErrorResponseSchema = z.object({
   error: z.string(),
   code: z.string().optional(),
 })
 
-export type PublicApiVerificationChannel = z.infer<typeof publicApiVerificationChannelSchema>
-export type PublicApiVerificationStatus = z.infer<typeof publicApiVerificationStatusSchema>
+export type CustomerVerificationChannel = z.infer<typeof customerVerificationChannelSchema>
+export type CustomerVerificationStatus = z.infer<typeof customerVerificationStatusSchema>
 export type StartEmailVerificationChallengeInput = z.infer<
   typeof startEmailVerificationChallengeSchema
 >
@@ -122,11 +122,9 @@ export type ConfirmSmsVerificationChallengeInput = z.infer<
   typeof confirmSmsVerificationChallengeSchema
 >
 export type CustomerVerificationChallengeRecord = z.infer<
-  typeof publicApiVerificationChallengeRecordSchema
+  typeof customerVerificationChallengeRecordSchema
 >
-export type PublicApiVerificationStartResult = z.infer<
-  typeof publicApiVerificationStartResultSchema
->
-export type PublicApiVerificationConfirmResult = z.infer<
-  typeof publicApiVerificationConfirmResultSchema
+export type CustomerVerificationStartResult = z.infer<typeof customerVerificationStartResultSchema>
+export type CustomerVerificationConfirmResult = z.infer<
+  typeof customerVerificationConfirmResultSchema
 >

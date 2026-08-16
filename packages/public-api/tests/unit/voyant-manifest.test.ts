@@ -26,7 +26,6 @@ import {
   publicApiCustomerPortalVoyantModule,
   publicApiPaymentLinkVoyantModule,
   publicApiShoppingProviderVoyantModule,
-  publicApiVerificationVoyantModule,
   publicApiVoyantModule,
 } from "../../src/voyant.js"
 
@@ -108,25 +107,6 @@ describe("storefront deployment manifest", () => {
           },
         },
       ],
-      schema: [
-        {
-          id: "@voyant-travel/public-api#schema",
-          source: "@voyant-travel/public-api/verification/schema",
-        },
-      ],
-      migrations: [
-        {
-          id: "@voyant-travel/public-api#migrations",
-          source: "./migrations",
-        },
-      ],
-      links: [
-        {
-          id: "@voyant-travel/public-api#linkable.publicApiVerificationChallenge",
-          source: "@voyant-travel/public-api/verification",
-          export: "publicApiVerificationLinkable",
-        },
-      ],
       resources: [{ id: "@voyant-travel/public-api#resource.database", kind: "database" }],
       lifecycle: { uninstall: { default: "retain-data", purge: "not-supported" } },
     })
@@ -198,7 +178,7 @@ describe("storefront deployment manifest", () => {
   })
 
   it("owns package-namespaced storefront fragments", () => {
-    expect([publicApiCustomerPortalVoyantModule, publicApiVerificationVoyantModule]).toMatchObject([
+    expect([publicApiCustomerPortalVoyantModule]).toMatchObject([
       {
         schemaVersion: "voyant.module.v1",
         id: "@voyant-travel/public-api#customer-portal",
@@ -220,30 +200,6 @@ describe("storefront deployment manifest", () => {
             runtime: {
               entry: "@voyant-travel/public-api/customer-portal",
               export: "createCustomerPortalApiModule",
-            },
-          },
-        ],
-      },
-      {
-        schemaVersion: "voyant.module.v1",
-        id: "@voyant-travel/public-api#verification",
-        packageName: "@voyant-travel/public-api",
-        requires: { capabilities: ["public-api.data-owner"] },
-        runtime: {
-          entry: "@voyant-travel/public-api/verification",
-          export: "createPublicApiVerificationVoyantRuntime",
-        },
-        runtimePorts: [{ id: "public-api.verification.runtime" }],
-        api: [
-          {
-            id: "@voyant-travel/public-api#verification.api",
-            surface: "public",
-            mount: "customer-verification",
-            openapi: { document: "public-api-verification" },
-            anonymous: true,
-            runtime: {
-              entry: "@voyant-travel/public-api/verification",
-              export: "createPublicApiVerificationApiModule",
             },
           },
         ],
@@ -319,22 +275,22 @@ describe("storefront deployment manifest", () => {
   it("declares executable Tools and action-ledger bindings for every extension surface", () => {
     expect(publicApiCustomerPortalVoyantModule.tools).toHaveLength(13)
     expect(publicApiCustomerPortalVoyantModule.actions).toHaveLength(5)
-    expect(publicApiVerificationVoyantModule.tools).toHaveLength(4)
-    expect(publicApiVerificationVoyantModule.actions).toHaveLength(2)
+    // The verification DOMAIN moved to identity (voyant#4627). Its four Tools
+    // stayed, because resolving the customer's OWN destination needs the
+    // customer portal's composed profile — so they hang off this package's
+    // main graph unit rather than a module of their own.
+    expect(publicApiVoyantModule.tools).toHaveLength(4)
+    expect(publicApiVoyantModule.actions).toHaveLength(2)
     expect(publicApiPaymentLinkVoyantModule.tools).toHaveLength(2)
     expect(publicApiPaymentLinkVoyantModule.actions).toHaveLength(2)
-    expect(publicApiVerificationVoyantModule.tools?.every(({ risk }) => risk === "high")).toBe(true)
+    expect(publicApiVoyantModule.tools?.every(({ risk }) => risk === "high")).toBe(true)
     expect(
       publicApiPaymentLinkVoyantModule.tools?.find(
         ({ name }) => name === "create_invoice_payment_link",
       )?.risk,
     ).toBe("high")
 
-    for (const module of [
-      publicApiCustomerPortalVoyantModule,
-      publicApiVerificationVoyantModule,
-      publicApiPaymentLinkVoyantModule,
-    ]) {
+    for (const module of [publicApiCustomerPortalVoyantModule, publicApiPaymentLinkVoyantModule]) {
       expect(module.meta?.agentTools).toBeUndefined()
       expect(
         module.tools?.every(({ runtime }) => runtime.entry === "@voyant-travel/public-api/tools"),
@@ -348,7 +304,7 @@ describe("storefront deployment manifest", () => {
       ]),
     )
     expect(
-      publicApiVerificationVoyantModule.actions?.find(
+      publicApiVoyantModule.actions?.find(
         ({ id }) => id === "@voyant-travel/public-api#action.start-my-verification",
       ),
     ).toMatchObject({

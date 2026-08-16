@@ -9,8 +9,8 @@ import {
   requirePort,
 } from "@voyant-travel/core/project"
 import { financeNotificationsRuntimePort } from "@voyant-travel/finance/runtime-port"
+import { customerVerificationRuntimePort } from "@voyant-travel/identity/runtime-port"
 import { proposalsNotificationsRuntimePort } from "@voyant-travel/proposals/runtime-port"
-import { publicApiVerificationRuntimePort } from "@voyant-travel/public-api/runtime-port"
 import { relationshipsPersonNotificationsRuntimePort } from "@voyant-travel/relationships/runtime-port"
 import { durableNotificationProviderPort } from "./durable-provider-port.js"
 import { bookingDocumentsSentEventPayloadSchema } from "./event-payload-schemas.js"
@@ -34,7 +34,7 @@ export const notificationsVoyantModule = defineModule({
   provides: {
     capabilities: ["notifications.delivery"],
     ports: [
-      providePort(publicApiVerificationRuntimePort),
+      providePort(customerVerificationRuntimePort),
       providePort(financeNotificationsRuntimePort),
       providePort(notificationsRuntimePort),
       providePort(notificationsReminderJobRuntimePort),

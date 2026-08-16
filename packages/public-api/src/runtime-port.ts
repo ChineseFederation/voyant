@@ -6,7 +6,6 @@ import type { PublicCustomerPortalRouteOptions } from "./customer-portal/routes-
 import type { PaymentLinkRoutesOptions } from "./payment-link/routes.js"
 import type { PublicApiOfferResolvers } from "./service.js"
 import type { PublicApiIntakePersistence } from "./service-intake.js"
-import type { PublicApiVerificationRoutesOptions } from "./verification/routes-public.js"
 
 function optionsPort<T extends object>(id: string) {
   return definePort<T>({
@@ -39,7 +38,4 @@ export const publicApiPaymentReconciliationJobRuntimePort =
   optionsPort<PaymentReconciliationJobRuntime>("public-api.payment-reconciliation-job.runtime")
 export const publicApiCustomerPortalRuntimePort = optionsPort<PublicCustomerPortalRouteOptions>(
   "public-api.customer-portal.runtime",
-)
-export const publicApiVerificationRuntimePort = optionsPort<PublicApiVerificationRoutesOptions>(
-  "public-api.verification.runtime",
 )

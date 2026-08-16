@@ -26,17 +26,11 @@
     "./service": "./src/service.ts",
     "./tools": "./src/mcp-runtime.ts",
     "./validation": "./src/validation.ts",
-    "./verification": "./src/verification/index.ts",
-    "./verification/schema": "./src/verification/schema.ts",
-    "./verification/public-routes": "./src/verification/routes-public.ts",
-    "./verification/service": "./src/verification/service.ts",
-    "./verification/validation": "./src/verification/validation.ts",
     "./voyant": "./src/voyant.ts",
     "./openapi/admin": "./openapi/admin/public-api.json",
     "./openapi/public-api": "./openapi/public-api/public-api.json",
     "./openapi/customer-portal": "./openapi/public-api/customer-portal.json",
-    "./openapi/payment-link": "./openapi/public-api/payment-link.json",
-    "./openapi/verification": "./openapi/public-api/public-api-verification.json"
+    "./openapi/payment-link": "./openapi/public-api/payment-link.json"
   },
   "voyant": {
     "schemaVersion": "voyant.package.v1",
@@ -57,12 +51,8 @@
         "self-hosted"
       ]
     },
-    "schema": "./verification/schema",
     "requiresSchemas": [
       "@voyant-travel/db"
-    ],
-    "legacyMigrationSources": [
-      "storefront"
     ]
   },
   "scripts": {
@@ -77,27 +67,28 @@
     "db:generate": "drizzle-kit generate --config=drizzle.migrations.config.ts --name=public_api_baseline && node ../../scripts/migrations/guard-create-type.mjs ./migrations && node ../../scripts/migrations/ensure-extensions.mjs ./migrations"
   },
   "dependencies": {
+    "@hono/zod-openapi": "catalog:",
     "@voyant-travel/action-ledger": "workspace:^",
     "@voyant-travel/auth": "workspace:^",
-    "@hono/zod-openapi": "catalog:",
     "@voyant-travel/bookings": "workspace:^",
     "@voyant-travel/catalog": "workspace:^",
     "@voyant-travel/catalog-contracts": "workspace:^",
     "@voyant-travel/commerce": "workspace:^",
     "@voyant-travel/core": "workspace:^",
     "@voyant-travel/cruises": "workspace:^",
-    "@voyant-travel/db": "workspace:^",
     "@voyant-travel/data-sdk": "^0.8.0",
+    "@voyant-travel/db": "workspace:^",
     "@voyant-travel/finance": "workspace:^",
     "@voyant-travel/flights": "workspace:^",
     "@voyant-travel/hono": "workspace:^",
+    "@voyant-travel/identity": "workspace:^",
     "@voyant-travel/relationships-contracts": "workspace:^",
+    "@voyant-travel/schema-kit": "workspace:^",
     "@voyant-travel/tools": "workspace:^",
     "@voyant-travel/utils": "workspace:^",
     "drizzle-orm": "catalog:",
     "hono": "catalog:",
-    "zod": "catalog:",
-    "@voyant-travel/schema-kit": "workspace:^"
+    "zod": "catalog:"
   },
   "peerDependencies": {
     "@voyant-travel/identity": "workspace:^",
@@ -246,31 +237,6 @@
         "import": "./dist/validation.js",
         "default": "./dist/validation.js"
       },
-      "./verification": {
-        "types": "./dist/verification/index.d.ts",
-        "import": "./dist/verification/index.js",
-        "default": "./dist/verification/index.js"
-      },
-      "./verification/schema": {
-        "types": "./dist/verification/schema.d.ts",
-        "import": "./dist/verification/schema.js",
-        "default": "./dist/verification/schema.js"
-      },
-      "./verification/public-routes": {
-        "types": "./dist/verification/routes-public.d.ts",
-        "import": "./dist/verification/routes-public.js",
-        "default": "./dist/verification/routes-public.js"
-      },
-      "./verification/service": {
-        "types": "./dist/verification/service.d.ts",
-        "import": "./dist/verification/service.js",
-        "default": "./dist/verification/service.js"
-      },
-      "./verification/validation": {
-        "types": "./dist/verification/validation.d.ts",
-        "import": "./dist/verification/validation.js",
-        "default": "./dist/verification/validation.js"
-      },
       "./voyant": {
         "types": "./dist/voyant.d.ts",
         "import": "./dist/voyant.js",
@@ -279,8 +245,7 @@
       "./openapi/admin": "./openapi/admin/public-api.json",
       "./openapi/public-api": "./openapi/public-api/public-api.json",
       "./openapi/customer-portal": "./openapi/public-api/customer-portal.json",
-      "./openapi/payment-link": "./openapi/public-api/payment-link.json",
-      "./openapi/verification": "./openapi/public-api/public-api-verification.json"
+      "./openapi/payment-link": "./openapi/public-api/payment-link.json"
     },
     "main": "./dist/index.js",
     "types": "./dist/index.d.ts"

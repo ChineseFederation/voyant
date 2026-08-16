@@ -23,6 +23,16 @@
       "portIds": ["flights.runtime", "flights.durable-action-runtime"],
       "runtimeExport": "createFlightsRuntimePortContribution"
     },
+    "@voyant-travel/relationships": {
+      "requiresSchemas": ["@voyant-travel/db", "@voyant-travel/identity"],
+      "portIds": [
+        "relationships.route-runtime",
+        "relationships.mice.runtime",
+        "custom-fields.runtime",
+        "relationships.booking-enrichment-database"
+      ],
+      "runtimeExport": "createRelationshipsRuntimePortContribution"
+    },
     "@voyant-travel/trips": {
       "requiresSchemas": ["@voyant-travel/db"],
       "portIds": [
@@ -36,16 +46,6 @@
         "flights.runtime"
       ],
       "runtimeExport": "createTripsRuntimePortContribution"
-    },
-    "@voyant-travel/relationships": {
-      "requiresSchemas": ["@voyant-travel/db", "@voyant-travel/identity"],
-      "portIds": [
-        "relationships.route-runtime",
-        "relationships.mice.runtime",
-        "custom-fields.runtime",
-        "relationships.booking-enrichment-database"
-      ],
-      "runtimeExport": "createRelationshipsRuntimePortContribution"
     }
   }
 }

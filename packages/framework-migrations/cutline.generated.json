@@ -25,6 +25,7 @@
     "trips": ["0000_trips_baseline"]
   },
   "absorbedBy": {
-    "availability": "operations"
+    "availability": "operations",
+    "public-api": "identity"
   }
 }

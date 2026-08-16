@@ -167,3 +167,7 @@ export type IdentityAddress = typeof identityAddresses.$inferSelect
 export type NewIdentityAddress = typeof identityAddresses.$inferInsert
 export type IdentityNamedContact = typeof identityNamedContacts.$inferSelect
 export type NewIdentityNamedContact = typeof identityNamedContacts.$inferInsert
+
+// Customer verification challenges moved here with the module (voyant#4627).
+// Re-exported so this barrel remains the package's single declared schema.
+export * from "./verification/schema.js"

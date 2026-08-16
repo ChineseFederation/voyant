@@ -11,7 +11,14 @@
     "./tools": "./src/mcp-runtime.ts",
     "./routes": "./src/routes.ts",
     "./voyant": "./src/voyant.ts",
-    "./openapi/admin": "./openapi/admin/identity.json"
+    "./openapi/admin": "./openapi/admin/identity.json",
+    "./verification": "./src/verification/index.ts",
+    "./verification/schema": "./src/verification/schema.ts",
+    "./verification/public-routes": "./src/verification/routes-public.ts",
+    "./verification/service": "./src/verification/service.ts",
+    "./verification/validation": "./src/verification/validation.ts",
+    "./runtime-port": "./src/runtime-port.ts",
+    "./openapi/verification": "./openapi/public-api/identity-verification.json"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.typecheck.json",
@@ -84,7 +91,38 @@
         "import": "./dist/voyant.js",
         "default": "./dist/voyant.js"
       },
-      "./openapi/admin": "./openapi/admin/identity.json"
+      "./openapi/admin": "./openapi/admin/identity.json",
+      "./verification": {
+        "types": "./dist/verification/index.d.ts",
+        "import": "./dist/verification/index.js",
+        "default": "./dist/verification/index.js"
+      },
+      "./verification/schema": {
+        "types": "./dist/verification/schema.d.ts",
+        "import": "./dist/verification/schema.js",
+        "default": "./dist/verification/schema.js"
+      },
+      "./verification/public-routes": {
+        "types": "./dist/verification/routes-public.d.ts",
+        "import": "./dist/verification/routes-public.js",
+        "default": "./dist/verification/routes-public.js"
+      },
+      "./verification/service": {
+        "types": "./dist/verification/service.d.ts",
+        "import": "./dist/verification/service.js",
+        "default": "./dist/verification/service.js"
+      },
+      "./verification/validation": {
+        "types": "./dist/verification/validation.d.ts",
+        "import": "./dist/verification/validation.js",
+        "default": "./dist/verification/validation.js"
+      },
+      "./runtime-port": {
+        "types": "./dist/runtime-port.d.ts",
+        "import": "./dist/runtime-port.js",
+        "default": "./dist/runtime-port.js"
+      },
+      "./openapi/verification": "./openapi/public-api/identity-verification.json"
     },
     "main": "./dist/index.js",
     "types": "./dist/index.d.ts"
@@ -112,6 +150,10 @@
     "schema": "./schema",
     "requiresSchemas": [
       "@voyant-travel/db"
+    ],
+    "legacyMigrationSources": [
+      "public-api",
+      "storefront"
     ]
   },
   "private": true

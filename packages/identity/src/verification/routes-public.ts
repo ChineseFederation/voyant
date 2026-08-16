@@ -4,20 +4,20 @@ import { clientIpKey, enforceRateLimit, openApiValidationHook } from "@voyant-tr
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import type { Context } from "hono"
 import {
-  createPublicApiVerificationSendersFromProviders,
-  createPublicApiVerificationService,
-  PublicApiVerificationError,
-  type PublicApiVerificationNotificationProvider,
-  type PublicApiVerificationProviderOptions,
-  type PublicApiVerificationSenders,
-  type PublicApiVerificationServiceOptions,
+  CustomerVerificationError,
+  type CustomerVerificationNotificationProvider,
+  type CustomerVerificationProviderOptions,
+  type CustomerVerificationSenders,
+  type CustomerVerificationServiceOptions,
+  createCustomerVerificationSendersFromProviders,
+  createCustomerVerificationService,
 } from "./service.js"
 import {
   confirmEmailVerificationChallengeSchema,
   confirmSmsVerificationChallengeSchema,
-  publicApiVerificationConfirmResponseSchema,
-  publicApiVerificationErrorResponseSchema,
-  publicApiVerificationStartResponseSchema,
+  customerVerificationConfirmResponseSchema,
+  customerVerificationErrorResponseSchema,
+  customerVerificationStartResponseSchema,
   startEmailVerificationChallengeSchema,
   startSmsVerificationChallengeSchema,
 } from "./validation.js"
@@ -31,7 +31,7 @@ import {
  * route documents exactly the statuses its handler can emit.
  */
 const verificationErrorContent = {
-  content: { "application/json": { schema: publicApiVerificationErrorResponseSchema } },
+  content: { "application/json": { schema: customerVerificationErrorResponseSchema } },
 } as const
 
 /**
@@ -81,7 +81,7 @@ const startEmailChallengeRoute = createRoute({
   responses: {
     201: {
       description: "An email verification challenge was started",
-      content: { "application/json": { schema: publicApiVerificationStartResponseSchema } },
+      content: { "application/json": { schema: customerVerificationStartResponseSchema } },
     },
     400: badRequestResponse,
     429: rateLimitedResponse,
@@ -101,7 +101,7 @@ const startSmsChallengeRoute = createRoute({
   responses: {
     201: {
       description: "An SMS verification challenge was started",
-      content: { "application/json": { schema: publicApiVerificationStartResponseSchema } },
+      content: { "application/json": { schema: customerVerificationStartResponseSchema } },
     },
     400: badRequestResponse,
     429: rateLimitedResponse,
@@ -121,7 +121,7 @@ const confirmEmailChallengeRoute = createRoute({
   responses: {
     200: {
       description: "The email verification challenge was confirmed",
-      content: { "application/json": { schema: publicApiVerificationConfirmResponseSchema } },
+      content: { "application/json": { schema: customerVerificationConfirmResponseSchema } },
     },
     400: badRequestResponse,
     404: notFoundResponse,
@@ -142,7 +142,7 @@ const confirmSmsChallengeRoute = createRoute({
   responses: {
     200: {
       description: "The SMS verification challenge was confirmed",
-      content: { "application/json": { schema: publicApiVerificationConfirmResponseSchema } },
+      content: { "application/json": { schema: customerVerificationConfirmResponseSchema } },
     },
     400: badRequestResponse,
     404: notFoundResponse,
@@ -160,30 +160,30 @@ type Env = {
   }
 }
 
-export interface PublicApiVerificationRoutesOptions
-  extends PublicApiVerificationServiceOptions,
-    PublicApiVerificationProviderOptions {
-  sendEmailChallenge?: PublicApiVerificationSenders["sendEmailChallenge"]
-  sendSmsChallenge?: PublicApiVerificationSenders["sendSmsChallenge"]
-  providers?: ReadonlyArray<PublicApiVerificationNotificationProvider>
+export interface CustomerVerificationRoutesOptions
+  extends CustomerVerificationServiceOptions,
+    CustomerVerificationProviderOptions {
+  sendEmailChallenge?: CustomerVerificationSenders["sendEmailChallenge"]
+  sendSmsChallenge?: CustomerVerificationSenders["sendSmsChallenge"]
+  providers?: ReadonlyArray<CustomerVerificationNotificationProvider>
   resolveProviders?: (
     bindings: Record<string, unknown>,
-  ) => ReadonlyArray<PublicApiVerificationNotificationProvider>
+  ) => ReadonlyArray<CustomerVerificationNotificationProvider>
 }
 
 export const PUBLIC_API_VERIFICATION_SENDERS_CONTAINER_KEY =
-  "providers.publicApiVerification.senders"
+  "providers.customerVerification.senders"
 
-export interface PublicApiVerificationChannelCoverage {
+export interface CustomerVerificationChannelCoverage {
   /** Channels this deployment can deliver a challenge on. */
   supported: ReadonlyArray<"email" | "sms">
   /** Channels a shopper can reach but that no provider can deliver. */
   unsupported: ReadonlyArray<"email" | "sms">
 }
 
-export interface PublicApiVerificationSenderBundle {
-  senders: PublicApiVerificationSenders
-  coverage: PublicApiVerificationChannelCoverage
+export interface CustomerVerificationSenderBundle {
+  senders: CustomerVerificationSenders
+  coverage: CustomerVerificationChannelCoverage
 }
 
 /**
@@ -193,16 +193,16 @@ export interface PublicApiVerificationSenderBundle {
  */
 function providerResolver(
   bindings: Record<string, unknown>,
-  options?: PublicApiVerificationRoutesOptions,
+  options?: CustomerVerificationRoutesOptions,
 ) {
-  let cached: ReadonlyArray<PublicApiVerificationNotificationProvider> | undefined
+  let cached: ReadonlyArray<CustomerVerificationNotificationProvider> | undefined
   return () => (cached ??= options?.resolveProviders?.(bindings) ?? options?.providers ?? [])
 }
 
 function channelCoverage(
-  resolveProviders: () => ReadonlyArray<PublicApiVerificationNotificationProvider>,
-  options?: PublicApiVerificationRoutesOptions,
-): PublicApiVerificationChannelCoverage {
+  resolveProviders: () => ReadonlyArray<CustomerVerificationNotificationProvider>,
+  options?: CustomerVerificationRoutesOptions,
+): CustomerVerificationChannelCoverage {
   const supported: Array<"email" | "sms"> = []
   const unsupported: Array<"email" | "sms"> = []
   let providerChannels: Set<string> | undefined
@@ -232,12 +232,12 @@ function channelCoverage(
  * knowable at bootstrap — but the resolver must still run exactly once, which
  * is why coverage is returned alongside the senders rather than resolved again.
  */
-export function buildPublicApiVerificationSenderBundle(
+export function buildCustomerVerificationSenderBundle(
   bindings: Record<string, unknown>,
-  options?: PublicApiVerificationRoutesOptions,
-): PublicApiVerificationSenderBundle {
+  options?: CustomerVerificationRoutesOptions,
+): CustomerVerificationSenderBundle {
   const resolveProviders = providerResolver(bindings, options)
-  const senders: PublicApiVerificationSenders = {
+  const senders: CustomerVerificationSenders = {
     sendEmailChallenge: options?.sendEmailChallenge,
     sendSmsChallenge: options?.sendSmsChallenge,
   }
@@ -245,7 +245,7 @@ export function buildPublicApiVerificationSenderBundle(
   if (!senders.sendEmailChallenge || !senders.sendSmsChallenge) {
     const providers = resolveProviders()
     if (providers.length) {
-      const providerSenders = createPublicApiVerificationSendersFromProviders(providers, options)
+      const providerSenders = createCustomerVerificationSendersFromProviders(providers, options)
       senders.sendEmailChallenge ??= providerSenders.sendEmailChallenge
       senders.sendSmsChallenge ??= providerSenders.sendSmsChallenge
     }
@@ -254,29 +254,29 @@ export function buildPublicApiVerificationSenderBundle(
   return { senders, coverage: channelCoverage(resolveProviders, options) }
 }
 
-export function buildPublicApiVerificationSenders(
+export function buildCustomerVerificationSenders(
   bindings: Record<string, unknown>,
-  options?: PublicApiVerificationRoutesOptions,
-): PublicApiVerificationSenders {
-  return buildPublicApiVerificationSenderBundle(bindings, options).senders
+  options?: CustomerVerificationRoutesOptions,
+): CustomerVerificationSenders {
+  return buildCustomerVerificationSenderBundle(bindings, options).senders
 }
 
 /** Which channels this deployment can actually deliver a challenge on. */
-export function resolvePublicApiVerificationChannelCoverage(
+export function resolveCustomerVerificationChannelCoverage(
   bindings: Record<string, unknown>,
-  options?: PublicApiVerificationRoutesOptions,
-): PublicApiVerificationChannelCoverage {
+  options?: CustomerVerificationRoutesOptions,
+): CustomerVerificationChannelCoverage {
   return channelCoverage(providerResolver(bindings, options), options)
 }
 
 function getSenders(
   bindings: Record<string, unknown>,
-  options: PublicApiVerificationRoutesOptions | undefined,
+  options: CustomerVerificationRoutesOptions | undefined,
   resolveFromContainer?: <T>(key: string) => T,
-): PublicApiVerificationSenders {
+): CustomerVerificationSenders {
   if (resolveFromContainer) {
     try {
-      return resolveFromContainer<PublicApiVerificationSenders>(
+      return resolveFromContainer<CustomerVerificationSenders>(
         PUBLIC_API_VERIFICATION_SENDERS_CONTAINER_KEY,
       )
     } catch {
@@ -284,7 +284,7 @@ function getSenders(
     }
   }
 
-  return buildPublicApiVerificationSenders(bindings, options)
+  return buildCustomerVerificationSenders(bindings, options)
 }
 
 type VerificationErrorStatus = 400 | 404 | 409 | 410 | 501
@@ -300,7 +300,7 @@ function errorResponse(error: unknown): {
   status: VerificationErrorStatus
   body: { error: string; code?: string }
 } {
-  if (error instanceof PublicApiVerificationError) {
+  if (error instanceof CustomerVerificationError) {
     if (error.code === "sender_not_configured") {
       return { status: 501, body: { error: error.message, code: error.code } }
     }
@@ -390,10 +390,10 @@ export async function enforceVerificationStartLimits(
   )
 }
 
-export function createPublicApiVerificationPublicRoutes(
-  options?: PublicApiVerificationRoutesOptions,
+export function createCustomerVerificationPublicRoutes(
+  options?: CustomerVerificationRoutesOptions,
 ) {
-  const service = createPublicApiVerificationService(options)
+  const service = createCustomerVerificationService(options)
 
   return new OpenAPIHono<Env>({ defaultHook: openApiValidationHook })
     .openapi(startEmailChallengeRoute, async (c) => {
@@ -488,6 +488,6 @@ export function createPublicApiVerificationPublicRoutes(
     })
 }
 
-export type PublicApiVerificationPublicRoutes = ReturnType<
-  typeof createPublicApiVerificationPublicRoutes
+export type CustomerVerificationPublicRoutes = ReturnType<
+  typeof createCustomerVerificationPublicRoutes
 >

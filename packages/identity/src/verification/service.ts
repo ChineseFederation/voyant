@@ -6,28 +6,28 @@ import type {
   ConfirmEmailVerificationChallengeInput,
   ConfirmSmsVerificationChallengeInput,
   CustomerVerificationChallengeRecord,
-  PublicApiVerificationChannel,
+  CustomerVerificationChannel,
   StartEmailVerificationChallengeInput,
   StartSmsVerificationChallengeInput,
 } from "./validation.js"
 
-export interface PublicApiVerificationServiceOptions {
+export interface CustomerVerificationServiceOptions {
   codeLength?: number
   expiresInSeconds?: number
   maxAttempts?: number
   now?: () => Date
 }
 
-export interface PublicApiVerificationDeliveryResult {
+export interface CustomerVerificationDeliveryResult {
   id?: string
   provider?: string
 }
 
-export type PublicApiVerificationNotificationChannel = "email" | "sms" | (string & {})
+export type CustomerVerificationNotificationChannel = "email" | "sms" | (string & {})
 
-export interface PublicApiVerificationNotificationPayload {
+export interface CustomerVerificationNotificationPayload {
   to: string
-  channel: PublicApiVerificationNotificationChannel
+  channel: CustomerVerificationNotificationChannel
   provider?: string
   template: string
   data?: unknown
@@ -35,20 +35,20 @@ export interface PublicApiVerificationNotificationPayload {
   text?: string
 }
 
-export interface PublicApiVerificationNotificationResult {
+export interface CustomerVerificationNotificationResult {
   id?: string
   provider: string
 }
 
-export interface PublicApiVerificationNotificationProvider {
+export interface CustomerVerificationNotificationProvider {
   readonly name: string
-  readonly channels: ReadonlyArray<PublicApiVerificationNotificationChannel>
+  readonly channels: ReadonlyArray<CustomerVerificationNotificationChannel>
   send(
-    payload: PublicApiVerificationNotificationPayload,
-  ): Promise<PublicApiVerificationNotificationResult>
+    payload: CustomerVerificationNotificationPayload,
+  ): Promise<CustomerVerificationNotificationResult>
 }
 
-export interface PublicApiVerificationEmailSendInput {
+export interface CustomerVerificationEmailSendInput {
   email: string
   code: string
   purpose: string
@@ -57,7 +57,7 @@ export interface PublicApiVerificationEmailSendInput {
   metadata?: Record<string, unknown> | null
 }
 
-export interface PublicApiVerificationSmsSendInput {
+export interface CustomerVerificationSmsSendInput {
   phone: string
   code: string
   purpose: string
@@ -66,20 +66,20 @@ export interface PublicApiVerificationSmsSendInput {
   metadata?: Record<string, unknown> | null
 }
 
-export interface PublicApiVerificationSenders {
+export interface CustomerVerificationSenders {
   sendEmailChallenge?: (
-    input: PublicApiVerificationEmailSendInput,
-  ) => Promise<PublicApiVerificationDeliveryResult | undefined>
+    input: CustomerVerificationEmailSendInput,
+  ) => Promise<CustomerVerificationDeliveryResult | undefined>
   sendSmsChallenge?: (
-    input: PublicApiVerificationSmsSendInput,
-  ) => Promise<PublicApiVerificationDeliveryResult | undefined>
+    input: CustomerVerificationSmsSendInput,
+  ) => Promise<CustomerVerificationDeliveryResult | undefined>
 }
 
-export interface PublicApiVerificationProviderOptions {
+export interface CustomerVerificationProviderOptions {
   email?: {
     provider?: string
     template?: string
-    subject?: string | ((input: PublicApiVerificationEmailSendInput) => string)
+    subject?: string | ((input: CustomerVerificationEmailSendInput) => string)
   }
   sms?: {
     provider?: string
@@ -87,7 +87,7 @@ export interface PublicApiVerificationProviderOptions {
   }
 }
 
-export class PublicApiVerificationError extends Error {
+export class CustomerVerificationError extends Error {
   constructor(
     message: string,
     readonly code:
@@ -98,7 +98,7 @@ export class PublicApiVerificationError extends Error {
       | "challenge_failed",
   ) {
     super(message)
-    this.name = "PublicApiVerificationError"
+    this.name = "CustomerVerificationError"
   }
 }
 
@@ -152,7 +152,7 @@ function requireChallengeRow(
 
 async function getLatestChallenge(
   db: PostgresJsDatabase,
-  channel: PublicApiVerificationChannel,
+  channel: CustomerVerificationChannel,
   destination: string,
   purpose: string,
 ) {
@@ -177,12 +177,12 @@ async function getLatestChallenge(
 
 async function startChallenge(
   db: PostgresJsDatabase,
-  channel: PublicApiVerificationChannel,
+  channel: CustomerVerificationChannel,
   destination: string,
   purpose: string,
   metadata: Record<string, unknown> | null | undefined,
   subjectRef: string | null | undefined,
-  options?: PublicApiVerificationServiceOptions,
+  options?: CustomerVerificationServiceOptions,
 ) {
   const now = options?.now?.() ?? new Date()
   const codeLength = Math.max(4, Math.min(8, options?.codeLength ?? 6))
@@ -249,17 +249,17 @@ async function startChallenge(
 
 async function confirmChallenge(
   db: PostgresJsDatabase,
-  channel: PublicApiVerificationChannel,
+  channel: CustomerVerificationChannel,
   destination: string,
   purpose: string,
   code: string,
-  options?: PublicApiVerificationServiceOptions,
+  options?: CustomerVerificationServiceOptions,
 ) {
   const now = options?.now?.() ?? new Date()
   const row = await getLatestChallenge(db, channel, destination, purpose)
 
   if (!row || row.status !== "pending") {
-    throw new PublicApiVerificationError("Verification challenge not found", "challenge_not_found")
+    throw new CustomerVerificationError("Verification challenge not found", "challenge_not_found")
   }
 
   if (row.expiresAt <= now) {
@@ -272,7 +272,7 @@ async function confirmChallenge(
       })
       .where(eq(customerVerificationChallenges.id, row.id))
 
-    throw new PublicApiVerificationError("Verification challenge expired", "challenge_expired")
+    throw new CustomerVerificationError("Verification challenge expired", "challenge_expired")
   }
 
   if (row.codeHash !== (await hashVerificationCode(code))) {
@@ -289,7 +289,7 @@ async function confirmChallenge(
       })
       .where(eq(customerVerificationChallenges.id, row.id))
 
-    throw new PublicApiVerificationError(
+    throw new CustomerVerificationError(
       terminal ? "Verification challenge failed" : "Invalid verification code",
       terminal ? "challenge_failed" : "challenge_invalid",
     )
@@ -319,8 +319,8 @@ async function confirmChallenge(
  * are not sensitive — a storefront has to know them to offer them.
  */
 function unconfiguredChannelMessage(
-  payload: PublicApiVerificationNotificationPayload,
-  coveredChannels: ReadonlyArray<PublicApiVerificationNotificationChannel>,
+  payload: CustomerVerificationNotificationPayload,
+  coveredChannels: ReadonlyArray<CustomerVerificationNotificationChannel>,
 ): string {
   if (payload.provider) {
     return `No verification notification provider named "${payload.provider}" is registered`
@@ -331,15 +331,15 @@ function unconfiguredChannelMessage(
   return `No verification notification provider registered for channel "${payload.channel}". Registered providers cover: ${[...coveredChannels].sort().join(", ")}.`
 }
 
-export function createPublicApiVerificationSendersFromProviders(
-  providers: ReadonlyArray<PublicApiVerificationNotificationProvider>,
-  options: PublicApiVerificationProviderOptions = {},
-): PublicApiVerificationSenders {
+export function createCustomerVerificationSendersFromProviders(
+  providers: ReadonlyArray<CustomerVerificationNotificationProvider>,
+  options: CustomerVerificationProviderOptions = {},
+): CustomerVerificationSenders {
   const byChannel = new Map<
-    PublicApiVerificationNotificationChannel,
-    PublicApiVerificationNotificationProvider
+    CustomerVerificationNotificationChannel,
+    CustomerVerificationNotificationProvider
   >()
-  const byName = new Map<string, PublicApiVerificationNotificationProvider>()
+  const byName = new Map<string, CustomerVerificationNotificationProvider>()
 
   for (const provider of providers) {
     byName.set(provider.name, provider)
@@ -348,12 +348,12 @@ export function createPublicApiVerificationSendersFromProviders(
     }
   }
 
-  async function send(payload: PublicApiVerificationNotificationPayload) {
+  async function send(payload: CustomerVerificationNotificationPayload) {
     const provider = payload.provider
       ? byName.get(payload.provider)
       : byChannel.get(payload.channel)
     if (!provider) {
-      throw new PublicApiVerificationError(
+      throw new CustomerVerificationError(
         unconfiguredChannelMessage(payload, [...byChannel.keys()]),
         "sender_not_configured",
       )
@@ -407,12 +407,12 @@ export function createPublicApiVerificationSendersFromProviders(
   }
 }
 
-export function createPublicApiVerificationService(options?: PublicApiVerificationServiceOptions) {
+export function createCustomerVerificationService(options?: CustomerVerificationServiceOptions) {
   return {
     async startEmailChallenge(
       db: PostgresJsDatabase,
       input: StartEmailVerificationChallengeInput,
-      senders: PublicApiVerificationSenders,
+      senders: CustomerVerificationSenders,
     ) {
       const email = normalizeEmail(input.email)
       const { challenge, code } = await startChallenge(
@@ -426,7 +426,7 @@ export function createPublicApiVerificationService(options?: PublicApiVerificati
       )
 
       if (!senders.sendEmailChallenge) {
-        throw new PublicApiVerificationError(
+        throw new CustomerVerificationError(
           "Email verification sender not configured",
           "sender_not_configured",
         )
@@ -460,7 +460,7 @@ export function createPublicApiVerificationService(options?: PublicApiVerificati
     async startSmsChallenge(
       db: PostgresJsDatabase,
       input: StartSmsVerificationChallengeInput,
-      senders: PublicApiVerificationSenders,
+      senders: CustomerVerificationSenders,
     ) {
       const phone = normalizePhone(input.phone)
       const { challenge, code } = await startChallenge(
@@ -474,7 +474,7 @@ export function createPublicApiVerificationService(options?: PublicApiVerificati
       )
 
       if (!senders.sendSmsChallenge) {
-        throw new PublicApiVerificationError(
+        throw new CustomerVerificationError(
           "SMS verification sender not configured",
           "sender_not_configured",
         )

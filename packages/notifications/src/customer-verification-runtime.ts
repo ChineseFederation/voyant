@@ -1,8 +1,8 @@
 import type {
-  PublicApiVerificationNotificationPayload,
-  PublicApiVerificationNotificationProvider,
-  PublicApiVerificationNotificationResult,
-} from "@voyant-travel/public-api/verification"
+  CustomerVerificationNotificationPayload,
+  CustomerVerificationNotificationProvider,
+  CustomerVerificationNotificationResult,
+} from "@voyant-travel/identity/verification"
 
 import type { NotificationPayload, NotificationProvider, NotificationResult } from "./types.js"
 
@@ -21,10 +21,10 @@ type AssertAssignableTo<TTarget, TSource extends TTarget> = TSource
 
 type _VerificationPayloadIsANotificationPayload = AssertAssignableTo<
   NotificationPayload,
-  PublicApiVerificationNotificationPayload
+  CustomerVerificationNotificationPayload
 >
 type _NotificationResultIsAVerificationResult = AssertAssignableTo<
-  PublicApiVerificationNotificationResult,
+  CustomerVerificationNotificationResult,
   NotificationResult
 >
 
@@ -37,7 +37,7 @@ type _NotificationResultIsAVerificationResult = AssertAssignableTo<
 const IDEMPOTENCY_KEY_PREFIX = "voyant:storefront-verification"
 
 async function verificationIdempotencyKey(
-  payload: PublicApiVerificationNotificationPayload,
+  payload: CustomerVerificationNotificationPayload,
 ): Promise<string> {
   const canonical = JSON.stringify([
     payload.channel,
@@ -56,9 +56,9 @@ async function verificationIdempotencyKey(
 }
 
 /** Adapt one durable Notifications provider to Storefront's verification sender. */
-export function toPublicApiVerificationNotificationProvider(
+export function toCustomerVerificationNotificationProvider(
   provider: NotificationProvider,
-): PublicApiVerificationNotificationProvider {
+): CustomerVerificationNotificationProvider {
   return {
     name: provider.name,
     channels: provider.channels,
@@ -81,8 +81,8 @@ export function toPublicApiVerificationNotificationProvider(
 }
 
 /** Adapt the configured Notifications provider set for storefront verification. */
-export function toPublicApiVerificationNotificationProviders(
+export function toCustomerVerificationNotificationProviders(
   providers: ReadonlyArray<NotificationProvider>,
-): ReadonlyArray<PublicApiVerificationNotificationProvider> {
-  return providers.map(toPublicApiVerificationNotificationProvider)
+): ReadonlyArray<CustomerVerificationNotificationProvider> {
+  return providers.map(toCustomerVerificationNotificationProvider)
 }

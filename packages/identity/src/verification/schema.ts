@@ -3,12 +3,12 @@ import { typeId } from "@voyant-travel/db/lib/typeid-column"
 import { relations } from "drizzle-orm"
 import { index, integer, jsonb, pgEnum, pgTable, text, timestamp } from "drizzle-orm/pg-core"
 
-export const publicApiVerificationChannelEnum = pgEnum("storefront_verification_channel", [
+export const customerVerificationChannelEnum = pgEnum("customer_verification_channel", [
   "email",
   "sms",
 ])
 
-export const publicApiVerificationStatusEnum = pgEnum("storefront_verification_status", [
+export const customerVerificationStatusEnum = pgEnum("customer_verification_status", [
   "pending",
   "verified",
   "expired",
@@ -20,11 +20,11 @@ export const customerVerificationChallenges = pgTable(
   "customer_verification_challenges",
   {
     id: typeId("customer_verification_challenges"),
-    channel: publicApiVerificationChannelEnum("channel").notNull(),
+    channel: customerVerificationChannelEnum("channel").notNull(),
     destination: text("destination").notNull(),
     purpose: text("purpose").notNull().default("contact_confirmation"),
     codeHash: text("code_hash").notNull(),
-    status: publicApiVerificationStatusEnum("status").notNull().default("pending"),
+    status: customerVerificationStatusEnum("status").notNull().default("pending"),
     attemptCount: integer("attempt_count").notNull().default(0),
     maxAttempts: integer("max_attempts").notNull().default(5),
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
@@ -69,16 +69,16 @@ export const customerVerificationChallengesRelations = relations(
 export type CustomerVerificationChallenge = typeof customerVerificationChallenges.$inferSelect
 export type NewCustomerVerificationChallenge = typeof customerVerificationChallenges.$inferInsert
 
-export const publicApiVerificationLinkable: LinkableDefinition = {
+export const customerVerificationLinkable: LinkableDefinition = {
   module: "storefront-verification",
-  entity: "publicApiVerificationChallenge",
+  entity: "customerVerificationChallenge",
   table: "customer_verification_challenges",
   idPrefix: "svch",
 }
 
-export const publicApiVerificationModule: Module = {
+export const customerVerificationModule: Module = {
   name: "storefront-verification",
   linkable: {
-    publicApiVerificationChallenge: publicApiVerificationLinkable,
+    customerVerificationChallenge: customerVerificationLinkable,
   },
 }

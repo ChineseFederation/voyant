@@ -38,6 +38,7 @@ import * as distributionRelationsSchema from "../packages/distribution/src/schem
 import * as distributionSuppliersSchema from "../packages/distribution/src/suppliers/schema.ts"
 import * as financeSchema from "../packages/finance/src/schema.ts"
 import * as identitySchema from "../packages/identity/src/schema.ts"
+import * as customerVerificationSchema from "../packages/identity/src/verification/schema.ts"
 import * as inventoryAuthoringSchema from "../packages/inventory/src/authoring/schema.ts"
 import * as productsBookingExtensionSchema from "../packages/inventory/src/booking-extension.ts"
 import {
@@ -61,7 +62,6 @@ import * as operationsPlacesSchema from "../packages/operations/src/places/schem
 import * as operationsResourcesSchema from "../packages/operations/src/resources/schema.ts"
 import * as proposalsBookingExtensionSchema from "../packages/proposals/src/booking-extension.ts"
 import * as proposalsSalesSchema from "../packages/proposals/src/schema-sales.ts"
-import * as publicApiVerificationSchema from "../packages/public-api/src/verification/schema.ts"
 import * as relationshipsAccountsSchema from "../packages/relationships/src/schema-accounts.ts"
 import * as relationshipsActivitiesSchema from "../packages/relationships/src/schema-activities.ts"
 import * as relationshipsSignalsSchema from "../packages/relationships/src/schema-signals.ts"
@@ -200,7 +200,7 @@ const sections: SectionDefinition[] = [
   },
   {
     title: "Notifications & Verification",
-    modules: [notificationsSchema, publicApiVerificationSchema],
+    modules: [notificationsSchema, customerVerificationSchema],
   },
   {
     title: "Accommodations",
