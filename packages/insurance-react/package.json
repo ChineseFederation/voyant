@@ -1,6 +1,6 @@
 {
   "name": "@voyant-travel/insurance-react",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "React hooks and admin components for travel insurance applications and issued policies attached to a booking.",
   "license": "Apache-2.0",
   "type": "module",
