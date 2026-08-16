@@ -778,6 +778,7 @@
         "../cruises-contracts/dist/content-shape.d.ts"
       ],
       "@voyant-travel/cruises-react": ["../cruises-react/dist/index.d.ts"],
+      "@voyant-travel/cruises-react/admin": ["../cruises-react/dist/admin/index.d.ts"],
       "@voyant-travel/cruises-react/client": ["../cruises-react/dist/client.d.ts"],
       "@voyant-travel/cruises-react/components/*": ["../cruises-react/dist/components/*.d.ts"],
       "@voyant-travel/cruises-react/hooks": ["../cruises-react/dist/hooks/index.d.ts"],

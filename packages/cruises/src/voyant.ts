@@ -21,6 +21,12 @@ const cruiseLifecycleEventPayloadSchema = {
 } as const
 
 /** Import-cheap deployment declaration owned by the cruises package. */
+/** Every cruises admin route resolves through the one packaged extension. */
+const cruisesAdminRuntime = {
+  entry: "@voyant-travel/cruises-react/admin",
+  export: "createSelectedCruisesAdminExtension",
+} as const
+
 export const cruisesVoyantModule = defineModule({
   id: "@voyant-travel/cruises",
   packageName: "@voyant-travel/cruises",
@@ -296,6 +302,24 @@ export const cruisesVoyantModule = defineModule({
       from: { tools: ["@voyant-travel/cruises#tool.create-cruise-ship"] },
     },
   ],
+  admin: {
+    compositionOrder: 3,
+    runtime: cruisesAdminRuntime,
+    // The Ships surface. A vessel is referenced by many sailings and outlives
+    // all of them, so it browses and reads on its own pages rather than as a
+    // tab inside whichever cruise happened to be open.
+    routes: (
+      [
+        ["ships-index", "/catalog/ships"],
+        ["ships-detail", "/catalog/ships/$shipId"],
+      ] as const
+    ).map(([id, path]) => ({
+      id: `@voyant-travel/cruises#admin.route.${id}`,
+      path,
+      requiredScopes: ["cruises:read"],
+      runtime: cruisesAdminRuntime,
+    })),
+  },
   lifecycle: {
     uninstall: { default: "retain-data", purge: "not-supported" },
   },

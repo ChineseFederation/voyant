@@ -23,6 +23,7 @@ describe("selected-graph Action Ledger admin composition", () => {
       "distribution-channel-push",
       "bookings",
       "catalog",
+      "cruises",
       "inventory",
       "auth-team",
       "@voyant-travel/auth#customer-business-accounts",
@@ -89,6 +90,7 @@ describe("selected-graph Action Ledger admin composition", () => {
     for (const id of [
       "bookings",
       "catalog",
+      "cruises",
       "inventory",
       "operations",
       "relationships",

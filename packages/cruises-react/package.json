@@ -13,6 +13,7 @@
     ".": "./src/index.ts",
     "./provider": "./src/provider.tsx",
     "./hooks": "./src/hooks/index.ts",
+    "./admin": "./src/admin/index.tsx",
     "./client": "./src/client.ts",
     "./query-keys": "./src/query-keys.ts",
     "./ui": "./src/ui.ts",
@@ -33,9 +34,11 @@
   },
   "peerDependencies": {
     "@tanstack/react-query": "^5.0.0",
-    "@voyant-travel/catalog-react": "workspace:^",
+    "@voyant-travel/admin": "workspace:^",
     "@voyant-travel/catalog-contracts": "workspace:^",
+    "@voyant-travel/catalog-react": "workspace:^",
     "@voyant-travel/cruises": "workspace:^",
+    "@voyant-travel/distribution-react": "workspace:^",
     "@voyant-travel/public-api-react": "workspace:^",
     "@voyant-travel/ui": "workspace:^",
     "react": "^19.0.0",
@@ -43,10 +46,16 @@
     "zod": "^4.0.0"
   },
   "peerDependenciesMeta": {
-    "@voyant-travel/catalog-react": {
+    "@voyant-travel/admin": {
       "optional": true
     },
     "@voyant-travel/catalog-contracts": {
+      "optional": true
+    },
+    "@voyant-travel/catalog-react": {
+      "optional": true
+    },
+    "@voyant-travel/distribution-react": {
       "optional": true
     },
     "@voyant-travel/public-api-react": {
@@ -64,9 +73,11 @@
     "@tanstack/react-query": "^5.101.2",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
-    "@voyant-travel/catalog-react": "workspace:^",
+    "@voyant-travel/admin": "workspace:^",
     "@voyant-travel/catalog-contracts": "workspace:^",
+    "@voyant-travel/catalog-react": "workspace:^",
     "@voyant-travel/cruises": "workspace:^",
+    "@voyant-travel/distribution-react": "workspace:^",
     "@voyant-travel/public-api-react": "workspace:^",
     "@voyant-travel/i18n": "workspace:^",
     "@voyant-travel/react": "workspace:^",
@@ -101,6 +112,11 @@
         "types": "./dist/hooks/index.d.ts",
         "import": "./dist/hooks/index.js",
         "default": "./dist/hooks/index.js"
+      },
+      "./admin": {
+        "types": "./dist/admin/index.d.ts",
+        "import": "./dist/admin/index.js",
+        "default": "./dist/admin/index.js"
       },
       "./client": {
         "types": "./dist/client.d.ts",

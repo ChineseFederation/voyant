@@ -1,5 +1,5 @@
 import { listResponse } from "@voyant-travel/types"
-import { and, asc, count, eq, ilike } from "drizzle-orm"
+import { and, asc, count, eq, ilike, or } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import type { CruiseCabin, CruiseCabinCategory, CruiseDeck, CruiseShip } from "./schema-cabins.js"
 import { cruiseCabinCategories, cruiseCabins, cruiseDecks, cruiseShips } from "./schema-cabins.js"
@@ -23,7 +23,13 @@ export const cruiseShipService = {
     if (query.shipType) conditions.push(eq(cruiseShips.shipType, query.shipType))
     if (typeof query.isActive === "boolean")
       conditions.push(eq(cruiseShips.isActive, query.isActive))
-    if (query.search) conditions.push(ilike(cruiseShips.name, `%${query.search}%`))
+    // The operator-facing search box offers name *or* IMO, and an IMO is how a
+    // vessel is identified unambiguously across cruise lines — matching only the
+    // name would silently return nothing for the more precise of the two.
+    if (query.search) {
+      const term = `%${query.search}%`
+      conditions.push(or(ilike(cruiseShips.name, term), ilike(cruiseShips.imo, term)))
+    }
     const where = conditions.length > 0 ? and(...conditions) : undefined
     const { limit, offset } = paginate(query)
 

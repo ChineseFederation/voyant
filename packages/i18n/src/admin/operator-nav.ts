@@ -19,6 +19,7 @@ export type OperatorAdminNavMessages = {
   catalogTransportationTagline: string
   catalogSearchPlaceholder: string
   catalogCruises: string
+  catalogShips: string
   catalogCharters: string
   catalogAccommodations: string
   catalogOrders: string
@@ -95,6 +96,7 @@ export const operatorAdminNavMessages = {
         "Moving travellers from A to B — transfers, shuttles, coach and rail seats.",
       catalogSearchPlaceholder: "Search {surface} by name, destination or supplier...",
       catalogCruises: "Cruises",
+      catalogShips: "Ships",
       catalogCharters: "Charters",
       catalogAccommodations: "Accommodations",
       catalogOrders: "Orders",
@@ -171,6 +173,7 @@ export const operatorAdminNavMessages = {
         "Transportul calatorilor de la A la B — transferuri, navete, locuri in autocar si tren.",
       catalogSearchPlaceholder: "Cauta in {surface} dupa nume, destinatie sau furnizor...",
       catalogCruises: "Croaziere",
+      catalogShips: "Nave",
       catalogCharters: "Chartere",
       catalogAccommodations: "Cazari",
       catalogOrders: "Comenzi",
