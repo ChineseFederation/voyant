@@ -15,6 +15,7 @@ export {
 export {
   type CatalogOffersClientContext,
   type CatalogSurface,
+  fetchCatalogIndexDocument,
   fetchCatalogSlots,
   fetchCruiseContent,
   fetchCruisePrice,

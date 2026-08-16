@@ -34,7 +34,6 @@ import type { AnyDrizzleDb } from "@voyant-travel/db"
 import { and, eq } from "drizzle-orm"
 
 import type { CruiseAdapter, ExternalPriceRow, SourceRef } from "./adapters/index.js"
-
 import {
   CRUISES_CONTENT_SCHEMA_VERSION,
   type CruiseContent,
@@ -42,6 +41,7 @@ import {
   mergeOverlaysIntoCruiseContent,
   validateCruiseContent,
 } from "./content-shape.js"
+import { resolveCruiseSourceAdapter } from "./lib/adapter-resolution.js"
 import {
   CRUISES_CONTENT_MARKET_ANY,
   cruisesSourcedContentTable,
@@ -66,6 +66,11 @@ export interface GetCruiseContentOptions {
   registry: SourceAdapterRegistry
   buildAdapterContext?: (adapter: SourceAdapter) => SourceAdapterContext
   onOverlayError?: (event: { field_path: string; reason: string }) => void
+  /**
+   * Called when the adapter's `getContent` fails and the read degrades to the
+   * synthesizer. Defaults to `console.warn`; the read still succeeds.
+   */
+  onContentFetchError?: (event: { entity_id: string; reason: string }) => void
 }
 
 export interface ResolvedCruiseContent {
@@ -146,10 +151,11 @@ export async function getCruiseContent(
   }
   const resultProvenance = sourcedEntryToContentProvenance(sourcedEntry)
 
-  const adapter = sourcedEntry.source_connection_id
-    ? (options.registry.resolveByConnection(sourcedEntry.source_connection_id) ??
-      options.registry.byKind(sourcedEntry.source_kind)[0]?.adapter)
-    : options.registry.byKind(sourcedEntry.source_kind)[0]?.adapter
+  const adapter = resolveCruiseSourceAdapter(
+    options.registry,
+    sourcedEntry.source_kind,
+    sourcedEntry.source_connection_id,
+  )
   const adapterCtx: SourceAdapterContext = options.buildAdapterContext?.(adapter!) ?? {
     connection_id: sourcedEntry.source_connection_id ?? sourcedEntry.source_kind,
   }
@@ -210,13 +216,19 @@ export async function getCruiseContent(
     return wrapSynthesized(synthesized, scope, false, resultProvenance)
   }
 
-  const fresh = await fetchFreshContent(db, adapter, adapterCtx, {
-    entity_module: "cruises",
-    entity_id: entityId,
-    locale: scope.preferredLocales[0] ?? "en-GB",
-    market,
-    currency: scope.currency,
-  })
+  const fresh = await fetchFreshContent(
+    db,
+    adapter,
+    adapterCtx,
+    {
+      entity_module: "cruises",
+      entity_id: entityId,
+      locale: scope.preferredLocales[0] ?? "en-GB",
+      market,
+      currency: scope.currency,
+    },
+    options.onContentFetchError,
+  )
   if (!fresh) {
     const overlays = await fetchOverlaysForEntity(db, "cruises", entityId)
     const synthesized = synthesizeCruiseContent(
@@ -262,10 +274,11 @@ export async function getCruiseSailingPricing(
   const sourcedEntry = await readSourcedEntry(db, "cruises", entityId)
   if (!sourcedEntry) return null
 
-  const adapter = sourcedEntry.source_connection_id
-    ? (options.registry.resolveByConnection(sourcedEntry.source_connection_id) ??
-      options.registry.byKind(sourcedEntry.source_kind)[0]?.adapter)
-    : options.registry.byKind(sourcedEntry.source_kind)[0]?.adapter
+  const adapter = resolveCruiseSourceAdapter(
+    options.registry,
+    sourcedEntry.source_kind,
+    sourcedEntry.source_connection_id,
+  )
 
   // The catalog SourceAdapter for cruises is the `cruiseAdapterToSourceAdapter`
   // shim, which exposes the underlying multi-method `CruiseAdapter`. Pricing
@@ -306,33 +319,60 @@ async function fetchCacheCandidates(
     )
 }
 
+/**
+ * Fetch content from the adapter, or resolve `null` so the caller can fall back
+ * to the synthesizer.
+ *
+ * A throw here used to escape `getCruiseContent` and 500 the detail route, which
+ * is the wrong answer twice over: we hold a durable sourced-entry projection for
+ * this cruise, and §3.6 defines the synthesizer as exactly the degraded read for
+ * when the adapter can't serve content. Blanking the page with a 500 because an
+ * upstream lookup missed loses data we already have.
+ *
+ * It is not hypothetical — `resolveCruiseRow` in `@voyant-travel/connect-adapter`
+ * throws `Connect cruise content not found` for cruises discovery has indexed,
+ * and on sandbox that turned into a 500 on every concurrent detail open. The
+ * failure is still reported through `onContentFetchError` so an upstream outage
+ * stays visible instead of silently degrading every cruise to a stub.
+ */
 async function fetchFreshContent(
   db: AnyDrizzleDb,
   adapter: SourceAdapter,
   ctx: SourceAdapterContext,
   request: GetContentRequest,
+  onContentFetchError?: (event: { entity_id: string; reason: string }) => void,
 ): Promise<GetContentResult | null> {
-  const result = await withContentRefreshLock(
-    db,
-    {
-      entityModule: request.entity_module,
-      entityId: request.entity_id,
-      locale: request.locale,
-      market: request.market,
-    },
-    async () => {
-      const got = await adapter.getContent!(ctx, request)
-      const validation = validateCruiseContent(got.content)
-      if (!validation.valid) {
-        throw new Error(
-          `cruises getContent for ${request.entity_id} failed validation: ${validation.reason}`,
-        )
-      }
-      await writeCacheRow(db, request, got)
-      return got
-    },
-  )
-  return result ?? null
+  try {
+    const result = await withContentRefreshLock(
+      db,
+      {
+        entityModule: request.entity_module,
+        entityId: request.entity_id,
+        locale: request.locale,
+        market: request.market,
+      },
+      async () => {
+        const got = await adapter.getContent!(ctx, request)
+        const validation = validateCruiseContent(got.content)
+        if (!validation.valid) {
+          throw new Error(
+            `cruises getContent for ${request.entity_id} failed validation: ${validation.reason}`,
+          )
+        }
+        await writeCacheRow(db, request, got)
+        return got
+      },
+    )
+    return result ?? null
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error)
+    if (onContentFetchError) {
+      onContentFetchError({ entity_id: request.entity_id, reason })
+    } else {
+      console.warn(`[cruises] getContent failed for ${request.entity_id}: ${reason}`)
+    }
+    return null
+  }
 }
 
 async function fetchPassThroughContent(

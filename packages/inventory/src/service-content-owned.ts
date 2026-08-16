@@ -183,6 +183,17 @@ export async function buildOwnedProductContent(
     undefined
   const openGraphImage =
     productImages.find((m: typeof productMedia.$inferSelect) => m.isOpenGraph) ?? cover
+  // `productImages` is deliberately product-level only (`dayId === null`), but a
+  // product whose only imagery hangs off its itinerary days then reported no
+  // hero at all — the detail page rendered a placeholder while the very same
+  // image sat in `content.media`. Fall back to the first day image so the hero
+  // reflects what the record actually has. Open Graph keeps the stricter rule:
+  // a day photo is not a deliberate share image.
+  const heroImage =
+    cover ??
+    mediaRows.find(
+      (m: typeof productMedia.$inferSelect) => m.mediaType === "image" && !m.isBrochure,
+    )
 
   const localizedName = bestProductTrn?.candidate.name ?? productRow.name
   const localizedDescription =
@@ -220,7 +231,7 @@ export async function buildOwnedProductContent(
       terms_html: localizedTerms,
       contract_template_id: productRow.contractTemplateId ?? null,
       contractTemplateId: productRow.contractTemplateId ?? null,
-      hero_image_url: cover?.url ?? null,
+      hero_image_url: heroImage?.url ?? null,
       duration_days: resolveProductDuration({
         durationMinutes: productRow.durationMinutes,
         itineraryDurationDays: itineraryDurationDays(days),

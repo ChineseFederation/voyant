@@ -103,6 +103,34 @@ function entityIdFromProvenance(
   return provenance.entry_id
 }
 
+/**
+ * Read the first non-empty string among `keys`.
+ *
+ * The catalog projection a cruise sourced-entry carries is written by
+ * `toCatalogProjection` in the source-adapter shim, whose keys are **camelCase**
+ * — they have to match the cruise field policy so the indexer doesn't drop them
+ * (#1466). This synthesizer originally read the snake_case names of the content
+ * shape it produces, which overlapped the projection on `id`/`name`/`status`
+ * and nothing else, so every synthesized cruise rendered blank. Read the
+ * projection's own spelling first and keep the snake_case names as a fallback
+ * for adapters that project the content shape directly.
+ */
+function firstString(projection: Record<string, unknown>, ...keys: string[]): string | null {
+  for (const key of keys) {
+    const value = stringOr(projection[key], null)
+    if (value !== null) return value
+  }
+  return null
+}
+
+function firstNumber(projection: Record<string, unknown>, ...keys: string[]): number | null {
+  for (const key of keys) {
+    const value = numberOr(projection[key], null)
+    if (value !== null) return value
+  }
+  return null
+}
+
 function pickCruiseSummary(
   projection: Record<string, unknown>,
   provenance: Extract<ProvenanceReadResult, { kind: "sourced" }>,
@@ -111,31 +139,45 @@ function pickCruiseSummary(
     id: stringOr(projection.id, "") || provenance.entry_id,
     name: stringOr(projection.name, "") || stringOr(projection.title, "") || "Unnamed cruise",
     status: stringOr(projection.status, undefined),
-    description: stringOr(projection.description, null),
-    cruise_type: stringOr(projection.cruise_type, null),
-    hero_image_url: stringOr(projection.hero_image_url, null),
+    description: firstString(projection, "description"),
+    cruise_type: firstString(projection, "cruiseType", "cruise_type"),
+    hero_image_url: firstString(projection, "heroImageUrl", "hero_image_url", "thumbnailUrl"),
     highlights: stringArrayOr(projection.highlights, []),
     cruise_line:
-      stringOr(projection.cruise_line, null) ??
-      stringOr(projection.line_name, null) ??
-      provenance.provenance.source_provider ??
-      null,
-    duration_nights: numberOr(projection.duration_nights, null),
-    embarkation_port: stringOr(projection.embarkation_port, null),
-    disembarkation_port: stringOr(projection.disembarkation_port, null),
+      firstString(projection, "lineName", "cruise_line", "line_name") ??
+      displayableSourceProvider(provenance),
+    duration_nights: firstNumber(projection, "nights", "duration_nights"),
+    embarkation_port: firstString(projection, "embarkPortName", "embarkation_port"),
+    disembarkation_port: firstString(projection, "disembarkPortName", "disembarkation_port"),
   }
 }
 
+/**
+ * The provider key is a reasonable last-resort cruise line label, but only when
+ * it is actually a provider key. `toCatalogProjection` used to fall back to the
+ * connection id when it couldn't read one, which surfaced a raw
+ * `conn_…` string as the cruise line on the detail page. Rows written before
+ * that fix still carry it, so drop the fallback when it is just the connection
+ * id restated.
+ */
+function displayableSourceProvider(
+  provenance: Extract<ProvenanceReadResult, { kind: "sourced" }>,
+): string | null {
+  const provider = provenance.provenance.source_provider
+  if (!provider) return null
+  return provider === provenance.provenance.source_connection_id ? null : provider
+}
+
 function pickShip(projection: Record<string, unknown>): CruiseContent["ship"] {
-  const shipName = stringOr(projection.ship_name, null) ?? stringOr(projection.ship, null)
+  const shipName = firstString(projection, "shipName", "ship_name", "ship")
   if (!shipName) return null
   return {
     name: shipName,
-    description: stringOr(projection.ship_description, null),
-    deck_plan_url: stringOr(projection.ship_deck_plan_url, null),
+    description: firstString(projection, "shipDescription", "ship_description"),
+    deck_plan_url: firstString(projection, "shipDeckPlanUrl", "ship_deck_plan_url"),
     deck_plans: [],
-    capacity: numberOr(projection.ship_capacity, null),
-    decks: numberOr(projection.ship_decks, null),
+    capacity: firstNumber(projection, "shipCapacity", "ship_capacity"),
+    decks: firstNumber(projection, "shipDecks", "ship_decks"),
     gallery: [],
   }
 }

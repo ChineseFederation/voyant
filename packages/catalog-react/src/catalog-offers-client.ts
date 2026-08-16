@@ -11,6 +11,7 @@
  */
 
 import { fetchWithValidation, type VoyantFetcher } from "./client.js"
+import { type CatalogSearchHit, catalogSearchResponseSchema } from "./schemas.js"
 import {
   type CatalogSlotsResponse,
   type CruiseContentResponse,
@@ -163,6 +164,42 @@ export function fetchCruiseContent(
     { baseUrl: ctx.baseUrl, fetcher: ctx.fetcher },
     { method: "GET", signal },
   )
+}
+
+/**
+ * Fetch a single indexed catalog document by its catalog id.
+ *
+ * The URL-addressable detail pages are entered by id, not from a result row, so
+ * they have no search hit to carry the index projection. Everything the detail
+ * body renders off `hit.document.fields` — price, offers, status, and the whole
+ * Attributes tab — is in the index and nowhere else; without this the page
+ * dropped all of it and rendered a fraction of what the same record shows in
+ * the detail sheet. An `eq` filter on `id` is the by-id read the search route
+ * already supports.
+ *
+ * Resolves to `null` when nothing matches (an id that is real but unindexed —
+ * the caller still has the content route).
+ */
+export function fetchCatalogIndexDocument(
+  ctx: CatalogOffersClientContext,
+  args: { vertical: string; id: string },
+  signal?: AbortSignal,
+): Promise<CatalogSearchHit | null> {
+  return fetchWithValidation(
+    catalogPath(ctx.surface, "search"),
+    catalogSearchResponseSchema,
+    { baseUrl: ctx.baseUrl, fetcher: ctx.fetcher },
+    post(
+      {
+        vertical: args.vertical,
+        query: "",
+        mode: "keyword",
+        filters: [{ kind: "eq", field: "id", value: args.id }],
+        pagination: { limit: 1 },
+      },
+      signal,
+    ),
+  ).then((res) => res.hits.find((hit) => hit.id === args.id) ?? null)
 }
 
 export function fetchCatalogSlots(

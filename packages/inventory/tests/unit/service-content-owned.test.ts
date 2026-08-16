@@ -325,6 +325,68 @@ describe("buildOwnedProductContent", () => {
     expect(result?.content.product.open_graph_image_height).toBe(630)
     expect(result?.content.product.open_graph_image_type).toBe("image/jpeg")
     expect(result?.content.product.open_graph_image_alt).toBe("Tur montan")
+    // A product-level cover is still the hero when one exists.
+    expect(result?.content.product.hero_image_url).toBe("https://example.com/cover.jpg")
+  })
+
+  it("falls back to a day image for the hero when the product has no product-level image", async () => {
+    const db = fakeDb(
+      new Map<unknown, unknown[]>([
+        [
+          products,
+          [
+            {
+              id: "prod_1",
+              name: "Food crawl",
+              status: "active",
+              description: null,
+              inclusionsHtml: null,
+              exclusionsHtml: null,
+              termsHtml: null,
+              contractTemplateId: null,
+              startDate: null,
+              endDate: null,
+              sellCurrency: "EUR",
+              supplierId: null,
+              tags: [],
+            },
+          ],
+        ],
+        [productOptions, []],
+        [productOptionTranslations, []],
+        [
+          productMedia,
+          [
+            {
+              id: "pmed_day",
+              productId: "prod_1",
+              // Attached to an itinerary day, so it is excluded from the
+              // product-level image list the cover is picked from.
+              dayId: "day_1",
+              mediaType: "image",
+              url: "https://example.com/day.jpg",
+              isCover: false,
+              isOpenGraph: false,
+              isBrochure: false,
+              sortOrder: 0,
+              createdAt: new Date(0),
+              altText: null,
+            },
+          ],
+        ],
+        [productTranslations, []],
+        [productItineraries, []],
+      ]),
+    )
+
+    const result = await buildOwnedProductContent(db, "prod_1", { preferredLocales: ["en"] })
+
+    // The image is already in `content.media`; reporting no hero made the
+    // detail page render a placeholder next to it.
+    expect(result?.content.product.hero_image_url).toBe("https://example.com/day.jpg")
+    expect(result?.content.media.map((m) => m.url)).toContain("https://example.com/day.jpg")
+    // Open Graph keeps the stricter rule — a day photo is not a share image.
+    expect(result?.content.product.open_graph_image_url).toBeNull()
   })
 })
 

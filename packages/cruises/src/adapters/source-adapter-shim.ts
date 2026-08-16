@@ -709,10 +709,17 @@ function toCatalogProjection(
 ): CatalogProjection {
   const provenance: Provenance = {
     source_kind: sourceKind,
+    // `SourceRef` is open-ended, so the provider lives under whichever key the
+    // channel writes: Voyant Connect uses `providerKey`. Reading only `provider`
+    // meant the fallback fired every time and stamped the *connection id* as the
+    // provider, which then surfaced as the cruise line on the detail page.
+    // Prefer the source kind's own provider suffix (`cruise:<provider>`) over
+    // restating the connection id.
     source_provider:
-      typeof entry.sourceRef.provider === "string"
-        ? entry.sourceRef.provider
-        : entry.sourceRef.connectionId,
+      stringField(entry.sourceRef, "providerKey") ??
+      stringField(entry.sourceRef, "provider") ??
+      providerFromSourceKind(sourceKind) ??
+      entry.sourceRef.connectionId,
     source_connection_id: entry.sourceRef.connectionId,
     source_ref: encodeSourceRef(entry.sourceRef),
     source_freshness: "sync",
@@ -739,6 +746,15 @@ function toCatalogProjection(
       cruiseType: entry.cruiseType,
       status: entry.salesStatus ?? null,
       nights: entry.nights,
+      // Display names alongside the faceted ids below. The index drops any key
+      // that isn't a policy path, but `catalog_sourced_entries.projection`
+      // stores `fields` verbatim — and that projection is the only thing the
+      // content synthesizer can read when no adapter serves `getContent`.
+      // Without these it had ids to show and no names, so it showed neither.
+      lineName: entry.lineName ?? null,
+      shipName: entry.shipName ?? null,
+      embarkPortName: entry.embarkPortName ?? null,
+      disembarkPortName: entry.disembarkPortName ?? null,
       // Supplier / Ship columns facet on ids. connect-cruises ≥0.3.0 surfaces
       // the upstream external ids; map them onto the policy's id fields (#1466
       // fix 2). Falls back to null on older adapters that only carry names.
@@ -780,6 +796,20 @@ function toCatalogProjection(
 // ─────────────────────────────────────────────────────────────────────────────
 // Cursor encoding / entity-id translation
 // ─────────────────────────────────────────────────────────────────────────────
+
+/** Read a string field off the open-ended `SourceRef` bag. */
+function stringField(sourceRef: SourceRef, key: string): string | undefined {
+  const value = sourceRef[key]
+  return typeof value === "string" && value.length > 0 ? value : undefined
+}
+
+/** `cruise:uniworld` → `uniworld`. Returns undefined for an unsuffixed kind. */
+function providerFromSourceKind(sourceKind: string): string | undefined {
+  const idx = sourceKind.indexOf(":")
+  if (idx < 0) return undefined
+  const provider = sourceKind.slice(idx + 1)
+  return provider.length > 0 ? provider : undefined
+}
 
 function parseCursor(cursor: DiscoveryCursor): number {
   if (!cursor) return 0

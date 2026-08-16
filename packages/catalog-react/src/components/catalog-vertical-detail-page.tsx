@@ -1,10 +1,10 @@
 "use client"
 
 import { Image as ImageIcon } from "lucide-react"
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useCatalogUiI18nOrDefault, useCatalogUiMessagesOrDefault } from "../i18n/index.js"
 import type { CatalogSearchHit } from "../index.js"
-import { fetchCatalogSlots, useVoyantCatalogContext } from "../index.js"
+import { fetchCatalogIndexDocument, fetchCatalogSlots, useVoyantCatalogContext } from "../index.js"
 import { type CatalogDetailEnrichment, CatalogDetailView } from "./catalog-detail-sheet.js"
 import {
   type CatalogSlotAvailability,
@@ -89,6 +89,18 @@ export function CatalogVerticalDetailPage({
   const { locale: resolvedLocale } = useCatalogUiI18nOrDefault()
   const contentLocale = locale ?? resolvedLocale
 
+  // `formatSupplier` is backed by the host's supplier directory, so its identity
+  // changes when that query settles or refetches. Depending on it directly
+  // rebuilt `fetchers` and re-ran the content + slots effect each time — one
+  // page load issued the content route three times. Read it through a ref so
+  // the directory can land without re-fetching the record.
+  const formatSupplierRef = useRef(formatSupplier)
+  formatSupplierRef.current = formatSupplier
+  const stableFormatSupplier = useCallback(
+    (supplierId: string) => formatSupplierRef.current?.(supplierId) ?? supplierId,
+    [],
+  )
+
   const fetchers = useMemo(
     () =>
       createCatalogEnrichmentFetchers({
@@ -96,7 +108,7 @@ export function CatalogVerticalDetailPage({
         contentBasePathByVertical,
         credentials: "include",
         locale: contentLocale,
-        formatSupplier,
+        formatSupplier: stableFormatSupplier,
         loadSlotAvailability: (productId) =>
           fetchCatalogSlots({ baseUrl, fetcher }, { entityModule: "products", entityId: productId })
             .then(
@@ -104,15 +116,20 @@ export function CatalogVerticalDetailPage({
             )
             .catch(() => new Map<string, CatalogSlotAvailability>()),
       }),
-    [baseUrl, fetcher, contentBasePathByVertical, contentLocale, formatSupplier],
+    [baseUrl, fetcher, contentBasePathByVertical, contentLocale, stableFormatSupplier],
   )
 
-  // Minimal hit — the detail body keys off `hit.id` for content + the slots
-  // call; the index projection isn't available by id, so fields stay empty and
-  // the rich content comes from the enrichment.
+  // The index projection carries everything the detail body renders off
+  // `hit.document.fields` — price, offers, status, categories, destinations and
+  // the whole Attributes tab. Entered by id there is no result row to carry it,
+  // so read the document by id; the rich prose/itinerary/departures still come
+  // from the content route via the enrichment. `indexFields` stays empty when
+  // the id isn't indexed, which degrades to the previous behaviour rather than
+  // failing the page.
+  const [indexFields, setIndexFields] = useState<Record<string, unknown>>({})
   const hit = useMemo<CatalogSearchHit>(
-    () => ({ id, score: 0, document: { id, fields: {} } }),
-    [id],
+    () => ({ id, score: 0, document: { id, fields: indexFields } }),
+    [id, indexFields],
   )
 
   const [enrichment, setEnrichment] = useState<CatalogDetailEnrichment | null>(null)
@@ -122,9 +139,18 @@ export function CatalogVerticalDetailPage({
     let cancelled = false
     setStatus("loading")
     setEnrichment(null)
+    setIndexFields({})
     void (async () => {
+      // The index read is best-effort and must not gate the page: a failure
+      // costs the attributes, not the record.
+      const indexed = fetchCatalogIndexDocument({ baseUrl, fetcher }, { vertical, id }).catch(
+        () => null,
+      )
       try {
-        const enr = await fetchers.loadProductDetail(hit, vertical)
+        const enr = await fetchers.loadProductDetail(
+          { id, score: 0, document: { id, fields: {} } },
+          vertical,
+        )
         if (cancelled) return
         if (!enr) {
           setStatus("notfound")
@@ -134,12 +160,15 @@ export function CatalogVerticalDetailPage({
         setStatus("ready")
       } catch {
         if (!cancelled) setStatus("error")
+        return
       }
+      const doc = await indexed
+      if (!cancelled && doc) setIndexFields(doc.document.fields)
     })()
     return () => {
       cancelled = true
     }
-  }, [hit, vertical, fetchers])
+  }, [id, vertical, fetchers, baseUrl, fetcher])
 
   const name = enrichment?.name ?? null
   useEffect(() => {
@@ -186,7 +215,15 @@ export function CatalogVerticalDetailPage({
   }
 
   const heroUrl = enrichment.heroImageUrl
+  // `enrichment.supplier` was resolved once, when the content was mapped. If
+  // the content request won the race against the supplier directory, that
+  // snapshot is the raw id — and nothing refetches to correct it, because the
+  // fetchers deliberately do not depend on the directory. So resolve again
+  // here, where the directory is whatever it is now. The lookup returns its
+  // input on a miss, which makes it idempotent over an already-resolved name.
   const subtitle = enrichment.supplier
+    ? (formatSupplier?.(enrichment.supplier) ?? enrichment.supplier)
+    : null
 
   return (
     <div className="mx-auto w-full max-w-screen-2xl px-6 py-6 lg:px-8">
