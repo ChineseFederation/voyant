@@ -8,8 +8,10 @@
  */
 
 import {
+  bookingContractReviewApprovalSchema,
   contractListQuerySchema,
   insertContractSchema,
+  sendContractInputSchema,
   updateContractSchema,
 } from "@voyant-travel/legal-contracts/contracts/validation"
 import {
@@ -34,6 +36,28 @@ export const contractSummarySchema = z.object({
   updatedAt: z.string().optional(),
 })
 export type ContractSummary = z.infer<typeof contractSummarySchema>
+
+/**
+ * Client-facing projection of the booking-contract review (ADR-0003: loose, so
+ * unknown server fields are stripped rather than rejected). The two fields a
+ * caller must round-trip into `issue`/`send` are the reason it exists.
+ */
+export const bookingContractReviewSummarySchema = z.object({
+  revision: z.number().int(),
+  contentFingerprint: z.string(),
+  effectiveStatus: z.string().nullable().optional(),
+  previousRevisionId: z.string().nullable().optional(),
+  contract: z
+    .object({
+      id: z.string(),
+      contractNumber: z.string().nullable().optional(),
+      status: z.string().nullable().optional(),
+      renderedBody: z.string().nullable().optional(),
+      renderedBodyFormat: z.string().nullable().optional(),
+    })
+    .optional(),
+})
+export type BookingContractReviewSummary = z.infer<typeof bookingContractReviewSummarySchema>
 
 export const policySummarySchema = z.object({
   id: z.string(),
@@ -102,17 +126,53 @@ const contractsUpdate = defineOperation({
   summary: "Update a contract.",
 })
 
+// A managed booking-contract revision only issues against the revision and
+// content fingerprint the caller reviewed, so the input derives from the route
+// schema rather than staying `z.object({})` — a client that cannot carry the
+// approval reaches `approval_required` on every booking contract (voyant#4706).
+// Both fields are optional: an ordinary contract still issues with no body.
 const contractsIssue = defineOperation({
   id: "legal.contracts.issue",
   method: "POST",
   path: (p: { id: string }) => `/v1/admin/legal/contracts/${p.id}/issue`,
   pathTemplate: "/v1/admin/legal/contracts/:id/issue",
-  input: z.object({}),
+  input: bookingContractReviewApprovalSchema,
   output: contractSummarySchema,
   classification: "routine_write",
   scopes: ["legal:write"],
   idempotent: true,
   summary: "Issue a draft contract (assigns its number, locks the body).",
+})
+
+const contractsSend = defineOperation({
+  id: "legal.contracts.send",
+  method: "POST",
+  path: (p: { id: string }) => `/v1/admin/legal/contracts/${p.id}/send`,
+  pathTemplate: "/v1/admin/legal/contracts/:id/send",
+  input: sendContractInputSchema,
+  output: contractSummarySchema,
+  classification: "routine_write",
+  scopes: ["legal:write"],
+  idempotent: true,
+  summary: "Send an issued contract to its recipient.",
+})
+
+/**
+ * The un-redacted booking-contract revision, and the `revision` +
+ * `contentFingerprint` that `issue` and `send` are approved against. Managed
+ * booking revisions only; anything else 404s. Needs `bookings-pii:read` on top
+ * of `legal:read`, because the payload carries the customer's own contract.
+ */
+const contractsBookingReview = defineOperation({
+  id: "legal.contracts.bookingReview",
+  method: "GET",
+  path: (p: { id: string }) => `/v1/admin/legal/contracts/${p.id}/booking-review`,
+  pathTemplate: "/v1/admin/legal/contracts/:id/booking-review",
+  input: z.object({}),
+  output: bookingContractReviewSummarySchema,
+  classification: "read",
+  scopes: ["legal:read", "bookings-pii:read"],
+  summary: "Read the reviewed booking-contract revision an issue/send approves.",
 })
 
 const contractsVoid = defineOperation({
@@ -200,6 +260,8 @@ export const legalOperations = {
     create: contractsCreate,
     update: contractsUpdate,
     issue: contractsIssue,
+    send: contractsSend,
+    bookingReview: contractsBookingReview,
     void: contractsVoid,
   },
   policies: {

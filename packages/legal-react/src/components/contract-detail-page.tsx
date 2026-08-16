@@ -25,6 +25,7 @@ import { useState } from "react"
 import { useLegalUiI18nOrDefault, useLegalUiMessagesOrDefault } from "../i18n/index.js"
 import type { LegalContractStatusValue } from "../i18n/messages.js"
 import {
+  type LegalBookingContractReviewApproval,
   type LegalContractAttachmentRecord,
   type LegalContractRecord,
   useLegalContract,
@@ -34,7 +35,9 @@ import {
   useLegalContractSignatures,
   useVoyantLegalContext,
 } from "../index.js"
+import { isManagedBookingContractRevision } from "../managed-booking-contract.js"
 import { AttachmentDialog } from "./attachment-dialog.js"
+import { BookingContractReviewDialog } from "./booking-contract-review-dialog.js"
 import { ContractSendDialog } from "./contract-send-dialog.js"
 import { SignatureDialog } from "./signature-dialog.js"
 
@@ -158,6 +161,7 @@ export function ContractDetailPage({
 
   const [editOpen, setEditOpen] = useState(false)
   const [sendOpen, setSendOpen] = useState(false)
+  const [reviewOpen, setReviewOpen] = useState(false)
   const [signOpen, setSignOpen] = useState(false)
   const [attachOpen, setAttachOpen] = useState(false)
   const [editingAttachment, setEditingAttachment] = useState<
@@ -196,6 +200,7 @@ export function ContractDetailPage({
   }
 
   const status = contract.status
+  const managedBookingRevision = isManagedBookingContractRevision(contract)
   const generationFailure = resolveContractGenerationFailure(contract)
   const generationFailureMessages = messages.contractDetailPage.generationFailure
   const failureLabelKey = generationFailure
@@ -248,7 +253,11 @@ export function ContractDetailPage({
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {status === "draft" ? (
-            <Button size="sm" onClick={() => issue.mutate(id)} disabled={issue.isPending}>
+            <Button
+              size="sm"
+              onClick={() => (managedBookingRevision ? setReviewOpen(true) : issue.mutate({ id }))}
+              disabled={issue.isPending}
+            >
               {f.actions.issue}
             </Button>
           ) : null}
@@ -557,6 +566,16 @@ export function ContractDetailPage({
           setEditingAttachment(undefined)
           void refetchAttachments()
         }}
+      />
+
+      <BookingContractReviewDialog
+        open={reviewOpen}
+        onOpenChange={setReviewOpen}
+        contractId={id}
+        issuing={issue.isPending}
+        onIssue={(approval: LegalBookingContractReviewApproval) =>
+          issue.mutate({ id, approval }, { onSuccess: () => setReviewOpen(false) })
+        }
       />
 
       <ContractSendDialog

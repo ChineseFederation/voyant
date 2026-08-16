@@ -108,6 +108,30 @@ export const legalUiRo = {
       send: "Trimite",
     },
   },
+  bookingContractReviewDialog: {
+    title: "Verifica si emite contractul de rezervare",
+    description:
+      "Verifica contractul de mai jos fata de rezervare. Emiterea blocheaza exact acest continut ca document pentru client.",
+    unavailable:
+      "Acest contract de rezervare nu poate fi verificat cu permisiunile tale actuale. Verificarea unui contract de rezervare necesita permisiunea de citire a datelor personale din rezervari.",
+    loadFailed: "Verificarea contractului de rezervare nu a putut fi incarcata.",
+    fields: {
+      booking: "Rezervare",
+      customer: "Client",
+      template: "Sablon",
+      revision: "Revizie",
+      total: "Total",
+      products: "Produse",
+    },
+    templateSummary: "{name} (versiunea {version}, {language})",
+    productLine: "{quantity} x {title}",
+    bodyHeading: "Continutul contractului",
+    bodyUnavailable: "Aceasta revizie nu are inca un continut generat.",
+    actions: {
+      cancel: "Anuleaza",
+      issue: "Emite contractul",
+    },
+  },
   contractDialog: {
     titleNew: "Contract nou",
     titleEdit: "Editeaza contractul",

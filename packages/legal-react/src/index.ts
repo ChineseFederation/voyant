@@ -6,6 +6,7 @@ export {
   type VoyantFetcher,
 } from "./client.js"
 export * from "./hooks/index.js"
+export { isManagedBookingContractRevision } from "./managed-booking-contract.js"
 export {
   useVoyantLegalContext,
   type VoyantLegalContextValue,
@@ -26,6 +27,7 @@ export {
 } from "./query-keys.js"
 export {
   getDefaultLegalContractTemplateQueryOptions,
+  getLegalBookingContractReviewQueryOptions,
   getLegalContractAttachmentsQueryOptions,
   getLegalContractNumberSeriesDetailQueryOptions,
   getLegalContractNumberSeriesQueryOptions,

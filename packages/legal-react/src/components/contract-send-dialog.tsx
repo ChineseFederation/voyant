@@ -16,7 +16,12 @@ import {
 import { Loader2, Mail, Paperclip } from "lucide-react"
 import { useEffect, useState } from "react"
 import { useLegalUiMessagesOrDefault } from "../i18n/index.js"
-import { type LegalContractRecord, useLegalContractMutation } from "../index.js"
+import {
+  type LegalContractRecord,
+  useLegalBookingContractReview,
+  useLegalContractMutation,
+} from "../index.js"
+import { isManagedBookingContractRevision } from "../managed-booking-contract.js"
 
 export interface ContractSendDialogProps {
   open: boolean
@@ -61,7 +66,24 @@ export function ContractSendDialog({
   onSent,
 }: ContractSendDialogProps) {
   const { send } = useLegalContractMutation()
-  const messages = useLegalUiMessagesOrDefault().contractSendDialog
+  const allMessages = useLegalUiMessagesOrDefault()
+  const messages = allMessages.contractSendDialog
+  const reviewUnavailableMessage = allMessages.bookingContractReviewDialog.unavailable
+  // A managed booking-contract revision carries the same review gate on send as
+  // on issue (voyant#4706): the route needs the revision and content
+  // fingerprint the operator is looking at. Ordinary contracts 404 here, which
+  // leaves the approval undefined and the generic send path unchanged.
+  const isManagedBookingRevision = isManagedBookingContractRevision(contract)
+  const reviewQuery = useLegalBookingContractReview({
+    contractId: contract.id,
+    enabled: open && isManagedBookingRevision,
+  })
+  const reviewApproval = reviewQuery.data
+    ? {
+        revision: reviewQuery.data.revision,
+        contentFingerprint: reviewQuery.data.contentFingerprint,
+      }
+    : null
 
   const fallbackSubject =
     defaultSubject ??
@@ -93,7 +115,10 @@ export function ContractSendDialog({
     }
   }, [open, fallbackSubject, fallbackMessage])
 
-  const canSend = Boolean(defaultRecipientEmail) && !send.isPending
+  const canSend =
+    Boolean(defaultRecipientEmail) &&
+    !send.isPending &&
+    (!isManagedBookingRevision || reviewApproval !== null)
   const isAlreadySent = contract.status === "sent" || contract.status === "signed"
 
   const handleSend = async () => {
@@ -103,6 +128,7 @@ export function ContractSendDialog({
         recipientEmail: defaultRecipientEmail ?? null,
         subject: subject.trim() || null,
         message: message.trim() || null,
+        ...(reviewApproval ?? {}),
       },
     })
     onOpenChange(false)
@@ -116,6 +142,15 @@ export function ContractSendDialog({
           <DialogTitle>{messages.title}</DialogTitle>
         </DialogHeader>
         <DialogBody className="grid gap-4">
+          {isManagedBookingRevision && reviewQuery.isError ? (
+            <div
+              role="alert"
+              className="rounded-md border border-amber-500/50 bg-amber-500/10 px-3 py-2 text-amber-700 text-xs dark:text-amber-300"
+            >
+              {reviewUnavailableMessage}
+            </div>
+          ) : null}
+
           {isAlreadySent ? (
             <div
               role="status"

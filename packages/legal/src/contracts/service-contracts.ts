@@ -6,6 +6,10 @@ import { RequestValidationError } from "@voyant-travel/hono"
 import { organizations, people, personDirectoryView } from "@voyant-travel/relationships/schema"
 import { and, desc, eq, getTableColumns, ilike, notInArray, or, sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
+import {
+  type BookingContractReviewApproval,
+  checkBookingContractReviewApproval,
+} from "../booking-contract-review.js"
 import { parseManagedBookingContractReviewWorkflow } from "../managed-booking-contract-workflow.js"
 import { normalizeLegalTargetFields, normalizeLegalTargetUpdateFields } from "../targets/service.js"
 import {
@@ -105,6 +109,26 @@ function assertGenericLifecycleMutationAllowed(
   throw new RequestValidationError(
     `Managed booking contract revisions must be ${label} through the reviewed lifecycle command.`,
   )
+}
+
+/**
+ * Re-checks the caller's review approval against the row the transition is
+ * about to move, while it is locked.
+ *
+ * A route checks the approval before it calls, so it can say precisely what is
+ * wrong. That check reads an unlocked row, so a concurrent successor revision
+ * or a regenerated draft could land between it and the transition — and the
+ * point of the fingerprint is that nothing may move under an approval. Returns
+ * false when the locked row no longer matches.
+ */
+async function reviewApprovalStillHolds(
+  db: PostgresJsDatabase,
+  contract: typeof contracts.$inferSelect,
+  approval: BookingContractReviewApproval | undefined,
+): Promise<boolean> {
+  if (!approval) return true
+  const check = await checkBookingContractReviewApproval(db, contract, approval)
+  return check.status === "approved" || check.status === "not_managed"
 }
 
 /**
@@ -317,7 +341,10 @@ export const contractRecordsService = {
     db: PostgresJsDatabase,
     contractId: string,
     runtime?: ContractLifecycleRuntimeOptions,
-    options?: { allowManagedBookingContractWorkflow?: boolean },
+    options?: {
+      allowManagedBookingContractWorkflow?: boolean
+      bookingContractReviewApproval?: BookingContractReviewApproval
+    },
   ) {
     const result = await db.transaction(async (tx) => {
       const [contract] = await tx
@@ -332,9 +359,25 @@ export const contractRecordsService = {
       if (!options?.allowManagedBookingContractWorkflow) {
         assertGenericLifecycleMutationAllowed(contract.metadata, "issue")
       }
+      if (
+        !(await reviewApprovalStillHolds(
+          tx as PostgresJsDatabase,
+          contract,
+          options?.bookingContractReviewApproval,
+        ))
+      ) {
+        return { status: "review_changed" as const }
+      }
+      // A managed booking-contract revision was reviewed as a whole — body,
+      // variables and number together — and its content fingerprint is what a
+      // caller approves before it moves. Re-rendering it from the template or
+      // allocating a number here would change the document out from under that
+      // approval, so an allowed managed issue promotes the reviewed content
+      // verbatim, matching `contract-lifecycle-command.ts`'s own issue leg.
+      const immutableReviewedRevision = isManagedBookingContract(contract.metadata)
 
       let contractNumber = contract.contractNumber
-      if (!contractNumber && contract.seriesId) {
+      if (!immutableReviewedRevision && !contractNumber && contract.seriesId) {
         const allocated = await allocateContractNumber(tx as PostgresJsDatabase, contract.seriesId)
         if (allocated) contractNumber = allocated.number
       }
@@ -346,7 +389,7 @@ export const contractRecordsService = {
 
       let renderedBody = contract.renderedBody
       let renderedBodyFormat = contract.renderedBodyFormat
-      if (contract.templateVersionId) {
+      if (!immutableReviewedRevision && contract.templateVersionId) {
         const [version] = await tx
           .select()
           .from(contractTemplateVersions)
@@ -397,7 +440,10 @@ export const contractRecordsService = {
     contractId: string,
     runtime?: ContractLifecycleRuntimeOptions,
     delivery?: { recipientEmail?: string | null; subject?: string | null; message?: string | null },
-    options?: { allowManagedBookingContractWorkflow?: boolean },
+    options?: {
+      allowManagedBookingContractWorkflow?: boolean
+      bookingContractReviewApproval?: BookingContractReviewApproval
+    },
   ) {
     const result = await db.transaction(async (tx) => {
       const [contract] = await tx
@@ -409,6 +455,15 @@ export const contractRecordsService = {
       if (!contract) return { status: "not_found" as const }
       if (!options?.allowManagedBookingContractWorkflow) {
         assertGenericLifecycleMutationAllowed(contract.metadata, "send")
+      }
+      if (
+        !(await reviewApprovalStillHolds(
+          tx as PostgresJsDatabase,
+          contract,
+          options?.bookingContractReviewApproval,
+        ))
+      ) {
+        return { status: "review_changed" as const }
       }
       const transition = checkContractLifecycleTransition(contract.status, "sent")
       if (!transition.ok) return { status: transition.reason }
@@ -424,9 +479,40 @@ export const contractRecordsService = {
           enteredAt: now,
         }),
       )
+      // An operator send that satisfied the review gate records what it
+      // delivered on the workflow, the same way the reviewed lifecycle command
+      // does — otherwise the booking-contract review reports a revision with a
+      // `sentAt` and no recipient, and nothing says it stopped being a draft
+      // under review. Paths that send without a stated recipient (the
+      // storefront's paid-and-accepted promotion) leave the workflow untouched.
+      const reviewedWorkflow = options?.bookingContractReviewApproval
+        ? parseManagedBookingContractReviewWorkflow(contract.metadata)
+        : null
       const [updated] = await tx
         .update(contracts)
-        .set({ status: "sent", stageHistory, sentAt: now, updatedAt: now })
+        .set({
+          status: "sent",
+          stageHistory,
+          sentAt: now,
+          updatedAt: now,
+          ...(reviewedWorkflow
+            ? {
+                metadata: {
+                  ...(contract.metadata as Record<string, unknown>),
+                  bookingContractWorkflow: {
+                    ...reviewedWorkflow,
+                    reviewOnly: false,
+                    delivery: {
+                      recipient: delivery?.recipientEmail ?? null,
+                      channel: delivery?.recipientEmail ? "email" : null,
+                      revision: reviewedWorkflow.revision,
+                      notificationsSuppressed: false,
+                    },
+                  },
+                },
+              }
+            : {}),
+        })
         .where(eq(contracts.id, contractId))
         .returning()
       // Forward the operator's send-dialog customization onto the

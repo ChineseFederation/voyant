@@ -21,6 +21,10 @@
         "packages/trips/openapi/admin/trips.json",
         "packages/trips/openapi/storefront/trips.json"
       ]
+    },
+    {
+      "command": "pnpm --filter @voyant-travel/legal generate:openapi",
+      "files": ["packages/legal/openapi/admin/legal.json"]
     }
   ]
 }

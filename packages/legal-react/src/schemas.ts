@@ -264,6 +264,70 @@ export const legalTermRecordSchema = z.object({
 
 export type LegalTermRecord = z.infer<typeof legalTermRecordSchema>
 
+/**
+ * The un-redacted view of one managed booking-contract revision, served by
+ * `GET /v1/admin/legal/contracts/{id}/booking-review`. It carries the
+ * `revision` + `contentFingerprint` an operator confirms before issuing or
+ * sending the revision (voyant#4706) — the generic contract detail redacts the
+ * body and variables, so this is the only operator read that can support that
+ * confirmation. Mirrored here rather than imported: the server schema lives
+ * next to the Tool registry, which a browser package may not reach.
+ */
+export const legalBookingContractReviewSchema = z.object({
+  contentFingerprint: z.string(),
+  effectiveStatus: z.enum(["draft", "sent", "viewed", "declined", "signed", "void"]),
+  revision: z.number().int(),
+  previousRevisionId: z.string().nullable(),
+  contract: z.object({
+    id: z.string(),
+    contractNumber: z.string().nullable(),
+    status: z.string(),
+    title: z.string(),
+    language: z.string(),
+    renderedBody: z.string().nullable(),
+    renderedBodyFormat: z.string(),
+  }),
+  booking: z.object({
+    id: z.string(),
+    reference: z.string(),
+    customerName: z.string().nullable(),
+    customerEmail: z.string().nullable(),
+    language: z.string(),
+    currency: z.string(),
+    totalAmountCents: z.number().int().nullable(),
+    startDate: z.string().nullable(),
+    endDate: z.string().nullable(),
+  }),
+  products: z.array(
+    z.object({
+      title: z.string(),
+      quantity: z.number().int(),
+      amountCents: z.number().int().nullable(),
+      currency: z.string(),
+    }),
+  ),
+  template: z.object({
+    id: z.string(),
+    name: z.string(),
+    versionId: z.string(),
+    version: z.number().int(),
+    language: z.string(),
+  }),
+  delivery: z.object({
+    recipient: z.string().nullable(),
+    channel: z.enum(["email", "sms", "whatsapp"]).nullable(),
+    sentRevision: z.number().int().nullable(),
+    sentAt: z.string().nullable(),
+    viewedAt: z.string().nullable(),
+    declinedAt: z.string().nullable(),
+    notificationsSuppressed: z.boolean(),
+  }),
+  voidConsequences: z.array(z.string()),
+})
+
+export type LegalBookingContractReview = z.infer<typeof legalBookingContractReviewSchema>
+export const legalBookingContractReviewResponse = singleEnvelope(legalBookingContractReviewSchema)
+
 export const legalContractListResponse = paginatedEnvelope(legalContractRecordSchema)
 export const legalContractSingleResponse = singleEnvelope(legalContractRecordSchema)
 export const legalContractSignatureListResponse = singleEnvelope(

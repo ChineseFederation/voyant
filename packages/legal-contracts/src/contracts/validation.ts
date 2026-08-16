@@ -192,6 +192,22 @@ export const publicRenderTemplatePreviewInputSchema = z.object({
 })
 
 /**
+ * The confirmation a managed booking-contract revision requires before it
+ * moves: the revision the caller was looking at, and a fingerprint of the exact
+ * content they reviewed. Both are read from
+ * `GET /v1/admin/legal/contracts/{id}/booking-review`.
+ *
+ * Optional because the same lifecycle routes serve ordinary contracts, which
+ * carry no reviewed revision at all; the route rejects an omitted approval only
+ * when the contract is a managed booking-contract revision (voyant#4706).
+ */
+export const bookingContractReviewApprovalSchema = z.object({
+  revision: z.number().int().positive().optional(),
+  contentFingerprint: z.string().startsWith("booking-contract-content:v1:sha256:").optional(),
+})
+export type BookingContractReviewApprovalInput = z.infer<typeof bookingContractReviewApprovalSchema>
+
+/**
  * Optional customization the operator typed in the Send-contract dialog.
  * All fields nullable — the route falls through to defaults (recipient
  * from the linked person record, subject + message resolved by the
@@ -201,6 +217,7 @@ export const sendContractInputSchema = z.object({
   recipientEmail: z.string().email().optional().nullable(),
   subject: z.string().max(500).optional().nullable(),
   message: z.string().max(10_000).optional().nullable(),
+  ...bookingContractReviewApprovalSchema.shape,
 })
 export type SendContractInput = z.infer<typeof sendContractInputSchema>
 

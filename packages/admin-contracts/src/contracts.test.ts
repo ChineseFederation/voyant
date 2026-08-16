@@ -105,6 +105,9 @@ describe("@voyant-travel/admin-contracts registry", () => {
       "crm.people.documents.reveal",
       "crm.organizations.delete",
       "legal.contracts.create",
+      "legal.contracts.issue",
+      "legal.contracts.send",
+      "legal.contracts.bookingReview",
       "legal.contracts.void",
       "legal.policies.evaluate",
       "products.list",
@@ -124,6 +127,28 @@ describe("@voyant-travel/admin-contracts registry", () => {
     expect(getOperation("products.create")?.scopes).toEqual(["products:write"])
     expect(getOperation("products.delete")?.scopes).toEqual(["products:delete"])
     expect(getOperation("nope.missing")).toBeUndefined()
+  })
+
+  it("carries the booking-contract review approval through issue and send", () => {
+    // A client whose issue input is `z.object({})` strips the approval and every
+    // managed booking revision reaches `approval_required` (voyant#4706), so the
+    // descriptor must round-trip both fields the route checks.
+    const approval = {
+      revision: 2,
+      contentFingerprint: "booking-contract-content:v1:sha256:abc",
+    }
+    expect(legalOperations.contracts.issue.input.parse(approval)).toEqual(approval)
+    expect(
+      legalOperations.contracts.send.input.parse({ ...approval, subject: "Hi" }),
+    ).toMatchObject(approval)
+    // Both stay optional — an ordinary contract issues with no body at all.
+    expect(legalOperations.contracts.issue.input.parse({})).toEqual({})
+
+    // And the review that produces them is reachable, gated on booking PII.
+    expect(legalOperations.contracts.bookingReview.scopes).toEqual([
+      "legal:read",
+      "bookings-pii:read",
+    ])
   })
 
   it("list inputs match the real route filters (no advertised-but-stripped fields)", () => {

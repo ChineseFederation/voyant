@@ -709,11 +709,15 @@ describe.skipIf(!DB_AVAILABLE)("Legal public routes", () => {
         metadata: managedBookingWorkflowMetadata(2, false),
       })
       .returning()
+    // Sending a managed revision now goes through the operator's own review
+    // gate (voyant#4706) rather than being refused outright — but without the
+    // reviewed revision + fingerprint it is still refused, and says why.
     const managedSend = await adminApp.request(`/${managedIssued!.id}/send`, { method: "POST" })
     expect(managedSend.status).toBe(400)
     await expect(managedSend.json()).resolves.toEqual({
-      error:
-        "Managed booking contract revisions must be sent through the reviewed lifecycle command.",
+      error: expect.stringContaining(
+        "Booking contract revisions require the reviewed revision and content fingerprint",
+      ),
     })
 
     const [managedSent] = await db

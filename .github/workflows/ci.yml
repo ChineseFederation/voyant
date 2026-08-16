@@ -304,7 +304,12 @@ jobs:
             runner: ubuntu-24.04
             postgres_image: postgres:16
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 15
+    # The integration lane runs each listed file as its own vitest process and
+    # takes 11-13 minutes on main, so a 15-minute cap left it with no headroom:
+    # a runner ~30% slower than usual cancels it mid-suite, and every file added
+    # to the lane brings that closer. Raised to 20 so the cap stays a backstop
+    # against a hang rather than a budget the lane is already spending.
+    timeout-minutes: 20
     env:
       HUSKY: 0
       NODE_OPTIONS: --conditions=development --max-old-space-size=12288
@@ -429,6 +434,8 @@ jobs:
                 tests/integration/contract-lifecycle-command.test.ts
               pnpm --filter @voyant-travel/legal exec vitest run \
                 tests/integration/booking-contract-confirmed.test.ts
+              pnpm --filter @voyant-travel/legal exec vitest run \
+                tests/integration/admin-booking-contract-lifecycle.test.ts
               pnpm --filter @voyant-travel/db exec vitest run \
                 tests/integration/outbox.test.ts
               pnpm --filter @voyant-travel/notifications exec vitest run \

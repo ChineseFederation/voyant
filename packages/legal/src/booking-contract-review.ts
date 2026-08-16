@@ -1,6 +1,6 @@
 import { sha256 } from "@voyant-travel/action-ledger"
 import { bookingItems, bookings } from "@voyant-travel/bookings/schema"
-import { and, eq } from "drizzle-orm"
+import { and, eq, sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import type { z } from "zod"
 import { legalContractDetail } from "./contract-dto.js"
@@ -267,6 +267,74 @@ export async function listApplicableBookingContractTemplates(
       }),
   )
   return { bookingFound: true, data }
+}
+
+/**
+ * What an operator confirms before a booking-contract revision moves: the
+ * revision they were looking at, and a fingerprint of its exact content.
+ */
+export interface BookingContractReviewApproval {
+  revision: number
+  contentFingerprint: string
+}
+
+export type BookingContractReviewApprovalCheck =
+  /** Not a managed booking-contract revision — the generic lifecycle applies. */
+  | { status: "not_managed" }
+  | { status: "approved" }
+  | { status: "approval_required" }
+  | { status: "content_changed" }
+  | { status: "revision_mismatch"; expectedRevision: number }
+  | { status: "superseded"; successorRevisionId: string }
+
+/**
+ * The review contract a managed booking-contract revision carries, checked
+ * independently of who is asking.
+ *
+ * `executeLegalContractLifecycleCommand` enforces exactly these three facts
+ * inside its action-ledger claim (voyant#4706): the revision has not been
+ * superseded, its content is still the reviewed content, and the caller
+ * approved the revision that is actually current. Those are properties of the
+ * contract row, not of the agent-approval machinery wrapped around it — so an
+ * admin route can satisfy them too, and issuing a booking contract stops
+ * requiring an agent to be present, configured and authorized.
+ */
+export async function checkBookingContractReviewApproval(
+  db: PostgresJsDatabase,
+  contract: {
+    id: string
+    bookingId: string | null
+    title: string
+    language: string
+    templateVersionId: string | null
+    variables: unknown
+    renderedBody: string | null
+    metadata: unknown
+  },
+  approval: BookingContractReviewApproval | null | undefined,
+): Promise<BookingContractReviewApprovalCheck> {
+  const workflow = parseManagedBookingContractReviewWorkflow(contract.metadata)
+  if (!workflow) return { status: "not_managed" }
+  if (!approval) return { status: "approval_required" }
+
+  const [successor] = await db
+    .select({ id: contracts.id })
+    .from(contracts)
+    .where(
+      // agent-quality: raw-sql reviewed -- owner: legal; JSONB lineage lookup is parameterized and mirrors the successor guard the reviewed lifecycle command runs.
+      sql`${contracts.metadata}->'bookingContractWorkflow'->>'previousRevisionId' = ${contract.id}`,
+    )
+    .limit(1)
+  if (successor) return { status: "superseded", successorRevisionId: successor.id }
+
+  const currentFingerprint = await bookingContractContentFingerprint(contract)
+  if (approval.contentFingerprint !== currentFingerprint) return { status: "content_changed" }
+
+  const expectedRevision = workflow.revision ?? 1
+  if (approval.revision !== expectedRevision) {
+    return { status: "revision_mismatch", expectedRevision }
+  }
+  return { status: "approved" }
 }
 
 export async function getBookingContractReview(

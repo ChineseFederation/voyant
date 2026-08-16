@@ -108,6 +108,30 @@ export const legalUiEn = {
       send: "Send",
     },
   },
+  bookingContractReviewDialog: {
+    title: "Review and issue booking contract",
+    description:
+      "Check the contract below against the booking. Issuing locks this exact content as the customer-facing document.",
+    unavailable:
+      "This booking contract cannot be reviewed with your current permissions. Reviewing a booking contract needs the bookings PII read permission.",
+    loadFailed: "The booking contract review could not be loaded.",
+    fields: {
+      booking: "Booking",
+      customer: "Customer",
+      template: "Template",
+      revision: "Revision",
+      total: "Total",
+      products: "Products",
+    },
+    templateSummary: "{name} (version {version}, {language})",
+    productLine: "{quantity} x {title}",
+    bodyHeading: "Contract content",
+    bodyUnavailable: "This revision has no rendered content yet.",
+    actions: {
+      cancel: "Cancel",
+      issue: "Issue contract",
+    },
+  },
   contractDialog: {
     titleNew: "New Contract",
     titleEdit: "Edit Contract",

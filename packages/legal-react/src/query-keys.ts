@@ -108,6 +108,8 @@ export const legalQueryKeys = {
   contract: (id: string) => [...legalQueryKeys.contracts(), id] as const,
   contractSignatures: (id: string) => [...legalQueryKeys.contract(id), "signatures"] as const,
   contractAttachments: (id: string) => [...legalQueryKeys.contract(id), "attachments"] as const,
+  contractBookingReview: (id: string) =>
+    [...legalQueryKeys.contract(id), "booking-review"] as const,
   templates: () => [...legalQueryKeys.all, "templates"] as const,
   templatesList: (filters: LegalContractTemplatesListFilters) =>
     [...legalQueryKeys.templates(), filters] as const,

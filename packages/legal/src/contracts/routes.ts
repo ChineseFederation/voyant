@@ -37,6 +37,12 @@ import { listResponseSchema } from "@voyant-travel/types"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import type { Context } from "hono"
 import {
+  type BookingContractReviewApproval,
+  type BookingContractReviewApprovalCheck,
+  checkBookingContractReviewApproval,
+  getBookingContractReview,
+} from "../booking-contract-review.js"
+import {
   hasManagedBookingWorkflow,
   redactManagedBookingContractForGenericDetail,
 } from "../contract-dto.js"
@@ -50,6 +56,7 @@ import { renderAcceptancePreviewResponse, renderPreviewResponse } from "./route-
 import type { Contract, ContractSignature } from "./schema.js"
 import { contractsService, DurableContractDocumentAttachmentMutationError } from "./service.js"
 import {
+  bookingContractReviewApprovalSchema,
   contractBodyFormatSchema,
   contractListQuerySchema,
   contractNumberResetStrategySchema,
@@ -483,6 +490,88 @@ const jsonValue = z.unknown()
 
 const dataEnvelope = <T extends z.ZodTypeAny>(schema: T) => z.object({ data: schema })
 
+/**
+ * The booking-contract review response, authored here rather than reusing the
+ * Tool's `bookingContractReviewSchema`.
+ *
+ * That schema types its free-form members with `z.json()`, which in Zod 4 is a
+ * self-referential schema: registering it on a route makes
+ * `getOpenAPIDocument()` recurse until the stack overflows, so the deployment
+ * publishes no document at all. This states the same payload with the
+ * OpenAPI-expressible types the published contract needs. The handler returns
+ * what `getBookingContractReview` already parsed, so nothing is validated less.
+ *
+ * Annotated rather than inferred: this module composes its route chains
+ * structurally, and inferring a payload this size on top of that is what tips
+ * it into TS2589 (see the quadratic cost in the module header). The annotation
+ * only widens the static type — the OpenAPI document is generated from the
+ * runtime schema, which is the full shape below.
+ */
+const bookingContractReviewResponseSchema: z.ZodType = z.object({
+  contract: z.object({
+    id: z.string(),
+    contractNumber: z.string().nullable(),
+    scope: contractScopeSchema,
+    status: contractStatusSchema,
+    title: z.string(),
+    bookingId: z.string().nullable(),
+    language: z.string(),
+    templateVersionId: z.string().nullable(),
+    renderedBodyFormat: contractBodyFormatSchema,
+    renderedBody: z.string().nullable(),
+    variables: jsonRecord.nullable(),
+    metadata: jsonRecord.nullable(),
+    issuedAt: isoTimestamp.nullable(),
+    sentAt: isoTimestamp.nullable(),
+    executedAt: isoTimestamp.nullable(),
+    expiresAt: isoTimestamp.nullable(),
+    voidedAt: isoTimestamp.nullable(),
+    createdAt: isoTimestamp,
+    updatedAt: isoTimestamp,
+  }),
+  contentFingerprint: z.string(),
+  effectiveStatus: z.enum(["draft", "sent", "viewed", "declined", "signed", "void"]),
+  revision: z.number().int().positive(),
+  previousRevisionId: z.string().nullable(),
+  booking: z.object({
+    id: z.string(),
+    reference: z.string(),
+    customerName: z.string().nullable(),
+    customerEmail: z.string().nullable(),
+    language: z.string(),
+    currency: z.string(),
+    totalAmountCents: z.number().int().nullable(),
+    startDate: z.string().nullable(),
+    endDate: z.string().nullable(),
+  }),
+  products: z.array(
+    z.object({
+      title: z.string(),
+      quantity: z.number().int().positive(),
+      amountCents: z.number().int().nullable(),
+      currency: z.string(),
+    }),
+  ),
+  template: z.object({
+    id: z.string(),
+    name: z.string(),
+    versionId: z.string(),
+    version: z.number().int().positive(),
+    language: z.string(),
+  }),
+  commercialTerms: jsonRecord,
+  delivery: z.object({
+    recipient: z.string().nullable(),
+    channel: z.enum(["email", "sms", "whatsapp"]).nullable(),
+    sentRevision: z.number().int().positive().nullable(),
+    sentAt: isoTimestamp.nullable(),
+    viewedAt: isoTimestamp.nullable(),
+    declinedAt: isoTimestamp.nullable(),
+    notificationsSuppressed: z.boolean(),
+  }),
+  voidConsequences: z.array(z.string()),
+})
+
 const invalidRequestResponse = {
   description: "invalid_request: request body failed validation",
   content: { "application/json": { schema: errorResponseSchema } },
@@ -704,6 +793,53 @@ function toGenericAdminContract<T extends { variables: unknown; metadata: unknow
 
 function isGenericContractRenderAllowed(contract: Pick<Contract, "metadata">): boolean {
   return !hasManagedBookingWorkflow(contract.metadata)
+}
+
+function toBookingContractReviewApproval(
+  input: { revision?: number; contentFingerprint?: string } | null | undefined,
+): BookingContractReviewApproval | null {
+  return input?.revision !== undefined && input.contentFingerprint !== undefined
+    ? { revision: input.revision, contentFingerprint: input.contentFingerprint }
+    : null
+}
+
+const BOOKING_CONTRACT_REVIEW_RACED =
+  "The contract revision changed while this transition was running. Re-open the review and try again."
+
+/**
+ * The review contract, stated in the operator's language. Same failures
+ * `executeLegalContractLifecycleCommand` raises, so an agent and an operator
+ * are refused for the same reasons and told the same thing.
+ */
+function bookingContractReviewRejection(
+  check: BookingContractReviewApprovalCheck,
+): { status: 400 | 409; error: string } | null {
+  switch (check.status) {
+    case "approval_required":
+      return {
+        status: 400,
+        error:
+          "Booking contract revisions require the reviewed revision and content fingerprint. " +
+          "Read them from GET /v1/admin/legal/contracts/{id}/booking-review.",
+      }
+    case "content_changed":
+      return {
+        status: 400,
+        error: "The approved contract content is no longer the reviewed content.",
+      }
+    case "revision_mismatch":
+      return {
+        status: 400,
+        error: "The approved contract revision is no longer the selected revision.",
+      }
+    case "superseded":
+      return {
+        status: 409,
+        error: "A successor revision already exists for this contract revision.",
+      }
+    default:
+      return null
+  }
 }
 
 function toPublicSignature(
@@ -1239,12 +1375,23 @@ export function createContractsAdminRoutes(options: ContractsRouteOptions = {}) 
   const issueContractRoute = createRoute({
     method: "post",
     path: "/{id}/issue",
-    request: { params: idParamSchema },
+    // Declared but not required: the handler parses with
+    // `parseOptionalJsonBody`, so an ordinary contract still issues with no
+    // body at all. Declaring it is what lets a generated client discover the
+    // approval a managed booking revision has to carry (voyant#4706).
+    request: {
+      params: idParamSchema,
+      body: {
+        required: false,
+        content: { "application/json": { schema: bookingContractReviewApprovalSchema } },
+      },
+    },
     responses: {
       200: {
         description: "The issued contract",
         content: { "application/json": { schema: dataEnvelope(contractSchema) } },
       },
+      400: invalidRequestResponse,
       404: notFoundResponse("Contract not found"),
       409: conflictResponse("Only draft contracts can be issued"),
     },
@@ -1253,7 +1400,13 @@ export function createContractsAdminRoutes(options: ContractsRouteOptions = {}) 
   const sendContractRoute = createRoute({
     method: "post",
     path: "/{id}/send",
-    request: { params: idParamSchema },
+    request: {
+      params: idParamSchema,
+      body: {
+        required: false,
+        content: { "application/json": { schema: sendContractInputSchema } },
+      },
+    },
     responses: {
       200: {
         description: "The sent contract",
@@ -1262,6 +1415,21 @@ export function createContractsAdminRoutes(options: ContractsRouteOptions = {}) 
       400: invalidRequestResponse,
       404: notFoundResponse("Contract not found"),
       409: conflictResponse("Only issued/sent contracts can be sent"),
+    },
+  })
+
+  const getBookingContractReviewRoute = createRoute({
+    method: "get",
+    path: "/{id}/booking-review",
+    request: { params: idParamSchema },
+    responses: {
+      200: {
+        description: "The booking-contract revision under review",
+        content: {
+          "application/json": { schema: dataEnvelope(bookingContractReviewResponseSchema) },
+        },
+      },
+      404: notFoundResponse("Contract not found"),
     },
   })
 
@@ -1341,14 +1509,33 @@ export function createContractsAdminRoutes(options: ContractsRouteOptions = {}) 
   })
 
   const lifecycleRoutes = new OpenAPIHono<Env>({ defaultHook: openApiValidationHook })
+    // A managed booking-contract revision is issued here too, not only through
+    // the Tool-owned reviewed lifecycle command (voyant#4706). The caller
+    // confirms the revision and content fingerprint it reviewed; the same three
+    // checks the command runs decide whether the transition is admissible, and
+    // the reviewed content is promoted verbatim.
     .openapi(issueContractRoute, async (c) => {
       const runtime = getRuntime(options, c.env, (key) => c.var.container?.resolve(key))
-      const result = await contractsService.issueContract(
-        c.get("db"),
-        c.req.valid("param").id,
-        runtime,
+      const db = c.get("db")
+      const id = c.req.valid("param").id
+      const approval = toBookingContractReviewApproval(
+        await parseOptionalJsonBody(c, bookingContractReviewApprovalSchema),
       )
+      const contract = await contractsService.getContractById(db, id)
+      if (!contract) return c.json({ error: "Contract not found" }, 404)
+      const review = await checkBookingContractReviewApproval(db, contract, approval)
+      const rejection = bookingContractReviewRejection(review)
+      if (rejection) return c.json({ error: rejection.error }, rejection.status)
+      const result = await contractsService.issueContract(db, id, runtime, {
+        allowManagedBookingContractWorkflow: review.status === "approved",
+        ...(review.status === "approved" && approval
+          ? { bookingContractReviewApproval: approval }
+          : {}),
+      })
       if (result.status === "not_found") return c.json({ error: "Contract not found" }, 404)
+      if (result.status === "review_changed") {
+        return c.json({ error: BOOKING_CONTRACT_REVIEW_RACED }, 409)
+      }
       if (result.status === "not_draft") {
         return c.json({ error: "Only draft contracts can be issued" }, 409)
       }
@@ -1356,18 +1543,42 @@ export function createContractsAdminRoutes(options: ContractsRouteOptions = {}) 
     })
     .openapi(sendContractRoute, async (c) => {
       const runtime = getRuntime(options, c.env, (key) => c.var.container?.resolve(key))
+      const db = c.get("db")
+      const id = c.req.valid("param").id
       // Body is optional — older callers POST without one and the
       // service falls back to defaults. The Send-contract dialog POSTs
       // `{ recipientEmail, subject, message }` so the notification
-      // subscriber can deliver the operator's customised copy.
+      // subscriber can deliver the operator's customised copy, plus the
+      // reviewed `{ revision, contentFingerprint }` for booking contracts.
       const input = await parseOptionalJsonBody(c, sendContractInputSchema)
+      const contract = await contractsService.getContractById(db, id)
+      if (!contract) return c.json({ error: "Contract not found" }, 404)
+      const sendApproval = toBookingContractReviewApproval(input)
+      const review = await checkBookingContractReviewApproval(db, contract, sendApproval)
+      const rejection = bookingContractReviewRejection(review)
+      if (rejection) return c.json({ error: rejection.error }, rejection.status)
       const result = await contractsService.sendContract(
-        c.get("db"),
-        c.req.valid("param").id,
+        db,
+        id,
         runtime,
-        input ?? undefined,
+        input
+          ? {
+              recipientEmail: input.recipientEmail,
+              subject: input.subject,
+              message: input.message,
+            }
+          : undefined,
+        {
+          allowManagedBookingContractWorkflow: review.status === "approved",
+          ...(review.status === "approved" && sendApproval
+            ? { bookingContractReviewApproval: sendApproval }
+            : {}),
+        },
       )
       if (result.status === "not_found") return c.json({ error: "Contract not found" }, 404)
+      if (result.status === "review_changed") {
+        return c.json({ error: BOOKING_CONTRACT_REVIEW_RACED }, 409)
+      }
       if (result.status === "not_issued") {
         return c.json({ error: "Only issued/sent contracts can be sent" }, 409)
       }
@@ -1437,6 +1648,46 @@ export function createContractsAdminRoutes(options: ContractsRouteOptions = {}) 
         })(),
       ),
     )
+
+  // Its own sub-chain rather than another link on `lifecycleRoutes`: the
+  // per-chain `.openapi()` inference cost is quadratic, and appending one more
+  // there is what tips this module into TS2589 (see the module header).
+  const bookingReviewRoutes = new OpenAPIHono<Env>({ defaultHook: openApiValidationHook })
+    // The un-redacted read the issue and send routes are approved against. The
+    // generic contract detail redacts a managed booking revision's body and
+    // variables, so without this an operator could not see what they are
+    // issuing, let alone fingerprint it.
+    .openapi(getBookingContractReviewRoute, async (c) => {
+      const db = c.get("db")
+      const id = c.req.valid("param").id
+      const contract = await contractsService.getContractById(db, id)
+      if (!contract || !hasManagedBookingWorkflow(contract.metadata)) {
+        return c.json({ error: "Contract not found" }, 404)
+      }
+      const revealed = shouldRevealBookingPiiForRoute(c)
+      if (contract.bookingId) {
+        await bookingsService.recordPiiAccess(db, {
+          bookingId: contract.bookingId,
+          travelerId: null,
+          actorId: routeActorId(c),
+          actorType: c.get("actor") ?? null,
+          callerType: c.get("callerType") ?? null,
+          action: "read",
+          outcome: revealed ? "allowed" : "denied",
+          reason: revealed ? "booking_contract_review_reveal" : "insufficient_scope",
+          metadata: revealed
+            ? { contractId: contract.id, reveal: true }
+            : {
+                contractId: contract.id,
+                reveal: false,
+                requiredScopes: ["legal:read", "bookings-pii:read"],
+              },
+        })
+      }
+      if (!revealed) return c.json({ error: "Contract not found" }, 404)
+      const review = await getBookingContractReview(db, id)
+      return review ? c.json({ data: review }, 200) : c.json({ error: "Contract not found" }, 404)
+    })
 
   // --- signatures + attachments ---------------------------------------------
 
@@ -1681,6 +1932,7 @@ export function createContractsAdminRoutes(options: ContractsRouteOptions = {}) 
     .route("/", numberSeriesRoutes)
     .route("/", contractRoutes)
     .route("/", lifecycleRoutes)
+    .route("/", bookingReviewRoutes)
     .route("/", signatureAttachmentRoutes)
 }
 

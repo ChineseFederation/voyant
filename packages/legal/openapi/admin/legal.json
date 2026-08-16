@@ -3708,7 +3708,7 @@
             }
           },
           "409": {
-            "description": "Only draft or void contracts can be deleted",
+            "description": "Contract cannot be deleted",
             "content": {
               "application/json": {
                 "schema": {
@@ -3743,6 +3743,25 @@
             "in": "path"
           }
         ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "revision": {
+                    "type": "integer",
+                    "exclusiveMinimum": 0
+                  },
+                  "contentFingerprint": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "The issued contract",
@@ -3951,6 +3970,22 @@
               }
             }
           },
+          "400": {
+            "description": "invalid_request: request body failed validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
           "404": {
             "description": "Contract not found",
             "content": {
@@ -4003,6 +4038,37 @@
             "in": "path"
           }
         ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "recipientEmail": {
+                    "type": ["string", "null"],
+                    "format": "email"
+                  },
+                  "subject": {
+                    "type": ["string", "null"],
+                    "maxLength": 500
+                  },
+                  "message": {
+                    "type": ["string", "null"],
+                    "maxLength": 10000
+                  },
+                  "revision": {
+                    "type": "integer",
+                    "exclusiveMinimum": 0
+                  },
+                  "contentFingerprint": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "The sent contract",
@@ -11240,6 +11306,318 @@
         },
         "operationId": "deleteAdminLegalTermsById",
         "summary": "DELETE /v1/admin/legal/terms/{id}",
+        "tags": ["legal"],
+        "x-voyant-module": "legal",
+        "x-voyant-surface": "admin"
+      }
+    },
+    "/v1/admin/legal/contracts/{id}/booking-review": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The booking-contract revision under review",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "contract": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "contractNumber": {
+                              "type": ["string", "null"]
+                            },
+                            "scope": {
+                              "type": "string",
+                              "enum": ["customer", "supplier", "partner", "channel", "other"]
+                            },
+                            "status": {
+                              "type": "string",
+                              "enum": [
+                                "draft",
+                                "issued",
+                                "sent",
+                                "signed",
+                                "executed",
+                                "expired",
+                                "void"
+                              ]
+                            },
+                            "title": {
+                              "type": "string"
+                            },
+                            "bookingId": {
+                              "type": ["string", "null"]
+                            },
+                            "language": {
+                              "type": "string"
+                            },
+                            "templateVersionId": {
+                              "type": ["string", "null"]
+                            },
+                            "renderedBodyFormat": {
+                              "type": "string",
+                              "enum": ["markdown", "html", "lexical_json"]
+                            },
+                            "renderedBody": {
+                              "type": ["string", "null"]
+                            },
+                            "variables": {
+                              "type": ["object", "null"],
+                              "additionalProperties": {}
+                            },
+                            "metadata": {
+                              "type": ["object", "null"],
+                              "additionalProperties": {}
+                            },
+                            "issuedAt": {
+                              "type": ["string", "null"]
+                            },
+                            "sentAt": {
+                              "type": ["string", "null"]
+                            },
+                            "executedAt": {
+                              "type": ["string", "null"]
+                            },
+                            "expiresAt": {
+                              "type": ["string", "null"]
+                            },
+                            "voidedAt": {
+                              "type": ["string", "null"]
+                            },
+                            "createdAt": {
+                              "type": "string"
+                            },
+                            "updatedAt": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "contractNumber",
+                            "scope",
+                            "status",
+                            "title",
+                            "bookingId",
+                            "language",
+                            "templateVersionId",
+                            "renderedBodyFormat",
+                            "renderedBody",
+                            "variables",
+                            "metadata",
+                            "issuedAt",
+                            "sentAt",
+                            "executedAt",
+                            "expiresAt",
+                            "voidedAt",
+                            "createdAt",
+                            "updatedAt"
+                          ]
+                        },
+                        "contentFingerprint": {
+                          "type": "string"
+                        },
+                        "effectiveStatus": {
+                          "type": "string",
+                          "enum": ["draft", "sent", "viewed", "declined", "signed", "void"]
+                        },
+                        "revision": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0
+                        },
+                        "previousRevisionId": {
+                          "type": ["string", "null"]
+                        },
+                        "booking": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "reference": {
+                              "type": "string"
+                            },
+                            "customerName": {
+                              "type": ["string", "null"]
+                            },
+                            "customerEmail": {
+                              "type": ["string", "null"]
+                            },
+                            "language": {
+                              "type": "string"
+                            },
+                            "currency": {
+                              "type": "string"
+                            },
+                            "totalAmountCents": {
+                              "type": ["integer", "null"]
+                            },
+                            "startDate": {
+                              "type": ["string", "null"]
+                            },
+                            "endDate": {
+                              "type": ["string", "null"]
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "reference",
+                            "customerName",
+                            "customerEmail",
+                            "language",
+                            "currency",
+                            "totalAmountCents",
+                            "startDate",
+                            "endDate"
+                          ]
+                        },
+                        "products": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "title": {
+                                "type": "string"
+                              },
+                              "quantity": {
+                                "type": "integer",
+                                "exclusiveMinimum": 0
+                              },
+                              "amountCents": {
+                                "type": ["integer", "null"]
+                              },
+                              "currency": {
+                                "type": "string"
+                              }
+                            },
+                            "required": ["title", "quantity", "amountCents", "currency"]
+                          }
+                        },
+                        "template": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            },
+                            "versionId": {
+                              "type": "string"
+                            },
+                            "version": {
+                              "type": "integer",
+                              "exclusiveMinimum": 0
+                            },
+                            "language": {
+                              "type": "string"
+                            }
+                          },
+                          "required": ["id", "name", "versionId", "version", "language"]
+                        },
+                        "commercialTerms": {
+                          "type": "object",
+                          "additionalProperties": {}
+                        },
+                        "delivery": {
+                          "type": "object",
+                          "properties": {
+                            "recipient": {
+                              "type": ["string", "null"]
+                            },
+                            "channel": {
+                              "type": ["string", "null"],
+                              "enum": ["email", "sms", "whatsapp", null]
+                            },
+                            "sentRevision": {
+                              "type": ["integer", "null"],
+                              "exclusiveMinimum": 0
+                            },
+                            "sentAt": {
+                              "type": ["string", "null"]
+                            },
+                            "viewedAt": {
+                              "type": ["string", "null"]
+                            },
+                            "declinedAt": {
+                              "type": ["string", "null"]
+                            },
+                            "notificationsSuppressed": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": [
+                            "recipient",
+                            "channel",
+                            "sentRevision",
+                            "sentAt",
+                            "viewedAt",
+                            "declinedAt",
+                            "notificationsSuppressed"
+                          ]
+                        },
+                        "voidConsequences": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "required": [
+                        "contract",
+                        "contentFingerprint",
+                        "effectiveStatus",
+                        "revision",
+                        "previousRevisionId",
+                        "booking",
+                        "products",
+                        "template",
+                        "commercialTerms",
+                        "delivery",
+                        "voidConsequences"
+                      ]
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Contract not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "getAdminLegalContractsByIdBookingReview",
+        "summary": "GET /v1/admin/legal/contracts/{id}/booking-review",
         "tags": ["legal"],
         "x-voyant-module": "legal",
         "x-voyant-surface": "admin"

@@ -100,7 +100,17 @@ export function createAdminClient(config: AdminClientConfig) {
           params: { id: string },
           input: InferInput<typeof legalOperations.contracts.update>,
         ) => execute(legalOperations.contracts.update, params, input),
-        issue: (params: { id: string }) => execute(legalOperations.contracts.issue, params),
+        // A managed booking-contract revision needs the reviewed revision and
+        // content fingerprint from `bookingReview`; an ordinary contract omits
+        // the input entirely (voyant#4706).
+        issue: (
+          params: { id: string },
+          input?: InferInput<typeof legalOperations.contracts.issue>,
+        ) => execute(legalOperations.contracts.issue, params, input),
+        send: (params: { id: string }, input?: InferInput<typeof legalOperations.contracts.send>) =>
+          execute(legalOperations.contracts.send, params, input),
+        bookingReview: (params: { id: string }) =>
+          execute(legalOperations.contracts.bookingReview, params),
         void: (params: { id: string }) => execute(legalOperations.contracts.void, params),
       },
       policies: {

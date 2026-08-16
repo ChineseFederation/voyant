@@ -3,6 +3,7 @@
 import { queryOptions } from "@tanstack/react-query"
 
 import { type FetchWithValidationOptions, fetchWithValidation } from "./client.js"
+import type { UseLegalBookingContractReviewOptions } from "./hooks/use-booking-contract-review.js"
 import type { UseLegalContractOptions } from "./hooks/use-contract.js"
 import type { UseLegalContractAttachmentsOptions } from "./hooks/use-contract-attachments.js"
 import type { UseLegalContractSignaturesOptions } from "./hooks/use-contract-signatures.js"
@@ -24,6 +25,7 @@ import {
   type ResolvePolicyFilters,
 } from "./query-keys.js"
 import {
+  legalBookingContractReviewResponse,
   legalContractAttachmentListResponse,
   legalContractListResponse,
   legalContractNumberSeriesListResponse,
@@ -122,6 +124,28 @@ export function getLegalContractAttachmentsQueryOptions(
       )
       return data
     },
+  })
+}
+
+export function getLegalBookingContractReviewQueryOptions(
+  client: FetchWithValidationOptions,
+  options: UseLegalBookingContractReviewOptions,
+) {
+  const { enabled: _enabled = true, contractId } = options
+  return queryOptions({
+    queryKey: legalQueryKeys.contractBookingReview(contractId),
+    queryFn: async () => {
+      const { data } = await fetchWithValidation(
+        `/v1/admin/legal/contracts/${contractId}/booking-review`,
+        legalBookingContractReviewResponse,
+        client,
+      )
+      return data
+    },
+    // The revision + content fingerprint here are what the operator approves
+    // against, so a stale cached copy would approve content that has moved on.
+    staleTime: 0,
+    retry: false,
   })
 }
 

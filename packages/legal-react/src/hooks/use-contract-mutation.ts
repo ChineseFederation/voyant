@@ -15,7 +15,17 @@ import { legalContractSingleResponse, successEnvelope } from "../schemas.js"
 export type CreateLegalContractInput = z.input<typeof insertContractSchema>
 export type UpdateLegalContractInput = z.input<typeof updateContractSchema>
 
-export interface SendLegalContractInputBody {
+/**
+ * What a managed booking-contract revision needs before it moves: the revision
+ * the operator reviewed and a fingerprint of its exact content, both read from
+ * `useLegalBookingContractReview`. Ordinary contracts omit it (voyant#4706).
+ */
+export interface LegalBookingContractReviewApproval {
+  revision: number
+  contentFingerprint: string
+}
+
+export interface SendLegalContractInputBody extends Partial<LegalBookingContractReviewApproval> {
   /** Customer email to deliver the contract to. */
   recipientEmail?: string | null
   /** Subject line for the outgoing email. */
@@ -27,6 +37,11 @@ export interface SendLegalContractInputBody {
 export interface SendLegalContractInput {
   id: string
   input?: SendLegalContractInputBody
+}
+
+export interface IssueLegalContractInput {
+  id: string
+  approval?: LegalBookingContractReviewApproval
 }
 
 export function useLegalContractMutation() {
@@ -84,12 +99,19 @@ export function useLegalContractMutation() {
   })
 
   const issue = useMutation({
-    mutationFn: async (id: string) => {
+    mutationFn: async (input: IssueLegalContractInput | string) => {
+      // Back-compat: ordinary contracts still pass the id string. A managed
+      // booking-contract revision passes `{ id, approval }` so the route can
+      // check the approval against the revision it is about to issue.
+      const normalized: IssueLegalContractInput = typeof input === "string" ? { id: input } : input
       const { data } = await fetchWithValidation(
-        `/v1/admin/legal/contracts/${id}/issue`,
+        `/v1/admin/legal/contracts/${normalized.id}/issue`,
         legalContractSingleResponse,
         { baseUrl, fetcher },
-        { method: "POST" },
+        {
+          method: "POST",
+          ...(normalized.approval ? { body: JSON.stringify(normalized.approval) } : {}),
+        },
       )
       return data
     },

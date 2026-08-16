@@ -631,9 +631,9 @@ describe.skipIf(!DB_AVAILABLE)("managed booking contract workflow", () => {
     const rejected = await app.request(`/${managed.value.id}/issue`, { method: "POST" })
     expect(rejected.status).toBe(400)
     await expect(rejected.json()).resolves.toMatchObject({
-      error:
-        "Managed booking contract revisions must be issued through the reviewed lifecycle command.",
-      code: "invalid_request",
+      error: expect.stringContaining(
+        "Booking contract revisions require the reviewed revision and content fingerprint",
+      ),
     })
     await expect(
       db.select().from(contracts).where(eq(contracts.id, managed.value.id)).limit(1),
