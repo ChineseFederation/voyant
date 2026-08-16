@@ -1,5 +1,13 @@
 # @voyant-travel/operator-standard
 
+## 0.21.71
+
+### Patch Changes
+
+- Updated dependencies [8004dda]
+  - @voyant-travel/admin@0.138.2
+  - @voyant-travel/auth@0.153.2
+
 ## 0.21.70
 
 ### Patch Changes
