@@ -61,14 +61,65 @@ const createOrReuseBookingSessionPayment = vi.hoisted(() =>
   })),
 )
 
+/** Schedule rows already on the Booking when the Commit reaches the ports. */
+const listBookingPaymentSchedules = vi.hoisted(() =>
+  vi.fn(async (..._args: unknown[]) => [] as unknown[]),
+)
+/**
+ * Finance's own schedule write — rows, cascade-source marker, and the
+ * `payment_schedule_regenerated` activity entry the operator's payment-policy
+ * card reads. Asserted as one call rather than its parts: writing the rows
+ * without the audit entry is exactly the half-write this path must not do,
+ * because the subscriber returns early once rows exist and never backfills it.
+ */
+const persistResolvedBookingPaymentSchedule = vi.hoisted(() =>
+  vi.fn(async (..._args: unknown[]) => {}),
+)
+
+/**
+ * Finance's own bank-transfer collection. Echoes an invoice + instruction block
+ * for the amount it was asked to collect; which amount that is, is finance's
+ * tested behaviour, so what this file owns is that the port calls it at all and
+ * projects what comes back onto the Commit outcome.
+ */
+const initiateCheckoutCollection = vi.hoisted(() =>
+  vi.fn(async (..._args: unknown[]) => ({
+    plan: {},
+    invoice: { id: "invc_1", invoiceNumber: "PRO-2026-0007" },
+    paymentSession: null,
+    invoiceNotification: null,
+    paymentSessionNotification: null,
+    bankTransferInstructions: {
+      provider: "bank-transfer",
+      invoiceId: "invc_1",
+      invoiceNumber: "PRO-2026-0007",
+      documentType: "proforma" as const,
+      amountCents: 18_900,
+      currency: "EUR",
+      dueDate: "2026-08-05T00:00:00.000Z",
+      beneficiary: "Voyant Travel SRL",
+      iban: "RO49AAAA1B31007593840000",
+      bankName: "Voyant Bank",
+      notes: null,
+    },
+    providerStart: null,
+    paymentLinkUrl: null,
+  })),
+)
+
 vi.mock("@voyant-travel/finance", () => ({
   computePaymentSchedule,
   createOrReuseBookingSessionPayment,
   expirePendingBookingSessionPayments: vi.fn(),
-  financeService: { getPaymentSessionById },
+  financeService: {
+    getPaymentSessionById,
+    listBookingPaymentSchedules,
+  },
   findEstablishedBookingSessionPayment: async () => null,
   findLiveBookingSessionPayment,
+  initiateCheckoutCollection,
   noDepositPolicy: { kind: "no_deposit" },
+  persistResolvedBookingPaymentSchedule,
   resolveEffectivePaymentPolicy,
   resolvePaymentCallbackUrl: () => undefined,
   startPaymentAdapterCardPayment,
@@ -1219,3 +1270,286 @@ function startArgs() {
     acceptedCheckoutHandoffs?: readonly ("redirect" | "embedded")[]
   }
 }
+
+/**
+ * A confirmed Booking owes money on a schedule, and until voyant#4743 nothing
+ * on the Commit path wrote one: `BK-2608-841893` was confirmed owing €378.00
+ * with zero schedule rows, no document, and nothing for the shopper to act on.
+ * The reminder runs iterate schedule rows and the guest portal offers what they
+ * say is due, so an absent plan is not a missing convenience — it is a Booking
+ * nobody is collecting.
+ */
+describe("production Booking Session commit-time collection plan", () => {
+  beforeEach(() => {
+    listBookingPaymentSchedules.mockClear()
+    listBookingPaymentSchedules.mockResolvedValue([])
+    persistResolvedBookingPaymentSchedule.mockClear()
+    computePaymentSchedule.mockClear()
+    initiateCheckoutCollection.mockClear()
+  })
+
+  /**
+   * Through finance's own writer, not by assembling the pieces here: the rows,
+   * the cascade-source marker and the operator-facing audit entry travel
+   * together, and the subscriber returns early once rows exist, so a partial
+   * write is never repaired.
+   */
+  it("persists the quoted plan against the Booking's own total, through finance's writer", async () => {
+    const payments = commitPorts()
+
+    await payments.establishPaymentSchedule?.(commitInput())
+
+    expect(scheduleInput()).toMatchObject({ totalCents: 37_800, departureDate: "2026-09-20" })
+    expect(persistResolvedBookingPaymentSchedule).toHaveBeenCalledWith(
+      expect.anything(),
+      "book_4743",
+      {
+        policy: { kind: "deposit" },
+        source: "operator_default",
+        entries: [
+          { amountCents: 10_000, currency: "EUR", scheduleType: "deposit", dueDate: "2026-08-05" },
+        ],
+      },
+      {
+        replace: false,
+        description:
+          "Payment schedule established at booking commit from operator_default policy (1 row)",
+      },
+    )
+  })
+
+  /**
+   * An admitted staff Commit states its own collection plan on the Booking
+   * command, and a replayed Commit finds the plan it wrote last time. Either
+   * way the rows are somebody's decision already.
+   */
+  /**
+   * A shopper who elected to pay in full owes one instalment (voyant#4742).
+   * Recording the policy's deposit-and-balance pair against them would leave a
+   * balance row outstanding for money already taken — the schedule
+   * contradicting the payment.
+   */
+  it("records the single instalment a pay-in-full shopper elected", async () => {
+    computePaymentSchedule.mockReturnValueOnce([
+      { amountCents: 18_900, currency: "EUR", scheduleType: "deposit", dueDate: "2026-08-05" },
+      { amountCents: 18_900, currency: "EUR", scheduleType: "balance", dueDate: "2026-09-06" },
+    ])
+    const payments = commitPorts()
+
+    await payments.establishPaymentSchedule?.(
+      commitInput(37_800, ["book_4743"], { payInFull: true }),
+    )
+
+    expect(persistResolvedBookingPaymentSchedule).toHaveBeenCalledWith(
+      expect.anything(),
+      "book_4743",
+      expect.objectContaining({
+        entries: [
+          { amountCents: 37_800, currency: "EUR", scheduleType: "full", dueDate: "2026-08-05" },
+        ],
+      }),
+      expect.objectContaining({ replace: false }),
+    )
+  })
+
+  it("leaves an existing schedule alone", async () => {
+    listBookingPaymentSchedules.mockResolvedValue([{ id: "bkps_1" }])
+    const payments = commitPorts()
+
+    await payments.establishPaymentSchedule?.(commitInput())
+
+    expect(persistResolvedBookingPaymentSchedule).not.toHaveBeenCalled()
+  })
+
+  it("states no plan for a Booking that owes nothing", async () => {
+    const payments = commitPorts()
+
+    await payments.establishPaymentSchedule?.(commitInput(0))
+
+    expect(persistResolvedBookingPaymentSchedule).not.toHaveBeenCalled()
+  })
+})
+
+/**
+ * The bank-transfer arm of Commit deferred to an optional `establishBankTransfer`
+ * port that no deployment supplied, so it did nothing at all — the shopper left
+ * with "Your booking is made" and no amount, beneficiary, IBAN, reference, or
+ * due date (voyant#4743).
+ */
+describe("production Booking Session bank-transfer establishment", () => {
+  beforeEach(() => {
+    initiateCheckoutCollection.mockClear()
+    listBookingPaymentSchedules.mockResolvedValue([])
+  })
+
+  it("issues the document through finance and returns instructions the shopper can act on", async () => {
+    const payments = commitPorts()
+
+    const result = await payments.establishBankTransfer?.(commitInput())
+
+    expect(initiateCheckoutCollection).toHaveBeenCalledWith(
+      expect.anything(),
+      "book_4743",
+      // Never lets finance invent its fallback 30% / 30-day plan: the Commit
+      // has already established the operator's own cascade.
+      { method: "bank_transfer", stage: "initial", ensureDefaultPaymentPlan: false },
+      { defaultBankTransferDocumentType: "proforma" },
+      {
+        bankTransferDetails: {
+          provider: "bank-transfer",
+          beneficiary: "Voyant Travel SRL",
+          iban: "RO49AAAA1B31007593840000",
+          bankName: "Voyant Bank",
+        },
+      },
+    )
+    expect(result).toEqual({
+      paymentSessionId: null,
+      document: { id: "invc_1", number: "PRO-2026-0007", type: "proforma" },
+      instructions: {
+        beneficiary: "Voyant Travel SRL",
+        iban: "RO49AAAA1B31007593840000",
+        bankName: "Voyant Bank",
+        reference: "PRO-2026-0007",
+        amountCents: 18_900,
+        currency: "EUR",
+        dueAt: "2026-08-05T00:00:00.000Z",
+      },
+    })
+  })
+
+  /**
+   * An operator with no account configured has nowhere for the money to go.
+   * Issuing a document that names a placeholder would read as an answer.
+   */
+  it("establishes nothing when the operator has configured no account", async () => {
+    const payments = commitPorts({ bankTransfer: null })
+
+    await expect(payments.establishBankTransfer?.(commitInput())).resolves.toBeNull()
+    expect(initiateCheckoutCollection).not.toHaveBeenCalled()
+  })
+
+  /** A host that supplies its own orchestration still owns the whole step. */
+  it("defers to a host-supplied override", async () => {
+    const establishBankTransfer = vi.fn(async () => null)
+    const payments = commitPorts({ establishBankTransfer })
+
+    await expect(payments.establishBankTransfer?.(commitInput())).resolves.toBeNull()
+    expect(establishBankTransfer).toHaveBeenCalled()
+    expect(initiateCheckoutCollection).not.toHaveBeenCalled()
+  })
+
+  /**
+   * A composite target commits one Booking per component, and the outcome
+   * carries a single document and instruction block. Collecting against the
+   * primary alone would strand the rest while showing the shopper an amount
+   * that reads like the whole trip — worse than establishing nothing, because
+   * it looks settled.
+   */
+  it("establishes nothing when the Commit confirmed more than one Booking", async () => {
+    const payments = commitPorts()
+
+    await expect(
+      payments.establishBankTransfer?.(commitInput(37_800, ["book_4743", "book_4744"])),
+    ).resolves.toBeNull()
+    expect(initiateCheckoutCollection).not.toHaveBeenCalled()
+  })
+})
+
+/**
+ * Ports wired the way the Commit transaction reaches them: the reported
+ * booking's own facts (€378.00, departing 2026-09-20) come back from the
+ * Booking row, not from the Quote.
+ */
+function commitPorts(
+  overrides: {
+    bankTransfer?: { beneficiary: string; iban: string; bankName: string | null } | null
+    establishBankTransfer?: () => Promise<null>
+  } = {},
+) {
+  return createProductionBookingSessionPaymentPorts({
+    db: {} as never,
+    inventory: {
+      loadProductPaymentPolicyContext: async () => ({
+        listingPolicy: null,
+        categoryPolicy: null,
+        supplierId: null,
+        name: "Wine harvest weekend",
+      }),
+      resolveSelectedDepartureDate: async () => "2026-09-20",
+    },
+    distribution: { loadSupplierPaymentPolicy: vi.fn(async () => null) },
+    settings: { resolveOperatorDefaultPaymentPolicy: vi.fn(async () => ({ kind: "deposit" })) },
+    resolveBankTransferInstructions: async () =>
+      overrides.bankTransfer === undefined
+        ? {
+            beneficiary: "Voyant Travel SRL",
+            iban: "RO49AAAA1B31007593840000",
+            bankName: "Voyant Bank",
+          }
+        : overrides.bankTransfer,
+    ...(overrides.establishBankTransfer
+      ? { establishBankTransfer: overrides.establishBankTransfer as never }
+      : {}),
+  } as never)
+}
+
+/** The Commit-transaction call shape, with the Booking row the ports read back. */
+function commitInput(
+  sellAmountCents = 37_800,
+  bookingIds: readonly string[] = ["book_4743"],
+  commit: Record<string, unknown> = {},
+) {
+  return {
+    tx: bookingReaderDb({
+      bookingNumber: "BK-2608-841893",
+      sellAmountCents,
+      sellCurrency: "EUR",
+      startDate: "2026-09-20",
+    }),
+    session: {
+      target: { kind: "product", productId: "prod_1" },
+      scope: { locale: "en" },
+      statePayload: {},
+    },
+    quote: { quotedAt: new Date("2026-08-05T09:30:00Z") },
+    commit: { checkoutIntent: "bank_transfer", ...commit },
+    access: { actorKind: "anonymous" },
+    bookingId: "book_4743",
+    bookingIds,
+    now: new Date("2026-08-05T09:30:05Z"),
+  } as never
+}
+
+/** Minimal drizzle read surface for the single Booking row the ports select. */
+function bookingReaderDb(booking: Record<string, unknown> | null) {
+  return {
+    select: () => ({
+      from: () => ({
+        where: () => ({
+          limit: async () => (booking ? [booking] : []),
+        }),
+      }),
+    }),
+  }
+}
+
+/**
+ * Since voyant#4745 a Trip Snapshot resolves a policy of its own, so the plan
+ * on offer at a composite Commit is the *whole trip's*. Writing it against the
+ * primary component would record the entire debt on one of several Bookings.
+ */
+describe("production Booking Session composite commit", () => {
+  beforeEach(() => {
+    persistResolvedBookingPaymentSchedule.mockClear()
+    listBookingPaymentSchedules.mockResolvedValue([])
+  })
+
+  it("writes no schedule when the Commit confirmed more than one Booking", async () => {
+    const payments = commitPorts()
+
+    await payments.establishPaymentSchedule?.(commitInput(37_800, ["book_4743", "book_4744"]))
+
+    expect(persistResolvedBookingPaymentSchedule).not.toHaveBeenCalled()
+  })
+})

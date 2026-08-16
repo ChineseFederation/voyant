@@ -550,6 +550,43 @@ export interface BookingSessionPaymentPorts {
     now: Date
   }): Promise<BookingPaymentPlanV1 | null>
   /**
+   * Persist the collection plan the Quote published, against the Booking that
+   * was just written, inside the same Commit transaction.
+   *
+   * A confirmed Booking owes money on a schedule. Until voyant#4743 the only
+   * thing that wrote those rows was the asynchronous `booking.confirmed`
+   * subscriber, so the Booking existed as `confirmed` with nothing recording
+   * what was owed or when — nothing for the reminder runs to anchor to, and
+   * nothing the guest portal could offer to pay. A bank-transfer Commit made
+   * it visible because it also has nothing else to charge, but the gap is the
+   * schedule's, not the intent's.
+   *
+   * Establishing it here makes the plan atomic with the Booking. The
+   * subscriber stays as the safety net for every path this one does not reach
+   * (sourced and composite targets), and is idempotent: it returns early once
+   * any schedule row exists.
+   *
+   * Called for every checkout intent, before {@link establishBankTransfer},
+   * which collects against the row this writes.
+   */
+  establishPaymentSchedule?(input: {
+    tx: unknown
+    session: BookingSessionInternalRecord
+    quote: BookingQuoteInternalRecord
+    commit: CommitBookingSessionV1
+    access: BookingSessionAccessContext
+    /** The Booking a single collection plan is written against. */
+    bookingId: string
+    /**
+     * Every Booking this Commit confirmed, `bookingId` first. A composite
+     * target commits one Booking per component while the plan resolved for the
+     * Session covers the whole trip, so the implementation has to be told that
+     * `bookingId` is not the whole debt rather than inferring it.
+     */
+    bookingIds: readonly string[]
+    now: Date
+  }): Promise<void>
+  /**
    * Establish the durable offline-payment record after the Booking id exists
    * but before the surrounding Commit transaction is consumed.
    */
@@ -559,7 +596,20 @@ export interface BookingSessionPaymentPorts {
     quote: BookingQuoteInternalRecord
     commit: CommitBookingSessionV1
     access: BookingSessionAccessContext
+    /** The Booking a single collection is established against. */
     bookingId: string
+    /**
+     * Every Booking this Commit confirmed, `bookingId` first.
+     *
+     * A composite target commits one Booking per component, and the outcome
+     * carries a single `bankTransfer` block — one document, one instruction
+     * set. So the implementation has to be told that `bookingId` is not the
+     * whole debt, rather than inferring completeness from a Booking id it was
+     * handed. Establishing against the primary alone would leave the other
+     * components confirmed with nothing collecting them, while the shopper
+     * reads instructions that look like the full amount.
+     */
+    bookingIds: readonly string[]
     now: Date
   }): Promise<BookingSessionBankTransferV1 | null>
   transferToBooking(input: {
@@ -2352,6 +2402,16 @@ async function consumeCommittedSources(input: {
         })
       }
     }
+    await input.ports.payments?.establishPaymentSchedule?.({
+      tx: input.tx,
+      session: currentSession,
+      quote: currentQuote,
+      commit: input.input,
+      access: input.access,
+      bookingId: input.bookingId,
+      bookingIds: [input.bookingId],
+      now: currentAt,
+    })
     const bankTransfer =
       input.input.checkoutIntent === "bank_transfer"
         ? await input.ports.payments?.establishBankTransfer?.({
@@ -2361,6 +2421,7 @@ async function consumeCommittedSources(input: {
             commit: input.input,
             access: input.access,
             bookingId: input.bookingId,
+            bookingIds: [input.bookingId],
             now: currentAt,
           })
         : undefined
@@ -2509,6 +2570,16 @@ async function consumeCompositeCommittedSources(input: {
         reason: currentHold === "expired" ? "expired" : "missing",
       })
     }
+    await input.ports.payments?.establishPaymentSchedule?.({
+      tx: input.tx,
+      session: currentSession,
+      quote: currentQuote,
+      commit: input.input,
+      access: input.access,
+      bookingId: primary.bookingId,
+      bookingIds: input.bookings.map((booking) => booking.bookingId),
+      now: currentAt,
+    })
     const bankTransfer =
       input.input.checkoutIntent === "bank_transfer"
         ? await input.ports.payments?.establishBankTransfer?.({
@@ -2518,6 +2589,7 @@ async function consumeCompositeCommittedSources(input: {
             commit: input.input,
             access: input.access,
             bookingId: primary.bookingId,
+            bookingIds: input.bookings.map((booking) => booking.bookingId),
             now: currentAt,
           })
         : undefined

@@ -57,6 +57,15 @@ export function createBookingScheduleSubscriberRuntime(
             bookingId: data.bookingId,
             error: error instanceof Error ? error.message : String(error),
           })
+          // Rethrown, not swallowed (voyant#4743). Swallowing reported success
+          // to the durable outbox, which marked the event delivered — so a
+          // Booking whose schedule generation failed once never got another
+          // attempt, and the only trace was a log line nobody reads. The
+          // failure modes here are transient or environmental (the subscriber
+          // runtime not registered in the invocation that drained the event, a
+          // cascade resolver erroring), which is exactly what retry and
+          // dead-lettering exist for.
+          throw error
         }
       })
     },

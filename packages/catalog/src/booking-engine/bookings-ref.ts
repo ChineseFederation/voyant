@@ -1,4 +1,4 @@
-import { integer, pgTable, text } from "drizzle-orm/pg-core"
+import { date, integer, pgTable, text } from "drizzle-orm/pg-core"
 
 /**
  * Narrow local mirrors of the Booking-owned tables used while materializing an
@@ -10,6 +10,16 @@ export const bookingsRef = pgTable("bookings", {
   bookingNumber: text("booking_number").notNull(),
   status: text("status").notNull(),
   sellCurrency: text("sell_currency").notNull(),
+  /**
+   * The persisted total and departure, read back after the Booking is written
+   * so the collection plan is measured against what the Booking actually
+   * records rather than against the Quote's own arithmetic. Finance reconciles
+   * tax and extra lines while creating the Booking, so `sellAmountCents` is not
+   * always the Quote total, and a schedule computed from the Quote can fail to
+   * sum to the Booking it belongs to.
+   */
+  sellAmountCents: integer("sell_amount_cents"),
+  startDate: date("start_date"),
 })
 
 export const bookingItemsRef = pgTable("booking_items", {

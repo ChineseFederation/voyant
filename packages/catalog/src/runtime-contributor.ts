@@ -100,6 +100,42 @@ type RuntimePortValue<T> = T | Promise<T>
 // Importing Cruises here would create a Catalog <-> Cruises package cycle.
 const cruisesRoutesRuntimePortReference = { id: "cruises.routes-runtime" } as const
 const paymentAdapterRuntimePortReference = { id: "payments.adapter.runtime" } as const
+// Same reason: Commerce depends on Catalog, so the operator-settings runtime it
+// provides is referenced by id rather than imported.
+const commerceOperatorSettingsRuntimePortReference = {
+  id: "commerce.operator-settings.runtime",
+} as const
+
+interface CommerceBankTransferInstructionsRuntime {
+  resolveBankTransferInstructions(
+    db: PostgresJsDatabase,
+    env: Record<string, string | undefined>,
+  ): Promise<{ beneficiary: string; iban: string; bankName: string }>
+}
+
+/**
+ * The operator's own account, or nothing.
+ *
+ * The settings provider fills unset fields with an em dash so an operator
+ * screen has something to render. That is a placeholder, not an account, and a
+ * bank-transfer document naming it would tell the shopper to wire money to
+ * "—". Treat it as unconfigured, which is what stops the Commit issuing
+ * instructions nobody can act on (voyant#4743).
+ */
+function configuredBankTransferDetails(instructions: {
+  beneficiary: string
+  iban: string
+  bankName: string
+}): { beneficiary: string; iban: string; bankName: string | null } | null {
+  const configured = (value: string | null | undefined) => {
+    const trimmed = value?.trim()
+    return trimmed && trimmed !== "—" && trimmed !== "-" ? trimmed : null
+  }
+  const beneficiary = configured(instructions.beneficiary)
+  const iban = configured(instructions.iban)
+  if (!beneficiary || !iban) return null
+  return { beneficiary, iban, bankName: configured(instructions.bankName) }
+}
 
 export interface CatalogRuntimePortContribution {
   search: RuntimePortValue<CatalogSearchRuntimeOptions>
@@ -239,6 +275,21 @@ export function createCatalogRuntimePortContribution(
         async resolvePaymentAdapter() {
           if (host.hasRuntimePort?.(paymentAdapterRuntimePortReference) !== true) return null
           return host.getRuntimePort<PaymentAdapter>(paymentAdapterRuntimePortReference)
+        },
+        async resolveBankTransferInstructions(paymentsDb) {
+          if (host.hasRuntimePort?.(commerceOperatorSettingsRuntimePortReference) !== true) {
+            return null
+          }
+          const operatorSettings =
+            await host.getRuntimePort<CommerceBankTransferInstructionsRuntime>(
+              commerceOperatorSettingsRuntimePortReference,
+            )
+          return configuredBankTransferDetails(
+            await operatorSettings.resolveBankTransferInstructions(
+              paymentsDb,
+              host.primitives.env(undefined) as Record<string, string | undefined>,
+            ),
+          )
         },
         paymentAdapterContext: {
           env: host.primitives.env(undefined) as Readonly<Record<string, unknown>>,

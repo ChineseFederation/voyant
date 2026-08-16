@@ -481,6 +481,11 @@ export {
 } from "./payment-schedule/booking-policy.js"
 export { resolveBookingPaymentPolicyCascade } from "./payment-schedule/booking-policy-runtime.js"
 export {
+  type PersistBookingPaymentScheduleOptions,
+  persistResolvedBookingPaymentSchedule,
+  type ResolvedBookingPaymentSchedule,
+} from "./payment-schedule/persist-schedule.js"
+export {
   type BookingScheduleRoutesOptions,
   createBookingScheduleAdminRoutes,
   createBookingScheduleApiExtension,

@@ -13,10 +13,12 @@
  * finance package must not statically import. They are therefore INJECTED via
  * {@link BookingScheduleRoutesOptions}, alongside the operator-default resolver.
  *
- * The bookings schema (`bookings`, `bookingActivityLog`) and the action-ledger
- * appender are imported directly: `@voyant-travel/finance` already depends on
- * both `@voyant-travel/bookings` and `@voyant-travel/action-ledger` acyclically
- * (neither depends back on finance), so no injection is needed there.
+ * The bookings schema (`bookings`) and the action-ledger appender are imported
+ * directly: `@voyant-travel/finance` already depends on both
+ * `@voyant-travel/bookings` and `@voyant-travel/action-ledger` acyclically
+ * (neither depends back on finance), so no injection is needed there. The
+ * schedule write itself lives in `./persist-schedule.js`, which the Session
+ * Commit path shares.
  *
  * All handler behavior, cascade precedence, idempotency, and the activity-log
  * entry are preserved byte-for-byte from the operator's previous
@@ -26,7 +28,7 @@
 import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi"
 import type { ActionLedgerRequestContextValues } from "@voyant-travel/action-ledger"
 import { appendActionLedgerMutation } from "@voyant-travel/action-ledger"
-import { bookingActivityLog, bookings } from "@voyant-travel/bookings/schema"
+import { bookings } from "@voyant-travel/bookings/schema"
 import { defineGraphRuntimeFactory } from "@voyant-travel/core/project"
 import { openApiValidationHook, parseJsonBody } from "@voyant-travel/hono"
 import type { ApiExtension } from "@voyant-travel/hono/module"
@@ -54,11 +56,11 @@ import {
   financeProposalsPaymentPolicyRuntimePort,
 } from "../runtime-port.js"
 import { bookingPaymentSchedules } from "../schema/booking-billing.js"
-import { financeService } from "../service.js"
 import {
   type BookingPaymentPolicyCascadeReaders,
   resolveBookingPaymentPolicy,
 } from "./booking-policy.js"
+import { persistResolvedBookingPaymentSchedule } from "./persist-schedule.js"
 
 export type { PaymentPolicyEntityContext }
 
@@ -108,9 +110,9 @@ export interface BookingScheduleRoutesOptions extends BookingPaymentPolicyCascad
  *
  * Resolves the effective customer payment policy (cascade: booking → listing →
  * category → supplier → operator default), runs {@link computePaymentSchedule},
- * persists the rows via `financeService.applyComputedPaymentSchedule`, stamps
- * the cascade source on the booking, and writes a `system_action` activity-log
- * entry.
+ * and hands the result to {@link persistResolvedBookingPaymentSchedule}, which
+ * writes the rows, the cascade-source marker, and the `system_action`
+ * activity-log entry together.
  *
  * Idempotent: when any schedule row already exists for the booking (in any
  * status) it returns early so a re-fired `booking.confirmed` event doesn't wipe
@@ -150,33 +152,16 @@ export async function generatePaymentScheduleForBooking(
     policy,
   )
 
-  await financeService.applyComputedPaymentSchedule(db, bookingId, entries, { replace: true })
-
-  // Stash the source on the booking's internalNotes so the contract
-  // resolver can echo it via `booking.paymentPolicy.source`. The
-  // source enum is small (booking | listing | category | supplier |
-  // operator_default) so a single marker line is enough.
-  await options.stampPolicySourceOnBooking(db, bookingId, source)
-
-  // Audit trail — record what cascade layer applied, which policy
-  // was used, and the resulting schedule snapshot. Lets ops trace
-  // why a particular schedule was generated. The structured metadata
-  // (`kind: payment_schedule_regenerated`) distinguishes this row
-  // from other system-issued activity entries.
-  await db.insert(bookingActivityLog).values({
+  // Rows, the `__payment_policy_source__` marker the contract resolver echoes
+  // as `booking.paymentPolicy.source`, and the audit entry the operator's
+  // payment-policy card reads — one write, shared with the Commit-time path so
+  // the two cannot establish a booking's plan differently (voyant#4743).
+  await persistResolvedBookingPaymentSchedule(
+    db,
     bookingId,
-    actorId: "system",
-    activityType: "system_action",
-    description: `Payment schedule regenerated from ${source} policy (${entries.length} row${
-      entries.length === 1 ? "" : "s"
-    })`,
-    metadata: {
-      kind: "payment_schedule_regenerated",
-      policySource: source,
-      policy,
-      entries,
-    },
-  })
+    { policy, source, entries },
+    { replace: true, stampPolicySource: options.stampPolicySourceOnBooking },
+  )
 }
 
 // ─────────────────────────────────────────────────────────────────

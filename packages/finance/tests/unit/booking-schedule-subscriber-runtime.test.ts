@@ -64,7 +64,15 @@ describe("finance booking-schedule subscriber runtime", () => {
     expect(calls).toEqual(["db", "generate", "settle"])
   })
 
-  it("logs processing failures without rejecting event delivery", async () => {
+  /**
+   * The failure has to reach the caller. This subscriber runs off the durable
+   * outbox, so resolving successfully after a failure tells the drain the event
+   * was handled and the row is marked delivered — a Booking whose schedule
+   * generation failed once then never gets another attempt, and the only trace
+   * is a log line (voyant#4743). Rethrowing is what makes the retry and the
+   * dead-letter real.
+   */
+  it("logs processing failures and rethrows so delivery retries", async () => {
     const error = new Error("database unavailable")
     const logger = { error: vi.fn() }
     const eventBus = createEventBus()
@@ -92,7 +100,7 @@ describe("finance booking-schedule subscriber runtime", () => {
         emittedAt: new Date().toISOString(),
         metadata: undefined,
       }),
-    ).resolves.toBeUndefined()
+    ).rejects.toBe(error)
     expect(logger.error).toHaveBeenCalledWith("[booking-schedule] failed to generate schedule", {
       bookingId: "booking_2",
       error: "database unavailable",

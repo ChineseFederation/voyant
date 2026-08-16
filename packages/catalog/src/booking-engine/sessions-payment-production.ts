@@ -1,4 +1,7 @@
-import type { BookingPaymentCheckoutV1 } from "@voyant-travel/catalog-contracts/booking-engine/lifecycle-conformance"
+import type {
+  BookingPaymentCheckoutV1,
+  BookingSessionBankTransferV1,
+} from "@voyant-travel/catalog-contracts/booking-engine/lifecycle-conformance"
 import type { BookingSessionTargetV1 } from "@voyant-travel/catalog-contracts/booking-engine/session-contracts"
 import { identifiedUserId } from "@voyant-travel/core"
 import type {
@@ -15,7 +18,9 @@ import {
   findEstablishedBookingSessionPayment,
   findLiveBookingSessionPayment,
   hasInFlightBookingSessionPayment,
+  initiateCheckoutCollection,
   noDepositPolicy,
+  persistResolvedBookingPaymentSchedule,
   resolveEffectivePaymentPolicy,
   resolvePaymentCallbackUrl,
   startPaymentAdapterCardPayment,
@@ -31,6 +36,7 @@ import type {
   CatalogInventoryRuntimeExtension,
 } from "../runtime-contracts.js"
 import { catalogSourcedEntriesTable } from "../schema-sourced-entries.js"
+import { bookingsRef } from "./bookings-ref.js"
 import type {
   BookingSessionCompositeHandler,
   BookingSessionPaymentPorts,
@@ -44,7 +50,11 @@ export interface ProductionBookingSessionPaymentDeps {
     "loadProductPaymentPolicyContext" | "resolveSelectedDepartureDate"
   >
   distribution: Pick<CatalogDistributionRuntimeExtension, "loadSupplierPaymentPolicy">
-  settings: Pick<FinanceOperatorSettingsRuntime, "resolveOperatorDefaultPaymentPolicy">
+  settings: Pick<FinanceOperatorSettingsRuntime, "resolveOperatorDefaultPaymentPolicy"> &
+    // Which document a bank transfer is collected against. Partial so a caller
+    // that wires no invoicing settings keeps the historical proforma-first
+    // behaviour rather than failing to construct.
+    Partial<Pick<FinanceOperatorSettingsRuntime, "resolveInvoicingMode">>
   /**
    * The entity-keyed cascade layers — the same three the storefront's
    * policy-preview route walks, keyed by the listing a Session targets rather
@@ -72,7 +82,29 @@ export interface ProductionBookingSessionPaymentDeps {
   resolvePaymentAdapter?: () => PaymentAdapter | null | Promise<PaymentAdapter | null>
   paymentAdapterContext?: PaymentAdapterRuntimeContext
   financeRuntime?: Parameters<typeof createOrReuseBookingSessionPayment>[2]
-  /** Host-owned bank-transfer document/instruction orchestration. */
+  /**
+   * Where the operator wants the transfer sent.
+   *
+   * Deployment-owned because it is operator profile and environment, not
+   * catalog state. Returning null is the honest answer for an operator who has
+   * configured no account, and it is what stops the engine issuing a document
+   * that names nowhere to pay — a placeholder IBAN is worse than no
+   * instructions, because it looks like an answer.
+   */
+  resolveBankTransferInstructions?: (db: PostgresJsDatabase) => Promise<{
+    beneficiary: string
+    iban: string
+    bankName: string | null
+  } | null>
+  /**
+   * Host override for bank-transfer document/instruction orchestration.
+   *
+   * Optional, and now genuinely optional: the ports below establish the
+   * proforma and instructions themselves when it is absent. It was the ONLY
+   * implementation until voyant#4743, and no deployment supplied it, so the
+   * whole bank-transfer arm of Commit was a no-op that confirmed a Booking
+   * owing its full price with nothing to pay it against.
+   */
   establishBankTransfer?: BookingSessionPaymentPorts["establishBankTransfer"]
   /**
    * Whether the operator's booking terms authorize charging a stored
@@ -377,8 +409,224 @@ export function createProductionBookingSessionPaymentPorts(
     async expirePending({ tx, bookingSessionId, at }) {
       await expirePendingBookingSessionPayments(tx as PostgresJsDatabase, bookingSessionId, at)
     },
+    async establishPaymentSchedule({ tx, session, quote, commit, bookingId, bookingIds }) {
+      await establishBookingPaymentSchedule(deps, tx as PostgresJsDatabase, {
+        session,
+        quotedAt: quote.quotedAt,
+        payInFull: commit.payInFull === true,
+        bookingId,
+        bookingIds,
+      })
+    },
     async establishBankTransfer(input) {
-      return (await deps.establishBankTransfer?.(input)) ?? null
+      if (deps.establishBankTransfer) return (await deps.establishBankTransfer(input)) ?? null
+      return establishBankTransferDocument(deps, input.tx as PostgresJsDatabase, {
+        bookingId: input.bookingId,
+        bookingIds: input.bookingIds,
+        now: input.now,
+      })
+    },
+  }
+}
+
+/**
+ * The Booking's own record of what it sold and when it departs.
+ *
+ * Read back rather than carried from the Quote: Finance reconciles tax and
+ * extra lines while writing the Booking, so `sellAmountCents` is the number the
+ * customer owes and the Quote total is not always it.
+ */
+async function readCommittedBooking(db: PostgresJsDatabase, bookingId: string) {
+  const [booking] = await db
+    .select({
+      bookingNumber: bookingsRef.bookingNumber,
+      sellAmountCents: bookingsRef.sellAmountCents,
+      sellCurrency: bookingsRef.sellCurrency,
+      startDate: bookingsRef.startDate,
+    })
+    .from(bookingsRef)
+    .where(eq(bookingsRef.id, bookingId))
+    .limit(1)
+  return booking ?? null
+}
+
+/**
+ * Persist the collection plan for a just-committed Booking (voyant#4743).
+ *
+ * The policy is resolved through the same cascade `prepare` and `describePlan`
+ * use, anchored to the same `quotedAt`, so the rows written here state the
+ * terms the shopper was quoted and accepted. Resolving it a second way at
+ * Commit would put the stated terms and the recorded debt back on separate
+ * derivations, which is the shape of voyant#4741.
+ *
+ * Silent no-ops, all of them deliberate:
+ *
+ * - **any schedule row already exists** — an admitted staff Commit states its
+ *   own plan on the Booking command, and a replayed Commit finds the plan it
+ *   wrote last time. Neither wants a second one.
+ * - **the Commit confirmed more than one Booking** — a composite target
+ *   commits one Booking per component, and this writes one Booking's schedule.
+ *   Since voyant#4745 a Trip resolves a policy, so the plan on offer here is
+ *   the *whole trip's*; persisting it against the primary component would
+ *   record the entire debt on one of several Bookings. The `booking.confirmed`
+ *   subscriber remains the safety net, per-Booking, which is the right shape.
+ * - **the target states no plan** — `target_gone` and `declined` both mean
+ *   there is nothing to write. A Commit does not fail over a projection.
+ * - **nothing owed** — a zero-total Booking has no schedule to state.
+ */
+async function establishBookingPaymentSchedule(
+  deps: ProductionBookingSessionPaymentDeps,
+  db: PostgresJsDatabase,
+  input: {
+    session: Parameters<typeof resolvePlan>[1]
+    quotedAt: Date
+    /** The shopper's election, as `prepare` read it — see {@link collectNow}. */
+    payInFull: boolean
+    bookingId: string
+    bookingIds: readonly string[]
+  },
+): Promise<void> {
+  if (input.bookingIds.length > 1) return
+
+  const existing = await financeService.listBookingPaymentSchedules(db, input.bookingId)
+  if (existing.length > 0) return
+
+  const booking = await readCommittedBooking(db, input.bookingId)
+  if (!booking?.sellAmountCents || booking.sellAmountCents <= 0) return
+
+  const plan = await resolvePlan(
+    deps,
+    input.session,
+    { total: booking.sellAmountCents, currency: booking.sellCurrency },
+    input.quotedAt,
+  )
+  if (plan.kind !== "plan" || plan.entries.length === 0) return
+
+  // A shopper who elected to pay in full owes one instalment, not the policy's
+  // deposit and a balance behind it (voyant#4742). `prepare` already collapsed
+  // the pair through `collectNow` to decide what to charge; recording the
+  // uncollapsed pair here would leave a balance row outstanding against money
+  // that has already been taken, which is the schedule contradicting the
+  // payment. Same collapse, same function, so the two cannot disagree.
+  const entries = input.payInFull
+    ? [collectNow(plan.entries, { payInFull: true, totalCents: booking.sellAmountCents })].filter(
+        (entry): entry is ComputedScheduleEntry => entry !== undefined,
+      )
+    : plan.entries
+  if (entries.length === 0) return
+
+  // Finance's own write, so a Booking scheduled here is indistinguishable
+  // downstream from one scheduled by the subscriber: the rows, the
+  // `__payment_policy_source__` marker the contract resolver echoes, and the
+  // activity entry the operator's payment-policy card reads to explain why
+  // these terms apply. Writing only the rows would leave that card permanently
+  // empty for the booking — the subscriber returns early once rows exist, so
+  // nothing backfills it.
+  await persistResolvedBookingPaymentSchedule(
+    db,
+    input.bookingId,
+    { policy: plan.resolved.policy, source: plan.resolved.source, entries },
+    {
+      // Nothing to replace: this only runs when the Booking has no schedule.
+      replace: false,
+      description: `Payment schedule established at booking commit from ${plan.resolved.source} policy (${entries.length} row${
+        entries.length === 1 ? "" : "s"
+      })`,
+    },
+  )
+}
+
+/**
+ * Issue the document a bank transfer is paid against, and say where to send it.
+ *
+ * Runs inside the Commit transaction, after the Booking and its schedule exist,
+ * so a failure here rolls the Commit back rather than confirming a Booking the
+ * shopper cannot pay.
+ *
+ * Finance owns every part of this: `initiateCheckoutCollection` selects the
+ * next outstanding schedule row — the deposit, when the policy asks for one —
+ * issues the proforma for exactly that amount with that row's due date, and
+ * builds the instruction block. That is the same operation the operator's own
+ * "collect by bank transfer" action performs, so the resulting document,
+ * numbering, and settlement path are the ones the operator already knows.
+ *
+ * `ensureDefaultPaymentPlan` is off on purpose, though no longer for the reason
+ * it was when this was written: voyant#4744 stopped finance's fallback plan
+ * inventing a 30% / 30-day deposit, so materializing one here would now resolve
+ * the operator's real policy rather than a made-up one. It stays off because
+ * `establishPaymentSchedule` has already written the plan the shopper was
+ * quoted, anchored to the Quote's own instant — a second derivation, however
+ * correct in isolation, is the split this whole path exists to close
+ * (voyant#4741). When no schedule could be established the collection falls
+ * back to the Booking total, which is the honest statement of what is owed.
+ *
+ * Null — no document, no instructions on the Commit outcome — in two cases:
+ *
+ * - **the operator has configured no account** to receive the transfer
+ * - **the Commit confirmed more than one Booking.** A composite target commits
+ *   one Booking per component and `BookingSessionBankTransferV1` carries a
+ *   single document and a single instruction block, so anything established
+ *   here would collect the primary component and silently strand the rest —
+ *   while presenting the shopper an amount that reads like the whole trip.
+ *   Partial collection dressed as complete is worse than none, so this stays
+ *   exactly where it was before voyant#4743 until the outcome contract can
+ *   state several collections, or a genuine aggregate document exists.
+ */
+async function establishBankTransferDocument(
+  deps: ProductionBookingSessionPaymentDeps,
+  db: PostgresJsDatabase,
+  input: { bookingId: string; bookingIds: readonly string[]; now: Date },
+): Promise<BookingSessionBankTransferV1 | null> {
+  if (input.bookingIds.length > 1) return null
+
+  const details = await deps.resolveBankTransferInstructions?.(db)
+  if (!details) return null
+
+  const booking = await readCommittedBooking(db, input.bookingId)
+  if (!booking?.sellAmountCents || booking.sellAmountCents <= 0) return null
+
+  // The operator's own invoicing mode, the same one the storefront checkout
+  // reads: `direct` collects against the fiscal invoice, `proforma-first`
+  // (the default) mints the invoice later, on settlement.
+  const invoicingMode = await deps.settings.resolveInvoicingMode?.(db)
+
+  const collection = await initiateCheckoutCollection(
+    db,
+    input.bookingId,
+    { method: "bank_transfer", stage: "initial", ensureDefaultPaymentPlan: false },
+    { defaultBankTransferDocumentType: invoicingMode === "direct" ? "invoice" : "proforma" },
+    {
+      bankTransferDetails: {
+        provider: "bank-transfer",
+        beneficiary: details.beneficiary,
+        iban: details.iban,
+        bankName: details.bankName,
+      },
+    },
+  )
+  const instructions = collection?.bankTransferInstructions
+  if (!instructions || instructions.amountCents <= 0) return null
+
+  return {
+    paymentSessionId: collection?.paymentSession?.id ?? null,
+    document: collection?.invoice
+      ? {
+          id: collection.invoice.id,
+          number: collection.invoice.invoiceNumber,
+          type: instructions.documentType,
+        }
+      : null,
+    instructions: {
+      beneficiary: instructions.beneficiary,
+      iban: instructions.iban,
+      bankName: instructions.bankName ?? null,
+      // The document number, not the Booking reference: the balance is owed on
+      // the proforma, and that is what the operator reconciles the incoming
+      // transfer against.
+      reference: instructions.invoiceNumber || `BOOK-${booking.bookingNumber}`,
+      amountCents: instructions.amountCents,
+      currency: instructions.currency,
+      dueAt: instructions.dueDate ?? input.now.toISOString(),
     },
   }
 }
