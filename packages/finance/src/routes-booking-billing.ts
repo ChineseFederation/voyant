@@ -36,6 +36,7 @@ import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi"
 import { ActionLedgerIdempotencyConflictError } from "@voyant-travel/action-ledger"
 import { openApiValidationHook } from "@voyant-travel/hono"
 
+import { resolveBookingPaymentPolicyCascade } from "./payment-schedule/booking-policy-runtime.js"
 import { paymentSessionSchema } from "./routes-invoice-schemas.js"
 import { getActionLedgerRequestContext, getFinanceRouteRuntime } from "./routes-runtime.js"
 import { type Env, notFound } from "./routes-shared.js"
@@ -235,8 +236,10 @@ const applyDefaultBookingPaymentPlanRoute = createRoute({
     body: {
       required: true,
       description:
-        "Default payment-plan options. Every field is optional / defaulted, so " +
-        "a posted `{}` applies the default deposit/balance split.",
+        "Default payment-plan options. Every field is optional: a posted `{}` " +
+        "applies the operator's configured payment policy (booking → proposal → " +
+        "listing → category → supplier → operator default), and stating deposit " +
+        "terms overrides that policy for this call only.",
       content: { "application/json": { schema: applyDefaultBookingPaymentPlanSchema } },
     },
   },
@@ -391,6 +394,11 @@ const bookingPaymentScheduleRoutes = new OpenAPIHono<Env>({ defaultHook: openApi
       c.req.valid("json"),
       {
         eventBus: runtime?.eventBus,
+        // A caller that states no deposit terms gets the operator's configured
+        // policy, resolved through the same cascade `booking.confirmed` walks
+        // (voyant#4744). No cascade composed means no configured deposit, which
+        // the service reads as `noDepositPolicy` — pay in full.
+        paymentPolicyCascade: await resolveBookingPaymentPolicyCascade(c.var.container, c.env),
         actionLedgerContext: getActionLedgerRequestContext(c),
         actionLedgerAuthorizationSource: "finance.booking_payment_schedule.default_plan.route",
       },

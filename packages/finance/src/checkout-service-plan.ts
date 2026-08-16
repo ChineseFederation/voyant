@@ -8,6 +8,7 @@ import type {
   CheckoutProviderStartInput,
   InitiateCheckoutCollectionInput,
 } from "./checkout-validation.js"
+import type { BookingPaymentPolicyCascadeReaders } from "./payment-schedule/booking-policy.js"
 import type { bookingPaymentSchedules, invoices, PaymentSession } from "./schema.js"
 
 export interface CheckoutPolicyOptions {
@@ -15,13 +16,24 @@ export interface CheckoutPolicyOptions {
   defaultReminderCardCollectionTarget?: "schedule" | "invoice"
   defaultBankTransferDocumentType?: "proforma" | "invoice"
   defaultCardCollectionDocumentType?: "proforma" | "invoice"
+  /**
+   * A deliberate deployment-wide override of the operator's payment policy.
+   *
+   * The deposit trio is optional: leaving it unset means the collection
+   * runtime materializes the plan the operator actually configured, resolved
+   * through the `PaymentPolicy` cascade. Setting it overrides that policy for
+   * every collection this deployment starts, which is almost never what a
+   * deployment wants — it used to be the only behaviour available, and it
+   * silently applied 30% / 30 days to operators who had configured neither
+   * (voyant#4744).
+   */
   defaultPaymentPlan?: {
-    depositMode: "none" | "percentage" | "fixed_amount"
-    depositValue: number
-    balanceDueDaysBeforeStart: number
-    clearExistingPending: boolean
-    createGuarantee: boolean
-    guaranteeType:
+    depositMode?: "none" | "percentage" | "fixed_amount"
+    depositValue?: number
+    balanceDueDaysBeforeStart?: number
+    clearExistingPending?: boolean
+    createGuarantee?: boolean
+    guaranteeType?:
       | "deposit"
       | "credit_card"
       | "preauth"
@@ -31,6 +43,15 @@ export interface CheckoutPolicyOptions {
       | "agency_letter"
     notes?: string | null
   }
+  /**
+   * The operator's payment-policy cascade readers.
+   *
+   * Wired by the checkout route layer from the container registration the
+   * `booking.confirmed` subscriber already uses. Absent means no cascade is
+   * composed, and the collection runtime falls back to `noDepositPolicy` — pay
+   * in full — rather than to a made-up deposit.
+   */
+  paymentPolicyCascade?: BookingPaymentPolicyCascadeReaders | null
 }
 
 export type LoadedBookingContext = {
@@ -172,16 +193,45 @@ export const OUTSTANDING_INVOICE_STATUSES: Array<(typeof invoices.$inferSelect)[
   "overdue",
 ]
 
+/**
+ * The plan options this deployment configured, with only the bookkeeping
+ * fields defaulted.
+ *
+ * The deposit trio is passed through as stated — `undefined` where the
+ * deployment said nothing — so the collection runtime can tell "no deposit
+ * terms were configured" (use the operator's policy) from "a deposit was
+ * configured". Defaulting them to 30% / 30 days here is what made the two
+ * models disagree (voyant#4744).
+ */
 export function defaultPaymentPlan(options: CheckoutPolicyOptions) {
+  const configured = options.defaultPaymentPlan
   return {
-    depositMode: options.defaultPaymentPlan?.depositMode ?? "percentage",
-    depositValue: options.defaultPaymentPlan?.depositValue ?? 30,
-    balanceDueDaysBeforeStart: options.defaultPaymentPlan?.balanceDueDaysBeforeStart ?? 30,
-    clearExistingPending: options.defaultPaymentPlan?.clearExistingPending ?? true,
-    createGuarantee: options.defaultPaymentPlan?.createGuarantee ?? false,
-    guaranteeType: options.defaultPaymentPlan?.guaranteeType ?? "deposit",
-    notes: options.defaultPaymentPlan?.notes ?? null,
-  } as const
+    depositMode: configured?.depositMode,
+    depositValue: configured?.depositValue,
+    balanceDueDaysBeforeStart: configured?.balanceDueDaysBeforeStart,
+    clearExistingPending: configured?.clearExistingPending ?? true,
+    createGuarantee: configured?.createGuarantee ?? false,
+    guaranteeType: configured?.guaranteeType ?? "deposit",
+    notes: configured?.notes ?? null,
+  }
+}
+
+/**
+ * Layer a per-call plan override onto the deployment's configured one.
+ *
+ * Drops keys whose value is `undefined` so a validator that materializes an
+ * absent optional field as an explicit `undefined` can't erase the layer
+ * underneath it — "said nothing" and "said undefined" have to mean the same
+ * thing, or an override could silently unset the operator's terms.
+ */
+export function mergePaymentPlanOverride<T extends object, O extends object>(
+  base: T,
+  override: O,
+): T & O {
+  const stated = Object.fromEntries(
+    Object.entries(override).filter(([, value]) => value !== undefined),
+  )
+  return { ...base, ...stated } as T & O
 }
 
 export function resolvePaymentSessionTarget(

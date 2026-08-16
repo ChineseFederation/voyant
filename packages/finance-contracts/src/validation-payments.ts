@@ -219,11 +219,26 @@ export const createPaymentSessionFromScheduleSchema = paymentSessionProvisioning
 export const createPaymentSessionFromGuaranteeSchema = paymentSessionProvisioningSchema
 export const createPaymentSessionFromInvoiceSchema = paymentSessionProvisioningSchema
 
+/**
+ * Options for the default booking payment plan.
+ *
+ * The deposit trio (`depositMode` / `depositValue` /
+ * `balanceDueDaysBeforeStart`) is deliberately UNDEFAULTED. Omitting it means
+ * "use the operator's configured `PaymentPolicy`" — the cascade the settings
+ * page edits and checkout reads. Stating it is a deliberate per-call override
+ * for a plan that is not the operator's.
+ *
+ * These fields used to default to 30% with the balance 30 days out, which made
+ * a caller who said nothing look like a caller who had asked for 30% — so an
+ * operator who configured 50%/14-days got 30%/30-days from this route and had
+ * no way to see why (voyant#4744). A default that contradicts configuration is
+ * not a default.
+ */
 export const applyDefaultBookingPaymentPlanSchema = z.object({
-  depositMode: z.enum(["none", "percentage", "fixed_amount"]).default("percentage"),
-  depositValue: z.number().int().min(0).default(30),
+  depositMode: z.enum(["none", "percentage", "fixed_amount"]).optional(),
+  depositValue: z.number().int().min(0).optional(),
   depositDueDate: z.string().optional().nullable(),
-  balanceDueDaysBeforeStart: z.number().int().min(0).default(30),
+  balanceDueDaysBeforeStart: z.number().int().min(0).optional(),
   clearExistingPending: z.boolean().default(true),
   createGuarantee: z.boolean().default(false),
   guaranteeType: guaranteeTypeSchema.default("deposit"),

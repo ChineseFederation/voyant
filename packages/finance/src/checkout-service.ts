@@ -15,6 +15,7 @@ import {
   type InitiatedCheckoutCollection,
   type LoadedBookingContext,
   lineDescription,
+  mergePaymentPlanOverride,
   normalizeExactAmountCents,
   OUTSTANDING_INVOICE_STATUSES,
   OUTSTANDING_SCHEDULE_STATUSES,
@@ -125,10 +126,16 @@ async function ensurePaymentPlanIfNeeded(
     return existingSchedules
   }
 
-  const created = await financeService.applyDefaultBookingPaymentPlan(db, bookingId, {
-    ...defaultPaymentPlan(options),
-    ...(input.paymentPlan ?? {}),
-  })
+  // Nobody stating deposit terms means "materialize what the operator
+  // configured", so the cascade comes along and the service runs the resolved
+  // policy through `computePaymentSchedule`. A per-call `paymentPlan` (or a
+  // deployment-wide `defaultPaymentPlan`) still overrides it (voyant#4744).
+  const created = await financeService.applyDefaultBookingPaymentPlan(
+    db,
+    bookingId,
+    mergePaymentPlanOverride(defaultPaymentPlan(options), input.paymentPlan ?? {}),
+    { paymentPolicyCascade: options.paymentPolicyCascade ?? null },
+  )
 
   return created ?? []
 }

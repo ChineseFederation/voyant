@@ -3596,6 +3596,28 @@ describe.skipIf(!DB_AVAILABLE)("Finance routes", () => {
       expect(guaranteesBody.data[0].bookingPaymentScheduleId).toBe(data[0].id)
       expect(guaranteesBody.data[0].amountCents).toBe(30000)
     })
+
+    it("charges in full when no deposit terms are stated and no policy is wired", async () => {
+      const booking = await seedBooking({
+        sellCurrency: "EUR",
+        sellAmountCents: 100000,
+        startDate: "2099-06-10",
+      })
+
+      const res = await app.request(`/bookings/${booking.id}/payment-schedules/default-plan`, {
+        method: "POST",
+        ...json({}),
+      })
+
+      expect(res.status).toBe(201)
+      const { data } = await res.json()
+      // voyant#4744: an empty body used to mean 30% / balance 30 days out
+      // regardless of what the operator had configured. With no policy cascade
+      // composed it now means `noDepositPolicy` — the whole amount, due today.
+      expect(data).toHaveLength(1)
+      expect(data[0].scheduleType).toBe("balance")
+      expect(data[0].amountCents).toBe(100000)
+    })
   })
 
   // ── Booking Guarantees ────────────────────────────────────────

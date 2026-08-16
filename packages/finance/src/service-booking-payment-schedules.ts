@@ -1,3 +1,5 @@
+import { computePaymentSchedule, noDepositPolicy, type PaymentPolicy } from "./payment-policy.js"
+import { resolveBookingPaymentPolicy } from "./payment-schedule/booking-policy.js"
 import { financePaymentProcessingService } from "./service-payment-processing.js"
 import type {
   ApplyDefaultBookingPaymentPlanInput,
@@ -34,6 +36,133 @@ import {
 
 export interface SettleBookingPaymentSchedulesResult {
   paidSchedules: Array<typeof bookingPaymentSchedules.$inferSelect>
+}
+
+type PlanBooking = Pick<
+  typeof bookings.$inferSelect,
+  "sellAmountCents" | "sellCurrency" | "startDate"
+>
+
+/**
+ * True when the caller stated deposit terms of its own.
+ *
+ * Only the three fields that answer "how much, and when is the rest due"
+ * count. `clearExistingPending` / `createGuarantee` / `guaranteeType` are about
+ * how the rows are written, not about what the customer owes, so they carry
+ * their own defaults and do not make a call an override.
+ */
+function statesDepositTerms(data: ApplyDefaultBookingPaymentPlanInput): boolean {
+  return (
+    data.depositMode !== undefined ||
+    data.depositValue !== undefined ||
+    data.balanceDueDaysBeforeStart !== undefined
+  )
+}
+
+/** The operator's configured policy, via the same primitive checkout reads. */
+function policyScheduleRows(
+  data: ApplyDefaultBookingPaymentPlanInput,
+  booking: PlanBooking,
+  policy: PaymentPolicy,
+  today: Date,
+): CreateBookingPaymentScheduleInput[] {
+  const entries = computePaymentSchedule(
+    {
+      totalCents: booking.sellAmountCents ?? 0,
+      currency: booking.sellCurrency,
+      departureDate: booking.startDate,
+      today,
+    },
+    policy,
+  )
+
+  return entries.map((entry) => {
+    const due = parseDateString(entry.dueDate) ?? today
+    return {
+      bookingItemId: null,
+      // The policy primitive's `full` row collapses to `balance` — the DB enum
+      // has no `full` variant, and the single full-payment row IS the balance.
+      scheduleType: entry.scheduleType === "full" ? "balance" : entry.scheduleType,
+      status: due <= today ? "due" : "pending",
+      dueDate: entry.dueDate,
+      dueTimeZone: "UTC",
+      currency: entry.currency,
+      amountCents: entry.amountCents,
+      notes: data.notes ?? null,
+    }
+  })
+}
+
+/**
+ * A plan the caller stated explicitly. Taken literally: no near-departure
+ * deposit gate and no balance-due floor, because the caller asked for these
+ * terms rather than for the operator's.
+ */
+function overrideScheduleRows(
+  data: ApplyDefaultBookingPaymentPlanInput,
+  booking: PlanBooking,
+  today: Date,
+): CreateBookingPaymentScheduleInput[] {
+  const totalAmountCents = booking.sellAmountCents ?? 0
+  const depositMode = data.depositMode ?? "none"
+  const depositValue = data.depositValue ?? 0
+  const balanceDueDaysBeforeStart = data.balanceDueDaysBeforeStart ?? 0
+
+  const depositDueDate = data.depositDueDate ? parseDateString(data.depositDueDate) : today
+  const startDate = booking.startDate ? parseDateString(booking.startDate) : null
+  const rawBalanceDueDate = startDate
+    ? new Date(startDate.getTime() - balanceDueDaysBeforeStart * 24 * 60 * 60 * 1000)
+    : today
+  const balanceDueDate = rawBalanceDueDate < today ? today : rawBalanceDueDate
+
+  let depositAmountCents = 0
+  if (depositMode === "fixed_amount") {
+    depositAmountCents = Math.min(totalAmountCents, depositValue)
+  } else if (depositMode === "percentage") {
+    depositAmountCents = Math.min(
+      totalAmountCents,
+      Math.round((totalAmountCents * depositValue) / 100),
+    )
+  }
+
+  if (depositAmountCents > 0 && depositAmountCents < totalAmountCents) {
+    return [
+      {
+        bookingItemId: null,
+        scheduleType: "deposit",
+        status: (depositDueDate ?? today) <= today ? "due" : "pending",
+        dueDate: toDateString(depositDueDate ?? today),
+        dueTimeZone: "UTC",
+        currency: booking.sellCurrency,
+        amountCents: depositAmountCents,
+        notes: data.notes ?? null,
+      },
+      {
+        bookingItemId: null,
+        scheduleType: "balance",
+        status: balanceDueDate <= today ? "due" : "pending",
+        dueDate: toDateString(balanceDueDate),
+        dueTimeZone: "UTC",
+        currency: booking.sellCurrency,
+        amountCents: Math.max(0, totalAmountCents - depositAmountCents),
+        notes: data.notes ?? null,
+      },
+    ]
+  }
+
+  const singleDueDate = balanceDueDate <= today ? today : balanceDueDate
+  return [
+    {
+      bookingItemId: null,
+      scheduleType: "balance",
+      status: singleDueDate <= today ? "due" : "pending",
+      dueDate: toDateString(singleDueDate),
+      dueTimeZone: "UTC",
+      currency: booking.sellCurrency,
+      amountCents: totalAmountCents,
+      notes: data.notes ?? null,
+    },
+  ]
 }
 
 export const financeBookingPaymentScheduleService = {
@@ -179,6 +308,27 @@ export const financeBookingPaymentScheduleService = {
     })
   },
 
+  /**
+   * Materialize a booking's payment plan.
+   *
+   * Two ways in, and which one applies is decided by what the caller stated:
+   *
+   *   - **Nothing stated** — the plan comes from the operator's configured
+   *     `PaymentPolicy` (resolved through the cascade by the caller and handed
+   *     over as `runtime.paymentPolicy`), run through `computePaymentSchedule`.
+   *     That is the same primitive `generatePaymentScheduleForBooking` uses, so
+   *     the near-departure deposit gate and the balance-due floor apply here
+   *     too. An absent policy means `noDepositPolicy` — pay in full — because
+   *     an unconfigured operator has not asked for a deposit.
+   *   - **Deposit terms stated** — a deliberate per-call override. Kept exactly
+   *     as it was: `depositDueDate` is honoured, and the split is taken
+   *     literally with no gate and no floor, because the caller asked for this
+   *     plan rather than the operator's.
+   *
+   * Before voyant#4744 there was no first branch: an unstated plan silently
+   * meant 30% with the balance 30 days out, contradicting whatever the operator
+   * had configured.
+   */
   async applyDefaultBookingPaymentPlan(
     db: PostgresJsDatabase,
     bookingId: string,
@@ -207,22 +357,6 @@ export const financeBookingPaymentScheduleService = {
         }
 
         const today = startOfUtcDay(new Date())
-        const depositDueDate = data.depositDueDate ? parseDateString(data.depositDueDate) : today
-        const startDate = booking.startDate ? parseDateString(booking.startDate) : null
-        const rawBalanceDueDate = startDate
-          ? new Date(startDate.getTime() - data.balanceDueDaysBeforeStart * 24 * 60 * 60 * 1000)
-          : today
-        const balanceDueDate = rawBalanceDueDate < today ? today : rawBalanceDueDate
-
-        let depositAmountCents = 0
-        if (data.depositMode === "fixed_amount") {
-          depositAmountCents = Math.min(totalAmountCents, data.depositValue)
-        } else if (data.depositMode === "percentage") {
-          depositAmountCents = Math.min(
-            totalAmountCents,
-            Math.round((totalAmountCents * data.depositValue) / 100),
-          )
-        }
 
         const clearableScheduleWhere = and(
           eq(bookingPaymentSchedules.bookingId, bookingId),
@@ -240,41 +374,20 @@ export const financeBookingPaymentScheduleService = {
           await tx.delete(bookingPaymentSchedules).where(clearableScheduleWhere)
         }
 
-        const scheduleRows: CreateBookingPaymentScheduleInput[] = []
-        if (depositAmountCents > 0 && depositAmountCents < totalAmountCents) {
-          scheduleRows.push({
-            bookingItemId: null,
-            scheduleType: "deposit",
-            status: depositDueDate <= today ? "due" : "pending",
-            dueDate: toDateString(depositDueDate),
-            dueTimeZone: "UTC",
-            currency: booking.sellCurrency,
-            amountCents: depositAmountCents,
-            notes: data.notes ?? null,
-          })
-          scheduleRows.push({
-            bookingItemId: null,
-            scheduleType: "balance",
-            status: balanceDueDate <= today ? "due" : "pending",
-            dueDate: toDateString(balanceDueDate),
-            dueTimeZone: "UTC",
-            currency: booking.sellCurrency,
-            amountCents: Math.max(0, totalAmountCents - depositAmountCents),
-            notes: data.notes ?? null,
-          })
-        } else {
-          const singleDueDate = balanceDueDate <= today ? today : balanceDueDate
-          scheduleRows.push({
-            bookingItemId: null,
-            scheduleType: "balance",
-            status: singleDueDate <= today ? "due" : "pending",
-            dueDate: toDateString(singleDueDate),
-            dueTimeZone: "UTC",
-            currency: booking.sellCurrency,
-            amountCents: totalAmountCents,
-            notes: data.notes ?? null,
-          })
-        }
+        // A caller that stated no deposit terms gets the operator's configured
+        // policy. Resolved from the booking row already in hand, through the
+        // cascade readers the deployment injected (voyant#4744).
+        const scheduleRows = statesDepositTerms(data)
+          ? overrideScheduleRows(data, booking, today)
+          : policyScheduleRows(
+              data,
+              booking,
+              runtime.paymentPolicyCascade
+                ? (await resolveBookingPaymentPolicy(tx, booking, runtime.paymentPolicyCascade))
+                    .policy
+                : noDepositPolicy,
+              today,
+            )
 
         const createdSchedules = await tx
           .insert(bookingPaymentSchedules)

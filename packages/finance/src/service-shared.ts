@@ -76,6 +76,7 @@ import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import type { z } from "zod"
 import { resolveFxMoneyBaseAmount } from "./fx-money.js"
 import type { InvoiceFxOptions } from "./invoice-fx.js"
+import type { BookingPaymentPolicyCascadeReaders } from "./payment-schedule/booking-policy.js"
 // Type-only: `runtime-port` reaches back into route modules that import this
 // one, so a value import here would close a cycle.
 import type { FinanceStoredInstrumentRuntime } from "./runtime-port.js"
@@ -1129,6 +1130,16 @@ export interface FinanceServiceRuntime extends InvoiceFxOptions {
    */
   storedInstrumentRecorder?: FinanceStoredInstrumentRuntime
   monthlyBookingLimit?: number | null
+  /**
+   * The deployment-injected readers for the customer payment-policy cascade
+   * (booking → proposal → listing → category → supplier → operator default).
+   *
+   * Injected rather than read here because resolving a supplier / category /
+   * listing layer means crossing into vertical modules finance must not
+   * statically import. Absent means `noDepositPolicy`: an operator who has
+   * configured no deposit is asking for payment in full, not for a guess.
+   */
+  paymentPolicyCascade?: BookingPaymentPolicyCascadeReaders | null
   actionLedgerContext?: ActionLedgerRequestContextValues
   actionLedgerAuthorizationSource?: string | null
   actionLedgerActionName?: string | null

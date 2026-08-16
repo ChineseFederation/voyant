@@ -26,7 +26,6 @@
 import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi"
 import type { ActionLedgerRequestContextValues } from "@voyant-travel/action-ledger"
 import { appendActionLedgerMutation } from "@voyant-travel/action-ledger"
-import { getBookingOriginByBookingId } from "@voyant-travel/bookings"
 import { bookingActivityLog, bookings } from "@voyant-travel/bookings/schema"
 import { defineGraphRuntimeFactory } from "@voyant-travel/core/project"
 import { openApiValidationHook, parseJsonBody } from "@voyant-travel/hono"
@@ -56,6 +55,10 @@ import {
 } from "../runtime-port.js"
 import { bookingPaymentSchedules } from "../schema/booking-billing.js"
 import { financeService } from "../service.js"
+import {
+  type BookingPaymentPolicyCascadeReaders,
+  resolveBookingPaymentPolicy,
+} from "./booking-policy.js"
 
 export type { PaymentPolicyEntityContext }
 
@@ -67,35 +70,13 @@ export type { PaymentPolicyEntityContext }
  * product categories) that finance must not statically import. The bookings
  * schema and action-ledger appender are NOT injected — finance already depends
  * on both acyclically and imports them directly.
+ *
+ * The booking-keyed half is {@link BookingPaymentPolicyCascadeReaders}, shared
+ * with every other surface that has to answer what a booking owes.
  */
-export interface BookingScheduleRoutesOptions {
+export interface BookingScheduleRoutesOptions extends BookingPaymentPolicyCascadeReaders {
   /** Resolve the per-request drizzle db from the Hono context (`c.get("db")`). */
   resolveDb(c: Context): PostgresJsDatabase
-  /** Operator-default payment policy (the cascade's last-resort layer). */
-  resolveOperatorDefaultPaymentPolicy(db: PostgresJsDatabase): Promise<PaymentPolicy | null>
-
-  // ── Booking-keyed cascade (booking.confirmed + regenerate paths) ──────────
-  /** Phase 2: supplier-layer override keyed off the booking's supplier link. */
-  resolveSupplierPolicy(db: PostgresJsDatabase, bookingId: string): Promise<PaymentPolicy | null>
-  /** Phase 3: product-category override (first category by sortOrder). */
-  resolveCategoryPolicy(db: PostgresJsDatabase, bookingId: string): Promise<PaymentPolicy | null>
-  /** Phase 4: per-listing override (first booking-item product policy). */
-  resolveListingPolicy(db: PostgresJsDatabase, bookingId: string): Promise<PaymentPolicy | null>
-  /**
-   * Terms stated on one accepted Proposal Version.
-   *
-   * Keyed by the Proposal Version rather than the booking on purpose: finance
-   * already owns the walk from a booking to its origin (`booking_origins` is
-   * bookings', which finance depends on acyclically), so the injected reader
-   * only ever touches `proposal_versions` — the one table its own module owns.
-   *
-   * Optional. A deployment that composes no proposals module leaves it unset
-   * and the cascade is exactly what it was before the layer existed.
-   */
-  resolveProposalVersionPolicy?(
-    db: PostgresJsDatabase,
-    proposalVersionId: string,
-  ): Promise<PaymentPolicy | null>
 
   // ── Entity-keyed cascade (storefront resolve path) ────────────────────────
   resolveListingPolicyForEntity(
@@ -158,42 +139,7 @@ export async function generatePaymentScheduleForBooking(
     .limit(1)
   if (existingSchedule) return
 
-  const operatorDefault = (await options.resolveOperatorDefaultPaymentPolicy(db)) ?? noDepositPolicy
-
-  // Phase 2: supplier-layer override. Falls back to operator
-  // default when the booking has no supplier link or the supplier
-  // hasn't configured a custom policy.
-  const supplierPolicy = await options.resolveSupplierPolicy(db, bookingId)
-
-  // Phase 3: product-category override. Walks the booking's
-  // products → categories and picks the first category (by
-  // productCategoryProducts.sortOrder ascending) that defines a
-  // policy. Wins over supplier per the cascade order.
-  const categoryPolicy = await options.resolveCategoryPolicy(db, bookingId)
-
-  // Phase 4: per-listing override. The first booking-item's product
-  // with a non-null customerPaymentPolicy wins. Most specific catalog
-  // layer — beats category, supplier, and operator default.
-  const listingPolicy = await options.resolveListingPolicy(db, bookingId)
-
-  // Phase 5: the terms on the accepted Proposal Version this booking came
-  // from, when it came from one. This is what the customer agreed to, so it
-  // outranks every catalog default underneath it.
-  const proposalPolicy = await resolveAcceptedProposalPolicy(db, bookingId, options)
-
-  // Phase 6: booking-level override. The booking's own
-  // customerPaymentPolicy column wins over every catalog layer.
-  // Reserved for ops adjustments — most bookings leave this null.
-  const bookingPolicy = (booking.customerPaymentPolicy as PaymentPolicy | null | undefined) ?? null
-
-  const { policy, source } = resolveEffectivePaymentPolicy({
-    bookingPolicy,
-    proposalPolicy,
-    listingPolicy,
-    categoryPolicy,
-    supplierPolicy,
-    operatorDefault,
-  })
+  const { policy, source } = await resolveBookingPaymentPolicy(db, booking, options)
 
   const entries = computePaymentSchedule(
     {
@@ -231,26 +177,6 @@ export async function generatePaymentScheduleForBooking(
       entries,
     },
   })
-}
-
-/**
- * The payment terms the customer agreed to, when this booking came from an
- * accepted Proposal Version and that version stated any.
- *
- * `booking_origins` is the durable link, so this re-derives on every
- * regeneration rather than depending on anything having been copied onto the
- * booking at commit time.
- */
-async function resolveAcceptedProposalPolicy(
-  db: PostgresJsDatabase,
-  bookingId: string,
-  options: BookingScheduleRoutesOptions,
-): Promise<PaymentPolicy | null> {
-  if (!options.resolveProposalVersionPolicy) return null
-  const origin = await getBookingOriginByBookingId(db, bookingId)
-  if (origin?.originSource !== "accepted_proposal_version") return null
-  if (!origin.proposalVersionId) return null
-  return options.resolveProposalVersionPolicy(db, origin.proposalVersionId)
 }
 
 // ─────────────────────────────────────────────────────────────────

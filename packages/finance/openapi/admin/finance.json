@@ -10762,7 +10762,7 @@
         ],
         "requestBody": {
           "required": true,
-          "description": "Default payment-plan options. Every field is optional / defaulted, so a posted `{}` applies the default deposit/balance split.",
+          "description": "Default payment-plan options. Every field is optional: a posted `{}` applies the operator's configured payment policy (booking → proposal → listing → category → supplier → operator default), and stating deposit terms overrides that policy for this call only.",
           "content": {
             "application/json": {
               "schema": {
@@ -10774,13 +10774,11 @@
                       "none",
                       "percentage",
                       "fixed_amount"
-                    ],
-                    "default": "percentage"
+                    ]
                   },
                   "depositValue": {
                     "type": "integer",
-                    "minimum": 0,
-                    "default": 30
+                    "minimum": 0
                   },
                   "depositDueDate": {
                     "type": [
@@ -10790,8 +10788,7 @@
                   },
                   "balanceDueDaysBeforeStart": {
                     "type": "integer",
-                    "minimum": 0,
-                    "default": 30
+                    "minimum": 0
                   },
                   "clearExistingPending": {
                     "type": "boolean",

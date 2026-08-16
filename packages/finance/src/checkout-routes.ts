@@ -32,6 +32,7 @@ import {
   initiateCheckoutCollectionSchema,
   previewCheckoutCollectionSchema,
 } from "./checkout-validation.js"
+import { resolveBookingPaymentPolicyCascade } from "./payment-schedule/booking-policy-runtime.js"
 
 type Env = {
   Bindings: Record<string, unknown>
@@ -128,6 +129,25 @@ function attachCollectionRoutes<TEnv extends Env>(app: Hono<TEnv>, options: Chec
     return resolveCheckoutRouteRuntime(bindings, options, container)
   }
 
+  /**
+   * Checkout policy for this request, with the operator's `PaymentPolicy`
+   * cascade attached.
+   *
+   * Without it the collection runtime materialized its own 30% plan and an
+   * operator's configured deposit never reached checkout (voyant#4744). A
+   * deployment that supplied its own resolver keeps it.
+   */
+  async function policyFor(c: {
+    env: Record<string, unknown>
+    var: { container?: ModuleContainer }
+  }): Promise<CheckoutPolicyOptions> {
+    const configured = options.policy
+    if (configured?.paymentPolicyCascade) return configured
+    const paymentPolicyCascade = await resolveBookingPaymentPolicyCascade(c.var.container, c.env)
+    if (!paymentPolicyCascade) return configured ?? {}
+    return { ...configured, paymentPolicyCascade }
+  }
+
   return (
     app
       // Mostly a read, but `ensureDefaultPaymentPlan` can materialize a
@@ -139,7 +159,7 @@ function attachCollectionRoutes<TEnv extends Env>(app: Hono<TEnv>, options: Chec
             c.get("db"),
             c.req.param("bookingId")!,
             await parseOptionalJsonBody(c, previewCheckoutCollectionSchema),
-            options.policy,
+            await policyFor(c),
           )
 
           if (!plan) {
@@ -167,7 +187,7 @@ function attachCollectionRoutes<TEnv extends Env>(app: Hono<TEnv>, options: Chec
             c.get("db"),
             c.req.param("bookingId")!,
             input,
-            options.policy,
+            await policyFor(c),
             runtime,
           )
 
@@ -201,7 +221,7 @@ function attachCollectionRoutes<TEnv extends Env>(app: Hono<TEnv>, options: Chec
           const result = await bootstrapCheckoutCollection(
             c.get("db"),
             input,
-            options.policy,
+            await policyFor(c),
             runtime,
           )
 
