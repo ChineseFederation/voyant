@@ -1,5 +1,14 @@
 # @voyant-travel/plugin-voyant-connect
 
+## 0.38.0
+
+### Patch Changes
+
+- Updated dependencies [d631aa1]
+  - @voyant-travel/catalog-contracts@0.138.0
+  - @voyant-travel/catalog@0.261.0
+  - @voyant-travel/public-api@0.263.2
+
 ## 0.37.0
 
 ### Minor Changes

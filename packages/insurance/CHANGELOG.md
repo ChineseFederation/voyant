@@ -1,5 +1,13 @@
 # @voyant-travel/insurance
 
+## 0.2.1
+
+### Patch Changes
+
+- Updated dependencies [d631aa1]
+  - @voyant-travel/catalog-contracts@0.138.0
+  - @voyant-travel/commerce@0.55.3
+
 ## 0.2.0
 
 ### Minor Changes

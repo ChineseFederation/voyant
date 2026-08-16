@@ -1,5 +1,13 @@
 # @voyant-travel/operations
 
+## 0.23.9
+
+### Patch Changes
+
+- Updated dependencies [d631aa1]
+  - @voyant-travel/catalog@0.261.0
+  - @voyant-travel/products-contracts@0.111.10
+
 ## 0.23.8
 
 ### Patch Changes

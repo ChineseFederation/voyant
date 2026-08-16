@@ -1,5 +1,13 @@
 # @voyant-travel/public-api-client
 
+## 0.290.0
+
+### Patch Changes
+
+- Updated dependencies [d631aa1]
+  - @voyant-travel/catalog-contracts@0.138.0
+  - @voyant-travel/finance@0.261.0
+
 ## 0.289.0
 
 ### Patch Changes
