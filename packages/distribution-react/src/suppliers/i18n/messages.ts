@@ -76,6 +76,28 @@ export type SuppliersUiMessages = {
     notFound: string
     loadFailed: string
     details: string
+    publication: {
+      title: string
+      description: string
+      loading: string
+      loadError: string
+      noChannels: string
+      states: {
+        included: string
+        excluded: string
+        undecided: string
+        channelInactive: string
+      }
+      undecidedHint: string
+      publish: string
+      hide: string
+      clear: string
+      confirm: string
+      cancel: string
+      impact: string
+      channelsTruncated: string
+      reindexNote: string
+    }
     contact: string
     noContact: string
     services: string

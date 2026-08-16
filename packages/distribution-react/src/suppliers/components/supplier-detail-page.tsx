@@ -31,6 +31,7 @@ import { RateDialog } from "./rate-dialog.js"
 import { ServiceDialog } from "./service-dialog.js"
 import { SupplierDialog } from "./supplier-dialog.js"
 import { SupplierNestedResources } from "./supplier-nested-resources.js"
+import { SupplierPublicationSection } from "./supplier-publication-section.js"
 import { SupplierServiceRow } from "./supplier-service-row.js"
 
 export type SupplierDetailPageProps = {
@@ -246,6 +247,8 @@ export function SupplierDetailPage({
         updateSupplier: (input) => supplierMutation.update.mutateAsync({ id: supplier.id, input }),
         isUpdating: supplierMutation.update.isPending,
       })}
+
+      <SupplierPublicationSection supplierId={supplier.id} />
 
       <SupplierNestedResources
         supplierId={supplier.id}
