@@ -25,7 +25,6 @@
     "./shopping/runtime-port": "./src/shopping/runtime-port.ts",
     "./service": "./src/service.ts",
     "./tools": "./src/mcp-runtime.ts",
-    "./transport-eligibility": "./src/transport-eligibility.ts",
     "./validation": "./src/validation.ts",
     "./verification": "./src/verification/index.ts",
     "./verification/schema": "./src/verification/schema.ts",
@@ -241,11 +240,6 @@
         "types": "./dist/mcp-runtime.d.ts",
         "import": "./dist/mcp-runtime.js",
         "default": "./dist/mcp-runtime.js"
-      },
-      "./transport-eligibility": {
-        "types": "./dist/transport-eligibility.d.ts",
-        "import": "./dist/transport-eligibility.js",
-        "default": "./dist/transport-eligibility.js"
       },
       "./validation": {
         "types": "./dist/validation.d.ts",

@@ -17,6 +17,7 @@ import {
 
 export { departuresDocKey, readThroughDepartures }
 
+import { transportEligibilityInputSchema } from "@voyant-travel/flights/transport-eligibility"
 import {
   createPublicApiService,
   type PublicApiRequestContext,
@@ -49,7 +50,6 @@ import {
   publicApiPublicSettingsSchema,
   toPublicPublicApiSettings,
 } from "./validation.js"
-import { publicApiTransportEligibilityInputSchema } from "./validation-transport-eligibility.js"
 
 /**
  * Shared-cache marker for non-personalized catalog reads (departure
@@ -684,7 +684,7 @@ export function createPublicApiRoutes(options?: PublicApiRoutesOptions) {
       return c.json({
         data: await publicApiService.checkDepartureTransportEligibility({
           departureId: c.req.param("departureId"),
-          body: await parseJsonBody(c, publicApiTransportEligibilityInputSchema),
+          body: await parseJsonBody(c, transportEligibilityInputSchema),
           context: getRequestContext(c),
         }),
       })
@@ -694,7 +694,7 @@ export function createPublicApiRoutes(options?: PublicApiRoutesOptions) {
         data: await publicApiService.checkDepartureTransportEligibility({
           departureId: c.req.param("departureId"),
           productId: c.req.param("productId"),
-          body: await parseJsonBody(c, publicApiTransportEligibilityInputSchema),
+          body: await parseJsonBody(c, transportEligibilityInputSchema),
           context: getRequestContext(c),
         }),
       })

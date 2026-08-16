@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest"
 
-import { evaluatePublicApiTransportEligibility } from "../../src/service-transport-eligibility.js"
-import { publicApiTransportEligibilityInputSchema } from "../../src/validation-transport-eligibility.js"
+import { evaluateTransportEligibility } from "../../src/service-transport-eligibility.js"
+import { transportEligibilityInputSchema } from "../../src/validation-transport-eligibility.js"
 
 describe("storefront transport eligibility", () => {
   it("returns blocking passport validity and visa issues without storing document numbers", () => {
-    const input = publicApiTransportEligibilityInputSchema.parse({
+    const input = transportEligibilityInputSchema.parse({
       travelStartsOn: "2026-08-01",
       travelEndsOn: "2026-08-08",
       travelers: [
@@ -18,7 +18,7 @@ describe("storefront transport eligibility", () => {
       ],
     })
 
-    const result = evaluatePublicApiTransportEligibility({
+    const result = evaluateTransportEligibility({
       departureId: "slot_123",
       productId: "prod_123",
       travelStartsOn: input.travelStartsOn,
@@ -48,7 +48,7 @@ describe("storefront transport eligibility", () => {
   })
 
   it("returns warnings for advisory rules while keeping the traveler eligible", () => {
-    const input = publicApiTransportEligibilityInputSchema.parse({
+    const input = transportEligibilityInputSchema.parse({
       travelStartsOn: "2026-08-01",
       travelEndsOn: "2026-08-08",
       travelers: [
@@ -62,7 +62,7 @@ describe("storefront transport eligibility", () => {
       ],
     })
 
-    const result = evaluatePublicApiTransportEligibility({
+    const result = evaluateTransportEligibility({
       departureId: "slot_123",
       productId: "prod_123",
       travelStartsOn: input.travelStartsOn,
@@ -89,7 +89,7 @@ describe("storefront transport eligibility", () => {
   })
 
   it("accepts a valid ID card when an alternative passport is expired", () => {
-    const input = publicApiTransportEligibilityInputSchema.parse({
+    const input = transportEligibilityInputSchema.parse({
       travelStartsOn: "2026-08-01",
       travelEndsOn: "2026-08-08",
       travelers: [
@@ -104,7 +104,7 @@ describe("storefront transport eligibility", () => {
       ],
     })
 
-    const result = evaluatePublicApiTransportEligibility({
+    const result = evaluateTransportEligibility({
       departureId: "slot_123",
       productId: "prod_123",
       travelStartsOn: input.travelStartsOn,

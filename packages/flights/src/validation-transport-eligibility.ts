@@ -6,7 +6,7 @@ const countryCodeSchema = z
   .length(2)
   .transform((value) => value.toUpperCase())
 
-export const publicApiTravelDocumentTypeSchema = z.enum([
+export const travelDocumentTypeSchema = z.enum([
   "passport",
   "id_card",
   "residence_permit",
@@ -15,16 +15,16 @@ export const publicApiTravelDocumentTypeSchema = z.enum([
   "other",
 ])
 
-export const publicApiRequiredDocumentTypeSchema = z.enum([
+export const requiredDocumentTypeSchema = z.enum([
   "none",
   "passport",
   "id_card",
   "passport_or_id_card",
 ])
 
-export const publicApiTransportEligibilitySeveritySchema = z.enum(["blocking", "warning"])
+export const transportEligibilitySeveritySchema = z.enum(["blocking", "warning"])
 
-export const publicApiTransportEligibilityRuleSchema = z
+export const transportEligibilityRuleSchema = z
   .object({
     id: z.string().trim().min(1),
     label: z.string().trim().min(1),
@@ -32,13 +32,13 @@ export const publicApiTransportEligibilityRuleSchema = z
     departureId: z.string().trim().min(1).optional().nullable(),
     destinationCountries: z.array(countryCodeSchema).min(1),
     nationalityCountries: z.array(countryCodeSchema).default([]),
-    requiredDocumentType: publicApiRequiredDocumentTypeSchema.default("passport"),
+    requiredDocumentType: requiredDocumentTypeSchema.default("passport"),
     minValidityDaysAfterReturn: z.number().int().min(0).default(0),
     minAge: z.number().int().min(0).optional().nullable(),
     maxAge: z.number().int().min(0).optional().nullable(),
     visaRequired: z.boolean().default(false),
     minorConsentRequired: z.boolean().default(false),
-    severity: publicApiTransportEligibilitySeveritySchema.default("blocking"),
+    severity: transportEligibilitySeveritySchema.default("blocking"),
     message: z.string().trim().min(1).optional().nullable(),
   })
   .refine((rule) => rule.minAge == null || rule.maxAge == null || rule.minAge <= rule.maxAge, {
@@ -46,29 +46,29 @@ export const publicApiTransportEligibilityRuleSchema = z
     path: ["maxAge"],
   })
 
-export const publicApiTransportEligibilityDocumentInputSchema = z.object({
-  type: publicApiTravelDocumentTypeSchema,
+export const transportEligibilityDocumentInputSchema = z.object({
+  type: travelDocumentTypeSchema,
   issuingCountry: countryCodeSchema.optional().nullable(),
   expiresOn: z.string().date().optional().nullable(),
 })
 
-export const publicApiTransportEligibilityTravelerInputSchema = z.object({
+export const transportEligibilityTravelerInputSchema = z.object({
   travelerRef: z.string().trim().min(1),
   nationalityCountry: countryCodeSchema.optional().nullable(),
   dateOfBirth: z.string().date().optional().nullable(),
-  documents: z.array(publicApiTransportEligibilityDocumentInputSchema).default([]),
+  documents: z.array(transportEligibilityDocumentInputSchema).default([]),
   hasVisa: z.boolean().default(false),
   travelingWithGuardian: z.boolean().default(false),
   hasMinorConsent: z.boolean().default(false),
 })
 
-export const publicApiTransportEligibilityInputSchema = z.object({
+export const transportEligibilityInputSchema = z.object({
   travelStartsOn: z.string().date().optional().nullable(),
   travelEndsOn: z.string().date().optional().nullable(),
-  travelers: z.array(publicApiTransportEligibilityTravelerInputSchema).min(1),
+  travelers: z.array(transportEligibilityTravelerInputSchema).min(1),
 })
 
-export const publicApiTransportEligibilityIssueCodeSchema = z.enum([
+export const transportEligibilityIssueCodeSchema = z.enum([
   "date_of_birth_required",
   "document_required",
   "document_expiry_required",
@@ -79,47 +79,37 @@ export const publicApiTransportEligibilityIssueCodeSchema = z.enum([
   "travel_dates_required",
 ])
 
-export const publicApiTransportEligibilityIssueSchema = z.object({
-  code: publicApiTransportEligibilityIssueCodeSchema,
-  severity: publicApiTransportEligibilitySeveritySchema,
+export const transportEligibilityIssueSchema = z.object({
+  code: transportEligibilityIssueCodeSchema,
+  severity: transportEligibilitySeveritySchema,
   message: z.string(),
   travelerRef: z.string(),
   ruleId: z.string(),
   destinationCountries: z.array(countryCodeSchema),
-  requiredDocumentType: publicApiRequiredDocumentTypeSchema,
+  requiredDocumentType: requiredDocumentTypeSchema,
 })
 
-export const publicApiTransportEligibilityTravelerResultSchema = z.object({
+export const transportEligibilityTravelerResultSchema = z.object({
   travelerRef: z.string(),
   eligible: z.boolean(),
   matchedRuleIds: z.array(z.string()),
-  blockingIssues: z.array(publicApiTransportEligibilityIssueSchema),
-  warnings: z.array(publicApiTransportEligibilityIssueSchema),
+  blockingIssues: z.array(transportEligibilityIssueSchema),
+  warnings: z.array(transportEligibilityIssueSchema),
 })
 
-export const publicApiTransportEligibilityResultSchema = z.object({
+export const transportEligibilityResultSchema = z.object({
   departureId: z.string(),
   productId: z.string().nullable(),
   travelStartsOn: z.string().nullable(),
   travelEndsOn: z.string().nullable(),
   eligible: z.boolean(),
-  blockingIssues: z.array(publicApiTransportEligibilityIssueSchema),
-  warnings: z.array(publicApiTransportEligibilityIssueSchema),
-  travelers: z.array(publicApiTransportEligibilityTravelerResultSchema),
+  blockingIssues: z.array(transportEligibilityIssueSchema),
+  warnings: z.array(transportEligibilityIssueSchema),
+  travelers: z.array(transportEligibilityTravelerResultSchema),
 })
 
-export type PublicApiTransportEligibilityInput = z.infer<
-  typeof publicApiTransportEligibilityInputSchema
->
-export type PublicApiTransportEligibilityRule = z.infer<
-  typeof publicApiTransportEligibilityRuleSchema
->
-export type PublicApiTransportEligibilityRuleInput = z.input<
-  typeof publicApiTransportEligibilityRuleSchema
->
-export type PublicApiTransportEligibilityIssue = z.infer<
-  typeof publicApiTransportEligibilityIssueSchema
->
-export type PublicApiTransportEligibilityResult = z.infer<
-  typeof publicApiTransportEligibilityResultSchema
->
+export type TransportEligibilityInput = z.infer<typeof transportEligibilityInputSchema>
+export type TransportEligibilityRule = z.infer<typeof transportEligibilityRuleSchema>
+export type TransportEligibilityRuleInput = z.input<typeof transportEligibilityRuleSchema>
+export type TransportEligibilityIssue = z.infer<typeof transportEligibilityIssueSchema>
+export type TransportEligibilityResult = z.infer<typeof transportEligibilityResultSchema>

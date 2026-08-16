@@ -1,9 +1,14 @@
 // agent-quality: file-size exception -- owner: storefront; existing service module stays co-located until a dedicated split preserves behavior and tests.
 
 import type { EventBus } from "@voyant-travel/core"
+import type {
+  TransportEligibilityInput,
+  TransportEligibilityResult,
+  TransportEligibilityRuleInput,
+} from "@voyant-travel/flights/transport-eligibility"
+import { evaluateTransportEligibility } from "@voyant-travel/flights/transport-eligibility"
 import type { PublicApiIntakeContext } from "@voyant-travel/relationships-contracts/public-api-intake"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
-
 import {
   getPublicApiDeparture,
   getPublicApiDepartureItinerary,
@@ -23,7 +28,6 @@ import {
   type PublicApiIntakeSignal,
   subscribePublicApiNewsletter,
 } from "./service-intake.js"
-import { evaluatePublicApiTransportEligibility } from "./service-transport-eligibility.js"
 import {
   type PublicApiDepartureListQuery,
   type PublicApiDeparturePricePreviewInput,
@@ -45,11 +49,6 @@ import {
   publicApiSettingsInputSchema,
   publicApiSettingsSchema,
 } from "./validation.js"
-import type {
-  PublicApiTransportEligibilityInput,
-  PublicApiTransportEligibilityResult,
-  PublicApiTransportEligibilityRuleInput,
-} from "./validation-transport-eligibility.js"
 
 export interface PublicApiServiceOptions {
   settings?: PublicApiSettingsInput
@@ -71,7 +70,7 @@ export interface PublicApiServiceOptions {
     | PublicApiOfferResolvers
     | null
     | undefined
-  transportEligibilityRules?: PublicApiTransportEligibilityRuleInput[]
+  transportEligibilityRules?: TransportEligibilityRuleInput[]
   resolveTransportEligibilityRules?: (
     input: {
       departureId: string
@@ -79,7 +78,7 @@ export interface PublicApiServiceOptions {
       travelStartsOn?: string | null
       travelEndsOn?: string | null
     } & PublicApiRequestContext,
-  ) => Promise<PublicApiTransportEligibilityRuleInput[]> | PublicApiTransportEligibilityRuleInput[]
+  ) => Promise<TransportEligibilityRuleInput[]> | TransportEligibilityRuleInput[]
   intake?: PublicApiIntakeOptions
   publication?: PublicApiPublicationGuard
 }
@@ -503,9 +502,9 @@ export function createPublicApiService(options?: PublicApiServiceOptions) {
     async checkDepartureTransportEligibility(input: {
       departureId: string
       productId?: string | null
-      body: PublicApiTransportEligibilityInput
+      body: TransportEligibilityInput
       context?: PublicApiRequestContext
-    }): Promise<PublicApiTransportEligibilityResult> {
+    }): Promise<TransportEligibilityResult> {
       const { context, body, departureId } = input
       const needsDeparture =
         context?.db && (!input.productId || !body.travelStartsOn || !body.travelEndsOn)
@@ -524,7 +523,7 @@ export function createPublicApiService(options?: PublicApiServiceOptions) {
         travelEndsOn,
       })
 
-      return evaluatePublicApiTransportEligibility({
+      return evaluateTransportEligibility({
         departureId,
         productId,
         travelStartsOn,

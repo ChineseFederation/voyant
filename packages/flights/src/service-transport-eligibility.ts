@@ -1,11 +1,11 @@
 import type {
-  PublicApiTransportEligibilityInput,
-  PublicApiTransportEligibilityIssue,
-  PublicApiTransportEligibilityResult,
-  PublicApiTransportEligibilityRule,
-  PublicApiTransportEligibilityRuleInput,
+  TransportEligibilityInput,
+  TransportEligibilityIssue,
+  TransportEligibilityResult,
+  TransportEligibilityRule,
+  TransportEligibilityRuleInput,
 } from "./validation-transport-eligibility.js"
-import { publicApiTransportEligibilityRuleSchema } from "./validation-transport-eligibility.js"
+import { transportEligibilityRuleSchema } from "./validation-transport-eligibility.js"
 
 type EligibilityTarget = {
   departureId: string
@@ -14,9 +14,8 @@ type EligibilityTarget = {
   travelEndsOn?: string | null
 }
 
-type NormalizedDocument =
-  PublicApiTransportEligibilityInput["travelers"][number]["documents"][number]
-type NormalizedTraveler = PublicApiTransportEligibilityInput["travelers"][number]
+type NormalizedDocument = TransportEligibilityInput["travelers"][number]["documents"][number]
+type NormalizedTraveler = TransportEligibilityInput["travelers"][number]
 
 function parseDate(value: string | null | undefined): Date | null {
   if (!value) return null
@@ -59,7 +58,7 @@ function isBeforeDate(left: string, right: string): boolean {
 
 function findDocuments(
   traveler: NormalizedTraveler,
-  rule: PublicApiTransportEligibilityRule,
+  rule: TransportEligibilityRule,
 ): NormalizedDocument[] {
   if (rule.requiredDocumentType === "none") return []
   if (rule.requiredDocumentType === "passport_or_id_card") {
@@ -71,7 +70,7 @@ function findDocuments(
   return traveler.documents.filter((document) => document.type === rule.requiredDocumentType)
 }
 
-function documentTypeLabel(rule: PublicApiTransportEligibilityRule): string {
+function documentTypeLabel(rule: TransportEligibilityRule): string {
   switch (rule.requiredDocumentType) {
     case "passport_or_id_card":
       return "passport or ID card"
@@ -85,11 +84,11 @@ function documentTypeLabel(rule: PublicApiTransportEligibilityRule): string {
 }
 
 function buildIssue(
-  code: PublicApiTransportEligibilityIssue["code"],
+  code: TransportEligibilityIssue["code"],
   traveler: NormalizedTraveler,
-  rule: PublicApiTransportEligibilityRule,
+  rule: TransportEligibilityRule,
   message: string,
-): PublicApiTransportEligibilityIssue {
+): TransportEligibilityIssue {
   return {
     code,
     severity: rule.severity,
@@ -103,10 +102,10 @@ function buildIssue(
 
 function pushIssue(
   target: {
-    blockingIssues: PublicApiTransportEligibilityIssue[]
-    warnings: PublicApiTransportEligibilityIssue[]
+    blockingIssues: TransportEligibilityIssue[]
+    warnings: TransportEligibilityIssue[]
   },
-  issue: PublicApiTransportEligibilityIssue,
+  issue: TransportEligibilityIssue,
 ) {
   if (issue.severity === "warning") {
     target.warnings.push(issue)
@@ -115,14 +114,14 @@ function pushIssue(
   }
 }
 
-function appliesToTarget(rule: PublicApiTransportEligibilityRule, target: EligibilityTarget) {
+function appliesToTarget(rule: TransportEligibilityRule, target: EligibilityTarget) {
   if (rule.productId && rule.productId !== target.productId) return false
   if (rule.departureId && rule.departureId !== target.departureId) return false
   return true
 }
 
 function appliesToTraveler(
-  rule: PublicApiTransportEligibilityRule,
+  rule: TransportEligibilityRule,
   traveler: NormalizedTraveler,
   travelStartsOn: string | null,
 ) {
@@ -144,11 +143,11 @@ function appliesToTraveler(
 
 function evaluateTravelerRule(
   traveler: NormalizedTraveler,
-  rule: PublicApiTransportEligibilityRule,
+  rule: TransportEligibilityRule,
   target: { travelStartsOn: string | null; travelEndsOn: string | null },
 ) {
-  const blockingIssues: PublicApiTransportEligibilityIssue[] = []
-  const warnings: PublicApiTransportEligibilityIssue[] = []
+  const blockingIssues: TransportEligibilityIssue[] = []
+  const warnings: TransportEligibilityIssue[] = []
   const resultTarget = { blockingIssues, warnings }
 
   const travelerApplicability = appliesToTraveler(rule, traveler, target.travelStartsOn)
@@ -280,22 +279,22 @@ function evaluateTravelerRule(
   return { blockingIssues, warnings }
 }
 
-export function evaluatePublicApiTransportEligibility(input: {
+export function evaluateTransportEligibility(input: {
   departureId: string
   productId?: string | null
   travelStartsOn?: string | null
   travelEndsOn?: string | null
-  travelers: PublicApiTransportEligibilityInput["travelers"]
-  rules: PublicApiTransportEligibilityRuleInput[]
-}): PublicApiTransportEligibilityResult {
+  travelers: TransportEligibilityInput["travelers"]
+  rules: TransportEligibilityRuleInput[]
+}): TransportEligibilityResult {
   const travelStartsOn = input.travelStartsOn ?? null
   const travelEndsOn = input.travelEndsOn ?? null
   const rules = input.rules
-    .map((rule) => publicApiTransportEligibilityRuleSchema.parse(rule))
+    .map((rule) => transportEligibilityRuleSchema.parse(rule))
     .filter((rule) => appliesToTarget(rule, input))
   const travelerResults = input.travelers.map((traveler) => {
-    const blockingIssues: PublicApiTransportEligibilityIssue[] = []
-    const warnings: PublicApiTransportEligibilityIssue[] = []
+    const blockingIssues: TransportEligibilityIssue[] = []
+    const warnings: TransportEligibilityIssue[] = []
     const matchedRuleIds: string[] = []
 
     for (const rule of rules) {

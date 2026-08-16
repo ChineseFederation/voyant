@@ -40,7 +40,8 @@
     "./openapi/admin/booking-extras": "./openapi/admin/booking-extras.json",
     "./openapi/admin/booking-requirements": "./openapi/admin/booking-requirements.json",
     "./openapi/public-api": "./openapi/public-api/bookings.json",
-    "./openapi/public-api/booking-requirements": "./openapi/public-api/booking-requirements.json"
+    "./openapi/public-api/booking-requirements": "./openapi/public-api/booking-requirements.json",
+    "./guest-booking-guard": "./src/guest-booking-guard.ts"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.typecheck.json",
@@ -246,7 +247,11 @@
       "./openapi/admin/booking-extras": "./openapi/admin/booking-extras.json",
       "./openapi/admin/booking-requirements": "./openapi/admin/booking-requirements.json",
       "./openapi/public-api": "./openapi/public-api/bookings.json",
-      "./openapi/public-api/booking-requirements": "./openapi/public-api/booking-requirements.json"
+      "./openapi/public-api/booking-requirements": "./openapi/public-api/booking-requirements.json",
+      "./guest-booking-guard": {
+        "types": "./dist/guest-booking-guard.d.ts",
+        "default": "./dist/guest-booking-guard.js"
+      }
     },
     "main": "./dist/index.js",
     "types": "./dist/index.d.ts"

@@ -372,6 +372,7 @@
       ],
       "@voyant-travel/bookings/extras": ["../bookings/dist/extras.d.ts"],
       "@voyant-travel/bookings/extras/validation": ["../bookings/dist/extras/validation.d.ts"],
+      "@voyant-travel/bookings/guest-booking-guard": ["../bookings/dist/guest-booking-guard.d.ts"],
       "@voyant-travel/bookings/linkables": ["../bookings/dist/linkables.d.ts"],
       "@voyant-travel/bookings/pii": ["../bookings/dist/pii.d.ts"],
       "@voyant-travel/bookings/pricing-assignment": ["../bookings/dist/pricing-assignment.d.ts"],
@@ -1187,6 +1188,9 @@
       "@voyant-travel/flights/runtime-contributor": ["../flights/dist/runtime-contributor.d.ts"],
       "@voyant-travel/flights/snapshot": ["../flights/dist/snapshot.d.ts"],
       "@voyant-travel/flights/tools": ["../flights/dist/mcp-runtime.d.ts"],
+      "@voyant-travel/flights/transport-eligibility": [
+        "../flights/dist/transport-eligibility.d.ts"
+      ],
       "@voyant-travel/flights/voyant": ["../flights/dist/voyant.d.ts"],
       "@voyant-travel/framework": ["../framework/dist/index.d.ts"],
       "@voyant-travel/framework-migrations": ["../framework-migrations/dist/index.d.ts"],
@@ -1888,9 +1892,6 @@
         "../public-api/dist/shopping/runtime-port.d.ts"
       ],
       "@voyant-travel/public-api/tools": ["../public-api/dist/mcp-runtime.d.ts"],
-      "@voyant-travel/public-api/transport-eligibility": [
-        "../public-api/dist/transport-eligibility.d.ts"
-      ],
       "@voyant-travel/public-api/validation": ["../public-api/dist/validation.d.ts"],
       "@voyant-travel/public-api/verification": ["../public-api/dist/verification/index.d.ts"],
       "@voyant-travel/public-api/verification/public-routes": [

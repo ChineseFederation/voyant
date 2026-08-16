@@ -27,12 +27,6 @@ export {
 } from "./departures-read-model.js"
 
 export type {
-  GuestBookingGuardOptions,
-  GuestBookingGuardRequest,
-  GuestBookingLookupInput,
-} from "./guest-booking-guard.js"
-export { createGuestBookingGuard } from "./guest-booking-guard.js"
-export type {
   PaymentLinkBankTransferDetails,
   PaymentLinkRoutesOptions,
   PaymentLinkSessionInput,
@@ -70,7 +64,6 @@ export type {
   PublicApiNewsletterDoubleOptInHook,
 } from "./service-intake.js"
 export { CUSTOMER_SIGNAL_CREATED_EVENT, emitCustomerSignalCreated } from "./service-intake.js"
-export { evaluatePublicApiTransportEligibility } from "./service-transport-eligibility.js"
 export type {
   PublicApiAppliedOffer,
   PublicApiBankTransfer,
@@ -176,26 +169,6 @@ export {
   publicApiSupportLinkInputSchema,
   publicApiSupportLinkSchema,
 } from "./validation.js"
-export type {
-  PublicApiTransportEligibilityInput,
-  PublicApiTransportEligibilityIssue,
-  PublicApiTransportEligibilityResult,
-  PublicApiTransportEligibilityRule,
-  PublicApiTransportEligibilityRuleInput,
-} from "./validation-transport-eligibility.js"
-export {
-  publicApiRequiredDocumentTypeSchema,
-  publicApiTransportEligibilityDocumentInputSchema,
-  publicApiTransportEligibilityInputSchema,
-  publicApiTransportEligibilityIssueCodeSchema,
-  publicApiTransportEligibilityIssueSchema,
-  publicApiTransportEligibilityResultSchema,
-  publicApiTransportEligibilityRuleSchema,
-  publicApiTransportEligibilitySeveritySchema,
-  publicApiTransportEligibilityTravelerInputSchema,
-  publicApiTransportEligibilityTravelerResultSchema,
-  publicApiTravelDocumentTypeSchema,
-} from "./validation-transport-eligibility.js"
 
 export const publicApiModule: Module = {
   name: "storefront",

@@ -1,7 +1,4 @@
-import {
-  GUEST_BOOKING_ACCESS_COOKIE,
-  GUEST_BOOKING_ACCESS_HEADER,
-} from "@voyant-travel/bookings/checkout-capability"
+import { GUEST_BOOKING_ACCESS_COOKIE, GUEST_BOOKING_ACCESS_HEADER } from "./checkout-capability.js"
 
 export interface GuestBookingGuardRequest {
   headers: Headers | Record<string, string | undefined>
