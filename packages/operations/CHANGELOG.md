@@ -1,5 +1,22 @@
 # @voyant-travel/operations
 
+## 0.23.5
+
+### Patch Changes
+
+- Updated dependencies [46d00dc]
+  - @voyant-travel/db@0.123.0
+  - @voyant-travel/bookings@0.247.0
+  - @voyant-travel/catalog@0.259.0
+  - @voyant-travel/hono@0.144.0
+  - @voyant-travel/core@0.144.0
+  - @voyant-travel/action-ledger@0.115.21
+  - @voyant-travel/identity@0.236.11
+  - @voyant-travel/types@0.110.1
+  - @voyant-travel/bookings-contracts@0.119.1
+  - @voyant-travel/finance-contracts@0.114.1
+  - @voyant-travel/products-contracts@0.111.8
+
 ## 0.23.4
 
 ### Patch Changes

@@ -1,6 +1,6 @@
 {
   "name": "@voyant-travel/identity-contracts",
-  "version": "0.104.17",
+  "version": "0.104.18",
   "license": "Apache-2.0",
   "type": "module",
   "exports": {

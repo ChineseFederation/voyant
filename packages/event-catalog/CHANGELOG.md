@@ -1,5 +1,13 @@
 # @voyant-travel/event-catalog
 
+## 0.2.32
+
+### Patch Changes
+
+- Updated dependencies [46d00dc]
+  - @voyant-travel/hono@0.144.0
+  - @voyant-travel/core@0.144.0
+
 ## 0.2.31
 
 ### Patch Changes
