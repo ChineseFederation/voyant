@@ -1,6 +1,6 @@
 {
   "name": "@voyant-travel/charters",
-  "version": "0.237.2",
+  "version": "0.237.3",
   "license": "Apache-2.0",
   "type": "module",
   "exports": {
