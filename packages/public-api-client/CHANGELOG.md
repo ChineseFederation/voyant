@@ -1,5 +1,13 @@
 # @voyant-travel/public-api-client
 
+## 0.287.0
+
+### Patch Changes
+
+- Updated dependencies [380c46e]
+  - @voyant-travel/public-api@0.262.0
+  - @voyant-travel/bookings@0.248.0
+
 ## 0.286.0
 
 ### Minor Changes

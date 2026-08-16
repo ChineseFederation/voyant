@@ -1,5 +1,24 @@
 # @voyant-travel/public-api
 
+## 0.262.0
+
+### Minor Changes
+
+- 380c46e: Move the parts of the public API layer that have a real domain home (#4627,
+  part 1). `createGuestBookingGuard` goes to `@voyant-travel/bookings`, which
+  already owns the capability cookie and header it reads. Transport eligibility
+  goes to `@voyant-travel/flights`, and its exported symbols drop the `publicApi`
+  prefix, which named the layer they sat in rather than what they do.
+
+### Patch Changes
+
+- Updated dependencies [380c46e]
+  - @voyant-travel/bookings@0.248.0
+  - @voyant-travel/flights@0.240.0
+  - @voyant-travel/catalog@0.259.3
+  - @voyant-travel/commerce@0.54.1
+  - @voyant-travel/finance@0.259.1
+
 ## 0.261.1
 
 ### Patch Changes
