@@ -1,5 +1,11 @@
 # @voyant-travel/apps
 
+## 0.14.23
+
+### Patch Changes
+
+- @voyant-travel/admin@0.138.0
+
 ## 0.14.22
 
 ### Patch Changes

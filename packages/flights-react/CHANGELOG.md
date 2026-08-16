@@ -1,5 +1,44 @@
 # @voyant-travel/flights-react
 
+## 0.300.0
+
+### Minor Changes
+
+- 2ddcb4b: Show flight availability where the traveller chooses it.
+
+  Adds two capability-gated connector methods and the UI that consumes them:
+
+  - `flight/fare-calendar` (`searchFareCalendar`) quotes a window of departure
+    dates, so the date picker shows the cheapest indicative price per day, bands
+    it cheap / mid / expensive against the visible window, and strikes out days
+    the provider doesn't fly. Served as `POST /v1/admin/flights/fare-calendar`,
+    capped at a 92-day window.
+  - `flight/served-markets` (`listServedMarkets`) declares the airports a
+    connection sells, so the airport picker leads with the operator's own
+    network. It ranks, it never filters — every airport stays reachable.
+
+  The airport picker also groups by routes this operator has actually searched,
+  remembered per browser, and the airport reference list is now deterministically
+  ordered instead of returning an arbitrary slice.
+
+  Flight offer rows now name the airline and its flight numbers instead of
+  relying on the carrier logo alone.
+
+  `Calendar` and `DatePicker` gain a `dayAnnotation` prop for rendering a
+  secondary line under a day's number.
+
+  Connectors that declare neither capability answer 501 and every surface
+  degrades to its previous behaviour.
+
+### Patch Changes
+
+- Updated dependencies [2ddcb4b]
+  - @voyant-travel/flights@0.239.0
+  - @voyant-travel/ui@0.112.0
+  - @voyant-travel/admin@0.138.0
+  - @voyant-travel/finance-react@0.300.0
+  - @voyant-travel/relationships-react@0.300.0
+
 ## 0.299.0
 
 ### Patch Changes

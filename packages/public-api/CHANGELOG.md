@@ -1,5 +1,12 @@
 # @voyant-travel/public-api
 
+## 0.261.1
+
+### Patch Changes
+
+- Updated dependencies [2ddcb4b]
+  - @voyant-travel/flights@0.239.0
+
 ## 0.261.0
 
 ### Minor Changes

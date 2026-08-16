@@ -1,6 +1,6 @@
 {
   "name": "@voyant-travel/event-catalog-react",
-  "version": "0.34.0",
+  "version": "0.35.0",
   "description": "Admin event contract reference for selected Voyant deployments.",
   "license": "Apache-2.0",
   "type": "module",
