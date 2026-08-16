@@ -7,6 +7,7 @@ import { parseQuery } from "@voyant-travel/hono"
 
 import { financeBookingBillingRoutes } from "./routes-booking-billing.js"
 import { financeBookingReadRoutes } from "./routes-booking-reads.js"
+import { financeFxStampRoutes } from "./routes-fx-stamp.js"
 import { financeInvoiceCoreRoutes } from "./routes-invoice-core.js"
 import { financeInvoiceDocumentRoutes } from "./routes-invoice-documents.js"
 import { financeInvoiceIssueRoutes } from "./routes-invoice-issue.js"
@@ -57,6 +58,7 @@ export const financeRoutes = new OpenAPIHono<Env>()
   .route("/", financeBookingReadRoutes)
   .route("/", financePaymentDisputeRoutes)
   .route("/", financeRefundSettlementRoutes)
+  .route("/", financeFxStampRoutes)
 
 export type FinanceRoutes = typeof financeRoutes
 export type PublicFinanceRoutes = typeof publicFinanceRoutes

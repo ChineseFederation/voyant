@@ -534,7 +534,9 @@ describe("issueInvoiceFromBooking", () => {
         from: vi.fn(() => ({
           where: vi.fn(() => ({
             limit: vi.fn(async () => [{ bookingNumber: "BK-FX" }]),
-            orderBy: vi.fn(async () => []),
+            // Drizzle's builder is thenable AND chainable; the FX resolution
+            // reads exchange_rates with `.orderBy(...).limit(1)`.
+            orderBy: vi.fn(() => Object.assign(Promise.resolve([]), { limit: async () => [] })),
           })),
         })),
       })),
@@ -632,7 +634,7 @@ describe("issueInvoiceFromBooking", () => {
         from: vi.fn(() => ({
           where: vi.fn(() => ({
             limit: vi.fn(async () => [{ bookingNumber: "BK-FX-FAIL" }]),
-            orderBy: vi.fn(async () => []),
+            orderBy: vi.fn(() => Object.assign(Promise.resolve([]), { limit: async () => [] })),
           })),
         })),
       })),

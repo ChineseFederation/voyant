@@ -31,6 +31,10 @@ describe("finance custom-field runtime", () => {
         resolveNotificationDispatcher: () => undefined,
         listBookingReminderRuns: async () => [],
       },
+      {
+        resolveInvoiceFxSettings: async () => null,
+        updateInvoiceFxSettings: async () => null,
+      } as never,
     )
 
     await expect(

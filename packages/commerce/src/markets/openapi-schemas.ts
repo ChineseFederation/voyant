@@ -87,6 +87,10 @@ export const exchangeRateSchema = z.object({
   quoteCurrency: z.string(),
   rateDecimal: decimalString,
   inverseRateDecimal: decimalString.nullable(),
+  /** `rateDecimal` with the operator's currency-risk margin folded in. */
+  effectiveRateDecimal: decimalString.nullable(),
+  /** The margin, in basis points, that produced `effectiveRateDecimal`. */
+  commissionBps: z.number().int().nullable(),
   observedAt: isoTimestamp.nullable(),
   createdAt: isoTimestamp,
 })

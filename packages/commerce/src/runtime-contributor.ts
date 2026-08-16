@@ -11,10 +11,12 @@ import {
   type FinanceAccommodationsPaymentPolicyRuntime,
   type FinanceCruisesPaymentPolicyRuntime,
   type FinanceDistributionPaymentPolicyRuntime,
+  type FinanceFxRateCaptureRuntime,
   type FinanceInventoryPaymentPolicyRuntime,
   financeAccommodationsPaymentPolicyRuntimePort,
   financeCruisesPaymentPolicyRuntimePort,
   financeDistributionPaymentPolicyRuntimePort,
+  financeFxRateCaptureRuntimePort,
   financeInventoryPaymentPolicyRuntimePort,
 } from "@voyant-travel/finance/runtime-port"
 import { catalogCommerceRuntimeExtension } from "./catalog-runtime-extension.js"
@@ -24,6 +26,7 @@ import {
   catalogCheckoutDatabaseRuntimePort,
   catalogCheckoutLegalRuntimePort,
 } from "./checkout/runtime-ports.js"
+import { commerceFxRateCaptureRuntime } from "./markets/fx-capture-runtime.js"
 import { promotionBoundaryJobRuntimePort } from "./promotions/boundary-job-runtime-port.js"
 import { promotionReindexJobRuntimePort } from "./promotions/reindex-job-runtime-port.js"
 import {
@@ -105,6 +108,11 @@ export function createCommerceRuntimePortContribution(
     )
   return {
     [catalogCommerceRuntimeExtensionPort.id]: catalogCommerceRuntimeExtension,
+    // Markets owns `fx_rate_sets`/`exchange_rates`, so it is what turns a
+    // resolved reference rate into a durable rate-set identity for finance to
+    // stamp documents with (voyant#4703).
+    [financeFxRateCaptureRuntimePort.id]:
+      commerceFxRateCaptureRuntime satisfies FinanceFxRateCaptureRuntime,
     [bookingMaintenanceRuntimePort.id]: contribution.then((runtime) => runtime.bookingMaintenance),
     [catalogCheckoutApiRuntimePort.id]: contribution.then((runtime) => runtime.checkoutApi),
     [catalogCheckoutDatabaseRuntimePort.id]: contribution.then(

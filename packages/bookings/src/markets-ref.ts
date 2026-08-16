@@ -15,6 +15,13 @@ export const exchangeRatesRef = pgTable("exchange_rates", {
   quoteCurrency: text("quote_currency").notNull(),
   rateDecimal: numeric("rate_decimal", { precision: 18, scale: 8 }).notNull(),
   inverseRateDecimal: numeric("inverse_rate_decimal", { precision: 18, scale: 8 }),
+  /**
+   * The published rate with the operator's currency-risk margin already
+   * folded in (voyant#4703). When set it is what documents are converted at,
+   * so a booking rollup has to use it too — otherwise the booking total and
+   * the invoice raised from it disagree by exactly the margin.
+   */
+  effectiveRateDecimal: numeric("effective_rate_decimal", { precision: 18, scale: 8 }),
   observedAt: timestamp("observed_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
 })

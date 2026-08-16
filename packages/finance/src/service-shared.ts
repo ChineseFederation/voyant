@@ -30,7 +30,7 @@ export {
 } from "drizzle-orm"
 export type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 export type { z } from "zod"
-export { resolveFxMoneyBaseAmount } from "./fx-money.js"
+export { resolveFxMoneyBaseAmount, resolveReportingStamp } from "./fx-money.js"
 export type { InvoiceFxOptions } from "./invoice-fx.js"
 export { isInvoiceNumberUniqueConstraintError } from "./invoice-number-errors.js"
 export {

@@ -13,18 +13,21 @@ import {
 import { refreshPaymentAdapterStatus } from "./payment-adapter-status.js"
 import { resolveEffectivePaymentLinkUrlTemplate } from "./payment-link.js"
 import { executeAdapterRefundSettlement } from "./refund-settlement-execution.js"
-import type {
-  FinanceAccommodationsPaymentPolicyRuntime,
-  FinanceBookingScheduleRuntime,
-  FinanceCheckoutPaymentStartersRuntime,
-  FinanceCruisesPaymentPolicyRuntime,
-  FinanceDistributionPaymentPolicyRuntime,
-  FinanceHostRuntime,
-  FinanceInventoryPaymentPolicyRuntime,
-  FinanceInvoiceSettlementPollerProvider,
-  FinanceNotificationsRuntime,
-  FinanceOperatorSettingsRuntime,
-  FinanceProposalsPaymentPolicyRuntime,
+import {
+  type FinanceAccommodationsPaymentPolicyRuntime,
+  type FinanceBookingScheduleRuntime,
+  type FinanceCheckoutPaymentStartersRuntime,
+  type FinanceCruisesPaymentPolicyRuntime,
+  type FinanceDistributionPaymentPolicyRuntime,
+  type FinanceFxRateCaptureRuntime,
+  type FinanceFxReferenceRuntime,
+  type FinanceHostRuntime,
+  type FinanceInventoryPaymentPolicyRuntime,
+  type FinanceInvoiceSettlementPollerProvider,
+  type FinanceNotificationsRuntime,
+  type FinanceOperatorSettingsRuntime,
+  type FinanceProposalsPaymentPolicyRuntime,
+  resolveReferenceRate,
 } from "./runtime-port.js"
 import { financeService } from "./service.js"
 import {
@@ -43,9 +46,18 @@ export function createFinanceRuntime(
   invoiceSettlementPollerProviders: readonly FinanceInvoiceSettlementPollerProvider[] = [],
   selectedPaymentAdapter?: PaymentAdapter,
   invoiceDocumentProvider?: FinanceInvoiceDocumentProvider,
+  fx: FinanceFxRuntimeSelection = {},
 ): FinanceApiModuleOptions {
   const { primitives } = host
   return {
+    // The operator's reporting currency and currency-risk margin live on the
+    // operator-settings row. Until voyant#4703 they reached only the settings
+    // routes, so every document-stamping path resolved "no configured base
+    // currency" and left `base_*`/`fx_rate_set_id` empty on every
+    // foreign-currency invoice the platform ever issued.
+    resolveInvoiceFxSettings: operatorSettings.resolveInvoiceFxSettings,
+    updateInvoiceFxSettings: operatorSettings.updateInvoiceFxSettings,
+    ...(fx.capture ? { captureFxRates: fx.capture.captureFxRates } : {}),
     resolveDocumentDownloadUrl: primitives.storage.downloadUrl,
     // Both document paths run off the one selected provider: the on-demand
     // generate/regenerate routes through the generator adapter (they used to
@@ -60,6 +72,10 @@ export function createFinanceRuntime(
       : {}),
     resolveCustomFields: createInvoiceCustomFieldsResolver(customFields),
     resolveInvoiceExchangeRateResolver: (bindings) =>
+      // A host-wired reference source wins: it is the deployment's own
+      // authority (BNR for a Romanian operator), and unlike the managed
+      // fallback it needs no Voyant Cloud key.
+      (fx.reference ? createReferenceRateResolver(fx.reference) : undefined) ??
       createExchangeRateResolver(primitives, bindings),
     invoiceSettlementPollers: aggregateFinanceInvoiceSettlementPollers(
       invoiceSettlementPollerProviders,
@@ -228,6 +244,36 @@ export function createFinanceBookingTaxRuntime(
   return {
     resolveBookingTaxSettings: settings.resolveBookingTaxSettings,
     updateBookingTaxSettings: settings.updateBookingTaxSettings,
+  }
+}
+
+/**
+ * The two FX seams a deployment can fill: where an official rate comes from,
+ * and who can persist it as a rate set (voyant#4703). Both optional — finance
+ * degrades to unpersisted, read-time conversion without them, which is what it
+ * did before either was wired.
+ */
+export interface FinanceFxRuntimeSelection {
+  reference?: FinanceFxReferenceRuntime | undefined
+  capture?: FinanceFxRateCaptureRuntime | undefined
+}
+
+/** Adapt the host's official reference source to finance's invoice-FX seam. */
+function createReferenceRateResolver(
+  reference: FinanceFxReferenceRuntime,
+): ResolveInvoiceExchangeRate {
+  return async ({ baseCurrency, quoteCurrency, date }) => {
+    const resolved = await resolveReferenceRate({
+      provider: reference,
+      base: baseCurrency,
+      quote: quoteCurrency,
+      ...(date ? { date } : {}),
+    })
+    return {
+      rate: resolved.rate,
+      source: resolved.source,
+      quotedAt: resolved.asOf,
+    }
   }
 }
 

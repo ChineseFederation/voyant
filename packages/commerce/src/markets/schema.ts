@@ -1,7 +1,8 @@
 import { typeId, typeIdRef } from "@voyant-travel/db/lib/typeid-column"
-import { relations } from "drizzle-orm"
+import { relations, sql } from "drizzle-orm"
 import {
   boolean,
+  check,
   date,
   index,
   integer,
@@ -30,6 +31,7 @@ export const marketChannelScopeEnum = pgEnum("market_channel_scope", [
 export const fxRateSourceEnum = pgEnum("fx_rate_source", [
   "manual",
   "ecb",
+  "bnr",
   "custom",
   "channel",
   "supplier",
@@ -162,8 +164,20 @@ export const exchangeRates = pgTable(
       .references(() => fxRateSets.id, { onDelete: "cascade" }),
     baseCurrency: text("base_currency").notNull(),
     quoteCurrency: text("quote_currency").notNull(),
+    /** The rate exactly as the source published it. Never carries a margin. */
     rateDecimal: numeric("rate_decimal", { precision: 18, scale: 8 }).notNull(),
     inverseRateDecimal: numeric("inverse_rate_decimal", { precision: 18, scale: 8 }),
+    /**
+     * The rate documents are actually converted at:
+     * `rate_decimal × (1 + commission_bps / 10_000)`. Recorded rather than
+     * recomputed so a document stamped today still reproduces its own
+     * arithmetic after the operator changes the margin — and so the two halves
+     * (published rate, operator margin) can be shown separately to an
+     * inspector. Null on rows captured before the margin was modelled.
+     */
+    effectiveRateDecimal: numeric("effective_rate_decimal", { precision: 18, scale: 8 }),
+    /** The operator currency-risk margin folded into `effective_rate_decimal`. */
+    commissionBps: integer("commission_bps"),
     observedAt: timestamp("observed_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -176,6 +190,13 @@ export const exchangeRates = pgTable(
       table.fxRateSetId,
       table.baseCurrency,
       table.quoteCurrency,
+    ),
+    // The applied rate is only interpretable next to the margin that produced
+    // it, so neither half may be recorded on its own.
+    check(
+      "ck_exchange_rates_effective_rate_commission",
+      // agent-quality: raw-sql reviewed -- owner: commerce; dynamic SQL interpolation uses Drizzle parameter binding or vetted SQL identifiers.
+      sql`(${table.effectiveRateDecimal} IS NULL) = (${table.commissionBps} IS NULL)`,
     ),
   ],
 )

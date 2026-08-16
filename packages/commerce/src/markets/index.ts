@@ -4,6 +4,14 @@ import { marketsRoutes } from "./routes.js"
 import { publicMarketsRoutes } from "./routes-public.js"
 import { marketsService } from "./service.js"
 
+export type {
+  CapturedFxQuote,
+  CapturedFxRate,
+  CapturedFxRateSource,
+  CaptureFxRateSetInput,
+  CaptureFxRateSetResult,
+} from "./fx-capture.js"
+export { applyCommission, captureFxRateSet, FxRateCaptureError } from "./fx-capture.js"
 export type { MarketsRoutes } from "./routes.js"
 export type { PublicMarketsRoutes } from "./routes-public.js"
 export { publicMarketSchema } from "./routes-public.js"

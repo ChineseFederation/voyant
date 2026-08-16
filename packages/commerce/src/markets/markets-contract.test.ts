@@ -101,6 +101,8 @@ const exchangeRateRow: InferSelectModel<typeof exchangeRates> = {
   quoteCurrency: "RON",
   rateDecimal: "4.97500000",
   inverseRateDecimal: null,
+  effectiveRateDecimal: "5.07450000",
+  commissionBps: 200,
   observedAt: null,
   createdAt,
 }

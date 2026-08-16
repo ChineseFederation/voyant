@@ -102,6 +102,69 @@ export interface FinanceFxReferenceRuntime {
   resolveReferenceRate(request: FxReferenceRateRequest): Promise<FxReferenceRate>
 }
 
+/** One published rate, ready to be captured against a day. */
+export interface FxRateCaptureQuote {
+  /** Foreign currency being converted from, e.g. `EUR`. */
+  currency: string
+  /** Units of the reporting currency per one unit of `currency`, as published. */
+  rate: number
+}
+
+export interface FxRateCaptureRequest {
+  /** The operator's reporting currency, e.g. `RON`. */
+  reportingCurrency: string
+  /** The document's own day, `YYYY-MM-DD`. */
+  date: string
+  /** The source that published the rates, e.g. `bnr`. */
+  source: string
+  sourceReference?: string | null
+  /** The operator's currency-risk margin in basis points. */
+  commissionBps: number
+  quotes: readonly FxRateCaptureQuote[]
+}
+
+export interface CapturedFxRateSetRate {
+  currency: string
+  /** The rate as published, before the margin. */
+  rate: number
+  /** The rate documents dated `date` are converted at, margin included. */
+  effectiveRate: number
+  commissionBps: number
+}
+
+export interface FxRateCaptureResult {
+  /** Identity a document is stamped with; the rates behind it never change. */
+  fxRateSetId: string
+  /**
+   * The rates that stand for the day after capture — which may differ from
+   * the submitted quotes, because a rate already captured for that day wins.
+   */
+  rates: readonly CapturedFxRateSetRate[]
+}
+
+/**
+ * Persist a day's official rates and hand back the rate-set identity a
+ * document is stamped with (voyant#4703). Finance reads `exchange_rates` but
+ * does not own it, so capture is a seam the owning module fills.
+ */
+export type CaptureFxRates = (
+  db: PostgresJsDatabase,
+  request: FxRateCaptureRequest,
+) => Promise<FxRateCaptureResult | null>
+
+/**
+ * Persist an official rate for one day so a document can be stamped with an
+ * `fx_rate_set_id` that still resolves years later (voyant#4703). Finance
+ * reads `exchange_rates` but does not own it — the module that does provides
+ * this port, which is also why capture is a seam rather than a direct write.
+ *
+ * Absent on a deployment without the owning module: finance then resolves
+ * rates without persisting them, exactly as it did before.
+ */
+export interface FinanceFxRateCaptureRuntime {
+  captureFxRates: CaptureFxRates
+}
+
 export interface FinanceDistributionPaymentPolicyRuntime {
   resolveSupplierPolicy: PolicyReader
   resolveSupplierPolicyById(
@@ -236,6 +299,10 @@ export const financeNotificationsRuntimePort = objectPort<FinanceNotificationsRu
 export const financeFxReferenceRuntimePort = objectPort<FinanceFxReferenceRuntime>(
   "finance.fx-reference.runtime",
   ["resolveReferenceRate"],
+)
+export const financeFxRateCaptureRuntimePort = objectPort<FinanceFxRateCaptureRuntime>(
+  "finance.fx-rate-capture.runtime",
+  ["captureFxRates"],
 )
 
 /**

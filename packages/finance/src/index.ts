@@ -33,6 +33,8 @@ import { supplierInvoiceRoutes } from "./routes-supplier-invoices.js"
 import { createFinanceRuntime } from "./runtime.js"
 import {
   financeCheckoutPaymentStartersRuntimePort,
+  financeFxRateCaptureRuntimePort,
+  financeFxReferenceRuntimePort,
   financeHostRuntimePort,
   financeInvoiceSettlementPollerRuntimePort,
   financeNotificationsRuntimePort,
@@ -243,6 +245,14 @@ export const createFinanceVoyantRuntime = defineGraphRuntimeFactory(
         hasPort(financeInvoiceDocumentProviderPort)
           ? await getPort(financeInvoiceDocumentProviderPort)
           : undefined,
+        {
+          reference: hasPort(financeFxReferenceRuntimePort)
+            ? await getPort(financeFxReferenceRuntimePort)
+            : undefined,
+          capture: hasPort(financeFxRateCaptureRuntimePort)
+            ? await getPort(financeFxRateCaptureRuntimePort)
+            : undefined,
+        },
       ),
       // Finance accepts bookings too, so it consumes the same monthly booking
       // quota. A host that installs a live allowance on bookings alone would
@@ -370,8 +380,13 @@ export {
 } from "./document-download.js"
 export {
   type FxMoneyInput,
+  type ReportingStamp,
+  type ResolveDocumentFxRateInput,
+  type ResolvedDocumentFxRate,
   type ResolveFxMoneyBaseAmountOptions,
+  resolveDocumentFxRate,
   resolveFxMoneyBaseAmount,
+  resolveReportingStamp,
 } from "./fx-money.js"
 export type {
   FulfilInvoiceRenditionOptions,
@@ -508,6 +523,8 @@ export {
   financeCheckoutPaymentStartersRuntimePort,
   financeCruisesPaymentPolicyRuntimePort,
   financeDistributionPaymentPolicyRuntimePort,
+  financeFxRateCaptureRuntimePort,
+  financeFxReferenceRuntimePort,
   financeHostRuntimePort,
   financeInventoryPaymentPolicyRuntimePort,
   financeInvoiceSettlementPollerRuntimePort,
@@ -670,6 +687,13 @@ export {
   financeDocumentsService,
   prepareInvoiceDocument,
 } from "./service-documents.js"
+export {
+  FxStampError,
+  type FxStampRequest,
+  type FxStampResult,
+  stampInvoiceFx,
+  stampPaymentFx,
+} from "./service-fx-stamp.js"
 export type {
   InvoiceFromBookingCommandOutcome,
   InvoiceIssuedEvent,

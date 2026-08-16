@@ -7,12 +7,14 @@ import type { Hono } from "hono"
 import { Hono as HonoApp } from "hono"
 import { z } from "zod"
 
+import { resolveDocumentFxRate } from "./fx-money.js"
 import {
   buildFinanceRouteRuntime,
   FINANCE_ROUTE_RUNTIME_CONTAINER_KEY,
   type FinanceRouteRuntime,
 } from "./route-runtime.js"
 import type { Env } from "./routes-shared.js"
+import type { CaptureFxRates } from "./runtime-port.js"
 
 export type InvoiceFxSettings = {
   baseCurrency?: string | null
@@ -67,6 +69,12 @@ export interface InvoiceFxOptions {
   resolveInvoiceExchangeRateResolver?: (
     bindings: Record<string, unknown>,
   ) => ResolveInvoiceExchangeRate | undefined
+  /**
+   * Persist a resolved rate so the document can be stamped with a rate-set id
+   * that outlives the request. Absent → the rate is still applied, but nothing
+   * records which rate it was.
+   */
+  captureFxRates?: CaptureFxRates
   onInvoiceFxResolutionError?: HandleInvoiceFxResolutionError
 }
 
@@ -76,6 +84,8 @@ export type InvoiceFxInvoice = {
   currency: string
   baseCurrency?: string | null
   issueDate?: string | Date | null
+  /** The rate set this invoice was stamped with, when it already has one. */
+  fxRateSetId?: string | null
 }
 
 export type InvoiceFxContext = {
@@ -182,38 +192,37 @@ export async function resolveInvoiceFxContext(
   const invoiceCurrency = normalizeCurrency(invoice.currency)
 
   if (!baseCurrency || !invoiceCurrency || invoiceCurrency === baseCurrency) return null
-  if (!options.resolveInvoiceExchangeRate) return null
 
-  const rateInput = {
-    baseCurrency: invoiceCurrency,
-    quoteCurrency: baseCurrency,
-    date: toDateString(invoice.issueDate),
-  }
-  let fxResolution: number | InvoiceExchangeRateResolution | null | undefined
+  // The document the customer receives and the amount stored on the row must
+  // be the same conversion, so both go through the one resolution — including
+  // the rate set the invoice is already bound to (voyant#4703). Resolving the
+  // printed rate separately is how an invoice ends up printing one rate and
+  // reporting another.
+  const resolved = await resolveDocumentFxRate(
+    db,
+    {
+      currency: invoiceCurrency,
+      baseCurrency,
+      date: invoice.issueDate ?? null,
+      fxRateSetId: invoice.fxRateSetId ?? null,
+    },
+    options,
+    settings,
+  )
+  if (!resolved) return null
 
-  try {
-    fxResolution = await options.resolveInvoiceExchangeRate(rateInput)
-  } catch (error) {
-    await notifyInvoiceFxResolutionError(options, error, rateInput)
-    return null
-  }
-
-  const resolvedRate = normalizeInvoiceExchangeRateResolution(fxResolution)
-  if (!resolvedRate) return null
-
-  const fxCommissionBps = normalizeBasisPoints(settings?.fxCommissionBps)
-  const effectiveRate = roundRate(resolvedRate.rate * (1 + fxCommissionBps / 10_000))
+  const quotedAt = resolved.quotedAt ?? toDateString(invoice.issueDate)
 
   return {
     baseCurrency,
-    ...(resolvedRate.fxRateSetId ? { fxRateSetId: resolvedRate.fxRateSetId } : {}),
-    fxRate: roundRate(resolvedRate.rate),
-    ...(resolvedRate.source ? { fxRateSource: resolvedRate.source } : {}),
-    ...(resolvedRate.quotedAt ? { fxRateQuotedAt: resolvedRate.quotedAt } : {}),
-    ...(resolvedRate.validUntil ? { fxRateValidUntil: resolvedRate.validUntil } : {}),
-    fxCommissionBps,
-    effectiveRate,
-    ...(fxCommissionBps > 0 && normalizeOptionalText(settings?.fxCommissionInvoiceMention)
+    ...(resolved.fxRateSetId ? { fxRateSetId: resolved.fxRateSetId } : {}),
+    fxRate: roundRate(resolved.sourceRate),
+    ...(resolved.source ? { fxRateSource: resolved.source } : {}),
+    ...(quotedAt ? { fxRateQuotedAt: quotedAt } : {}),
+    ...(resolved.validUntil ? { fxRateValidUntil: resolved.validUntil } : {}),
+    fxCommissionBps: resolved.commissionBps,
+    effectiveRate: roundRate(resolved.effectiveRate),
+    ...(resolved.commissionBps > 0 && normalizeOptionalText(settings?.fxCommissionInvoiceMention)
       ? { fxCommissionInvoiceMention: normalizeOptionalText(settings?.fxCommissionInvoiceMention) }
       : {}),
   }
@@ -232,7 +241,25 @@ export function createVoyantDataFxExchangeRateResolver(
     userAgent: options.userAgent ?? "voyant-finance",
   })
 
-  return async ({ baseCurrency, quoteCurrency }) => {
+  return async ({ baseCurrency, quoteCurrency, date }) => {
+    // A document is worth what it was worth on its own date, so a requested
+    // date has to reach the source. Resolving it against the live pair — which
+    // is what this did before voyant#4703 — silently answers "today" for an
+    // invoice issued last March.
+    const day = parseIsoDate(date)
+    if (day) {
+      const history = await client.fx.history(baseCurrency, day.year, day.month, day.day)
+      const rate = history.conversionRates?.[quoteCurrency]
+      if (typeof rate !== "number" || !Number.isFinite(rate) || rate <= 0) return null
+
+      const source = normalizeOptionalText(history.source)
+      return {
+        rate,
+        ...(source ? { source } : {}),
+        quotedAt: day.iso,
+      }
+    }
+
     const quote = await client.fx.pair(baseCurrency, quoteCurrency)
     if (typeof quote.conversionRate !== "number" || !Number.isFinite(quote.conversionRate)) {
       return null
@@ -249,6 +276,12 @@ export function createVoyantDataFxExchangeRateResolver(
       ...(validUntil ? { validUntil } : {}),
     }
   }
+}
+
+function parseIsoDate(value: string | undefined) {
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null
+  const [year, month, day] = value.split("-").map(Number) as [number, number, number]
+  return { year, month, day, iso: value }
 }
 
 export function createInvoiceFxRoutes(options: InvoiceFxRouteOptions = {}) {

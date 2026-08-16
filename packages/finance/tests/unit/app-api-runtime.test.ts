@@ -118,7 +118,10 @@ describe("finance App API runtime", () => {
           const query = {
             where: () => query,
             limit: async () => tableRows,
-            orderBy: async () => tableRows,
+            // Thenable AND chainable, like drizzle's own builder: the invoice
+            // FX resolution reads exchange_rates with `.orderBy(...).limit(1)`.
+            orderBy: () =>
+              Object.assign(Promise.resolve(tableRows), { limit: async () => tableRows }),
           }
           return query
         },

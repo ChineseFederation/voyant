@@ -100,6 +100,8 @@ export interface FinanceToolServices {
     input: z.infer<typeof issueInvoiceFromBookingToolInputSchema> & { approvalId?: string },
   ): Promise<unknown>
   recordPayment(input: z.infer<typeof recordPaymentToolInputSchema>): Promise<unknown>
+  stampInvoiceFxRate(input: z.infer<typeof stampInvoiceFxRateToolInputSchema>): Promise<unknown>
+  stampPaymentFxRate(input: z.infer<typeof stampPaymentFxRateToolInputSchema>): Promise<unknown>
   recordPaymentDispute(input: z.infer<typeof recordPaymentDisputeToolInputSchema>): Promise<unknown>
   recordRefundSettlement(
     input: z.infer<typeof recordRefundSettlementToolInputSchema>,
@@ -921,6 +923,123 @@ export const recordRefundSettlementTool = defineTool<
   },
 })
 
+const fxStampFieldsSchema = {
+  rate: z
+    .number()
+    .positive()
+    .optional()
+    .describe(
+      "The rate the source published for the document's own date — reporting-currency " +
+        "units per one unit of the document's currency, BEFORE the operator's " +
+        "currency-risk margin. Omit to ask the configured reference source.",
+    ),
+  source: z
+    .string()
+    .min(1)
+    .max(32)
+    .optional()
+    .describe("Who published `rate`, e.g. `bnr`. Defaults to `manual`."),
+  force: z.boolean().optional().describe("Replace a stamp the document already carries."),
+}
+
+export const stampInvoiceFxRateToolInputSchema = z.object({
+  invoiceId: z.string().min(1).describe("The invoice to stamp."),
+  ...fxStampFieldsSchema,
+})
+
+export const stampPaymentFxRateToolInputSchema = z.object({
+  paymentId: z.string().min(1).describe("The payment to stamp."),
+  ...fxStampFieldsSchema,
+})
+
+const fxStampResultSchema = z.object({
+  documentId: z.string(),
+  currency: z.string(),
+  reportingCurrency: z.string(),
+  rate: z.number(),
+  effectiveRate: z.number(),
+  commissionBps: z.number().int(),
+  fxRateSetId: z.string().nullable(),
+  reportingAmountCents: z.number().int(),
+})
+
+const FX_STAMP_RISK_POLICY = {
+  destructive: false,
+  // Re-stamping is a `force` away, so a wrong rate is correctable.
+  reversible: true,
+  dryRunSupported: false,
+  confirmationRequired: true,
+  sideEffects: ["data-write"],
+} as const
+
+const FX_STAMP_RATE_GUIDANCE =
+  "Pass `rate` to use the rate printed on the document — the published rate BEFORE the " +
+  "operator's currency-risk margin, which is applied on top and recorded alongside it — " +
+  "or omit it to ask the configured reference source for that date. The rate is kept as " +
+  "a rate set, so every document of that day resolves to the same number afterwards. " +
+  "Refuses a document that already carries a stamp unless `force` is set; a stamp is " +
+  "meant to hold, because changing it restates a figure someone has already reported."
+
+/**
+ * Repair a foreign-currency document that predates rate capture (voyant#4703).
+ *
+ * These are agent surfaces because the work they exist for is agent-shaped: the
+ * operator's accounting provider prints the applied rate on every invoice
+ * ("Total plata 420.00 EUR (2247.92 Lei) Curs 1 EUR = 5.3522 Lei"), and putting a
+ * month of those back onto the records is what made the last period return
+ * manual. Documents issued from now on stamp themselves.
+ */
+export const stampInvoiceFxRateTool = defineTool<
+  z.infer<typeof stampInvoiceFxRateToolInputSchema>,
+  unknown,
+  FinanceToolContext
+>({
+  owner: "@voyant-travel/finance",
+  capabilityId: "@voyant-travel/finance#tool.stamp-invoice-fx-rate",
+  capabilityVersion: "v1",
+  name: "stamp_invoice_fx_rate",
+  description:
+    "Record what a foreign-currency invoice was worth in the operator's reporting " +
+    `currency, at the rate of the invoice's OWN issue date. ${FX_STAMP_RATE_GUIDANCE}`,
+  inputSchema: stampInvoiceFxRateToolInputSchema,
+  outputSchema: fxStampResultSchema,
+  requiredScopes: ["finance:write"],
+  audience: { source: "grant", allowed: ["staff"] },
+  tier: "write",
+  riskPolicy: FX_STAMP_RISK_POLICY,
+  // Stamping the same invoice with the same rate lands on the same numbers, and
+  // a captured rate is never rewritten — so a repeat really is free.
+  annotations: { idempotentHint: true },
+  async handler(input, ctx) {
+    return fxStampResultSchema.parse(await finance(ctx).stampInvoiceFxRate(input))
+  },
+})
+
+export const stampPaymentFxRateTool = defineTool<
+  z.infer<typeof stampPaymentFxRateToolInputSchema>,
+  unknown,
+  FinanceToolContext
+>({
+  owner: "@voyant-travel/finance",
+  capabilityId: "@voyant-travel/finance#tool.stamp-payment-fx-rate",
+  capabilityVersion: "v1",
+  name: "stamp_payment_fx_rate",
+  description:
+    "Record what a foreign-currency payment was worth in the operator's reporting " +
+    "currency, at the rate of the day it landed — the figure a period return asks for " +
+    `as advances collected. ${FX_STAMP_RATE_GUIDANCE}`,
+  inputSchema: stampPaymentFxRateToolInputSchema,
+  outputSchema: fxStampResultSchema,
+  requiredScopes: ["finance:write"],
+  audience: { source: "grant", allowed: ["staff"] },
+  tier: "write",
+  riskPolicy: FX_STAMP_RISK_POLICY,
+  annotations: { idempotentHint: true },
+  async handler(input, ctx) {
+    return fxStampResultSchema.parse(await finance(ctx).stampPaymentFxRate(input))
+  },
+})
+
 export const financeTools = [
   listInvoicesTool,
   getInvoiceTool,
@@ -932,6 +1051,8 @@ export const financeTools = [
   recordPaymentTool,
   recordPaymentDisputeTool,
   recordRefundSettlementTool,
+  stampInvoiceFxRateTool,
+  stampPaymentFxRateTool,
   previewUnsyncedProformaFromBookingTool,
   issueUnsyncedProformaFromBookingTool,
 ] as const

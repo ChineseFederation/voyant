@@ -301,6 +301,9 @@ describe("finance tools", () => {
             baseCurrency: null,
             baseAmountCents: null,
             fxRateSetId: null,
+            reportingCurrency: "RON",
+            reportingAmountCents: 124_305,
+            reportingFxRateSetId: "fxrs_1",
             paymentMethod: "bank_transfer",
             paymentInstrumentId: null,
             paymentAuthorizationId: null,
@@ -336,6 +339,8 @@ describe("finance tools", () => {
       "record_payment_dispute",
       "record_refund_settlement",
       "refund_cancelled_booking",
+      "stamp_invoice_fx_rate",
+      "stamp_payment_fx_rate",
       "void_invoice",
     ])
     // The money leg carries the same scope and the same destructive posture as

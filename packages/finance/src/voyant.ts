@@ -28,6 +28,8 @@ import {
   financeCheckoutPaymentStartersRuntimePort,
   financeCruisesPaymentPolicyRuntimePort,
   financeDistributionPaymentPolicyRuntimePort,
+  financeFxRateCaptureRuntimePort,
+  financeFxReferenceRuntimePort,
   financeHostRuntimePort,
   financeInventoryPaymentPolicyRuntimePort,
   financeInvoiceSettlementPollerRuntimePort,
@@ -102,6 +104,11 @@ export const financeVoyantModule = defineModule({
       cardinality: "many",
     }),
     requirePort(financeInvoiceDocumentProviderPort, { optional: true }),
+    // Persisting a resolved rate needs the module that owns `exchange_rates`.
+    // Optional: without it finance still converts, it just cannot hand the
+    // document a rate-set identity that outlives the request (voyant#4703).
+    requirePort(financeFxRateCaptureRuntimePort, { optional: true }),
+    requirePort(financeFxReferenceRuntimePort, { optional: true }),
   ],
   provides: {
     capabilities: ["finance.data-owner", "finance.payment-sessions"],
@@ -528,6 +535,34 @@ export const financeVoyantModule = defineModule({
       adminWrites: ["/v1/admin/finance/invoices/{id}/payments"],
     },
     {
+      id: "@voyant-travel/finance#tool.stamp-invoice-fx-rate",
+      name: "stamp_invoice_fx_rate",
+      runtime: {
+        entry: "@voyant-travel/finance/tools",
+        export: "stampInvoiceFxRateTool",
+      },
+      requiredScopes: ["finance:write"],
+      context: ["finance"],
+      // `medium`: it records what the invoice was already worth on its own
+      // date. Nothing about the money moves, and a wrong rate is re-stampable.
+      risk: "medium",
+      // Declared: `fx-stamp` is not one of the write-coverage checker's action
+      // verbs, so the path reads as its own resource under `invoice`.
+      adminWrites: ["/v1/admin/finance/invoices/{id}/fx-stamp"],
+    },
+    {
+      id: "@voyant-travel/finance#tool.stamp-payment-fx-rate",
+      name: "stamp_payment_fx_rate",
+      runtime: {
+        entry: "@voyant-travel/finance/tools",
+        export: "stampPaymentFxRateTool",
+      },
+      requiredScopes: ["finance:write"],
+      context: ["finance"],
+      risk: "medium",
+      adminWrites: ["/v1/admin/finance/payments/{id}/fx-stamp"],
+    },
+    {
       id: "@voyant-travel/finance#tool.record-payment-dispute",
       name: "record_payment_dispute",
       runtime: {
@@ -734,6 +769,50 @@ export const financeVoyantModule = defineModule({
       effectBoundary: "local",
       targetLifecycle: "existing",
       from: { tools: ["@voyant-travel/finance#tool.record-payment-dispute"] },
+    },
+    {
+      id: "@voyant-travel/finance#action.stamp-invoice-fx-rate",
+      capabilityId: "finance:invoice-fx-stamp",
+      version: "v1",
+      kind: "execute",
+      targetType: "invoice",
+      commandTargetField: "invoiceId",
+      resource: "finance",
+      action: "write",
+      requiredScopes: ["finance:write"],
+      risk: "medium",
+      ledger: "required",
+      // `never`: this records what the document was already worth on its own
+      // date. Gating it behind an approval would stall the back-entry sweep it
+      // exists for, while the period return keeps having no lei figure at all.
+      // The service refuses to replace a standing stamp without `force`.
+      approval: "never",
+      reversible: true,
+      allowedActorTypes: ["staff", "system"],
+      availability: { status: "available" },
+      effectBoundary: "local",
+      targetLifecycle: "existing",
+      from: { tools: ["@voyant-travel/finance#tool.stamp-invoice-fx-rate"] },
+    },
+    {
+      id: "@voyant-travel/finance#action.stamp-payment-fx-rate",
+      capabilityId: "finance:payment-fx-stamp",
+      version: "v1",
+      kind: "execute",
+      targetType: "payment",
+      commandTargetField: "paymentId",
+      resource: "finance",
+      action: "write",
+      requiredScopes: ["finance:write"],
+      risk: "medium",
+      ledger: "required",
+      approval: "never",
+      reversible: true,
+      allowedActorTypes: ["staff", "system"],
+      availability: { status: "available" },
+      effectBoundary: "local",
+      targetLifecycle: "existing",
+      from: { tools: ["@voyant-travel/finance#tool.stamp-payment-fx-rate"] },
     },
     {
       id: "@voyant-travel/finance#action.issue-invoice-from-booking",

@@ -363,6 +363,8 @@ jobs:
                 tests/integration/promotion-created-command.test.ts
               pnpm --filter @voyant-travel/commerce exec vitest run \
                 tests/integration/linked-payment-contract-confirmation.test.ts
+              pnpm --filter @voyant-travel/commerce exec vitest run \
+                tests/integration/fx-rate-capture.test.ts
               pnpm --filter @voyant-travel/cruises exec vitest run \
                 tests/integration/created-target-tools.test.ts
               pnpm --filter @voyant-travel/auth exec vitest run \
@@ -399,6 +401,8 @@ jobs:
                 tests/integration/mcp-lookup.test.ts
               pnpm --filter @voyant-travel/bookings exec vitest run \
                 tests/integration/booking-documents.test.ts
+              pnpm --filter @voyant-travel/bookings exec vitest run \
+                tests/integration/fx-rollup.test.ts
               pnpm --filter @voyant-travel/operations exec vitest run \
                 tests/availability/integration/auto-allocate-concurrency.test.ts
               pnpm --filter @voyant-travel/operations exec vitest run \

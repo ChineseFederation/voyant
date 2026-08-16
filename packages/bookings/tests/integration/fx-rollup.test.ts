@@ -73,6 +73,11 @@ describe.skipIf(!DB_AVAILABLE)("bookings FX rollup", () => {
       .insert(bookings)
       .values({
         bookingNumber: nextNumber(),
+        // `bookings.status` is NOT NULL with no default, so this seed had been
+        // failing on the insert — before any FX assertion ran — for as long as
+        // that has been true. The file is not in the `integration` CI lane, so
+        // nothing said so; it is registered there now.
+        status: "confirmed",
         sellCurrency: opts.sellCurrency,
         baseCurrency: opts.baseCurrency ?? null,
         fxRateSetId: opts.fxRateSetId ?? null,
@@ -241,6 +246,47 @@ describe.skipIf(!DB_AVAILABLE)("bookings FX rollup", () => {
     const result = await bookingsService.recomputeBookingTotal(db, booking.id)
     expect(result?.fxStatus).toBe("ok")
     expect(result?.baseSellAmountCents).toBe(11000)
+  })
+
+  it("inverse path reads a captured applied rate as one over itself", async () => {
+    // Captured rows carry the operator's currency-risk margin in
+    // `effective_rate_decimal` (voyant#4703). Read backwards, the applied rate
+    // is 1/5.352144 EUR per RON — NOT `inverse_rate_decimal`, which is the
+    // margin-free 1/5.2472 and would leave this booking disagreeing with the
+    // invoice raised from it by exactly the margin.
+    const [set] = await db
+      .insert(fxRateSets)
+      .values({
+        source: "bnr",
+        baseCurrency: "RON",
+        effectiveAt: new Date("2026-08-15T00:00:00Z"),
+      })
+      .returning()
+    await db.insert(exchangeRates).values({
+      fxRateSetId: set.id,
+      baseCurrency: "EUR",
+      quoteCurrency: "RON",
+      rateDecimal: "5.24720000",
+      inverseRateDecimal: "0.19057800",
+      effectiveRateDecimal: "5.35214400",
+      commissionBps: 200,
+    })
+    const booking = await seedBooking({
+      sellCurrency: "RON",
+      baseCurrency: "EUR",
+      fxRateSetId: set.id,
+    })
+    await bookingsService.createItem(db, booking.id, {
+      title: "RON priced, EUR reported",
+      itemType: "unit",
+      quantity: 1,
+      sellCurrency: "RON",
+      totalSellAmountCents: 100_000,
+    })
+
+    const result = await bookingsService.recomputeBookingTotal(db, booking.id)
+    expect(result?.fxStatus).toBe("ok")
+    expect(result?.baseSellAmountCents).toBe(Math.round(100_000 / 5.352144))
   })
 
   it("recomputeBookingTotal returns null for a missing booking", async () => {

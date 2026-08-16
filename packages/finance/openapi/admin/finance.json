@@ -15551,6 +15551,7 @@
     "/v1/admin/finance/payments/{id}": {
       "get": {
         "description": "Look up a single payment by id. Dispatches by typeid prefix: `spay_*` → supplier payment, `pay_*` → customer payment.",
+        "x-voyant-api-id": "@voyant-travel/finance#api.admin",
         "parameters": [
           {
             "schema": {
@@ -15751,6 +15752,7 @@
       },
       "patch": {
         "description": "Update a customer payment. Recomputes the invoice's paid/balance/status from the remaining completed payments. Supplier payments (`spay_*` id) must be updated via `/supplier-payments/{id}` and return 400 here.",
+        "x-voyant-api-id": "@voyant-travel/finance#api.admin",
         "parameters": [
           {
             "schema": {
@@ -15902,6 +15904,24 @@
                             "null"
                           ]
                         },
+                        "reportingCurrency": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "reportingAmountCents": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ]
+                        },
+                        "reportingFxRateSetId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
                         "paymentMethod": {
                           "type": "string",
                           "enum": [
@@ -15973,6 +15993,9 @@
                         "baseCurrency",
                         "baseAmountCents",
                         "fxRateSetId",
+                        "reportingCurrency",
+                        "reportingAmountCents",
+                        "reportingFxRateSetId",
                         "paymentMethod",
                         "paymentInstrumentId",
                         "paymentAuthorizationId",
@@ -16058,6 +16081,7 @@
       },
       "delete": {
         "description": "Remove a customer payment, recomputing invoice totals the same way PATCH does. Supplier payments (`spay_*` id) must be deleted via `/supplier-payments/{id}` and return 400 here.",
+        "x-voyant-api-id": "@voyant-travel/finance#api.admin",
         "parameters": [
           {
             "schema": {
@@ -16104,6 +16128,24 @@
                           ]
                         },
                         "fxRateSetId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "reportingCurrency": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "reportingAmountCents": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ]
+                        },
+                        "reportingFxRateSetId": {
                           "type": [
                             "string",
                             "null"
@@ -16180,6 +16222,9 @@
                         "baseCurrency",
                         "baseAmountCents",
                         "fxRateSetId",
+                        "reportingCurrency",
+                        "reportingAmountCents",
+                        "reportingFxRateSetId",
                         "paymentMethod",
                         "paymentInstrumentId",
                         "paymentAuthorizationId",
@@ -21364,6 +21409,7 @@
     },
     "/v1/admin/finance/invoices/{id}/payments": {
       "get": {
+        "x-voyant-api-id": "@voyant-travel/finance#api.admin",
         "parameters": [
           {
             "schema": {
@@ -21412,6 +21458,24 @@
                             ]
                           },
                           "fxRateSetId": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "reportingCurrency": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "reportingAmountCents": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          },
+                          "reportingFxRateSetId": {
                             "type": [
                               "string",
                               "null"
@@ -21488,6 +21552,9 @@
                           "baseCurrency",
                           "baseAmountCents",
                           "fxRateSetId",
+                          "reportingCurrency",
+                          "reportingAmountCents",
+                          "reportingFxRateSetId",
                           "paymentMethod",
                           "paymentInstrumentId",
                           "paymentAuthorizationId",
@@ -21519,6 +21586,7 @@
         "x-voyant-surface": "admin"
       },
       "post": {
+        "x-voyant-api-id": "@voyant-travel/finance#api.admin",
         "parameters": [
           {
             "schema": {
@@ -21684,6 +21752,24 @@
                             "null"
                           ]
                         },
+                        "reportingCurrency": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "reportingAmountCents": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ]
+                        },
+                        "reportingFxRateSetId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
                         "paymentMethod": {
                           "type": "string",
                           "enum": [
@@ -21755,6 +21841,9 @@
                         "baseCurrency",
                         "baseAmountCents",
                         "fxRateSetId",
+                        "reportingCurrency",
+                        "reportingAmountCents",
+                        "reportingFxRateSetId",
                         "paymentMethod",
                         "paymentInstrumentId",
                         "paymentAuthorizationId",
@@ -40467,6 +40556,360 @@
             }
           }
         }
+      }
+    },
+    "/v1/admin/finance/invoices/{id}/fx-stamp": {
+      "post": {
+        "x-voyant-api-id": "@voyant-travel/finance#api.admin",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "rate": {
+                    "type": "number",
+                    "exclusiveMinimum": 0
+                  },
+                  "source": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 32
+                  },
+                  "force": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The FX stamp written onto the document",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "documentId": {
+                          "type": "string"
+                        },
+                        "currency": {
+                          "type": "string"
+                        },
+                        "reportingCurrency": {
+                          "type": "string"
+                        },
+                        "rate": {
+                          "type": "number"
+                        },
+                        "effectiveRate": {
+                          "type": "number"
+                        },
+                        "commissionBps": {
+                          "type": "integer"
+                        },
+                        "fxRateSetId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "reportingAmountCents": {
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "documentId",
+                        "currency",
+                        "reportingCurrency",
+                        "rate",
+                        "effectiveRate",
+                        "commissionBps",
+                        "fxRateSetId",
+                        "reportingAmountCents"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "invalid_request, or the document cannot carry an FX stamp",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Document not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The document already carries an FX stamp",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "No rate is available for the document's date",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "postAdminFinanceInvoicesByIdFxStamp",
+        "summary": "POST /v1/admin/finance/invoices/{id}/fx-stamp",
+        "tags": [
+          "finance"
+        ],
+        "x-voyant-module": "finance",
+        "x-voyant-surface": "admin"
+      }
+    },
+    "/v1/admin/finance/payments/{id}/fx-stamp": {
+      "post": {
+        "x-voyant-api-id": "@voyant-travel/finance#api.admin",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "rate": {
+                    "type": "number",
+                    "exclusiveMinimum": 0
+                  },
+                  "source": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 32
+                  },
+                  "force": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The FX stamp written onto the document",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "documentId": {
+                          "type": "string"
+                        },
+                        "currency": {
+                          "type": "string"
+                        },
+                        "reportingCurrency": {
+                          "type": "string"
+                        },
+                        "rate": {
+                          "type": "number"
+                        },
+                        "effectiveRate": {
+                          "type": "number"
+                        },
+                        "commissionBps": {
+                          "type": "integer"
+                        },
+                        "fxRateSetId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "reportingAmountCents": {
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "documentId",
+                        "currency",
+                        "reportingCurrency",
+                        "rate",
+                        "effectiveRate",
+                        "commissionBps",
+                        "fxRateSetId",
+                        "reportingAmountCents"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "invalid_request, or the document cannot carry an FX stamp",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Document not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The document already carries an FX stamp",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "No rate is available for the document's date",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "postAdminFinancePaymentsByIdFxStamp",
+        "summary": "POST /v1/admin/finance/payments/{id}/fx-stamp",
+        "tags": [
+          "finance"
+        ],
+        "x-voyant-module": "finance",
+        "x-voyant-surface": "admin"
       }
     }
   },

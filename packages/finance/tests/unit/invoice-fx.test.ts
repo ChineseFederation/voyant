@@ -6,11 +6,12 @@ import {
   createVoyantDataFxExchangeRateResolver,
   resolveInvoiceFxContext,
 } from "../../src/invoice-fx.js"
+import { fakeRateStore } from "./support/rate-store.js"
 
 describe("invoice FX", () => {
   it("resolves invoice FX context from operator settings", async () => {
     const context = await resolveInvoiceFxContext(
-      {} as never,
+      fakeRateStore(),
       { currency: "eur", issueDate: "2026-05-22" },
       {
         invoiceFxSettings: {
@@ -25,6 +26,9 @@ describe("invoice FX", () => {
     expect(context).toEqual({
       baseCurrency: "RON",
       fxRate: 4.97,
+      // A source that reports no timestamp of its own still gets one: the rate
+      // is the invoice's own day's rate, and saying so is the point.
+      fxRateQuotedAt: "2026-05-22",
       fxCommissionBps: 200,
       effectiveRate: 5.0694,
       fxCommissionInvoiceMention: "2% comision curs risc valutar",
@@ -35,7 +39,7 @@ describe("invoice FX", () => {
     const error = new Error("FX provider timeout")
     const onInvoiceFxResolutionError = vi.fn()
     const context = await resolveInvoiceFxContext(
-      {} as never,
+      fakeRateStore(),
       { currency: "eur", issueDate: "2026-05-22" },
       {
         invoiceFxSettings: {
@@ -59,7 +63,7 @@ describe("invoice FX", () => {
 
   it("preserves exchange-rate provenance in invoice FX context", async () => {
     const context = await resolveInvoiceFxContext(
-      {} as never,
+      fakeRateStore(),
       { currency: "eur", issueDate: "2026-05-22" },
       {
         invoiceFxSettings: {

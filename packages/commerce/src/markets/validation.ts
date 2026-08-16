@@ -21,6 +21,7 @@ export const marketChannelScopeSchema = z.enum(["all", "b2c", "b2b", "internal"]
 export const fxRateSourceSchema = z.enum([
   "manual",
   "ecb",
+  "bnr",
   "custom",
   "channel",
   "supplier",
@@ -125,6 +126,8 @@ export const exchangeRateCoreSchema = z.object({
   quoteCurrency: currencyCodeSchema,
   rateDecimal: numericStringSchema,
   inverseRateDecimal: numericStringSchema.nullable().optional(),
+  effectiveRateDecimal: numericStringSchema.nullable().optional(),
+  commissionBps: z.number().int().min(0).nullable().optional(),
   observedAt: z.string().datetime().nullable().optional(),
 })
 

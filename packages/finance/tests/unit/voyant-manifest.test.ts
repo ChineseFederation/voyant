@@ -47,6 +47,10 @@ describe("finance deployment manifest", () => {
         { id: "payments.adapter.runtime", optional: true },
         { id: "finance.invoice-settlement-poller", optional: true, cardinality: "many" },
         { id: "finance.invoice-document-provider", optional: true },
+        // Both FX seams are optional: without them finance still converts, it
+        // just cannot hand a document a durable rate-set identity.
+        { id: "finance.fx-rate-capture.runtime", optional: true },
+        { id: "finance.fx-reference.runtime", optional: true },
       ],
       api: [
         {

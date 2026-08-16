@@ -29,6 +29,13 @@
       "when": 1786098000000,
       "tag": "0003_occupancy_price_basis",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1786809600000,
+      "tag": "20260815160000_exchange_rate_effective_rate",
+      "breakpoints": true
     }
   ]
 }

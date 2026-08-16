@@ -160,6 +160,10 @@ export const paymentSchema = z.object({
   baseCurrency: z.string().nullable(),
   baseAmountCents: z.number().int().nullable(),
   fxRateSetId: z.string().nullable(),
+  /** The payment in the operator's reporting currency, at its own date's rate. */
+  reportingCurrency: z.string().nullable(),
+  reportingAmountCents: z.number().int().nullable(),
+  reportingFxRateSetId: z.string().nullable(),
   paymentMethod: z.enum(paymentMethodValues),
   paymentInstrumentId: z.string().nullable(),
   paymentAuthorizationId: z.string().nullable(),

@@ -1747,7 +1747,7 @@
           {
             "schema": {
               "type": "string",
-              "enum": ["manual", "ecb", "custom", "channel", "supplier", "other"]
+              "enum": ["manual", "ecb", "bnr", "custom", "channel", "supplier", "other"]
             },
             "required": false,
             "name": "source",
@@ -1783,7 +1783,15 @@
                           },
                           "source": {
                             "type": "string",
-                            "enum": ["manual", "ecb", "custom", "channel", "supplier", "other"]
+                            "enum": [
+                              "manual",
+                              "ecb",
+                              "bnr",
+                              "custom",
+                              "channel",
+                              "supplier",
+                              "other"
+                            ]
                           },
                           "baseCurrency": {
                             "type": "string"
@@ -1853,7 +1861,7 @@
                 "properties": {
                   "source": {
                     "type": "string",
-                    "enum": ["manual", "ecb", "custom", "channel", "supplier", "other"],
+                    "enum": ["manual", "ecb", "bnr", "custom", "channel", "supplier", "other"],
                     "default": "manual"
                   },
                   "baseCurrency": {
@@ -1903,7 +1911,7 @@
                         },
                         "source": {
                           "type": "string",
-                          "enum": ["manual", "ecb", "custom", "channel", "supplier", "other"]
+                          "enum": ["manual", "ecb", "bnr", "custom", "channel", "supplier", "other"]
                         },
                         "baseCurrency": {
                           "type": "string"
@@ -1998,7 +2006,7 @@
                         },
                         "source": {
                           "type": "string",
-                          "enum": ["manual", "ecb", "custom", "channel", "supplier", "other"]
+                          "enum": ["manual", "ecb", "bnr", "custom", "channel", "supplier", "other"]
                         },
                         "baseCurrency": {
                           "type": "string"
@@ -2084,7 +2092,7 @@
                 "properties": {
                   "source": {
                     "type": "string",
-                    "enum": ["manual", "ecb", "custom", "channel", "supplier", "other"],
+                    "enum": ["manual", "ecb", "bnr", "custom", "channel", "supplier", "other"],
                     "default": "manual"
                   },
                   "baseCurrency": {
@@ -2133,7 +2141,7 @@
                         },
                         "source": {
                           "type": "string",
-                          "enum": ["manual", "ecb", "custom", "channel", "supplier", "other"]
+                          "enum": ["manual", "ecb", "bnr", "custom", "channel", "supplier", "other"]
                         },
                         "baseCurrency": {
                           "type": "string"
@@ -2354,6 +2362,12 @@
                           "inverseRateDecimal": {
                             "type": ["string", "null"]
                           },
+                          "effectiveRateDecimal": {
+                            "type": ["string", "null"]
+                          },
+                          "commissionBps": {
+                            "type": ["integer", "null"]
+                          },
                           "observedAt": {
                             "type": ["string", "null"]
                           },
@@ -2368,6 +2382,8 @@
                           "quoteCurrency",
                           "rateDecimal",
                           "inverseRateDecimal",
+                          "effectiveRateDecimal",
+                          "commissionBps",
                           "observedAt",
                           "createdAt"
                         ]
@@ -2435,6 +2451,14 @@
                     "type": ["string", "null"],
                     "pattern": "^\\d+(\\.\\d+)?$"
                   },
+                  "effectiveRateDecimal": {
+                    "type": ["string", "null"],
+                    "pattern": "^\\d+(\\.\\d+)?$"
+                  },
+                  "commissionBps": {
+                    "type": ["integer", "null"],
+                    "minimum": 0
+                  },
                   "observedAt": {
                     "type": ["string", "null"],
                     "format": "date-time"
@@ -2474,6 +2498,12 @@
                         "inverseRateDecimal": {
                           "type": ["string", "null"]
                         },
+                        "effectiveRateDecimal": {
+                          "type": ["string", "null"]
+                        },
+                        "commissionBps": {
+                          "type": ["integer", "null"]
+                        },
                         "observedAt": {
                           "type": ["string", "null"]
                         },
@@ -2488,6 +2518,8 @@
                         "quoteCurrency",
                         "rateDecimal",
                         "inverseRateDecimal",
+                        "effectiveRateDecimal",
+                        "commissionBps",
                         "observedAt",
                         "createdAt"
                       ]
@@ -2577,6 +2609,14 @@
                     "type": ["string", "null"],
                     "pattern": "^\\d+(\\.\\d+)?$"
                   },
+                  "effectiveRateDecimal": {
+                    "type": ["string", "null"],
+                    "pattern": "^\\d+(\\.\\d+)?$"
+                  },
+                  "commissionBps": {
+                    "type": ["integer", "null"],
+                    "minimum": 0
+                  },
                   "observedAt": {
                     "type": ["string", "null"],
                     "format": "date-time"
@@ -2615,6 +2655,12 @@
                         "inverseRateDecimal": {
                           "type": ["string", "null"]
                         },
+                        "effectiveRateDecimal": {
+                          "type": ["string", "null"]
+                        },
+                        "commissionBps": {
+                          "type": ["integer", "null"]
+                        },
                         "observedAt": {
                           "type": ["string", "null"]
                         },
@@ -2629,6 +2675,8 @@
                         "quoteCurrency",
                         "rateDecimal",
                         "inverseRateDecimal",
+                        "effectiveRateDecimal",
+                        "commissionBps",
                         "observedAt",
                         "createdAt"
                       ]

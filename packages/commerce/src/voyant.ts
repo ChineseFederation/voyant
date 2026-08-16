@@ -14,6 +14,7 @@ import {
   financeAccommodationsPaymentPolicyRuntimePort,
   financeCruisesPaymentPolicyRuntimePort,
   financeDistributionPaymentPolicyRuntimePort,
+  financeFxRateCaptureRuntimePort,
   financeInventoryPaymentPolicyRuntimePort,
 } from "@voyant-travel/finance/runtime-port"
 import {
@@ -77,6 +78,7 @@ export const commerceVoyantModule = defineModule({
       providePort(promotionsBulkReindexRuntimePort),
       providePort(promotionBoundaryJobRuntimePort),
       providePort(promotionReindexJobRuntimePort),
+      providePort(financeFxRateCaptureRuntimePort),
     ],
   },
   api: [

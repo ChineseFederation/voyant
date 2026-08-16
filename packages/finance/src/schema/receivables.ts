@@ -158,9 +158,28 @@ export const payments = pgTable(
 
     amountCents: integer("amount_cents").notNull(),
     currency: text("currency").notNull(),
+    /**
+     * The payment expressed in the INVOICE's currency — a settlement
+     * conversion, not a reporting one. Unlike `base_*` on `invoices`,
+     * `bookings` and `supplier_invoices`, which all mean the operator's
+     * reporting currency, this answers "how much of the invoice does this
+     * clear?" and `paymentSettlementAmountSql` depends on it. Unifying the
+     * name is follow-up work with a data migration behind it; until then the
+     * reporting figure lives in `reporting_*` below.
+     */
     baseCurrency: text("base_currency"),
     baseAmountCents: integer("base_amount_cents"),
     fxRateSetId: text("fx_rate_set_id"),
+    /**
+     * The payment in the operator's reporting currency, at the rate of its own
+     * payment date (voyant#4703). This is the figure a regulator asks for —
+     * "advances collected, in lei" — and it has to be frozen at the payment
+     * date, because a rate resolved later is a different number.
+     */
+    reportingCurrency: text("reporting_currency"),
+    reportingAmountCents: integer("reporting_amount_cents"),
+    /** The rate set the reporting amount was computed from. */
+    reportingFxRateSetId: text("reporting_fx_rate_set_id"),
     paymentMethod: paymentMethodEnum("payment_method").notNull(),
     paymentInstrumentId: typeIdRef("payment_instrument_id").references(
       () => paymentInstruments.id,
@@ -192,10 +211,16 @@ export const payments = pgTable(
     index("idx_payments_capture").on(table.paymentCaptureId),
     index("idx_payments_status").on(table.status),
     index("idx_payments_date").on(table.paymentDate),
+    index("idx_payments_reporting_fx_rate_set").on(table.reportingFxRateSetId),
     check(
       "ck_payments_base_currency_amount",
       // agent-quality: raw-sql reviewed -- owner: finance; dynamic SQL interpolation uses Drizzle parameter binding or vetted SQL identifiers.
       sql`(${table.baseCurrency} IS NULL) = (${table.baseAmountCents} IS NULL)`,
+    ),
+    check(
+      "ck_payments_reporting_currency_amount",
+      // agent-quality: raw-sql reviewed -- owner: finance; dynamic SQL interpolation uses Drizzle parameter binding or vetted SQL identifiers.
+      sql`(${table.reportingCurrency} IS NULL) = (${table.reportingAmountCents} IS NULL)`,
     ),
   ],
 )

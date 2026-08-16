@@ -4,7 +4,11 @@ import { describe, expect, it } from "vitest"
 import { createFinanceVoyantRuntime } from "../../src/index.js"
 import type { FinanceRouteRuntime } from "../../src/route-runtime.js"
 import { FINANCE_ROUTE_RUNTIME_CONTAINER_KEY } from "../../src/route-runtime.js"
-import { financeHostRuntimePort, financeNotificationsRuntimePort } from "../../src/runtime-port.js"
+import {
+  financeHostRuntimePort,
+  financeNotificationsRuntimePort,
+  financeOperatorSettingsRuntimePort,
+} from "../../src/runtime-port.js"
 
 const PORT_STUBS: Readonly<Record<string, unknown>> = {
   [financeHostRuntimePort.id]: {
@@ -16,6 +20,10 @@ const PORT_STUBS: Readonly<Record<string, unknown>> = {
   [financeNotificationsRuntimePort.id]: {
     resolveNotificationDispatcher: () => undefined,
     listBookingReminderRuns: async () => [],
+  },
+  [financeOperatorSettingsRuntimePort.id]: {
+    resolveInvoiceFxSettings: async () => null,
+    updateInvoiceFxSettings: async () => null,
   },
   "custom-fields.runtime": { resolveVisibleValues: async () => ({}) },
 }

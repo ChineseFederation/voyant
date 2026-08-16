@@ -41,6 +41,7 @@ import {
   getBookingCancellationRefundByCreditNote,
   resolveBookingCancellationRefund,
 } from "./service-booking-cancellation-refund.js"
+import { FxStampError, stampInvoiceFx, stampPaymentFx } from "./service-fx-stamp.js"
 import {
   buildUnsyncedProformaApprovalSnapshot,
   issueInvoiceFromBookingCommand,
@@ -162,6 +163,63 @@ export const voyantToolContextContribution = defineToolContextContribution({
                 code: error.code,
                 ...(error.details ?? {}),
               })
+            }
+            throw error
+          }
+        },
+        /**
+         * Repair the FX stamp on a document written before rates were captured
+         * (voyant#4703). `FxStampError` is the caller's to fix — a document
+         * already stamped, a date with no rate, a rate that is not a number —
+         * so it becomes `INVALID_INPUT` with the service's own code rather than
+         * a 500.
+         */
+        async stampInvoiceFxRate(input: {
+          invoiceId: string
+          rate?: number
+          source?: string
+          force?: boolean
+        }) {
+          const { invoiceId, ...request } = input
+          try {
+            const result = await stampInvoiceFx(
+              db as PostgresJsDatabase,
+              invoiceId,
+              request,
+              getFinanceRouteRuntime(c),
+            )
+            if (!result) {
+              throw new ToolError("Invoice was not found.", "NOT_FOUND", { invoiceId })
+            }
+            return toJsonValue(result)
+          } catch (error) {
+            if (error instanceof FxStampError) {
+              throw new ToolError(error.message, "INVALID_INPUT", { invoiceId, code: error.code })
+            }
+            throw error
+          }
+        },
+        async stampPaymentFxRate(input: {
+          paymentId: string
+          rate?: number
+          source?: string
+          force?: boolean
+        }) {
+          const { paymentId, ...request } = input
+          try {
+            const result = await stampPaymentFx(
+              db as PostgresJsDatabase,
+              paymentId,
+              request,
+              getFinanceRouteRuntime(c),
+            )
+            if (!result) {
+              throw new ToolError("Payment was not found.", "NOT_FOUND", { paymentId })
+            }
+            return toJsonValue(result)
+          } catch (error) {
+            if (error instanceof FxStampError) {
+              throw new ToolError(error.message, "INVALID_INPUT", { paymentId, code: error.code })
             }
             throw error
           }
