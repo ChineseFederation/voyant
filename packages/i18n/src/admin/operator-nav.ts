@@ -17,6 +17,7 @@ export type OperatorAdminNavMessages = {
   catalogEventsTagline: string
   catalogTransportation: string
   catalogTransportationTagline: string
+  catalogSearchPlaceholder: string
   catalogCruises: string
   catalogCharters: string
   catalogAccommodations: string
@@ -79,15 +80,20 @@ export const operatorAdminNavMessages = {
       catalogExcursions: "Excursions",
       catalogExcursionsTagline: "Scheduled products shown in an excursion context.",
       catalogTours: "Tours",
-      catalogToursTagline: "Products in the Tour family.",
+      catalogToursTagline:
+        "Guided and self-guided travel experiences — a half-day walk or a two-week itinerary.",
       catalogActivities: "Activities",
-      catalogActivitiesTagline: "Products in the Activity family.",
+      catalogActivitiesTagline:
+        "Booked things to do at a destination — lessons, tastings, workshops, sailings.",
       catalogAttractions: "Attractions",
-      catalogAttractionsTagline: "Products in the Attraction family.",
+      catalogAttractionsTagline:
+        "Places of interest sold on admission — museums, parks, monuments, gardens.",
       catalogEvents: "Events",
-      catalogEventsTagline: "Products in the Event family.",
+      catalogEventsTagline: "Dated happenings — shows, concerts, festivals and matches.",
       catalogTransportation: "Transportation",
-      catalogTransportationTagline: "Products in the Transportation family.",
+      catalogTransportationTagline:
+        "Moving travellers from A to B — transfers, shuttles, coach and rail seats.",
+      catalogSearchPlaceholder: "Search {surface} by name, destination or supplier...",
       catalogCruises: "Cruises",
       catalogCharters: "Charters",
       catalogAccommodations: "Accommodations",
@@ -149,15 +155,21 @@ export const operatorAdminNavMessages = {
       catalogExcursions: "Excursii",
       catalogExcursionsTagline: "Produse programate prezentate in context de excursie.",
       catalogTours: "Tururi",
-      catalogToursTagline: "Produse din familia Tur.",
+      catalogToursTagline:
+        "Experiente de calatorie ghidate sau pe cont propriu — de la o plimbare de o zi la un itinerariu de doua saptamani.",
       catalogActivities: "Activitati",
-      catalogActivitiesTagline: "Produse din familia Activitate.",
+      catalogActivitiesTagline:
+        "Lucruri de facut la destinatie — lectii, degustari, ateliere, iesiri pe apa.",
       catalogAttractions: "Atractii",
-      catalogAttractionsTagline: "Produse din familia Atractie.",
+      catalogAttractionsTagline:
+        "Locuri de interes vandute cu bilet de intrare — muzee, parcuri, monumente, gradini.",
       catalogEvents: "Evenimente",
-      catalogEventsTagline: "Produse din familia Eveniment.",
+      catalogEventsTagline:
+        "Evenimente cu data fixa — spectacole, concerte, festivaluri si meciuri.",
       catalogTransportation: "Transport",
-      catalogTransportationTagline: "Produse din familia Transport.",
+      catalogTransportationTagline:
+        "Transportul calatorilor de la A la B — transferuri, navete, locuri in autocar si tren.",
+      catalogSearchPlaceholder: "Cauta in {surface} dupa nume, destinatie sau furnizor...",
       catalogCruises: "Croaziere",
       catalogCharters: "Chartere",
       catalogAccommodations: "Cazari",

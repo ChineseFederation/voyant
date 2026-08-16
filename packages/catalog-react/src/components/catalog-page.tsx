@@ -131,6 +131,15 @@ export interface CatalogPageProps {
    * own unified search box and drives `search.q`/`onQueryChange` externally.
    */
   hideSearchInput?: boolean
+  /**
+   * Facet fields the rail must not offer. A surface that pins a facet for
+   * everyone passes it here: rendering it as a checked box with a Clear link
+   * advertises a choice the surface does not actually allow — clearing it
+   * re-applies on the next render — and spends rail space restating the page
+   * title. The filter still applies; it is just no longer presented as the
+   * reader's to change.
+   */
+  hiddenFilterFields?: string[]
 }
 
 export function CatalogPage({
@@ -162,6 +171,7 @@ export function CatalogPage({
   vertical,
   title,
   className,
+  hiddenFilterFields,
 }: CatalogPageProps) {
   const { locale, messages: rootMessages } = useCatalogUiI18nOrDefault()
   const messages = rootMessages.catalogPage
@@ -287,9 +297,14 @@ export function CatalogPage({
   // Bind the new-tab detail opener per vertical on every tab — when the host
   // provides `onOpenProductDetail`, results open the dedicated detail page
   // (new tab) instead of the in-page sheet, for whichever vertical is shown.
+  const hidden = new Set(hiddenFilterFields ?? [])
   const tabsWithDetail = tabs.map((tab) => ({
     ...tab,
     onOpenDetail: detailOpenerFor(tab.vertical),
+    filterFields: tab.filterFields?.filter((field) => !hidden.has(field.field)),
+    // Dropped from the rail above, but still sent with the search — the panel
+    // needs the list so it does not count them as the reader's selections.
+    hiddenFilterFields,
   }))
   const visibleTabs = vertical
     ? tabsWithDetail.filter((tab) => tab.id === vertical || tab.vertical === vertical)

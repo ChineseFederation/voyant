@@ -96,6 +96,10 @@ export function CatalogBrowsePage({
       vertical={vertical}
       search={effectiveSearch}
       hideSearchInput={embedded}
+      // A locked facet is the surface's definition, not the reader's filter —
+      // the Tours page IS `familyCode = tour`. Offering it in the rail restates
+      // the page title and dangles a Clear that cannot clear anything.
+      hiddenFilterFields={Object.keys(lockedFacets ?? {})}
       className={embedded ? "px-0 py-0 lg:px-0" : undefined}
       // `false` (not `undefined`) so catalog-ui's `title ?? default` does NOT
       // fall back to its generic header when an embedding surface renders its own.

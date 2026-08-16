@@ -143,7 +143,14 @@ export type CatalogUiMessages = {
       nextDeparture: string
       departures: string
       oneDeparture: string
+      sessions: string
+      oneSession: string
+      dates: string
+      oneDate: string
+      timeThere: string
+      timeYours: string
       minutes: string
+      days: string
       daysNights: string
       nights: string
       flightIncluded: string

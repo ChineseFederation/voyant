@@ -40,6 +40,11 @@ export function ScheduledCatalogHost({
       scope={scope}
       title={title}
       subtitle={subtitle}
+      query={search.q ?? ""}
+      searchPlaceholder={nav.catalogSearchPlaceholder.replace("{surface}", title.toLowerCase())}
+      onQueryChange={(q) =>
+        onSearchChange((prev) => ({ ...prev, q: q.length > 0 ? q : undefined, page: 1 }), true)
+      }
       renderBrowseGrid={({ lockedFacets, lockedRanges }) => (
         <CatalogVerticalHost
           vertical="products"

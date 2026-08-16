@@ -123,7 +123,7 @@ function FacetSection({
   const [expanded, setExpanded] = useState(false)
   const selectedSet = new Set(selected)
   const display = (value: string | number) =>
-    field.formatValue ? field.formatValue(value) : String(value)
+    field.formatValue ? field.formatValue(value) : humanizeFacetValue(value)
 
   if (buckets.length === 0) {
     return <span className="text-muted-foreground text-xs">{messages.filtersUi.noResults}</span>
@@ -144,7 +144,7 @@ function FacetSection({
             className="flex w-full items-center gap-2 text-left text-sm"
           >
             <Checkbox checked={checked} aria-hidden tabIndex={-1} className="pointer-events-none" />
-            <span className="flex-1 truncate capitalize">{display(bucket.value)}</span>
+            <span className="flex-1 truncate">{display(bucket.value)}</span>
             <span className="text-muted-foreground text-xs tabular-nums">{bucket.count}</span>
           </button>
         )
@@ -162,6 +162,25 @@ function FacetSection({
       )}
     </div>
   )
+}
+
+/**
+ * Present a raw facet value as a label.
+ *
+ * Facet buckets come back as the stored code — `free_sale`, `date_time`,
+ * `voyant_connect`. The rail used to lean on CSS `capitalize`, which only
+ * touches the first letter of each *word* and does not treat `_` or `-` as a
+ * word break, so `free_sale` rendered as "Free_sale". Separators become spaces
+ * and the result reads as a sentence, not as Title Case: "Free sale", not
+ * "Free Sale". A field with a real vocabulary (board codes, countries,
+ * suppliers) passes `formatValue` and never reaches here.
+ */
+export function humanizeFacetValue(value: string | number): string {
+  const raw = String(value)
+  if (!/[_-]/.test(raw) && raw !== raw.toLowerCase()) return raw
+  const spaced = raw.replace(/[_-]+/g, " ").trim()
+  if (!spaced) return raw
+  return spaced.charAt(0).toUpperCase() + spaced.slice(1)
 }
 
 // Order facet buckets. Default keeps the index's count-descending order;

@@ -2,6 +2,8 @@
 
 import type { ReactNode } from "react"
 
+import { CatalogSearchInput } from "./catalog-search-input.js"
+
 /**
  * Product-family catalog surface. Family views intentionally do not lock
  * booking/supply mechanics: those concepts are orthogonal to how a product is
@@ -69,6 +71,12 @@ export interface ScheduledCatalogPageProps {
   title: string
   /** Localized surface tagline. */
   subtitle: string
+  /** Current free-text query, from the surface's URL state. */
+  query?: string
+  /** Publish a settled query back to URL state. */
+  onQueryChange?: (query: string) => void
+  /** Placeholder for the surface's search box (already localized). */
+  searchPlaceholder?: string
   /** Render the embedded browse grid with the surface's locked filters applied. */
   renderBrowseGrid: (locks: ScheduledCatalogLocks) => ReactNode
 }
@@ -77,6 +85,9 @@ export function ScheduledCatalogPage({
   scope,
   title,
   subtitle,
+  query,
+  onQueryChange,
+  searchPlaceholder,
   renderBrowseGrid,
 }: ScheduledCatalogPageProps) {
   const locks = resolveScheduledScopeLocks(scope)
@@ -88,6 +99,20 @@ export function ScheduledCatalogPage({
         <h1 className="font-semibold text-2xl">{title}</h1>
         <p className="text-muted-foreground text-sm">{subtitle}</p>
       </div>
+      {/* The grid is embedded, which suppresses its own search box so there is
+          one search per page. This surface has to supply that one — without it
+          a family view had no free-text search at all and an operator with a
+          few hundred tours could only page through them. */}
+      {onQueryChange && (
+        <div className="mb-4">
+          <CatalogSearchInput
+            value={query ?? ""}
+            onChange={onQueryChange}
+            placeholder={searchPlaceholder ?? title}
+            className="max-w-xl"
+          />
+        </div>
+      )}
       {renderBrowseGrid(locks)}
     </div>
   )

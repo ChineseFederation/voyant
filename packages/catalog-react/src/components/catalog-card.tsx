@@ -3,6 +3,7 @@
 import { Badge } from "@voyant-travel/ui/components/badge"
 import { Button } from "@voyant-travel/ui/components/button"
 import { Card } from "@voyant-travel/ui/components/card"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@voyant-travel/ui/components/tooltip"
 import { Image as ImageIcon } from "lucide-react"
 import { useCatalogUiI18nOrDefault } from "../i18n/index.js"
 import type { CatalogSearchHit } from "../index.js"
@@ -58,6 +59,12 @@ export interface CatalogCardConfig {
   meta?: (fields: Record<string, unknown>) => string | null
   /** Muted footer line — typically next departure + count (e.g. "Next: 15 Aug · 12 departures"). */
   footerNote?: (fields: Record<string, unknown>) => string | null
+  /**
+   * Optional hover text for the footer line, newline-separated. Used to show a
+   * timed departure in both the departure's zone and the reader's — the card
+   * itself has room for only one of them.
+   */
+  footerNoteTooltip?: (fields: Record<string, unknown>) => string | null
   /** Theme/category chips (rendered as outline badges; capped at 3). */
   chips?: (fields: Record<string, unknown>) => string[]
   /** Image-overlay badges — typically source/status. */
@@ -97,6 +104,7 @@ export function CatalogCard({
   const subtitle = config.subtitle?.(fields) ?? null
   const meta = config.meta?.(fields) ?? null
   const footerNote = config.footerNote?.(fields) ?? null
+  const footerNoteTooltip = config.footerNoteTooltip?.(fields) ?? null
   const chips = config.chips?.(fields) ?? []
   const badges = config.badges?.(fields) ?? []
   const price = resolveCardPrice(
@@ -165,7 +173,31 @@ export function CatalogCard({
             ))}
           </div>
         )}
-        {footerNote && <div className="text-muted-foreground text-xs">{footerNote}</div>}
+        {footerNote &&
+          (footerNoteTooltip ? (
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  // A real button so the times are reachable by keyboard too —
+                  // a hover-only affordance would hide the reader's own
+                  // timezone from anyone not using a mouse. The click is
+                  // swallowed rather than opening the detail sheet out from
+                  // under someone who just wanted to read it.
+                  <button
+                    type="button"
+                    aria-label={footerNote}
+                    className="w-fit cursor-help text-left text-muted-foreground text-xs underline decoration-dotted underline-offset-2"
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                }
+              >
+                {footerNote}
+              </TooltipTrigger>
+              <TooltipContent className="whitespace-pre-line">{footerNoteTooltip}</TooltipContent>
+            </Tooltip>
+          ) : (
+            <div className="text-muted-foreground text-xs">{footerNote}</div>
+          ))}
         <div className="mt-auto flex items-end justify-between gap-2 pt-1">
           <div className="min-w-0">
             {price ? (

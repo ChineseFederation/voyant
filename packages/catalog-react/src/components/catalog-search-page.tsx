@@ -1,10 +1,8 @@
 "use client"
 
 import type { ColumnDef } from "@tanstack/react-table"
-import { Input } from "@voyant-travel/ui/components/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@voyant-travel/ui/components/tabs"
-import { Search } from "lucide-react"
-import { type ReactNode, useEffect, useRef, useState } from "react"
+import { type ReactNode, useCallback, useState } from "react"
 import { useCatalogUiMessagesOrDefault } from "../i18n/index.js"
 import type { CatalogSearchHit } from "../index.js"
 import type { CatalogCardConfig } from "./catalog-card.js"
@@ -14,6 +12,7 @@ import type {
   CatalogDetailRenderSlot,
   CatalogDetailSheetProps,
 } from "./catalog-detail-sheet.js"
+import { CatalogSearchInput } from "./catalog-search-input.js"
 import { type CatalogFilterSelections, CatalogTabPanel } from "./catalog-search-tab-panel.js"
 
 /**
@@ -105,6 +104,14 @@ export interface CatalogSearchTab {
    * passed back as `filters[]`.
    */
   filterFields?: CatalogFilterField[]
+  /**
+   * Facet fields the surface pins for everyone. They are already absent from
+   * `filterFields`, but they are still present in `filters` — the surface has
+   * to send them with the search — so selection accounting has to be told to
+   * ignore them. Otherwise a pristine family page reports "Clear all" for a
+   * choice the reader never made and could not undo.
+   */
+  hiddenFilterFields?: string[]
   /**
    * Optional empty-state ReactNode — shown when the tab has no hits for
    * the current query. Defaults to a simple "no results" message.
@@ -310,35 +317,18 @@ export function CatalogSearchPage({
     if (activeTabProp == null) setInternalActiveTab(next)
   }
 
-  // The query input is always driven by the local typing buffer so
-  // keystrokes never get clobbered by a re-render triggered by our own
-  // debounced URL push. `queryProp` only resets the buffer when it
-  // changes from a value we did *not* emit (e.g. browser back/forward,
-  // or an external clear).
-  const [internalRawQuery, setInternalRawQuery] = useState(queryProp ?? "")
-  const [debouncedInternal, setDebouncedInternal] = useState(queryProp ?? "")
-  const lastEmittedRef = useRef<string>(queryProp ?? "")
-  const rawQuery = internalRawQuery
-  const debouncedQuery = queryProp != null ? queryProp : debouncedInternal
-
-  useEffect(() => {
-    if (queryProp != null && queryProp !== lastEmittedRef.current) {
-      // External update (e.g. URL back/forward) — accept it and re-seed
-      // the typing buffer.
-      lastEmittedRef.current = queryProp
-      setInternalRawQuery(queryProp)
-    }
-  }, [queryProp])
-
-  useEffect(() => {
-    const t = setTimeout(() => {
-      if (internalRawQuery === lastEmittedRef.current) return
-      lastEmittedRef.current = internalRawQuery
-      if (onQueryChange) onQueryChange(internalRawQuery)
-      else setDebouncedInternal(internalRawQuery)
-    }, queryDebounceMs)
-    return () => clearTimeout(t)
-  }, [internalRawQuery, queryDebounceMs, onQueryChange])
+  // Typing buffer + debounce live in `CatalogSearchInput`, which every catalog
+  // search box shares; this page only owns where the settled query goes —
+  // out to the caller when controlled, into local state when not.
+  const [internalQuery, setInternalQuery] = useState(queryProp ?? "")
+  const debouncedQuery = queryProp ?? internalQuery
+  const emitQuery = useCallback(
+    (next: string) => {
+      if (onQueryChange) onQueryChange(next)
+      else setInternalQuery(next)
+    },
+    [onQueryChange],
+  )
 
   if (tabs.length === 0) {
     return (
@@ -356,16 +346,13 @@ export function CatalogSearchPage({
           vertical index, so it belongs with the vertical, not the page. An
           embedding surface can hide it and drive `query` externally. */}
       {!hideSearchInput && (
-        <div className="relative max-w-xl">
-          <Search className="-translate-y-1/2 absolute top-1/2 left-3 h-4 w-4 text-muted-foreground" />
-          <Input
-            type="search"
-            value={rawQuery}
-            onChange={(e) => setInternalRawQuery(e.target.value)}
-            placeholder={resolvedSearchPlaceholder}
-            className="pl-9"
-          />
-        </div>
+        <CatalogSearchInput
+          value={debouncedQuery}
+          onChange={emitQuery}
+          placeholder={resolvedSearchPlaceholder}
+          debounceMs={queryDebounceMs}
+          className="max-w-xl"
+        />
       )}
       <CatalogTabPanel
         tab={tab}

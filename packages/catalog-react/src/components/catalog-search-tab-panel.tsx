@@ -208,7 +208,13 @@ export function CatalogTabPanel({
     )
   }
 
-  const hasFacetSelections = Object.values(selections.facets).some((v) => v.length > 0)
+  // A facet the surface pins arrives merged into `selections` because it has to
+  // travel with the search request — but it is not something the reader chose,
+  // so it must not make the rail claim there is anything to clear.
+  const hiddenFields = new Set(tab.hiddenFilterFields ?? [])
+  const hasFacetSelections = Object.entries(selections.facets).some(
+    ([field, values]) => !hiddenFields.has(field) && values.length > 0,
+  )
   const hasRangeSelections = Object.values(selections.ranges).some(
     (v) => v.gte != null || v.lte != null,
   )
@@ -234,7 +240,7 @@ export function CatalogTabPanel({
               }
               onClearFacet={(field) => setSelections((prev) => clearFacet(prev, field))}
               onSetRange={(field, next) => setSelections((prev) => setRange(prev, field, next))}
-              onClearAll={() => setSelections(EMPTY_SELECTIONS)}
+              onClearAll={() => setSelections((prev) => clearAllExcept(prev, hiddenFields))}
               hasSelections={hasSelections}
             />
           </aside>
@@ -436,6 +442,24 @@ function clearFacet(prev: FilterSelections, field: string): FilterSelections {
   const facets = { ...prev.facets }
   delete facets[field]
   return { ...prev, facets }
+}
+
+/**
+ * Clear everything the reader chose, keeping the facets the surface pins.
+ *
+ * Dropping the pinned ones too would be undone on the next render anyway — the
+ * surface re-merges them — but it would write a filter-less URL first and make
+ * the grid flash the unscoped result set on the way back.
+ */
+export function clearAllExcept(
+  prev: FilterSelections,
+  hiddenFields: ReadonlySet<string>,
+): FilterSelections {
+  const facets: FilterSelections["facets"] = {}
+  for (const [field, values] of Object.entries(prev.facets)) {
+    if (hiddenFields.has(field) && values.length > 0) facets[field] = values
+  }
+  return { facets, ranges: {} }
 }
 
 function setRange(

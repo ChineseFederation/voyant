@@ -134,7 +134,10 @@ export function makeProductFilters(
       formatValue: (value) => formatSourceKind(value, messages),
     },
     { field: "supplierId", label: messages.filters.supplier, formatValue: formatSupplier },
-    { field: "bookingMode", label: messages.filters.bookingMode },
+    // `bookingMode` is deliberately not a filter. It is the integration
+    // mechanic a product is sold through, derived rather than authored
+    // (ADR-0010), and nobody browsing a catalog is looking for "the date_time
+    // ones" — it named an implementation detail in the operator's face.
     // Merchandising family + subtype facets, keyed on the stable codes. A
     // family view locks `familyCode`; `subtypeCode` always stays a free facet,
     // since subtypes are per-deployment vocabulary with no surface of their own.
