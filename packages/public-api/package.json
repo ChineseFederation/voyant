@@ -1,6 +1,6 @@
 {
   "name": "@voyant-travel/public-api",
-  "version": "0.262.0",
+  "version": "0.262.1",
   "license": "Apache-2.0",
   "type": "module",
   "exports": {

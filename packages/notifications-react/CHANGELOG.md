@@ -1,5 +1,12 @@
 # @voyant-travel/notifications-react
 
+## 0.154.1
+
+### Patch Changes
+
+- Updated dependencies [18212cc]
+  - @voyant-travel/i18n@0.127.0
+
 ## 0.154.0
 
 ### Patch Changes

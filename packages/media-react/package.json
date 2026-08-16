@@ -1,6 +1,6 @@
 {
   "name": "@voyant-travel/media-react",
-  "version": "0.14.0",
+  "version": "0.14.1",
   "description": "React hooks + <MediaLibrary> browse surface and <MediaPicker> for the consolidated media library.",
   "license": "Apache-2.0",
   "repository": {
