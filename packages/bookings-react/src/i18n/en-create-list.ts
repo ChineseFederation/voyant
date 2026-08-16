@@ -49,7 +49,7 @@ export const bookingsUiEnCreateList = {
     validation: {
       product: "Select a product.",
       departure: "Select a departure.",
-      units: "Select at least one option.",
+      units: "Set a quantity for at least one product option.",
       person: "Select the individual being billed.",
       organization: "Select the organization being billed.",
       contact: "Add a contact name for the booking.",
@@ -99,6 +99,16 @@ export const bookingsUiEnCreateList = {
       paidPaymentDate: "Payment date is required when Already paid is checked.",
       sharedRoomGroup: "Select a shared room to join.",
       create: "The booking could not be created.",
+    },
+    // Why **Create booking** is shut, said at the button. `label` names the
+    // button so the sentence cannot be read as belonging to the document
+    // checkboxes beside it; `units` names the section it refers to, because
+    // "option" means both a product option and a document toggle on this form
+    // and the operator in voyant#4762 read it as the latter.
+    submitBlocked: {
+      label: "Create booking is disabled: {reason}",
+      units:
+        "Set a quantity in the Options section, above. Those are the product's options, not the documents to generate.",
     },
     promotion: {
       heading: "Promotion code",
@@ -177,7 +187,7 @@ export const bookingsUiEnCreateList = {
     validation: {
       selectProduct: "Select a product",
       selectDeparture: "Select a departure",
-      selectUnits: "Select at least one option",
+      selectUnits: "Set a quantity for at least one product option",
       selectPerson: "Select a person",
       selectOrganization: "Select an organization",
       billingContactRequired: "Billing person needs an email or phone",

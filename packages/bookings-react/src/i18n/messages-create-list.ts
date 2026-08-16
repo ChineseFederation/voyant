@@ -81,6 +81,11 @@ export type BookingsUiCreateListMessages = {
       sharedRoomGroup: string
       create: string
     }
+    submitBlocked: {
+      /** Wraps a reason with the name of the button it explains. `{reason}`. */
+      label: string
+      units: string
+    }
     promotion: {
       heading: string
       code: string

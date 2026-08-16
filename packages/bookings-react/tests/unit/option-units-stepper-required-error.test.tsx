@@ -96,7 +96,7 @@ describe("OptionUnitsStepperSection required/error anchoring", () => {
         slotId="slot_1"
         optionId="opt_excursion"
         required
-        error="Select at least one option."
+        error={bookingsUiEn.manualBookingCreate.validation.units}
         slotHasFiniteCapacity
         providedOptions={[{ id: "opt_excursion", name: "One-day excursion" }]}
         providedUnits={personUnits}
@@ -104,7 +104,7 @@ describe("OptionUnitsStepperSection required/error anchoring", () => {
     )
 
     const alert = container.querySelector('[role="alert"]')
-    expect(alert?.textContent).toBe("Select at least one option.")
+    expect(alert?.textContent).toBe(bookingsUiEn.manualBookingCreate.validation.units)
 
     const section = container.querySelector("[aria-invalid]")
     expect(section).not.toBeNull()

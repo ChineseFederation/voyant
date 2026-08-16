@@ -49,7 +49,7 @@ export const bookingsUiRoCreateList = {
     validation: {
       product: "Alege un produs.",
       departure: "Alege o plecare.",
-      units: "Selecteaza cel putin o optiune.",
+      units: "Alege o cantitate pentru cel putin o optiune de produs.",
       person: "Alege persoana facturata.",
       organization: "Alege organizatia facturata.",
       contact: "Adauga un nume de contact pentru rezervare.",
@@ -101,6 +101,11 @@ export const bookingsUiRoCreateList = {
       paidPaymentDate: "Data platii este obligatorie cand plata este marcata ca deja achitata.",
       sharedRoomGroup: "Selecteaza partajul la care vrei sa te alaturi.",
       create: "Rezervarea nu a putut fi creata.",
+    },
+    submitBlocked: {
+      label: "Butonul Creeaza rezervare este dezactivat: {reason}",
+      units:
+        "Alege o cantitate in sectiunea Optiuni, mai sus. Acelea sunt optiunile produsului, nu documentele de generat.",
     },
     promotion: {
       heading: "Cod promotional",
@@ -179,7 +184,7 @@ export const bookingsUiRoCreateList = {
     validation: {
       selectProduct: "Selecteaza un produs",
       selectDeparture: "Selecteaza o plecare",
-      selectUnits: "Selecteaza cel putin o optiune",
+      selectUnits: "Alege o cantitate pentru cel putin o optiune de produs",
       selectPerson: "Selecteaza o persoana",
       selectOrganization: "Selecteaza o organizatie",
       billingContactRequired: "Persoana de facturare are nevoie de email sau telefon",
