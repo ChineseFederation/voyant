@@ -3,6 +3,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 
 import { createProductionBookingSessionPaymentPorts } from "./sessions-payment-production.js"
 
+/** Every departure resolution the port asked for, in order. Reset per `prepare`. */
+const resolveCalls: Array<{ productId: string; departureSlotId?: string | null }> = []
+
 const startPaymentAdapterCardPayment = vi.hoisted(() => vi.fn(async (..._args: unknown[]) => null))
 
 /**
@@ -14,10 +17,20 @@ const getPaymentSessionById = vi.hoisted(() =>
   vi.fn(async (..._args: unknown[]) => null as unknown),
 )
 
-vi.mock("@voyant-travel/finance", () => ({
-  computePaymentSchedule: () => [
+/**
+ * Spied rather than stubbed so the *input* the policy is measured from can be
+ * asserted. What comes back is fixed — the amount a real cascade would return
+ * is finance's own tested behaviour; what this file owns is which date reaches
+ * it (voyant#4740).
+ */
+const computePaymentSchedule = vi.hoisted(() =>
+  vi.fn((..._args: unknown[]) => [
     { amountCents: 10_000, currency: "EUR", scheduleType: "deposit", dueDate: "2026-08-05" },
-  ],
+  ]),
+)
+
+vi.mock("@voyant-travel/finance", () => ({
+  computePaymentSchedule,
   createOrReuseBookingSessionPayment: async () => ({
     id: "pmts_1",
     status: "pending",
@@ -39,9 +52,10 @@ vi.mock("@voyant-travel/finance", () => ({
 describe("production Booking Session staff payment policy", () => {
   it("does not create a customer checkout when staff supplied a collection schedule", async () => {
     const loadProductPaymentPolicyContext = vi.fn()
+    const resolveSelectedDepartureDate = vi.fn()
     const payments = createProductionBookingSessionPaymentPorts({
       db: {} as never,
-      inventory: { loadProductPaymentPolicyContext },
+      inventory: { loadProductPaymentPolicyContext, resolveSelectedDepartureDate },
       distribution: { loadSupplierPaymentPolicy: vi.fn() },
       settings: { resolveOperatorDefaultPaymentPolicy: vi.fn() },
     })
@@ -76,12 +90,14 @@ describe("production Booking Session staff payment policy", () => {
       } as never),
     ).resolves.toEqual({ kind: "not_required" })
     expect(loadProductPaymentPolicyContext).not.toHaveBeenCalled()
+    expect(resolveSelectedDepartureDate).not.toHaveBeenCalled()
   })
 })
 
 describe("production Booking Session bank-transfer intent", () => {
   it("does not start card collection and delegates durable offline establishment", async () => {
     const loadProductPaymentPolicyContext = vi.fn()
+    const resolveSelectedDepartureDate = vi.fn()
     const establishBankTransfer = vi.fn(async () => ({
       paymentSessionId: "pays_bank",
       document: { id: "invc_proforma", number: "PRO-42", type: "proforma" as const },
@@ -97,7 +113,7 @@ describe("production Booking Session bank-transfer intent", () => {
     }))
     const payments = createProductionBookingSessionPaymentPorts({
       db: {} as never,
-      inventory: { loadProductPaymentPolicyContext },
+      inventory: { loadProductPaymentPolicyContext, resolveSelectedDepartureDate },
       distribution: { loadSupplierPaymentPolicy: vi.fn() },
       settings: { resolveOperatorDefaultPaymentPolicy: vi.fn() },
       establishBankTransfer,
@@ -114,6 +130,7 @@ describe("production Booking Session bank-transfer intent", () => {
       payments.establishBankTransfer?.({ bookingId: "book_42" } as never),
     ).resolves.toMatchObject({ document: { id: "invc_proforma" } })
     expect(loadProductPaymentPolicyContext).not.toHaveBeenCalled()
+    expect(resolveSelectedDepartureDate).not.toHaveBeenCalled()
     expect(startPaymentAdapterCardPayment).not.toHaveBeenCalled()
     expect(establishBankTransfer).toHaveBeenCalledWith({ bookingId: "book_42" })
   })
@@ -384,6 +401,88 @@ describe("production Booking Session checkout handoff preference", () => {
   })
 })
 
+/**
+ * A customer payment policy gates on the distance to departure — "deposit now
+ * if the trip is far enough out, otherwise collect in full". The distance is
+ * only meaningful measured from the departure the shopper is buying, and
+ * voyant#4740 measured it from `products.startDate`: for a slot-based product
+ * that is the listing's own window, so a seeded "today" collapsed the gate to
+ * full payment on a departure five weeks away, and a listing dated months out
+ * offered a 50% deposit on a trip leaving tomorrow.
+ *
+ * `generatePaymentScheduleForBooking` has always read the Booking's own
+ * `startDate` — the selected departure — so this is also what stops checkout
+ * and the post-confirmation schedule computing two plans from one policy.
+ */
+describe("production Booking Session payment policy departure", () => {
+  beforeEach(() => {
+    computePaymentSchedule.mockClear()
+    startPaymentAdapterCardPayment.mockClear()
+  })
+
+  it("measures the policy from the selected slot, not the product row", async () => {
+    await prepare({
+      locale: "en-GB",
+      departureDate: "2026-08-16",
+      selection: { departureSlotId: "avsl_01k" },
+      slotDates: { avsl_01k: "2026-09-20" },
+    })
+
+    expect(scheduleInput().departureDate).toBe("2026-09-20")
+  })
+
+  it("falls back to the product row when the selection names no departure", async () => {
+    await prepare({ locale: "en-GB", departureDate: "2026-08-16" })
+
+    expect(scheduleInput().departureDate).toBe("2026-08-16")
+  })
+
+  it("asks about the product the Session targets", async () => {
+    await prepare({
+      locale: "en-GB",
+      departureDate: null,
+      selection: { departureSlotId: "avsl_01k" },
+    })
+
+    expect(resolveArgs()).toEqual({ productId: "prod_1", departureSlotId: "avsl_01k" })
+  })
+
+  /**
+   * `configure.departureDate` sits next to the slot id on the same selection
+   * step and quoting does price against it, so consulting it here looks
+   * obviously right. It is not: `deriveSelfServiceCommand` carries only
+   * `slotId`, so an inline date never reaches `bookings.startDate`, and
+   * `generatePaymentScheduleForBooking` would go on reading the product row.
+   * Measuring checkout from a date the Booking will not record is the same
+   * two-plans-from-one-policy divergence this issue is about, arrived at from
+   * the other side. Honouring it means persisting it on the Booking first.
+   */
+  it("does not measure from a departure date the Booking will never record", async () => {
+    await prepare({
+      locale: "en-GB",
+      departureDate: "2026-08-16",
+      selection: { departureDate: "2026-09-20" },
+    })
+
+    expect(resolveArgs()).toEqual({ productId: "prod_1", departureSlotId: null })
+    expect(scheduleInput().departureDate).toBe("2026-08-16")
+  })
+
+  // The line item is the only product-shaped thing a hosted provider renders,
+  // so a shopper reading it must see the departure they are paying for — the
+  // same one the amount was computed from, not a second answer.
+  it("names the selected departure on the checkout line item", async () => {
+    await prepare({
+      locale: "en-GB",
+      departureDate: "2026-08-16",
+      selection: { departureSlotId: "avsl_01k" },
+      slotDates: { avsl_01k: "2026-09-20" },
+    })
+
+    expect(startArgs().description).toBe("Danube Delta tour — 20 September 2026")
+  })
+})
+
 describe("production Booking Session settlement", () => {
   beforeEach(() => {
     startPaymentAdapterCardPayment.mockClear()
@@ -434,6 +533,10 @@ describe("production Booking Session settlement", () => {
 async function prepare(input: {
   locale: string
   departureDate: string | null
+  /** What the shopper selected, as it sits on the Session's `configure` step. */
+  selection?: { departureSlotId?: string; departureDate?: string }
+  /** Resolver answers keyed by slot id; anything else falls to the product row. */
+  slotDates?: Record<string, string>
   name?: string
   personId?: string
   actorKind?: string
@@ -446,6 +549,7 @@ async function prepare(input: {
   mandate?: { enabled: boolean; revision: string } | null
   contractAcceptedAt?: string
 }) {
+  resolveCalls.length = 0
   if (input.refreshedCheckout !== undefined) {
     // What the adapter persisted, read back by the port exactly as production
     // reads it — through `financeService.getPaymentSessionById`, not by
@@ -467,9 +571,17 @@ async function prepare(input: {
         listingPolicy: null,
         categoryPolicy: null,
         supplierId: null,
-        departureDate: input.departureDate,
         name: input.name ?? "Danube Delta tour",
       }),
+      // Stands in for inventory's resolver with the same precedence it has:
+      // the selected slot's date, then the product row. Nothing else.
+      resolveSelectedDepartureDate: async (_db, resolve) => {
+        resolveCalls.push(resolve)
+        const slotDate = resolve.departureSlotId
+          ? input.slotDates?.[resolve.departureSlotId]
+          : undefined
+        return slotDate ?? input.departureDate
+      },
     },
     distribution: { loadSupplierPaymentPolicy: async () => null },
     settings: { resolveOperatorDefaultPaymentPolicy: async () => null },
@@ -488,6 +600,7 @@ async function prepare(input: {
       target: { kind: "product", productId: "prod_1" },
       expiresAt: new Date("2026-08-06T00:00:00Z"),
       statePayload: {
+        ...(input.selection ? { configure: input.selection } : {}),
         ...(input.contractAcceptedAt
           ? { contractAcceptance: { acceptedAt: input.contractAcceptedAt } }
           : {}),
@@ -528,6 +641,20 @@ async function prepare(input: {
     },
     now: new Date("2026-08-05T00:00:00Z"),
   } as never)
+}
+
+/** What the payment policy was measured against. */
+function scheduleInput() {
+  const call = computePaymentSchedule.mock.calls.at(-1)
+  if (!call) throw new Error("the payment schedule was never computed")
+  return call[0] as { departureDate: string | null; totalCents: number; today: Date }
+}
+
+/** What the port asked inventory to resolve the departure from. */
+function resolveArgs() {
+  const call = resolveCalls.at(-1)
+  if (!call) throw new Error("the departure was never resolved")
+  return call
 }
 
 function startArgs() {

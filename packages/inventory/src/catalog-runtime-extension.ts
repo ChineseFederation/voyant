@@ -1,5 +1,6 @@
 import type { CatalogInventoryRuntimeExtension } from "@voyant-travel/catalog/runtime-contracts"
 import type { PaymentPolicy } from "@voyant-travel/finance"
+import { availabilityService } from "@voyant-travel/operations"
 import { and, asc, eq, gt, isNotNull } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 
@@ -90,7 +91,6 @@ export const catalogInventoryRuntimeExtension = {
           name: products.name,
           listingPolicy: products.customerPaymentPolicy,
           supplierId: products.supplierId,
-          departureDate: products.startDate,
         })
         .from(products)
         .where(eq(products.id, productId))
@@ -122,9 +122,23 @@ export const catalogInventoryRuntimeExtension = {
       listingPolicy: (product.listingPolicy as PaymentPolicy | null | undefined) ?? null,
       categoryPolicy: (category?.categoryPolicy as PaymentPolicy | null | undefined) ?? null,
       supplierId: product.supplierId,
-      departureDate: product.departureDate,
       name: pickTranslatedName(translations, options?.locale) ?? product.name,
     }
+  },
+  async resolveSelectedDepartureDate(db, { productId, departureSlotId }) {
+    if (departureSlotId) {
+      // Through availability's own service, not its table: the slot belongs to
+      // `operations`, and a departure date is exactly what that module is the
+      // authority on.
+      const slot = await availabilityService.getSlotById(db as PostgresJsDatabase, departureSlotId)
+      if (slot?.productId === productId && slot.dateLocal) return slot.dateLocal
+    }
+    const [product] = await db
+      .select({ startDate: products.startDate })
+      .from(products)
+      .where(eq(products.id, productId))
+      .limit(1)
+    return product?.startDate ?? null
   },
   buildSnapshotInput: (db, productId, options) => buildProductSnapshotInput(db, productId, options),
 } satisfies CatalogInventoryRuntimeExtension

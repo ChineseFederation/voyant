@@ -235,6 +235,12 @@ export interface CatalogInventoryRuntimeExtension {
    * shopper is being asked to pay for. `locale` selects the language `name` is
    * returned in — the checkout line item a hosted provider renders is built
    * from it, so it has to be the shopper's language, not the operator's.
+   *
+   * This is a policy cascade over the *listing*. It deliberately says nothing
+   * about when the shopper travels: the departure is a property of the
+   * selection, and reading it off the product row measured every payment
+   * policy from the wrong date (voyant#4740). Ask
+   * {@link resolveSelectedDepartureDate} instead.
    */
   loadProductPaymentPolicyContext(
     db: AnyDrizzleDb,
@@ -244,13 +250,38 @@ export interface CatalogInventoryRuntimeExtension {
     listingPolicy: PaymentPolicy | null
     categoryPolicy: PaymentPolicy | null
     supplierId: string | null
-    departureDate: string | null
     /**
      * The product's name in the requested locale, falling back to its base
      * `name` when that language has no translation.
      */
     name: string | null
   } | null>
+  /**
+   * The departure a Session's selection actually buys.
+   *
+   * A customer payment policy gates on the distance to departure, and so does
+   * the checkout line item the shopper reads, so both have to measure from the
+   * date the shopper picked — not from `products.startDate`, which for a
+   * slot-based product is the listing's own window and has nothing to do with
+   * the departure being sold (voyant#4740).
+   *
+   * Resolves **exactly** as the Booking records it — `slot?.dateLocal ??
+   * product.startDate`, per `convertProductToBooking` — so checkout and
+   * `generatePaymentScheduleForBooking` cannot compute two plans from one
+   * policy. A slot id that does not belong to this product is ignored, because
+   * the Commit refuses that combination outright.
+   *
+   * A `configure.departureDate` stated inline is deliberately **not** consulted,
+   * even though quoting prices against it. The self-service command carries only
+   * `slotId` (`deriveSelfServiceCommand`), so an inline date never reaches
+   * `bookings.startDate` — measuring checkout from something the Booking will
+   * not record is how the two schedules diverge, which is the whole bug.
+   * Honouring it here means persisting it there first.
+   */
+  resolveSelectedDepartureDate(
+    db: AnyDrizzleDb,
+    input: { productId: string; departureSlotId?: string | null },
+  ): Promise<string | null>
   buildSnapshotInput(
     db: AnyDrizzleDb,
     productId: Parameters<CatalogBookingSnapshotExecutionContext["buildSnapshotInput"]>[0],
