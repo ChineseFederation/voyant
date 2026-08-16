@@ -1,5 +1,12 @@
 # @voyant-travel/flights-contracts
 
+## 0.105.2
+
+### Patch Changes
+
+- Updated dependencies [1a903c5]
+  - @voyant-travel/catalog-contracts@0.135.0
+
 ## 0.105.1
 
 ### Patch Changes

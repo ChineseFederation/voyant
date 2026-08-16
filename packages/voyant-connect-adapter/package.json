@@ -1,6 +1,6 @@
 {
   "name": "@voyant-travel/voyant-connect-adapter",
-  "version": "0.32.2",
+  "version": "0.33.0",
   "description": "Voyant Connect sources adapter for Voyant deployments.",
   "license": "Apache-2.0",
   "repository": {

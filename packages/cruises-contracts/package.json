@@ -1,6 +1,6 @@
 {
   "name": "@voyant-travel/cruises-contracts",
-  "version": "0.105.33",
+  "version": "0.105.34",
   "description": "Cruise content contracts for adapter authors — validate cruises/v1 payloads and cabin features without the runtime.",
   "license": "Apache-2.0",
   "type": "module",

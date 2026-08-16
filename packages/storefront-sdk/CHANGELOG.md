@@ -1,5 +1,12 @@
 # @voyant-travel/storefront-sdk
 
+## 0.284.0
+
+### Patch Changes
+
+- Updated dependencies [1a903c5]
+  - @voyant-travel/catalog-contracts@0.135.0
+
 ## 0.283.0
 
 ### Patch Changes
