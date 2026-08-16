@@ -1,6 +1,6 @@
 {
   "name": "@voyant-travel/storefront",
-  "version": "0.260.2",
+  "version": "0.260.3",
   "license": "Apache-2.0",
   "type": "module",
   "exports": {
