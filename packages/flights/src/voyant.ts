@@ -69,6 +69,18 @@ export const flightsVoyantModule = defineModule({
       risk: "low",
     },
     {
+      id: "@voyant-travel/flights#tool.fare-calendar",
+      name: "search_fare_calendar",
+      runtime: { entry: "@voyant-travel/flights/tools", export: "searchFareCalendarTool" },
+      requiredScopes: ["flights:write"],
+      context: ["flights"],
+      risk: "low",
+      // Name matching reads a resource's trailing noun, which for this Tool is
+      // "calendar" and would never meet `flight/fare-calendar`. Declaring the
+      // path it fronts is the explicit form and does not drift with the name.
+      adminWrites: ["/v1/admin/flights/fare-calendar"],
+    },
+    {
       id: "@voyant-travel/flights#tool.price-offer",
       name: "price_flight_offer",
       runtime: { entry: "@voyant-travel/flights/tools", export: "priceFlightOfferTool" },
@@ -119,6 +131,16 @@ export const flightsVoyantModule = defineModule({
       risk: "low",
       ledger: "optional",
       from: { tools: ["@voyant-travel/flights#tool.search"] },
+    },
+    {
+      id: "@voyant-travel/flights#action.fare-calendar",
+      version: "v1",
+      kind: "read",
+      targetType: "flight-offer",
+      requiredScopes: ["flights:write"],
+      risk: "low",
+      ledger: "optional",
+      from: { tools: ["@voyant-travel/flights#tool.fare-calendar"] },
     },
     {
       id: "@voyant-travel/flights#action.price-offer",

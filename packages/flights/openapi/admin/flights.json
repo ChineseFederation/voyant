@@ -144,6 +144,40 @@
         "x-voyant-package-name": "@voyant-travel/flights"
       }
     },
+    "/v1/admin/flights/fare-calendar": {
+      "post": {
+        "summary": "Quote departure dates across a window",
+        "x-voyant-api-id": "@voyant-travel/flights#api",
+        "responses": {
+          "200": {
+            "description": "Successful response."
+          }
+        },
+        "operationId": "postAdminFlightsFareCalendar",
+        "tags": ["flights"],
+        "x-voyant-module": "flights",
+        "x-voyant-surface": "admin",
+        "x-voyant-unit-id": "@voyant-travel/flights",
+        "x-voyant-package-name": "@voyant-travel/flights"
+      }
+    },
+    "/v1/admin/flights/served-markets": {
+      "get": {
+        "summary": "List airports the connector sells",
+        "x-voyant-api-id": "@voyant-travel/flights#api",
+        "responses": {
+          "200": {
+            "description": "Successful response."
+          }
+        },
+        "operationId": "getAdminFlightsServedMarkets",
+        "tags": ["flights"],
+        "x-voyant-module": "flights",
+        "x-voyant-surface": "admin",
+        "x-voyant-unit-id": "@voyant-travel/flights",
+        "x-voyant-package-name": "@voyant-travel/flights"
+      }
+    },
     "/v1/admin/flights/ancillaries": {
       "post": {
         "summary": "Get flight ancillaries",

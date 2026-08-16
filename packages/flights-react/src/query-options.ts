@@ -1,7 +1,11 @@
 "use client"
 
 import { queryOptions } from "@tanstack/react-query"
-import type { FlightOffer, FlightSearchRequest } from "@voyant-travel/flights/contract/types"
+import type {
+  FareCalendarRequest,
+  FlightOffer,
+  FlightSearchRequest,
+} from "@voyant-travel/flights/contract/types"
 
 import { type FetchWithValidationOptions, fetchWithValidation } from "./client.js"
 import { type AirportSearchFilters, flightsQueryKeys } from "./query-keys.js"
@@ -10,8 +14,10 @@ import {
   airlineListResponseSchema,
   airportListResponseSchema,
   ancillaryResponseSchema,
+  fareCalendarResponseSchema,
   flightSearchResponseSchema,
   seatMapResponseSchema,
+  servedMarketsResponseSchema,
 } from "./schemas.js"
 
 export function getFlightSearchQueryOptions(
@@ -25,6 +31,41 @@ export function getFlightSearchQueryOptions(
         method: "POST",
         body: JSON.stringify(request),
       }),
+  })
+}
+
+/**
+ * Quote a window of departure dates for one route.
+ *
+ * `retry: false` is deliberate: a connector without the capability answers
+ * 501, and that is a settled answer about this deployment's supply, not a
+ * transient failure worth three round-trips.
+ */
+export function getFareCalendarQueryOptions(
+  client: FetchWithValidationOptions,
+  request: FareCalendarRequest,
+) {
+  return queryOptions({
+    queryKey: flightsQueryKeys.fareCalendarWindow(request),
+    retry: false,
+    queryFn: () =>
+      fetchWithValidation("/v1/admin/flights/fare-calendar", fareCalendarResponseSchema, client, {
+        method: "POST",
+        body: JSON.stringify(request),
+      }),
+  })
+}
+
+/**
+ * The connector's declared network. `retry: false` for the same reason the
+ * fare calendar sets it: 501 is an answer about this deployment, not a blip.
+ */
+export function getServedMarketsQueryOptions(client: FetchWithValidationOptions) {
+  return queryOptions({
+    queryKey: flightsQueryKeys.servedMarkets(),
+    retry: false,
+    queryFn: () =>
+      fetchWithValidation("/v1/admin/flights/served-markets", servedMarketsResponseSchema, client),
   })
 }
 

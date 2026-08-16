@@ -5,6 +5,7 @@
  */
 
 export { synthesizeAncillaryCatalog } from "./synthesis-ancillaries.js"
+export { synthesizeFareCalendar } from "./synthesis-fare-calendar.js"
 export { applySearchFilters, parsePageCursor, synthesizeOffers } from "./synthesis-offers.js"
 export { synthesizeOrder, ticketHeldOrder } from "./synthesis-orders.js"
 export { findSegmentInOffer, synthesizeSeatMap } from "./synthesis-seat-maps.js"

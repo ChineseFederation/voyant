@@ -133,7 +133,7 @@ describe("flights deployment manifest", () => {
     const operations = Object.values(document.paths ?? {}).flatMap((path) =>
       Object.values(path).filter((operation) => typeof operation === "object"),
     ) as Array<Record<string, unknown>>
-    expect(operations).toHaveLength(12)
+    expect(operations).toHaveLength(14)
     expect(
       operations.every((operation) => operation["x-voyant-api-id"] === FLIGHTS_OPENAPI_API_ID),
     ).toBe(true)

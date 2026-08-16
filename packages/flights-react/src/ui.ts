@@ -48,6 +48,10 @@ export {
   validateContact,
 } from "./components/flight-contact-form.js"
 export {
+  FlightDatePicker,
+  type FlightDatePickerProps,
+} from "./components/flight-date-picker.js"
+export {
   FlightFareUpsellStep,
   type FlightFareUpsellStepProps,
 } from "./components/flight-fare-upsell-step.js"

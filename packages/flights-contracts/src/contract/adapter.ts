@@ -18,6 +18,8 @@ import type {
   AncillaryResponse,
   CheckInRequest,
   CheckInResponse,
+  FareCalendarRequest,
+  FareCalendarResponse,
   FlightBookRequest,
   FlightCapability,
   FlightModifyRequest,
@@ -34,6 +36,7 @@ import type {
   SeatMapResponse,
   SeatSelectionRequest,
   SeatSelectionResponse,
+  ServedMarketsResponse,
   SsrRequest,
   SsrResponse,
 } from "./types.js"
@@ -217,6 +220,24 @@ export interface FlightConnectorAdapter {
     ctx: FlightAdapterContext,
     query: FlightOrdersListQuery,
   ): Promise<FlightOrdersListResponse>
+
+  /**
+   * `flight/fare-calendar` — quote a window of departure dates so a picker can
+   * show where availability is before a day is chosen. Indicative pricing from
+   * the provider's cached lowest-fare data; callers re-quote with
+   * `searchFlights` before booking.
+   */
+  searchFareCalendar?(
+    ctx: FlightAdapterContext,
+    request: FareCalendarRequest,
+  ): Promise<FareCalendarResponse>
+
+  /**
+   * `flight/served-markets` — declare the airports this connection sells, so a
+   * picker can lead with the operator's own network instead of every airport
+   * on earth. Consumers rank by it; they must not filter on it.
+   */
+  listServedMarkets?(ctx: FlightAdapterContext): Promise<ServedMarketsResponse>
 
   /** `flight/holds` — promote a held order to ticketed. */
   ticketOrder?(ctx: FlightAdapterContext, orderId: string): Promise<FlightGetOrderResponse>

@@ -1,4 +1,8 @@
-import type { FlightOrderStatus, FlightSearchRequest } from "@voyant-travel/flights/contract/types"
+import type {
+  FareCalendarRequest,
+  FlightOrderStatus,
+  FlightSearchRequest,
+} from "@voyant-travel/flights/contract/types"
 
 export interface AirportSearchFilters {
   q?: string | undefined
@@ -35,6 +39,12 @@ export const flightsQueryKeys = {
 
   search: () => [...flightsQueryKeys.all, "search"] as const,
   searchRequest: (request: FlightSearchRequest) => [...flightsQueryKeys.search(), request] as const,
+
+  fareCalendar: () => [...flightsQueryKeys.all, "fare-calendar"] as const,
+  fareCalendarWindow: (request: FareCalendarRequest) =>
+    [...flightsQueryKeys.fareCalendar(), request] as const,
+
+  servedMarkets: () => [...flightsQueryKeys.all, "served-markets"] as const,
 
   offer: () => [...flightsQueryKeys.all, "offer"] as const,
   offerDetail: (offerId: string) => [...flightsQueryKeys.offer(), "detail", offerId] as const,

@@ -131,6 +131,9 @@ export const flightsUiEn = {
     searchPlaceholder: "Type city or IATA code...",
     searching: "Searching...",
     empty: "No airports.",
+    recentHeading: "Your routes",
+    servedHeading: "Served by your providers",
+    allHeading: "All airports",
   },
   flightBaggageStep: {
     unavailable: "Bags couldn't be loaded for this offer.",
@@ -334,6 +337,7 @@ export const flightsUiEn = {
     viewDetails: "View flight details",
     codeshare: "Codeshare",
     interline: "Interline",
+    plusCarriers: "{carrier} +{count}",
   },
   flightOrderConfirmation: {
     bookingConfirmed: "Booking confirmed",

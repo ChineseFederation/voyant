@@ -7,12 +7,13 @@ import type {
   PassengerCounts,
 } from "@voyant-travel/flights/contract/types"
 import { Button } from "@voyant-travel/ui/components/button"
-import { DatePicker } from "@voyant-travel/ui/components/date-picker"
 import { ToggleGroup, ToggleGroupItem } from "@voyant-travel/ui/components/toggle-group"
 import { ArrowLeftRight, Search } from "lucide-react"
 import { useState } from "react"
 import { useFlightsUiMessagesOrDefault } from "../i18n/index.js"
+import { rememberSearchedAirports } from "../recent-routes.js"
 import { AirportCombobox } from "./airport-combobox.js"
+import { FlightDatePicker } from "./flight-date-picker.js"
 import { PaxCabinPopover } from "./pax-cabin-popover.js"
 
 export type TripType = "one_way" | "round_trip"
@@ -67,6 +68,9 @@ export function FlightSearchForm({ onSearch, loading, initial }: FlightSearchFor
   const submit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!ready || origin == null || destination == null || departureDate == null) return
+    // Only a submitted search counts — this is what puts an operator's own
+    // airports at the top of the picker next time.
+    rememberSearchedAirports([origin, destination])
     const slices: FlightSlice[] = [{ origin, destination, departureDate }]
     if (tripType === "round_trip" && returnDate) {
       slices.push({
@@ -105,6 +109,7 @@ export function FlightSearchForm({ onSearch, loading, initial }: FlightSearchFor
           <AirportCombobox
             value={origin}
             onChange={setOrigin}
+            side="origin"
             placeholder={messages.fromPlaceholder}
             className="flex-1"
           />
@@ -121,22 +126,34 @@ export function FlightSearchForm({ onSearch, loading, initial }: FlightSearchFor
           <AirportCombobox
             value={destination}
             onChange={setDestination}
+            side="destination"
             placeholder={messages.toPlaceholder}
             className="flex-1"
           />
         </div>
 
-        {/* Date pair — flush together so the trip dates read as a unit. */}
+        {/* Date pair — flush together so the trip dates read as a unit. Each
+            picker prices the leg it selects, so the return shows the fare for
+            coming back rather than repeating the outbound. */}
         <div className="flex items-center gap-1">
-          <DatePicker
+          <FlightDatePicker
             value={departureDate}
             onChange={setDepartureDate}
+            origin={origin}
+            destination={destination}
+            passengers={passengers}
+            cabin={cabin}
             placeholder={messages.departPlaceholder}
             className="h-10 flex-1 min-w-32"
           />
-          <DatePicker
+          <FlightDatePicker
             value={returnDate}
             onChange={setReturnDate}
+            origin={destination}
+            destination={origin}
+            passengers={passengers}
+            cabin={cabin}
+            minDate={departureDate}
             placeholder={messages.returnPlaceholder}
             disabled={tripType === "one_way"}
             className="h-10 flex-1 min-w-32"

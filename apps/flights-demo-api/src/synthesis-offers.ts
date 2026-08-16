@@ -18,6 +18,7 @@ import {
   hashRequest,
   minutesToIso8601,
   mulberry32,
+  routeOperatesOn,
   setHourMinute,
 } from "./synthesis-common.js"
 import { synthesizeFareBundles } from "./synthesis-fare-bundles.js"
@@ -42,6 +43,13 @@ function routeSignature(slices: FlightSlice[]): string {
 }
 
 export function synthesizeOffers(request: FlightSearchRequest): FlightOffer[] {
+  // A trip is only sellable when every leg operates on its date. Returning
+  // nothing here is what the fare calendar reports as an unavailable day.
+  const operates = request.slices.every((slice) =>
+    routeOperatesOn(slice.origin, slice.destination, slice.departureDate),
+  )
+  if (!operates) return []
+
   // Hash without pagination so the same route produces the same pool across
   // page navigations — pagination is applied as a slice on top of the pool.
   const { pagination: _ignored, ...rest } = request

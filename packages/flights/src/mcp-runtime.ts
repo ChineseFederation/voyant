@@ -40,6 +40,13 @@ export const voyantToolContextContribution = defineToolContextContribution({
         searchFlights: (
           input: Parameters<ReturnType<typeof runtime.resolveAdapter>["searchFlights"]>[1],
         ) => runtime.resolveAdapter(c).searchFlights(adapterContext, input),
+        searchFareCalendar: (input: Parameters<FlightsToolServices["searchFareCalendar"]>[0]) => {
+          const adapter = runtime.resolveAdapter(c)
+          return requireFlightCapabilityMethod(
+            adapter.searchFareCalendar?.bind(adapter),
+            "searchFareCalendar",
+          )(adapterContext, input)
+        },
         priceOffer: (
           input: Parameters<ReturnType<typeof runtime.resolveAdapter>["priceOffer"]>[1],
         ) => runtime.resolveAdapter(c).priceOffer(adapterContext, input),

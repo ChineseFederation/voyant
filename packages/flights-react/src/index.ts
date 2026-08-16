@@ -26,4 +26,12 @@ export {
   getFlightSearchQueryOptions,
   getFlightSeatMapQueryOptions,
 } from "./query-options.js"
+export {
+  clearRecentAirports,
+  matchRecentAirports,
+  noteAirportSelected,
+  type RecentAirport,
+  readRecentAirports,
+  rememberSearchedAirports,
+} from "./recent-routes.js"
 export * from "./schemas.js"

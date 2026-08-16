@@ -14,6 +14,8 @@
  *   GET    /orders/:orderId          — adapter.getOrder (+ optional payment status)
  *   POST   /orders/:orderId/ticket   — adapter.ticketOrder (capability-gated)
  *   POST   /orders/:orderId/cancel   — adapter.cancelOrder
+ *   POST   /fare-calendar
+ *   GET    /served-markets
  *   GET    /reference/airports?q=&limit=
  *   GET    /reference/airlines
  *   GET    /reference/aircraft
@@ -27,7 +29,7 @@ import { OpenAPIHono } from "@hono/zod-openapi"
 import { defineGraphRuntimeFactory } from "@voyant-travel/core/project"
 import type { AnyDrizzleDb } from "@voyant-travel/db"
 import { createOrderPaymentSessions } from "@voyant-travel/finance/order-payment-sessions"
-import type { ApiModule } from "@voyant-travel/hono"
+import { type ApiModule, parseJsonBody } from "@voyant-travel/hono"
 import { ilike, or } from "drizzle-orm"
 import type { Context } from "hono"
 
@@ -36,6 +38,7 @@ import type {
   FlightConnectorAdapter,
   FlightPriceRequest,
 } from "./contract/adapter.js"
+import { fareCalendarRequestSchema } from "./contract/schemas.js"
 import type {
   AncillaryRequest,
   FlightBookRequest,
@@ -95,6 +98,8 @@ export const FLIGHTS_OPENAPI_API_ID = "@voyant-travel/flights#api"
 
 const FLIGHT_OPENAPI_OPERATIONS = [
   ["post", "/search", "Search flights"],
+  ["post", "/fare-calendar", "Quote departure dates across a window"],
+  ["get", "/served-markets", "List airports the connector sells"],
   ["post", "/ancillaries", "Get flight ancillaries"],
   ["post", "/seatmap", "Get a flight seat map"],
   ["post", "/price", "Price a flight offer"],
@@ -153,6 +158,21 @@ function statusForAdapterErrorMessage(message: string): 404 | 500 | 503 {
   return 500
 }
 
+/**
+ * Widest window `/fare-calendar` will ask a connector for. A picker shows two
+ * months at most, and the cap is what stops a caller from turning one request
+ * into a year of supplier lookups.
+ */
+const MAX_FARE_CALENDAR_WINDOW_DAYS = 92
+
+/** Inclusive day count between two `yyyy-MM-dd` dates. */
+function calendarWindowDays(from: string, to: string): number {
+  const start = Date.parse(`${from}T00:00:00Z`)
+  const end = Date.parse(`${to}T00:00:00Z`)
+  if (Number.isNaN(start) || Number.isNaN(end)) return 0
+  return Math.floor((end - start) / 86_400_000) + 1
+}
+
 function paymentSessionOptionsForIntent(
   intent: PaymentIntent | undefined,
 ): { paymentMethod?: "bank_transfer" | "credit_card"; startCardPayment?: boolean } | null {
@@ -190,6 +210,55 @@ export function createFlightAdminRoutes(options: FlightsRouteOptions): OpenAPIHo
     }
     try {
       const response = await resolveAdapter(c).searchFlights(buildContext(c), body)
+      return c.json(response)
+    } catch (err) {
+      const { message, status } = adapterErrorDetails(err)
+      return c.json({ error: message }, status)
+    }
+  })
+
+  // ── Fare calendar ───────────────────────────────────────────────────────
+  // Quotes a window of departure dates so the date picker can show where
+  // availability is. Capability-gated: connectors without cached lowest-fare
+  // data answer 501 and the picker degrades to a plain calendar.
+  hono.post("/fare-calendar", async (c) => {
+    const body = await parseJsonBody(c, fareCalendarRequestSchema)
+    if (body.to < body.from) {
+      return c.json({ error: "to must not precede from" }, 400)
+    }
+    const windowDays = calendarWindowDays(body.from, body.to)
+    if (windowDays > MAX_FARE_CALENDAR_WINDOW_DAYS) {
+      return c.json(
+        {
+          error: `Fare calendar window must not exceed ${MAX_FARE_CALENDAR_WINDOW_DAYS} days`,
+        },
+        400,
+      )
+    }
+    const adapter = resolveAdapter(c)
+    if (!adapter.searchFareCalendar) {
+      return c.json({ error: "Connector does not declare flight/fare-calendar capability" }, 501)
+    }
+    try {
+      const response = await adapter.searchFareCalendar(buildContext(c), body)
+      return c.json(response)
+    } catch (err) {
+      const { message, status } = adapterErrorDetails(err)
+      return c.json({ error: message }, status)
+    }
+  })
+
+  // ── Served markets ──────────────────────────────────────────────────────
+  // The airports this connection actually sells. A picker leads with these;
+  // it must not restrict itself to them, so a connector that declares nothing
+  // (501) simply falls back to the full airport reference.
+  hono.get("/served-markets", async (c) => {
+    const adapter = resolveAdapter(c)
+    if (!adapter.listServedMarkets) {
+      return c.json({ error: "Connector does not declare flight/served-markets capability" }, 501)
+    }
+    try {
+      const response = await adapter.listServedMarkets(buildContext(c))
       return c.json(response)
     } catch (err) {
       const { message, status } = adapterErrorDetails(err)
@@ -402,6 +471,9 @@ export function createFlightAdminRoutes(options: FlightsRouteOptions): OpenAPIHo
     const db = getDb(c)
     const q = c.req.query("q")?.trim()
     const limit = Math.min(Number(c.req.query("limit") ?? 50), 200)
+    // Ordered, not merely limited. Without this the "first 200" a picker shows
+    // on open is whatever Postgres hands back — a different arbitrary slice of
+    // every airport on earth run to run.
     let rows: Array<typeof referenceAirports.$inferSelect>
     if (q) {
       const pattern = `%${q}%`
@@ -415,9 +487,14 @@ export function createFlightAdminRoutes(options: FlightsRouteOptions): OpenAPIHo
             ilike(referenceAirports.name, pattern),
           ),
         )
+        .orderBy(referenceAirports.city, referenceAirports.iataCode)
         .limit(limit)
     } else {
-      rows = await db.select().from(referenceAirports).limit(limit)
+      rows = await db
+        .select()
+        .from(referenceAirports)
+        .orderBy(referenceAirports.city, referenceAirports.iataCode)
+        .limit(limit)
     }
     return c.json({ data: rows })
   })

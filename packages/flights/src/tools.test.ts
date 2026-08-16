@@ -35,6 +35,7 @@ describe("flight tools", () => {
       "get_flight_order",
       "list_flight_orders",
       "price_flight_offer",
+      "search_fare_calendar",
       "search_flights",
       "ticket_flight_order",
     ])
@@ -85,6 +86,57 @@ describe("flight tools", () => {
         }),
       ),
     ).resolves.toEqual({ offers: [], pagination: { total: 0, hasMore: false } })
+  })
+
+  it("quotes a fare calendar window through the connector", async () => {
+    await expect(
+      registry().dispatch(
+        "search_fare_calendar",
+        {
+          origin: "OTP",
+          destination: "FNC",
+          from: "2026-09-01",
+          to: "2026-09-30",
+          passengers: { adults: 1 },
+        },
+        ctx({
+          async searchFareCalendar() {
+            return {
+              days: [
+                {
+                  date: "2026-09-01",
+                  available: true,
+                  cheapestPrice: { amount: "199.00", currency: "EUR" },
+                },
+                { date: "2026-09-02", available: false },
+              ],
+            }
+          },
+        }),
+      ),
+    ).resolves.toMatchObject({ days: [{ date: "2026-09-01" }, { date: "2026-09-02" }] })
+  })
+
+  // A day that does not exist would be rolled forward by `Date`, so the agent
+  // has to be told rather than handed quotes for another month.
+  it("refuses a window bound that is not a real calendar day", async () => {
+    await expect(
+      registry().dispatch(
+        "search_fare_calendar",
+        {
+          origin: "OTP",
+          destination: "FNC",
+          from: "2026-02-31",
+          to: "2026-03-15",
+          passengers: { adults: 1 },
+        },
+        ctx({
+          async searchFareCalendar() {
+            throw new Error("the connector must never be reached with an impossible date")
+          },
+        }),
+      ),
+    ).rejects.toThrow()
   })
 
   it("fails closed without connector wiring", async () => {

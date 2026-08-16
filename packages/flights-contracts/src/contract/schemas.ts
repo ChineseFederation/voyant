@@ -6,6 +6,36 @@ import { FLIGHT_CAPABILITIES, type FlightCapability } from "./types.js"
 const decimalStringSchema = z.string().regex(/^\d+(\.\d+)?$/)
 const signedDecimalStringSchema = z.string().regex(/^-?\d+(\.\d+)?$/)
 const iataCodeSchema = z.string().length(3)
+/**
+ * A real calendar day, not merely a `yyyy-MM-dd`-shaped string.
+ *
+ * Shape alone is not enough: `Date` silently rolls `2026-02-31` forward to
+ * 2026-03-03, so a format-only check would hand the connector a window the
+ * caller never asked for and quote the wrong month back. Round-tripping the
+ * parsed parts is what rejects a day that does not exist.
+ */
+const isoDateSchema = z
+  .string()
+  .refine(isCalendarDate, { message: "Expected a calendar date in yyyy-MM-dd form" })
+  // `z.toJSONSchema` drops refinements, so a caller reading only the generated
+  // schema — an agent, say — would learn the day-must-exist rule from a 400.
+  // The description is the part it can actually see.
+  .describe(
+    "A calendar date as yyyy-MM-dd. The day must exist: 2026-02-31 and 2026-13-01 are rejected rather than rolled forward.",
+  )
+
+function isCalendarDate(value: string): boolean {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value)
+  if (!match) return false
+  const [, year, month, day] = match
+  const parsed = new Date(`${value}T00:00:00Z`)
+  if (Number.isNaN(parsed.getTime())) return false
+  return (
+    parsed.getUTCFullYear() === Number(year) &&
+    parsed.getUTCMonth() + 1 === Number(month) &&
+    parsed.getUTCDate() === Number(day)
+  )
+}
 const carrierCodeSchema = z.string().min(2).max(3)
 const currencyCodeSchema = z.string().length(3)
 const providerDataSchema = z.record(z.string(), z.unknown())
@@ -213,6 +243,42 @@ export const flightSearchRequestSchema = z.object({
 export const flightSearchResponseSchema = z.object({
   offers: z.array(flightOfferSchema),
   pagination: flightSearchPaginationMetaSchema.optional(),
+  providerData: providerDataSchema.optional(),
+})
+
+export const fareCalendarRequestSchema = z.object({
+  origin: iataCodeSchema,
+  destination: iataCodeSchema,
+  from: isoDateSchema,
+  to: isoDateSchema,
+  passengers: passengerCountsSchema,
+  cabin: cabinClassSchema.optional(),
+  returnAfterDays: z.number().int().min(0).optional(),
+  searchOptions: z
+    .object({
+      directOnly: z.boolean().optional(),
+      maxStops: z.number().int().min(0).optional(),
+    })
+    .optional(),
+})
+
+export const fareCalendarDaySchema = z.object({
+  date: isoDateSchema,
+  available: z.boolean(),
+  cheapestPrice: moneySchema.optional(),
+  offerCount: z.number().int().min(0).optional(),
+})
+
+export const fareCalendarResponseSchema = z.object({
+  days: z.array(fareCalendarDaySchema),
+  expiresAt: z.string().optional(),
+  providerData: providerDataSchema.optional(),
+})
+
+export const servedMarketsResponseSchema = z.object({
+  origins: z.array(iataCodeSchema),
+  destinations: z.array(iataCodeSchema).optional(),
+  expiresAt: z.string().optional(),
   providerData: providerDataSchema.optional(),
 })
 

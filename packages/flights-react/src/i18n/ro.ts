@@ -131,6 +131,9 @@ export const flightsUiRo = {
     searchPlaceholder: "Tasteaza oras sau cod IATA...",
     searching: "Se cauta...",
     empty: "Niciun aeroport.",
+    recentHeading: "Rutele tale",
+    servedHeading: "Deservite de furnizorii tai",
+    allHeading: "Toate aeroporturile",
   },
   flightBaggageStep: {
     unavailable: "Bagajele nu au putut fi incarcate pentru aceasta oferta.",
@@ -335,6 +338,7 @@ export const flightsUiRo = {
     viewDetails: "Vezi detaliile zborului",
     codeshare: "Codeshare",
     interline: "Interline",
+    plusCarriers: "{carrier} +{count}",
   },
   flightOrderConfirmation: {
     bookingConfirmed: "Rezervare confirmata",

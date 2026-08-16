@@ -167,10 +167,22 @@ function ItineraryRow({
 
   return (
     <div className="flex items-center gap-3">
-      <div className="flex shrink-0 items-center -space-x-1.5">
-        {carriers.map((code) => (
-          <AirlineLogo key={code} iataCode={code} name={carrierName?.(code)} size={28} />
-        ))}
+      {/* Who is flying this, in words. The logo alone identifies a carrier
+          only to someone who already knows the livery. */}
+      <div className="flex w-40 shrink-0 items-center gap-2">
+        <div className="flex shrink-0 items-center -space-x-1.5">
+          {carriers.map((code) => (
+            <AirlineLogo key={code} iataCode={code} name={carrierName?.(code)} size={28} />
+          ))}
+        </div>
+        <div className="flex min-w-0 flex-col leading-tight">
+          <span className="truncate font-medium text-xs">
+            {carrierLabel(carriers, carrierName, messages)}
+          </span>
+          <span className="truncate font-mono text-[10px] text-muted-foreground">
+            {flightNumbers(segs)}
+          </span>
+        </div>
       </div>
       <div className="flex min-w-0 flex-1 items-center gap-3">
         <Endpoint at={first.departure.at} iata={first.departure.iataCode} />
@@ -219,6 +231,34 @@ function ItineraryRow({
       </Badge>
     </div>
   )
+}
+
+/**
+ * The airline as a traveller would name it. Falls back to the IATA code when
+ * reference data doesn't know the carrier, which is never wrong — just terser.
+ * Interline itineraries name the first carrier and count the rest, because the
+ * full list doesn't fit and the operating carriers are on the detail sheet.
+ */
+function carrierLabel(
+  carriers: string[],
+  carrierName: ((iataCode: string) => string | undefined) | undefined,
+  messages: ReturnType<typeof useFlightsUiI18nOrDefault>["messages"],
+): string {
+  const [first, ...rest] = carriers
+  if (!first) return ""
+  const name = carrierName?.(first) ?? first
+  if (rest.length === 0) return name
+  return formatMessage(messages.flightOfferRow.plusCarriers, {
+    carrier: name,
+    count: String(rest.length),
+  })
+}
+
+/** Marketing flight numbers in order, capped so a 3-leg trip stays on one line. */
+function flightNumbers(segs: Itinerary["segments"]): string {
+  const numbers = segs.map((segment) => `${segment.carrierCode} ${segment.flightNumber}`)
+  if (numbers.length <= 2) return numbers.join(" · ")
+  return `${numbers.slice(0, 2).join(" · ")} +${numbers.length - 2}`
 }
 
 function Endpoint({

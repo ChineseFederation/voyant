@@ -32,6 +32,61 @@ export const CARRIERS: DemoCarrier[] = [
   { code: "FR", hubs: ["STN"], basePriceMultiplier: 0.55 },
 ]
 
+/**
+ * Airports the demo network sells — every carrier hub plus the leisure and
+ * long-haul points the demo routes terminate at.
+ *
+ * Narrower than what `synthesizeOffers` will actually price, and deliberately
+ * so: this models a real connector, which knows its contracted network rather
+ * than the whole world. Consumers rank by it and never filter on it, so the
+ * narrowness costs nothing.
+ */
+export function demoServedMarkets(): { origins: string[] } {
+  const hubs = CARRIERS.flatMap((carrier) => carrier.hubs)
+  const destinations = [
+    "JFK",
+    "FCO",
+    "BCN",
+    "MAD",
+    "GRU",
+    "JNB",
+    "NRT",
+    "HND",
+    "BKK",
+    "SIN",
+    "SFO",
+    "OTP",
+    "FNC",
+  ]
+  return { origins: [...new Set([...hubs, ...destinations])].sort() }
+}
+
+/**
+ * Thin long-haul markets in the demo network. Routes touching one of these
+ * fly a weekly pattern rather than daily, which is what gives a date picker
+ * over demo supply real gaps instead of a uniform wall of availability.
+ *
+ * Every other demo route operates daily, so short-haul behavior — and the
+ * offer-id fixtures pinned on it — is unchanged.
+ */
+const LOW_FREQUENCY_ENDPOINTS = new Set(["GRU", "JNB", "NRT", "HND", "BKK", "SIN", "SFO"])
+
+/** Mon / Wed / Fri / Sat, as `Date#getUTCDay` values. */
+const LOW_FREQUENCY_WEEKDAYS = new Set([1, 3, 5, 6])
+
+/**
+ * Whether demo supply operates this route on this date. Search and the fare
+ * calendar both consult it, so a day the calendar greys out is a day search
+ * genuinely returns nothing for — the two can never disagree.
+ */
+export function routeOperatesOn(origin: string, destination: string, departureDate: string) {
+  if (!LOW_FREQUENCY_ENDPOINTS.has(origin) && !LOW_FREQUENCY_ENDPOINTS.has(destination)) {
+    return true
+  }
+  const day = new Date(`${departureDate}T00:00:00Z`).getUTCDay()
+  return Number.isNaN(day) ? true : LOW_FREQUENCY_WEEKDAYS.has(day)
+}
+
 export const CABIN_PRICE_MULT: Record<CabinClass, number> = {
   economy: 1,
   premium_economy: 1.6,

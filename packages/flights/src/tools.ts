@@ -1,6 +1,8 @@
 /** Provider-neutral flight search, pricing, order, ticketing, and cancellation Tools. */
 
 import {
+  fareCalendarRequestSchema,
+  fareCalendarResponseSchema,
   flightCancelReasonSchema,
   flightCancelResponseSchema,
   flightGetOrderResponseSchema,
@@ -29,6 +31,7 @@ const orderIdSchema = z.object({ orderId: z.string().min(1) })
 const cancelOrderSchema = orderIdSchema.extend({ reason: flightCancelReasonSchema.optional() })
 const DURABLE_FLIGHT_ACTION_VERSION = "v2"
 
+type FareCalendarInput = z.infer<typeof fareCalendarRequestSchema>
 type FlightSearchInput = z.infer<typeof flightSearchRequestSchema>
 type FlightPriceInput = z.infer<typeof flightPriceRequestSchema>
 type FlightOrdersListInput = z.infer<typeof flightOrdersListQuerySchema>
@@ -36,6 +39,7 @@ type FlightCancelInput = z.infer<typeof cancelOrderSchema>
 
 export interface FlightsToolServices {
   searchFlights(input: FlightSearchInput): Promise<unknown>
+  searchFareCalendar(input: FareCalendarInput): Promise<unknown>
   priceOffer(input: FlightPriceInput): Promise<unknown>
   listOrders(input: FlightOrdersListInput): Promise<unknown>
   getOrder(orderId: string): Promise<unknown>
@@ -121,6 +125,30 @@ export const searchFlightsTool = defineTool({
   },
 })
 
+/**
+ * The date question, answerable without running a search per day. "When is
+ * Bucharest to Madeira cheapest in September" is a question an agent should be
+ * able to answer, and doing it through `search_flights` would mean thirty
+ * supplier calls to learn what one returns.
+ *
+ * Capability-gated: connectors without cached lowest-fare data raise
+ * MISSING_SERVICE rather than silently returning an empty window, so the agent
+ * can say the supply cannot answer instead of reporting no availability.
+ */
+export const searchFareCalendarTool = defineTool({
+  ...offerReadMetadata,
+  capabilityId: `${OWNER}#tool.fare-calendar`,
+  name: "search_fare_calendar",
+  description:
+    "Quote indicative cheapest fares and availability for one route across a window of departure dates. Prices are cached and must be re-quoted with search_flights before booking.",
+  requiredScopes: ["flights:write"],
+  inputSchema: fareCalendarRequestSchema,
+  outputSchema: fareCalendarResponseSchema,
+  async handler(input, ctx: FlightsToolContext) {
+    return fareCalendarResponseSchema.parse(await flights(ctx).searchFareCalendar(input))
+  },
+})
+
 export const priceFlightOfferTool = defineTool({
   ...offerReadMetadata,
   capabilityId: `${OWNER}#tool.price-offer`,
@@ -202,6 +230,7 @@ export const cancelFlightOrderTool = defineTool({
 
 export const flightsTools = [
   searchFlightsTool,
+  searchFareCalendarTool,
   priceFlightOfferTool,
   listFlightOrdersTool,
   getFlightOrderTool,

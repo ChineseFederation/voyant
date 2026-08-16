@@ -522,6 +522,103 @@ export interface SeatMapResponse {
   validUntil?: string
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Fare calendar
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Ask a provider which departure dates it sells a route on, and for how much.
+ *
+ * This is a *shopping* call, not a search: it answers "when is this route
+ * flyable and roughly what does it cost" across a window of dates, so a date
+ * picker can show availability before the traveller commits to a day. It is
+ * deliberately cheaper and coarser than `searchFlights` — providers serve it
+ * from cached lowest-fare data (Amadeus Flight Cheapest Date Search, Sabre
+ * BFM Calendar), so prices are indicative and MUST be re-quoted by a real
+ * search before anything is booked.
+ */
+export interface FareCalendarRequest {
+  origin: string // 3-char IATA
+  destination: string
+  /** Inclusive ISO date (yyyy-MM-dd) lower bound of the quoted window. */
+  from: string
+  /** Inclusive ISO date (yyyy-MM-dd) upper bound of the quoted window. */
+  to: string
+  passengers: PassengerCounts
+  cabin?: CabinClass
+  /**
+   * Round-trip stay length in nights. When set, each quoted day is priced as
+   * a return trip departing that day and coming back `returnAfterDays` later,
+   * which is what a round-trip picker needs. Omit for one-way pricing.
+   */
+  returnAfterDays?: number
+  searchOptions?: {
+    directOnly?: boolean
+    maxStops?: number
+  }
+}
+
+/** One day in the quoted window. */
+export interface FareCalendarDay {
+  /** ISO date, yyyy-MM-dd. */
+  date: string
+  /**
+   * Whether the provider sells this route on this date at all. `false` is a
+   * positive statement of no availability — distinct from a day the provider
+   * simply didn't quote, which is omitted from `days` entirely.
+   */
+  available: boolean
+  /**
+   * Cheapest indicative total for the requested party — same basis as
+   * `FlightOffer.totalPrice`, not a per-passenger fare. Omitted when
+   * `available` is false, or when the provider reports availability without
+   * a price.
+   */
+  cheapestPrice?: Money
+  /** Offers behind the quote, when the provider reports it. */
+  offerCount?: number
+}
+
+export interface FareCalendarResponse {
+  /**
+   * Quoted days, ascending. A provider may return fewer days than requested
+   * (window caps, no data) — a missing day means "not quoted", never
+   * "unavailable".
+   */
+  days: FareCalendarDay[]
+  /** ISO 8601 — when this quote goes stale. Cached calendars are not live. */
+  expiresAt?: string
+  /** Provider-specific data, opaque to the consumer. */
+  providerData?: Record<string, unknown>
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Served markets
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * The airports a connection actually sells, so a picker can put an operator's
+ * own network in front of the global airport reference.
+ *
+ * This is a **ranking hint, never a filter**. A connection that declares a
+ * narrow network is describing where its supply is concentrated, not where the
+ * operator is permitted to search — consumers must keep every other airport
+ * reachable, or a stale declaration silently amputates the product.
+ */
+export interface ServedMarketsResponse {
+  /** IATA codes the connection sells departures from. */
+  origins: string[]
+  /**
+   * IATA codes the connection sells arrivals to. Omit when the network is
+   * symmetric, which is the common case.
+   */
+  destinations?: string[]
+  /** ISO 8601 — when this declaration goes stale. */
+  expiresAt?: string
+  /** Provider-specific data, opaque to the consumer. */
+  providerData?: Record<string, unknown>
+}
+
 export type {
   CheckInRequest,
   CheckInResponse,
@@ -563,6 +660,17 @@ export const FLIGHT_CAPABILITIES = {
   BRANDED_FARES: "flight/branded-fares",
   /** `listOrders(ctx, query)` is queryable — the adapter persists orders. */
   LIST_ORDERS: "flight/list-orders",
+  /**
+   * `searchFareCalendar(ctx, request)` quotes a window of departure dates, so
+   * a date picker can show where availability actually is.
+   */
+  FARE_CALENDAR: "flight/fare-calendar",
+  /**
+   * `listServedMarkets(ctx)` declares the airports this connection sells, so a
+   * picker can lead with the operator's own network. A hint for ordering, not
+   * a restriction on what may be searched.
+   */
+  SERVED_MARKETS: "flight/served-markets",
 } as const
 
 export type FlightCapability = (typeof FLIGHT_CAPABILITIES)[keyof typeof FLIGHT_CAPABILITIES]

@@ -68,6 +68,11 @@
       "note": "Documented. The Tool description states all three cross-field rules in full: creditNoteId is required and paymentId bounds the refundable amount, processor_reversal requires paymentSessionId, and instrumentAmountCents requires instrumentCurrency (voyant#4303)."
     },
     {
+      "id": "@voyant-travel/flights:search_fare_calendar:from",
+      "documented": true,
+      "note": "Documented. Both window bounds share one date schema whose description states the yyyy-MM-dd shape and that the day must exist, naming 2026-02-31 and 2026-13-01 as rejected."
+    },
+    {
       "id": "@voyant-travel/inventory:create_option_unit:<root>",
       "documented": false,
       "note": "Not stated. update_option_unit documents its occupancy rule but create_option_unit does not, though the same class of rule applies (voyant#3822 fixed only the update side)."

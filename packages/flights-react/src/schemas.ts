@@ -116,6 +116,28 @@ export const flightSearchResponseSchema = z.object({
 
 export type FlightSearchResponseDto = z.infer<typeof flightSearchResponseSchema>
 
+export const fareCalendarDaySchema = z.object({
+  date: z.string(),
+  available: z.boolean(),
+  cheapestPrice: moneySchema.optional(),
+  offerCount: z.number().optional(),
+})
+
+export const fareCalendarResponseSchema = z.object({
+  days: z.array(fareCalendarDaySchema),
+  expiresAt: z.string().optional(),
+  providerData: z.record(z.string(), z.unknown()).optional(),
+})
+
+export const servedMarketsResponseSchema = z.object({
+  origins: z.array(z.string()),
+  destinations: z.array(z.string()).optional(),
+  expiresAt: z.string().optional(),
+  providerData: z.record(z.string(), z.unknown()).optional(),
+})
+
+export type ServedMarketsResponseDto = z.infer<typeof servedMarketsResponseSchema>
+
 export const flightPriceResponseSchema = z.object({
   offer: flightOfferSchema,
   valid: z.boolean(),

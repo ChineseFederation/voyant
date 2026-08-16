@@ -4,6 +4,8 @@
  * integration source. Each endpoint maps 1:1 to an adapter call.
  *
  *   POST   /search                       searchFlights
+ *   POST   /fare-calendar                searchFareCalendar
+ *   GET    /served-markets                listServedMarkets
  *   POST   /price                        priceOffer
  *   POST   /book                         bookFlight
  *   GET    /orders                       listOrders
@@ -17,6 +19,7 @@
 
 import type {
   AncillaryRequest,
+  FareCalendarRequest,
   FlightBookRequest,
   FlightOrder,
   FlightOrderStatus,
@@ -33,11 +36,13 @@ import {
   findSegmentInOffer,
   parsePageCursor,
   synthesizeAncillaryCatalog,
+  synthesizeFareCalendar,
   synthesizeOffers,
   synthesizeOrder,
   synthesizeSeatMap,
   ticketHeldOrder,
 } from "./synthesis.js"
+import { demoServedMarkets } from "./synthesis-common.js"
 
 interface PriceRequest {
   offerId: string
@@ -69,6 +74,21 @@ export function createRoutes(db: DemoFlightsDb): Hono {
         ...(hasMore ? { cursor: String(page + 1) } : {}),
       },
     })
+  })
+
+  // ── Served markets ────────────────────────────────────────────────────
+  app.get("/served-markets", (c) => c.json(demoServedMarkets()))
+
+  // ── Fare calendar ─────────────────────────────────────────────────────
+  app.post("/fare-calendar", async (c) => {
+    const body = await c.req.json<FareCalendarRequest>()
+    if (!body.origin || !body.destination) {
+      return c.json({ error: "origin and destination are required" }, 400)
+    }
+    if (!body.from || !body.to) {
+      return c.json({ error: "from and to are required" }, 400)
+    }
+    return c.json(synthesizeFareCalendar(body))
   })
 
   // ── Price ─────────────────────────────────────────────────────────────

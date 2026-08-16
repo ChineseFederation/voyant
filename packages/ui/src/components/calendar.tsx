@@ -6,6 +6,16 @@ import { type DayButton, DayPicker, getDefaultClassNames, type Locale } from "re
 import { cn } from "../lib/utils.js"
 import { Button, buttonVariants } from "./button.js"
 
+/**
+ * Renders a secondary line under a day's number — a price, a count, a status.
+ * Return `null`/`undefined` for days with nothing to say; the cell then looks
+ * exactly as it would without annotations at all.
+ *
+ * Annotated cells need more room than the 2rem default, so callers should
+ * widen `--cell-size` on the calendar when they use this.
+ */
+type CalendarDayAnnotation = (date: Date) => React.ReactNode
+
 function Calendar({
   className,
   classNames,
@@ -15,9 +25,11 @@ function Calendar({
   locale,
   formatters,
   components,
+  dayAnnotation,
   ...props
 }: React.ComponentProps<typeof DayPicker> & {
   buttonVariant?: React.ComponentProps<typeof Button>["variant"]
+  dayAnnotation?: CalendarDayAnnotation
 }) {
   const defaultClassNames = getDefaultClassNames()
 
@@ -126,7 +138,9 @@ function Calendar({
 
           return <ChevronDownIcon className={cn("size-4", className)} {...props} />
         },
-        DayButton: ({ ...props }) => <CalendarDayButton locale={locale} {...props} />,
+        DayButton: ({ ...props }) => (
+          <CalendarDayButton locale={locale} dayAnnotation={dayAnnotation} {...props} />
+        ),
         WeekNumber: ({ children, ...props }) => {
           return (
             <td {...props}>
@@ -148,14 +162,21 @@ function CalendarDayButton({
   day,
   modifiers,
   locale,
+  dayAnnotation,
+  children,
   ...props
-}: React.ComponentProps<typeof DayButton> & { locale?: Partial<Locale> }) {
+}: React.ComponentProps<typeof DayButton> & {
+  locale?: Partial<Locale>
+  dayAnnotation?: CalendarDayAnnotation
+}) {
   const defaultClassNames = getDefaultClassNames()
 
   const ref = React.useRef<HTMLButtonElement>(null)
   React.useEffect(() => {
     if (modifiers.focused) ref.current?.focus()
   }, [modifiers.focused])
+
+  const annotation = dayAnnotation?.(day.date)
 
   return (
     <Button
@@ -187,8 +208,12 @@ function CalendarDayButton({
         defaultClassNames.day,
         className,
       )}
-    />
+    >
+      {children}
+      {annotation == null ? null : <span data-slot="day-annotation">{annotation}</span>}
+    </Button>
   )
 }
 
+export type { CalendarDayAnnotation }
 export { Calendar, CalendarDayButton }

@@ -96,6 +96,9 @@ export type FlightsUiMessages = {
     searchPlaceholder: string
     searching: string
     empty: string
+    recentHeading: string
+    servedHeading: string
+    allHeading: string
   }
   flightBaggageStep: {
     unavailable: string
@@ -291,6 +294,7 @@ export type FlightsUiMessages = {
     viewDetails: string
     codeshare: string
     interline: string
+    plusCarriers: string
   }
   flightOrderConfirmation: {
     bookingConfirmed: string

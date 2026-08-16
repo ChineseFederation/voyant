@@ -2,6 +2,7 @@ export { useAircraft } from "./use-aircraft.js"
 export { useAirlines } from "./use-airlines.js"
 export { type UseAirportSearchOptions, useAirportSearch } from "./use-airport-search.js"
 export { type UseAirportsOptions, useAirports } from "./use-airports.js"
+export { type UseFareCalendarOptions, useFareCalendar } from "./use-fare-calendar.js"
 export {
   type UseFlightAncillariesOptions,
   useFlightAncillaries,
@@ -25,3 +26,4 @@ export {
   type UseSavedPaymentMethodsOptions,
   useSavedPaymentMethods,
 } from "./use-saved-payment-methods.js"
+export { type UseServedMarketsOptions, useServedMarkets } from "./use-served-markets.js"
