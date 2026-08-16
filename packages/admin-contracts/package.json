@@ -1,6 +1,6 @@
 {
   "name": "@voyant-travel/admin-contracts",
-  "version": "0.107.9",
+  "version": "0.107.10",
   "license": "Apache-2.0",
   "type": "module",
   "exports": {

@@ -1,6 +1,6 @@
 {
   "name": "@voyant-travel/proposals",
-  "version": "0.140.8",
+  "version": "0.140.9",
   "license": "Apache-2.0",
   "type": "module",
   "exports": {
