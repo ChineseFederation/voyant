@@ -41,6 +41,14 @@ export interface BookingsFinanceRuntime {
         productId: string | null
         subtotalDeltaCents: number
       }>
+      /**
+       * Charge that is not a fare — today, the operator-set fee for moving a
+       * booking to another departure. Quoted as its own line rather than
+       * folded into a subtotal so the customer-facing record separates
+       * "the new date costs more" from "we charge to change the date", and
+       * so tax treatment can diverge later without re-deriving either.
+       */
+      feeDeltaCents?: number
     },
   ): Promise<{
     price: BookingAmendmentPrice
@@ -62,6 +70,19 @@ export interface BookingsFinanceRuntime {
        * than from its own `new Date()`. Tests inject a fixed value.
        */
       now?: Date
+      /**
+       * How the operator chose to settle money owed back. Only meaningful
+       * when the amendment refunds: `refund` records the obligation for an
+       * operator to pay out, `travel_credit` issues a credit against the
+       * customer instead. Absent means `refund`.
+       */
+      refundHandling?: "refund" | "travel_credit" | "waive"
+      /**
+       * Customer the booking belongs to, for attributing a travel credit.
+       * Passed rather than looked up so finance does not reach into
+       * `bookings` for one column the caller already holds.
+       */
+      issuedToPersonId?: string | null
     },
   ): Promise<{ adjustmentId: string; status: "recorded" | "replay" }>
 }

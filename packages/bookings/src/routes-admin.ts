@@ -69,7 +69,7 @@ import { createBookingsAdminRoute as createRoute } from "./routes-openapi.js"
 import type { publicBookingRoutes } from "./routes-public.js"
 import { type Env, getActionLedgerRequestContext } from "./routes-shared.js"
 import { bookingPiiAccessLog } from "./schema.js"
-import { bookingsService } from "./service.js"
+import { BookingServiceError, bookingsService } from "./service.js"
 import { bookingGroupsService } from "./service-groups.js"
 import { publicBookingsService, resolveSessionPricingSnapshot } from "./service-public.js"
 import {
@@ -3064,24 +3064,46 @@ const itemsRoutes = new OpenAPIHono<Env>({ defaultHook: openApiValidationHook })
     }
     const body = c.req.valid("json") ?? {}
     const ledgerContext = getActionLedgerRequestContext(c)
-    const row = await c.get("db").transaction(async (tx) => {
-      const row = await bookingsService.updateItem(tx as PostgresJsDatabase, itemId, body, {
-        eventBus: c.get("eventBus"),
+    const row = await c
+      .get("db")
+      .transaction(async (tx) => {
+        const row = await bookingsService.updateItem(tx as PostgresJsDatabase, itemId, body, {
+          eventBus: c.get("eventBus"),
+        })
+        if (!row) return null
+        await appendBookingMutationLedgerEntryToDb(tx as AnyDrizzleDb, ledgerContext, {
+          action: "update",
+          actionName: "booking.item.update",
+          actionVersion: BOOKING_ITEM_LEDGER_ACTION_VERSION,
+          targetType: "booking_item",
+          targetId: row.id,
+          changedFields: changedBookingItemFields(body, before, row),
+          subject: "booking item",
+          routeOrToolName: "bookings.items.update",
+          evaluatedRisk: "high",
+        })
+        return row
       })
-      if (!row) return null
-      await appendBookingMutationLedgerEntryToDb(tx as AnyDrizzleDb, ledgerContext, {
-        action: "update",
-        actionName: "booking.item.update",
-        actionVersion: BOOKING_ITEM_LEDGER_ACTION_VERSION,
-        targetType: "booking_item",
-        targetId: row.id,
-        changedFields: changedBookingItemFields(body, before, row),
-        subject: "booking item",
-        routeOrToolName: "bookings.items.update",
-        evaluatedRisk: "high",
+      .catch((error: unknown) => {
+        // A refused move is an answer, not a fault: tell the operator where
+        // the priced, capacity-checked path lives instead of 500-ing.
+        if (
+          error instanceof BookingServiceError &&
+          error.code === "slot_change_requires_amendment"
+        ) {
+          return "slot_change_requires_amendment" as const
+        }
+        throw error
       })
-      return row
-    })
+    if (row === "slot_change_requires_amendment") {
+      return c.json(
+        {
+          error:
+            "This service holds a departure. Moving it to another date changes capacity and price — use the booking's move flow instead.",
+        },
+        409,
+      )
+    }
     if (!row) {
       return c.json({ error: "Booking item not found" }, 404)
     }

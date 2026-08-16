@@ -87,6 +87,7 @@ export const bookingsUiRoOperations = {
       viewItem: "Vezi articolul",
       editItem: "Editeaza articolul",
       deleteItem: "Sterge articolul",
+      moveItem: "Muta pe alta data",
     },
     snapshot: {
       title: "Snapshot articol",

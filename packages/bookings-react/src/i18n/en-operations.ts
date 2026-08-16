@@ -87,6 +87,7 @@ export const bookingsUiEnOperations = {
       viewItem: "View item",
       editItem: "Edit item",
       deleteItem: "Delete item",
+      moveItem: "Move to another date",
     },
     snapshot: {
       title: "Item snapshot",

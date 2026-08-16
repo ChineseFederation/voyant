@@ -428,10 +428,15 @@ export const bookingsUiEnSections = {
     title: "Add a service",
     sourcedUnsupported:
       "This is a supplier product. Adding it to an existing booking has to be arranged with the supplier first.",
+    missing: {
+      product: "Pick a product first.",
+      reason: "Add a reason to continue.",
+    },
     fields: {
       departure: "Departure",
       departurePlaceholder: "Pick a departure",
       departureEmpty: "No open departures",
+      seatsLeft: "{count} left",
       unit: "Unit",
       unitNone: "No specific unit",
       quantity: "Quantity",
@@ -452,6 +457,58 @@ export const bookingsUiEnSections = {
       unsupported: "This service cannot be added to this booking.",
       staleRevision: "Someone else changed this booking. Close and reopen to try again.",
       generic: "This addition could not be quoted.",
+    },
+  },
+  itemMoveDialog: {
+    title: "Move to another date",
+    currentUnscheduled: "No departure booked",
+    noTargets:
+      "No other departure of this product has room for this booking. Open a new departure first, or free up space on an existing one.",
+    missing: {
+      departure: "Pick a departure to move to.",
+      reason: "Add a reason to continue.",
+    },
+    fields: {
+      departure: "New departure",
+      departurePlaceholder: "Pick a departure",
+      departureHint: "Only departures with room for this booking are listed.",
+      seatsLeft: "{count} left",
+      changeFee: "Change fee",
+      changeFeeHint: "What you charge for making the change. Added on top of any price difference.",
+      fareDiscount: "Discount on the price difference",
+      fareDiscountHint:
+        "How much of any price increase you absorb. Capped at the increase — a pricier move never pays money back.",
+      refundHandling: "If the new date is cheaper",
+      refundHandlingHint: "Only applies when the move comes out cheaper than what was paid.",
+      reason: "Reason",
+      reasonPlaceholder: "Why is the booking moving? The customer sees this on the change record.",
+    },
+    refundHandling: {
+      refund: "Give the difference back",
+      travelCredit: "Hold it as travel credit",
+      waive: "Keep the original price",
+    },
+    actions: {
+      cancel: "Cancel",
+      quote: "Get a price",
+      apply: "Move booking",
+    },
+    quote: {
+      title: "Price of this move",
+      fareDifference: "Price difference",
+      changeFee: "Change fee",
+      tax: "Tax",
+      discountApplied: "The price above already has your discount applied, capped at the increase.",
+      collect: "Collect {amount} from the customer.",
+      owedBack: "{amount} is owed back to the customer.",
+      supplier: "The supplier must confirm the new date before it takes effect.",
+      documents: "Travel documents will need reissuing for the new date.",
+    },
+    blocked: {
+      availabilityChanged: "That departure just filled up. Pick another one.",
+      unsupported: "This service cannot be moved.",
+      staleRevision: "Someone else changed this booking. Close and reopen to try again.",
+      generic: "This move could not be quoted.",
     },
   },
 } satisfies BookingsUiSectionsMessages

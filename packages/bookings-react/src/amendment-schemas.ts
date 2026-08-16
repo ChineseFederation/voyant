@@ -28,6 +28,7 @@ export const bookingAmendmentKindSchema = z.enum([
   "traveler_add",
   "traveler_drop",
   "item_add",
+  "item_move",
 ])
 
 export type BookingAmendmentKind = z.infer<typeof bookingAmendmentKindSchema>

@@ -20,7 +20,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@voyant-travel/ui/components/sheet"
-import { Eye, Package, Pencil, Plus, Trash2 } from "lucide-react"
+import { CalendarArrowUp, Eye, Package, Pencil, Plus, Trash2 } from "lucide-react"
 import * as React from "react"
 import { useBookingsUiI18nOrDefault, useBookingsUiMessagesOrDefault } from "../i18n/provider.js"
 import {
@@ -31,6 +31,7 @@ import {
 } from "../index.js"
 import { BookingItemAdditionDialog } from "./booking-item-addition-dialog.js"
 import { BookingItemDialog } from "./booking-item-dialog.js"
+import { BookingItemMoveDialog } from "./booking-item-move-dialog.js"
 import { IconActionButton } from "./icon-action-button.js"
 import { StatusBadge } from "./status-badge.js"
 
@@ -57,6 +58,7 @@ export function BookingItemList({
   const [deleteTarget, setDeleteTarget] = React.useState<BookingItemRecord | null>(null)
   const [viewing, setViewing] = React.useState<BookingItemRecord | null>(null)
   const [additionOpen, setAdditionOpen] = React.useState(false)
+  const [moveTarget, setMoveTarget] = React.useState<BookingItemRecord | null>(null)
   const { data } = useBookingItems(bookingId)
   const bookingQuery = useBooking(bookingId)
   const booking = bookingQuery.data?.data
@@ -183,6 +185,16 @@ export function BookingItemList({
                     setDialogOpen(true)
                   }}
                 />
+                {requiresAmendment && row.original.productId ? (
+                  <IconActionButton
+                    label={messages.bookingItemList.actions.moveItem}
+                    icon={<CalendarArrowUp className="h-3.5 w-3.5" />}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setMoveTarget(row.original)
+                    }}
+                  />
+                ) : null}
                 <IconActionButton
                   label={messages.bookingItemList.actions.deleteItem}
                   icon={<Trash2 className="h-3.5 w-3.5" />}
@@ -198,7 +210,16 @@ export function BookingItemList({
         ),
       },
     ],
-    [formatCurrency, formatDateTime, messages, readOnly],
+    [
+      formatCurrency,
+      formatDateTime,
+      messages,
+      readOnly,
+      // The booking loads after the first render, so without this the row
+      // actions keep the initial `false` and the move action never appears
+      // on a confirmed booking.
+      requiresAmendment,
+    ],
   )
 
   return (
@@ -233,6 +254,18 @@ export function BookingItemList({
         emptyMessage={messages.bookingItemList.empty}
         showPagination={false}
       />
+
+      {moveTarget && booking?.revision !== undefined ? (
+        <BookingItemMoveDialog
+          open
+          onOpenChange={(next) => {
+            if (!next) setMoveTarget(null)
+          }}
+          bookingId={bookingId}
+          bookingRevision={booking.revision}
+          item={moveTarget}
+        />
+      ) : null}
 
       {booking?.revision !== undefined ? (
         <BookingItemAdditionDialog

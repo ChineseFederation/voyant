@@ -58,6 +58,10 @@ export {
 export { BookingItemDialog, type BookingItemDialogProps } from "./components/booking-item-dialog.js"
 export { BookingItemList, type BookingItemListProps } from "./components/booking-item-list.js"
 export {
+  BookingItemMoveDialog,
+  type BookingItemMoveDialogProps,
+} from "./components/booking-item-move-dialog.js"
+export {
   BookingItemTravelers,
   type BookingItemTravelersProps,
 } from "./components/booking-item-travelers.js"

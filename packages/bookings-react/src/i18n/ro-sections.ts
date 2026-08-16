@@ -430,10 +430,15 @@ export const bookingsUiRoSections = {
     title: "Adauga un serviciu",
     sourcedUnsupported:
       "Acesta este un produs de furnizor. Adaugarea lui pe o rezervare existenta trebuie stabilita intai cu furnizorul.",
+    missing: {
+      product: "Alege intai un produs.",
+      reason: "Adauga un motiv pentru a continua.",
+    },
     fields: {
       departure: "Plecare",
       departurePlaceholder: "Alege o plecare",
       departureEmpty: "Nicio plecare disponibila",
+      seatsLeft: "{count} locuri",
       unit: "Unitate",
       unitNone: "Fara unitate anume",
       quantity: "Cantitate",
@@ -455,6 +460,59 @@ export const bookingsUiRoSections = {
       staleRevision:
         "Altcineva a modificat rezervarea. Inchide si redeschide pentru a incerca din nou.",
       generic: "Aceasta adaugare nu a putut fi cotata.",
+    },
+  },
+  itemMoveDialog: {
+    title: "Muta pe alta data",
+    currentUnscheduled: "Nicio plecare rezervata",
+    noTargets:
+      "Nicio alta plecare a acestui produs nu are loc pentru aceasta rezervare. Deschide o plecare noua sau elibereaza locuri pe una existenta.",
+    missing: {
+      departure: "Alege o plecare pe care sa muti.",
+      reason: "Adauga un motiv pentru a continua.",
+    },
+    fields: {
+      departure: "Plecarea noua",
+      departurePlaceholder: "Alege o plecare",
+      departureHint: "Sunt listate doar plecarile care au loc pentru aceasta rezervare.",
+      seatsLeft: "{count} locuri",
+      changeFee: "Taxa de modificare",
+      changeFeeHint: "Cat percepi pentru modificare. Se adauga peste diferenta de pret.",
+      fareDiscount: "Reducere din diferenta de pret",
+      fareDiscountHint:
+        "Cat din cresterea de pret suporti tu. Limitata la crestere — o mutare mai scumpa nu returneaza niciodata bani.",
+      refundHandling: "Daca noua data e mai ieftina",
+      refundHandlingHint: "Se aplica doar cand mutarea iese mai ieftin decat s-a platit.",
+      reason: "Motiv",
+      reasonPlaceholder: "De ce se muta rezervarea? Clientul vede acest text pe fisa modificarii.",
+    },
+    refundHandling: {
+      refund: "Returneaza diferenta",
+      travelCredit: "Pastreaz-o ca si credit de calatorie",
+      waive: "Pastreaza pretul initial",
+    },
+    actions: {
+      cancel: "Anuleaza",
+      quote: "Calculeaza pretul",
+      apply: "Muta rezervarea",
+    },
+    quote: {
+      title: "Pretul acestei mutari",
+      fareDifference: "Diferenta de pret",
+      changeFee: "Taxa de modificare",
+      tax: "Taxa",
+      discountApplied: "Pretul de mai sus include deja reducerea ta, limitata la crestere.",
+      collect: "Incaseaza {amount} de la client.",
+      owedBack: "{amount} trebuie returnati clientului.",
+      supplier: "Furnizorul trebuie sa confirme noua data inainte sa intre in vigoare.",
+      documents: "Documentele de calatorie vor trebui reemise pentru noua data.",
+    },
+    blocked: {
+      availabilityChanged: "Aceasta plecare tocmai s-a ocupat. Alege alta.",
+      unsupported: "Acest serviciu nu poate fi mutat.",
+      staleRevision:
+        "Altcineva a modificat rezervarea. Inchide si redeschide pentru a incerca din nou.",
+      generic: "Aceasta mutare nu a putut fi cotata.",
     },
   },
 } satisfies BookingsUiSectionsMessages

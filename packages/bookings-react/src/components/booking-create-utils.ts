@@ -64,6 +64,39 @@ export interface DepartureSlotSearchRecord {
   status?: string
 }
 
+/** A departure plus the capacity fields a move has to respect. */
+export interface DepartureSlotCapacityRecord extends DepartureSlotSearchRecord {
+  unlimited?: boolean
+  remainingPax?: number | null
+}
+
+/**
+ * Departures a Booking Item could actually move onto.
+ *
+ * Narrower than `getBookableDepartureSlots` by two rules that only matter
+ * once a booking already exists: a departure without room for the seats
+ * being carried over is not a choice, and neither is the one the item is
+ * already on. Offering either would put the operator in front of a
+ * selection the server is obliged to refuse.
+ */
+export function getMoveTargetDepartureSlots<TSlot extends DepartureSlotCapacityRecord>(
+  slots: readonly TSlot[],
+  options: {
+    nowIso: string
+    optionId: string | null
+    /** Seats the move has to carry across. */
+    quantity: number
+    /** The departure the item is on today. */
+    currentSlotId: string | null
+  },
+): TSlot[] {
+  return getBookableDepartureSlots(slots, options).filter((slot) => {
+    if (slot.id === options.currentSlotId) return false
+    if (slot.unlimited) return true
+    return (slot.remainingPax ?? 0) >= options.quantity
+  })
+}
+
 export interface BookingCreateUnitLineRecord {
   optionId: string | null
   optionUnitId: string
@@ -353,4 +386,26 @@ export function itemLinesToRows(
 
 export function getSelectedSharedRoomUnitId(quantities: Record<string, number>): string | null {
   return Object.entries(quantities).find(([, quantity]) => quantity > 0)?.[0] ?? null
+}
+
+/**
+ * A departure as an operator says it out loud — "Aug 16, 2026 · 12 left" —
+ * not the ISO instant the API returns. The raw timestamp is unreadable at
+ * the speed someone takes a phone call.
+ */
+export function formatDepartureLabel(
+  slot: { startsAt?: string | null; id: string; unlimited?: boolean; remainingPax?: number | null },
+  formatDate: (value: string, options?: Intl.DateTimeFormatOptions) => string,
+  messages: { fields: { seatsLeft: string } },
+): string {
+  if (!slot.startsAt) return slot.id
+  const date = formatDate(slot.startsAt, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  })
+  if (slot.unlimited || typeof slot.remainingPax !== "number") return date
+  return `${date} · ${messages.fields.seatsLeft.replace("{count}", String(slot.remainingPax))}`
 }

@@ -259,6 +259,54 @@ describe.skipIf(!DB_AVAILABLE)("booking item allocation capacity", () => {
       expect((await readSlot(slot!.id))?.remainingPax).toBe(3)
     })
 
+    it("refuses to repoint an allocation-backed item at another departure", async () => {
+      // Left to this path the item would carry the new departure while the
+      // allocation kept the old one's seat: one date leaks capacity, the
+      // other is oversellable, and the booking reads as correct throughout.
+      const { item, slot, booking } = await seedAllocatedItem({ quantity: 2, initialPax: 5 })
+      const [other] = await db
+        .insert(availabilitySlotsRef)
+        .values({
+          productId: "prod_capacity",
+          dateLocal: "2026-10-15",
+          startsAt: new Date("2026-10-15T08:00:00.000Z"),
+          timezone: "Europe/Bucharest",
+          status: "open",
+          unlimited: false,
+          initialPax: 5,
+          remainingPax: 5,
+        })
+        .returning()
+
+      await expect(
+        bookingsService.updateItem(db, item.id, { availabilitySlotId: other!.id }),
+      ).rejects.toThrow("slot_change_requires_amendment")
+
+      const [row] = await db.select().from(bookingItems).where(eq(bookingItems.id, item.id))
+      expect(row?.availabilitySlotId).toBe(slot!.id)
+      expect((await readSlot(slot!.id))?.remainingPax).toBe(3)
+      expect((await readSlot(other!.id))?.remainingPax).toBe(5)
+      expect(booking.id).toBeTruthy()
+    })
+
+    it("allows scheduling an item that holds no capacity yet", async () => {
+      // Nothing is desynchronised by pointing an unallocated line at a
+      // departure, so the guard must not block ordinary data entry.
+      const { booking, slot } = await seedAllocatedItem()
+      const manual = await bookingsService.createItem(db, booking.id, {
+        title: "Airport transfer",
+        itemType: "service",
+        quantity: 1,
+        sellCurrency: "EUR",
+        totalSellAmountCents: 4_000,
+      })
+      if (!manual) throw new Error("createItem returned null")
+
+      await expect(
+        bookingsService.updateItem(db, manual.id, { availabilitySlotId: slot!.id }),
+      ).resolves.toMatchObject({ availabilitySlotId: slot!.id })
+    })
+
     it("moves an allocation that has no slot without touching availability", async () => {
       // Sourced inventory: the allocation is real but the authoritative
       // capacity lives at the supplier, not in a local slot.

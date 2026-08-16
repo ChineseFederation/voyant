@@ -128,6 +128,58 @@ describe.skipIf(!DB_AVAILABLE)("Booking Amendment collection", () => {
     expect(await schedulesFor("bkam_refund")).toHaveLength(0)
   })
 
+  it("issues a travel credit instead of an obligation when the operator holds the money", async () => {
+    sequence += 1
+    const amendmentId = "bkam_credit"
+    await runtime.recordBookingAmendment(db, {
+      amendmentId,
+      bookingId: `bkng_for_${amendmentId}`,
+      idempotencyKey: "apply-credit",
+      price: price(-7_500),
+      consequences: { ...consequences, collection: "not_required", refund: "required" },
+      reason: "Moved to a cheaper departure",
+      now,
+      refundHandling: "travel_credit",
+    })
+
+    const { travelCredits } = await import("../../src/schema.js")
+    const credits = await db
+      .select()
+      .from(travelCredits)
+      .where(eq(travelCredits.sourceBookingId, `bkng_for_${amendmentId}`))
+    expect(credits).toHaveLength(1)
+    expect(credits[0]).toMatchObject({
+      currency: "EUR",
+      initialAmountCents: 7_500,
+      remainingAmountCents: 7_500,
+      status: "active",
+      notes: "Moved to a cheaper departure",
+    })
+    // And no payment schedule — the customer owes nothing.
+    expect(await schedulesFor(amendmentId)).toHaveLength(0)
+  })
+
+  it("raises no travel credit when the operator refunds instead", async () => {
+    const amendmentId = "bkam_plain_refund"
+    await runtime.recordBookingAmendment(db, {
+      amendmentId,
+      bookingId: `bkng_for_${amendmentId}`,
+      idempotencyKey: "apply-plain-refund",
+      price: price(-4_000),
+      consequences: { ...consequences, collection: "not_required", refund: "required" },
+      reason: "Moved to a cheaper departure",
+      now,
+      refundHandling: "refund",
+    })
+
+    const { travelCredits } = await import("../../src/schema.js")
+    const credits = await db
+      .select()
+      .from(travelCredits)
+      .where(eq(travelCredits.sourceBookingId, `bkng_for_${amendmentId}`))
+    expect(credits).toHaveLength(0)
+  })
+
   it("does not bill the customer twice when the apply replays", async () => {
     const first = await record(9_900, { amendmentId: "bkam_replay", key: "same-apply" })
     const second = await record(9_900, { amendmentId: "bkam_replay", key: "same-apply" })

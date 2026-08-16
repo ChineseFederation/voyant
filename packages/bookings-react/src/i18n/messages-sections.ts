@@ -428,10 +428,17 @@ export type BookingsUiSectionsMessages = {
   itemAdditionDialog: {
     title: string
     sourcedUnsupported: string
+    /** Why the quote button is disabled, shown next to it. */
+    missing: {
+      product: string
+      reason: string
+    }
     fields: {
       departure: string
       departurePlaceholder: string
       departureEmpty: string
+      /** `{count}` is replaced with remaining capacity. */
+      seatsLeft: string
       unit: string
       unitNone: string
       quantity: string
@@ -447,6 +454,60 @@ export type BookingsUiSectionsMessages = {
       title: string
       /** `{amount}` is replaced with the money to collect. */
       collect: string
+    }
+    blocked: {
+      availabilityChanged: string
+      unsupported: string
+      staleRevision: string
+      generic: string
+    }
+  }
+  itemMoveDialog: {
+    title: string
+    currentUnscheduled: string
+    noTargets: string
+    /** Why the quote button is disabled, shown next to it. */
+    missing: {
+      departure: string
+      reason: string
+    }
+    fields: {
+      departure: string
+      departurePlaceholder: string
+      departureHint: string
+      seatsLeft: string
+      changeFee: string
+      changeFeeHint: string
+      fareDiscount: string
+      fareDiscountHint: string
+      refundHandling: string
+      refundHandlingHint: string
+      reason: string
+      reasonPlaceholder: string
+    }
+    refundHandling: {
+      refund: string
+      travelCredit: string
+      waive: string
+    }
+    actions: {
+      cancel: string
+      quote: string
+      apply: string
+    }
+    quote: {
+      title: string
+      fareDifference: string
+      changeFee: string
+      tax: string
+      /** Shown when the operator absorbed part of a price increase. */
+      discountApplied: string
+      /** `{amount}` is replaced with the money to collect. */
+      collect: string
+      /** `{amount}` is replaced with the money owed back. */
+      owedBack: string
+      supplier: string
+      documents: string
     }
     blocked: {
       availabilityChanged: string

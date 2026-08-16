@@ -13,7 +13,9 @@ export {
 export { type UseBookingActivityOptions, useBookingActivity } from "./use-booking-activity.js"
 export {
   type BookingItemAdditionInput,
+  type BookingItemMoveInput,
   type PreviewItemAdditionInput,
+  type PreviewItemMoveInput,
   type PreviewRosterChangeInput,
   type RosterPreviewResult,
   type TravelerRosterChangeInput,

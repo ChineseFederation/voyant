@@ -1,6 +1,7 @@
 import type {
   BookingAmendmentFinancialConsequences,
   BookingItemAddition,
+  BookingItemMove,
   BookingRevisionSnapshot,
   TravelerCorrectionPatch,
   TravelerRosterChange,
@@ -37,11 +38,13 @@ export type BookingAmendmentKind =
   | "traveler_add"
   | "traveler_drop"
   | "item_add"
+  | "item_move"
 
 export type BookingAmendmentRequestedChange =
   | { type: "traveler_correction"; travelerId: string; patch: TravelerCorrectionPatch }
   | (TravelerRosterChange & { travelerId: string })
   | BookingItemAddition
+  | BookingItemMove
 
 export interface BookingAmendmentPolicyDecision {
   code: string
@@ -63,7 +66,12 @@ export interface BookingAmendmentEffects {
     | "refused"
     | "in_doubt"
     | "manual_review"
-  allocation: "not_required" | "increase_required" | "release_required" | "applied"
+  allocation:
+    | "not_required"
+    | "increase_required"
+    | "release_required"
+    | "move_required"
+    | "applied"
 }
 
 export interface BookingAmendmentTaxLine {
@@ -75,6 +83,21 @@ export interface BookingAmendmentTaxLine {
   includedInPrice: boolean
 }
 
+/** The supplier-side modify an Amendment will dispatch, when one is needed. */
+export interface BookingAmendmentSupplierOperation {
+  entityModule: string
+  entityId: string
+  sourceKind: string
+  sourceConnectionId: string
+  sourceRef: string
+  upstreamRef: string
+  desiredState: {
+    parameters?: Record<string, unknown>
+    party: { passengers: Record<string, unknown>[] }
+  }
+  requestFingerprint: string
+}
+
 export interface BookingAmendmentRosterItemPlan {
   bookingItemId: string
   quantityDelta: 1 | -1
@@ -82,19 +105,7 @@ export interface BookingAmendmentRosterItemPlan {
   allocationId: string
   allocationQuantityBefore: number
   availabilitySlotId: string | null
-  supplierOperation: {
-    entityModule: string
-    entityId: string
-    sourceKind: string
-    sourceConnectionId: string
-    sourceRef: string
-    upstreamRef: string
-    desiredState: {
-      parameters?: Record<string, unknown>
-      party: { passengers: Record<string, unknown>[] }
-    }
-    requestFingerprint: string
-  } | null
+  supplierOperation: BookingAmendmentSupplierOperation | null
 }
 
 /**
@@ -127,12 +138,58 @@ export interface BookingAmendmentItemAddPlan {
 }
 
 /**
+ * Plan for moving one Booking Item onto a different departure.
+ *
+ * Carries both ends of the move because apply has to give the old
+ * departure's capacity back and take the new one's in a single
+ * transaction — and the fare it was quoted at, so the number the operator
+ * accepted is the number that gets written.
+ */
+export interface BookingAmendmentItemMovePlan {
+  kind: "item_move"
+  bookingItemId: string
+  /**
+   * The allocation being moved. Never null: a line that holds no capacity
+   * has nothing to move, and planning refuses it rather than crediting a
+   * seat back to a departure that never consumed one.
+   */
+  allocationId: string
+  quantity: number
+  productId: string | null
+  /** Departure the item is leaving. Null when it was never scheduled. */
+  fromAvailabilitySlotId: string | null
+  toAvailabilitySlotId: string
+  /** Per-unit fare on the target departure, from the catalog. */
+  unitSellAmountCents: number
+  totalSellAmountCents: number
+  /** Fare difference alone, before discount and change fee. */
+  fareDeltaCents: number
+  /** Applied discount, already capped at the increase. */
+  fareDiscountCents: number
+  changeFeeCents: number
+  refundHandling: "refund" | "travel_credit" | "waive"
+  serviceDate: string | null
+  startsAt: string | null
+  endsAt: string | null
+  departureLabelSnapshot: string | null
+  supplierOperation: BookingAmendmentSupplierOperation | null
+}
+
+/**
  * What an Amendment will do at apply time. Roster plans move an existing
- * allocation; an item-add plan creates one.
+ * allocation's quantity; an item-add plan creates one; an item-move plan
+ * carries it to a different departure.
  */
 export type BookingAmendmentOperationPlan =
   | BookingAmendmentRosterItemPlan
   | BookingAmendmentItemAddPlan
+  | BookingAmendmentItemMovePlan
+
+export function isItemMovePlan(
+  plan: BookingAmendmentOperationPlan,
+): plan is BookingAmendmentItemMovePlan {
+  return "kind" in plan && plan.kind === "item_move"
+}
 
 export function isItemAddPlan(
   plan: BookingAmendmentOperationPlan,
@@ -208,7 +265,7 @@ export const bookingAmendments = pgTable(
     check(
       "ck_booking_amendments_kind",
       // agent-quality: raw-sql reviewed -- owner: bookings; static enum membership constraint over Drizzle identifiers.
-      sql`${table.kind} IN ('traveler_correction', 'traveler_add', 'traveler_drop', 'item_add')`,
+      sql`${table.kind} IN ('traveler_correction', 'traveler_add', 'traveler_drop', 'item_add', 'item_move')`,
     ),
     check(
       "ck_booking_amendments_status",

@@ -5,6 +5,7 @@ import {
   applyBookingAmendmentSchema,
   bookingAmendmentSchema,
   previewBookingItemAdditionSchema,
+  previewBookingItemMoveSchema,
   previewTravelerCorrectionSchema,
   previewTravelerRosterChangeSchema,
 } from "@voyant-travel/bookings-contracts"
@@ -308,6 +309,19 @@ const adminItemAdditionPreviewRoute = createBookingsAdminRoute({
   responses: adminPreviewRoute.responses,
 })
 
+const adminItemMovePreviewRoute = createBookingsAdminRoute({
+  method: "post",
+  path: "/{bookingId}/amendments/items/move/preview",
+  request: {
+    params: bookingParamsSchema,
+    body: {
+      required: true,
+      content: { "application/json": { schema: previewBookingItemMoveSchema } },
+    },
+  },
+  responses: adminPreviewRoute.responses,
+})
+
 const adminListRoute = createBookingsAdminRoute({
   method: "get",
   path: "/{bookingId}/amendments",
@@ -410,6 +424,17 @@ adminApp.use(
   "/:bookingId/amendments/traveler-roster/preview",
   idempotencyKey<Env["Bindings"], Env["Variables"]>({ required: true }),
 )
+// Every Amendment mutation needs one, and the middleware is registered per
+// path — a new preview route that forgets this line 500s on its first real
+// request while every service-level test still passes.
+adminApp.use(
+  "/:bookingId/amendments/items/preview",
+  idempotencyKey<Env["Bindings"], Env["Variables"]>({ required: true }),
+)
+adminApp.use(
+  "/:bookingId/amendments/items/move/preview",
+  idempotencyKey<Env["Bindings"], Env["Variables"]>({ required: true }),
+)
 adminApp.use(
   "/:bookingId/amendments/:amendmentId/accept",
   idempotencyKey<Env["Bindings"], Env["Variables"]>({ required: true }),
@@ -489,6 +514,30 @@ export const bookingAmendmentAdminRoutes = adminApp
             amendment: await visibleAdminAmendment(c, result.amendment, {
               amendmentId: result.amendment.id,
               operation: "preview_item_addition",
+            }),
+          },
+        },
+        201,
+      )
+    }
+    return amendmentError(c, result)
+  })
+  .openapi(adminItemMovePreviewRoute, async (c) => {
+    const result = await bookingAmendmentService.previewItemMove(
+      c.get("db"),
+      c.req.valid("param").bookingId,
+      c.req.valid("json"),
+      mutationContext(c, "staff"),
+      amendmentDependencies(c),
+    )
+    if (result.status === "ok") {
+      return c.json(
+        {
+          data: {
+            ...result,
+            amendment: await visibleAdminAmendment(c, result.amendment, {
+              amendmentId: result.amendment.id,
+              operation: "preview_item_move",
             }),
           },
         },

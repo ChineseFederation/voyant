@@ -53,6 +53,21 @@ export interface BookingItemAdditionInput {
   title?: string
 }
 
+export interface BookingItemMoveInput {
+  type: "item_move"
+  bookingItemId: string
+  availabilitySlotId: string
+  changeFeeCents: number
+  fareDiscountCents: number
+  refundHandling: "refund" | "travel_credit" | "waive"
+}
+
+export interface PreviewItemMoveInput {
+  expectedBookingRevision: number
+  reason: string
+  move: BookingItemMoveInput
+}
+
 export interface PreviewItemAdditionInput {
   expectedBookingRevision: number
   reason: string
@@ -186,6 +201,28 @@ export function useBookingAmendmentFlow(bookingId: string) {
       ),
   })
 
+  const previewItemMove = useMutation({
+    mutationFn: async ({
+      input,
+      idempotencyKey,
+    }: {
+      input: PreviewItemMoveInput
+      idempotencyKey: string
+    }): Promise<RosterPreviewResult> =>
+      toPreviewResult(
+        await fetchWithValidation(
+          `/v1/admin/bookings/${bookingId}/amendments/items/move/preview`,
+          bookingAmendmentPreviewResponse,
+          { baseUrl, fetcher },
+          {
+            method: "POST",
+            body: JSON.stringify(input),
+            headers: idempotencyHeaders(idempotencyKey),
+          },
+        ),
+      ),
+  })
+
   const accept = useMutation({
     mutationFn: async ({
       amendmentId,
@@ -238,5 +275,5 @@ export function useBookingAmendmentFlow(bookingId: string) {
     onSuccess: () => invalidateAmendmentQueries(queryClient, bookingId),
   })
 
-  return { previewRosterChange, previewItemAddition, accept, apply }
+  return { previewRosterChange, previewItemAddition, previewItemMove, accept, apply }
 }

@@ -109,6 +109,67 @@ export const previewBookingItemAdditionSchema = z.object({
   addition: bookingItemAdditionSchema,
 })
 
+/**
+ * What to do when moving a Booking Item lands on a cheaper departure.
+ *
+ * There is no single right answer — operators differ, and the same operator
+ * differs between a goodwill move and a customer-requested one — so the
+ * choice is made per move rather than baked into policy.
+ */
+export const bookingItemMoveRefundHandlingSchema = z.enum([
+  /** Record what is owed back so an operator can pay it out. */
+  "refund",
+  /** Hold the difference as a travel credit against the customer. */
+  "travel_credit",
+  /** Customer keeps the original price; the move costs nothing back. */
+  "waive",
+])
+
+/**
+ * Moving a Booking Item to a different departure — the "can we push this to
+ * next month?" call.
+ *
+ * The target departure is all the caller chooses about price: the new fare
+ * is resolved from the catalog for that date, including any departure price
+ * override and quantity tier, so an operator cannot quote a number the
+ * catalog disagrees with. The change fee is the one number they *do* set,
+ * because no policy in this system models one.
+ *
+ * The move is quoted as `(new fare − old fare) + change fee`. A negative
+ * result is settled per `refundHandling`.
+ */
+export const bookingItemMoveSchema = z.object({
+  type: z.literal("item_move"),
+  bookingItemId: z.string().min(1),
+  /** Departure to move onto. Must belong to the item's own product. */
+  availabilitySlotId: z.string().min(1),
+  /**
+   * Operator-set fee for making the change, in the Booking's currency.
+   * Added on top of the fare difference and quoted as its own line, so the
+   * customer-facing record separates "the new date costs more" from "we
+   * charge for changing".
+   */
+  changeFeeCents: z.number().int().min(0).max(10_000_000).default(0),
+  /**
+   * How much of a price increase the operator absorbs rather than passes
+   * on — the goodwill lever for "the new date costs more, but we are only
+   * charging you part of it".
+   *
+   * Kept separate from the fare rather than letting the caller overwrite
+   * it, so the catalog price stays authoritative and visible and the
+   * concession is its own auditable line. Capped server-side at the
+   * increase: a move that costs more must not turn into a payout.
+   */
+  fareDiscountCents: z.number().int().min(0).max(10_000_000).default(0),
+  refundHandling: bookingItemMoveRefundHandlingSchema.default("refund"),
+})
+
+export const previewBookingItemMoveSchema = z.object({
+  expectedBookingRevision: z.number().int().positive(),
+  reason: z.string().trim().min(1).max(2_000),
+  move: bookingItemMoveSchema,
+})
+
 export const acceptBookingAmendmentSchema = z.object({
   proposedRevisionId: z.string().min(1),
 })
@@ -139,7 +200,15 @@ export const bookingAmendmentEffectsSchema = z.object({
     "in_doubt",
     "manual_review",
   ]),
-  allocation: z.enum(["not_required", "increase_required", "release_required", "applied"]),
+  allocation: z.enum([
+    "not_required",
+    "increase_required",
+    "release_required",
+    // A move gives one departure's capacity back and takes another's, so
+    // it is neither an increase nor a release on its own.
+    "move_required",
+    "applied",
+  ]),
 })
 
 export const bookingAmendmentPriceSchema = z.object({
@@ -227,7 +296,7 @@ export const bookingAmendmentSchema = z.object({
   bookingId: z.string(),
   /** Null for `item_add`, which concerns a service rather than a person. */
   travelerId: z.string().nullable(),
-  kind: z.enum(["traveler_correction", "traveler_add", "traveler_drop", "item_add"]),
+  kind: z.enum(["traveler_correction", "traveler_add", "traveler_drop", "item_add", "item_move"]),
   status: bookingAmendmentStatusSchema,
   baseBookingRevision: z.number().int().positive(),
   resultBookingRevision: z.number().int().positive(),
@@ -314,6 +383,9 @@ export type PreviewTravelerCorrectionInput = z.infer<typeof previewTravelerCorre
 export type PreviewTravelerRosterChangeInput = z.infer<typeof previewTravelerRosterChangeSchema>
 export type BookingItemAddition = z.infer<typeof bookingItemAdditionSchema>
 export type PreviewBookingItemAdditionInput = z.infer<typeof previewBookingItemAdditionSchema>
+export type BookingItemMove = z.infer<typeof bookingItemMoveSchema>
+export type BookingItemMoveRefundHandling = z.infer<typeof bookingItemMoveRefundHandlingSchema>
+export type PreviewBookingItemMoveInput = z.infer<typeof previewBookingItemMoveSchema>
 export type TravelerRosterChange = z.infer<typeof travelerRosterChangeSchema>
 export type TravelerCorrectionPatch = z.infer<typeof travelerCorrectionPatchSchema>
 export type AcceptBookingAmendmentInput = z.infer<typeof acceptBookingAmendmentSchema>

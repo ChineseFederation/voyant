@@ -29,7 +29,7 @@ import {
   useBookingAmendmentFlow,
 } from "../hooks/use-booking-amendments.js"
 import { useBookingsUiI18nOrDefault, useBookingsUiMessagesOrDefault } from "../i18n/provider.js"
-import { getBookableDepartureSlots } from "./booking-create-utils.js"
+import { formatDepartureLabel, getMoveTargetDepartureSlots } from "./booking-create-utils.js"
 import { ProductPickerSection, type ProductPickerValue } from "./product-picker-section.js"
 
 export interface BookingItemAdditionDialogProps {
@@ -62,7 +62,7 @@ export function BookingItemAdditionDialog({
   onApplied,
 }: BookingItemAdditionDialogProps) {
   const messages = useBookingsUiMessagesOrDefault().itemAdditionDialog
-  const { formatCurrency } = useBookingsUiI18nOrDefault()
+  const { formatCurrency, formatDate } = useBookingsUiI18nOrDefault()
   const { previewItemAddition, accept, apply } = useBookingAmendmentFlow(bookingId)
 
   const [product, setProduct] = useState<ProductPickerValue>({ productId: "", optionId: null })
@@ -72,6 +72,12 @@ export function BookingItemAdditionDialog({
   const [reason, setReason] = useState("")
   const [quoted, setQuoted] = useState<BookingAmendmentRecord | null>(null)
   const [blocked, setBlocked] = useState<RosterPreviewResult | null>(null)
+  /**
+   * A request that never returned an answer at all. Distinct from
+   * `blocked`, which is the server telling us why it will not quote —
+   * without this, a failed call left the sheet looking untouched.
+   */
+  const [failed, setFailed] = useState<string | null>(null)
   const [attempt, setAttempt] = useState(0)
 
   const isSourced = Boolean(product.sourceKind) && product.sourceKind !== "owned"
@@ -101,11 +107,16 @@ export function BookingItemAdditionDialog({
 
   const slots = useMemo(
     () =>
-      getBookableDepartureSlots(slotsQuery.data?.data ?? [], {
+      // Capacity-filtered like the move picker: offering a sold-out
+      // departure only to have the server refuse the quote wastes the
+      // call the operator is on.
+      getMoveTargetDepartureSlots(slotsQuery.data?.data ?? [], {
         nowIso: new Date().toISOString(),
         optionId: product.optionId,
+        quantity,
+        currentSlotId: null,
       }),
-    [slotsQuery.data?.data, product.optionId],
+    [slotsQuery.data?.data, product.optionId, quantity],
   )
   const selectedSlot = slots.find((slot) => slot.id === slotId) ?? null
 
@@ -126,23 +137,48 @@ export function BookingItemAdditionDialog({
   const canQuote =
     Boolean(product.productId) && !isSourced && quantity > 0 && reason.trim().length > 0
 
+  /**
+   * Why the quote button is disabled, in the operator's words.
+   *
+   * A dead button with no explanation is the same as a broken one: the
+   * reason field is required but nothing on the form said so, so the sheet
+   * looked like it had failed rather than like it was waiting.
+   */
+  const missing = !product.productId
+    ? messages.missing.product
+    : isSourced
+      ? null
+      : reason.trim().length === 0
+        ? messages.missing.reason
+        : null
+
   async function onQuote() {
     setBlocked(null)
-    const result = await previewItemAddition.mutateAsync({
-      input: {
-        expectedBookingRevision: bookingRevision,
-        reason: reason.trim(),
-        addition: {
-          type: "item_add",
-          productId: product.productId,
-          optionId: resolvedOptionId,
-          optionUnitId: unitId === UNIT_NONE ? null : unitId,
-          availabilitySlotId: slotId,
-          quantity,
+    setFailed(null)
+    let result: RosterPreviewResult
+    try {
+      result = await previewItemAddition.mutateAsync({
+        input: {
+          expectedBookingRevision: bookingRevision,
+          reason: reason.trim(),
+          addition: {
+            type: "item_add",
+            productId: product.productId,
+            optionId: resolvedOptionId,
+            optionUnitId: unitId === UNIT_NONE ? null : unitId,
+            availabilitySlotId: slotId,
+            quantity,
+          },
         },
-      },
-      idempotencyKey: `item-add-${bookingId}-${attempt}`,
-    })
+        idempotencyKey: `item-add-${bookingId}-${attempt}`,
+      })
+    } catch (error) {
+      // The request never produced an answer — a 500, a dropped
+      // connection. Saying so beats a button that flashes and leaves the
+      // sheet looking untouched.
+      setFailed(error instanceof Error ? error.message : messages.blocked.generic)
+      return
+    }
     if (result.status === "ok") {
       setQuoted(result.amendment)
       return
@@ -206,7 +242,7 @@ export function BookingItemAdditionDialog({
                     items={slots}
                     selectedItem={selectedSlot}
                     getKey={(slot) => slot.id}
-                    getLabel={(slot) => slot.startsAt ?? slot.id}
+                    getLabel={(slot) => formatDepartureLabel(slot, formatDate, messages)}
                     placeholder={messages.fields.departurePlaceholder}
                     emptyText={messages.fields.departureEmpty}
                     triggerClassName="w-full"
@@ -248,7 +284,9 @@ export function BookingItemAdditionDialog({
           )}
 
           <div className="flex flex-col gap-2">
-            <Label htmlFor="item-add-reason">{messages.fields.reason}</Label>
+            <Label htmlFor="item-add-reason">
+              {messages.fields.reason} <span className="text-destructive">*</span>
+            </Label>
             <Textarea
               id="item-add-reason"
               value={reason}
@@ -257,6 +295,7 @@ export function BookingItemAdditionDialog({
             />
           </div>
 
+          {failed ? <Notice text={failed} /> : null}
           {blocked ? <Notice text={blockedText(blocked, messages.blocked)} /> : null}
 
           {quoted ? (
@@ -292,10 +331,15 @@ export function BookingItemAdditionDialog({
               {messages.actions.apply}
             </Button>
           ) : (
-            <Button type="button" size="sm" disabled={!canQuote || busy} onClick={onQuote}>
-              {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {messages.actions.quote}
-            </Button>
+            <>
+              {missing ? (
+                <span className="mr-auto text-muted-foreground text-xs">{missing}</span>
+              ) : null}
+              <Button type="button" size="sm" disabled={!canQuote || busy} onClick={onQuote}>
+                {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {messages.actions.quote}
+              </Button>
+            </>
           )}
         </SheetFooter>
       </SheetContent>

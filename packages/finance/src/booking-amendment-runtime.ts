@@ -5,6 +5,7 @@ import type { ResolveBookingTaxSettings } from "./booking-tax.js"
 import { computeBookingItemTaxLine, resolveBookingSellTaxRate } from "./booking-tax.js"
 import { bookingPaymentSchedules, financeAmendmentAdjustments } from "./schema.js"
 import { toDateString } from "./service-shared.js"
+import { travelCreditsService } from "./service-travel-credits.js"
 
 export const BOOKING_AMENDMENT_FINANCE_POLICY_VERSION = "booking-amendment-finance-v1"
 
@@ -52,7 +53,11 @@ export function createBookingAmendmentFinanceRuntime(
 
       const subtotalDeltaCents = quotedLines.reduce((sum, line) => sum + line.subtotalDeltaCents, 0)
       const taxDeltaCents = quotedLines.reduce((sum, line) => sum + line.taxDeltaCents, 0)
-      const feeDeltaCents = 0
+      // Passed through untaxed. A change fee is a service charge whose tax
+      // treatment differs by jurisdiction from the travel it attaches to,
+      // and guessing it wrong is worse than leaving it explicit — the
+      // operator sets a gross figure today.
+      const feeDeltaCents = input.feeDeltaCents ?? 0
       const amountCents = input.lines.reduce(
         (sum, line, index) =>
           sum +
@@ -120,6 +125,24 @@ export function createBookingAmendmentFinanceRuntime(
         //
         // Only on the freshly-created branch: a replay must not bill twice.
         // The partial unique index on `amendment_id` is the backstop.
+        if (input.price.refundAmountCents > 0 && input.refundHandling === "travel_credit") {
+          // The operator chose to hold the difference rather than pay it
+          // out. `sourceType: "refund"` is the closest existing member of
+          // `travel_credit_source_type` — the credit does arise from money
+          // owed back — and `sourceBookingId` plus the reason keep the
+          // amendment traceable without widening a Postgres enum.
+          await travelCreditsService.create(tx, {
+            currency: input.price.currency,
+            amountCents: input.price.refundAmountCents,
+            sourceType: "refund",
+            sourceBookingId: input.bookingId,
+            // Supplied by the caller, which already has the booking row
+            // locked. Re-reading it here would add a finance->bookings
+            // reach-in for a field the amendment engine can just hand over.
+            issuedToPersonId: input.issuedToPersonId ?? null,
+            notes: input.reason,
+          })
+        }
         if (input.price.collectionAmountCents > 0) {
           const dueDate = toDateString(input.now ?? new Date())
           await tx.insert(bookingPaymentSchedules).values({

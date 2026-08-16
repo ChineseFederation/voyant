@@ -622,7 +622,12 @@ export interface BookingTravelerSharingGroupSummary {
 const travelerParticipantTypes = ["traveler", "occupant"] as const
 type TravelerParticipantType = (typeof travelerParticipantTypes)[number]
 
-class BookingServiceError extends Error {
+/**
+ * Exported so routes can distinguish a refused domain operation from a
+ * genuine fault: without the type, a guard like
+ * `slot_change_requires_amendment` surfaces to the operator as a 500.
+ */
+export class BookingServiceError extends Error {
   constructor(
     readonly code: string,
     message?: string,
@@ -1792,6 +1797,18 @@ async function releaseAllocationCapacity(
     throw new BookingServiceError(result.status)
   }
   return result.slotChange
+}
+
+/**
+ * Whether this item still holds capacity somewhere — the test for "is
+ * repointing this line a capacity move, or just editing a label?".
+ */
+async function hasActiveCapacityAllocation(db: PostgresJsDatabase, bookingItemId: string) {
+  const allocations = await db
+    .select({ status: bookingAllocations.status })
+    .from(bookingAllocations)
+    .where(eq(bookingAllocations.bookingItemId, bookingItemId))
+  return allocations.some((allocation) => allocationStatusConsumesSlotCapacity(allocation.status))
 }
 
 /**
@@ -4505,7 +4522,11 @@ const bookingsServiceInternal = {
       if (!locked) return null
 
       const [parent] = await tx
-        .select({ status: bookings.status, quantity: bookingItems.quantity })
+        .select({
+          status: bookings.status,
+          quantity: bookingItems.quantity,
+          availabilitySlotId: bookingItems.availabilitySlotId,
+        })
         .from(bookingItems)
         .innerJoin(bookings, eq(bookings.id, bookingItems.bookingId))
         .where(eq(bookingItems.id, itemId))
@@ -4522,6 +4543,20 @@ const bookingsServiceInternal = {
           data.quantity - parent.quantity,
         )
         if (change) slotChanges.push(change)
+      }
+
+      // Moving an allocation-backed item between departures is not a field
+      // edit. Left to this path it would repoint the item and its snapshots
+      // while the allocation kept holding the OLD departure's seat: the old
+      // date leaks capacity forever and the new one is oversellable, with
+      // the booking reading as correct the whole time. Priced, capacity-
+      // checked moves go through `bookingAmendmentService.previewItemMove`.
+      if (
+        data.availabilitySlotId !== undefined &&
+        data.availabilitySlotId !== parent.availabilitySlotId &&
+        (await hasActiveCapacityAllocation(tx as PostgresJsDatabase, itemId))
+      ) {
+        throw new BookingServiceError("slot_change_requires_amendment")
       }
 
       // Refresh snapshots only when the foreign IDs change. Existing
