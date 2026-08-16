@@ -3,6 +3,7 @@ import {
   bookingLifecycleConformanceScenariosV1,
 } from "@voyant-travel/catalog-contracts/booking-engine/lifecycle-conformance"
 import type { PricingBreakdownV1 } from "@voyant-travel/catalog-contracts/booking-engine/pricing-contracts"
+import { isPermanentSubscriberError } from "@voyant-travel/core"
 import { describe, expect, it } from "vitest"
 
 import type { BookingRequirementsV1 } from "./contracts.js"
@@ -144,6 +145,38 @@ async function createQuoteAndHold(harness = createHarness()) {
     quote: quoted.quote,
     hold: held.hold,
   }
+}
+
+/** The same three steps against an aggregate target, whose Commit can stay open. */
+async function createCompositeQuoteAndHold(harness = createHarness()) {
+  const created = await harness.module.createAcceptedProposalSession(
+    {
+      idempotencyKey: nextCreateKey("create_composite_quote_hold"),
+      proposalId: "prps_accepted",
+      proposalVersionId: "prvr_accepted",
+      tripSnapshotId: "trsn_frozen",
+      tripEnvelopeId: "trip_composed",
+    },
+    ANONYMOUS_ACCESS,
+  )
+  if (created.kind !== "session_created") throw new Error("session not created")
+  const quoted = await harness.module.quoteSession(
+    created.session.id,
+    { expectedRevision: created.session.revision, idempotencyKey: "quote_composite_key" },
+    ANONYMOUS_ACCESS,
+  )
+  if (quoted.kind !== "quote_created") throw new Error("quote not created")
+  const held = await harness.module.placeHold(
+    created.session.id,
+    {
+      expectedRevision: created.session.revision,
+      quoteId: quoted.quote.id,
+      idempotencyKey: "hold_composite_key",
+    },
+    ANONYMOUS_ACCESS,
+  )
+  if (held.kind !== "hold_created") throw new Error("hold not created")
+  return { harness, session: created.session, quote: quoted.quote, hold: held.hold }
 }
 
 describe("Booking Session v1 owned tracer", () => {
@@ -389,27 +422,271 @@ describe("Booking Session v1 owned tracer", () => {
     ])
   })
 
-  it("leaves the shopper's Hold alone when a settlement attempt is refused", async () => {
-    // The second half of voyant#4636: the refusal path released the live Holds,
-    // so the first failed attempt took away the seat the money was collected
-    // for and every retry after it failed for a second, self-inflicted reason.
+  it("gives a final settlement refusal back as permanent, and stops holding the seat", async () => {
+    // voyant#4636 forbade releasing the live Holds on the refusal path, because
+    // the first failed attempt took away the seat the money was collected for
+    // and every retry after it failed for a second, self-inflicted reason. That
+    // rule binds while retries remain — and an expired Quote leaves none:
+    // nothing a later attempt reads will have changed. So the verdict is
+    // declared permanent, which dead-letters on the spot instead of restating
+    // the same refusal seven more times, and the seat stops being reserved for
+    // a Commit that will not happen (voyant#4692).
     const payment = createPaymentHarness()
     const harness = createHarness({}, payment.ports)
     const { session, quote, hold } = await createQuoteAndHold(harness)
     payment.established = { quoteId: quote.id, holdId: hold.id }
-    // An expired Quote is the one thing settlement still refuses: it is a real
-    // failure to surface, not a race to absorb.
     harness.repository.quotes.get(quote.id)!.state = "expired"
+
+    const refusal = await harness.module
+      .commitPaidSession({
+        bookingSessionId: session.id,
+        paymentSessionId: "payment_session_1",
+      })
+      .catch((error: unknown) => error)
+
+    expect(refusal).toBeInstanceOf(Error)
+    expect((refusal as Error).message).toBe(
+      "booking_session_settlement_commit_rejected:quote_failure:expired",
+    )
+    expect(isPermanentSubscriberError(refusal)).toBe(true)
+    expect(harness.repository.holds.get(hold.id)?.state).toBe("released")
+    expect(harness.inventory.hasActiveHold(hold.id)).toBe(false)
+    expect(harness.repository.sessions.get(session.id)?.state).toBe("active")
+  })
+
+  it("keeps retrying, and keeps the Hold, while the Commit is still underway", async () => {
+    // The other half of the same rule: a component Commit that has not answered
+    // yet is not a verdict. Nothing may be released and nothing may be
+    // dead-lettered — the retry is the point.
+    const payment = createPaymentHarness()
+    payment.established = true
+    const harness = createHarness({}, payment.ports, async () => ({
+      kind: "component_commit_pending",
+      nextAction: "continue_component_commit",
+      components: [{ componentId: "trcp_manual", state: "manual_confirmation_required" }],
+    }))
+    const { session, hold } = await createCompositeQuoteAndHold(harness)
+
+    const refusal = await harness.module
+      .commitPaidSession({
+        bookingSessionId: session.id,
+        paymentSessionId: "payment_session_1",
+      })
+      .catch((error: unknown) => error)
+
+    expect(refusal).toBeInstanceOf(Error)
+    expect(isPermanentSubscriberError(refusal)).toBe(false)
+    expect(harness.repository.holds.get(hold.id)?.state).toBe("active")
+  })
+
+  it("settles against the live Hold when the payment recorded only its Quote", async () => {
+    // The first defect in voyant#4692, and the reason it read as impossible:
+    // the Hold was active, unexpired, correctly sized and bound to the Quote
+    // the money was collected for, and settlement refused `hold_failure`
+    // anyway — because it never looked at it. `prepare` records the pair from
+    // the Commit it was called on and reuses an existing payment row without
+    // rewriting its metadata, so a checkout that reached `prepare` before
+    // taking its Hold records the Quote alone, permanently.
+    const payment = createPaymentHarness()
+    const harness = createHarness({}, payment.ports)
+    const { session, quote, hold } = await createQuoteAndHold(harness)
+    payment.established = { quoteId: quote.id, holdId: null }
+
+    const settled = await harness.module.commitPaidSession({
+      bookingSessionId: session.id,
+      paymentSessionId: "payment_session_1",
+    })
+
+    expect(harness.inventory.bookingIds).toEqual([settled.bookingId])
+    expect(harness.repository.holds.get(hold.id)?.state).toBe("converted")
+  })
+
+  it("re-takes the capacity when the shopper's client released the Hold behind it", async () => {
+    // Reproduced live on voyant#4692: quote, hold, then a re-quote six seconds
+    // later that superseded the Quote and released the Hold with it — fifteen
+    // minutes before the Hold's own expiry. The money landed four minutes after
+    // that. The client is wrong to re-quote mid-checkout, but no client
+    // controls a sleeping tab or a 3-D Secure detour, and every one of those
+    // ends here. The Commit is server-side against a paid Session; it needs the
+    // seat, not a token minted by a client that has since navigated away.
+    const payment = createPaymentHarness()
+    const harness = createHarness({}, payment.ports)
+    const { session, quote, hold } = await createQuoteAndHold(harness)
+    payment.established = { quoteId: quote.id, holdId: hold.id }
+
+    await harness.module.quoteSession(
+      session.id,
+      { expectedRevision: session.revision, idempotencyKey: "requote_before_payment_lands" },
+      ANONYMOUS_ACCESS,
+    )
+    expect(harness.repository.holds.get(hold.id)?.state).toBe("released")
+
+    const settled = await harness.module.commitPaidSession({
+      bookingSessionId: session.id,
+      paymentSessionId: "payment_session_1",
+    })
+
+    expect(harness.inventory.bookingIds).toEqual([settled.bookingId])
+    const reestablished = [...harness.repository.holds.values()].find((row) => row.id !== hold.id)
+    expect(reestablished).toMatchObject({
+      quoteId: quote.id,
+      quantity: hold.quantity,
+      state: "converted",
+    })
+    expect(
+      [...harness.repository.auditEvents.values()].find(
+        (event) => event.action === "hold" && event.metadata.reason === "settlement_reestablished",
+      ),
+    ).toMatchObject({ actorKind: "system", metadata: { previousHoldId: hold.id } })
+  })
+
+  it("re-takes the capacity for an aggregate target too, not only a bare Product", async () => {
+    // An aggregate target is not in `holdRequired` — plenty of Trips carry no
+    // owned capacity at all — but one that does is refused `hold_failure:
+    // missing` by the composite handler when no Hold reaches it. Keying the
+    // retake off `holdRequired` alone skipped it for exactly those Bookings,
+    // and the refusal is now permanent, so the captured payment would have
+    // dead-lettered on the first attempt instead of recovering.
+    const payment = createPaymentHarness()
+    const committedWith: Array<string | undefined> = []
+    const harness = createHarness({}, payment.ports, async (input) => {
+      committedWith.push(input.hold?.id)
+      if (!input.hold) {
+        return { kind: "hold_failure", nextAction: "request_new_hold", reason: "missing" }
+      }
+      const bookings = [
+        { componentId: "trcp_owned", bookingId: "book_owned", allocationIds: ["ball_owned"] },
+      ]
+      await input.consumeSources({}, bookings)
+      return { kind: "committed", bookings }
+    })
+    const { session, quote, hold } = await createCompositeQuoteAndHold(harness)
+    payment.established = { quoteId: quote.id, holdId: hold.id }
+
+    // Released by a re-quote, which reads back as `null` rather than
+    // `"expired"` — the shape the first cut of this missed.
+    await harness.module.quoteSession(
+      session.id,
+      { expectedRevision: session.revision, idempotencyKey: "requote_composite" },
+      ANONYMOUS_ACCESS,
+    )
+    expect(harness.repository.holds.get(hold.id)?.state).toBe("released")
+
+    const settled = await harness.module.commitPaidSession({
+      bookingSessionId: session.id,
+      paymentSessionId: "payment_session_1",
+    })
+
+    expect(settled.bookingId).toBe("book_owned")
+    const reestablished = [...harness.repository.holds.values()].find((row) => row.id !== hold.id)
+    expect(committedWith).toEqual([reestablished?.id])
+  })
+
+  it("does not report a seat as gone when the shopper's own newer Hold is on it", async () => {
+    // The same client that re-quotes mid-checkout may re-hold too, leaving a
+    // live Hold bound to a Quote the money was never collected against. It is
+    // the same shopper, the same Session and the same seat, so refusing the
+    // settlement because of it would strand a payment against capacity that is
+    // there — and `capacity_unavailable` is the one verdict that must only ever
+    // mean the seat is genuinely gone.
+    const payment = createPaymentHarness()
+    const harness = createHarness({}, payment.ports)
+    const { session, quote, hold } = await createQuoteAndHold(harness)
+    payment.established = { quoteId: quote.id, holdId: hold.id }
+
+    const requoted = await harness.module.quoteSession(
+      session.id,
+      { expectedRevision: session.revision, idempotencyKey: "requote_before_payment_lands" },
+      ANONYMOUS_ACCESS,
+    )
+    if (requoted.kind !== "quote_created") throw new Error("re-quote failed")
+    const reheld = await harness.module.placeHold(
+      session.id,
+      {
+        expectedRevision: requoted.session.revision,
+        quoteId: requoted.quote.id,
+        idempotencyKey: "rehold_before_payment_lands",
+      },
+      ANONYMOUS_ACCESS,
+    )
+    if (reheld.kind !== "hold_created") throw new Error("re-hold failed")
+
+    const settled = await harness.module.commitPaidSession({
+      bookingSessionId: session.id,
+      paymentSessionId: "payment_session_1",
+    })
+
+    expect(harness.inventory.bookingIds).toEqual([settled.bookingId])
+    expect(harness.repository.holds.get(reheld.hold.id)?.state).toBe("released")
+  })
+
+  it("does not compete with the seat its own earlier attempt re-took", async () => {
+    // Settlement is a retry chain and every attempt arrives with the same
+    // recorded (stale) Hold id, so a retake that is not idempotent asks for
+    // capacity the previous attempt is already holding — and reports
+    // `capacity_unavailable` for a seat it reserved itself.
+    const payment = createPaymentHarness()
+    const harness = createHarness({}, payment.ports)
+    const { session, quote, hold } = await createQuoteAndHold(harness)
+    payment.established = { quoteId: quote.id, holdId: hold.id }
+    await harness.module.quoteSession(
+      session.id,
+      { expectedRevision: session.revision, idempotencyKey: "requote_before_payment_lands" },
+      ANONYMOUS_ACCESS,
+    )
+    // The first attempt re-takes the seat and then fails downstream.
+    harness.inventory.failNextCommit("booking store unreachable")
 
     await expect(
       harness.module.commitPaidSession({
         bookingSessionId: session.id,
         paymentSessionId: "payment_session_1",
       }),
-    ).rejects.toThrow(/booking_session_settlement_commit_rejected/)
+    ).rejects.toThrow("booking store unreachable")
 
-    expect(harness.repository.holds.get(hold.id)?.state).toBe("active")
-    expect(harness.repository.sessions.get(session.id)?.state).toBe("active")
+    const settled = await harness.module.commitPaidSession({
+      bookingSessionId: session.id,
+      paymentSessionId: "payment_session_1",
+    })
+
+    expect(harness.inventory.bookingIds).toEqual([settled.bookingId])
+    // One retake, not one per attempt.
+    expect([...harness.repository.holds.values()].filter((row) => row.id !== hold.id)).toHaveLength(
+      1,
+    )
+  })
+
+  it("strands the payment only when the capacity is genuinely gone", async () => {
+    // The distinction voyant#4692 asks for: "the Hold vanished" and "there is no
+    // seat" arrive as the same `hold_failure` today, and only the second should
+    // ever leave a captured payment with nothing to show for it.
+    const payment = createPaymentHarness()
+    const harness = createHarness({}, payment.ports)
+    const { session, quote, hold } = await createQuoteAndHold(harness)
+    payment.established = { quoteId: quote.id, holdId: hold.id }
+
+    await harness.module.quoteSession(
+      session.id,
+      { expectedRevision: session.revision, idempotencyKey: "requote_before_payment_lands" },
+      ANONYMOUS_ACCESS,
+    )
+    harness.inventory.setCapacity("product:prod_owned_1", 0)
+
+    const refusal = await harness.module
+      .commitPaidSession({
+        bookingSessionId: session.id,
+        paymentSessionId: "payment_session_1",
+      })
+      .catch((error: unknown) => error)
+
+    expect((refusal as Error).message).toBe(
+      "booking_session_settlement_commit_rejected:hold_failure:capacity_unavailable",
+    )
+    // Loudly and immediately, so the stranded-payment alert names this verdict
+    // rather than whatever the eighth attempt three quarters of an hour later
+    // happens to report.
+    expect(isPermanentSubscriberError(refusal)).toBe(true)
+    expect(harness.inventory.bookingIds).toEqual([])
   })
 
   it("commits a paid Session without the shopper capability and converges retries", async () => {
@@ -2305,7 +2582,7 @@ function createPaymentHarness() {
      * falling back to the Session's single active Quote. The object form is
      * what production writes.
      */
-    established: false as boolean | { quoteId: string; holdId: string },
+    established: false as boolean | { quoteId: string | null; holdId: string | null },
     inFlight: false,
     prepareCalls: 0,
     transfers,

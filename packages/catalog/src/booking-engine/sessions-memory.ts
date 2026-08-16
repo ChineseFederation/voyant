@@ -283,6 +283,8 @@ export interface InMemoryOwnedInventoryPorts
     "composeRequirements" | "placeCapacityHold" | "releaseCapacityHold" | "commitOwnedBooking"
   > {
   setCapacity(capacityKey: string, quantity: number): void
+  /** Make the next `commitOwnedBooking` throw, to model a transient store failure. */
+  failNextCommit(message: string): void
   hasActiveHold(holdId: string): boolean
   bookingIds: string[]
   allocationIds: string[]
@@ -293,12 +295,16 @@ export function createInMemoryOwnedInventoryPorts(): InMemoryOwnedInventoryPorts
   const activeHolds = new Map<string, { capacityKey: string; quantity: number; expiresAt: Date }>()
   const bookingIds: string[] = []
   const allocationIds: string[] = []
+  let nextCommitFailure: string | null = null
 
   return {
     bookingIds,
     allocationIds,
     setCapacity(capacityKey, quantity) {
       capacities.set(capacityKey, quantity)
+    },
+    failNextCommit(message) {
+      nextCommitFailure = message
     },
     async composeRequirements() {
       return { status: "available", requirements: inMemoryBookingRequirements() }
@@ -322,6 +328,11 @@ export function createInMemoryOwnedInventoryPorts(): InMemoryOwnedInventoryPorts
       activeHolds.delete(hold.id)
     },
     async commitOwnedBooking(input: CommitOwnedBookingInput) {
+      if (nextCommitFailure) {
+        const message = nextCommitFailure
+        nextCommitFailure = null
+        throw new Error(message)
+      }
       const active = activeHolds.get(input.hold.id)
       if (!active || active.expiresAt <= input.now) {
         throw new Error("owned inventory hold is not live at commit")

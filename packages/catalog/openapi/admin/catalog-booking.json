@@ -9472,7 +9472,13 @@
                       },
                       "reason": {
                         "type": "string",
-                        "enum": ["missing", "expired", "released", "mismatched_session"]
+                        "enum": [
+                          "missing",
+                          "expired",
+                          "released",
+                          "mismatched_session",
+                          "capacity_unavailable"
+                        ]
                       }
                     },
                     "required": ["kind", "nextAction", "reason"]
@@ -10126,7 +10132,13 @@
                               },
                               "reason": {
                                 "type": "string",
-                                "enum": ["missing", "expired", "released", "mismatched_session"]
+                                "enum": [
+                                  "missing",
+                                  "expired",
+                                  "released",
+                                  "mismatched_session",
+                                  "capacity_unavailable"
+                                ]
                               }
                             },
                             "required": ["kind", "nextAction", "reason"]

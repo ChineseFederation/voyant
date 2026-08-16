@@ -298,6 +298,41 @@ Session for explicit reconciliation; it is never rewritten as unpaid or used
 to fabricate a Booking after spend authority expires. Booking lifecycle status
 continues to describe the travel commitment, never the payment state.
 
+#### Settling a payment the shopper is no longer standing behind
+
+The capture happens first and the Commit is attempted afterwards, so by the time
+settlement runs the money has already moved and the shopper is usually gone. The
+rules below all follow from that asymmetry: refusing costs a customer their
+booking, and there is nobody left to retry it.
+
+**A Hold is a reservation, not a credential.** Settlement resolves it from the
+Session's live Holds bound to the settled Quote, not only from what the payment
+recorded — a Hold taken after the payment was prepared is never recorded there,
+and refusing over that alone stranded a captured payment against a Hold that was
+active and correct the whole time (voyant#4692). If the Hold is genuinely gone —
+lapsed, or released behind a client that re-quoted mid-checkout — settlement asks
+inventory for the capacity again, idempotently across the retry chain, rather
+than refusing. No client can keep a 15-minute reservation alive across a
+processor, so a lost Hold says nothing about whether the seat is there.
+
+**Only inventory may strand a payment.** `hold_failure` carries
+`capacity_unavailable` for the one case that means the seat is genuinely gone.
+Every other reason describes a token, and a token is recoverable.
+
+**A verdict ends the chain; an unfinished Commit does not.** Refusals that are
+answers — `hold_failure`, `quote_failure`, a rejected Session or selection — are
+raised as permanent, which dead-letters the `payment.completed` delivery
+immediately and fires the stranded-payment staff alert with that verdict, instead
+of restating it for eight attempts and reporting whichever one landed last. At
+that point, and only then, the Session's Holds are released: while retries remain
+the Hold is left exactly as found (voyant#4636). Commits still underway
+(`supplier_pending`, `component_commit_pending`) are not verdicts and keep
+retrying.
+
+The outbox retains one entry per failed attempt in `event_outbox.attempt_errors`,
+so a chain that failed several ways can be read back attempt by attempt rather
+than through a single surviving `last_error`.
+
 ### 3.3. `cancelEntity`
 
 ```ts

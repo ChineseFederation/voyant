@@ -28,6 +28,7 @@ import type {
   UpdateBookingSessionV1,
 } from "@voyant-travel/catalog-contracts/booking-engine/session-contracts"
 import { DEFAULT_BOOKING_SESSION_SCOPE } from "@voyant-travel/catalog-contracts/booking-engine/session-contracts"
+import { PermanentSubscriberError } from "@voyant-travel/core"
 import type { AnalyticsPort } from "@voyant-travel/core/analytics"
 import { createSafeAnalytics } from "@voyant-travel/core/analytics"
 import { newId } from "@voyant-travel/db/lib/typeid"
@@ -1488,17 +1489,70 @@ export function createBookingSessionModule(
           }
         }
 
-        const hold = input.holdId
+        let hold = input.holdId
           ? settling
             ? await loadSettledHold(repository, input.holdId, session, quote, at)
             : durableContinuation
               ? await loadPersistedSourcedHold(repository, input.holdId, session, quote)
               : await loadUsableHold(repository, input.holdId, session, quote, at)
           : null
-        if (
-          hold === "expired" ||
-          (!hold && (session.target.kind === "product" || session.target.kind === "owned_entity"))
-        ) {
+        const holdRequired =
+          session.target.kind === "product" || session.target.kind === "owned_entity"
+        // A Hold this Commit was meant to have and no longer does. Two ways to
+        // be meant to have one: the target always needs it, or the request
+        // named a Hold that no live loader would accept.
+        //
+        // The second half is not redundant. An aggregate target is not in
+        // `holdRequired` — plenty of Trips carry no owned capacity — but one
+        // that does carry it is refused `hold_failure: missing` by the
+        // composite handler, and a `released` Hold reads back as `null` rather
+        // than `"expired"`. Keying only off `holdRequired` therefore skipped
+        // the retake for exactly the composite Bookings that needed it.
+        const settlementHoldLost =
+          hold === "expired" || (!hold && (input.holdId !== undefined || holdRequired))
+        // A settlement whose Hold is gone asks inventory for the capacity again
+        // rather than refusing on the strength of a missing token.
+        //
+        // The Hold is a client-minted reservation, and a shopper cannot keep
+        // one alive across a processor: the tab sleeps, 3-D Secure adds
+        // minutes, the client re-quotes and supersedes its own Hold six seconds
+        // after taking it. Every one of those lands as `hold_failure` against a
+        // commit the server is running on its own authority, for money that has
+        // already moved (voyant#4692). Nothing here needs the token — it needs
+        // the seat, and whether the seat is there is a question inventory can
+        // answer now.
+        //
+        // Not on a durable continuation: there the supplier is holding the
+        // inventory and the Session's Hold is not what the Commit rests on, so
+        // taking local capacity would reserve a second seat for one booking.
+        if (settling && !durableContinuation && settlementHoldLost) {
+          const reheld = await reestablishSettlementHold({
+            repository,
+            ports: options.ports,
+            session,
+            quote,
+            previousHoldId: input.holdId,
+            access,
+            at,
+            holdTtlMs,
+            tx,
+          })
+          if (reheld === "unavailable") {
+            return {
+              status: "outcome" as const,
+              outcome: {
+                kind: "commit_result",
+                outcome: {
+                  kind: "hold_failure",
+                  nextAction: "request_new_hold",
+                  reason: "capacity_unavailable",
+                },
+              } as const,
+            }
+          }
+          hold = reheld
+        }
+        if (hold === "expired" || (!hold && holdRequired)) {
           if (!settling) await releaseLiveHolds(repository, options.ports, session, access, at, tx)
           return {
             status: "outcome" as const,
@@ -1898,13 +1952,38 @@ export function createBookingSessionModule(
           throw new Error(`booking_session_settlement_expected_one_quote:${quotes.length}`)
         }
         quote = quotes[0]!
-        const holds = await repository.listActiveHolds(bookingSessionId)
+      }
+      // A recorded Quote with no recorded Hold does not mean there is no Hold.
+      // `prepare` writes the pair from the Commit it was called on, and reuses
+      // an existing payment row for the same idempotency key without rewriting
+      // its metadata — so a checkout that reached `prepare` before taking its
+      // Hold records the Quote alone, permanently. Settlement then passed no
+      // `holdId` at all and was refused `hold_failure: missing` against a Hold
+      // that was active, unexpired, correctly sized and bound to this very
+      // Quote (voyant#4692).
+      //
+      // Bounded by the Quote, not just the Session: the live Hold counts as
+      // what the money bought only if it reserves capacity for the Quote the
+      // money was collected against.
+      const settlingQuoteId = quote.id
+      if (!holdId) {
+        const holds = (await repository.listActiveHolds(bookingSessionId)).filter(
+          (hold) => hold.quoteId === settlingQuoteId,
+        )
         if (holds.length > 1) {
           throw new Error(`booking_session_settlement_expected_at_most_one_hold:${holds.length}`)
         }
         holdId = holds[0]?.id ?? null
       }
 
+      const access: BookingSessionAccessContext = {
+        actorKind: session.actorKind,
+        settlementAuthority: {
+          admitted: true,
+          reason: "paid booking session settlement",
+          paymentSessionId,
+        },
+      }
       const outcome = await bookingSessionModule.commitSession(
         bookingSessionId,
         {
@@ -1914,14 +1993,7 @@ export function createBookingSessionModule(
           ...(holdId ? { holdId } : {}),
           idempotencyKey: `payment-settlement:${paymentSessionId}`,
         },
-        {
-          actorKind: session.actorKind,
-          settlementAuthority: {
-            admitted: true,
-            reason: "paid booking session settlement",
-            paymentSessionId,
-          },
-        },
+        access,
       )
       const committed = settlementBookingId(outcome)
       if (committed) return { bookingId: committed }
@@ -1929,7 +2001,27 @@ export function createBookingSessionModule(
       // A shopper may win the commit race under another idempotency key.
       const concurrentCommit = await repository.getCommitForSession(bookingSessionId)
       if (concurrentCommit) return { bookingId: bookingIdFromCommit(concurrentCommit) }
-      throw new Error(`booking_session_settlement_commit_rejected:${settlementFailure(outcome)}`)
+
+      const failure = `booking_session_settlement_commit_rejected:${settlementFailure(outcome)}`
+      if (!settlementRefusalIsFinal(outcome)) throw new Error(failure)
+
+      // A verdict, not a blip. Retrying it produces the same verdict seven more
+      // times over roughly three quarters of an hour, and the eighth attempt's
+      // message is the one that survives in `last_error` — which is how a
+      // post-mortem ends up unable to say whether the first attempt failed for
+      // the same reason as the last (voyant#4692). Declaring it permanent
+      // dead-letters on the spot, so the stranded-payment staff alert fires
+      // with this verdict rather than a later one.
+      await repository.withSessionTransaction(bookingSessionId, async (tx) => {
+        const current = await repository.getSession(bookingSessionId)
+        if (current?.state !== "active") return
+        // The one point at which releasing is right. voyant#4636 forbids it on
+        // the retry path because the next attempt still needs the Hold; there
+        // is no next attempt here, and a Hold left `active` with a null
+        // `released_at` reserves capacity that only expiry will reclaim.
+        await releaseLiveHolds(repository, options.ports, current, access, now(), tx)
+      })
+      throw new PermanentSubscriberError(failure)
     },
 
     async expireDueSessions(input, access) {
@@ -2496,6 +2588,100 @@ async function persistCommitFailureState(
   })
 }
 
+/**
+ * Take the capacity a captured payment was collected for, when the Hold that
+ * reserved it is no longer live.
+ *
+ * Only ever called with `settlementAuthority` and only after every live loader
+ * has refused the recorded Hold. What that leaves is either a Hold an earlier
+ * attempt of this same chain took — reused as-is — or Holds that cannot be
+ * reserving this Commit's seat, which are released so they do not block the
+ * retake. voyant#4636's rule therefore stands unchanged: a settlement still
+ * never releases a Hold it could have used.
+ *
+ * The quantity comes from the Hold that is gone wherever there is one, because
+ * that is the party the shopper actually paid for; the Session's current
+ * selection is only the fallback. A port that rejects the quantity is answering
+ * the same question as one that rejects the capacity — settlement could not
+ * secure what the money bought — so both come back as `unavailable` and both
+ * end as `capacity_unavailable`.
+ */
+async function reestablishSettlementHold(input: {
+  repository: BookingSessionRepository
+  ports: BookingSessionModulePorts
+  session: BookingSessionInternalRecord
+  quote: BookingQuoteInternalRecord
+  previousHoldId: string | undefined
+  access: BookingSessionAccessContext
+  at: Date
+  holdTtlMs: number
+  tx: unknown
+}): Promise<BookingHoldInternalRecord | "unavailable"> {
+  const { repository, ports, session, quote, access, at, tx } = input
+  // Settlement is a retry chain, and every attempt arrives with the same
+  // recorded (stale) Hold id. Without this first pass, the second attempt would
+  // ask for capacity the first attempt is already holding and be told there is
+  // none — reporting `capacity_unavailable` for a seat it reserved itself.
+  //
+  // Nothing usable can be found here by accident: the loaders above already
+  // refused the recorded Hold, so a live Hold bound to this Quote is one an
+  // earlier attempt took.
+  const live = await repository.listActiveHolds(session.id)
+  const reusable = live.find((existing) => existing.quoteId === quote.id && existing.expiresAt > at)
+  if (reusable) return reusable
+  // What is left cannot be reserving the seat this Commit needs: it is lapsed,
+  // or it belongs to a Quote the shopper took after the one the money was
+  // collected against. Left in place it blocks the retake and then reads back
+  // as "there is no capacity", which is the one verdict that may strand a
+  // payment. voyant#4636's rule is unchanged — a settlement still never
+  // releases a Hold it could have used.
+  for (const stale of live) {
+    await ports.releaseCapacityHold({ session, hold: stale, access, now: at, tx })
+    stale.state = stale.expiresAt <= at ? "expired" : "released"
+    await repository.saveHold(stale)
+  }
+  const previous = input.previousHoldId ? await repository.getHold(input.previousHoldId) : null
+  const hold: BookingHoldInternalRecord = {
+    id: newId("booking_session_holds"),
+    sessionId: session.id,
+    quoteId: quote.id,
+    target: session.target,
+    quantity:
+      previous?.sessionId === session.id
+        ? previous.quantity
+        : partySizeFromSelection(session.statePayload),
+    state: "active",
+    capacityKey: capacityKeyForTarget(session.target),
+    expiresAt: new Date(at.getTime() + input.holdTtlMs),
+    createdAt: at,
+  }
+  const held = await ports.placeCapacityHold({
+    session,
+    quote,
+    holdId: hold.id,
+    capacityKey: hold.capacityKey,
+    quantity: hold.quantity,
+    expiresAt: hold.expiresAt,
+    access,
+    now: at,
+    tx,
+  })
+  if (held !== "held") return "unavailable"
+  await repository.saveHold(hold)
+  // Recorded as a Hold the system took, not the shopper: the operations log is
+  // where a post-mortem reconstructs what happened between capture and commit,
+  // and a Hold appearing there with no explanation is exactly the gap
+  // voyant#4692 had to reason around.
+  await appendSessionAudit(repository, session, "hold", access, at, {
+    holdId: hold.id,
+    quoteId: quote.id,
+    reason: "settlement_reestablished",
+    ...(input.previousHoldId ? { previousHoldId: input.previousHoldId } : {}),
+    ...(previous ? { previousHoldState: previous.state } : {}),
+  })
+  return hold
+}
+
 async function releaseLiveHolds(
   repository: BookingSessionRepository,
   ports: BookingSessionModulePorts,
@@ -2582,9 +2768,61 @@ function bookingIdFromCommit(commit: BookingCommitInternalRecord): string {
   return commit.bookingId
 }
 
+/**
+ * The verdict, as an operator has to read it off a dead-lettered outbox row.
+ *
+ * Carries the reason where there is one. `hold_failure` alone cannot be acted
+ * on — it is the same string whether the seat is gone or a token merely lapsed,
+ * and those need opposite responses (voyant#4692).
+ */
 function settlementFailure(outcome: BookingSessionOutcomeV1): string {
   if (outcome.kind === "rejected") return outcome.error.kind
-  return outcome.kind === "commit_result" ? outcome.outcome.kind : outcome.kind
+  if (outcome.kind !== "commit_result") return outcome.kind
+  const result = outcome.outcome
+  return "reason" in result && typeof result.reason === "string"
+    ? `${result.kind}:${result.reason}`
+    : result.kind
+}
+
+/**
+ * Whether this refusal is the settlement chain's answer rather than a step in
+ * it.
+ *
+ * Default is "no", so anything unclassified keeps today's behaviour and retries
+ * — the safe direction, because retrying a transient failure costs a delay and
+ * abandoning one loses a booking. What is listed here is refused by re-reading
+ * durable state that no later attempt changes: a Quote does not un-expire, a
+ * consumed Session does not reopen, and a `capacity_unavailable` verdict was
+ * already the answer to "ask inventory again", which is the whole of what a
+ * retry would do.
+ *
+ * Supplier outcomes are deliberately absent: `supplier_pending` and
+ * `supplier_in_doubt` are commits still underway, and reconciliation — not this
+ * subscriber — decides how they end.
+ */
+function settlementRefusalIsFinal(outcome: BookingSessionOutcomeV1): boolean {
+  if (outcome.kind === "commit_result") {
+    return (
+      outcome.outcome.kind === "hold_failure" ||
+      outcome.outcome.kind === "quote_failure" ||
+      outcome.outcome.kind === "revision_mismatch" ||
+      outcome.outcome.kind === "proposal_acceptance_required"
+    )
+  }
+  if (outcome.kind !== "rejected") return false
+  switch (outcome.error.kind) {
+    case "session_expired":
+    case "session_consumed":
+    case "not_authorized":
+    case "checkout_intent_not_offered":
+    case "idempotency_conflict":
+    case "invalid_selection":
+    case "selection_incomplete":
+    case "commit_rejected":
+      return true
+    default:
+      return false
+  }
 }
 
 async function replayConcurrentCommit(

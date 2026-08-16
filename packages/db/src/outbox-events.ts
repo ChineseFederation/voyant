@@ -27,6 +27,16 @@ export interface EventDeadLetteredEvent {
   name: string
   attempts: number
   error: string
+  /**
+   * What every retained attempt decided, oldest first — `error` is only the
+   * last of these.
+   *
+   * A settlement chain that refused eight times kept one verdict, so nothing
+   * could say whether the early, in-window attempts failed for the reason the
+   * final one reports or for a different one (voyant#4692). Optional because a
+   * row written before the column existed has no history to carry.
+   */
+  attemptErrors?: Array<{ attempt: number; error: string; at: string }>
   /** The undelivered payload, so a resolver need not re-derive what it named. */
   payload: unknown
 }
@@ -41,6 +51,18 @@ export const eventDeadLetteredPayloadSchema = {
     name: { type: "string" },
     attempts: { type: "integer" },
     error: { type: "string" },
+    attemptErrors: {
+      type: "array",
+      items: {
+        type: "object",
+        required: ["attempt", "error", "at"],
+        properties: {
+          attempt: { type: "integer" },
+          error: { type: "string" },
+          at: { type: "string" },
+        },
+      },
+    },
     payload: {},
   },
 } as const

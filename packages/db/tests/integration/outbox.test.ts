@@ -61,9 +61,13 @@ describe.skipIf(!DB_AVAILABLE)("event outbox", () => {
         "max_attempts" integer NOT NULL DEFAULT 8,
         "next_attempt_at" timestamptz NOT NULL DEFAULT now(),
         "last_error" text,
+        "attempt_errors" jsonb,
         "created_at" timestamptz NOT NULL DEFAULT now(),
         "delivered_at" timestamptz
       );
+      -- The lane may have found a pre-migration table, which the IF NOT EXISTS
+      -- above would leave without the column this suite asserts on.
+      ALTER TABLE "event_outbox" ADD COLUMN IF NOT EXISTS "attempt_errors" jsonb;
       CREATE UNIQUE INDEX IF NOT EXISTS "event_outbox_event_id_uniq" ON "event_outbox" ("event_id");
       CREATE INDEX IF NOT EXISTS "event_outbox_due_idx"
         ON "event_outbox" ("next_attempt_at", "id") WHERE "status" = 'pending';
@@ -168,8 +172,11 @@ describe.skipIf(!DB_AVAILABLE)("event outbox", () => {
       const [claimed] = await claimDueOutboxEvents(db, { limit: 1 })
       if (!claimed) throw new Error("claim failed")
 
-      const status = await failOutboxEvent(db, claimed.id, "boom")
-      expect(status).toBe("pending")
+      const failure = await failOutboxEvent(db, claimed.id, "boom")
+      expect(failure.status).toBe("pending")
+      expect(failure.attemptErrors).toEqual([
+        expect.objectContaining({ attempt: 1, error: "boom" }),
+      ])
 
       const stats = await getOutboxStats(db)
       expect(stats.pending).toBe(1)
@@ -184,8 +191,8 @@ describe.skipIf(!DB_AVAILABLE)("event outbox", () => {
         sql`UPDATE ${eventOutboxTable} SET "attempts" = "max_attempts" WHERE ${eventOutboxTable.id} = ${row.id}`,
       )
 
-      const status = await failOutboxEvent(db, row.id, "final straw")
-      expect(status).toBe("failed")
+      const failure = await failOutboxEvent(db, row.id, "final straw")
+      expect(failure.status).toBe("failed")
       const stats = await getOutboxStats(db)
       expect(stats.failed).toBe(1)
     })
@@ -230,6 +237,7 @@ describe.skipIf(!DB_AVAILABLE)("event outbox", () => {
           outboxId: row.id,
           name: "payment.completed",
           error: "settlement rejected",
+          attemptErrors: [expect.objectContaining({ error: "settlement rejected" })],
           payload: { paymentSessionId: "pmss_1" },
         },
       })
@@ -261,6 +269,38 @@ describe.skipIf(!DB_AVAILABLE)("event outbox", () => {
       expect(stored?.status).toBe("failed")
       expect(stored?.attempts).toBe(1)
       expect(stored?.lastError).toContain("vectorDimensions")
+    })
+
+    it("retains what each attempt decided, not only the last one", async () => {
+      // voyant#4692: an eight-attempt settlement chain kept a single verdict, so
+      // nothing could say whether the early attempts — the ones that ran while
+      // the Hold was still valid — failed for the reason the last one reports.
+      const [row] = await insertOutboxEvents(db, [
+        { name: "payment.completed", data: { paymentSessionId: "pmss_2" } },
+      ])
+      if (!row) throw new Error("insert failed")
+      const verdicts = ["hold_failure", "quote_failure", "hold_failure"]
+      for (const verdict of verdicts) {
+        const [claimed] = await claimDueOutboxEvents(db, { limit: 1 })
+        if (!claimed) throw new Error("claim failed")
+        await failOutboxEvent(db, claimed.id, verdict)
+        // The backoff pushed the row into the future; make it due again.
+        await db.execute(
+          // agent-quality: raw-sql reviewed -- owner: db; dynamic SQL interpolation uses Drizzle parameter binding or vetted SQL identifiers.
+          sql`UPDATE ${eventOutboxTable} SET "next_attempt_at" = now() WHERE ${eventOutboxTable.id} = ${row.id}`,
+        )
+      }
+
+      const [stored] = await db
+        .select()
+        .from(eventOutboxTable)
+        .where(sql`${eventOutboxTable.id} = ${row.id}`)
+      expect(stored?.lastError).toBe("hold_failure")
+      expect(stored?.attemptErrors).toEqual([
+        expect.objectContaining({ attempt: 1, error: "hold_failure" }),
+        expect.objectContaining({ attempt: 2, error: "quote_failure" }),
+        expect.objectContaining({ attempt: 3, error: "hold_failure" }),
+      ])
     })
 
     it("counts a delivery that reached no subscriber, rather than calling it handled", async () => {

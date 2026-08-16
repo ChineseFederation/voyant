@@ -448,7 +448,24 @@ const bookingLifecycleOriginalCommitOutcomeV1 = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("hold_failure"),
     nextAction: z.literal("request_new_hold"),
-    reason: z.enum(["missing", "expired", "released", "mismatched_session"]),
+    /**
+     * `capacity_unavailable` is the only reason that may strand a captured
+     * payment, and it is deliberately separate from the four above.
+     *
+     * The other four say the *token* is gone — expired, released behind a
+     * re-quote, never recorded. None of them says anything about whether the
+     * seat is still there, and a settlement that treats them as the same
+     * outcome refuses a commit it could have completed (voyant#4692). Only
+     * `capacity_unavailable` means the engine asked inventory for the capacity
+     * the payment was collected for and was told no.
+     */
+    reason: z.enum([
+      "missing",
+      "expired",
+      "released",
+      "mismatched_session",
+      "capacity_unavailable",
+    ]),
   }),
   z.object({
     kind: z.literal("proposal_acceptance_required"),

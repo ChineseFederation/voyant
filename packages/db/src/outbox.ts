@@ -3,7 +3,11 @@ import { generateEventId } from "@voyant-travel/core"
 import { eq, sql } from "drizzle-orm"
 
 import { EVENT_DEAD_LETTERED, type EventDeadLetteredEvent } from "./outbox-events.js"
-import { type EventOutboxRow, eventOutboxTable } from "./schema/infra/event_outbox.js"
+import {
+  type EventOutboxRow,
+  eventOutboxTable,
+  type OutboxAttemptError,
+} from "./schema/infra/event_outbox.js"
 import type { DrizzleClient } from "./types.js"
 
 // biome-ignore lint/suspicious/noExplicitAny: Drizzle generic inference breaks across client flavors — casts isolated to the query-builder boundary (same pattern as crud.ts) -- owner: db; existing suppression is intentional pending typed cleanup.
@@ -150,17 +154,37 @@ export async function completeOutboxEvent(db: DrizzleClient, id: string): Promis
 }
 
 /**
+ * How many per-attempt verdicts a row retains. Above `max_attempts` on purpose:
+ * the history is a diagnostic, not a queue, and a row whose ceiling was raised
+ * should not silently lose its early attempts.
+ */
+const ATTEMPT_ERROR_HISTORY_LIMIT = 20
+
+export interface OutboxFailureResult {
+  /** `null` when no row matched the id. */
+  status: "pending" | "failed" | null
+  /** Every retained verdict for this row, oldest first, including this one. */
+  attemptErrors: OutboxAttemptError[]
+}
+
+/**
  * Record a failed delivery: reschedules with exponential backoff
  * (5s · 2^attempts, capped at 15min, ±20% jitter) or dead-letters as
  * `failed` once `max_attempts` is exhausted. Single statement — safe on
- * neon-http. Returns the resulting status when the row exists.
+ * neon-http.
+ *
+ * Appends this attempt's verdict to `attempt_errors` as well as overwriting
+ * `last_error`. The single column was enough while every retry failed for the
+ * same reason; it is not enough when they do not, and "did the first attempt
+ * fail for the reason the eighth reports?" is the first question asked of a
+ * captured payment that never became a Booking (voyant#4692).
  */
 export async function failOutboxEvent(
   db: DrizzleClient,
   id: string,
   error: string,
   options: { permanent?: boolean } = {},
-): Promise<"pending" | "failed" | null> {
+): Promise<OutboxFailureResult> {
   // Truncate pathological error strings — this is a diagnostic, not a log sink.
   const lastError = error.length > 2000 ? `${error.slice(0, 2000)}…` : error
   // A permanent failure skips the remaining attempts. They would fail
@@ -168,10 +192,22 @@ export async function failOutboxEvent(
   // `last_error` — which is how a configuration fault ends up reported as a
   // timeout (voyant#4639).
   const permanent = options.permanent === true
+  const history = sql`coalesce("attempt_errors", '[]'::jsonb) || jsonb_build_array(jsonb_build_object(
+    'attempt', "attempts",
+    'error', ${lastError}::text,
+    'at', to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')
+  ))`
   const rows = (await (db as AnyDb).execute(sql`
     UPDATE ${eventOutboxTable}
     SET
       "last_error" = ${lastError},
+      -- One entry is appended per failure, so dropping the oldest one at a time
+      -- is exactly enough to hold the window.
+      "attempt_errors" = CASE
+        WHEN jsonb_array_length(${history}) > ${ATTEMPT_ERROR_HISTORY_LIMIT}
+          THEN ${history} - 0
+        ELSE ${history}
+      END,
       "status" = CASE WHEN ${permanent} OR "attempts" >= "max_attempts" THEN 'failed' ELSE "status" END,
       "next_attempt_at" = CASE
         WHEN ${permanent} OR "attempts" >= "max_attempts" THEN "next_attempt_at"
@@ -181,10 +217,18 @@ export async function failOutboxEvent(
         ) * interval '1 millisecond'
       END
     WHERE ${eventOutboxTable.id} = ${id}
-    RETURNING "status"
-  `)) as Array<{ status: "pending" | "failed" }> | { rows: Array<{ status: "pending" | "failed" }> }
-  const list = Array.isArray(rows) ? rows : rows.rows
-  return list[0]?.status ?? null
+    RETURNING "status", "attempt_errors"
+  `)) as unknown
+  const list = (Array.isArray(rows) ? rows : ((rows as { rows?: unknown[] }).rows ?? [])) as Array<{
+    status: "pending" | "failed"
+    attempt_errors?: OutboxAttemptError[] | null
+    attemptErrors?: OutboxAttemptError[] | null
+  }>
+  const row = list[0]
+  return {
+    status: row?.status ?? null,
+    attemptErrors: row?.attempt_errors ?? row?.attemptErrors ?? [],
+  }
 }
 
 /**
@@ -234,6 +278,7 @@ function normalizeClaimedRow(raw: unknown): EventOutboxRow {
     maxAttempts: row.max_attempts ?? row.maxAttempts,
     nextAttemptAt: coerceDate(row.next_attempt_at ?? row.nextAttemptAt),
     lastError: (row.last_error ?? row.lastError ?? null) as string | null,
+    attemptErrors: (row.attempt_errors ?? row.attemptErrors ?? null) as OutboxAttemptError[] | null,
     createdAt: coerceDate(row.created_at ?? row.createdAt),
     deliveredAt:
       (row.delivered_at ?? row.deliveredAt) == null
@@ -345,7 +390,9 @@ export async function drainOutbox(
       }
       result.timedOut += timedOutCount
       const error = errors.join("; ")
-      const status = await failOutboxEvent(db, row.id, error, { permanent: permanentCount > 0 })
+      const { status, attemptErrors } = await failOutboxEvent(db, row.id, error, {
+        permanent: permanentCount > 0,
+      })
       if (status !== "failed") {
         result.retried += 1
         return
@@ -364,6 +411,11 @@ export async function drainOutbox(
           // including the delivery that just failed.
           attempts: Number(row.attempts ?? 0),
           error,
+          // What each attempt decided, not only the last. A subscriber deciding
+          // what this loss is worth — the stranded-payment staff alert, above
+          // all — needs to know whether the chain failed one way throughout or
+          // changed its answer partway (voyant#4692).
+          attemptErrors,
           payload: envelope.data,
         },
         metadata: { category: "internal", source: "system", eventId: generateEventId() },

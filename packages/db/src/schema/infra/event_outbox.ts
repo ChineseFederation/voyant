@@ -3,6 +3,15 @@ import { index, integer, jsonb, pgTable, text, timestamp, uniqueIndex } from "dr
 
 import { typeId } from "../../lib/index.js"
 
+/** What one failed delivery attempt decided, retained per attempt. */
+export interface OutboxAttemptError {
+  /** The row's `attempts` counter at the time this delivery failed. */
+  attempt: number
+  error: string
+  /** ISO instant the failure was recorded. */
+  at: string
+}
+
 /**
  * Transactional outbox for domain events (RFC voyant#1687 Phase 2.1).
  *
@@ -52,6 +61,17 @@ export const eventOutboxTable = pgTable(
      */
     nextAttemptAt: timestamp("next_attempt_at", { withTimezone: true }).notNull().defaultNow(),
     lastError: text("last_error"),
+    /**
+     * One entry per failed delivery: `{attempt, error, at}`, oldest first.
+     *
+     * `last_error` keeps a single string, so an eight-attempt chain retains one
+     * verdict and a post-mortem cannot tell whether the first attempt failed
+     * for the same reason as the last — which is precisely the question asked
+     * of a captured payment that never became a Booking (voyant#4692). Kept on
+     * delivered rows too: "succeeded on attempt four" is worth as much as the
+     * failures that led there.
+     */
+    attemptErrors: jsonb("attempt_errors").$type<OutboxAttemptError[]>(),
 
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     deliveredAt: timestamp("delivered_at", { withTimezone: true }),

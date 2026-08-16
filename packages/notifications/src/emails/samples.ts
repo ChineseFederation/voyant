@@ -65,7 +65,7 @@ const SAMPLES: { [K in StaffAlertEventKey]: StaffAlertContextMap[K] } = {
     bookingSessionId: "bses_sample",
     amount: { amountCents: 16000, currency: "RON" },
     provider: "voyant-pay",
-    error: "booking_session_settlement_commit_rejected:hold_failure",
+    error: "booking_session_settlement_commit_rejected:hold_failure:capacity_unavailable",
     attempts: 8,
   },
   "staff.invoice.settled": {

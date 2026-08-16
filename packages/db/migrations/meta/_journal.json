@@ -120,6 +120,13 @@
       "when": 1786993200000,
       "tag": "20260814090000_storefront_secret_key_scopes",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1787079600000,
+      "tag": "20260816090000_outbox_attempt_errors",
+      "breakpoints": true
     }
   ]
 }
