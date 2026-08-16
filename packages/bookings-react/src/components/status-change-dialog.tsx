@@ -30,10 +30,16 @@ import {
   useBookingStatusMutation,
 } from "../index.js"
 
+/**
+ * `notifyCustomer` is the positive form of the wire flag: the service takes
+ * `suppressNotifications`, so the form default is "on" and only an explicit
+ * opt-out sends anything. Sending is the safe default — a forgotten flag
+ * produces a redundant email rather than a customer who is never told.
+ */
 const statusChangeFormSchema = z.object({
   status: bookingStatusSchema,
   note: z.string().optional().nullable(),
-  suppressNotifications: z.boolean(),
+  notifyCustomer: z.boolean(),
 })
 
 type StatusChangeFormValues = z.input<typeof statusChangeFormSchema>
@@ -44,6 +50,12 @@ export interface StatusChangeDialogProps {
   onOpenChange: (open: boolean) => void
   bookingId: string
   currentStatus: BookingRecord["status"]
+  /**
+   * The Booking's persisted suppression latch. Once set, the service ignores
+   * anything this dialog sends, so the control is shown off and disabled
+   * rather than promising a send that will not happen.
+   */
+  notificationsSuppressed?: boolean
   onSuccess?: () => void
 }
 
@@ -52,6 +64,7 @@ export function StatusChangeDialog({
   onOpenChange,
   bookingId,
   currentStatus,
+  notificationsSuppressed = false,
   onSuccess,
 }: StatusChangeDialogProps) {
   const mutation = useBookingStatusMutation(bookingId)
@@ -73,7 +86,7 @@ export function StatusChangeDialog({
     defaultValues: {
       status: "confirmed",
       note: "",
-      suppressNotifications: false,
+      notifyCustomer: !notificationsSuppressed,
     },
   })
 
@@ -82,23 +95,23 @@ export function StatusChangeDialog({
       form.reset({
         status: currentStatus,
         note: "",
-        suppressNotifications: false,
+        notifyCustomer: !notificationsSuppressed,
       })
     }
-  }, [currentStatus, form, open])
+  }, [currentStatus, form, notificationsSuppressed, open])
 
-  // Customer lifecycle messages can be suppressed for cancellation and for
+  // Customer lifecycle messages can be silenced for cancellation and for
   // an exceptional correction back to confirmed.
   const targetStatus = form.watch("status")
-  const suppressNotifications = form.watch("suppressNotifications")
-  const showSuppressToggle = targetStatus === "confirmed" || targetStatus === "cancelled"
+  const notifyCustomer = form.watch("notifyCustomer")
+  const showNotifyToggle = targetStatus === "confirmed" || targetStatus === "cancelled"
 
   const onSubmit = async (values: StatusChangeFormOutput) => {
     await mutation.mutateAsync({
       currentStatus,
       status: values.status,
       note: values.note || null,
-      suppressNotifications: values.suppressNotifications || undefined,
+      suppressNotifications: values.notifyCustomer ? undefined : true,
     })
     onOpenChange(false)
     onSuccess?.()
@@ -149,22 +162,23 @@ export function StatusChangeDialog({
               />
             </div>
 
-            {showSuppressToggle ? (
+            {showNotifyToggle ? (
               <div className="flex flex-col gap-2 rounded-md border bg-muted/30 p-3">
                 <div className="flex items-center justify-between gap-3">
-                  <Label htmlFor="suppress-notifications">
-                    {messages.statusChangeDialog.fields.suppressNotifications}
+                  <Label htmlFor="notify-customer">
+                    {messages.statusChangeDialog.fields.notifyCustomer}
                   </Label>
                   <Switch
-                    id="suppress-notifications"
-                    checked={suppressNotifications}
-                    onCheckedChange={(checked) =>
-                      form.setValue("suppressNotifications", checked === true)
-                    }
+                    id="notify-customer"
+                    checked={notifyCustomer}
+                    disabled={notificationsSuppressed}
+                    onCheckedChange={(checked) => form.setValue("notifyCustomer", checked === true)}
                   />
                 </div>
                 <p className="text-muted-foreground text-xs">
-                  {messages.statusChangeDialog.helpers.suppressNotifications}
+                  {notificationsSuppressed
+                    ? messages.statusChangeDialog.helpers.notificationsAlreadySilenced
+                    : messages.statusChangeDialog.helpers.notifyCustomer}
                 </p>
               </div>
             ) : null}

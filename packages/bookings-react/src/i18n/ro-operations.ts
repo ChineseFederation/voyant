@@ -6,14 +6,16 @@ export const bookingsUiRoOperations = {
     fields: {
       status: "Status nou",
       note: "Nota (optional)",
-      suppressNotifications: "Nu notifica clientul",
+      notifyCustomer: "Notifica clientul",
     },
     placeholders: {
       note: "Motivul schimbarii statusului...",
     },
     helpers: {
-      suppressNotifications:
-        "Confirma silentios — sari peste emailul de confirmare si pachetul de documente care ar fi trimise in mod normal.",
+      notifyCustomer:
+        "Trimite emailul de confirmare sau de anulare si pachetul de documente care ar pleca in mod normal. Dezactivarea face rezervarea silentioasa definitiv, inclusiv reamintirile viitoare — nu mai poate fi reactivata.",
+      notificationsAlreadySilenced:
+        "Aceasta rezervare a fost facuta silentioasa anterior, deci clientul nu va primi nimic. Actiunea nu poate fi anulata.",
     },
     actions: {
       updateStatus: "Actualizeaza statusul",

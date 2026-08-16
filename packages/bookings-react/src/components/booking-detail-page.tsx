@@ -639,6 +639,7 @@ export function BookingDetailPage({
         onOpenChange={setStatusDialogOpen}
         bookingId={id}
         currentStatus={booking.status}
+        notificationsSuppressed={booking.notificationsSuppressed === true}
       />
 
       <BookingCancellationDialog

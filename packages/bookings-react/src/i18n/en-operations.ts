@@ -6,14 +6,16 @@ export const bookingsUiEnOperations = {
     fields: {
       status: "New status",
       note: "Note (optional)",
-      suppressNotifications: "Don't notify the customer",
+      notifyCustomer: "Notify the customer",
     },
     placeholders: {
       note: "Reason for status change...",
     },
     helpers: {
-      suppressNotifications:
-        "Confirm silently — skip the confirmation email and any document bundle that would normally go out.",
+      notifyCustomer:
+        "Sends the confirmation or cancellation email and any document bundle that would normally go out. Turning it off silences this booking permanently, including future reminders — it cannot be switched back on.",
+      notificationsAlreadySilenced:
+        "This booking was silenced earlier, so nothing will be sent to the customer. That cannot be undone.",
     },
     actions: {
       updateStatus: "Update status",

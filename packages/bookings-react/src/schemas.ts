@@ -81,6 +81,12 @@ export const bookingRecordSchema = z.object({
   pax: z.number().int().nullable(),
   items: z.array(bookingRecordItemSummarySchema).optional(),
   internalNotes: z.string().nullable(),
+  /**
+   * One-way suppression latch. The admin route returns it; `updateBookingSchema`
+   * types it as `z.literal(true)`, so once set nothing clears it. Optional here
+   * because responses built before it was surfaced omit the field.
+   */
+  notificationsSuppressed: z.boolean().optional(),
   communicationLanguage: z.string().nullable().optional(),
   contactFirstName: z.string().nullable().optional(),
   contactLastName: z.string().nullable().optional(),

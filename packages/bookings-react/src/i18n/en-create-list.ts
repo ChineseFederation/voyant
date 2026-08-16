@@ -166,7 +166,7 @@ export const bookingsUiEnCreateList = {
       internalNotes: "Internal notes",
       notifyTraveler: "Notify traveler",
       notifyTravelerHint:
-        "Sends the customer their booking confirmation and documents. Turn off for a silent operator commit.",
+        "Sends the customer their booking confirmation and documents. Turning it off silences the booking permanently, including future reminders — it cannot be switched back on.",
     },
     placeholders: {
       departure: "Select a departure...",

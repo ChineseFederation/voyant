@@ -168,7 +168,7 @@ export const bookingsUiRoCreateList = {
       internalNotes: "Note interne",
       notifyTraveler: "Anunta calatorul",
       notifyTravelerHint:
-        "Trimite clientului confirmarea rezervarii si documentele. Dezactiveaza pentru o finalizare silentioasa de catre operator.",
+        "Trimite clientului confirmarea rezervarii si documentele. Dezactivarea face rezervarea silentioasa definitiv, inclusiv reamintirile viitoare — nu mai poate fi reactivata.",
     },
     placeholders: {
       departure: "Selecteaza o plecare...",
