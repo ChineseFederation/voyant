@@ -176,3 +176,61 @@ export const bookingPaymentScheduleV1 = z.object({
   amountCents: z.number().int().nonnegative(),
   notes: z.string().nullable().optional(),
 })
+
+/**
+ * One row of the collection plan a shopper is shown before they commit.
+ *
+ * `scheduleType` mirrors finance's `PaymentScheduleEntryType`, which is a
+ * narrower set than {@link bookingPaymentScheduleV1}'s: this describes what
+ * `computePaymentSchedule` emits, not what a persisted schedule row may later
+ * become. `"full"` is the collapse case — a policy with no deposit, a departure
+ * too close for one, or a split that would leave a zero-cent partner.
+ *
+ * Nothing pins the mirror declaratively; the assignment in
+ * `sessions-payment-production.ts` does it structurally, and a fourth entry
+ * type in finance fails to compile there.
+ */
+export const bookingPaymentPlanEntryV1 = z.object({
+  scheduleType: z.enum(["deposit", "balance", "full"]),
+  amountCents: z.number().int().nonnegative(),
+  currency: z.string().length(3),
+  /** ISO `YYYY-MM-DD`. */
+  dueDate: z.string(),
+})
+
+/**
+ * What the shopper will actually be charged, and when — published on the Quote
+ * so a storefront can state the terms at the moment the shopper agrees to them.
+ *
+ * A shopper under a deposit policy used to review a total, accept a contract
+ * naming that total, and then be charged something else, because nothing
+ * carried the plan until Commit answered `payment_required` — after the review
+ * step and after contract acceptance (voyant#4741).
+ *
+ * This is a pure projection over the Quote's total and the selected departure:
+ * `resolveEffectivePaymentPolicy` then `computePaymentSchedule`, the same two
+ * calls Commit makes. It is computed, never stored, so it cannot drift from the
+ * Quote it is published on — and it is outside `pricing`, so it stays out of
+ * the price fingerprint that supersession compares.
+ *
+ * `dueNowCents` is `entries[0].amountCents`, named separately because it is the
+ * one number the pay button has to agree with.
+ */
+export const bookingPaymentPlanV1 = z.object({
+  /** Which cascade layer the active policy came from. Mirrors finance's `PaymentPolicySource`. */
+  policySource: z.enum([
+    "booking",
+    "proposal",
+    "listing",
+    "category",
+    "supplier",
+    "operator_default",
+  ]),
+  currency: z.string().length(3),
+  totalCents: z.number().int().nonnegative(),
+  dueNowCents: z.number().int().nonnegative(),
+  entries: z.array(bookingPaymentPlanEntryV1).min(1),
+})
+
+export type BookingPaymentPlanEntryV1 = z.infer<typeof bookingPaymentPlanEntryV1>
+export type BookingPaymentPlanV1 = z.infer<typeof bookingPaymentPlanV1>

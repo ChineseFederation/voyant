@@ -29,21 +29,38 @@ const computePaymentSchedule = vi.hoisted(() =>
   ]),
 )
 
-vi.mock("@voyant-travel/finance", () => ({
-  computePaymentSchedule,
-  createOrReuseBookingSessionPayment: async () => ({
+/** Which cascade layer answered. Spied so a plan can be asserted to report it. */
+const resolveEffectivePaymentPolicy = vi.hoisted(() =>
+  vi.fn((..._args: unknown[]) => ({
+    policy: { kind: "deposit" },
+    source: "operator_default" as string,
+  })),
+)
+
+/**
+ * Echoes the amount it was asked for rather than a constant, so what the port
+ * decided to collect is observable. A fixed stub would make every assertion
+ * about the charged amount an assertion about the stub.
+ */
+const createOrReuseBookingSessionPayment = vi.hoisted(() =>
+  vi.fn(async (_db: unknown, input: { amountCents: number; currency: string }) => ({
     id: "pmts_1",
     status: "pending",
-    amountCents: 10_000,
-    currency: "EUR",
+    amountCents: input.amountCents,
+    currency: input.currency,
     redirectUrl: null,
     expiresAt: null,
-  }),
+  })),
+)
+
+vi.mock("@voyant-travel/finance", () => ({
+  computePaymentSchedule,
+  createOrReuseBookingSessionPayment,
   expirePendingBookingSessionPayments: vi.fn(),
   financeService: { getPaymentSessionById },
   findEstablishedBookingSessionPayment: async () => null,
   noDepositPolicy: { kind: "no_deposit" },
-  resolveEffectivePaymentPolicy: () => ({ policy: { kind: "deposit" }, source: "operator" }),
+  resolveEffectivePaymentPolicy,
   resolvePaymentCallbackUrl: () => undefined,
   startPaymentAdapterCardPayment,
   transferBookingSessionPaymentToBooking: vi.fn(),
@@ -483,6 +500,157 @@ describe("production Booking Session payment policy departure", () => {
   })
 })
 
+/**
+ * The plan published on the Quote, which is the last surface before the shopper
+ * accepts terms. Until voyant#4741 a deposit policy reached them only through
+ * Commit's `payment_required` — after the review step and after they had
+ * accepted a contract naming the full total — so they reviewed €378, agreed to
+ * €378, and were charged €189.
+ *
+ * The plan is a projection: it must be the same derivation `prepare` charges
+ * from, or quoting it just moves the disagreement earlier.
+ */
+describe("production Booking Session quoted payment plan", () => {
+  const DEPOSIT_AND_BALANCE = [
+    { amountCents: 18_900, currency: "EUR", scheduleType: "deposit", dueDate: "2026-08-16" },
+    { amountCents: 18_900, currency: "EUR", scheduleType: "balance", dueDate: "2026-09-06" },
+  ]
+
+  beforeEach(() => {
+    computePaymentSchedule.mockClear()
+    resolveEffectivePaymentPolicy.mockClear()
+  })
+
+  it("states every instalment, not just what is due now", async () => {
+    computePaymentSchedule.mockReturnValueOnce(DEPOSIT_AND_BALANCE)
+
+    await expect(describePlan({ totalCents: 37_800 })).resolves.toEqual({
+      policySource: "operator_default",
+      currency: "EUR",
+      totalCents: 37_800,
+      dueNowCents: 18_900,
+      entries: [
+        { scheduleType: "deposit", amountCents: 18_900, currency: "EUR", dueDate: "2026-08-16" },
+        { scheduleType: "balance", amountCents: 18_900, currency: "EUR", dueDate: "2026-09-06" },
+      ],
+    })
+  })
+
+  it("reports which layer of the cascade set the terms", async () => {
+    computePaymentSchedule.mockReturnValueOnce(DEPOSIT_AND_BALANCE)
+    resolveEffectivePaymentPolicy.mockReturnValueOnce({
+      policy: { kind: "deposit" },
+      source: "supplier",
+    })
+
+    await expect(describePlan({ totalCents: 37_800 })).resolves.toMatchObject({
+      policySource: "supplier",
+    })
+  })
+
+  // The whole point. `prepare` charges `entries[0]`; the Quote publishes the
+  // same array from the same derivation, so the number the shopper agreed to
+  // and the number the card is charged cannot come apart. €378 at 50%: the
+  // shopper is quoted a €189 deposit and the card is asked for €189.
+  it("promises exactly what Commit goes on to charge", async () => {
+    computePaymentSchedule.mockReturnValueOnce(DEPOSIT_AND_BALANCE)
+    const plan = await describePlan({ totalCents: 37_800 })
+
+    computePaymentSchedule.mockReturnValueOnce(DEPOSIT_AND_BALANCE)
+    const outcome = await prepare({ locale: "en-GB", departureDate: "2026-09-20" })
+
+    expect(plan?.dueNowCents).toBe(18_900)
+    expect(outcome).toMatchObject({
+      kind: "required",
+      paymentSession: { amountCents: plan?.dueNowCents },
+    })
+  })
+
+  /**
+   * The gate counts whole UTC days, so a Quote taken at 23:55 and committed at
+   * 00:02 measures one day less to departure. On a departure sitting exactly
+   * on `minDaysBeforeDepartureForDeposit` that flips the plan: the shopper is
+   * shown a deposit and charged the full total. Payment policy is outside the
+   * price fingerprint, so nothing rejects that Commit.
+   *
+   * Both sides therefore measure from the Quote's own instant, which is what
+   * the published plan was derived from.
+   */
+  it("charges against the instant the Quote was stamped with, not Commit's clock", async () => {
+    await prepare({
+      locale: "en-GB",
+      departureDate: "2026-09-20",
+      quotedAt: new Date("2026-08-15T23:55:00Z"),
+    })
+
+    expect(computePaymentSchedule.mock.calls.at(-1)?.[0]).toMatchObject({
+      today: new Date("2026-08-15T23:55:00Z"),
+    })
+  })
+
+  // Same measurement as Commit, which voyant#4740 established has to be the
+  // departure the shopper selected rather than the product row.
+  it("measures from the departure the shopper selected", async () => {
+    computePaymentSchedule.mockReturnValueOnce(DEPOSIT_AND_BALANCE)
+
+    await describePlan({ totalCents: 37_800, slotDate: "2026-09-20" })
+
+    expect(computePaymentSchedule.mock.calls.at(-1)?.[0]).toMatchObject({
+      departureDate: "2026-09-20",
+      totalCents: 37_800,
+    })
+  })
+
+  // A Quote has nothing to protect: it states no plan and the storefront shows
+  // no terms. `prepare` throws on the same condition because it is about to
+  // take money against a product that is no longer there.
+  it("states no plan for a product that has gone", async () => {
+    await expect(describePlan({ totalCents: 37_800, context: null })).resolves.toBeNull()
+  })
+
+  it("states no plan for a target that is not a product", async () => {
+    await expect(
+      describePlan({ totalCents: 37_800, target: { kind: "trip_snapshot" } }),
+    ).resolves.toBeNull()
+  })
+})
+
+/** Build the production ports and ask them to describe a plan. */
+async function describePlan(input: {
+  totalCents: number
+  slotDate?: string
+  context?: unknown
+  target?: { kind: string; productId?: string }
+}) {
+  const payments = createProductionBookingSessionPaymentPorts({
+    db: {} as never,
+    inventory: {
+      loadProductPaymentPolicyContext: async () =>
+        input.context === undefined
+          ? {
+              listingPolicy: null,
+              categoryPolicy: null,
+              supplierId: null,
+              name: "Istanbul Bosphorus Heritage Day",
+            }
+          : (input.context as never),
+      resolveSelectedDepartureDate: async () => input.slotDate ?? null,
+    },
+    distribution: { loadSupplierPaymentPolicy: async () => null },
+    settings: { resolveOperatorDefaultPaymentPolicy: async () => null },
+  })
+  return payments.describePlan?.({
+    session: {
+      id: "bses_01k",
+      target: input.target ?? { kind: "product", productId: "prod_1" },
+      scope: { locale: "en-GB", market: "default" },
+      statePayload: { configure: { departureSlotId: "avsl_01k" } },
+    },
+    pricing: { total: input.totalCents, currency: "EUR" },
+    now: new Date("2026-08-16T00:00:00Z"),
+  } as never)
+}
+
 describe("production Booking Session settlement", () => {
   beforeEach(() => {
     startPaymentAdapterCardPayment.mockClear()
@@ -548,6 +716,8 @@ async function prepare(input: {
   settlementPaymentSessionId?: string
   mandate?: { enabled: boolean; revision: string } | null
   contractAcceptedAt?: string
+  /** The instant the Quote was stamped with; what the plan must measure from. */
+  quotedAt?: Date
 }) {
   resolveCalls.length = 0
   if (input.refreshedCheckout !== undefined) {
@@ -619,6 +789,7 @@ async function prepare(input: {
     quote: {
       id: "bqot_01k",
       pricing: { total: 10_000, currency: "EUR" },
+      quotedAt: input.quotedAt ?? new Date("2026-08-05T00:00:00Z"),
       expiresAt: new Date("2026-08-06T00:00:00Z"),
     },
     commit: {

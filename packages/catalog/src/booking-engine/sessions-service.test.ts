@@ -4,7 +4,7 @@ import {
 } from "@voyant-travel/catalog-contracts/booking-engine/lifecycle-conformance"
 import type { PricingBreakdownV1 } from "@voyant-travel/catalog-contracts/booking-engine/pricing-contracts"
 import { isPermanentSubscriberError } from "@voyant-travel/core"
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 
 import type { BookingRequirementsV1 } from "./contracts.js"
 import {
@@ -2911,6 +2911,84 @@ describe("Booking Session v1 authority under a publishable key", () => {
         storefront: { channelId: "chan_other" },
       }),
     ).resolves.toMatchObject({ kind: "rejected", error: { kind: "not_authorized" } })
+  })
+})
+
+/**
+ * A shopper under a deposit policy used to review a total, accept a contract
+ * naming that total, and then be charged something else — because nothing in
+ * the lifecycle carried the plan until Commit answered `payment_required`,
+ * which happens after the review step and after contract acceptance
+ * (voyant#4741). The Quote is the last surface before the shopper agrees to
+ * terms, so it is where the plan has to be readable.
+ */
+describe("Booking Session v1 quoted payment plan", () => {
+  const PLAN = {
+    policySource: "operator_default" as const,
+    currency: "EUR",
+    totalCents: 10_000,
+    dueNowCents: 5_000,
+    entries: [
+      {
+        scheduleType: "deposit" as const,
+        amountCents: 5_000,
+        currency: "EUR",
+        dueDate: "2026-08-01",
+      },
+      {
+        scheduleType: "balance" as const,
+        amountCents: 5_000,
+        currency: "EUR",
+        dueDate: "2026-09-06",
+      },
+    ],
+  }
+
+  it("publishes what the shopper will be charged, and when", async () => {
+    const describePlan = vi.fn(async () => PLAN)
+    const { quote } = await createQuoteAndHold(createHarness({}, { describePlan } as never))
+
+    expect(quote.paymentPlan).toEqual(PLAN)
+  })
+
+  it("measures the plan against the price it is published beside", async () => {
+    const describePlan = vi.fn(async () => PLAN)
+    await createQuoteAndHold(createHarness({}, { describePlan } as never))
+
+    // The same `pricing` object the Quote carries, and the same clock the
+    // Quote was stamped with. A plan computed against anything else would be
+    // a statement about a different quote than the one the shopper is reading.
+    expect(describePlan).toHaveBeenCalledWith(
+      expect.objectContaining({
+        pricing: expect.objectContaining({ total: 10_000, currency: "EUR" }),
+        now: new Date("2026-08-01T12:00:00.000Z"),
+      }),
+    )
+  })
+
+  // Additive: a deployment that wires no payment ports quotes exactly as it
+  // did before, and a storefront reading the field sees it absent rather than
+  // being told to collect the total.
+  it("omits the plan when no payments port is wired", async () => {
+    const { quote } = await createQuoteAndHold(createHarness())
+
+    expect(quote.paymentPlan).toBeUndefined()
+  })
+
+  it("omits the plan when the port has nothing to state for this target", async () => {
+    const { quote } = await createQuoteAndHold(
+      createHarness({}, { describePlan: async () => null } as never),
+    )
+
+    expect(quote.paymentPlan).toBeUndefined()
+  })
+
+  // A port predating this field is still a valid port.
+  it("quotes normally against a payments port that cannot describe a plan", async () => {
+    const { quote } = await createQuoteAndHold(createHarness({}, {} as never))
+
+    expect(quote.paymentPlan).toBeUndefined()
+    expect(quote.pricing.total).toBe(10_000)
   })
 })
 

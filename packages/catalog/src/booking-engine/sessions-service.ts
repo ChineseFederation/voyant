@@ -36,6 +36,7 @@ import { withBookingSessionAnalytics } from "./analytics.js"
 import type {
   BookingCheckoutIntentV1,
   BookingLifecycleCommitOutcomeV1,
+  BookingPaymentPlanV1,
   BookingRequirementsV1,
   BookingSessionBankTransferV1,
   PricingBreakdownV1,
@@ -482,6 +483,23 @@ export interface BookingSessionPaymentPorts {
         allowedGuarantees: Array<"deposit" | "pre_auth" | "card_on_file" | "agency_letter">
       }
   >
+  /**
+   * What the shopper will be charged and when, if they committed now.
+   *
+   * Published on the Quote, which is the last surface before the shopper
+   * accepts terms — a deposit policy used to reach them only in Commit's
+   * `payment_required`, after the review step and after they had accepted a
+   * contract naming the full total (voyant#4741).
+   *
+   * A projection, not a decision: it computes what `prepare` will compute and
+   * stores nothing. Optional, so a host that wires no payment ports simply
+   * publishes no plan; null for a target that has none to state.
+   */
+  describePlan?(input: {
+    session: BookingSessionInternalRecord
+    pricing: PricingBreakdownV1
+    now: Date
+  }): Promise<BookingPaymentPlanV1 | null>
   /**
    * Establish the durable offline-payment record after the Booking id exists
    * but before the surrounding Commit transaction is consumed.
@@ -1191,12 +1209,22 @@ export function createBookingSessionModule(
         await appendSessionAudit(repository, session, "quote", access, at, {
           quoteId: quote.id,
         })
+        // What the shopper will actually be charged, stated here because this
+        // is the last surface before they accept terms (voyant#4741). Computed
+        // after the Quote is persisted and never with it: the plan is a
+        // projection of the same policy Commit will apply, and storing it would
+        // create a second copy that can disagree with the first.
+        const paymentPlan = await options.ports.payments?.describePlan?.({
+          session,
+          pricing,
+          now: at,
+        })
         const outcome: BookingSessionOutcomeV1 = {
           kind: "quote_created",
           // The compose call already derived requirements for this target;
           // publish those rather than re-deriving them for the record.
           session: await serializeSession(session, requirements, access),
-          quote: serializeQuote(quote),
+          quote: serializeQuote(quote, paymentPlan ?? undefined),
         }
         await repository.completeOperation({ id: claim.id, outcome })
         return outcome
@@ -3108,7 +3136,15 @@ async function serializeSessionView(
   return { ...record, selection: structuredClone(session.statePayload), redaction: "none" }
 }
 
-function serializeQuote(quote: BookingQuoteInternalRecord): BookingQuoteRecordV1 {
+/**
+ * `paymentPlan` is a parameter rather than a field on the record because it is
+ * derived, not stored — see `BookingSessionPaymentPorts.describePlan`. Absent
+ * on a deployment with no payment ports, and on a target with no plan to state.
+ */
+function serializeQuote(
+  quote: BookingQuoteInternalRecord,
+  paymentPlan?: BookingPaymentPlanV1,
+): BookingQuoteRecordV1 {
   return {
     id: quote.id,
     sessionId: quote.sessionId,
@@ -3117,6 +3153,7 @@ function serializeQuote(quote: BookingQuoteInternalRecord): BookingQuoteRecordV1
     requirements: quote.requirements,
     requirementsFingerprint: quote.requirementsFingerprint,
     pricing: quote.pricing,
+    ...(paymentPlan ? { paymentPlan } : {}),
     quotedAt: quote.quotedAt.toISOString(),
     expiresAt: quote.expiresAt.toISOString(),
   }

@@ -7856,6 +7856,62 @@
                     },
                     "required": ["currency", "lines", "taxes", "subtotal", "taxTotal", "total"]
                   },
+                  "paymentPlan": {
+                    "type": "object",
+                    "properties": {
+                      "policySource": {
+                        "type": "string",
+                        "enum": [
+                          "booking",
+                          "proposal",
+                          "listing",
+                          "category",
+                          "supplier",
+                          "operator_default"
+                        ]
+                      },
+                      "currency": {
+                        "type": "string",
+                        "minLength": 3,
+                        "maxLength": 3
+                      },
+                      "totalCents": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "dueNowCents": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "entries": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "scheduleType": {
+                              "type": "string",
+                              "enum": ["deposit", "balance", "full"]
+                            },
+                            "amountCents": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "currency": {
+                              "type": "string",
+                              "minLength": 3,
+                              "maxLength": 3
+                            },
+                            "dueDate": {
+                              "type": "string"
+                            }
+                          },
+                          "required": ["scheduleType", "amountCents", "currency", "dueDate"]
+                        },
+                        "minItems": 1
+                      }
+                    },
+                    "required": ["policySource", "currency", "totalCents", "dueNowCents", "entries"]
+                  },
                   "quotedAt": {
                     "type": "string",
                     "format": "date-time"

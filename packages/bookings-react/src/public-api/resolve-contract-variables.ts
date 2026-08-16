@@ -40,6 +40,7 @@
  */
 
 import type {
+  BookingPaymentPlanV1,
   BookingSelectionV1,
   PricingBreakdownV1,
 } from "@voyant-travel/catalog-contracts/booking-engine/contracts"
@@ -125,13 +126,29 @@ export interface ResolveContractVariablesContext {
    *  storefront leaves this undefined and the variables render
    *  empty. */
   acceptance?: AcceptanceContextVariables
+  /**
+   * The plan the server published on the Quote (`quote.paymentPlan`).
+   *
+   * Prefer this over {@link paymentSchedule}. The contract states what the
+   * shopper is agreeing to pay, so it has to state what will actually be
+   * charged — and that is Commit's derivation, which this block is a
+   * projection of. A schedule the storefront computed itself agrees only as
+   * long as both sides stay in step (voyant#4741).
+   *
+   * Wins over `paymentSchedule` and `paymentPolicySource` when present.
+   */
+  paymentPlan?: BookingPaymentPlanV1 | null
   /** Pre-computed schedule from `computePaymentSchedule()`. The
    *  storefront wrapper computes this in real time as the customer
    *  picks their date so the contract preview shows live deposit
-   *  / balance numbers. */
+   *  / balance numbers.
+   *
+   *  Retained for hosts that quote against a deployment which publishes no
+   *  `paymentPlan`; pass the server's plan instead wherever there is one. */
   paymentSchedule?: ComputedScheduleEntry[] | null
   /** Which layer of the cascade the active policy came from. Used
-   *  for traceability in contract templates. */
+   *  for traceability in contract templates. Ignored when `paymentPlan`
+   *  is present, which carries its own `policySource`. */
   paymentPolicySource?: PaymentPolicySource
   /** Resolved source provenance for the booked entity. Populated by
    *  the storefront wrapper from the public content endpoint's
@@ -260,14 +277,23 @@ export function resolveContractVariables(
   const todayIsoDateTime = today.toISOString()
   const todayTime = today.toISOString().slice(11, 19)
 
-  // Map the precomputed schedule into the deposit / balance / full
-  // shapes contract templates read. `"full"` collapses to the
-  // balance-row slot (it's the single payment due in that scenario).
-  const schedule = ctx.paymentSchedule ?? []
+  // Map the schedule into the deposit / balance / full shapes contract
+  // templates read. `"full"` collapses to the balance-row slot (it's the
+  // single payment due in that scenario).
+  //
+  // The server's plan wins: the contract states what the shopper agrees to
+  // pay, and Commit charges the plan, so a locally computed schedule is at
+  // best a second opinion about the same policy (voyant#4741).
+  const schedule = ctx.paymentPlan?.entries ?? ctx.paymentSchedule ?? []
+  const policySource =
+    ctx.paymentPlan?.policySource ?? ctx.paymentPolicySource ?? "operator_default"
   const depositRow = schedule.find((r) => r.scheduleType === "deposit")
   const balanceRow =
     schedule.find((r) => r.scheduleType === "balance") ??
     schedule.find((r) => r.scheduleType === "full")
+  // The plan states this outright; without one, the first row is the same
+  // answer, and a contract with no schedule at all still owes the total.
+  const dueNowCents = ctx.paymentPlan?.dueNowCents ?? schedule[0]?.amountCents ?? totalCents
 
   return {
     // ───────── Top-level clocks ─────────
@@ -374,7 +400,7 @@ export function resolveContractVariables(
       balanceAmountCents: balanceRow?.amountCents ?? 0,
       balanceDueDate: balanceRow?.dueDate ?? "",
       paymentPolicy: {
-        source: ctx.paymentPolicySource ?? "operator_default",
+        source: policySource,
       },
 
       // Best-effort accommodation summary. Server-side resolver
@@ -458,6 +484,14 @@ export function resolveContractVariables(
       intent: draft.payment.intent,
       method: paymentMethodLabel(draft.payment.intent),
       amountCents: totalCents,
+      /**
+       * What the card will actually be charged on this commit — the plan's
+       * first row, not the booking total. Added rather than folded into
+       * `amountCents`, which templates have always read as the total and
+       * which redefining would silently change every rendered contract.
+       * Falls back to the total when no plan says otherwise.
+       */
+      dueNowCents: dueNowCents,
       currency: sellCurrency,
       schedule: schedule.map((row, idx) => ({
         index: idx + 1,

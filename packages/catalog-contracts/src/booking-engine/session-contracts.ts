@@ -1,6 +1,6 @@
 import { z } from "zod"
 import { bookingLifecycleCommitOutcomeV1 } from "./lifecycle-conformance.js"
-import { pricingBreakdownV1 } from "./pricing-contracts.js"
+import { bookingPaymentPlanV1, pricingBreakdownV1 } from "./pricing-contracts.js"
 import { bookingCheckoutIntentV1, bookingRequirementsV1 } from "./requirements-contracts.js"
 import { unsatisfiedRequirementV1 } from "./requirements-validation.js"
 
@@ -302,6 +302,17 @@ export const bookingQuoteRecordV1 = z.object({
    */
   requirementsFingerprint: z.string().min(1),
   pricing: pricingBreakdownV1,
+  /**
+   * What the shopper will be charged and when, if a Commit happened now.
+   *
+   * Optional because it is a projection and a host that wires no payment
+   * ports has no plan to state — absent means "this deployment does not
+   * publish one", not "pay the total". Deliberately a sibling of `pricing`
+   * rather than a member of it: the price fingerprint is computed over
+   * `pricing` alone, and a due date derived from *today* inside it would
+   * supersede every Quote on the next compose.
+   */
+  paymentPlan: bookingPaymentPlanV1.optional(),
   quotedAt: z.string().datetime(),
   expiresAt: z.string().datetime(),
 })
