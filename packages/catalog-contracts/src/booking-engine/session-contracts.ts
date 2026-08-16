@@ -373,6 +373,28 @@ export const commitBookingSessionV1 = z.object({
    * checkout behavior when the Quote advertises card.
    */
   checkoutIntent: bookingCheckoutIntentV1.optional(),
+  /**
+   * Settle the whole Quote now instead of the deposit the policy asks for.
+   *
+   * A deposit is an option the operator extends, not an obligation to place on
+   * the buyer: a shopper who wants the booking paid off should be able to say
+   * so, and until voyant#4742 there was nowhere to say it. Absent means the
+   * policy's own first instalment, exactly as before.
+   *
+   * It may only ever *increase* what is collected. This is an input from a
+   * browser and what it moves is money, so Commit re-derives the policy plan
+   * and refuses a request that would collect less than the policy's own row
+   * rather than trusting the flag to be the larger of the two.
+   *
+   * Whether the choice exists is advertised on the Quote, as
+   * `paymentPlan.payInFullCents` — a shopper is not asked to guess.
+   *
+   * It governs what checkout collects. A `bank_transfer` Commit takes no money
+   * here at all — its document and instructions are established by the host —
+   * so the flag reaches that arm as part of the Commit and nothing in this
+   * package acts on it.
+   */
+  payInFull: z.boolean().optional(),
   payment: z
     .object({
       /**

@@ -156,6 +156,36 @@ const HANDED_OFF_BOOKING_SESSION_PAYMENT_STATES = ["requires_redirect", "process
  * protecting. Settled money has no such escape: it is real until somebody
  * commits or refunds it.
  */
+/**
+ * The live payment this Session already has, and what it is collecting.
+ *
+ * {@link hasInFlightBookingSessionPayment} answers *whether* money is with a
+ * processor. This answers *how much*, which is the question a Commit that wants
+ * to collect a different amount has to ask before opening a second checkout
+ * (voyant#4742).
+ *
+ * Same predicate as that one, so the two cannot disagree about what "live"
+ * means: settled money, plus a handoff the shopper may still be standing in
+ * front of and whose clock has not run out.
+ *
+ * Oldest first, because the first live payment is the one the Session is
+ * already committed to — a later one is the thing being guarded against, not
+ * the thing to compare with.
+ */
+export async function findLiveBookingSessionPayment(
+  db: PostgresJsDatabase,
+  bookingSessionId: string,
+  now = new Date(),
+) {
+  const [session] = await db
+    .select()
+    .from(paymentSessions)
+    .where(and(eq(paymentSessions.targetId, bookingSessionId), liveBookingSessionPayment(now)))
+    .orderBy(paymentSessions.createdAt)
+    .limit(1)
+  return session ?? null
+}
+
 export async function hasInFlightBookingSessionPayment(
   db: PostgresJsDatabase,
   bookingSessionId: string,
@@ -164,21 +194,29 @@ export async function hasInFlightBookingSessionPayment(
   const [session] = await db
     .select({ id: paymentSessions.id })
     .from(paymentSessions)
-    .where(
-      and(
-        eq(paymentSessions.targetType, "booking_session"),
-        eq(paymentSessions.targetId, bookingSessionId),
-        or(
-          inArray(paymentSessions.status, [...SETTLED_BOOKING_SESSION_PAYMENT_STATES]),
-          and(
-            inArray(paymentSessions.status, [...HANDED_OFF_BOOKING_SESSION_PAYMENT_STATES]),
-            or(isNull(paymentSessions.expiresAt), gt(paymentSessions.expiresAt, now)),
-          ),
-        ),
-      ),
-    )
+    .where(and(eq(paymentSessions.targetId, bookingSessionId), liveBookingSessionPayment(now)))
     .limit(1)
   return session !== undefined
+}
+
+/**
+ * What both live-payment questions mean by "live", written once.
+ *
+ * The two readers ask different things — whether, and how much — and a Session
+ * that is frozen against re-quoting while being told it may open a second
+ * checkout is worse than either answer alone.
+ */
+function liveBookingSessionPayment(now: Date) {
+  return and(
+    eq(paymentSessions.targetType, "booking_session"),
+    or(
+      inArray(paymentSessions.status, [...SETTLED_BOOKING_SESSION_PAYMENT_STATES]),
+      and(
+        inArray(paymentSessions.status, [...HANDED_OFF_BOOKING_SESSION_PAYMENT_STATES]),
+        or(isNull(paymentSessions.expiresAt), gt(paymentSessions.expiresAt, now)),
+      ),
+    ),
+  )
 }
 
 /** Must run inside the root Booking transaction. */

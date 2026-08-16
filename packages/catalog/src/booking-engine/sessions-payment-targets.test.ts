@@ -38,6 +38,9 @@ vi.mock("@voyant-travel/finance", () => ({
   expirePendingBookingSessionPayments: vi.fn(),
   financeService: { getPaymentSessionById: vi.fn(async () => null) },
   findEstablishedBookingSessionPayment: async () => null,
+  // No live payment on any of these Sessions, so the one-amount-at-a-time
+  // guard has nothing to compare against and every target resolves as before.
+  findLiveBookingSessionPayment: async () => null,
   noDepositPolicy: { kind: "no_deposit" },
   resolveEffectivePaymentPolicy,
   resolvePaymentCallbackUrl: () => undefined,

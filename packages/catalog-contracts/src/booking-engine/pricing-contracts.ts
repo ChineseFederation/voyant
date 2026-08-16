@@ -215,6 +215,15 @@ export const bookingPaymentPlanEntryV1 = z.object({
  *
  * `dueNowCents` is `entries[0].amountCents`, named separately because it is the
  * one number the pay button has to agree with.
+ *
+ * `payInFullCents` is the second button. A deposit is an option the operator
+ * extends, not an obligation, so a shopper who would rather settle the whole
+ * booking now may — by sending `payInFull` on Commit (voyant#4742). Publishing
+ * the amount is what makes that a choice rather than a guess: a storefront can
+ * render "Pay deposit €189.00" and "Pay in full €378.00" as two real options.
+ * Null when there is nothing to choose, which today means the plan already
+ * collects the whole total now, and is the seam an operator who has a reason
+ * to refuse full prepayment would answer through.
  */
 export const bookingPaymentPlanV1 = z.object({
   /** Which cascade layer the active policy came from. Mirrors finance's `PaymentPolicySource`. */
@@ -229,6 +238,8 @@ export const bookingPaymentPlanV1 = z.object({
   currency: z.string().length(3),
   totalCents: z.number().int().nonnegative(),
   dueNowCents: z.number().int().nonnegative(),
+  /** What settling everything now costs, or null when that is not on offer. */
+  payInFullCents: z.number().int().nonnegative().nullable(),
   entries: z.array(bookingPaymentPlanEntryV1).min(1),
 })
 

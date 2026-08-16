@@ -56,6 +56,7 @@ export {
   createOrReuseBookingSessionPayment,
   expirePendingBookingSessionPayments,
   findEstablishedBookingSessionPayment,
+  findLiveBookingSessionPayment,
   hasInFlightBookingSessionPayment,
   transferBookingSessionPaymentToBooking,
 } from "./booking-session-payment.js"

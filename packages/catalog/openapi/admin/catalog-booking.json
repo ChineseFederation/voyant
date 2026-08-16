@@ -12882,6 +12882,13 @@
                         "type": "integer",
                         "minimum": 0
                       },
+                      "payInFullCents": {
+                        "type": [
+                          "integer",
+                          "null"
+                        ],
+                        "minimum": 0
+                      },
                       "entries": {
                         "type": "array",
                         "items": {
@@ -12923,6 +12930,7 @@
                       "currency",
                       "totalCents",
                       "dueNowCents",
+                      "payInFullCents",
                       "entries"
                     ]
                   },
@@ -22970,6 +22978,9 @@
                       "ticket_on_credit",
                       "inquiry"
                     ]
+                  },
+                  "payInFull": {
+                    "type": "boolean"
                   },
                   "payment": {
                     "type": "object",

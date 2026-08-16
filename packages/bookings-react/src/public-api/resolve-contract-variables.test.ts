@@ -83,6 +83,7 @@ describe("resolveContractVariables — payment plan", () => {
     currency: "EUR",
     totalCents: 37_800,
     dueNowCents: 18_900,
+    payInFullCents: 37_800,
     entries: [
       {
         scheduleType: "deposit" as const,
