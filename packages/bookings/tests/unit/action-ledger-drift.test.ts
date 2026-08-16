@@ -75,6 +75,21 @@ describe("booking action ledger drift checks", () => {
     })
   })
 
+  // voyant#4696: a `Date` interpolated into a `sql` fragment reaches the driver
+  // unencoded and postgres-js throws while binding it, so the check crashed for
+  // every caller that narrowed by date. Building the query proves nothing on
+  // its own — what the parameter *is* decides whether the query can be sent.
+  it("binds createdAtFrom as an encoded timestamp rather than a Date", () => {
+    const dialect = new PgDialect()
+    for (const value of [new Date("2026-05-17T00:00:00.000Z"), "2026-05-17T00:00:00.000Z"]) {
+      const query = dialect.sqlToQuery(
+        buildBookingActionLedgerDriftQueries({ createdAtFrom: value }).booking_cancelled,
+      )
+      expect(query.params).toContain("2026-05-17T00:00:00.000Z")
+      expect(query.params.some((param) => param instanceof Date)).toBe(false)
+    }
+  })
+
   it("rejects invalid createdAtFrom values while building queries", () => {
     expect(() => buildBookingActionLedgerDriftQueries({ createdAtFrom: "not-a-date" })).toThrow(
       "createdAtFrom must be a valid date",

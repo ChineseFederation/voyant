@@ -187,8 +187,11 @@ function buildCreatedAtCondition(
   if (Number.isNaN(date.getTime())) {
     throw new Error("createdAtFrom must be a valid date")
   }
+  // A `sql` interpolation hands the value to the driver as-is, and postgres-js
+  // cannot bind a `Date` — the whole check threw as soon as a caller narrowed
+  // it by date (voyant#4696). Bind the encoded timestamp instead.
   // agent-quality: raw-sql reviewed -- owner: finance; dynamic SQL interpolation uses Drizzle parameter binding or vetted SQL identifiers.
-  return sql`AND ${column} >= ${date}`
+  return sql`AND ${column} >= ${date.toISOString()}::timestamptz`
 }
 
 function extractRows(result: unknown): FinanceActionLedgerDriftQueryRow[] {

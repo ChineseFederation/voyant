@@ -5418,11 +5418,30 @@ async function findBookingDocumentByIssuedIdentity(
         sql`coalesce(${bookingDocuments.issuedBy}, '') = ${identity.issuedBy ?? ""}`,
         sql`coalesce(${bookingDocuments.issuedSeries}, '') = ${identity.issuedSeries ?? ""}`,
         eq(bookingDocuments.issuedNumber, identity.issuedNumber),
-        sql`coalesce(${bookingDocuments.issuedAt}, '-infinity'::timestamptz) = coalesce(${identity.issuedAt}::timestamptz, '-infinity'::timestamptz)`,
+        sql`coalesce(${bookingDocuments.issuedAt}, '-infinity'::timestamptz) = coalesce(${issuedAtParam(identity.issuedAt)}, '-infinity'::timestamptz)`,
       ),
     )
     .limit(1)
   return row ?? null
+}
+
+/**
+ * Bind an issue date as a `timestamptz` parameter.
+ *
+ * Interpolating a value into a `sql` fragment hands it to the driver as-is —
+ * unlike `eq(column, value)`, which encodes it through the column first. A
+ * `Date` reaches postgres-js unencoded and its bind step throws, which is why
+ * every recording that carried an issue date 500ed while the insert beside it,
+ * writing the same `Date` through the same column, worked (voyant#4696).
+ *
+ * The column is the encoder, so the lookup and the insert agree by
+ * construction. `null` cannot go through it — the timestamp encoder calls
+ * `toISOString()` — so it is bound as a plain typed null instead.
+ */
+function issuedAtParam(issuedAt: Date | null): SQL {
+  return issuedAt
+    ? sql`${sql.param(issuedAt, bookingDocuments.issuedAt)}::timestamptz`
+    : sql`null::timestamptz`
 }
 
 /**

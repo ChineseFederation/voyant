@@ -397,6 +397,8 @@ jobs:
                 tests/integration/frozen-supplier-statuses.test.ts
               pnpm --filter @voyant-travel/bookings exec vitest run \
                 tests/integration/mcp-lookup.test.ts
+              pnpm --filter @voyant-travel/bookings exec vitest run \
+                tests/integration/booking-documents.test.ts
               pnpm --filter @voyant-travel/operations exec vitest run \
                 tests/availability/integration/auto-allocate-concurrency.test.ts
               pnpm --filter @voyant-travel/operations exec vitest run \
