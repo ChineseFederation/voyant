@@ -249,16 +249,51 @@ export const reportWidgetInstanceSchema = z
   .strict()
 export type ReportWidgetInstance = z.infer<typeof reportWidgetInstanceSchema>
 
+/**
+ * A value a template's widgets read but cannot supply themselves — a reporting
+ * period, a currency, a threshold.
+ *
+ * A bare name is not enough to ask an operator for one: nothing downstream can
+ * tell whether `periodStart` wants a date or a string, what to label the input,
+ * or whether the report means anything without it. So a template describes its
+ * parameters rather than naming them.
+ */
+export const reportTemplateParameterSchema = z
+  .object({
+    id: reportingIdentifierSchema,
+    label: z.string().trim().min(1).max(160),
+    description: z.string().trim().max(500).optional(),
+    valueType: z.enum(["date", "string", "number"]),
+    /** A report that cannot be read without it; instantiation seeds a default. */
+    required: z.boolean().default(false),
+    defaultValue: reportParameterValueSchema.optional(),
+  })
+  .strict()
+export type ReportTemplateParameter = z.infer<typeof reportTemplateParameterSchema>
+
 export const reportTemplateDefinitionSchema = z
   .object({
     id: reportingIdentifierSchema,
     version: reportingVersionSchema,
     label: z.string().trim().min(1).max(160),
     description: z.string().trim().max(2_000).optional(),
-    parameters: z.array(reportingIdentifierSchema).max(50).default([]),
+    parameters: z.array(reportTemplateParameterSchema).max(50).default([]),
     widgets: z.array(reportWidgetInstanceSchema).max(50),
   })
   .strict()
+  .superRefine((template, context) => {
+    const ids = new Set<string>()
+    for (const [index, parameter] of template.parameters.entries()) {
+      if (ids.has(parameter.id)) {
+        context.addIssue({
+          code: "custom",
+          message: `Duplicate template parameter ${JSON.stringify(parameter.id)}.`,
+          path: ["parameters", index, "id"],
+        })
+      }
+      ids.add(parameter.id)
+    }
+  })
 export type ReportTemplateDefinition = z.infer<typeof reportTemplateDefinitionSchema>
 
 export const reportDraftSchema = z

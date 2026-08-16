@@ -22,6 +22,7 @@ import {
   financeReceivablesDatasetDefinition,
   financeReportingTemplates,
   financeReportingWidgets,
+  financeUnperformedServicesDatasetDefinition,
 } from "./reporting-definitions.js"
 import {
   financeAccommodationsPaymentPolicyRuntimePort,
@@ -210,6 +211,18 @@ export const financeVoyantModule = defineModule({
           export: "financeReceivablesDataset",
         },
       },
+      {
+        id: financeUnperformedServicesDatasetDefinition.id,
+        version: financeUnperformedServicesDatasetDefinition.version,
+        label: financeUnperformedServicesDatasetDefinition.label,
+        description: financeUnperformedServicesDatasetDefinition.description,
+        descriptor: financeUnperformedServicesDatasetDefinition,
+        requiredScopes: financeUnperformedServicesDatasetDefinition.requiredScopes,
+        runtime: {
+          entry: "@voyant-travel/finance/reporting-unperformed-services",
+          export: "financeUnperformedServicesDataset",
+        },
+      },
     ],
     widgets: financeReportingWidgets.map((widget) => ({
       id: widget.id,
@@ -238,6 +251,10 @@ export const financeVoyantModule = defineModule({
       version: template.version,
       label: template.label,
       description: template.description,
+      // The parameters reach the graph so a host can render the template's own
+      // inputs before instantiating it. Dropping them here is what would leave
+      // an operator with a period-scoped report and nowhere to say which period.
+      ...(template.parameters.length > 0 ? { parameters: template.parameters } : {}),
       requirements: template.widgets.map((widget) => ({
         kind: "widget" as const,
         id: widget.source.kind === "preset" ? widget.source.widgetId : widget.id,

@@ -76,22 +76,42 @@ describe("finance deployment manifest", () => {
       schema: [{ id: "@voyant-travel/finance#schema" }],
       migrations: [{ id: "@voyant-travel/finance#migrations" }],
       reporting: {
-        datasets: [
-          {
+        datasets: expect.arrayContaining([
+          expect.objectContaining({
             id: "finance.receivables",
             version: 1,
             runtime: {
               entry: "@voyant-travel/finance/reporting",
               export: "financeReceivablesDataset",
             },
-          },
-        ],
+          }),
+          expect.objectContaining({
+            id: "finance.unperformed-services",
+            version: 1,
+            runtime: {
+              entry: "@voyant-travel/finance/reporting-unperformed-services",
+              export: "financeUnperformedServicesDataset",
+            },
+          }),
+        ]),
         widgets: expect.arrayContaining([
           expect.objectContaining({ id: "finance.outstanding-by-currency" }),
           expect.objectContaining({ id: "finance.net-issued-trend" }),
           expect.objectContaining({ id: "finance.invoice-status-breakdown" }),
+          expect.objectContaining({ id: "finance.unperformed-services-lines" }),
         ]),
-        templates: [expect.objectContaining({ id: "finance.overview" })],
+        templates: expect.arrayContaining([
+          expect.objectContaining({ id: "finance.overview" }),
+          // The period reaches the graph as descriptors, so a host can render
+          // the inputs before instantiating the template.
+          expect.objectContaining({
+            id: "finance.contracts-in-progress",
+            parameters: [
+              expect.objectContaining({ id: "periodStart", valueType: "date", required: true }),
+              expect.objectContaining({ id: "periodEnd", valueType: "date", required: true }),
+            ],
+          }),
+        ]),
       },
       setupMigrations: [
         {

@@ -2753,7 +2753,12 @@ function validateReportingFacet(
           )
         } else {
           entry.parameters.forEach((parameter, index) => {
-            requireReportingString(parameter, `${facet}.parameters[${index}]`, source, diagnostics)
+            validateReportingTemplateParameter(
+              parameter,
+              `${facet}.parameters[${index}]`,
+              source,
+              diagnostics,
+            )
           })
         }
       }
@@ -2880,6 +2885,45 @@ function requireReportingString(
 ): void {
   if (typeof value === "string" && value.trim().length > 0) return
   invalidReportingFacet(facet, source, diagnostics, "Expected a non-empty string.")
+}
+
+/**
+ * A template parameter is a descriptor, not a name (voyant#4704). A bare string
+ * cannot be rendered as an input: nothing downstream could tell that
+ * `periodStart` wants a date, what to label it, or that the report means
+ * nothing without it.
+ */
+const REPORTING_PARAMETER_VALUE_TYPES = new Set(["date", "string", "number"])
+
+function validateReportingTemplateParameter(
+  value: unknown,
+  facet: string,
+  source: string | undefined,
+  diagnostics: VoyantGraphDiagnostic[],
+): void {
+  if (!isRecord(value)) {
+    invalidReportingFacet(facet, source, diagnostics, "Expected a template parameter object.")
+    return
+  }
+  requireReportingString(value.id, `${facet}.id`, source, diagnostics)
+  requireReportingString(value.label, `${facet}.label`, source, diagnostics)
+  if (
+    typeof value.valueType !== "string" ||
+    !REPORTING_PARAMETER_VALUE_TYPES.has(value.valueType)
+  ) {
+    invalidReportingFacet(
+      `${facet}.valueType`,
+      source,
+      diagnostics,
+      "Expected one of date, string, number.",
+    )
+  }
+  if (value.required !== undefined && typeof value.required !== "boolean") {
+    invalidReportingFacet(`${facet}.required`, source, diagnostics, "Expected a boolean.")
+  }
+  if (value.description !== undefined && typeof value.description !== "string") {
+    invalidReportingFacet(`${facet}.description`, source, diagnostics, "Expected a string.")
+  }
 }
 
 function validateReportingGridSize(

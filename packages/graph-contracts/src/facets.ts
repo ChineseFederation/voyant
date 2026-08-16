@@ -318,12 +318,22 @@ export interface VoyantGraphReportTemplateWidget {
   title?: string
 }
 
+/** A value a template's widgets read but cannot supply themselves. */
+export interface VoyantGraphReportTemplateParameter {
+  id: string
+  label: string
+  description?: string
+  valueType: "date" | "string" | "number"
+  required?: boolean
+  defaultValue?: string | number | boolean | null
+}
+
 /** A complete grid page which may compose widgets contributed by several selected units. */
 export interface VoyantGraphReportTemplate extends VoyantGraphFacetEntity {
   version: number
   label: string
   description?: string
-  parameters?: readonly string[]
+  parameters?: readonly VoyantGraphReportTemplateParameter[]
   requirements?: readonly VoyantGraphReportingRequirement[]
   widgets: readonly VoyantGraphReportTemplateWidget[]
 }

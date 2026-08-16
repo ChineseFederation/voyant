@@ -13,6 +13,7 @@ import {
   parseReportQuerySourceSchema,
   previewReportQuerySchema,
   ReportDatasetQueryError,
+  type ReportParameters,
   ReportQuerySyntaxError,
   updateReportDefinitionSchema,
 } from "@voyant-travel/reporting-contracts"
@@ -153,10 +154,15 @@ export function createReportingRoutes(registry: ReportingRegistry) {
       return c.json({ error: "invalid_format", message: "format must be csv, xlsx, or pdf." }, 400)
     }
     try {
+      // A period-parameterised report is exported once per period, and the
+      // export is the artifact that gets filed. Reading parameters off the
+      // query string is what lets an operator export August without first
+      // editing and saving the report — which would leave the saved report
+      // permanently describing whichever period was exported last.
       const report = await service.exportReport(
         c.get("db"),
         c.req.param("id"),
-        {},
+        exportParametersFromQuery(c.req.query()),
         {
           actorId: c.get("userId"),
           grantedScopes: c.get("scopes") ?? [],
@@ -186,6 +192,23 @@ export function createReportingRoutes(registry: ReportingRegistry) {
   })
 
   return routes
+}
+
+/** Query keys the export route owns; everything else is a report parameter. */
+const EXPORT_RESERVED_QUERY_KEYS = new Set(["format"])
+
+/**
+ * Read report parameters off the export query string. Values stay strings —
+ * dataset executors already parse what they need, and coercing here would
+ * guess at a type the parameter's own descriptor knows and this route does not.
+ */
+function exportParametersFromQuery(query: Record<string, string>): ReportParameters {
+  const parameters: ReportParameters = {}
+  for (const [key, value] of Object.entries(query)) {
+    if (EXPORT_RESERVED_QUERY_KEYS.has(key)) continue
+    if (typeof value === "string" && value.length > 0) parameters[key] = value
+  }
+  return parameters
 }
 
 function requireReportsPermission(

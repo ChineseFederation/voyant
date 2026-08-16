@@ -198,10 +198,20 @@ export async function exportReport(
   client: ReportingClient,
   id: string,
   format: ReportExportFormat,
+  /**
+   * The report's current parameters. Sent explicitly rather than relying on
+   * whatever was last saved, so exporting one period does not depend on a
+   * flush having landed first.
+   */
+  parameters: Readonly<Record<string, unknown>> = {},
 ): Promise<void> {
+  const query = new URLSearchParams({ format })
+  for (const [key, value] of Object.entries(parameters)) {
+    if (typeof value === "string" && value.length > 0) query.set(key, value)
+  }
   const url = `${client.baseUrl.replace(/\/$/, "")}${REPORTING_API_BASE}/reports/${encodeURIComponent(
     id,
-  )}/export?format=${format}`
+  )}/export?${query.toString()}`
   const response = await client.fetcher(url, { credentials: "include" })
   if (!response.ok) {
     throw new VoyantApiError(`Report export failed: ${response.status}`, response.status, undefined)

@@ -163,6 +163,33 @@ export function ReportBuilderAdmin({
     [doc],
   )
 
+  // A template can declare inputs its widgets read but cannot supply — a
+  // reporting period, most of all. Without rendering them, adding a
+  // period-scoped template gives the operator a report whose every widget
+  // errors on a missing parameter, with nowhere to say which period.
+  const templateParameters = useMemo(() => {
+    if (!report.sourceTemplateId) return []
+    const template = catalog.templates.find(
+      (candidate) =>
+        candidate.id === report.sourceTemplateId &&
+        (report.sourceTemplateVersion == null ||
+          candidate.version === report.sourceTemplateVersion),
+    )
+    return template?.parameters ?? []
+  }, [catalog.templates, report.sourceTemplateId, report.sourceTemplateVersion])
+
+  const handleTemplateParameter = useCallback(
+    (id: string, value: string) => {
+      doc.updateDraft((draft) => {
+        const next = { ...draft.parameters }
+        if (value) next[id] = value
+        else delete next[id]
+        return { ...draft, parameters: next }
+      })
+    },
+    [doc],
+  )
+
   // "Show in base currency": converts every money widget to the operator's base
   // currency using each record's recording-time FX snapshot (handled server-side).
   const baseCurrency = parameters.reportCurrency === "base"
@@ -202,13 +229,13 @@ export function ReportBuilderAdmin({
           anchor.remove()
           URL.revokeObjectURL(objectUrl)
         } else {
-          await exportReport(client, report.id, format)
+          await exportReport(client, report.id, format, parameters)
         }
       } finally {
         setExporting(null)
       }
     },
-    [client, report.id, doc],
+    [client, report.id, doc, parameters],
   )
 
   // One grid `WidgetDefinition` per AVAILABLE instance, keyed by the *instance*
@@ -385,6 +412,48 @@ export function ReportBuilderAdmin({
           <span className="text-muted-foreground text-xs font-medium">Show in base currency</span>
         </label>
       </div>
+
+      {templateParameters.length === 0 ? null : (
+        <div className="flex flex-wrap items-end gap-3">
+          {templateParameters.map((parameter) => {
+            const value = parameters[parameter.id]
+            const current = typeof value === "string" ? value : ""
+            const inputId = `vrb-parameter-${parameter.id}`
+            return (
+              <div key={parameter.id} className="flex flex-col gap-1">
+                <Label htmlFor={inputId} className="text-muted-foreground text-xs font-medium">
+                  {parameter.label}
+                  {parameter.required && !current ? (
+                    <span className="text-destructive ml-1" aria-hidden="true">
+                      *
+                    </span>
+                  ) : null}
+                </Label>
+                <Input
+                  id={inputId}
+                  type={
+                    parameter.valueType === "date"
+                      ? "date"
+                      : parameter.valueType === "number"
+                        ? "number"
+                        : "text"
+                  }
+                  value={current}
+                  aria-describedby={parameter.description ? `${inputId}-hint` : undefined}
+                  aria-required={parameter.required || undefined}
+                  onChange={(event) => handleTemplateParameter(parameter.id, event.target.value)}
+                  className="w-[11rem]"
+                />
+                {parameter.description ? (
+                  <span id={`${inputId}-hint`} className="text-muted-foreground text-xs">
+                    {parameter.description}
+                  </span>
+                ) : null}
+              </div>
+            )
+          })}
+        </div>
+      )}
 
       {doc.status === "conflict" ? (
         <div

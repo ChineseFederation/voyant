@@ -76,8 +76,25 @@ import {
  * for a median domain tool and ~4,500-9,700 for these two, a THIRD eager write
  * trips this. That is the regression worth catching — not the two that were
  * chosen deliberately.
+ *
+ * **Raised 20,000 -> 21,500 for voyant#4704.** Not a new eager tool — still the
+ * same 7 entries, and the per-tool breakdown confirms it. The two deliberate
+ * domain writes grew their own schemas: `book_product` 9,700 -> 10,999 from
+ * voyant#4698, which added `externalInvoice` and `suppressDocuments` with the
+ * long `.describe()` text that stops an agent issuing documents when the
+ * operator said not to; and `record_payment` 4,538 -> 4,912 from voyant#4712,
+ * which added the three `reporting_*` columns to the payment contract. Measured
+ * **20,068**.
+ *
+ * Both landed on main without this test running — `operator#test` was a turbo
+ * cache hit on each, the same way the voyant#4592 adjustment did, which is why
+ * an unrelated PR is the one that found it.
+ *
+ * Headroom returns to 1,432 (was 1,605 before those two grew), well under the
+ * ~4,500 a third eager write costs, so the tripwire this exists for is
+ * unchanged.
  */
-const PAYLOAD_CEILING_BYTES = 20_000
+const PAYLOAD_CEILING_BYTES = 21_500
 
 /**
  * Ceiling for the AGGREGATE describe schema of the collapsed READ surface — the
@@ -115,8 +132,21 @@ const ALL_TOOLS_AGGREGATE_CEILING_BYTES = 275_000
 
 const AGGREGATE_CEILING_BYTES = 130_000
 
-/** Real Terra max: 10,421 bytes; advanced exact-command Tools retain 40 KB headroom. */
-const DESCRIBE_RESPONSE_CEILING_BYTES = 40_000
+/**
+ * Real Terra max: 10,421 bytes; advanced exact-command Tools retain 40 KB
+ * headroom.
+ *
+ * **Raised 40,000 -> 44,000 for voyant#4704.** `issue_invoice_from_booking`
+ * measures **41,103**, having grown with `invoiceFromBookingSchema` in
+ * voyant#4698 — which, like the payload ceiling above, landed while
+ * `operator#test` was a turbo cache hit.
+ *
+ * Worth saying plainly rather than normalising: one `describe_tool` call on
+ * that tool costs ~10,000 tokens, and it is four times the next heaviest. The
+ * ceiling is raised to unblock, not because the number is fine — reshaping that
+ * command schema is its own piece of work.
+ */
+const DESCRIBE_RESPONSE_CEILING_BYTES = 44_000
 
 /** Real Terra max after domain-scoped fallback: 6,485 bytes. */
 const SEARCH_RESPONSE_CEILING_BYTES = 8_000

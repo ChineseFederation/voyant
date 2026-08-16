@@ -15,6 +15,7 @@
     "./booking-settlement": "./src/service-booking-settlement.ts",
     "./service-invoice-core": "./src/service-invoice-core.ts",
     "./reporting": "./src/reporting.ts",
+    "./reporting-unperformed-services": "./src/reporting-unperformed-services.ts",
     "./order-payment-sessions": "./src/order-payment-sessions.ts",
     "./payment-policy": "./src/payment-policy.ts",
     "./payment-policy-cascade": "./src/payment-policy-cascade.ts",
@@ -146,6 +147,11 @@
         "types": "./dist/reporting.d.ts",
         "import": "./dist/reporting.js",
         "default": "./dist/reporting.js"
+      },
+      "./reporting-unperformed-services": {
+        "types": "./dist/reporting-unperformed-services.d.ts",
+        "import": "./dist/reporting-unperformed-services.js",
+        "default": "./dist/reporting-unperformed-services.js"
       },
       "./order-payment-sessions": {
         "types": "./dist/order-payment-sessions.d.ts",

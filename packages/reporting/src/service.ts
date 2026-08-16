@@ -74,6 +74,14 @@ export function createReportingService(registry: ReportingRegistry) {
     ) {
       const template = registry.getTemplate(input.templateId, input.version)
       if (!template) throw new ReportingRecordNotFoundError("Report template")
+      // Seed the template's declared defaults so an instantiated report opens
+      // showing something. A parameterised template that lands with an empty
+      // bag renders every widget as a missing-parameter error, which reads as
+      // "this template is broken" rather than "choose a period".
+      const parameters: ReportParameters = {}
+      for (const parameter of template.parameters) {
+        if (parameter.defaultValue !== undefined) parameters[parameter.id] = parameter.defaultValue
+      }
       return this.create(
         db,
         {
@@ -81,7 +89,7 @@ export function createReportingService(registry: ReportingRegistry) {
           description: input.description,
           sourceTemplateId: template.id,
           sourceTemplateVersion: template.version,
-          draft: { parameters: {}, widgets: template.widgets },
+          draft: { parameters, widgets: template.widgets },
         },
         actorId,
       )

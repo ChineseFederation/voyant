@@ -34,20 +34,33 @@ const groupedOutstandingQuery = {
   limit: 20,
 }
 
+/**
+ * Each dataset names the dimension its money columns are denominated by. The
+ * rule below is per dataset, not per package — a second dataset does not get to
+ * skip it, and does not have to borrow the first one's dimension name.
+ */
+const CURRENCY_DIMENSION_BY_DATASET: Readonly<Record<string, string>> = {
+  "finance.receivables": "currency",
+  "finance.unperformed-services": "reportingCurrency",
+}
+
 describe("Finance reporting definitions", () => {
   it("publishes contract-valid dataset, widget, and template definitions", () => {
     expect(reportDatasetDefinitionSchema.parse(financeReceivablesDatasetDefinition).id).toBe(
       "finance.receivables",
     )
-    expect(
-      financeReportingWidgets.map((widget) => reportWidgetDefinitionSchema.parse(widget)),
-    ).toHaveLength(4)
-    expect(
-      financeReportingTemplates.map((template) => reportTemplateDefinitionSchema.parse(template)),
-    ).toHaveLength(1)
+    for (const widget of financeReportingWidgets) {
+      expect(reportWidgetDefinitionSchema.safeParse(widget)).toMatchObject({ success: true })
+      // A widget over a dataset nobody contributes is a preset that can only
+      // ever render an error.
+      expect(Object.keys(CURRENCY_DIMENSION_BY_DATASET)).toContain(widget.query.dataset.id)
+    }
+    for (const template of financeReportingTemplates) {
+      expect(reportTemplateDefinitionSchema.safeParse(template)).toMatchObject({ success: true })
+    }
   })
 
-  it("keeps all contributed monetary presets partitioned by currency", () => {
+  it("keeps every contributed monetary preset partitioned by its dataset's currency", () => {
     const monetaryWidgets = financeReportingWidgets.filter((widget) =>
       widget.query.select.some(
         (selection) => selection.kind === "aggregate" && selection.operation === "sum",
@@ -55,18 +68,14 @@ describe("Finance reporting definitions", () => {
     )
 
     expect(monetaryWidgets).not.toHaveLength(0)
-    expect(
-      monetaryWidgets.every((widget) =>
-        widget.query.groupBy.some((group) => group.field === "currency"),
-      ),
-    ).toBe(true)
-    expect(
-      monetaryWidgets.every(
-        (widget) =>
-          widget.visualization.options.minorUnit === true &&
-          widget.visualization.options.currencyField === "currency",
-      ),
-    ).toBe(true)
+    for (const widget of monetaryWidgets) {
+      const currency = CURRENCY_DIMENSION_BY_DATASET[widget.query.dataset.id]
+      expect(widget.query.groupBy.some((group) => group.field === currency)).toBe(true)
+      // Without both, a renderer has no way to tell whether 351533 is 351,533
+      // or 3,515.33, nor which currency it is in.
+      expect(widget.visualization.options.minorUnit).toBe(true)
+      expect(widget.visualization.options.currencyField).toBe(currency)
+    }
   })
 })
 
