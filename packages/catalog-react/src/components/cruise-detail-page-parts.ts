@@ -15,7 +15,10 @@ export interface CruiseSailing {
 
 export interface CruiseCabin {
   id: string
-  /** Provider cabin code (e.g. `omi_V`) — joins to live pricing rows. */
+  /**
+   * Provider cabin id (e.g. `omi_V`, `88-from-2027_CLASSIC`) — the join key
+   * against a live pricing row's `code`. See `providerExternalIdFromCatalogId`.
+   */
   externalId: string | null
   name: string
   type: string | null
@@ -118,7 +121,7 @@ export function mapCruiseContent(content: unknown): CruiseDetail | null {
       const r = asRecord(row) ?? {}
       return {
         id: asStr(r.id) ?? `cabin-${i}`,
-        externalId: decodeCatalogExternalId(asStr(r.id)),
+        externalId: providerExternalIdFromCatalogId(asStr(r.id)),
         // Pure mapper, no messages in scope; "Cabin" is a last-resort fallback for an unnamed upstream cabin, not chrome copy.
         // i18n-literal-ok
         name: asStr(r.name) ?? asStr(r.code) ?? "Cabin",
@@ -172,12 +175,28 @@ export function formatDay(iso: string | null, locale?: string): string {
   }).format(d)
 }
 
-// Catalog ids are `<prefix>_sr_<base64url(JSON{externalId,…})>`; pull the
-// provider externalId so cabins can join to live pricing rows.
-function decodeCatalogExternalId(id: string | null): string | null {
+/**
+ * The provider id a catalog id stands for — the join key against a live pricing
+ * row's `code`.
+ *
+ * A catalog id arrives in one of two shapes, and only one of them wraps
+ * anything:
+ *
+ * - `<prefix>_sr_<base64url(JSON{externalId,…})>` — the SourceRef-wrapped id the
+ *   catalog plane builds for a sourced entity; the provider id is inside it.
+ * - a bare provider id (`88-from-2027_CLASSIC`) — what the cruise content
+ *   adapter emits for a cabin category. It already *is* the provider id.
+ *
+ * Anything that does not decode is the second shape, matching
+ * `sourceRefFromExternalKeyRef` in `@voyant-travel/cruises`: an unwrappable ref
+ * is a raw external id, not an absent one. Returning `null` for the bare shape
+ * instead left every cabin unjoinable, so the rate rows printed the raw
+ * provider id where the cabin name belongs (#4766).
+ */
+export function providerExternalIdFromCatalogId(id: string | null): string | null {
   if (!id) return null
   const idx = id.indexOf("_sr_")
-  if (idx < 0) return null
+  if (idx < 0) return id
   try {
     const b64 = id
       .slice(idx + 4)
@@ -185,10 +204,22 @@ function decodeCatalogExternalId(id: string | null): string | null {
       .replace(/_/g, "/")
     const padded = b64 + "=".repeat((4 - (b64.length % 4)) % 4)
     const obj = JSON.parse(atob(padded)) as { externalId?: string }
-    return typeof obj.externalId === "string" ? obj.externalId : null
+    return typeof obj.externalId === "string" && obj.externalId.length > 0 ? obj.externalId : id
   } catch {
-    return null
+    return id
   }
+}
+
+/**
+ * The catalog cabin a live pricing row describes. Named and exported so the
+ * page's join is the one under test — the bug in #4766 was the join failing,
+ * not the decode in isolation.
+ */
+export function findCabinForPrice(
+  cabins: CruiseCabin[],
+  price: CabinPrice,
+): CruiseCabin | undefined {
+  return cabins.find((c) => c.externalId === price.code)
 }
 
 function asRecord(value: unknown): Record<string, unknown> | undefined {

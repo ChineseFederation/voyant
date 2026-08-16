@@ -27,6 +27,7 @@ import {
   type CabinPrice,
   type CruiseDetail,
   type CruiseSailing,
+  findCabinForPrice,
   formatCruiseType,
   formatDay,
   formatMoney,
@@ -400,7 +401,7 @@ export function CruiseDetailPage({
                         ) : isActive && cabinPricing && cabinPricing.cabins.length > 0 ? (
                           <ul className="divide-y">
                             {cabinPricing.cabins.map((cab) => {
-                              const cabin = detail.cabins.find((c) => c.externalId === cab.code)
+                              const cabin = findCabinForPrice(detail.cabins, cab)
                               return (
                                 <li
                                   key={cab.code}
