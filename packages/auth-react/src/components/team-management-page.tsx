@@ -82,7 +82,7 @@ function TeamManagementView() {
     queryKey: queryKeys.capabilities,
     queryFn: () => api.get<{ data: TeamManagementCapabilitiesDto }>("/v1/admin/team/capabilities"),
   })
-  const canView = capabilitiesQuery.data?.data.viewRoster === true
+  const canView = capabilitiesQuery.data?.data.viewMembers === true
   const membersQuery = useQuery({
     queryKey: queryKeys.members,
     queryFn: () => api.get<{ data: TeamMemberDto[] }>("/v1/admin/team/members"),

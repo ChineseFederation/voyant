@@ -36,7 +36,7 @@ export interface CreatedTeamInvitationDto extends TeamInvitationDto {
 }
 
 export interface TeamManagementCapabilitiesDto {
-  viewRoster: boolean
+  viewMembers: boolean
   inviteMembers: boolean
   manageRoles: boolean
   activateMembers: boolean

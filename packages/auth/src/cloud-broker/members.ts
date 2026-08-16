@@ -1,8 +1,8 @@
 /**
  * Deployment-side client for Voyant Cloud member management.
  *
- * The team roster of a `voyant-cloud`-auth deployment lives on the platform, not
- * in the deployment DB. This client lets the deployment manage that roster
+ * The team of a `voyant-cloud`-auth deployment lives on the platform, not
+ * in the deployment DB. This client lets the deployment manage those members
  * (list members, list/send/revoke invitations, grant/revoke this deployment's
  * access) by calling the platform's `/cloud/v1/admin-auth/*` member endpoints —
  * the management counterpart to {@link revalidateCloudAdminAuthAccess}.

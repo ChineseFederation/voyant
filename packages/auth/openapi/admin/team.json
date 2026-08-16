@@ -18,7 +18,7 @@
         "operationId": "listTeamMembers",
         "tags": ["Team"],
         "x-voyant-api-id": "@voyant-travel/auth#team.api.admin",
-        "responses": { "200": { "description": "Team roster." } }
+        "responses": { "200": { "description": "Team members." } }
       }
     },
     "/v1/admin/team/roles": {

@@ -149,7 +149,7 @@ export function createCloudTeamManagementAdapter(
     async getCapabilities(_context, actor): Promise<TeamManagementCapabilitiesDto> {
       const canManage = actor.roleId === "owner" || actor.roleId === "admin"
       return {
-        viewRoster: true,
+        viewMembers: true,
         inviteMembers: canManage,
         manageRoles: canManage,
         activateMembers: canManage,

@@ -152,7 +152,7 @@ export const authUiRo: AuthUiMessages = {
     loadFailed: "Administrarea echipei nu a putut fi incarcata.",
     invite: {
       title: "Invita membru",
-      description: "Invita un coleg prin furnizorul de identitate configurat.",
+      description: "Trimite unui coleg o invitatie de a se alatura echipei.",
       emailLabel: "Email",
       emailPlaceholder: "coleg@example.com",
       roleLabel: "Rol",
@@ -166,8 +166,8 @@ export const authUiRo: AuthUiMessages = {
       copyFailed: "Linkul de invitatie nu a putut fi copiat.",
     },
     members: {
-      title: "Echipa",
-      description: "Accesul curent si activitatea furnizata de serviciul de identitate.",
+      title: "Membrii echipei",
+      description: "Toti cei care se pot autentifica, cu rolul si ultima activitate.",
       memberColumn: "Membru",
       roleColumn: "Rol",
       statusColumn: "Stare",

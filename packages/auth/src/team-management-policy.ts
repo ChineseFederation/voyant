@@ -154,17 +154,17 @@ export function createGuardedTeamManagementProvider(
     },
     async listMembers(context) {
       const adapter = resolveAdapter(context)
-      await authorize(adapter, context, "viewRoster")
+      await authorize(adapter, context, "viewMembers")
       return adapter.listMembers(context)
     },
     async listRoles(context) {
       const adapter = resolveAdapter(context)
-      await authorize(adapter, context, "viewRoster")
+      await authorize(adapter, context, "viewMembers")
       return adapter.listRoles(context)
     },
     async listInvitations(context) {
       const adapter = resolveAdapter(context)
-      await authorize(adapter, context, "viewRoster")
+      await authorize(adapter, context, "viewMembers")
       return adapter.listInvitations(context)
     },
     async inviteMember(context, input) {

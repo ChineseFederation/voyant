@@ -29,7 +29,7 @@ function seedTeamQueries(
 ) {
   queryClient.setQueryData(["team-management", "capabilities"], {
     data: {
-      viewRoster: true,
+      viewMembers: true,
       inviteMembers: overrides.inviteMembers ?? false,
       manageRoles: false,
       activateMembers: overrides.activateMembers ?? false,
@@ -71,7 +71,7 @@ describe("Auth team-management admin surface", () => {
     })
   })
 
-  it("renders neutral roster data and nullable provider activity without auth-mode discovery", () => {
+  it("renders neutral member data and nullable provider activity without auth-mode discovery", () => {
     const queryClient = new QueryClient()
     seedTeamQueries(queryClient)
     const api = pageApi()

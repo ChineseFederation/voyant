@@ -8,7 +8,7 @@ import { createTeamAdminRoutes } from "../../src/team-routes.js"
 function runtime(): TeamManagementRuntimeProvider {
   return {
     getCapabilities: vi.fn(async () => ({
-      viewRoster: true,
+      viewMembers: true,
       inviteMembers: true,
       manageRoles: true,
       activateMembers: true,
@@ -84,7 +84,7 @@ function app(provider: TeamManagementRuntimeProvider, authenticated = true) {
 }
 
 describe("team admin routes", () => {
-  it("returns provider-neutral roster and nullable last activity", async () => {
+  it("returns provider-neutral members and nullable last activity", async () => {
     const response = await app(runtime()).request("/v1/admin/team/members")
 
     expect(response.status).toBe(200)

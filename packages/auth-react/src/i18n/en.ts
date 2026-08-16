@@ -151,7 +151,7 @@ export const authUiEn: AuthUiMessages = {
     loadFailed: "Could not load team management.",
     invite: {
       title: "Invite member",
-      description: "Invite a staff member through the configured identity provider.",
+      description: "Send a colleague an invitation to join your team.",
       emailLabel: "Email",
       emailPlaceholder: "teammate@example.com",
       roleLabel: "Role",
@@ -164,8 +164,8 @@ export const authUiEn: AuthUiMessages = {
       copyFailed: "Could not copy the invitation link.",
     },
     members: {
-      title: "Roster",
-      description: "Current staff access and provider-supplied activity.",
+      title: "Team members",
+      description: "Everyone who can sign in, with their role and last activity.",
       memberColumn: "Member",
       roleColumn: "Role",
       statusColumn: "Status",

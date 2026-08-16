@@ -11,7 +11,7 @@ import type {
 
 const context = { bindings: {}, db: {} as never, userId: "user_actor" }
 const allCapabilities: TeamManagementCapabilitiesDto = {
-  viewRoster: true,
+  viewMembers: true,
   inviteMembers: true,
   manageRoles: true,
   activateMembers: true,
