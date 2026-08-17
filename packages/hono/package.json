@@ -42,6 +42,7 @@
     "@hono/zod-openapi": "catalog:",
     "@voyant-travel/core": "workspace:^",
     "@voyant-travel/db": "workspace:^",
+    "@voyant-travel/tools": "workspace:^",
     "@voyant-travel/types": "workspace:^",
     "@voyant-travel/utils": "workspace:^",
     "drizzle-orm": "catalog:",

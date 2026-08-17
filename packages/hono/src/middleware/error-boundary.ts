@@ -1,3 +1,4 @@
+import { isToolError } from "@voyant-travel/tools"
 import { apiErrorSchema } from "@voyant-travel/types"
 import type { Context, MiddlewareHandler } from "hono"
 
@@ -99,6 +100,11 @@ export function handleApiError(
       id,
       status,
       code,
+      // The tool layer's own code. `code` above is the HTTP error contract's,
+      // and is `undefined` for the ToolError codes that stay an opaque 500 —
+      // exactly the ones being triaged from this line. voyant#4805 reported it
+      // as `code: undefined` with nothing else to go on.
+      toolErrorCode: isToolError(err) ? err.code : undefined,
       path: c.req.path,
       method: c.req.method,
       headers,

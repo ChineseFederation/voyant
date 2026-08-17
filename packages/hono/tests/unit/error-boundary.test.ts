@@ -1,3 +1,4 @@
+import { ToolError } from "@voyant-travel/tools"
 import { Hono } from "hono"
 import { describe, expect, it } from "vitest"
 
@@ -163,6 +164,113 @@ describe("handleApiError", () => {
 
     expect(isApiHttpError(new PreBrandRequestValidationError("real"))).toBe(true)
     expect(isApiHttpError(new RequestValidationError("real"))).toBe(true)
+  })
+
+  // voyant#4805. A `ToolError` is a domain's typed refusal, not a crash. The
+  // boundary did not recognise it, so a rejected booking-session commit
+  // answered `500 {"error":"Internal Server Error"}` and the message naming the
+  // violated pricing rule never left the process.
+  it.each([
+    ["INVALID_INPUT", 400, "invalid_request"],
+    ["AUTHORIZATION_DENIED", 403, "authorization_denied"],
+    ["NOT_FOUND", 404, "not_found"],
+    ["APPROVAL_REQUIRED", 409, "approval_required"],
+    ["CONFIRMATION_REQUIRED", 409, "confirmation_required"],
+  ] as const)("answers a %s ToolError with %i", async (code, status, responseCode) => {
+    const app = new Hono()
+    app.onError(handleApiError)
+    app.get("/bad", () => {
+      throw new ToolError("The pricing is invalid: itemLines: no active price rule.", code, {
+        outcome: { status: "invalid_pricing" },
+      })
+    })
+
+    const response = await app.request("/bad")
+    const body = (await response.json()) as {
+      error: string
+      code?: string
+      details?: Record<string, unknown>
+    }
+
+    expect(response.status).toBe(status)
+    expect(body.code).toBe(responseCode)
+    expect(body.error).toBe("The pricing is invalid: itemLines: no active price rule.")
+    expect(body.details?.toolErrorCode).toBe(code)
+    expect(body.details?.retryable).toBe(false)
+    // `meta` carries the raw domain outcome — ids, balances, the rejected
+    // command — and belongs in the log, not the response body.
+    expect(JSON.stringify(body)).not.toContain("outcome")
+  })
+
+  // A deployment wired wrong is not something the caller can fix by changing
+  // the request, and its message describes internals. Those codes must keep the
+  // opaque 500 the boundary has always given them.
+  it.each([
+    "MISSING_SERVICE",
+    "ACTION_POLICY_REQUIRED",
+    "INVALID_OUTPUT",
+    "PROVIDER_ERROR",
+  ] as const)("keeps a %s ToolError an opaque 500", async (code) => {
+    const app = new Hono()
+    app.onError(handleApiError)
+    app.get("/bad", () => {
+      throw new ToolError("database hostname leaked", code)
+    })
+
+    const response = await app.request("/bad")
+    const body = (await response.json()) as { error: string; details?: unknown }
+
+    expect(response.status).toBe(500)
+    expect(body.error).toBe("Internal Server Error")
+    expect(body.details).toBeUndefined()
+  })
+
+  // The managed runtime inlines `@voyant-travel/tools` into the SSR bundle
+  // while runtime-composed modules resolve their own, so the ToolError reaching
+  // the boundary is virtually never an instance of the class this file loaded.
+  // Matching by `instanceof` would fix nothing in production. Both shapes below
+  // are what a second copy actually presents: the brand resolves through the
+  // global symbol registry, and a copy published before the brand identifies
+  // itself by `name` plus a string `code`.
+  it.each([
+    [
+      "a branded copy",
+      () => {
+        const error = new Error("The pricing is invalid: a.1: why")
+        error.name = "ToolError"
+        return Object.assign(error, {
+          code: "INVALID_INPUT",
+          retryable: false,
+          [Symbol.for("@voyant-travel/tools.ToolError")]: true,
+        })
+      },
+    ],
+    [
+      "a pre-brand copy",
+      () => {
+        const error = new Error("The pricing is invalid: a.1: why")
+        error.name = "ToolError"
+        return Object.assign(error, { code: "INVALID_INPUT" })
+      },
+    ],
+  ])("answers a ToolError thrown by %s", async (_label, make) => {
+    const error = make()
+
+    // Guard the premise: an `instanceof` match would pass for the wrong reason.
+    expect(error instanceof ToolError).toBe(false)
+
+    const app = new Hono()
+    app.onError(handleApiError)
+    app.get("/bad", () => {
+      throw error
+    })
+
+    const response = await app.request("/bad")
+    const body = (await response.json()) as { error: string; code?: string }
+
+    expect(response.status).toBe(400)
+    expect(body.error).toBe("The pricing is invalid: a.1: why")
+    expect(body.code).toBe("invalid_request")
   })
 
   it("reflects a ZodError thrown by a duplicate zod copy", async () => {

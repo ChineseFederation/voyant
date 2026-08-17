@@ -1,3 +1,4 @@
+import { isToolError, type ToolErrorCode } from "@voyant-travel/tools"
 import type { Context } from "hono"
 import { HTTPException } from "hono/http-exception"
 import { ZodError, type ZodType } from "zod"
@@ -124,6 +125,50 @@ function isZodError(error: unknown): error is ZodError {
     (error as Error).name === "ZodError" &&
     Array.isArray((error as ZodError).issues)
   )
+}
+
+/**
+ * The client-answerable {@link ToolErrorCode}s, and the status each one is.
+ *
+ * A `ToolError` is the tool layer's *typed* refusal, and the domain services
+ * behind a route throw it directly — so one reaching this boundary is usually a
+ * decision, not a crash. Until voyant#4805 the boundary did not recognise it at
+ * all: every code fell through to the generic arm and answered
+ * `500 {"error":"Internal Server Error"}`, which tells the caller the product
+ * is broken when the input was merely rejected, and drops the message that says
+ * why. Observed on
+ * `POST /v1/admin/catalog/booking-sessions/:sessionId/commit`, where a pricing
+ * refusal read as a server fault and left an operator with no way — from the
+ * product, the API, or the logs — to see which rule had been violated.
+ *
+ * The table is here rather than in `@voyant-travel/tools` because HTTP is this
+ * package's vocabulary; `tools` owns the code union and stays
+ * transport-neutral.
+ *
+ * Deliberately partial, and a missing code is not an oversight. The five it
+ * omits — `MISSING_SERVICE`, `ACTION_POLICY_REQUIRED`, `INVALID_OUTPUT`,
+ * `PROVIDER_ERROR`, `PROVIDER_UNAVAILABLE` — report a deployment wired wrong, a
+ * server-side defect, or an upstream fault. None of them is answerable by
+ * changing the request, and each one's message describes internals, so they keep
+ * today's behaviour unchanged: the opaque 500 that reflects nothing and still
+ * reaches the observability sink. `handleApiError` must never mirror an internal
+ * message back on a server fault.
+ */
+const TOOL_ERROR_HTTP_STATUS: Partial<Record<ToolErrorCode, number>> = {
+  INVALID_INPUT: 400,
+  AUTHORIZATION_DENIED: 403,
+  NOT_FOUND: 404,
+  APPROVAL_REQUIRED: 409,
+  CONFIRMATION_REQUIRED: 409,
+}
+
+/**
+ * Error-body `code` for a `ToolError`. A 400 keeps `invalid_request`, the code
+ * the framework's own validation failures already carry, so a caller matching
+ * on it does not have to learn a second spelling for the same answer.
+ */
+function toolErrorResponseCode(code: ToolErrorCode, status: number): string {
+  return status === 400 ? "invalid_request" : code.toLowerCase()
 }
 
 function isHttpException(error: unknown): error is HTTPException {
@@ -257,6 +302,36 @@ export function parseQuery<T>(
   )
 }
 
+/**
+ * Translates a client-answerable {@link ToolErrorCode} onto the framework error
+ * contract, or returns `undefined` so the caller keeps its existing handling.
+ *
+ * `isToolError` rather than `instanceof`: the managed runtime inlines a copy of
+ * every `@voyant-travel/*` package into the SSR bundle while runtime-composed
+ * modules resolve their own from `node_modules`, so the error almost never
+ * comes from the class this file's copy would compare against — the same
+ * cross-copy trap `API_HTTP_ERROR_BRAND` exists for.
+ *
+ * `meta` is not reflected. It carries the raw domain outcome — ids, balances,
+ * the whole rejected command — which belongs in the server log, not in the
+ * response body. The message and `nextSteps` are written to be read by the
+ * caller and are the actionable part.
+ */
+function toolErrorToApiHttpError(error: unknown): ApiHttpError | undefined {
+  if (!isToolError(error)) return undefined
+  const status = TOOL_ERROR_HTTP_STATUS[error.code]
+  if (status === undefined) return undefined
+  return new ApiHttpError(error.message, {
+    status,
+    code: toolErrorResponseCode(error.code, status),
+    details: {
+      toolErrorCode: error.code,
+      retryable: error.retryable,
+      ...(error.nextSteps?.length ? { nextSteps: error.nextSteps } : {}),
+    },
+  })
+}
+
 export function normalizeValidationError(error: unknown): ApiHttpError | undefined {
   if (isApiHttpError(error)) {
     return error
@@ -265,6 +340,9 @@ export function normalizeValidationError(error: unknown): ApiHttpError | undefin
   if (isZodError(error)) {
     return toValidationError(error)
   }
+
+  const toolError = toolErrorToApiHttpError(error)
+  if (toolError) return toolError
 
   if (isHttpException(error)) {
     // Hono's request validators throw HTTPException before our validation hook
