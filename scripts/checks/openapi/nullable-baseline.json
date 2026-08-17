@@ -15,7 +15,6 @@
     "fixing what the generator emits, not editing the artifact."
   ],
   "documents": {
-    "packages/finance/openapi/public-api/finance.json": 3,
     "packages/identity/openapi/public-api/identity-verification.json": 2,
     "packages/notifications/openapi/admin/notifications.json": 15,
     "packages/setup/openapi/admin/setup.json": 34

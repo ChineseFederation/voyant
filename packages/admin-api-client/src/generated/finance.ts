@@ -1312,6 +1312,96 @@ export interface paths {
     patch?: never
     trace?: never
   }
+  "/v1/admin/finance/invoices/{id}/external-refs/{refId}/supersede": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** @description Record that the provider document this reference points at was cancelled in the provider's own UI, and optionally repoint the reference at its replacement. The superseded identity is kept in the reference's metadata; with no replacement the reference is marked `cancelled`, which is what lets the booking be invoiced again (voyant#4688). */
+    post: {
+      parameters: {
+        query?: never
+        header?: never
+        path: {
+          id: string
+          refId: string
+        }
+        cookie?: never
+      }
+      requestBody: {
+        content: {
+          "application/json": {
+            reason: string
+            /** @description The document that replaces the cancelled one. Omit it when the cancellation stands on its own — the reference is then marked cancelled and the booking may be invoiced again. */
+            replacement?: {
+              externalId?: string | null
+              externalNumber?: string | null
+              externalUrl?: string | null
+              status?: string | null
+              series?: string | null
+            }
+          }
+        }
+      }
+      responses: {
+        /** @description The superseded external ref */
+        200: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            "application/json": {
+              data: {
+                id: string
+                invoiceId: string
+                provider: string
+                externalId: string | null
+                externalNumber: string | null
+                externalUrl: string | null
+                status: string | null
+                metadata?: unknown
+                syncedAt: string | null
+                syncError: string | null
+                createdAt: string
+                updatedAt: string
+              }
+            }
+          }
+        }
+        /** @description invalid_request: request body failed validation */
+        400: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            "application/json": {
+              error: string
+            }
+          }
+        }
+        /** @description External ref not found */
+        404: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            "application/json": {
+              error: string
+            }
+          }
+        }
+      }
+    }
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
   "/v1/admin/finance/invoices/{id}/external-refs/{refId}": {
     parameters: {
       query?: never
@@ -1393,6 +1483,210 @@ export interface paths {
     get: operations["getAdminFinanceBookingsByBookingIdPayments"]
     put?: never
     post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/admin/finance/payment-disputes": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * GET /v1/admin/finance/payment-disputes
+     * @description Card disputes (chargebacks), newest first. Unrelated to the `disputed` supplier-invoice status, which is an accounts-payable state.
+     */
+    get: operations["getAdminFinancePaymentDisputes"]
+    put?: never
+    /**
+     * POST /v1/admin/finance/payment-disputes
+     * @description Record a chargeback against the payment session it contests. Idempotent on `(paymentSessionId, processorReference)`: a repeat report advances the dispute it already recorded, and a different reference opens a second one.
+     */
+    post: operations["postAdminFinancePaymentDisputes"]
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/admin/finance/payment-disputes/{id}": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** GET /v1/admin/finance/payment-disputes/{id} */
+    get: operations["getAdminFinancePaymentDisputesById"]
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    /**
+     * PATCH /v1/admin/finance/payment-disputes/{id}
+     * @description Advance a dispute. `won`, `lost` and `withdrawn` are terminal and stamp `resolvedAt`; a processor that contests the payment again issues a new dispute rather than reviving this one.
+     */
+    patch: operations["patchAdminFinancePaymentDisputesById"]
+    trace?: never
+  }
+  "/v1/admin/finance/bookings/{bookingId}/disputes": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * GET /v1/admin/finance/bookings/{bookingId}/disputes
+     * @description What a booking's payments cannot say on their own. A contested payment still reads `paid`, so `hasOpenDispute` is how a caller tells a cleanly paid booking from one whose money is being taken back.
+     */
+    get: operations["getAdminFinanceBookingsByBookingIdDisputes"]
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/admin/finance/refund-settlements": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * GET /v1/admin/finance/refund-settlements
+     * @description How refunds were actually paid back, newest first. `owed=true` narrows to refunds that are owed and not yet settled — the normal state of a bank transfer for a day or two.
+     */
+    get: operations["getAdminFinanceRefundSettlements"]
+    put?: never
+    /**
+     * POST /v1/admin/finance/refund-settlements
+     * @description Record that a refund was paid, or that paying it has started. The method need not be a card: bank transfer, cash, cheque, travel credit, voucher and an offset against a counterparty balance are all first-class. Authorized by `finance:refund` — the same capability that governs issuing the credit note. Returns 202 with the pending approval when policy requires one.
+     */
+    post: operations["postAdminFinanceRefundSettlements"]
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/admin/finance/refund-settlements/{id}": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** GET /v1/admin/finance/refund-settlements/{id} */
+    get: operations["getAdminFinanceRefundSettlementsById"]
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    /**
+     * PATCH /v1/admin/finance/refund-settlements/{id}
+     * @description Advance a settlement — the transfer landed, or the processor declined. `settled` and `failed` are terminal: a refund that failed is retried by recording a new settlement, never by reviving the one that failed.
+     */
+    patch: operations["patchAdminFinanceRefundSettlementsById"]
+    trace?: never
+  }
+  "/v1/admin/finance/refund-settlements/{id}/execute": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * POST /v1/admin/finance/refund-settlements/{id}/execute
+     * @description Drive a `processor_reversal` settlement through the payment adapter. The outcome is recorded on the settlement, including a failure after the processor accepted it. An indeterminate outcome deliberately leaves the settlement pending and its amount held, so a retry cannot refund twice.
+     */
+    post: operations["postAdminFinanceRefundSettlementsByIdExecute"]
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/admin/finance/payments/{paymentId}/refundable": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * GET /v1/admin/finance/payments/{paymentId}/refundable
+     * @description How much of a payment may still be refunded. Refunds that are pending are subtracted alongside those that settled — an in-flight refund holds its amount until it is positively known to have failed.
+     */
+    get: operations["getAdminFinancePaymentsByPaymentIdRefundable"]
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/admin/finance/bookings/{bookingId}/refund-settlements": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * GET /v1/admin/finance/bookings/{bookingId}/refund-settlements
+     * @description What a booking's credit notes cannot say on their own. An issued credit note reads the same whether or not anyone paid it, so `hasOwedRefund` is how a caller tells a refunded booking from one that is still owed money.
+     */
+    get: operations["getAdminFinanceBookingsByBookingIdRefundSettlements"]
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/admin/finance/invoices/{id}/fx-stamp": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** POST /v1/admin/finance/invoices/{id}/fx-stamp */
+    post: operations["postAdminFinanceInvoicesByIdFxStamp"]
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/admin/finance/payments/{id}/fx-stamp": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** POST /v1/admin/finance/payments/{id}/fx-stamp */
+    post: operations["postAdminFinancePaymentsByIdFxStamp"]
     delete?: never
     options?: never
     head?: never
@@ -1665,210 +1959,6 @@ export interface paths {
     patch?: never
     trace?: never
   }
-  "/v1/admin/finance/payment-disputes": {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    /**
-     * GET /v1/admin/finance/payment-disputes
-     * @description Card disputes (chargebacks), newest first. Unrelated to the `disputed` supplier-invoice status, which is an accounts-payable state.
-     */
-    get: operations["getAdminFinancePaymentDisputes"]
-    put?: never
-    /**
-     * POST /v1/admin/finance/payment-disputes
-     * @description Record a chargeback against the payment session it contests. Idempotent on `(paymentSessionId, processorReference)`: a repeat report advances the dispute it already recorded, and a different reference opens a second one.
-     */
-    post: operations["postAdminFinancePaymentDisputes"]
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  "/v1/admin/finance/payment-disputes/{id}": {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    /** GET /v1/admin/finance/payment-disputes/{id} */
-    get: operations["getAdminFinancePaymentDisputesById"]
-    put?: never
-    post?: never
-    delete?: never
-    options?: never
-    head?: never
-    /**
-     * PATCH /v1/admin/finance/payment-disputes/{id}
-     * @description Advance a dispute. `won`, `lost` and `withdrawn` are terminal and stamp `resolvedAt`; a processor that contests the payment again issues a new dispute rather than reviving this one.
-     */
-    patch: operations["patchAdminFinancePaymentDisputesById"]
-    trace?: never
-  }
-  "/v1/admin/finance/bookings/{bookingId}/disputes": {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    /**
-     * GET /v1/admin/finance/bookings/{bookingId}/disputes
-     * @description What a booking's payments cannot say on their own. A contested payment still reads `paid`, so `hasOpenDispute` is how a caller tells a cleanly paid booking from one whose money is being taken back.
-     */
-    get: operations["getAdminFinanceBookingsByBookingIdDisputes"]
-    put?: never
-    post?: never
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  "/v1/admin/finance/refund-settlements": {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    /**
-     * GET /v1/admin/finance/refund-settlements
-     * @description How refunds were actually paid back, newest first. `owed=true` narrows to refunds that are owed and not yet settled — the normal state of a bank transfer for a day or two.
-     */
-    get: operations["getAdminFinanceRefundSettlements"]
-    put?: never
-    /**
-     * POST /v1/admin/finance/refund-settlements
-     * @description Record that a refund was paid, or that paying it has started. The method need not be a card: bank transfer, cash, cheque, travel credit, voucher and an offset against a counterparty balance are all first-class. Authorized by `finance:refund` — the same capability that governs issuing the credit note. Returns 202 with the pending approval when policy requires one.
-     */
-    post: operations["postAdminFinanceRefundSettlements"]
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  "/v1/admin/finance/refund-settlements/{id}": {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    /** GET /v1/admin/finance/refund-settlements/{id} */
-    get: operations["getAdminFinanceRefundSettlementsById"]
-    put?: never
-    post?: never
-    delete?: never
-    options?: never
-    head?: never
-    /**
-     * PATCH /v1/admin/finance/refund-settlements/{id}
-     * @description Advance a settlement — the transfer landed, or the processor declined. `settled` and `failed` are terminal: a refund that failed is retried by recording a new settlement, never by reviving the one that failed.
-     */
-    patch: operations["patchAdminFinanceRefundSettlementsById"]
-    trace?: never
-  }
-  "/v1/admin/finance/refund-settlements/{id}/execute": {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    get?: never
-    put?: never
-    /**
-     * POST /v1/admin/finance/refund-settlements/{id}/execute
-     * @description Drive a `processor_reversal` settlement through the payment adapter. The outcome is recorded on the settlement, including a failure after the processor accepted it. An indeterminate outcome deliberately leaves the settlement pending and its amount held, so a retry cannot refund twice.
-     */
-    post: operations["postAdminFinanceRefundSettlementsByIdExecute"]
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  "/v1/admin/finance/payments/{paymentId}/refundable": {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    /**
-     * GET /v1/admin/finance/payments/{paymentId}/refundable
-     * @description How much of a payment may still be refunded. Refunds that are pending are subtracted alongside those that settled — an in-flight refund holds its amount until it is positively known to have failed.
-     */
-    get: operations["getAdminFinancePaymentsByPaymentIdRefundable"]
-    put?: never
-    post?: never
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  "/v1/admin/finance/bookings/{bookingId}/refund-settlements": {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    /**
-     * GET /v1/admin/finance/bookings/{bookingId}/refund-settlements
-     * @description What a booking's credit notes cannot say on their own. An issued credit note reads the same whether or not anyone paid it, so `hasOwedRefund` is how a caller tells a refunded booking from one that is still owed money.
-     */
-    get: operations["getAdminFinanceBookingsByBookingIdRefundSettlements"]
-    put?: never
-    post?: never
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  "/v1/admin/finance/invoices/{id}/fx-stamp": {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    get?: never
-    put?: never
-    /** POST /v1/admin/finance/invoices/{id}/fx-stamp */
-    post: operations["postAdminFinanceInvoicesByIdFxStamp"]
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  "/v1/admin/finance/payments/{id}/fx-stamp": {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    get?: never
-    put?: never
-    /** POST /v1/admin/finance/payments/{id}/fx-stamp */
-    post: operations["postAdminFinancePaymentsByIdFxStamp"]
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
 }
 export type webhooks = Record<string, never>
 export interface components {
@@ -1922,6 +2012,7 @@ export interface operations {
         bookingPaymentScheduleId?: string
         bookingGuaranteeId?: string
         targetType?:
+          | "booking_session"
           | "booking"
           | "order"
           | "invoice"
@@ -1939,6 +2030,7 @@ export interface operations {
           | "cancelled"
           | "expired"
         provider?: string
+        providerConnectionId?: string
         providerSessionId?: string
         providerPaymentId?: string
         externalReference?: string
@@ -1963,6 +2055,7 @@ export interface operations {
               id: string
               /** @enum {string} */
               targetType:
+                | "booking_session"
                 | "booking"
                 | "order"
                 | "invoice"
@@ -1991,6 +2084,7 @@ export interface operations {
                 | "cancelled"
                 | "expired"
               provider: string | null
+              providerConnectionId: string | null
               providerSessionId: string | null
               providerPaymentId: string | null
               externalReference: string | null
@@ -2054,6 +2148,11 @@ export interface operations {
       content: {
         "application/json": {
           target?:
+            | {
+                /** @enum {string} */
+                type: "booking_session"
+                bookingSessionId: string
+              }
             | {
                 /** @enum {string} */
                 type: "booking"
@@ -2127,6 +2226,7 @@ export interface operations {
            * @enum {string}
            */
           targetType?:
+            | "booking_session"
             | "booking"
             | "order"
             | "invoice"
@@ -2157,6 +2257,7 @@ export interface operations {
             | "cancelled"
             | "expired"
           provider?: string | null
+          providerConnectionId?: string | null
           providerSessionId?: string | null
           providerPaymentId?: string | null
           externalReference?: string | null
@@ -2183,6 +2284,22 @@ export interface operations {
           payerName?: string | null
           /** Format: uri */
           redirectUrl?: string | null
+          checkout?:
+            | {
+                /** @enum {string} */
+                kind: "hosted_checkout" | "redirect"
+                url: string
+                expiresAt?: string | null
+              }
+            | {
+                /** @enum {string} */
+                kind: "embedded"
+                clientSecret: string
+                publishableKey: string
+                providerAccountId?: string | null
+                expiresAt?: string | null
+              }
+            | null
           /** Format: uri */
           returnUrl?: string | null
           /** Format: uri */
@@ -2219,6 +2336,7 @@ export interface operations {
               id: string
               /** @enum {string} */
               targetType:
+                | "booking_session"
                 | "booking"
                 | "order"
                 | "invoice"
@@ -2247,6 +2365,7 @@ export interface operations {
                 | "cancelled"
                 | "expired"
               provider: string | null
+              providerConnectionId: string | null
               providerSessionId: string | null
               providerPaymentId: string | null
               externalReference: string | null
@@ -2329,6 +2448,7 @@ export interface operations {
               id: string
               /** @enum {string} */
               targetType:
+                | "booking_session"
                 | "booking"
                 | "order"
                 | "invoice"
@@ -2357,6 +2477,7 @@ export interface operations {
                 | "cancelled"
                 | "expired"
               provider: string | null
+              providerConnectionId: string | null
               providerSessionId: string | null
               providerPaymentId: string | null
               externalReference: string | null
@@ -2432,6 +2553,11 @@ export interface operations {
           target?:
             | {
                 /** @enum {string} */
+                type: "booking_session"
+                bookingSessionId: string
+              }
+            | {
+                /** @enum {string} */
                 type: "booking"
                 bookingId: string
               }
@@ -2503,6 +2629,7 @@ export interface operations {
            * @enum {string}
            */
           targetType?:
+            | "booking_session"
             | "booking"
             | "order"
             | "invoice"
@@ -2533,6 +2660,7 @@ export interface operations {
             | "cancelled"
             | "expired"
           provider?: string | null
+          providerConnectionId?: string | null
           providerSessionId?: string | null
           providerPaymentId?: string | null
           externalReference?: string | null
@@ -2559,6 +2687,22 @@ export interface operations {
           payerName?: string | null
           /** Format: uri */
           redirectUrl?: string | null
+          checkout?:
+            | {
+                /** @enum {string} */
+                kind: "hosted_checkout" | "redirect"
+                url: string
+                expiresAt?: string | null
+              }
+            | {
+                /** @enum {string} */
+                kind: "embedded"
+                clientSecret: string
+                publishableKey: string
+                providerAccountId?: string | null
+                expiresAt?: string | null
+              }
+            | null
           /** Format: uri */
           returnUrl?: string | null
           /** Format: uri */
@@ -2595,6 +2739,7 @@ export interface operations {
               id: string
               /** @enum {string} */
               targetType:
+                | "booking_session"
                 | "booking"
                 | "order"
                 | "invoice"
@@ -2623,6 +2768,7 @@ export interface operations {
                 | "cancelled"
                 | "expired"
               provider: string | null
+              providerConnectionId: string | null
               providerSessionId: string | null
               providerPaymentId: string | null
               externalReference: string | null
@@ -2707,6 +2853,7 @@ export interface operations {
       content: {
         "application/json": {
           provider?: string | null
+          providerConnectionId?: string | null
           providerSessionId?: string | null
           providerPaymentId?: string | null
           externalReference?: string | null
@@ -2741,6 +2888,7 @@ export interface operations {
               id: string
               /** @enum {string} */
               targetType:
+                | "booking_session"
                 | "booking"
                 | "order"
                 | "invoice"
@@ -2769,6 +2917,7 @@ export interface operations {
                 | "cancelled"
                 | "expired"
               provider: string | null
+              providerConnectionId: string | null
               providerSessionId: string | null
               providerPaymentId: string | null
               externalReference: string | null
@@ -2862,6 +3011,7 @@ export interface operations {
               id: string
               /** @enum {string} */
               targetType:
+                | "booking_session"
                 | "booking"
                 | "order"
                 | "invoice"
@@ -2890,6 +3040,7 @@ export interface operations {
                 | "cancelled"
                 | "expired"
               provider: string | null
+              providerConnectionId: string | null
               providerSessionId: string | null
               providerPaymentId: string | null
               externalReference: string | null
@@ -3002,6 +3153,7 @@ export interface operations {
               id: string
               /** @enum {string} */
               targetType:
+                | "booking_session"
                 | "booking"
                 | "order"
                 | "invoice"
@@ -3030,6 +3182,7 @@ export interface operations {
                 | "cancelled"
                 | "expired"
               provider: string | null
+              providerConnectionId: string | null
               providerSessionId: string | null
               providerPaymentId: string | null
               externalReference: string | null
@@ -3112,6 +3265,7 @@ export interface operations {
               id: string
               /** @enum {string} */
               targetType:
+                | "booking_session"
                 | "booking"
                 | "order"
                 | "invoice"
@@ -3140,6 +3294,7 @@ export interface operations {
                 | "cancelled"
                 | "expired"
               provider: string | null
+              providerConnectionId: string | null
               providerSessionId: string | null
               providerPaymentId: string | null
               externalReference: string | null
@@ -3222,6 +3377,7 @@ export interface operations {
               id: string
               /** @enum {string} */
               targetType:
+                | "booking_session"
                 | "booking"
                 | "order"
                 | "invoice"
@@ -3250,6 +3406,7 @@ export interface operations {
                 | "cancelled"
                 | "expired"
               provider: string | null
+              providerConnectionId: string | null
               providerSessionId: string | null
               providerPaymentId: string | null
               externalReference: string | null
@@ -3822,6 +3979,11 @@ export interface operations {
           target?:
             | {
                 /** @enum {string} */
+                type: "booking_session"
+                bookingSessionId: string
+              }
+            | {
+                /** @enum {string} */
                 type: "booking"
                 bookingId: string
               }
@@ -4088,6 +4250,11 @@ export interface operations {
       content: {
         "application/json": {
           target?:
+            | {
+                /** @enum {string} */
+                type: "booking_session"
+                bookingSessionId: string
+              }
             | {
                 /** @enum {string} */
                 type: "booking"
@@ -4655,9 +4822,12 @@ export interface operations {
                 revenueCents: number
                 actualCostCents: number
                 plannedCostCents: number
+                committedCostCents: number
                 profitCents: number
                 marginPercent: number | null
                 varianceCents: number
+                breakEvenRevenueCents: number | null
+                loadFactorPercent: number | null
               }[]
               costByServiceType: {
                 serviceType: string
@@ -4672,6 +4842,24 @@ export interface operations {
                 currency: string
                 amountCents: number
               }[]
+              costCompleteness: {
+                unallocated: {
+                  currency: string
+                  amountCents: number
+                }[]
+                linesMissingCostBlock: number
+                fallbackDepartureCount: number
+                complete: boolean
+              }
+              issues: {
+                code: string
+                /** @enum {string} */
+                severity: "critical" | "warning"
+                /** @enum {string} */
+                subjectType: "departure"
+                subjectId: string
+                message: string
+              }[]
               base?: {
                 currency: string
                 rows: {
@@ -4684,9 +4872,12 @@ export interface operations {
                   revenueCents: number
                   actualCostCents: number
                   plannedCostCents: number
+                  committedCostCents: number
                   profitCents: number
                   marginPercent: number | null
                   varianceCents: number
+                  breakEvenRevenueCents: number | null
+                  loadFactorPercent: number | null
                 }[]
                 costByServiceType: {
                   serviceType: string
@@ -4733,9 +4924,12 @@ export interface operations {
                 revenueCents: number
                 actualCostCents: number
                 plannedCostCents: number
+                committedCostCents: number
                 profitCents: number
                 marginPercent: number | null
                 varianceCents: number
+                breakEvenRevenueCents: number | null
+                loadFactorPercent: number | null
               }[]
               costByServiceType: {
                 serviceType: string
@@ -4750,6 +4944,15 @@ export interface operations {
                 currency: string
                 amountCents: number
               }[]
+              costCompleteness: {
+                unallocated: {
+                  currency: string
+                  amountCents: number
+                }[]
+                linesMissingCostBlock: number
+                fallbackDepartureCount: number
+                complete: boolean
+              }
               base?: {
                 currency: string
                 rows: {
@@ -4760,9 +4963,12 @@ export interface operations {
                   revenueCents: number
                   actualCostCents: number
                   plannedCostCents: number
+                  committedCostCents: number
                   profitCents: number
                   marginPercent: number | null
                   varianceCents: number
+                  breakEvenRevenueCents: number | null
+                  loadFactorPercent: number | null
                 }[]
                 costByServiceType: {
                   serviceType: string
@@ -5151,6 +5357,7 @@ export interface operations {
               id: string
               bookingId: string
               bookingItemId: string | null
+              amendmentId: string | null
               /** @enum {string} */
               scheduleType: "deposit" | "installment" | "balance" | "hold" | "other"
               /** @enum {string} */
@@ -5215,6 +5422,7 @@ export interface operations {
               id: string
               bookingId: string
               bookingItemId: string | null
+              amendmentId: string | null
               /** @enum {string} */
               scheduleType: "deposit" | "installment" | "balance" | "hold" | "other"
               /** @enum {string} */
@@ -5325,6 +5533,7 @@ export interface operations {
               id: string
               bookingId: string
               bookingItemId: string | null
+              amendmentId: string | null
               /** @enum {string} */
               scheduleType: "deposit" | "installment" | "balance" | "hold" | "other"
               /** @enum {string} */
@@ -5448,6 +5657,7 @@ export interface operations {
               id: string
               bookingId: string
               bookingItemId: string | null
+              amendmentId: string | null
               /** @enum {string} */
               scheduleType: "deposit" | "installment" | "balance" | "hold" | "other"
               /** @enum {string} */
@@ -5524,6 +5734,11 @@ export interface operations {
           target?:
             | {
                 /** @enum {string} */
+                type: "booking_session"
+                bookingSessionId: string
+              }
+            | {
+                /** @enum {string} */
                 type: "booking"
                 bookingId: string
               }
@@ -5591,6 +5806,7 @@ export interface operations {
             idempotencyKey?: string | null
           }
           provider?: string | null
+          providerConnectionId?: string | null
           /** @enum {string|null} */
           paymentMethod?:
             | "bank_transfer"
@@ -5640,6 +5856,7 @@ export interface operations {
               id: string
               /** @enum {string} */
               targetType:
+                | "booking_session"
                 | "booking"
                 | "order"
                 | "invoice"
@@ -5668,6 +5885,7 @@ export interface operations {
                 | "cancelled"
                 | "expired"
               provider: string | null
+              providerConnectionId: string | null
               providerSessionId: string | null
               providerPaymentId: string | null
               externalReference: string | null
@@ -5927,6 +6145,11 @@ export interface operations {
           target?:
             | {
                 /** @enum {string} */
+                type: "booking_session"
+                bookingSessionId: string
+              }
+            | {
+                /** @enum {string} */
                 type: "booking"
                 bookingId: string
               }
@@ -5994,6 +6217,7 @@ export interface operations {
             idempotencyKey?: string | null
           }
           provider?: string | null
+          providerConnectionId?: string | null
           /** @enum {string|null} */
           paymentMethod?:
             | "bank_transfer"
@@ -6043,6 +6267,7 @@ export interface operations {
               id: string
               /** @enum {string} */
               targetType:
+                | "booking_session"
                 | "booking"
                 | "order"
                 | "invoice"
@@ -6071,6 +6296,7 @@ export interface operations {
                 | "cancelled"
                 | "expired"
               provider: string | null
+              providerConnectionId: string | null
               providerSessionId: string | null
               providerPaymentId: string | null
               externalReference: string | null
@@ -7735,7 +7961,7 @@ export interface operations {
       path?: never
       cookie?: never
     }
-    /** @description Create + issue an invoice or proforma from a booking (and optionally a payment schedule). `invoiceType` selects invoice vs proforma; `bookingPaymentScheduleId`, when present, must belong to the booking. */
+    /** @description Create + issue an invoice or proforma from a booking (and optionally a payment schedule). `invoiceType` selects invoice vs proforma; `bookingPaymentScheduleId`, when present, must belong to the booking. Pass `externalDocument` when the operator already issued a fiscal document for this sale in their accounting provider — the invoice is recorded against that document and no second one is requested. If the booking already carries a live external document the request is refused with `duplicate_external_document`; `acknowledgeExistingExternalDocument: true` overrides it. */
     requestBody: {
       content: {
         "application/json": {
@@ -7780,6 +8006,17 @@ export interface operations {
            */
           invoiceType?: "invoice" | "proforma"
           skipExternalSync?: boolean
+          externalDocument?: {
+            provider: string
+            series?: string | null
+            number: string
+            externalId?: string | null
+            externalUrl?: string | null
+            issuedAt?: string | null
+            note?: string | null
+          }
+          /** @enum {boolean} */
+          acknowledgeExistingExternalDocument?: true
           /** @enum {string} */
           wait?: "none" | "pdf" | "any"
           waitTimeoutMs?: number | null
@@ -7865,7 +8102,7 @@ export interface operations {
           }
         }
       }
-      /** @description Invoice number allocation failed, the invoice number already exists, or the booking failed issuance validation */
+      /** @description Invoice number allocation failed, the invoice number already exists, the booking failed issuance validation, or the booking already has a live fiscal document in an accounting provider (`duplicate_external_document`) */
       409: {
         headers: {
           [name: string]: unknown
@@ -7964,6 +8201,10 @@ export interface operations {
         content: {
           "application/json": {
             error: string
+            code?: string
+            invoiceNumber?: string
+            existingInvoiceId?: string | null
+            existingInvoiceNumber?: string | null
           }
         }
       }
@@ -8360,6 +8601,11 @@ export interface operations {
           target?:
             | {
                 /** @enum {string} */
+                type: "booking_session"
+                bookingSessionId: string
+              }
+            | {
+                /** @enum {string} */
                 type: "booking"
                 bookingId: string
               }
@@ -8427,6 +8673,7 @@ export interface operations {
             idempotencyKey?: string | null
           }
           provider?: string | null
+          providerConnectionId?: string | null
           /** @enum {string|null} */
           paymentMethod?:
             | "bank_transfer"
@@ -8476,6 +8723,7 @@ export interface operations {
               id: string
               /** @enum {string} */
               targetType:
+                | "booking_session"
                 | "booking"
                 | "order"
                 | "invoice"
@@ -8504,6 +8752,7 @@ export interface operations {
                 | "cancelled"
                 | "expired"
               provider: string | null
+              providerConnectionId: string | null
               providerSessionId: string | null
               providerPaymentId: string | null
               externalReference: string | null
@@ -12401,6 +12650,1245 @@ export interface operations {
       }
     }
   }
+  getAdminFinancePaymentDisputes: {
+    parameters: {
+      query?: {
+        limit?: number
+        offset?: number | null
+        bookingId?: string
+        paymentSessionId?: string
+        invoiceId?: string
+        status?: "opened" | "under_review" | "won" | "lost" | "withdrawn"
+        open?: "0" | "1" | "true" | "false"
+        provider?: string
+        processorReference?: string
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Card disputes */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              paymentSessionId: string
+              bookingId: string | null
+              invoiceId: string | null
+              paymentId: string | null
+              /** @enum {string} */
+              status: "opened" | "under_review" | "won" | "lost" | "withdrawn"
+              amountCents: number
+              currency: string
+              openedAt: string
+              respondBy: string | null
+              processorReference: string | null
+              provider: string | null
+              providerConnectionId: string | null
+              reasonCode: string | null
+              resolvedAt: string | null
+              resolutionNote: string | null
+              evidenceSubmittedAt: string | null
+              notes: string | null
+              providerPayload: {
+                [key: string]: unknown
+              } | null
+              metadata: {
+                [key: string]: unknown
+              } | null
+              createdAt: string
+              updatedAt: string
+            }[]
+            total: number
+            limit: number
+            offset: number
+          }
+        }
+      }
+    }
+  }
+  postAdminFinancePaymentDisputes: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          paymentSessionId: string
+          processorReference?: string | null
+          /**
+           * @default opened
+           * @enum {string}
+           */
+          status?: "opened" | "under_review" | "won" | "lost" | "withdrawn"
+          amountCents: number
+          currency?: string | null
+          openedAt?: string | null
+          respondBy?: string | null
+          reasonCode?: string | null
+          resolvedAt?: string | null
+          resolutionNote?: string | null
+          evidenceSubmittedAt?: string | null
+          provider?: string | null
+          providerConnectionId?: string | null
+          notes?: string | null
+          providerPayload?: {
+            [key: string]: unknown
+          } | null
+          metadata?: {
+            [key: string]: unknown
+          } | null
+        }
+      }
+    }
+    responses: {
+      /** @description The recorded dispute */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              paymentSessionId: string
+              bookingId: string | null
+              invoiceId: string | null
+              paymentId: string | null
+              /** @enum {string} */
+              status: "opened" | "under_review" | "won" | "lost" | "withdrawn"
+              amountCents: number
+              currency: string
+              openedAt: string
+              respondBy: string | null
+              processorReference: string | null
+              provider: string | null
+              providerConnectionId: string | null
+              reasonCode: string | null
+              resolvedAt: string | null
+              resolutionNote: string | null
+              evidenceSubmittedAt: string | null
+              notes: string | null
+              providerPayload: {
+                [key: string]: unknown
+              } | null
+              metadata: {
+                [key: string]: unknown
+              } | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description The contested payment session does not exist */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description The contested amount exceeds the payment */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+            code: string
+          }
+        }
+      }
+    }
+  }
+  getAdminFinancePaymentDisputesById: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description The dispute */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              paymentSessionId: string
+              bookingId: string | null
+              invoiceId: string | null
+              paymentId: string | null
+              /** @enum {string} */
+              status: "opened" | "under_review" | "won" | "lost" | "withdrawn"
+              amountCents: number
+              currency: string
+              openedAt: string
+              respondBy: string | null
+              processorReference: string | null
+              provider: string | null
+              providerConnectionId: string | null
+              reasonCode: string | null
+              resolvedAt: string | null
+              resolutionNote: string | null
+              evidenceSubmittedAt: string | null
+              notes: string | null
+              providerPayload: {
+                [key: string]: unknown
+              } | null
+              metadata: {
+                [key: string]: unknown
+              } | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description Dispute not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  patchAdminFinancePaymentDisputesById: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          /** @enum {string} */
+          status?: "opened" | "under_review" | "won" | "lost" | "withdrawn"
+          respondBy?: string | null
+          reasonCode?: string | null
+          resolvedAt?: string | null
+          resolutionNote?: string | null
+          evidenceSubmittedAt?: string | null
+          notes?: string | null
+          metadata?: {
+            [key: string]: unknown
+          } | null
+        }
+      }
+    }
+    responses: {
+      /** @description The updated dispute */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              paymentSessionId: string
+              bookingId: string | null
+              invoiceId: string | null
+              paymentId: string | null
+              /** @enum {string} */
+              status: "opened" | "under_review" | "won" | "lost" | "withdrawn"
+              amountCents: number
+              currency: string
+              openedAt: string
+              respondBy: string | null
+              processorReference: string | null
+              provider: string | null
+              providerConnectionId: string | null
+              reasonCode: string | null
+              resolvedAt: string | null
+              resolutionNote: string | null
+              evidenceSubmittedAt: string | null
+              notes: string | null
+              providerPayload: {
+                [key: string]: unknown
+              } | null
+              metadata: {
+                [key: string]: unknown
+              } | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description Dispute not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description The dispute cannot move to that status */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+            code: string
+          }
+        }
+      }
+    }
+  }
+  getAdminFinanceBookingsByBookingIdDisputes: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        bookingId: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description The booking's disputes and what is still contested */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              bookingId: string
+              disputes: {
+                id: string
+                paymentSessionId: string
+                bookingId: string | null
+                invoiceId: string | null
+                paymentId: string | null
+                /** @enum {string} */
+                status: "opened" | "under_review" | "won" | "lost" | "withdrawn"
+                amountCents: number
+                currency: string
+                openedAt: string
+                respondBy: string | null
+                processorReference: string | null
+                provider: string | null
+                providerConnectionId: string | null
+                reasonCode: string | null
+                resolvedAt: string | null
+                resolutionNote: string | null
+                evidenceSubmittedAt: string | null
+                notes: string | null
+                providerPayload: {
+                  [key: string]: unknown
+                } | null
+                metadata: {
+                  [key: string]: unknown
+                } | null
+                createdAt: string
+                updatedAt: string
+              }[]
+              hasOpenDispute: boolean
+              openContestedAmountsByCurrency: {
+                [key: string]: number
+              }
+              nextRespondBy: string | null
+            }
+          }
+        }
+      }
+    }
+  }
+  getAdminFinanceRefundSettlements: {
+    parameters: {
+      query?: {
+        limit?: number
+        offset?: number | null
+        bookingId?: string
+        creditNoteId?: string
+        paymentId?: string
+        invoiceId?: string
+        paymentSessionId?: string
+        method?:
+          | "processor_reversal"
+          | "bank_transfer"
+          | "cash"
+          | "cheque"
+          | "travel_credit"
+          | "voucher"
+          | "counterparty_offset"
+          | "other"
+        status?: "pending" | "settled" | "failed"
+        owed?: "0" | "1" | "true" | "false"
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Refund settlements */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              creditNoteId: string | null
+              paymentId: string | null
+              invoiceId: string | null
+              paymentSessionId: string | null
+              bookingId: string | null
+              /** @enum {string} */
+              method:
+                | "processor_reversal"
+                | "bank_transfer"
+                | "cash"
+                | "cheque"
+                | "travel_credit"
+                | "voucher"
+                | "counterparty_offset"
+                | "other"
+              /** @enum {string} */
+              status: "pending" | "settled" | "failed"
+              amountCents: number
+              currency: string
+              instrumentAmountCents: number | null
+              instrumentCurrency: string | null
+              travelCreditId: string | null
+              counterpartyOrganizationId: string | null
+              counterpartyPersonId: string | null
+              externalReference: string | null
+              provider: string | null
+              providerConnectionId: string | null
+              processorReference: string | null
+              authorizedByUserId: string | null
+              approvalId: string | null
+              requestedActionId: string | null
+              idempotencyKey: string | null
+              initiatedAt: string
+              settledAt: string | null
+              failedAt: string | null
+              failureReason: string | null
+              notes: string | null
+              providerPayload: {
+                [key: string]: unknown
+              } | null
+              metadata: {
+                [key: string]: unknown
+              } | null
+              createdAt: string
+              updatedAt: string
+            }[]
+            total: number
+            limit: number
+            offset: number
+          }
+        }
+      }
+    }
+  }
+  postAdminFinanceRefundSettlements: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          creditNoteId?: string | null
+          paymentId?: string | null
+          invoiceId?: string | null
+          paymentSessionId?: string | null
+          /** @enum {string} */
+          method:
+            | "processor_reversal"
+            | "bank_transfer"
+            | "cash"
+            | "cheque"
+            | "travel_credit"
+            | "voucher"
+            | "counterparty_offset"
+            | "other"
+          /**
+           * @default pending
+           * @enum {string}
+           */
+          status?: "pending" | "settled" | "failed"
+          amountCents: number
+          currency?: string | null
+          instrumentAmountCents?: number | null
+          instrumentCurrency?: string | null
+          travelCreditId?: string | null
+          counterpartyOrganizationId?: string | null
+          counterpartyPersonId?: string | null
+          externalReference?: string | null
+          provider?: string | null
+          providerConnectionId?: string | null
+          processorReference?: string | null
+          authorizedByUserId?: string | null
+          approvalId?: string
+          requestedActionId?: string | null
+          idempotencyKey: string
+          initiatedAt?: string | null
+          settledAt?: string | null
+          failedAt?: string | null
+          failureReason?: string | null
+          notes?: string | null
+          providerPayload?: {
+            [key: string]: unknown
+          } | null
+          metadata?: {
+            [key: string]: unknown
+          } | null
+        }
+      }
+    }
+    responses: {
+      /** @description The recorded settlement */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              creditNoteId: string | null
+              paymentId: string | null
+              invoiceId: string | null
+              paymentSessionId: string | null
+              bookingId: string | null
+              /** @enum {string} */
+              method:
+                | "processor_reversal"
+                | "bank_transfer"
+                | "cash"
+                | "cheque"
+                | "travel_credit"
+                | "voucher"
+                | "counterparty_offset"
+                | "other"
+              /** @enum {string} */
+              status: "pending" | "settled" | "failed"
+              amountCents: number
+              currency: string
+              instrumentAmountCents: number | null
+              instrumentCurrency: string | null
+              travelCreditId: string | null
+              counterpartyOrganizationId: string | null
+              counterpartyPersonId: string | null
+              externalReference: string | null
+              provider: string | null
+              providerConnectionId: string | null
+              processorReference: string | null
+              authorizedByUserId: string | null
+              approvalId: string | null
+              requestedActionId: string | null
+              idempotencyKey: string | null
+              initiatedAt: string
+              settledAt: string | null
+              failedAt: string | null
+              failureReason: string | null
+              notes: string | null
+              providerPayload: {
+                [key: string]: unknown
+              } | null
+              metadata: {
+                [key: string]: unknown
+              } | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description The refund needs approval before the money moves */
+      202: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            /** @enum {string} */
+            status: "approval_required"
+            requestedAction: {
+              id: string
+              status: string
+              actionName: string
+              targetType: string
+              targetId: string | null
+            }
+            approval: {
+              id: string
+              status: string
+              requestedActionId: string
+              policyName: string
+              policyVersion: string
+              riskSnapshot: string
+              reasonCode: string | null
+              expiresAt: string | null
+              createdAt: string
+            }
+            replayed: boolean
+          }
+        }
+      }
+      /** @description The caller may not refund */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description What the settlement claims to reverse does not exist */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description The amount exceeds what is still refundable */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+            code: string
+          }
+        }
+      }
+    }
+  }
+  getAdminFinanceRefundSettlementsById: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description The settlement */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              creditNoteId: string | null
+              paymentId: string | null
+              invoiceId: string | null
+              paymentSessionId: string | null
+              bookingId: string | null
+              /** @enum {string} */
+              method:
+                | "processor_reversal"
+                | "bank_transfer"
+                | "cash"
+                | "cheque"
+                | "travel_credit"
+                | "voucher"
+                | "counterparty_offset"
+                | "other"
+              /** @enum {string} */
+              status: "pending" | "settled" | "failed"
+              amountCents: number
+              currency: string
+              instrumentAmountCents: number | null
+              instrumentCurrency: string | null
+              travelCreditId: string | null
+              counterpartyOrganizationId: string | null
+              counterpartyPersonId: string | null
+              externalReference: string | null
+              provider: string | null
+              providerConnectionId: string | null
+              processorReference: string | null
+              authorizedByUserId: string | null
+              approvalId: string | null
+              requestedActionId: string | null
+              idempotencyKey: string | null
+              initiatedAt: string
+              settledAt: string | null
+              failedAt: string | null
+              failureReason: string | null
+              notes: string | null
+              providerPayload: {
+                [key: string]: unknown
+              } | null
+              metadata: {
+                [key: string]: unknown
+              } | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description Settlement not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  patchAdminFinanceRefundSettlementsById: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          /** @enum {string} */
+          status?: "pending" | "settled" | "failed"
+          externalReference?: string | null
+          processorReference?: string | null
+          settledAt?: string | null
+          failedAt?: string | null
+          failureReason?: string | null
+          notes?: string | null
+          providerPayload?: {
+            [key: string]: unknown
+          } | null
+          metadata?: {
+            [key: string]: unknown
+          } | null
+        }
+      }
+    }
+    responses: {
+      /** @description The updated settlement */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              creditNoteId: string | null
+              paymentId: string | null
+              invoiceId: string | null
+              paymentSessionId: string | null
+              bookingId: string | null
+              /** @enum {string} */
+              method:
+                | "processor_reversal"
+                | "bank_transfer"
+                | "cash"
+                | "cheque"
+                | "travel_credit"
+                | "voucher"
+                | "counterparty_offset"
+                | "other"
+              /** @enum {string} */
+              status: "pending" | "settled" | "failed"
+              amountCents: number
+              currency: string
+              instrumentAmountCents: number | null
+              instrumentCurrency: string | null
+              travelCreditId: string | null
+              counterpartyOrganizationId: string | null
+              counterpartyPersonId: string | null
+              externalReference: string | null
+              provider: string | null
+              providerConnectionId: string | null
+              processorReference: string | null
+              authorizedByUserId: string | null
+              approvalId: string | null
+              requestedActionId: string | null
+              idempotencyKey: string | null
+              initiatedAt: string
+              settledAt: string | null
+              failedAt: string | null
+              failureReason: string | null
+              notes: string | null
+              providerPayload: {
+                [key: string]: unknown
+              } | null
+              metadata: {
+                [key: string]: unknown
+              } | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description Settlement not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description The settlement cannot move to that status */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+            code: string
+          }
+        }
+      }
+    }
+  }
+  postAdminFinanceRefundSettlementsByIdExecute: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description The settlement after the adapter answered */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              creditNoteId: string | null
+              paymentId: string | null
+              invoiceId: string | null
+              paymentSessionId: string | null
+              bookingId: string | null
+              /** @enum {string} */
+              method:
+                | "processor_reversal"
+                | "bank_transfer"
+                | "cash"
+                | "cheque"
+                | "travel_credit"
+                | "voucher"
+                | "counterparty_offset"
+                | "other"
+              /** @enum {string} */
+              status: "pending" | "settled" | "failed"
+              amountCents: number
+              currency: string
+              instrumentAmountCents: number | null
+              instrumentCurrency: string | null
+              travelCreditId: string | null
+              counterpartyOrganizationId: string | null
+              counterpartyPersonId: string | null
+              externalReference: string | null
+              provider: string | null
+              providerConnectionId: string | null
+              processorReference: string | null
+              authorizedByUserId: string | null
+              approvalId: string | null
+              requestedActionId: string | null
+              idempotencyKey: string | null
+              initiatedAt: string
+              settledAt: string | null
+              failedAt: string | null
+              failureReason: string | null
+              notes: string | null
+              providerPayload: {
+                [key: string]: unknown
+              } | null
+              metadata: {
+                [key: string]: unknown
+              } | null
+              createdAt: string
+              updatedAt: string
+            }
+            /** @enum {string} */
+            outcome: "settled" | "pending" | "failed" | "indeterminate" | "not_applicable"
+            reason?: string
+          }
+        }
+      }
+      /** @description Settlement not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description This deployment has no payment adapter that can refund */
+      501: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getAdminFinancePaymentsByPaymentIdRefundable: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        paymentId: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description The refundable remainder */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              paymentId: string
+              currency: string
+              paidAmountCents: number
+              settledCents: number
+              pendingCents: number
+              failedCents: number
+              refundableRemainderCents: number
+            }
+          }
+        }
+      }
+      /** @description Payment not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getAdminFinanceBookingsByBookingIdRefundSettlements: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        bookingId: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description The booking's refund settlements and what is still owed */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              bookingId: string
+              settlements: {
+                id: string
+                creditNoteId: string | null
+                paymentId: string | null
+                invoiceId: string | null
+                paymentSessionId: string | null
+                bookingId: string | null
+                /** @enum {string} */
+                method:
+                  | "processor_reversal"
+                  | "bank_transfer"
+                  | "cash"
+                  | "cheque"
+                  | "travel_credit"
+                  | "voucher"
+                  | "counterparty_offset"
+                  | "other"
+                /** @enum {string} */
+                status: "pending" | "settled" | "failed"
+                amountCents: number
+                currency: string
+                instrumentAmountCents: number | null
+                instrumentCurrency: string | null
+                travelCreditId: string | null
+                counterpartyOrganizationId: string | null
+                counterpartyPersonId: string | null
+                externalReference: string | null
+                provider: string | null
+                providerConnectionId: string | null
+                processorReference: string | null
+                authorizedByUserId: string | null
+                approvalId: string | null
+                requestedActionId: string | null
+                idempotencyKey: string | null
+                initiatedAt: string
+                settledAt: string | null
+                failedAt: string | null
+                failureReason: string | null
+                notes: string | null
+                providerPayload: {
+                  [key: string]: unknown
+                } | null
+                metadata: {
+                  [key: string]: unknown
+                } | null
+                createdAt: string
+                updatedAt: string
+              }[]
+              hasOwedRefund: boolean
+              owedAmountsByCurrency: {
+                [key: string]: number
+              }
+              settledAmountsByCurrency: {
+                [key: string]: number
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  postAdminFinanceInvoicesByIdFxStamp: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: {
+      content: {
+        "application/json": {
+          rate?: number
+          source?: string
+          force?: boolean
+        }
+      }
+    }
+    responses: {
+      /** @description The FX stamp written onto the document */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              documentId: string
+              currency: string
+              reportingCurrency: string
+              rate: number
+              effectiveRate: number
+              commissionBps: number
+              fxRateSetId: string | null
+              reportingAmountCents: number
+            }
+          }
+        }
+      }
+      /** @description invalid_request, or the document cannot carry an FX stamp */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Document not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description The document already carries an FX stamp */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description No rate is available for the document's date */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  postAdminFinancePaymentsByIdFxStamp: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: {
+      content: {
+        "application/json": {
+          rate?: number
+          source?: string
+          force?: boolean
+        }
+      }
+    }
+    responses: {
+      /** @description The FX stamp written onto the document */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              documentId: string
+              currency: string
+              reportingCurrency: string
+              rate: number
+              effectiveRate: number
+              commissionBps: number
+              fxRateSetId: string | null
+              reportingAmountCents: number
+            }
+          }
+        }
+      }
+      /** @description invalid_request, or the document cannot carry an FX stamp */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Document not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description The document already carries an FX stamp */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description No rate is available for the document's date */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
   getAdminFinanceInvoicesByIdActionLedger: {
     parameters: {
       query?: {
@@ -14289,1245 +15777,6 @@ export interface operations {
       }
       /** @description Invoice not found */
       404: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          "application/json": {
-            error: string
-          }
-        }
-      }
-    }
-  }
-  getAdminFinancePaymentDisputes: {
-    parameters: {
-      query?: {
-        limit?: number
-        offset?: number | null
-        bookingId?: string
-        paymentSessionId?: string
-        invoiceId?: string
-        status?: "opened" | "under_review" | "won" | "lost" | "withdrawn"
-        open?: "0" | "1" | "true" | "false"
-        provider?: string
-        processorReference?: string
-      }
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    requestBody?: never
-    responses: {
-      /** @description Card disputes */
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          "application/json": {
-            data: {
-              id: string
-              paymentSessionId: string
-              bookingId: string | null
-              invoiceId: string | null
-              paymentId: string | null
-              /** @enum {string} */
-              status: "opened" | "under_review" | "won" | "lost" | "withdrawn"
-              amountCents: number
-              currency: string
-              openedAt: string
-              respondBy: string | null
-              processorReference: string | null
-              provider: string | null
-              providerConnectionId: string | null
-              reasonCode: string | null
-              resolvedAt: string | null
-              resolutionNote: string | null
-              evidenceSubmittedAt: string | null
-              notes: string | null
-              providerPayload: {
-                [key: string]: unknown
-              } | null
-              metadata: {
-                [key: string]: unknown
-              } | null
-              createdAt: string
-              updatedAt: string
-            }[]
-            total: number
-            limit: number
-            offset: number
-          }
-        }
-      }
-    }
-  }
-  postAdminFinancePaymentDisputes: {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    requestBody: {
-      content: {
-        "application/json": {
-          paymentSessionId: string
-          processorReference?: string | null
-          /**
-           * @default opened
-           * @enum {string}
-           */
-          status?: "opened" | "under_review" | "won" | "lost" | "withdrawn"
-          amountCents: number
-          currency?: string | null
-          openedAt?: string | null
-          respondBy?: string | null
-          reasonCode?: string | null
-          resolvedAt?: string | null
-          resolutionNote?: string | null
-          evidenceSubmittedAt?: string | null
-          provider?: string | null
-          providerConnectionId?: string | null
-          notes?: string | null
-          providerPayload?: {
-            [key: string]: unknown
-          } | null
-          metadata?: {
-            [key: string]: unknown
-          } | null
-        }
-      }
-    }
-    responses: {
-      /** @description The recorded dispute */
-      201: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          "application/json": {
-            data: {
-              id: string
-              paymentSessionId: string
-              bookingId: string | null
-              invoiceId: string | null
-              paymentId: string | null
-              /** @enum {string} */
-              status: "opened" | "under_review" | "won" | "lost" | "withdrawn"
-              amountCents: number
-              currency: string
-              openedAt: string
-              respondBy: string | null
-              processorReference: string | null
-              provider: string | null
-              providerConnectionId: string | null
-              reasonCode: string | null
-              resolvedAt: string | null
-              resolutionNote: string | null
-              evidenceSubmittedAt: string | null
-              notes: string | null
-              providerPayload: {
-                [key: string]: unknown
-              } | null
-              metadata: {
-                [key: string]: unknown
-              } | null
-              createdAt: string
-              updatedAt: string
-            }
-          }
-        }
-      }
-      /** @description The contested payment session does not exist */
-      404: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          "application/json": {
-            error: string
-          }
-        }
-      }
-      /** @description The contested amount exceeds the payment */
-      409: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          "application/json": {
-            error: string
-            code: string
-          }
-        }
-      }
-    }
-  }
-  getAdminFinancePaymentDisputesById: {
-    parameters: {
-      query?: never
-      header?: never
-      path: {
-        id: string
-      }
-      cookie?: never
-    }
-    requestBody?: never
-    responses: {
-      /** @description The dispute */
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          "application/json": {
-            data: {
-              id: string
-              paymentSessionId: string
-              bookingId: string | null
-              invoiceId: string | null
-              paymentId: string | null
-              /** @enum {string} */
-              status: "opened" | "under_review" | "won" | "lost" | "withdrawn"
-              amountCents: number
-              currency: string
-              openedAt: string
-              respondBy: string | null
-              processorReference: string | null
-              provider: string | null
-              providerConnectionId: string | null
-              reasonCode: string | null
-              resolvedAt: string | null
-              resolutionNote: string | null
-              evidenceSubmittedAt: string | null
-              notes: string | null
-              providerPayload: {
-                [key: string]: unknown
-              } | null
-              metadata: {
-                [key: string]: unknown
-              } | null
-              createdAt: string
-              updatedAt: string
-            }
-          }
-        }
-      }
-      /** @description Dispute not found */
-      404: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          "application/json": {
-            error: string
-          }
-        }
-      }
-    }
-  }
-  patchAdminFinancePaymentDisputesById: {
-    parameters: {
-      query?: never
-      header?: never
-      path: {
-        id: string
-      }
-      cookie?: never
-    }
-    requestBody: {
-      content: {
-        "application/json": {
-          /** @enum {string} */
-          status?: "opened" | "under_review" | "won" | "lost" | "withdrawn"
-          respondBy?: string | null
-          reasonCode?: string | null
-          resolvedAt?: string | null
-          resolutionNote?: string | null
-          evidenceSubmittedAt?: string | null
-          notes?: string | null
-          metadata?: {
-            [key: string]: unknown
-          } | null
-        }
-      }
-    }
-    responses: {
-      /** @description The updated dispute */
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          "application/json": {
-            data: {
-              id: string
-              paymentSessionId: string
-              bookingId: string | null
-              invoiceId: string | null
-              paymentId: string | null
-              /** @enum {string} */
-              status: "opened" | "under_review" | "won" | "lost" | "withdrawn"
-              amountCents: number
-              currency: string
-              openedAt: string
-              respondBy: string | null
-              processorReference: string | null
-              provider: string | null
-              providerConnectionId: string | null
-              reasonCode: string | null
-              resolvedAt: string | null
-              resolutionNote: string | null
-              evidenceSubmittedAt: string | null
-              notes: string | null
-              providerPayload: {
-                [key: string]: unknown
-              } | null
-              metadata: {
-                [key: string]: unknown
-              } | null
-              createdAt: string
-              updatedAt: string
-            }
-          }
-        }
-      }
-      /** @description Dispute not found */
-      404: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          "application/json": {
-            error: string
-          }
-        }
-      }
-      /** @description The dispute cannot move to that status */
-      409: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          "application/json": {
-            error: string
-            code: string
-          }
-        }
-      }
-    }
-  }
-  getAdminFinanceBookingsByBookingIdDisputes: {
-    parameters: {
-      query?: never
-      header?: never
-      path: {
-        bookingId: string
-      }
-      cookie?: never
-    }
-    requestBody?: never
-    responses: {
-      /** @description The booking's disputes and what is still contested */
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          "application/json": {
-            data: {
-              bookingId: string
-              disputes: {
-                id: string
-                paymentSessionId: string
-                bookingId: string | null
-                invoiceId: string | null
-                paymentId: string | null
-                /** @enum {string} */
-                status: "opened" | "under_review" | "won" | "lost" | "withdrawn"
-                amountCents: number
-                currency: string
-                openedAt: string
-                respondBy: string | null
-                processorReference: string | null
-                provider: string | null
-                providerConnectionId: string | null
-                reasonCode: string | null
-                resolvedAt: string | null
-                resolutionNote: string | null
-                evidenceSubmittedAt: string | null
-                notes: string | null
-                providerPayload: {
-                  [key: string]: unknown
-                } | null
-                metadata: {
-                  [key: string]: unknown
-                } | null
-                createdAt: string
-                updatedAt: string
-              }[]
-              hasOpenDispute: boolean
-              openContestedAmountsByCurrency: {
-                [key: string]: number
-              }
-              nextRespondBy: string | null
-            }
-          }
-        }
-      }
-    }
-  }
-  getAdminFinanceRefundSettlements: {
-    parameters: {
-      query?: {
-        limit?: number
-        offset?: number | null
-        bookingId?: string
-        creditNoteId?: string
-        paymentId?: string
-        invoiceId?: string
-        paymentSessionId?: string
-        method?:
-          | "processor_reversal"
-          | "bank_transfer"
-          | "cash"
-          | "cheque"
-          | "travel_credit"
-          | "voucher"
-          | "counterparty_offset"
-          | "other"
-        status?: "pending" | "settled" | "failed"
-        owed?: "0" | "1" | "true" | "false"
-      }
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    requestBody?: never
-    responses: {
-      /** @description Refund settlements */
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          "application/json": {
-            data: {
-              id: string
-              creditNoteId: string | null
-              paymentId: string | null
-              invoiceId: string | null
-              paymentSessionId: string | null
-              bookingId: string | null
-              /** @enum {string} */
-              method:
-                | "processor_reversal"
-                | "bank_transfer"
-                | "cash"
-                | "cheque"
-                | "travel_credit"
-                | "voucher"
-                | "counterparty_offset"
-                | "other"
-              /** @enum {string} */
-              status: "pending" | "settled" | "failed"
-              amountCents: number
-              currency: string
-              instrumentAmountCents: number | null
-              instrumentCurrency: string | null
-              travelCreditId: string | null
-              counterpartyOrganizationId: string | null
-              counterpartyPersonId: string | null
-              externalReference: string | null
-              provider: string | null
-              providerConnectionId: string | null
-              processorReference: string | null
-              authorizedByUserId: string | null
-              approvalId: string | null
-              requestedActionId: string | null
-              idempotencyKey: string | null
-              initiatedAt: string
-              settledAt: string | null
-              failedAt: string | null
-              failureReason: string | null
-              notes: string | null
-              providerPayload: {
-                [key: string]: unknown
-              } | null
-              metadata: {
-                [key: string]: unknown
-              } | null
-              createdAt: string
-              updatedAt: string
-            }[]
-            total: number
-            limit: number
-            offset: number
-          }
-        }
-      }
-    }
-  }
-  postAdminFinanceRefundSettlements: {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    requestBody: {
-      content: {
-        "application/json": {
-          creditNoteId?: string | null
-          paymentId?: string | null
-          invoiceId?: string | null
-          paymentSessionId?: string | null
-          /** @enum {string} */
-          method:
-            | "processor_reversal"
-            | "bank_transfer"
-            | "cash"
-            | "cheque"
-            | "travel_credit"
-            | "voucher"
-            | "counterparty_offset"
-            | "other"
-          /**
-           * @default pending
-           * @enum {string}
-           */
-          status?: "pending" | "settled" | "failed"
-          amountCents: number
-          currency?: string | null
-          instrumentAmountCents?: number | null
-          instrumentCurrency?: string | null
-          travelCreditId?: string | null
-          counterpartyOrganizationId?: string | null
-          counterpartyPersonId?: string | null
-          externalReference?: string | null
-          provider?: string | null
-          providerConnectionId?: string | null
-          processorReference?: string | null
-          authorizedByUserId?: string | null
-          approvalId?: string
-          requestedActionId?: string | null
-          idempotencyKey: string
-          initiatedAt?: string | null
-          settledAt?: string | null
-          failedAt?: string | null
-          failureReason?: string | null
-          notes?: string | null
-          providerPayload?: {
-            [key: string]: unknown
-          } | null
-          metadata?: {
-            [key: string]: unknown
-          } | null
-        }
-      }
-    }
-    responses: {
-      /** @description The recorded settlement */
-      201: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          "application/json": {
-            data: {
-              id: string
-              creditNoteId: string | null
-              paymentId: string | null
-              invoiceId: string | null
-              paymentSessionId: string | null
-              bookingId: string | null
-              /** @enum {string} */
-              method:
-                | "processor_reversal"
-                | "bank_transfer"
-                | "cash"
-                | "cheque"
-                | "travel_credit"
-                | "voucher"
-                | "counterparty_offset"
-                | "other"
-              /** @enum {string} */
-              status: "pending" | "settled" | "failed"
-              amountCents: number
-              currency: string
-              instrumentAmountCents: number | null
-              instrumentCurrency: string | null
-              travelCreditId: string | null
-              counterpartyOrganizationId: string | null
-              counterpartyPersonId: string | null
-              externalReference: string | null
-              provider: string | null
-              providerConnectionId: string | null
-              processorReference: string | null
-              authorizedByUserId: string | null
-              approvalId: string | null
-              requestedActionId: string | null
-              idempotencyKey: string | null
-              initiatedAt: string
-              settledAt: string | null
-              failedAt: string | null
-              failureReason: string | null
-              notes: string | null
-              providerPayload: {
-                [key: string]: unknown
-              } | null
-              metadata: {
-                [key: string]: unknown
-              } | null
-              createdAt: string
-              updatedAt: string
-            }
-          }
-        }
-      }
-      /** @description The refund needs approval before the money moves */
-      202: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          "application/json": {
-            /** @enum {string} */
-            status: "approval_required"
-            requestedAction: {
-              id: string
-              status: string
-              actionName: string
-              targetType: string
-              targetId: string | null
-            }
-            approval: {
-              id: string
-              status: string
-              requestedActionId: string
-              policyName: string
-              policyVersion: string
-              riskSnapshot: string
-              reasonCode: string | null
-              expiresAt: string | null
-              createdAt: string
-            }
-            replayed: boolean
-          }
-        }
-      }
-      /** @description The caller may not refund */
-      403: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          "application/json": {
-            error: string
-          }
-        }
-      }
-      /** @description What the settlement claims to reverse does not exist */
-      404: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          "application/json": {
-            error: string
-          }
-        }
-      }
-      /** @description The amount exceeds what is still refundable */
-      409: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          "application/json": {
-            error: string
-            code: string
-          }
-        }
-      }
-    }
-  }
-  getAdminFinanceRefundSettlementsById: {
-    parameters: {
-      query?: never
-      header?: never
-      path: {
-        id: string
-      }
-      cookie?: never
-    }
-    requestBody?: never
-    responses: {
-      /** @description The settlement */
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          "application/json": {
-            data: {
-              id: string
-              creditNoteId: string | null
-              paymentId: string | null
-              invoiceId: string | null
-              paymentSessionId: string | null
-              bookingId: string | null
-              /** @enum {string} */
-              method:
-                | "processor_reversal"
-                | "bank_transfer"
-                | "cash"
-                | "cheque"
-                | "travel_credit"
-                | "voucher"
-                | "counterparty_offset"
-                | "other"
-              /** @enum {string} */
-              status: "pending" | "settled" | "failed"
-              amountCents: number
-              currency: string
-              instrumentAmountCents: number | null
-              instrumentCurrency: string | null
-              travelCreditId: string | null
-              counterpartyOrganizationId: string | null
-              counterpartyPersonId: string | null
-              externalReference: string | null
-              provider: string | null
-              providerConnectionId: string | null
-              processorReference: string | null
-              authorizedByUserId: string | null
-              approvalId: string | null
-              requestedActionId: string | null
-              idempotencyKey: string | null
-              initiatedAt: string
-              settledAt: string | null
-              failedAt: string | null
-              failureReason: string | null
-              notes: string | null
-              providerPayload: {
-                [key: string]: unknown
-              } | null
-              metadata: {
-                [key: string]: unknown
-              } | null
-              createdAt: string
-              updatedAt: string
-            }
-          }
-        }
-      }
-      /** @description Settlement not found */
-      404: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          "application/json": {
-            error: string
-          }
-        }
-      }
-    }
-  }
-  patchAdminFinanceRefundSettlementsById: {
-    parameters: {
-      query?: never
-      header?: never
-      path: {
-        id: string
-      }
-      cookie?: never
-    }
-    requestBody: {
-      content: {
-        "application/json": {
-          /** @enum {string} */
-          status?: "pending" | "settled" | "failed"
-          externalReference?: string | null
-          processorReference?: string | null
-          settledAt?: string | null
-          failedAt?: string | null
-          failureReason?: string | null
-          notes?: string | null
-          providerPayload?: {
-            [key: string]: unknown
-          } | null
-          metadata?: {
-            [key: string]: unknown
-          } | null
-        }
-      }
-    }
-    responses: {
-      /** @description The updated settlement */
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          "application/json": {
-            data: {
-              id: string
-              creditNoteId: string | null
-              paymentId: string | null
-              invoiceId: string | null
-              paymentSessionId: string | null
-              bookingId: string | null
-              /** @enum {string} */
-              method:
-                | "processor_reversal"
-                | "bank_transfer"
-                | "cash"
-                | "cheque"
-                | "travel_credit"
-                | "voucher"
-                | "counterparty_offset"
-                | "other"
-              /** @enum {string} */
-              status: "pending" | "settled" | "failed"
-              amountCents: number
-              currency: string
-              instrumentAmountCents: number | null
-              instrumentCurrency: string | null
-              travelCreditId: string | null
-              counterpartyOrganizationId: string | null
-              counterpartyPersonId: string | null
-              externalReference: string | null
-              provider: string | null
-              providerConnectionId: string | null
-              processorReference: string | null
-              authorizedByUserId: string | null
-              approvalId: string | null
-              requestedActionId: string | null
-              idempotencyKey: string | null
-              initiatedAt: string
-              settledAt: string | null
-              failedAt: string | null
-              failureReason: string | null
-              notes: string | null
-              providerPayload: {
-                [key: string]: unknown
-              } | null
-              metadata: {
-                [key: string]: unknown
-              } | null
-              createdAt: string
-              updatedAt: string
-            }
-          }
-        }
-      }
-      /** @description Settlement not found */
-      404: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          "application/json": {
-            error: string
-          }
-        }
-      }
-      /** @description The settlement cannot move to that status */
-      409: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          "application/json": {
-            error: string
-            code: string
-          }
-        }
-      }
-    }
-  }
-  postAdminFinanceRefundSettlementsByIdExecute: {
-    parameters: {
-      query?: never
-      header?: never
-      path: {
-        id: string
-      }
-      cookie?: never
-    }
-    requestBody?: never
-    responses: {
-      /** @description The settlement after the adapter answered */
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          "application/json": {
-            data: {
-              id: string
-              creditNoteId: string | null
-              paymentId: string | null
-              invoiceId: string | null
-              paymentSessionId: string | null
-              bookingId: string | null
-              /** @enum {string} */
-              method:
-                | "processor_reversal"
-                | "bank_transfer"
-                | "cash"
-                | "cheque"
-                | "travel_credit"
-                | "voucher"
-                | "counterparty_offset"
-                | "other"
-              /** @enum {string} */
-              status: "pending" | "settled" | "failed"
-              amountCents: number
-              currency: string
-              instrumentAmountCents: number | null
-              instrumentCurrency: string | null
-              travelCreditId: string | null
-              counterpartyOrganizationId: string | null
-              counterpartyPersonId: string | null
-              externalReference: string | null
-              provider: string | null
-              providerConnectionId: string | null
-              processorReference: string | null
-              authorizedByUserId: string | null
-              approvalId: string | null
-              requestedActionId: string | null
-              idempotencyKey: string | null
-              initiatedAt: string
-              settledAt: string | null
-              failedAt: string | null
-              failureReason: string | null
-              notes: string | null
-              providerPayload: {
-                [key: string]: unknown
-              } | null
-              metadata: {
-                [key: string]: unknown
-              } | null
-              createdAt: string
-              updatedAt: string
-            }
-            /** @enum {string} */
-            outcome: "settled" | "pending" | "failed" | "indeterminate" | "not_applicable"
-            reason?: string
-          }
-        }
-      }
-      /** @description Settlement not found */
-      404: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          "application/json": {
-            error: string
-          }
-        }
-      }
-      /** @description This deployment has no payment adapter that can refund */
-      501: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          "application/json": {
-            error: string
-          }
-        }
-      }
-    }
-  }
-  getAdminFinancePaymentsByPaymentIdRefundable: {
-    parameters: {
-      query?: never
-      header?: never
-      path: {
-        paymentId: string
-      }
-      cookie?: never
-    }
-    requestBody?: never
-    responses: {
-      /** @description The refundable remainder */
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          "application/json": {
-            data: {
-              paymentId: string
-              currency: string
-              paidAmountCents: number
-              settledCents: number
-              pendingCents: number
-              failedCents: number
-              refundableRemainderCents: number
-            }
-          }
-        }
-      }
-      /** @description Payment not found */
-      404: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          "application/json": {
-            error: string
-          }
-        }
-      }
-    }
-  }
-  getAdminFinanceBookingsByBookingIdRefundSettlements: {
-    parameters: {
-      query?: never
-      header?: never
-      path: {
-        bookingId: string
-      }
-      cookie?: never
-    }
-    requestBody?: never
-    responses: {
-      /** @description The booking's refund settlements and what is still owed */
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          "application/json": {
-            data: {
-              bookingId: string
-              settlements: {
-                id: string
-                creditNoteId: string | null
-                paymentId: string | null
-                invoiceId: string | null
-                paymentSessionId: string | null
-                bookingId: string | null
-                /** @enum {string} */
-                method:
-                  | "processor_reversal"
-                  | "bank_transfer"
-                  | "cash"
-                  | "cheque"
-                  | "travel_credit"
-                  | "voucher"
-                  | "counterparty_offset"
-                  | "other"
-                /** @enum {string} */
-                status: "pending" | "settled" | "failed"
-                amountCents: number
-                currency: string
-                instrumentAmountCents: number | null
-                instrumentCurrency: string | null
-                travelCreditId: string | null
-                counterpartyOrganizationId: string | null
-                counterpartyPersonId: string | null
-                externalReference: string | null
-                provider: string | null
-                providerConnectionId: string | null
-                processorReference: string | null
-                authorizedByUserId: string | null
-                approvalId: string | null
-                requestedActionId: string | null
-                idempotencyKey: string | null
-                initiatedAt: string
-                settledAt: string | null
-                failedAt: string | null
-                failureReason: string | null
-                notes: string | null
-                providerPayload: {
-                  [key: string]: unknown
-                } | null
-                metadata: {
-                  [key: string]: unknown
-                } | null
-                createdAt: string
-                updatedAt: string
-              }[]
-              hasOwedRefund: boolean
-              owedAmountsByCurrency: {
-                [key: string]: number
-              }
-              settledAmountsByCurrency: {
-                [key: string]: number
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-  postAdminFinanceInvoicesByIdFxStamp: {
-    parameters: {
-      query?: never
-      header?: never
-      path: {
-        id: string
-      }
-      cookie?: never
-    }
-    requestBody?: {
-      content: {
-        "application/json": {
-          rate?: number
-          source?: string
-          force?: boolean
-        }
-      }
-    }
-    responses: {
-      /** @description The FX stamp written onto the document */
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          "application/json": {
-            data: {
-              documentId: string
-              currency: string
-              reportingCurrency: string
-              rate: number
-              effectiveRate: number
-              commissionBps: number
-              fxRateSetId: string | null
-              reportingAmountCents: number
-            }
-          }
-        }
-      }
-      /** @description invalid_request, or the document cannot carry an FX stamp */
-      400: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          "application/json": {
-            error: string
-          }
-        }
-      }
-      /** @description Document not found */
-      404: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          "application/json": {
-            error: string
-          }
-        }
-      }
-      /** @description The document already carries an FX stamp */
-      409: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          "application/json": {
-            error: string
-          }
-        }
-      }
-      /** @description No rate is available for the document's date */
-      422: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          "application/json": {
-            error: string
-          }
-        }
-      }
-    }
-  }
-  postAdminFinancePaymentsByIdFxStamp: {
-    parameters: {
-      query?: never
-      header?: never
-      path: {
-        id: string
-      }
-      cookie?: never
-    }
-    requestBody?: {
-      content: {
-        "application/json": {
-          rate?: number
-          source?: string
-          force?: boolean
-        }
-      }
-    }
-    responses: {
-      /** @description The FX stamp written onto the document */
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          "application/json": {
-            data: {
-              documentId: string
-              currency: string
-              reportingCurrency: string
-              rate: number
-              effectiveRate: number
-              commissionBps: number
-              fxRateSetId: string | null
-              reportingAmountCents: number
-            }
-          }
-        }
-      }
-      /** @description invalid_request, or the document cannot carry an FX stamp */
-      400: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          "application/json": {
-            error: string
-          }
-        }
-      }
-      /** @description Document not found */
-      404: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          "application/json": {
-            error: string
-          }
-        }
-      }
-      /** @description The document already carries an FX stamp */
-      409: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          "application/json": {
-            error: string
-          }
-        }
-      }
-      /** @description No rate is available for the document's date */
-      422: {
         headers: {
           [name: string]: unknown
         }
