@@ -1,6 +1,6 @@
+import { bookingFulfillmentTypeSchema } from "@voyant-travel/public-api-contracts/common"
 import { describe, expect, it } from "vitest"
 import type { z } from "zod"
-import { bookingFulfillmentTypeSchema } from "../../src/customer-portal/validation-public/common.js"
 import {
   customerPortalBookingBillingContactSchema,
   customerPortalBookingDetailSchema,

@@ -1781,6 +1781,12 @@
       "@voyant-travel/public-api-client/errors": ["../public-api-client/dist/errors.d.ts"],
       "@voyant-travel/public-api-client/operations": ["../public-api-client/dist/operations.d.ts"],
       "@voyant-travel/public-api-client/schemas": ["../public-api-client/dist/schemas.d.ts"],
+      "@voyant-travel/public-api-contracts": ["../public-api-contracts/dist/index.d.ts"],
+      "@voyant-travel/public-api-contracts/bookings": [
+        "../public-api-contracts/dist/bookings.d.ts"
+      ],
+      "@voyant-travel/public-api-contracts/common": ["../public-api-contracts/dist/common.d.ts"],
+      "@voyant-travel/public-api-contracts/profile": ["../public-api-contracts/dist/profile.d.ts"],
       "@voyant-travel/public-api-react": ["../public-api-react/dist/index.d.ts"],
       "@voyant-travel/public-api-react/client": ["../public-api-react/dist/client.d.ts"],
       "@voyant-travel/public-api-react/customer-portal": [

@@ -16,6 +16,7 @@
     "@voyant-travel/app-manifest",
     "@voyant-travel/custom-fields-contracts",
     "@voyant-travel/graph-contracts",
+    "@voyant-travel/public-api-contracts",
     "@voyant-travel/ui",
     "@voyant-travel/webhook-delivery-contracts"
   ],

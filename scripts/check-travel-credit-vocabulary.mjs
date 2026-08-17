@@ -70,7 +70,7 @@ for (const path of [
 }
 
 const customerPortalSchemas = readFileSync(
-  resolve(root, "packages/public-api/src/customer-portal/validation-public/common.ts"),
+  resolve(root, "packages/public-api-contracts/src/common.ts"),
   "utf8",
 )
 const paymentMethodSchema = customerPortalSchemas.match(
@@ -78,7 +78,7 @@ const paymentMethodSchema = customerPortalSchemas.match(
 )?.[1]
 if (!paymentMethodSchema || /\bvoucher\b/i.test(paymentMethodSchema)) {
   violations.push(
-    "packages/public-api/src/customer-portal/validation-public/common.ts: Finance payment methods must use travel_credit",
+    "packages/public-api-contracts/src/common.ts: Finance payment methods must use travel_credit",
   )
 }
 
@@ -91,7 +91,7 @@ for (const path of [
   "packages/inventory/src/schema-shared.ts",
   "packages/inventory/src/schema-settings.ts",
   "packages/inventory/src/routes-configuration.ts",
-  "packages/public-api/src/customer-portal/validation-public/common.ts",
+  "packages/public-api-contracts/src/common.ts",
 ]) {
   const source = readFileSync(resolve(root, path), "utf8")
   for (const pattern of [

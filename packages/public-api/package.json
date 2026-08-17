@@ -82,6 +82,7 @@
     "@voyant-travel/flights": "workspace:^",
     "@voyant-travel/hono": "workspace:^",
     "@voyant-travel/identity": "workspace:^",
+    "@voyant-travel/public-api-contracts": "workspace:^",
     "@voyant-travel/relationships-contracts": "workspace:^",
     "@voyant-travel/schema-kit": "workspace:^",
     "@voyant-travel/tools": "workspace:^",
