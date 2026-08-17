@@ -6,6 +6,7 @@ import {
   DEFAULT_TREE,
   expandExportPattern,
   importProbeSpecifiers,
+  isRegistryPropagationFailure,
   parseAttempts,
   parseTree,
   registryHasVersion,
@@ -307,4 +308,39 @@ test("accepts the inert publishConfig every published package keeps", () => {
     }),
     [],
   )
+})
+
+/**
+ * Which install failures are worth retrying. Release 32005575707 published
+ * every package and then failed its own gate with `ETARGET` on a version that
+ * npm served moments later, so the retry has to cover propagation — and must
+ * not cover anything else, or a genuine finding turns into a slow timeout with
+ * the same message.
+ */
+test("ETARGET and E404 are propagation, and retry", () => {
+  assert.equal(
+    isRegistryPropagationFailure(
+      "npm error code ETARGET\nnpm error notarget No matching version found for " +
+        "@voyant-travel/public-api-contracts@0.2.0.",
+    ),
+    true,
+  )
+  assert.equal(isRegistryPropagationFailure("npm error code E404"), true)
+})
+
+test("a restricted package or an unresolved protocol fails on the first attempt", () => {
+  // E403 is the shape a package published `restricted` by accident takes, and
+  // it is exactly what this gate exists to catch. Retrying it would bury the
+  // finding under five attempts and report a timeout instead.
+  assert.equal(isRegistryPropagationFailure("npm error code E403 Forbidden"), false)
+  assert.equal(
+    isRegistryPropagationFailure('npm error Unsupported URL Type "workspace:": workspace:^'),
+    false,
+  )
+  assert.equal(isRegistryPropagationFailure("npm error code ERESOLVE unable to resolve"), false)
+})
+
+test("an absent detail is not treated as propagation", () => {
+  assert.equal(isRegistryPropagationFailure(undefined), false)
+  assert.equal(isRegistryPropagationFailure(""), false)
 })

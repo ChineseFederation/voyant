@@ -1,7 +1,11 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 
-import { checkChainReachability, reachableScripts } from "../checks/chain/reachability.mjs"
+import {
+  checkChainReachability,
+  checkPackageCheckerReachability,
+  reachableScripts,
+} from "../checks/chain/reachability.mjs"
 
 /**
  * The two blind spots this checker exists for, both observed:
@@ -91,6 +95,80 @@ test("an allowlist entry naming a checker that does not exist fails", () => {
   const violations = checkChainReachability(scripts, [], { "check-gone-authority.mjs": "why" })
   assert.equal(violations.length, 1)
   assert.match(violations[0], /not a checker here/)
+})
+
+/**
+ * Package-owned checkers. The root scan matches invocations by path, which a
+ * `--filter` invocation never contains, so these needed their own rule — and
+ * the one that existed had rotted through three module moves before anything
+ * asked whether it ran (voyant#4627).
+ */
+const CHECKER = {
+  file: "packages/p/scripts/check-a-authority.mjs",
+  packageName: "@voyant-travel/p",
+  scriptNames: ["verify:a-authority"],
+}
+
+test("a package checker reached by --filter is reachable", () => {
+  const scripts = {
+    "verify:architecture": "pnpm --filter @voyant-travel/p verify:a-authority",
+  }
+  assert.deepEqual(checkPackageCheckerReachability(scripts, [CHECKER]), [])
+})
+
+test("a package checker reached by a workspace-wide run is reachable", () => {
+  const scripts = { "verify:architecture": "pnpm -r verify:a-authority" }
+  assert.deepEqual(checkPackageCheckerReachability(scripts, [CHECKER]), [])
+})
+
+test("a package checker reached through a chained aggregate is reachable", () => {
+  const scripts = {
+    "verify:architecture": "pnpm verify:apis",
+    "verify:apis": "pnpm --filter @voyant-travel/p verify:a-authority",
+  }
+  assert.deepEqual(checkPackageCheckerReachability(scripts, [CHECKER]), [])
+})
+
+test("a package checker nobody filters to is a violation", () => {
+  // The observed shape: the package has the script, the chain never runs it.
+  const scripts = { "verify:architecture": "pnpm verify:other", "verify:other": "true" }
+  const violations = checkPackageCheckerReachability(scripts, [CHECKER])
+  assert.equal(violations.length, 1)
+  assert.match(violations[0], /is never executed/)
+})
+
+test("a --filter naming a DIFFERENT package does not reach this checker", () => {
+  const scripts = {
+    "verify:architecture": "pnpm --filter @voyant-travel/other verify:a-authority",
+  }
+  assert.equal(checkPackageCheckerReachability(scripts, [CHECKER]).length, 1)
+})
+
+test("two commands joined by && are not read as one filtered invocation", () => {
+  // `--filter <pkg> build && pnpm verify:a-authority` runs the checker at the
+  // ROOT, not in the package, so it must not count.
+  const scripts = {
+    "verify:architecture": "pnpm --filter @voyant-travel/p build && pnpm verify:a-authority",
+  }
+  assert.equal(checkPackageCheckerReachability(scripts, [CHECKER]).length, 1)
+})
+
+test("a package checker no package script runs at all is a violation", () => {
+  const scripts = { "verify:architecture": "pnpm -r verify:a-authority" }
+  const violations = checkPackageCheckerReachability(scripts, [{ ...CHECKER, scriptNames: [] }])
+  assert.equal(violations.length, 1)
+  assert.match(violations[0], /no script in .* package\.json that runs it/)
+})
+
+test("an allowlisted package checker passes, and a stale path entry fails", () => {
+  const scripts = { "verify:architecture": "true" }
+  assert.deepEqual(
+    checkPackageCheckerReachability(scripts, [CHECKER], { [CHECKER.file]: "runs in release" }),
+    [],
+  )
+  const stale = checkPackageCheckerReachability(scripts, [], { "packages/gone/scripts/x.mjs": "y" })
+  assert.equal(stale.length, 1)
+  assert.match(stale[0], /not a checker here/)
 })
 
 test("the real repository has no unreachable authority checker", async () => {

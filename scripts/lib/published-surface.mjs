@@ -101,6 +101,26 @@ export async function registryHasVersion(name, version, options = {}) {
   return Object.hasOwn(packument.versions ?? {}, version)
 }
 
+/**
+ * Whether an `npm install` failure is the registry not serving a version yet,
+ * rather than something wrong with what was published.
+ *
+ * Waiting on the packument does not settle this. The wait and the install are
+ * separate requests through a CDN with its own per-edge caches, so the wait can
+ * see a version the install then cannot — which is exactly how release
+ * 32005575707 failed with `ETARGET` on a package that was on npm moments later,
+ * after the publish itself had succeeded. Gating on a proxy for the operation
+ * is not the same as gating on the operation.
+ *
+ * `E404` (no such package) and `ETARGET` (no such version) are the two shapes
+ * propagation takes. Everything else — a `restricted` package, an unresolved
+ * `workspace:` protocol, a broken peer — is a real finding and must fail on the
+ * first attempt rather than be retried into a timeout.
+ */
+export function isRegistryPropagationFailure(detail) {
+  return /\bE(?:TARGET|404)\b/.test(detail ?? "")
+}
+
 /** publishConfig keys whose survival proves publishConfig was never applied. */
 const OVERRIDE_KEYS = ["exports", "main", "module", "types", "typings", "files", "bin"]
 

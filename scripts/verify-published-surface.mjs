@@ -24,6 +24,7 @@ import {
   formatImportFailure,
   formatMissingVersion,
   importProbeSpecifiers,
+  isRegistryPropagationFailure,
   parseAttempts,
   parseTree,
   REGISTRY,
@@ -140,6 +141,10 @@ async function installSurface(packages, installDir) {
       "--no-audit",
       "--no-fund",
       "--no-legacy-peer-deps",
+      // Seconds after a publish, npm's cache can still hold the packument that
+      // predates it, and a cached miss is indistinguishable from a version that
+      // was never published. Revalidate rather than trust it.
+      "--prefer-online",
       "--loglevel",
       "error",
     ],
@@ -154,6 +159,32 @@ async function installSurface(packages, installDir) {
       },
     },
   )
+}
+
+/** The stderr/stdout npm produced, which is where its error code appears. */
+function failureDetail(error) {
+  return error.stderr?.toString().trim() || error.stdout?.toString().trim() || error.message
+}
+
+/**
+ * The install is the assertion, so it is what retries. `awaitRegistry` already
+ * waited for the packument, and the install can still miss — see
+ * {@link isRegistryPropagationFailure}.
+ */
+async function installSurfaceWithRetry(packages, installDir) {
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      return await installSurface(packages, installDir)
+    } catch (error) {
+      const detail = failureDetail(error)
+      if (attempt >= ATTEMPTS || !isRegistryPropagationFailure(detail)) throw error
+      console.log(
+        `  install could not resolve a just-published version; retrying in ` +
+          `${RETRY_DELAY_MS / 1000}s (attempt ${attempt}/${ATTEMPTS})`,
+      )
+      await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS))
+    }
+  }
 }
 
 /** Package-relative paths of everything the tarball shipped, for wildcard exports. */
@@ -250,11 +281,9 @@ async function main() {
 
   try {
     try {
-      await installSurface(packages, installDir)
+      await installSurfaceWithRetry(packages, installDir)
     } catch (error) {
-      const detail =
-        error.stderr?.toString().trim() || error.stdout?.toString().trim() || error.message
-      report([`npm could not install the published surface: ${detail}`], [])
+      report([`npm could not install the published surface: ${failureDetail(error)}`], [])
     }
 
     const specifiers = []

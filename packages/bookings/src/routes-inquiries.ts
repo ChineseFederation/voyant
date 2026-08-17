@@ -78,7 +78,7 @@ export function createBookingInquiryPublicRoutes(
     }
 
     const origin = activePublicApiOrigin(c)
-    if (!origin) return c.json({ error: "active_storefront_channel_required" }, 403)
+    if (!origin) return c.json({ error: "active_channel_required" }, 403)
     const input = c.req.valid("json")
     const result = await service.submit(
       c.get("db"),

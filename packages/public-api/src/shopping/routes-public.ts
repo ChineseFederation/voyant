@@ -363,7 +363,7 @@ export function createPublicApiShoppingPublicRoutes(
     .openapi(searchRoute, async (c) => {
       const context = activeShoppingContext(c)
       if (!context) {
-        return c.json({ error: "active_storefront_channel_required", requestId: requestId(c) }, 403)
+        return c.json({ error: "active_channel_required", requestId: requestId(c) }, 403)
       }
       try {
         const result = await gateway.search(context, c.req.valid("json"))
@@ -388,7 +388,7 @@ export function createPublicApiShoppingPublicRoutes(
     .openapi(createTripSelectionRoute, async (c) => {
       const context = activeShoppingContext(c)
       if (!context) {
-        return c.json({ error: "active_storefront_channel_required", requestId: requestId(c) }, 403)
+        return c.json({ error: "active_channel_required", requestId: requestId(c) }, 403)
       }
       if (!requireSameOriginMutation(c)) {
         return c.json({ error: "same_origin_required", requestId: requestId(c) }, 403)
@@ -407,7 +407,7 @@ export function createPublicApiShoppingPublicRoutes(
     .openapi(updateTripSelectionRoute, async (c) => {
       const context = activeShoppingContext(c)
       if (!context) {
-        return c.json({ error: "active_storefront_channel_required", requestId: requestId(c) }, 403)
+        return c.json({ error: "active_channel_required", requestId: requestId(c) }, 403)
       }
       if (!requireSameOriginMutation(c)) {
         return c.json({ error: "same_origin_required", requestId: requestId(c) }, 403)
@@ -429,7 +429,7 @@ export function createPublicApiShoppingPublicRoutes(
     .openapi(bookTripSelectionRoute, async (c) => {
       const context = activeShoppingContext(c)
       if (!context) {
-        return c.json({ error: "active_storefront_channel_required", requestId: requestId(c) }, 403)
+        return c.json({ error: "active_channel_required", requestId: requestId(c) }, 403)
       }
       if (!requireSameOriginMutation(c)) {
         return c.json({ error: "same_origin_required", requestId: requestId(c) }, 403)

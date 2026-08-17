@@ -416,7 +416,7 @@ export function createBookingSessionRoutes(options: BookingSessionRoutesOptions)
         return c.json(
           {
             error: "Active storefront channel context is required.",
-            code: "active_storefront_channel_required",
+            code: "active_channel_required",
           },
           403,
         )

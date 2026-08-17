@@ -73,7 +73,14 @@ export const customerVerificationLinkable: LinkableDefinition = {
   module: "storefront-verification",
   entity: "customerVerificationChallenge",
   table: "customer_verification_challenges",
-  idPrefix: "svch",
+  /**
+   * What `typeId("customer_verification_challenges")` actually mints, per the
+   * prefix registry. Rows created before the table was renamed off the retired
+   * storefront entity keep their `svch_` prefix — the id is opaque and
+   * rewriting it would invalidate every challenge in flight — so this field
+   * names the current prefix, not the only one in the table.
+   */
+  idPrefix: "cvch",
 }
 
 export const customerVerificationModule: Module = {

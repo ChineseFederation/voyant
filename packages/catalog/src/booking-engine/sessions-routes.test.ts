@@ -156,7 +156,7 @@ describe("Booking Session v1 routes", () => {
     expect(response.status).toBe(403)
     await expect(response.json()).resolves.toEqual({
       error: "Active storefront channel context is required.",
-      code: "active_storefront_channel_required",
+      code: "active_channel_required",
     })
   })
 
