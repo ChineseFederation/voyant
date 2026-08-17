@@ -1,5 +1,14 @@
 # @voyant-travel/commerce
 
+## 0.56.1
+
+### Patch Changes
+
+- Updated dependencies [cdad152]
+  - @voyant-travel/finance@0.262.0
+  - @voyant-travel/catalog@0.262.1
+  - @voyant-travel/distribution@0.229.7
+
 ## 0.56.0
 
 ### Minor Changes

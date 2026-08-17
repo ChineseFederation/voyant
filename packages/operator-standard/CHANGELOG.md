@@ -1,5 +1,52 @@
 # @voyant-travel/operator-standard
 
+## 0.21.80
+
+### Patch Changes
+
+- cdad152: Move the payment-link routes, reconciliation job, runtime ports, Tools and
+  OpenAPI document from `@voyant-travel/public-api` to `@voyant-travel/finance`
+  (#4627). A payment link is an invoice and a payment session, both of which
+  finance owns.
+- Updated dependencies [1e323f2]
+- Updated dependencies [cdad152]
+  - @voyant-travel/public-api@0.266.0
+  - @voyant-travel/finance@0.262.0
+  - @voyant-travel/trips@0.237.10
+  - @voyant-travel/notifications@0.150.19
+  - @voyant-travel/public-api-react@0.311.0
+  - @voyant-travel/voyant-connect-adapter@0.39.2
+  - @voyant-travel/accommodations@0.216.1
+  - @voyant-travel/bookings-react@0.309.0
+  - @voyant-travel/catalog@0.262.1
+  - @voyant-travel/commerce@0.56.1
+  - @voyant-travel/cruises@0.240.6
+  - @voyant-travel/distribution@0.229.7
+  - @voyant-travel/finance-react@0.309.0
+  - @voyant-travel/flights@0.240.5
+  - @voyant-travel/flights-react@0.309.0
+  - @voyant-travel/inventory@0.42.25
+  - @voyant-travel/inventory-react@0.191.0
+  - @voyant-travel/legal@0.255.4
+  - @voyant-travel/operator-settings@0.18.16
+  - @voyant-travel/operator-settings-react@0.167.0
+  - @voyant-travel/proposals@0.140.18
+  - @voyant-travel/proposals-react@0.307.0
+  - @voyant-travel/relationships@0.134.21
+  - @voyant-travel/trips-react@0.302.0
+  - @voyant-travel/cruises-react@0.308.0
+  - @voyant-travel/action-ledger-react@0.198.0
+  - @voyant-travel/distribution-react@0.299.0
+  - @voyant-travel/identity-react@0.309.0
+  - @voyant-travel/legal-react@0.309.0
+  - @voyant-travel/operations-react@0.190.0
+  - @voyant-travel/admin-app@0.202.0
+  - @voyant-travel/catalog-react@0.307.0
+  - @voyant-travel/commerce-react@0.191.0
+  - @voyant-travel/relationships-react@0.309.0
+  - @voyant-travel/admin-host@0.160.0
+  - @voyant-travel/mice-react@0.177.0
+
 ## 0.21.79
 
 ### Patch Changes

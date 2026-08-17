@@ -1,5 +1,22 @@
 # @voyant-travel/bookings-react
 
+## 0.309.0
+
+### Patch Changes
+
+- Updated dependencies [cdad152]
+  - @voyant-travel/finance@0.262.0
+  - @voyant-travel/public-api-react@0.311.0
+  - @voyant-travel/finance-react@0.309.0
+  - @voyant-travel/inventory-react@0.191.0
+  - @voyant-travel/distribution-react@0.299.0
+  - @voyant-travel/identity-react@0.309.0
+  - @voyant-travel/legal-react@0.309.0
+  - @voyant-travel/operations-react@0.190.0
+  - @voyant-travel/catalog-react@0.307.0
+  - @voyant-travel/commerce-react@0.191.0
+  - @voyant-travel/relationships-react@0.309.0
+
 ## 0.308.0
 
 ### Patch Changes

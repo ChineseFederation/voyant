@@ -1,5 +1,16 @@
 # @voyant-travel/proposals
 
+## 0.140.18
+
+### Patch Changes
+
+- Updated dependencies [cdad152]
+  - @voyant-travel/finance@0.262.0
+  - @voyant-travel/trips@0.237.10
+  - @voyant-travel/catalog@0.262.1
+  - @voyant-travel/operator-settings@0.18.16
+  - @voyant-travel/relationships@0.134.21
+
 ## 0.140.17
 
 ### Patch Changes

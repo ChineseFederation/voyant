@@ -1,5 +1,23 @@
 # @voyant-travel/trips
 
+## 0.237.10
+
+### Patch Changes
+
+- cdad152: Move the payment-link routes, reconciliation job, runtime ports, Tools and
+  OpenAPI document from `@voyant-travel/public-api` to `@voyant-travel/finance`
+  (#4627). A payment link is an invoice and a payment session, both of which
+  finance owns.
+- Updated dependencies [1e323f2]
+- Updated dependencies [cdad152]
+  - @voyant-travel/public-api@0.266.0
+  - @voyant-travel/finance@0.262.0
+  - @voyant-travel/catalog@0.262.1
+  - @voyant-travel/commerce@0.56.1
+  - @voyant-travel/flights@0.240.5
+  - @voyant-travel/inventory@0.42.25
+  - @voyant-travel/operator-settings@0.18.16
+
 ## 0.237.9
 
 ### Patch Changes

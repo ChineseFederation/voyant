@@ -1,6 +1,6 @@
 {
   "name": "@voyant-travel/notifications",
-  "version": "0.150.18",
+  "version": "0.150.19",
   "license": "Apache-2.0",
   "type": "module",
   "exports": {
