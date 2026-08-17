@@ -1,6 +1,7 @@
 import { accountsService } from "./accounts.js"
 import { activitiesService } from "./activities.js"
 import { customerSignalsService } from "./customer-signals.js"
+import { inquiriesService } from "./inquiries.js"
 import { personDocumentsService } from "./person-documents.js"
 import { personRelationshipsService } from "./person-relationships.js"
 
@@ -10,6 +11,7 @@ export const relationshipsService = {
   ...personDocumentsService,
   ...personRelationshipsService,
   ...customerSignalsService,
+  ...inquiriesService,
 }
 
 export type {
@@ -18,6 +20,8 @@ export type {
   UpdateCustomerSignalInput,
 } from "./customer-signals.js"
 export { customerSignalsService } from "./customer-signals.js"
+export type { InquiryServiceErrorCode } from "./inquiries.js"
+export { InquiryServiceError, inquiriesService } from "./inquiries.js"
 export type {
   CreatePersonDocumentInput,
   PersonDocumentListQuery,

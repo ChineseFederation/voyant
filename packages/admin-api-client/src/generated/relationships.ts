@@ -662,6 +662,110 @@ export interface paths {
     patch?: never
     trace?: never
   }
+  "/v1/admin/relationships/inquiries": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** GET /v1/admin/relationships/inquiries */
+    get: operations["getAdminRelationshipsInquiries"]
+    put?: never
+    /** POST /v1/admin/relationships/inquiries */
+    post: operations["postAdminRelationshipsInquiries"]
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/admin/relationships/inquiries/{id}": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** GET /v1/admin/relationships/inquiries/{id} */
+    get: operations["getAdminRelationshipsInquiriesById"]
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    /** PATCH /v1/admin/relationships/inquiries/{id} */
+    patch: operations["patchAdminRelationshipsInquiriesById"]
+    trace?: never
+  }
+  "/v1/admin/relationships/inquiries/{id}/transition": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** POST /v1/admin/relationships/inquiries/{id}/transition */
+    post: operations["postAdminRelationshipsInquiriesByIdTransition"]
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/admin/relationships/inquiries/{id}/assign": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** POST /v1/admin/relationships/inquiries/{id}/assign */
+    post: operations["postAdminRelationshipsInquiriesByIdAssign"]
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/admin/relationships/inquiries/{id}/close": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** POST /v1/admin/relationships/inquiries/{id}/close */
+    post: operations["postAdminRelationshipsInquiriesByIdClose"]
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/admin/relationships/inquiries/{id}/reopen": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** POST /v1/admin/relationships/inquiries/{id}/reopen */
+    post: operations["postAdminRelationshipsInquiriesByIdReopen"]
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
   "/v1/admin/relationships/activities": {
     parameters: {
       query?: never
@@ -5139,6 +5243,1330 @@ export interface operations {
               createdAt: string
               updatedAt: string
             }[]
+          }
+        }
+      }
+    }
+  }
+  getAdminRelationshipsInquiries: {
+    parameters: {
+      query?: {
+        limit?: number
+        offset?: number | null
+        /** @description Saved work-queue view; combined with explicit filters using AND */
+        view?:
+          | "actionable"
+          | "new"
+          | "mine"
+          | "unassigned"
+          | "overdue"
+          | "waiting"
+          | "qualified"
+          | "converted"
+          | "closed"
+        status?:
+          | "new"
+          | "triaged"
+          | "in_progress"
+          | "waiting_on_customer"
+          | "qualified"
+          | "converted"
+          | "closed"
+        ownerId?: string
+        teamId?: string
+        priority?: "low" | "normal" | "high" | "urgent"
+        kind?: "product" | "custom_trip" | "general"
+        source?: "storefront" | "phone" | "email" | "admin" | "import" | "api"
+        personId?: string
+        organizationId?: string
+        overdue?: "true" | "false"
+        search?: string
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Paginated inquiry work queue */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              subject: string
+              /** @enum {string} */
+              kind: "product" | "custom_trip" | "general"
+              /** @enum {string} */
+              status:
+                | "new"
+                | "triaged"
+                | "in_progress"
+                | "waiting_on_customer"
+                | "qualified"
+                | "converted"
+                | "closed"
+              /** @enum {string|null} */
+              closeOutcome:
+                | "lost"
+                | "not_serviceable"
+                | "no_response"
+                | "duplicate"
+                | "spam"
+                | "customer_withdrew"
+                | "other"
+                | null
+              closeNote: string | null
+              duplicateOfInquiryId: string | null
+              priority: string
+              personId: string | null
+              organizationId: string | null
+              contactSnapshot: {
+                name?: string
+                /** Format: email */
+                email?: string
+                phone?: string
+              }
+              ownerId: string | null
+              teamId: string | null
+              unassignedReason: string | null
+              nextActionAt: string | null
+              firstResponseDueAt: string | null
+              firstRespondedAt: string | null
+              travelBrief: {
+                /** @enum {number} */
+                version: 1
+                destinations?: {
+                  placeId?: string
+                  label: string
+                }[]
+                origin?: {
+                  placeId?: string
+                  label: string
+                }
+                /** Format: date */
+                startDate?: string
+                /** Format: date */
+                endDate?: string
+                /** @enum {string} */
+                dateFlexibility?: "exact" | "few_days" | "few_weeks" | "open"
+                durationNights?: number
+                adults?: number
+                children?: {
+                  age?: number
+                }[]
+                rooms?: number
+                budget?: {
+                  amountCents?: number
+                  currency: string
+                  /** @enum {string} */
+                  basis?: "total" | "per_person"
+                  /** @enum {string} */
+                  flexibility?: "firm" | "approximate" | "unknown"
+                }
+                interests?: string[]
+                accessibilityOrDietaryNotes?: string
+              } | null
+              customerMessage: string | null
+              internalSummary: string | null
+              source: string
+              sourceRef: string | null
+              sourceUrl: string | null
+              locale: string | null
+              consentSnapshot: {
+                [key: string]: unknown
+              } | null
+              tags: string[]
+              customFields: {
+                [key: string]: {
+                  [key: string]: unknown
+                }
+              }
+              lastActivityAt: string | null
+              qualifiedAt: string | null
+              convertedAt: string | null
+              closedAt: string | null
+              createdAt: string
+              updatedAt: string
+            }[]
+            total: number
+            limit: number
+            offset: number
+          }
+        }
+      }
+    }
+  }
+  postAdminRelationshipsInquiries: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          subject: string
+          /** @enum {string} */
+          kind: "product" | "custom_trip" | "general"
+          /**
+           * @default normal
+           * @enum {string}
+           */
+          priority?: "low" | "normal" | "high" | "urgent"
+          personId?: string | null
+          organizationId?: string | null
+          contactSnapshot: {
+            name?: string
+            /** Format: email */
+            email?: string
+            phone?: string
+          }
+          ownerId?: string | null
+          teamId?: string | null
+          unassignedReason?: string | null
+          /** Format: date-time */
+          nextActionAt?: string | null
+          /** Format: date-time */
+          firstResponseDueAt?: string | null
+          travelBrief?: {
+            /** @enum {number} */
+            version: 1
+            destinations?: {
+              placeId?: string
+              label: string
+            }[]
+            origin?: {
+              placeId?: string
+              label: string
+            }
+            /** Format: date */
+            startDate?: string
+            /** Format: date */
+            endDate?: string
+            /** @enum {string} */
+            dateFlexibility?: "exact" | "few_days" | "few_weeks" | "open"
+            durationNights?: number
+            adults?: number
+            children?: {
+              age?: number
+            }[]
+            rooms?: number
+            budget?: {
+              amountCents?: number
+              currency: string
+              /** @enum {string} */
+              basis?: "total" | "per_person"
+              /** @enum {string} */
+              flexibility?: "firm" | "approximate" | "unknown"
+            }
+            interests?: string[]
+            accessibilityOrDietaryNotes?: string
+          } | null
+          customerMessage?: string | null
+          internalSummary?: string | null
+          /** @enum {string} */
+          source: "storefront" | "phone" | "email" | "admin" | "import" | "api"
+          sourceRef?: string | null
+          /** Format: uri */
+          sourceUrl?: string | null
+          locale?: string | null
+          consentSnapshot?: {
+            [key: string]: unknown
+          } | null
+          /** @default [] */
+          tags?: string[]
+          /** @default {} */
+          customFields?: {
+            [key: string]: {
+              [key: string]: unknown
+            }
+          }
+        }
+      }
+    }
+    responses: {
+      /** @description Created inquiry */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              subject: string
+              /** @enum {string} */
+              kind: "product" | "custom_trip" | "general"
+              /** @enum {string} */
+              status:
+                | "new"
+                | "triaged"
+                | "in_progress"
+                | "waiting_on_customer"
+                | "qualified"
+                | "converted"
+                | "closed"
+              /** @enum {string|null} */
+              closeOutcome:
+                | "lost"
+                | "not_serviceable"
+                | "no_response"
+                | "duplicate"
+                | "spam"
+                | "customer_withdrew"
+                | "other"
+                | null
+              closeNote: string | null
+              duplicateOfInquiryId: string | null
+              priority: string
+              personId: string | null
+              organizationId: string | null
+              contactSnapshot: {
+                name?: string
+                /** Format: email */
+                email?: string
+                phone?: string
+              }
+              ownerId: string | null
+              teamId: string | null
+              unassignedReason: string | null
+              nextActionAt: string | null
+              firstResponseDueAt: string | null
+              firstRespondedAt: string | null
+              travelBrief: {
+                /** @enum {number} */
+                version: 1
+                destinations?: {
+                  placeId?: string
+                  label: string
+                }[]
+                origin?: {
+                  placeId?: string
+                  label: string
+                }
+                /** Format: date */
+                startDate?: string
+                /** Format: date */
+                endDate?: string
+                /** @enum {string} */
+                dateFlexibility?: "exact" | "few_days" | "few_weeks" | "open"
+                durationNights?: number
+                adults?: number
+                children?: {
+                  age?: number
+                }[]
+                rooms?: number
+                budget?: {
+                  amountCents?: number
+                  currency: string
+                  /** @enum {string} */
+                  basis?: "total" | "per_person"
+                  /** @enum {string} */
+                  flexibility?: "firm" | "approximate" | "unknown"
+                }
+                interests?: string[]
+                accessibilityOrDietaryNotes?: string
+              } | null
+              customerMessage: string | null
+              internalSummary: string | null
+              source: string
+              sourceRef: string | null
+              sourceUrl: string | null
+              locale: string | null
+              consentSnapshot: {
+                [key: string]: unknown
+              } | null
+              tags: string[]
+              customFields: {
+                [key: string]: {
+                  [key: string]: unknown
+                }
+              }
+              lastActivityAt: string | null
+              qualifiedAt: string | null
+              convertedAt: string | null
+              closedAt: string | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description Related record not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Inquiry conflict */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getAdminRelationshipsInquiriesById: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Inquiry detail */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              subject: string
+              /** @enum {string} */
+              kind: "product" | "custom_trip" | "general"
+              /** @enum {string} */
+              status:
+                | "new"
+                | "triaged"
+                | "in_progress"
+                | "waiting_on_customer"
+                | "qualified"
+                | "converted"
+                | "closed"
+              /** @enum {string|null} */
+              closeOutcome:
+                | "lost"
+                | "not_serviceable"
+                | "no_response"
+                | "duplicate"
+                | "spam"
+                | "customer_withdrew"
+                | "other"
+                | null
+              closeNote: string | null
+              duplicateOfInquiryId: string | null
+              priority: string
+              personId: string | null
+              organizationId: string | null
+              contactSnapshot: {
+                name?: string
+                /** Format: email */
+                email?: string
+                phone?: string
+              }
+              ownerId: string | null
+              teamId: string | null
+              unassignedReason: string | null
+              nextActionAt: string | null
+              firstResponseDueAt: string | null
+              firstRespondedAt: string | null
+              travelBrief: {
+                /** @enum {number} */
+                version: 1
+                destinations?: {
+                  placeId?: string
+                  label: string
+                }[]
+                origin?: {
+                  placeId?: string
+                  label: string
+                }
+                /** Format: date */
+                startDate?: string
+                /** Format: date */
+                endDate?: string
+                /** @enum {string} */
+                dateFlexibility?: "exact" | "few_days" | "few_weeks" | "open"
+                durationNights?: number
+                adults?: number
+                children?: {
+                  age?: number
+                }[]
+                rooms?: number
+                budget?: {
+                  amountCents?: number
+                  currency: string
+                  /** @enum {string} */
+                  basis?: "total" | "per_person"
+                  /** @enum {string} */
+                  flexibility?: "firm" | "approximate" | "unknown"
+                }
+                interests?: string[]
+                accessibilityOrDietaryNotes?: string
+              } | null
+              customerMessage: string | null
+              internalSummary: string | null
+              source: string
+              sourceRef: string | null
+              sourceUrl: string | null
+              locale: string | null
+              consentSnapshot: {
+                [key: string]: unknown
+              } | null
+              tags: string[]
+              customFields: {
+                [key: string]: {
+                  [key: string]: unknown
+                }
+              }
+              lastActivityAt: string | null
+              qualifiedAt: string | null
+              convertedAt: string | null
+              closedAt: string | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description Inquiry not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  patchAdminRelationshipsInquiriesById: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          subject?: string
+          /** @enum {string} */
+          kind?: "product" | "custom_trip" | "general"
+          /**
+           * @default normal
+           * @enum {string}
+           */
+          priority?: "low" | "normal" | "high" | "urgent"
+          personId?: string | null
+          organizationId?: string | null
+          contactSnapshot?: {
+            name?: string
+            /** Format: email */
+            email?: string
+            phone?: string
+          }
+          /** Format: date-time */
+          nextActionAt?: string | null
+          travelBrief?: {
+            /** @enum {number} */
+            version: 1
+            destinations?: {
+              placeId?: string
+              label: string
+            }[]
+            origin?: {
+              placeId?: string
+              label: string
+            }
+            /** Format: date */
+            startDate?: string
+            /** Format: date */
+            endDate?: string
+            /** @enum {string} */
+            dateFlexibility?: "exact" | "few_days" | "few_weeks" | "open"
+            durationNights?: number
+            adults?: number
+            children?: {
+              age?: number
+            }[]
+            rooms?: number
+            budget?: {
+              amountCents?: number
+              currency: string
+              /** @enum {string} */
+              basis?: "total" | "per_person"
+              /** @enum {string} */
+              flexibility?: "firm" | "approximate" | "unknown"
+            }
+            interests?: string[]
+            accessibilityOrDietaryNotes?: string
+          } | null
+          customerMessage?: string | null
+          internalSummary?: string | null
+          /** @default [] */
+          tags?: string[]
+          /** @default {} */
+          customFields?: {
+            [key: string]: {
+              [key: string]: unknown
+            }
+          }
+        }
+      }
+    }
+    responses: {
+      /** @description Updated inquiry */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              subject: string
+              /** @enum {string} */
+              kind: "product" | "custom_trip" | "general"
+              /** @enum {string} */
+              status:
+                | "new"
+                | "triaged"
+                | "in_progress"
+                | "waiting_on_customer"
+                | "qualified"
+                | "converted"
+                | "closed"
+              /** @enum {string|null} */
+              closeOutcome:
+                | "lost"
+                | "not_serviceable"
+                | "no_response"
+                | "duplicate"
+                | "spam"
+                | "customer_withdrew"
+                | "other"
+                | null
+              closeNote: string | null
+              duplicateOfInquiryId: string | null
+              priority: string
+              personId: string | null
+              organizationId: string | null
+              contactSnapshot: {
+                name?: string
+                /** Format: email */
+                email?: string
+                phone?: string
+              }
+              ownerId: string | null
+              teamId: string | null
+              unassignedReason: string | null
+              nextActionAt: string | null
+              firstResponseDueAt: string | null
+              firstRespondedAt: string | null
+              travelBrief: {
+                /** @enum {number} */
+                version: 1
+                destinations?: {
+                  placeId?: string
+                  label: string
+                }[]
+                origin?: {
+                  placeId?: string
+                  label: string
+                }
+                /** Format: date */
+                startDate?: string
+                /** Format: date */
+                endDate?: string
+                /** @enum {string} */
+                dateFlexibility?: "exact" | "few_days" | "few_weeks" | "open"
+                durationNights?: number
+                adults?: number
+                children?: {
+                  age?: number
+                }[]
+                rooms?: number
+                budget?: {
+                  amountCents?: number
+                  currency: string
+                  /** @enum {string} */
+                  basis?: "total" | "per_person"
+                  /** @enum {string} */
+                  flexibility?: "firm" | "approximate" | "unknown"
+                }
+                interests?: string[]
+                accessibilityOrDietaryNotes?: string
+              } | null
+              customerMessage: string | null
+              internalSummary: string | null
+              source: string
+              sourceRef: string | null
+              sourceUrl: string | null
+              locale: string | null
+              consentSnapshot: {
+                [key: string]: unknown
+              } | null
+              tags: string[]
+              customFields: {
+                [key: string]: {
+                  [key: string]: unknown
+                }
+              }
+              lastActivityAt: string | null
+              qualifiedAt: string | null
+              convertedAt: string | null
+              closedAt: string | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description Inquiry or related record not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Inquiry conflict */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  postAdminRelationshipsInquiriesByIdTransition: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          /** @enum {string} */
+          status: "triaged" | "in_progress" | "waiting_on_customer" | "qualified"
+          /** Format: date-time */
+          nextActionAt?: string | null
+          noFollowUpExpected?: boolean
+          unassignedReason?: string | null
+        }
+      }
+    }
+    responses: {
+      /** @description Updated inquiry */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              subject: string
+              /** @enum {string} */
+              kind: "product" | "custom_trip" | "general"
+              /** @enum {string} */
+              status:
+                | "new"
+                | "triaged"
+                | "in_progress"
+                | "waiting_on_customer"
+                | "qualified"
+                | "converted"
+                | "closed"
+              /** @enum {string|null} */
+              closeOutcome:
+                | "lost"
+                | "not_serviceable"
+                | "no_response"
+                | "duplicate"
+                | "spam"
+                | "customer_withdrew"
+                | "other"
+                | null
+              closeNote: string | null
+              duplicateOfInquiryId: string | null
+              priority: string
+              personId: string | null
+              organizationId: string | null
+              contactSnapshot: {
+                name?: string
+                /** Format: email */
+                email?: string
+                phone?: string
+              }
+              ownerId: string | null
+              teamId: string | null
+              unassignedReason: string | null
+              nextActionAt: string | null
+              firstResponseDueAt: string | null
+              firstRespondedAt: string | null
+              travelBrief: {
+                /** @enum {number} */
+                version: 1
+                destinations?: {
+                  placeId?: string
+                  label: string
+                }[]
+                origin?: {
+                  placeId?: string
+                  label: string
+                }
+                /** Format: date */
+                startDate?: string
+                /** Format: date */
+                endDate?: string
+                /** @enum {string} */
+                dateFlexibility?: "exact" | "few_days" | "few_weeks" | "open"
+                durationNights?: number
+                adults?: number
+                children?: {
+                  age?: number
+                }[]
+                rooms?: number
+                budget?: {
+                  amountCents?: number
+                  currency: string
+                  /** @enum {string} */
+                  basis?: "total" | "per_person"
+                  /** @enum {string} */
+                  flexibility?: "firm" | "approximate" | "unknown"
+                }
+                interests?: string[]
+                accessibilityOrDietaryNotes?: string
+              } | null
+              customerMessage: string | null
+              internalSummary: string | null
+              source: string
+              sourceRef: string | null
+              sourceUrl: string | null
+              locale: string | null
+              consentSnapshot: {
+                [key: string]: unknown
+              } | null
+              tags: string[]
+              customFields: {
+                [key: string]: {
+                  [key: string]: unknown
+                }
+              }
+              lastActivityAt: string | null
+              qualifiedAt: string | null
+              convertedAt: string | null
+              closedAt: string | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description Inquiry not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Inquiry lifecycle conflict */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  postAdminRelationshipsInquiriesByIdAssign: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          ownerId: string | null
+          teamId?: string | null
+          unassignedReason?: string | null
+        }
+      }
+    }
+    responses: {
+      /** @description Updated inquiry */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              subject: string
+              /** @enum {string} */
+              kind: "product" | "custom_trip" | "general"
+              /** @enum {string} */
+              status:
+                | "new"
+                | "triaged"
+                | "in_progress"
+                | "waiting_on_customer"
+                | "qualified"
+                | "converted"
+                | "closed"
+              /** @enum {string|null} */
+              closeOutcome:
+                | "lost"
+                | "not_serviceable"
+                | "no_response"
+                | "duplicate"
+                | "spam"
+                | "customer_withdrew"
+                | "other"
+                | null
+              closeNote: string | null
+              duplicateOfInquiryId: string | null
+              priority: string
+              personId: string | null
+              organizationId: string | null
+              contactSnapshot: {
+                name?: string
+                /** Format: email */
+                email?: string
+                phone?: string
+              }
+              ownerId: string | null
+              teamId: string | null
+              unassignedReason: string | null
+              nextActionAt: string | null
+              firstResponseDueAt: string | null
+              firstRespondedAt: string | null
+              travelBrief: {
+                /** @enum {number} */
+                version: 1
+                destinations?: {
+                  placeId?: string
+                  label: string
+                }[]
+                origin?: {
+                  placeId?: string
+                  label: string
+                }
+                /** Format: date */
+                startDate?: string
+                /** Format: date */
+                endDate?: string
+                /** @enum {string} */
+                dateFlexibility?: "exact" | "few_days" | "few_weeks" | "open"
+                durationNights?: number
+                adults?: number
+                children?: {
+                  age?: number
+                }[]
+                rooms?: number
+                budget?: {
+                  amountCents?: number
+                  currency: string
+                  /** @enum {string} */
+                  basis?: "total" | "per_person"
+                  /** @enum {string} */
+                  flexibility?: "firm" | "approximate" | "unknown"
+                }
+                interests?: string[]
+                accessibilityOrDietaryNotes?: string
+              } | null
+              customerMessage: string | null
+              internalSummary: string | null
+              source: string
+              sourceRef: string | null
+              sourceUrl: string | null
+              locale: string | null
+              consentSnapshot: {
+                [key: string]: unknown
+              } | null
+              tags: string[]
+              customFields: {
+                [key: string]: {
+                  [key: string]: unknown
+                }
+              }
+              lastActivityAt: string | null
+              qualifiedAt: string | null
+              convertedAt: string | null
+              closedAt: string | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description Inquiry not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Inquiry lifecycle conflict */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  postAdminRelationshipsInquiriesByIdClose: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          /** @enum {string} */
+          outcome:
+            | "lost"
+            | "not_serviceable"
+            | "no_response"
+            | "duplicate"
+            | "spam"
+            | "customer_withdrew"
+            | "other"
+          duplicateOfInquiryId?: string | null
+          note?: string | null
+        }
+      }
+    }
+    responses: {
+      /** @description Updated inquiry */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              subject: string
+              /** @enum {string} */
+              kind: "product" | "custom_trip" | "general"
+              /** @enum {string} */
+              status:
+                | "new"
+                | "triaged"
+                | "in_progress"
+                | "waiting_on_customer"
+                | "qualified"
+                | "converted"
+                | "closed"
+              /** @enum {string|null} */
+              closeOutcome:
+                | "lost"
+                | "not_serviceable"
+                | "no_response"
+                | "duplicate"
+                | "spam"
+                | "customer_withdrew"
+                | "other"
+                | null
+              closeNote: string | null
+              duplicateOfInquiryId: string | null
+              priority: string
+              personId: string | null
+              organizationId: string | null
+              contactSnapshot: {
+                name?: string
+                /** Format: email */
+                email?: string
+                phone?: string
+              }
+              ownerId: string | null
+              teamId: string | null
+              unassignedReason: string | null
+              nextActionAt: string | null
+              firstResponseDueAt: string | null
+              firstRespondedAt: string | null
+              travelBrief: {
+                /** @enum {number} */
+                version: 1
+                destinations?: {
+                  placeId?: string
+                  label: string
+                }[]
+                origin?: {
+                  placeId?: string
+                  label: string
+                }
+                /** Format: date */
+                startDate?: string
+                /** Format: date */
+                endDate?: string
+                /** @enum {string} */
+                dateFlexibility?: "exact" | "few_days" | "few_weeks" | "open"
+                durationNights?: number
+                adults?: number
+                children?: {
+                  age?: number
+                }[]
+                rooms?: number
+                budget?: {
+                  amountCents?: number
+                  currency: string
+                  /** @enum {string} */
+                  basis?: "total" | "per_person"
+                  /** @enum {string} */
+                  flexibility?: "firm" | "approximate" | "unknown"
+                }
+                interests?: string[]
+                accessibilityOrDietaryNotes?: string
+              } | null
+              customerMessage: string | null
+              internalSummary: string | null
+              source: string
+              sourceRef: string | null
+              sourceUrl: string | null
+              locale: string | null
+              consentSnapshot: {
+                [key: string]: unknown
+              } | null
+              tags: string[]
+              customFields: {
+                [key: string]: {
+                  [key: string]: unknown
+                }
+              }
+              lastActivityAt: string | null
+              qualifiedAt: string | null
+              convertedAt: string | null
+              closedAt: string | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description Inquiry not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Inquiry lifecycle conflict */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  postAdminRelationshipsInquiriesByIdReopen: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          /** Format: date-time */
+          nextActionAt?: string | null
+          unassignedReason?: string | null
+        }
+      }
+    }
+    responses: {
+      /** @description Updated inquiry */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              subject: string
+              /** @enum {string} */
+              kind: "product" | "custom_trip" | "general"
+              /** @enum {string} */
+              status:
+                | "new"
+                | "triaged"
+                | "in_progress"
+                | "waiting_on_customer"
+                | "qualified"
+                | "converted"
+                | "closed"
+              /** @enum {string|null} */
+              closeOutcome:
+                | "lost"
+                | "not_serviceable"
+                | "no_response"
+                | "duplicate"
+                | "spam"
+                | "customer_withdrew"
+                | "other"
+                | null
+              closeNote: string | null
+              duplicateOfInquiryId: string | null
+              priority: string
+              personId: string | null
+              organizationId: string | null
+              contactSnapshot: {
+                name?: string
+                /** Format: email */
+                email?: string
+                phone?: string
+              }
+              ownerId: string | null
+              teamId: string | null
+              unassignedReason: string | null
+              nextActionAt: string | null
+              firstResponseDueAt: string | null
+              firstRespondedAt: string | null
+              travelBrief: {
+                /** @enum {number} */
+                version: 1
+                destinations?: {
+                  placeId?: string
+                  label: string
+                }[]
+                origin?: {
+                  placeId?: string
+                  label: string
+                }
+                /** Format: date */
+                startDate?: string
+                /** Format: date */
+                endDate?: string
+                /** @enum {string} */
+                dateFlexibility?: "exact" | "few_days" | "few_weeks" | "open"
+                durationNights?: number
+                adults?: number
+                children?: {
+                  age?: number
+                }[]
+                rooms?: number
+                budget?: {
+                  amountCents?: number
+                  currency: string
+                  /** @enum {string} */
+                  basis?: "total" | "per_person"
+                  /** @enum {string} */
+                  flexibility?: "firm" | "approximate" | "unknown"
+                }
+                interests?: string[]
+                accessibilityOrDietaryNotes?: string
+              } | null
+              customerMessage: string | null
+              internalSummary: string | null
+              source: string
+              sourceRef: string | null
+              sourceUrl: string | null
+              locale: string | null
+              consentSnapshot: {
+                [key: string]: unknown
+              } | null
+              tags: string[]
+              customFields: {
+                [key: string]: {
+                  [key: string]: unknown
+                }
+              }
+              lastActivityAt: string | null
+              qualifiedAt: string | null
+              convertedAt: string | null
+              closedAt: string | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description Inquiry not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Inquiry lifecycle conflict */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
           }
         }
       }

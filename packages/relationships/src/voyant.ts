@@ -79,6 +79,48 @@ const relationshipChangedPayloadSchema = {
   additionalProperties: false,
 } as const
 
+const inquiryEventPayloadSchema = {
+  type: "object",
+  required: ["id", "actorId"],
+  properties: { id: { type: "string" }, actorId: { type: "string" } },
+  additionalProperties: false,
+} as const
+
+const inquiryAssignedPayloadSchema = {
+  type: "object",
+  required: ["id", "actorId", "ownerId", "teamId"],
+  properties: {
+    id: { type: "string" },
+    actorId: { type: "string" },
+    ownerId: { type: ["string", "null"] },
+    teamId: { type: ["string", "null"] },
+  },
+  additionalProperties: false,
+} as const
+
+const inquiryStatusChangedPayloadSchema = {
+  type: "object",
+  required: ["id", "actorId", "from", "to"],
+  properties: {
+    id: { type: "string" },
+    actorId: { type: "string" },
+    from: { type: "string" },
+    to: { type: "string" },
+  },
+  additionalProperties: false,
+} as const
+
+const inquiryClosedPayloadSchema = {
+  type: "object",
+  required: ["id", "actorId", "outcome"],
+  properties: {
+    id: { type: "string" },
+    actorId: { type: "string" },
+    outcome: { type: "string" },
+  },
+  additionalProperties: false,
+} as const
+
 /** Import-cheap deployment declaration owned by the relationships package. */
 export const relationshipsVoyantModule = defineModule({
   id: "@voyant-travel/relationships",
@@ -144,6 +186,54 @@ export const relationshipsVoyantModule = defineModule({
     },
   ],
   events: [
+    {
+      id: "@voyant-travel/relationships#event.inquiry.created",
+      eventType: "inquiry.created",
+      version: "1.0.0",
+      payloadSchema: inquiryEventPayloadSchema,
+      visibility: "internal",
+      audit: { sourceModule: "relationships", category: "domain" },
+    },
+    {
+      id: "@voyant-travel/relationships#event.inquiry.updated",
+      eventType: "inquiry.updated",
+      version: "1.0.0",
+      payloadSchema: inquiryEventPayloadSchema,
+      visibility: "internal",
+      audit: { sourceModule: "relationships", category: "domain" },
+    },
+    {
+      id: "@voyant-travel/relationships#event.inquiry.assigned",
+      eventType: "inquiry.assigned",
+      version: "1.0.0",
+      payloadSchema: inquiryAssignedPayloadSchema,
+      visibility: "internal",
+      audit: { sourceModule: "relationships", category: "domain" },
+    },
+    {
+      id: "@voyant-travel/relationships#event.inquiry.status-changed",
+      eventType: "inquiry.status_changed",
+      version: "1.0.0",
+      payloadSchema: inquiryStatusChangedPayloadSchema,
+      visibility: "internal",
+      audit: { sourceModule: "relationships", category: "domain" },
+    },
+    {
+      id: "@voyant-travel/relationships#event.inquiry.closed",
+      eventType: "inquiry.closed",
+      version: "1.0.0",
+      payloadSchema: inquiryClosedPayloadSchema,
+      visibility: "internal",
+      audit: { sourceModule: "relationships", category: "domain" },
+    },
+    {
+      id: "@voyant-travel/relationships#event.inquiry.reopened",
+      eventType: "inquiry.reopened",
+      version: "1.0.0",
+      payloadSchema: inquiryEventPayloadSchema,
+      visibility: "internal",
+      audit: { sourceModule: "relationships", category: "domain" },
+    },
     {
       id: "@voyant-travel/relationships#event.customer.signal.created",
       eventType: "customer.signal.created",
