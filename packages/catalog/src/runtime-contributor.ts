@@ -68,6 +68,7 @@ import {
   catalogReindexJobRuntimePort,
 } from "./reindex-job-runtime-port.js"
 import { refreshBookingEngineConnectSources } from "./runtime/booking-engine-runtime.js"
+import { createBookingSessionServiceRuntimes } from "./runtime/booking-runtime.js"
 import { createCatalogRuntime } from "./runtime.js"
 import {
   type CatalogAccommodationsRuntimeExtension,
@@ -166,6 +167,21 @@ export function createCatalogRuntimePortContribution(
     host.hasRuntimePort?.(analyticsPort) === true
       ? createDeferredAnalytics(Promise.resolve(host.getRuntimePort<AnalyticsPort>(analyticsPort)))
       : undefined
+  const bookingSessionServiceRuntimes = {
+    ...(host.hasRuntimePort?.(bookingsRelationshipsRuntimePort) === true
+      ? {
+          async resolveBookingsRelationshipsRuntime() {
+            return host.getRuntimePort<BookingsRelationshipsRuntime>(
+              bookingsRelationshipsRuntimePort,
+            )
+          },
+        }
+      : {}),
+    resolveFinanceServiceRuntime(context: unknown) {
+      const eventBus = (context as { var?: { eventBus?: unknown } } | undefined)?.var?.eventBus
+      return eventBus ? { eventBus: eventBus as never } : {}
+    },
+  }
   const dependencies = Promise.resolve().then(() =>
     Promise.all([
       host.getRuntimePort<CatalogAccommodationsRuntimeExtension>(
@@ -222,16 +238,7 @@ export function createCatalogRuntimePortContribution(
         settings,
         {
           indexer: catalogIndexer,
-          async resolveBookingsRelationshipsRuntime() {
-            if (host.hasRuntimePort?.(bookingsRelationshipsRuntimePort) !== true) return null
-            return host.getRuntimePort<BookingsRelationshipsRuntime>(
-              bookingsRelationshipsRuntimePort,
-            )
-          },
-          resolveFinanceServiceRuntime(context) {
-            const eventBus = (context as { var?: { eventBus?: unknown } }).var?.eventBus
-            return eventBus ? { eventBus: eventBus as never } : {}
-          },
+          ...bookingSessionServiceRuntimes,
           async resolvePaymentAdapter() {
             if (host.hasRuntimePort?.(paymentAdapterRuntimePortReference) !== true) return null
             return host.getRuntimePort<PaymentAdapter>(paymentAdapterRuntimePortReference)
@@ -255,6 +262,7 @@ export function createCatalogRuntimePortContribution(
     const [, , commerce, distribution, , inventory, , , settings] = await dependencies
     return createProductionBookingSessionModule({
       db,
+      ...createBookingSessionServiceRuntimes(bookingSessionServiceRuntimes, undefined),
       ...(analytics ? { analytics } : {}),
       resolvePromotionEvaluator: (sessionDb) => commerce.createPromotionEvaluator?.(sessionDb),
       ...(commerce.resolveAncillaryOffers

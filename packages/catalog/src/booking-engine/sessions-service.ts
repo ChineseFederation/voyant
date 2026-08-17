@@ -3021,7 +3021,10 @@ function bookingIdFromCommit(commit: BookingCommitInternalRecord): string {
  * and those need opposite responses (voyant#4692).
  */
 function settlementFailure(outcome: BookingSessionOutcomeV1): string {
-  if (outcome.kind === "rejected") return outcome.error.kind
+  if (outcome.kind === "rejected") {
+    const error = outcome.error
+    return error.kind === "commit_rejected" ? `${error.kind}:${error.reason}` : error.kind
+  }
   if (outcome.kind !== "commit_result") return outcome.kind
   const result = outcome.outcome
   return "reason" in result && typeof result.reason === "string"

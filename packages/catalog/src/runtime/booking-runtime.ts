@@ -3,6 +3,7 @@ import {
   type CatalogBookingRouteModuleOptions,
   createProductionBookingSessionModule,
   createSupplierOperationOperatorService,
+  type ProductionBookingSessionModuleDeps,
 } from "@voyant-travel/catalog/booking-engine"
 import { createDrizzleBookingSessionRepository } from "@voyant-travel/catalog/booking-engine/sessions-drizzle"
 import type { AnalyticsPort } from "@voyant-travel/core/analytics"
@@ -21,6 +22,47 @@ import { catalogRuntimeExtensions } from "./host.js"
 
 function getCatalogBookingDb(c: Context): AnyDrizzleDb {
   return (c.var as { db: AnyDrizzleDb }).db
+}
+
+export interface BookingSessionServiceRuntimeOptions<ContextValue = Context> {
+  resolveBookingsRelationshipsRuntime?: () => Promise<BookingsRelationshipsRuntime | null>
+  resolveFinanceServiceRuntime?: (context: ContextValue) => FinanceServiceRuntime
+}
+
+/** Bind the cross-module runtimes required by every production Booking Session. */
+export function createBookingSessionServiceRuntimes<ContextValue>(
+  options: BookingSessionServiceRuntimeOptions<ContextValue>,
+  context: ContextValue,
+): Pick<ProductionBookingSessionModuleDeps, "relationships" | "financeRuntime"> {
+  return {
+    // Runtime ports may still be promises when Catalog contributes its ports,
+    // so keep Relationships lazy until a Session actually needs it. Preserve
+    // the absent dependency when the optional port is not installed: the
+    // production module uses that absence to return a typed incomplete_draft.
+    ...(options.resolveBookingsRelationshipsRuntime
+      ? {
+          relationships: {
+            async loadPersonTravelSnapshot(...args) {
+              const runtime = await requireRelationshipsRuntime(options)
+              return runtime.loadPersonTravelSnapshot(...args)
+            },
+            async upsertPersonFromContact(...args) {
+              const runtime = await requireRelationshipsRuntime(options)
+              return runtime.upsertPersonFromContact(...args)
+            },
+            async getPersonById(...args) {
+              const runtime = await requireRelationshipsRuntime(options)
+              return runtime.getPersonById(...args)
+            },
+            async getOrganizationById(...args) {
+              const runtime = await requireRelationshipsRuntime(options)
+              return runtime.getOrganizationById(...args)
+            },
+          },
+        }
+      : {}),
+    financeRuntime: options.resolveFinanceServiceRuntime?.(context) ?? {},
+  }
 }
 
 export function createOperatorCatalogBookingRouteModuleOptions(options: {
@@ -49,25 +91,7 @@ export function createOperatorCatalogBookingRouteModuleOptions(options: {
           resolveSourceRegistry: () => getBookingEngineRegistryFromContext(c),
           resolveCompositeHandler: () =>
             requireCatalogRuntimeServices().getCompositeBookingSessionHandler?.(),
-          relationships: {
-            async loadPersonTravelSnapshot(...args) {
-              const runtime = await requireRelationshipsRuntime(options)
-              return runtime.loadPersonTravelSnapshot(...args)
-            },
-            async upsertPersonFromContact(...args) {
-              const runtime = await requireRelationshipsRuntime(options)
-              return runtime.upsertPersonFromContact(...args)
-            },
-            async getPersonById(...args) {
-              const runtime = await requireRelationshipsRuntime(options)
-              return runtime.getPersonById(...args)
-            },
-            async getOrganizationById(...args) {
-              const runtime = await requireRelationshipsRuntime(options)
-              return runtime.getOrganizationById(...args)
-            },
-          },
-          financeRuntime: options.resolveFinanceServiceRuntime?.(c),
+          ...createBookingSessionServiceRuntimes(options, c),
           payments: {
             inventory,
             distribution,
