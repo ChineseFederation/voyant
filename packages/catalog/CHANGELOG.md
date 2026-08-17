@@ -1,5 +1,11 @@
 # @voyant-travel/catalog
 
+## 0.262.3
+
+### Patch Changes
+
+- 3bba9ab: Bind Relationships and Finance runtimes when managed payment settlement commits Booking Sessions, and retain typed commit rejection reasons in durable settlement failures.
+
 ## 0.262.2
 
 ### Patch Changes
