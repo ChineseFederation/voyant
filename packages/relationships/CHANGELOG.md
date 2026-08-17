@@ -1,5 +1,14 @@
 # @voyant-travel/crm
 
+## 0.134.19
+
+### Patch Changes
+
+- Updated dependencies [98058d1]
+- Updated dependencies [d6c0645]
+  - @voyant-travel/finance@0.261.1
+  - @voyant-travel/identity@0.237.0
+
 ## 0.134.18
 
 ### Patch Changes

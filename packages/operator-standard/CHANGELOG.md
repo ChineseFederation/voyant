@@ -1,5 +1,63 @@
 # @voyant-travel/operator-standard
 
+## 0.21.76
+
+### Patch Changes
+
+- d6c0645: Move customer verification to `@voyant-travel/identity` (#4627). The
+  `customer_verification_challenges` table, its three migrations, the schema,
+  service, public routes and runtime port now belong to the module that owns
+  customer identity, and `packages/public-api` is left owning no tables at all.
+
+  Identity declares `legacyMigrationSources: ["public-api", "storefront"]` — both,
+  because a deployment ran these under `storefront` before #4649 and under
+  `public-api` after it, and the runner matches a ledger row on any declared
+  source. Every migration tag is preserved unchanged, because the tag is the
+  ledger identity.
+
+  The four `start`/`confirm_my_email`/`sms_verification` Tools stay in
+  `public-api`: they resolve the authenticated customer's own destination through
+  the customer portal's profile, which composes auth and customer records, so
+  moving them would have made identity depend on the composition layer above it.
+
+  The verification enum types are renamed off the retired storefront entity —
+  `storefront_verification_channel`/`_status` become `customer_verification_*`.
+  The table and its indexes were renamed in #4649 but Postgres enum types are
+  separate objects that migration did not touch.
+
+- Updated dependencies [98058d1]
+- Updated dependencies [d6c0645]
+  - @voyant-travel/catalog@0.261.1
+  - @voyant-travel/finance@0.261.1
+  - @voyant-travel/identity@0.237.0
+  - @voyant-travel/public-api@0.264.0
+  - @voyant-travel/notifications@0.150.16
+  - @voyant-travel/distribution@0.229.5
+  - @voyant-travel/identity-react@0.306.0
+  - @voyant-travel/operations@0.23.10
+  - @voyant-travel/relationships@0.134.19
+  - @voyant-travel/public-api-react@0.308.0
+  - @voyant-travel/trips@0.237.7
+  - @voyant-travel/voyant-connect-adapter@0.38.1
+  - @voyant-travel/bookings-react@0.306.0
+  - @voyant-travel/relationships-react@0.306.0
+  - @voyant-travel/cruises-react@0.305.0
+  - @voyant-travel/inventory-react@0.188.0
+  - @voyant-travel/action-ledger-react@0.195.0
+  - @voyant-travel/distribution-react@0.296.0
+  - @voyant-travel/finance-react@0.306.0
+  - @voyant-travel/legal-react@0.306.0
+  - @voyant-travel/operations-react@0.187.0
+  - @voyant-travel/trips-react@0.299.0
+  - @voyant-travel/flights-react@0.306.0
+  - @voyant-travel/mice-react@0.174.0
+  - @voyant-travel/proposals-react@0.304.0
+  - @voyant-travel/admin-app@0.199.0
+  - @voyant-travel/catalog-react@0.304.0
+  - @voyant-travel/commerce-react@0.188.0
+  - @voyant-travel/operator-settings-react@0.164.0
+  - @voyant-travel/admin-host@0.157.0
+
 ## 0.21.75
 
 ### Patch Changes
