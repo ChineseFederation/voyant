@@ -67,6 +67,7 @@ export function InquiryWorkspace(props: InquiryWorkspaceProps) {
   const [summary, setSummary] = useState(inquiry.internalSummary ?? "")
   const [nextActionAt, setNextActionAt] = useState(dateTimeValue(inquiry.nextActionAt))
   const [ownerId, setOwnerId] = useState(inquiry.ownerId ?? "")
+  const [unassignedReason, setUnassignedReason] = useState(inquiry.unassignedReason ?? "")
   const [closeOutcome, setCloseOutcome] = useState<InquiryCloseOutcome>("lost")
   const [duplicateOfInquiryId, setDuplicateOfInquiryId] = useState("")
   const [closeNote, setCloseNote] = useState("")
@@ -76,11 +77,15 @@ export function InquiryWorkspace(props: InquiryWorkspaceProps) {
     ? { nextActionAt: new Date(nextActionAt).toISOString() }
     : { noFollowUpExpected }
   const transition = (status: TransitionInquiryInput["status"]) => {
-    const input = buildTransitionInput(inquiry, status, followUp)
+    const input = buildTransitionInput(inquiry, status, {
+      ...followUp,
+      ...(status === "triaged" ? { unassignedReason } : {}),
+    })
     if (input) void props.onTransition(input)
   }
   const canAdvanceWithFollowUp = Boolean(nextActionAt || noFollowUpExpected)
   const hasCustomer = Boolean(inquiry.personId || inquiry.organizationId)
+  const canTriage = Boolean(inquiry.ownerId || inquiry.unassignedReason || unassignedReason.trim())
   const closeInput = buildCloseInput(closeOutcome, { duplicateOfInquiryId, note: closeNote })
 
   return (
@@ -112,8 +117,8 @@ export function InquiryWorkspace(props: InquiryWorkspaceProps) {
             {inquiry.status === "new" ? (
               <Button
                 variant="outline"
-                disabled={!inquiry.ownerId}
-                title={!inquiry.ownerId ? messages.ownerRequired : undefined}
+                disabled={!canTriage}
+                title={!canTriage ? messages.ownerRequired : undefined}
                 onClick={() => transition("triaged")}
               >
                 {messages.triage}
@@ -284,6 +289,14 @@ export function InquiryWorkspace(props: InquiryWorkspaceProps) {
                   {messages.assign}
                 </Button>
               </div>
+              {!inquiry.ownerId ? (
+                <Input
+                  aria-label={messages.unassignedReason}
+                  placeholder={messages.unassignedReason}
+                  value={unassignedReason}
+                  onChange={(event) => setUnassignedReason(event.target.value)}
+                />
+              ) : null}
               {inquiry.status !== "closed" && inquiry.status !== "converted" ? (
                 <div className="flex gap-2">
                   <Select

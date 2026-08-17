@@ -125,6 +125,7 @@ export type CrmUiMessages = {
     followUpRequired: string
     customerRequired: string
     ownerRequired: string
+    unassignedReason: string
     close: string
     reopen: string
     convertProposal: string

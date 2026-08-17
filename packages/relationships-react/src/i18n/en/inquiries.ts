@@ -89,7 +89,8 @@ export const crmUiEnInquiryMessages = {
     followUpRequired:
       "Set a next action or explicitly choose no follow-up before changing this status.",
     customerRequired: "Link a Person or Organization before qualification.",
-    ownerRequired: "Assign an owner before triage.",
+    ownerRequired: "Assign an owner or enter a reason for leaving this inquiry unassigned.",
+    unassignedReason: "Reason for leaving unassigned",
     close: "Close",
     reopen: "Reopen",
     convertProposal: "Create proposal",

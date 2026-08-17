@@ -23,7 +23,7 @@ import type {
   InquiryRecord,
   InquiryStatus,
 } from "../inquiry-schemas.js"
-import { filterInquiryQueue } from "../inquiry-ui-model.js"
+import { filterInquiryQueue, inquiryPageState } from "../inquiry-ui-model.js"
 
 export type InquirySavedView =
   | "actionable"
@@ -50,6 +50,10 @@ export interface InquiryQueueProps {
   onFiltersChange: (filters: InquiryQueueFilters) => void
   onInquiryOpen: (inquiry: InquiryRecord) => void
   getInquiryHref: (inquiry: InquiryRecord) => string
+  total: number
+  limit: number
+  offset: number
+  onPageChange: (offset: number) => void
   isPending?: boolean
   error?: unknown
 }
@@ -85,13 +89,19 @@ export function InquiryQueue({
   onFiltersChange,
   onInquiryOpen,
   getInquiryHref,
+  total,
+  limit,
+  offset,
+  onPageChange,
   isPending,
   error,
 }: InquiryQueueProps) {
-  const messages = useCrmUiMessagesOrDefault().inquiryQueue
-  const labels = useCrmUiMessagesOrDefault().inquiryLabels
+  const i18n = useCrmUiMessagesOrDefault()
+  const messages = i18n.inquiryQueue
+  const labels = i18n.inquiryLabels
   const patch = (next: Partial<InquiryQueueFilters>) => onFiltersChange({ ...filters, ...next })
   const visibleInquiries = filterInquiryQueue(inquiries, filters.view, filters.status)
+  const page = inquiryPageState(total, limit, offset)
 
   return (
     <div className="flex flex-col gap-5">
@@ -244,6 +254,31 @@ export function InquiryQueue({
           </Table>
         </div>
       )}
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-sm text-muted-foreground">
+          {i18n.common.pageSummary
+            .replace("{shown}", String(Math.min(offset + inquiries.length, total)))
+            .replace("{total}", String(total))}
+        </span>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            className="rounded-md border px-3 py-1.5 text-sm disabled:opacity-50"
+            disabled={!page.hasPrevious || isPending}
+            onClick={() => onPageChange(page.previousOffset)}
+          >
+            {i18n.common.previous}
+          </button>
+          <button
+            type="button"
+            className="rounded-md border px-3 py-1.5 text-sm disabled:opacity-50"
+            disabled={!page.hasNext || isPending}
+            onClick={() => onPageChange(page.nextOffset)}
+          >
+            {i18n.common.next}
+          </button>
+        </div>
+      </div>
     </div>
   )
 }

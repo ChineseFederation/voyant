@@ -55,12 +55,17 @@ describe("Inquiry operator surfaces", () => {
         onFiltersChange={vi.fn()}
         onInquiryOpen={vi.fn()}
         getInquiryHref={(row) => `/inquiries/${row.id}`}
+        total={1}
+        limit={50}
+        offset={0}
+        onPageChange={vi.fn()}
       />,
     )
     expect(html).toContain("Inquiry queue")
     expect(html).toContain("Family holiday in Greece")
     expect(html).toContain('href="/inquiries/inq_01"')
     expect(html).toContain('aria-label="Search inquiries"')
+    expect(html).toContain("Showing 1 of 1")
   })
 
   it("renders request, operational, and conversion context in the detail workspace", () => {

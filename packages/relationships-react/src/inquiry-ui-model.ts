@@ -21,10 +21,15 @@ export interface CloseInquiryInput {
 export function buildTransitionInput(
   inquiry: InquiryRecord,
   status: TransitionInquiryInput["status"],
-  options: { nextActionAt?: string | null; noFollowUpExpected?: boolean } = {},
+  options: {
+    nextActionAt?: string | null
+    noFollowUpExpected?: boolean
+    unassignedReason?: string | null
+  } = {},
 ): TransitionInquiryInput | null {
   if (!allowedInquiryTransitions(inquiry).includes(status)) return null
-  if (status === "triaged" && !inquiry.ownerId) return null
+  const unassignedReason = options.unassignedReason?.trim() || inquiry.unassignedReason
+  if (status === "triaged" && !inquiry.ownerId && !unassignedReason) return null
   if (status === "qualified" && !inquiry.personId && !inquiry.organizationId) return null
   if (
     (status === "in_progress" || status === "waiting_on_customer") &&
@@ -37,6 +42,18 @@ export function buildTransitionInput(
     status,
     ...(options.nextActionAt ? { nextActionAt: options.nextActionAt } : {}),
     ...(options.noFollowUpExpected ? { noFollowUpExpected: true } : {}),
+    ...(status === "triaged" && !inquiry.ownerId && options.unassignedReason?.trim()
+      ? { unassignedReason: options.unassignedReason.trim() }
+      : {}),
+  }
+}
+
+export function inquiryPageState(total: number, limit: number, offset: number) {
+  return {
+    hasPrevious: offset > 0,
+    hasNext: offset + limit < total,
+    previousOffset: Math.max(0, offset - limit),
+    nextOffset: offset + limit,
   }
 }
 

@@ -89,7 +89,9 @@ export const crmUiRoInquiryMessages = {
     followUpRequired:
       "Stabilește acțiunea următoare sau indică explicit că nu este necesară urmărirea.",
     customerRequired: "Asociază o persoană sau organizație înainte de calificare.",
-    ownerRequired: "Alocă un responsabil înainte de triere.",
+    ownerRequired:
+      "Alocă un responsabil sau introdu motivul pentru care solicitarea rămâne nealocată.",
+    unassignedReason: "Motivul pentru care rămâne nealocată",
     close: "Închide",
     reopen: "Redeschide",
     convertProposal: "Creează propunere",

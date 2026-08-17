@@ -6,6 +6,7 @@ import {
   createConversionRetryKeyStore,
   filterInquiryQueue,
   findBookingSessionTarget,
+  inquiryPageState,
 } from "./inquiry-ui-model.js"
 import { buildInquiriesQueryString } from "./query-options.js"
 
@@ -24,7 +25,7 @@ function record(overrides: Partial<InquiryRecord> = {}): InquiryRecord {
     contactSnapshot: { email: "a@example.test" },
     ownerId: null,
     teamId: null,
-    unassignedReason: "Awaiting assignment",
+    unassignedReason: null,
     nextActionAt: null,
     firstResponseDueAt: null,
     firstRespondedAt: null,
@@ -54,6 +55,12 @@ describe("inquiry UI command model", () => {
     const fresh = record()
     expect(buildTransitionInput(fresh, "in_progress", { noFollowUpExpected: true })).toBeNull()
     expect(buildTransitionInput(fresh, "triaged")).toBeNull()
+    expect(
+      buildTransitionInput(fresh, "triaged", { unassignedReason: "Queue owner unavailable" }),
+    ).toEqual({ status: "triaged", unassignedReason: "Queue owner unavailable" })
+    expect(
+      buildTransitionInput(record({ unassignedReason: "Awaiting assignment" }), "triaged"),
+    ).toEqual({ status: "triaged" })
     const triageReady = record({ ownerId: "usr_1" })
     expect(buildTransitionInput(triageReady, "triaged")).toEqual({ status: "triaged" })
 
@@ -143,6 +150,21 @@ describe("inquiry UI command model", () => {
       priority: "urgent",
       overdue: "true",
       limit: "50",
+    })
+  })
+
+  it("makes every server page reachable", () => {
+    expect(inquiryPageState(125, 50, 0)).toEqual({
+      hasPrevious: false,
+      hasNext: true,
+      previousOffset: 0,
+      nextOffset: 50,
+    })
+    expect(inquiryPageState(125, 50, 100)).toEqual({
+      hasPrevious: true,
+      hasNext: false,
+      previousOffset: 50,
+      nextOffset: 150,
     })
   })
 })
