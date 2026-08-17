@@ -50,6 +50,13 @@
       "when": 1786492860000,
       "tag": "20260812000100_person_payment_method_provenance",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1787004325942,
+      "tag": "20260817220525_inquiry_management",
+      "breakpoints": true
     }
   ]
 }

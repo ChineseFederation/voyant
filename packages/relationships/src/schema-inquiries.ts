@@ -1,0 +1,106 @@
+import type { NamespacedCustomFieldValues } from "@voyant-travel/core/custom-fields"
+import { typeId, typeIdRef } from "@voyant-travel/db/lib/typeid-column"
+import type {
+  InquiryTravelBriefV1,
+  inquiryContactSnapshotSchema,
+} from "@voyant-travel/relationships-contracts"
+import { sql } from "drizzle-orm"
+import {
+  type AnyPgColumn,
+  index,
+  jsonb,
+  pgEnum,
+  pgTable,
+  text,
+  timestamp,
+  uniqueIndex,
+} from "drizzle-orm/pg-core"
+import type { z } from "zod"
+
+import { organizations, people } from "./schema-accounts.js"
+
+export const inquiryKindEnum = pgEnum("inquiry_kind", ["product", "custom_trip", "general"])
+export const inquiryStatusEnum = pgEnum("inquiry_status", [
+  "new",
+  "triaged",
+  "in_progress",
+  "waiting_on_customer",
+  "qualified",
+  "converted",
+  "closed",
+])
+export const inquiryCloseOutcomeEnum = pgEnum("inquiry_close_outcome", [
+  "lost",
+  "not_serviceable",
+  "no_response",
+  "duplicate",
+  "spam",
+  "customer_withdrew",
+  "other",
+])
+
+type InquiryContactSnapshot = z.infer<typeof inquiryContactSnapshotSchema>
+
+/**
+ * A customer request that the agency is accountable for working. Cross-module
+ * targets and conversions deliberately live outside this core table; their
+ * owner slices attach them without making Inquiry depend on Product or Booking
+ * schemas.
+ */
+export const inquiries = pgTable(
+  "inquiries",
+  {
+    id: typeId("inquiries"),
+    subject: text("subject").notNull(),
+    kind: inquiryKindEnum("kind").notNull(),
+    status: inquiryStatusEnum("status").notNull().default("new"),
+    closeOutcome: inquiryCloseOutcomeEnum("close_outcome"),
+    closeNote: text("close_note"),
+    duplicateOfInquiryId: typeIdRef("duplicate_of_inquiry_id").references(
+      (): AnyPgColumn => inquiries.id,
+    ),
+    priority: text("priority").notNull().default("normal"),
+    personId: typeIdRef("person_id").references(() => people.id, { onDelete: "set null" }),
+    organizationId: typeIdRef("organization_id").references(() => organizations.id, {
+      onDelete: "set null",
+    }),
+    contactSnapshot: jsonb("contact_snapshot").$type<InquiryContactSnapshot>().notNull(),
+    ownerId: text("owner_id"),
+    teamId: text("team_id"),
+    unassignedReason: text("unassigned_reason"),
+    nextActionAt: timestamp("next_action_at", { withTimezone: true }),
+    firstResponseDueAt: timestamp("first_response_due_at", { withTimezone: true }),
+    firstRespondedAt: timestamp("first_responded_at", { withTimezone: true }),
+    travelBrief: jsonb("travel_brief").$type<InquiryTravelBriefV1>(),
+    customerMessage: text("customer_message"),
+    internalSummary: text("internal_summary"),
+    source: text("source").notNull(),
+    sourceRef: text("source_ref"),
+    sourceUrl: text("source_url"),
+    locale: text("locale"),
+    consentSnapshot: jsonb("consent_snapshot").$type<Record<string, unknown>>(),
+    tags: jsonb("tags").$type<string[]>().notNull().default([]),
+    customFields: jsonb("custom_fields").$type<NamespacedCustomFieldValues>().notNull().default({}),
+    lastActivityAt: timestamp("last_activity_at", { withTimezone: true }),
+    qualifiedAt: timestamp("qualified_at", { withTimezone: true }),
+    convertedAt: timestamp("converted_at", { withTimezone: true }),
+    closedAt: timestamp("closed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("uq_inquiries_source_ref")
+      .on(table.source, table.sourceRef)
+      .where(sql`${table.sourceRef} is not null`),
+    index("idx_inquiries_status_next_action").on(table.status, table.nextActionAt),
+    index("idx_inquiries_owner_status").on(table.ownerId, table.status),
+    index("idx_inquiries_team_status").on(table.teamId, table.status),
+    index("idx_inquiries_person").on(table.personId),
+    index("idx_inquiries_organization").on(table.organizationId),
+    index("idx_inquiries_duplicate").on(table.duplicateOfInquiryId),
+    index("idx_inquiries_created").on(table.createdAt),
+  ],
+)
+
+export type Inquiry = typeof inquiries.$inferSelect
+export type NewInquiry = typeof inquiries.$inferInsert

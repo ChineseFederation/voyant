@@ -40,7 +40,6 @@ import { commerceAccess } from "./voyant-access.js"
 import {
   bookingSessionSettlementFailedPayloadSchema,
   checkoutFinalizedPayloadSchema,
-  inquiryCreatedPayloadSchema,
   pricingRuleChangedPayloadSchema,
   promotionChangedPayloadSchema,
 } from "./voyant-event-schemas.js"
@@ -370,14 +369,6 @@ export const commerceVoyantModule = defineModule({
       eventType: "pricing.rule.changed",
       version: "1.0.0",
       payloadSchema: pricingRuleChangedPayloadSchema,
-      visibility: "internal",
-      audit: { sourceModule: "commerce", category: "domain" },
-    },
-    {
-      id: "@voyant-travel/commerce#event.inquiry.created",
-      eventType: "inquiry.created",
-      version: "1.0.0",
-      payloadSchema: inquiryCreatedPayloadSchema,
       visibility: "internal",
       audit: { sourceModule: "commerce", category: "domain" },
     },

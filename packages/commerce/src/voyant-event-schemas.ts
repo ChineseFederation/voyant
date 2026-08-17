@@ -39,19 +39,6 @@ export const pricingRuleChangedPayloadSchema = {
   additionalProperties: false,
 } as const
 
-export const inquiryCreatedPayloadSchema = {
-  type: "object",
-  required: ["proposalId", "bookingId", "bookingNumber", "pipelineId", "stageId"],
-  properties: {
-    proposalId: { type: ["string", "null"] },
-    bookingId: { type: "string" },
-    bookingNumber: { type: "string" },
-    pipelineId: { type: "string" },
-    stageId: { type: "string" },
-  },
-  additionalProperties: false,
-} as const
-
 export const checkoutFinalizedPayloadSchema = {
   type: "object",
   required: ["bookingId", "paymentSessionId"],

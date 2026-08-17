@@ -53,6 +53,7 @@ export {
   resolveCustomerSignalSchema,
   updateCustomerSignalSchema,
 } from "./validation/customer-signals.js"
+export * from "./validation/inquiries.js"
 export {
   insertOrganizationNoteSchema,
   insertPersonNoteSchema,
