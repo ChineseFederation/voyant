@@ -27,6 +27,7 @@ export interface ConvertInquiryToProposalInput {
 }
 
 export type ProposalInquiryConversionRefusalReason =
+  | "invalid_input"
   | "pipeline_not_found"
   | "default_pipeline_not_found"
   | "stage_not_found"
@@ -66,7 +67,19 @@ export interface ProposalInquiryConversionRuntime {
  * The reversible form keeps the originating Inquiry navigable while allowing
  * separate conversion operations for that Inquiry to create separate targets.
  */
-export function formatProposalInquirySourceRef(inquiryId: string, idempotencyKey: string): string {
+export const PROPOSAL_INQUIRY_ID_MAX_LENGTH = 255
+export const PROPOSAL_INQUIRY_IDEMPOTENCY_KEY_MAX_LENGTH = 255
+
+export function formatProposalInquirySourceRef(
+  inquiryId: string,
+  idempotencyKey: string,
+): string | null {
+  if (
+    !isValidSourceRefPart(inquiryId, PROPOSAL_INQUIRY_ID_MAX_LENGTH) ||
+    !isValidSourceRefPart(idempotencyKey, PROPOSAL_INQUIRY_IDEMPOTENCY_KEY_MAX_LENGTH)
+  ) {
+    return null
+  }
   return `${encodeURIComponent(inquiryId)}/conversion/${encodeURIComponent(idempotencyKey)}`
 }
 
@@ -79,13 +92,36 @@ export function parseProposalInquirySourceRef(
   const encodedInquiryId = sourceRef.slice(0, markerIndex)
   const encodedIdempotencyKey = sourceRef.slice(markerIndex + marker.length)
   try {
-    return {
-      inquiryId: decodeURIComponent(encodedInquiryId),
-      idempotencyKey: decodeURIComponent(encodedIdempotencyKey),
-    }
+    const inquiryId = decodeURIComponent(encodedInquiryId)
+    const idempotencyKey = decodeURIComponent(encodedIdempotencyKey)
+    if (formatProposalInquirySourceRef(inquiryId, idempotencyKey) === null) return null
+    return { inquiryId, idempotencyKey }
   } catch {
     return null
   }
+}
+
+function isValidSourceRefPart(value: unknown, maxLength: number): value is string {
+  if (
+    typeof value !== "string" ||
+    value.length === 0 ||
+    value.length > maxLength ||
+    value.trim().length === 0
+  ) {
+    return false
+  }
+  for (let index = 0; index < value.length; index += 1) {
+    const codeUnit = value.charCodeAt(index)
+    if (codeUnit >= 0xd800 && codeUnit <= 0xdbff) {
+      if (index + 1 >= value.length) return false
+      const next = value.charCodeAt(index + 1)
+      if (next < 0xdc00 || next > 0xdfff) return false
+      index += 1
+    } else if (codeUnit >= 0xdc00 && codeUnit <= 0xdfff) {
+      return false
+    }
+  }
+  return true
 }
 
 /** Import-cheap port consumed by the Relationships conversion coordinator. */

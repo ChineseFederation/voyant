@@ -221,6 +221,24 @@ describe("Proposal Inquiry conversion runtime", () => {
     expect(store.createProposal).not.toHaveBeenCalled()
   })
 
+  it.each([
+    ["an empty Inquiry id", "", "conversion_1"],
+    ["an empty idempotency key", "inq_1", ""],
+    ["an oversized Inquiry id", "i".repeat(256), "conversion_1"],
+    ["an oversized idempotency key", "inq_1", "k".repeat(256)],
+    ["malformed Inquiry Unicode", "inq_\ud800", "conversion_1"],
+    ["malformed key Unicode", "inq_1", "conversion_\udc00"],
+  ])("refuses %s before locking", async (_label, inquiryId, idempotencyKey) => {
+    const store = createStore()
+    const runtime = createProposalInquiryConversionRuntime(store as never)
+
+    await expect(
+      runtime.convertInquiry("db", { inquiryId, idempotencyKey, title: "Invalid request" }),
+    ).resolves.toEqual({ kind: "refused", reason: "invalid_input" })
+    expect(store.withConversionLock).not.toHaveBeenCalled()
+    expect(store.createProposal).not.toHaveBeenCalled()
+  })
+
   it("uses an explicit Stage only when it belongs to the selected Proposal pipeline", async () => {
     const store = createStore({
       getPipeline: vi.fn().mockResolvedValue({ id: "pipeline_1", entityType: "proposal" }),

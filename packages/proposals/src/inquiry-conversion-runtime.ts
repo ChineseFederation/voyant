@@ -172,8 +172,9 @@ export function createProposalInquiryConversionRuntime(
   store: ProposalInquiryConversionStore = drizzleProposalInquiryConversionStore,
 ): ProposalInquiryConversionRuntime {
   return {
-    convertInquiry(database, input) {
+    async convertInquiry(database, input) {
       const sourceRef = formatProposalInquirySourceRef(input.inquiryId, input.idempotencyKey)
+      if (sourceRef === null) return refused("invalid_input")
       return store.withConversionLock(database, sourceRef, async (lockedDatabase) => {
         const existing = await store.findBySourceRef(lockedDatabase, sourceRef)
         if (existing.length > 1) return refused("source_conflict")
