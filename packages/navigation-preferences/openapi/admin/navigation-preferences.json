@@ -1,5 +1,5 @@
 {
-  "openapi": "3.0.0",
+  "openapi": "3.1.0",
   "info": {
     "title": "Navigation Preferences Admin API",
     "version": "1.0.0"
@@ -61,9 +61,7 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "error": {
-                      "nullable": true
-                    }
+                    "error": {}
                   }
                 }
               }
@@ -128,9 +126,7 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "error": {
-                      "nullable": true
-                    }
+                    "error": {}
                   }
                 }
               }
@@ -143,9 +139,7 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "error": {
-                      "nullable": true
-                    }
+                    "error": {}
                   }
                 }
               }
@@ -158,9 +152,7 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "error": {
-                      "nullable": true
-                    }
+                    "error": {}
                   }
                 }
               }
@@ -225,9 +217,7 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "error": {
-                      "nullable": true
-                    }
+                    "error": {}
                   }
                 }
               }
@@ -240,9 +230,7 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "error": {
-                      "nullable": true
-                    }
+                    "error": {}
                   }
                 }
               }

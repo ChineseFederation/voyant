@@ -1,0 +1,23 @@
+{
+  "$comment": [
+    "Documents still carrying the OpenAPI 3.0 `nullable` keyword while declaring 3.1.",
+    "",
+    "3.1 has no `nullable`. It is silently ignored, so `{type: 'string', nullable: true}`",
+    "reads as a plain non-nullable string to every 3.1 tool — including the client",
+    "generators. A consumer is then typed to expect a value the API may not send.",
+    "",
+    "The correct 3.1 spelling is a type union: `type: ['string', 'null']`. Where the",
+    "schema has no `type` at all, `nullable` was already a no-op and the keyword is",
+    "simply dropped.",
+    "",
+    "THESE COUNTS MAY ONLY SHRINK. A document not listed here may never gain one.",
+    "Two of the five are generated (finance, webhook-delivery), so fixing those means",
+    "fixing what the generator emits, not editing the artifact."
+  ],
+  "documents": {
+    "packages/finance/openapi/public-api/finance.json": 3,
+    "packages/identity/openapi/public-api/identity-verification.json": 2,
+    "packages/notifications/openapi/admin/notifications.json": 15,
+    "packages/setup/openapi/admin/setup.json": 34
+  }
+}
