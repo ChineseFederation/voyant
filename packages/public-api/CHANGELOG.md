@@ -1,5 +1,53 @@
 # @voyant-travel/public-api
 
+## 0.266.1
+
+### Patch Changes
+
+- 270e3ed: Repair the public shopping OpenAPI generator and regenerate the document it had
+  stopped producing.
+
+  `generate:shopping-openapi` writes the document and then formats it with biome, so
+  that a semantic change is not buried under thousands of formatting-only lines. The
+  document passed biome's default 1 MiB ceiling as the public surface grew, and biome
+  refuses an oversized file rather than skipping it — so the format step began exiting
+  non-zero, the generator became unrunnable, and it left an unformatted document behind
+  when it failed. The ceiling is now raised for this one invocation rather than in
+  `biome.json`, so repo-wide runs keep skipping the 1.8 MiB migration snapshots.
+
+  While it was broken the document drifted from the routes. `POST
+/v1/public/shopping/trip-selections/book` was missing from it entirely — a public
+  endpoint absent from the published contract and from the in-app API reference, which
+  renders these documents — and `/v1/public/shopping/search` and
+  `/v1/public/shopping/trip-selections` had both moved on. Nothing else changed: the
+  other twelve paths and every top-level field are byte-identical.
+
+  The generator is now registered in `generated-specs.json`, so `verify:openapi-drift`
+  regenerates and diffs it. It was the only generator in the repository whose output was
+  unregistered, which is why the drift was invisible for as long as it was.
+
+- 09ffdd6: Finish the `active_storefront_channel_required` → `active_channel_required` error-code
+  rename, and correct the verification challenge's declared TypeID prefix.
+
+  The rename was announced when the storefront entity was retired, but four call sites
+  were missed: booking-inquiry submission, booking-engine session start, and two public
+  shopping guards. All four resolve the caller through `activePublicApiOrigin` already —
+  only the string a client sees was stale, so a consumer matching on the documented code
+  got no match on exactly these paths.
+
+  `customerVerificationLinkable.idPrefix` still read `svch`, from before the table was
+  renamed off the storefront entity. `typeId("customer_verification_challenges")` mints
+  `cvch_` per the prefix registry, so the field named a prefix nothing produces. Rows
+  created before the rename keep their `svch_` ids — the id is opaque and rewriting it
+  would invalidate every challenge in flight — so the field now names the current prefix
+  rather than the only one in the table. It is informational; nothing resolves ids
+  through it.
+
+- Updated dependencies [09ffdd6]
+  - @voyant-travel/bookings@0.250.1
+  - @voyant-travel/catalog@0.262.2
+  - @voyant-travel/identity@0.237.1
+
 ## 0.266.0
 
 ### Minor Changes
