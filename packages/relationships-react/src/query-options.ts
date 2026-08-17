@@ -6,6 +6,8 @@ import { type FetchWithValidationOptions, fetchWithValidation } from "./client.j
 import type { UseActivitiesOptions } from "./hooks/use-activities.js"
 import type { UseOrganizationsOptions } from "./hooks/use-organizations.js"
 import type { UsePeopleOptions } from "./hooks/use-people.js"
+import { inquiryListResponse, inquirySingleResponse } from "./inquiry-schemas.js"
+import type { InquiriesListFilters } from "./query-keys.js"
 import { relationshipsQueryKeys } from "./query-keys.js"
 import {
   activityListResponse,
@@ -17,6 +19,41 @@ import {
 } from "./schemas.js"
 
 const basePath = "/v1/admin/relationships"
+
+export function getInquiriesQueryOptions(
+  client: FetchWithValidationOptions,
+  filters: InquiriesListFilters = {},
+) {
+  return queryOptions({
+    queryKey: relationshipsQueryKeys.inquiriesList(filters),
+    queryFn: () => {
+      const params = new URLSearchParams()
+      for (const [key, value] of Object.entries(filters)) {
+        if (value !== undefined && value !== "") params.set(key, String(value))
+      }
+      const query = params.toString()
+      return fetchWithValidation(
+        `${basePath}/inquiries${query ? `?${query}` : ""}`,
+        inquiryListResponse,
+        client,
+      )
+    },
+  })
+}
+
+export function getInquiryQueryOptions(client: FetchWithValidationOptions, id: string) {
+  return queryOptions({
+    queryKey: relationshipsQueryKeys.inquiry(id),
+    queryFn: async () => {
+      const { data } = await fetchWithValidation(
+        `${basePath}/inquiries/${id}`,
+        inquirySingleResponse,
+        client,
+      )
+      return data
+    },
+  })
+}
 
 export function getActivitiesQueryOptions(
   client: FetchWithValidationOptions,

@@ -35,6 +35,14 @@ export {
   useCustomerSignals,
   useCustomerSignalsForPerson,
 } from "./hooks/use-customer-signals.js"
+export { type UseInquiriesOptions, useInquiries } from "./hooks/use-inquiries.js"
+export { useInquiry } from "./hooks/use-inquiry.js"
+export {
+  type ConvertInquiryInput,
+  type CreateInquiryInput,
+  type UpdateInquiryInput,
+  useInquiryMutation,
+} from "./hooks/use-inquiry-mutation.js"
 export {
   type UseOrganizationOptions,
   useOrganization,
@@ -104,6 +112,23 @@ export {
   useRevealPersonDocument,
 } from "./hooks/use-reveal-person-document.js"
 export {
+  type InquiryCloseOutcome,
+  type InquiryConversionRecord,
+  type InquiryKind,
+  type InquiryPriority,
+  type InquiryRecord,
+  type InquiryStatus,
+  type InquiryTargetRecord,
+  inquiryCloseOutcomeSchema,
+  inquiryConversionSchema,
+  inquiryKindSchema,
+  inquiryPrioritySchema,
+  inquiryRecordSchema,
+  inquiryStatusSchema,
+  inquiryTargetSchema,
+  inquiryTravelBriefSchema,
+} from "./inquiry-schemas.js"
+export {
   useVoyantContext,
   type VoyantContextValue,
   VoyantProvider,
@@ -112,6 +137,7 @@ export {
 export {
   type ActivitiesListFilters,
   type CustomerSignalsListFilters,
+  type InquiriesListFilters,
   type OrganizationsListFilters,
   type OrganizationsListSortDir,
   type OrganizationsListSortField,
@@ -125,6 +151,8 @@ export {
 } from "./query-keys.js"
 export {
   getActivitiesQueryOptions,
+  getInquiriesQueryOptions,
+  getInquiryQueryOptions,
   getOrganizationQueryOptions,
   getOrganizationsQueryOptions,
   getPeopleQueryOptions,

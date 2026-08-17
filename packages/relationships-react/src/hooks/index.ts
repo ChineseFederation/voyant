@@ -14,6 +14,14 @@ export {
   useCustomerSignals,
   useCustomerSignalsForPerson,
 } from "./use-customer-signals.js"
+export { type UseInquiriesOptions, useInquiries } from "./use-inquiries.js"
+export { useInquiry } from "./use-inquiry.js"
+export {
+  type ConvertInquiryInput,
+  type CreateInquiryInput,
+  type UpdateInquiryInput,
+  useInquiryMutation,
+} from "./use-inquiry-mutation.js"
 export { useOrganization } from "./use-organization.js"
 export {
   type CreateOrganizationInput,

@@ -56,6 +56,35 @@ export interface CustomerSignalsListFilters {
   offset?: number | undefined
 }
 
+export interface InquiriesListFilters {
+  view?:
+    | "new"
+    | "mine"
+    | "unassigned"
+    | "overdue"
+    | "waiting"
+    | "qualified"
+    | "converted"
+    | "closed"
+  search?: string
+  status?: string
+  ownerId?: string
+  teamId?: string
+  priority?: string
+  source?: string
+  kind?: string
+  targetId?: string
+  slaState?: "due" | "overdue" | "met"
+  createdFrom?: string
+  createdTo?: string
+  nextActionFrom?: string
+  nextActionTo?: string
+  sortBy?: "createdAt" | "updatedAt" | "lastActivityAt" | "nextActionAt"
+  sortDir?: "asc" | "desc"
+  limit?: number
+  offset?: number
+}
+
 export interface PersonRelationshipsListFilters {
   kind?: string | undefined
   direction?: "from" | "to" | "both" | undefined
@@ -109,6 +138,13 @@ export const relationshipsQueryKeys = {
     [...relationshipsQueryKeys.customerSignals(), "detail", id] as const,
   customerSignalsByPerson: (personId: string) =>
     [...relationshipsQueryKeys.person(personId), "signals"] as const,
+
+  inquiries: () => [...relationshipsQueryKeys.all, "inquiries"] as const,
+  inquiriesList: (filters: InquiriesListFilters) =>
+    [...relationshipsQueryKeys.inquiries(), "list", filters] as const,
+  inquiry: (id: string) => [...relationshipsQueryKeys.inquiries(), "detail", id] as const,
+  inquiryConversions: (id: string) =>
+    [...relationshipsQueryKeys.inquiry(id), "conversions"] as const,
 
   organizations: () => [...relationshipsQueryKeys.all, "organizations"] as const,
   organizationsList: (filters: OrganizationsListFilters) =>

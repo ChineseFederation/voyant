@@ -51,6 +51,52 @@ export type CrmUiMessages = {
       yearsAgo: string
     }
   }
+  inquiryQueue: {
+    title: string
+    description: string
+    searchPlaceholder: string
+    empty: string
+    loadFailed: string
+    views: Record<
+      "new" | "mine" | "unassigned" | "overdue" | "waiting" | "qualified" | "converted" | "closed",
+      string
+    >
+    filters: { allStatuses: string; allPriorities: string; allKinds: string }
+    columns: {
+      inquiry: string
+      contact: string
+      status: string
+      priority: string
+      owner: string
+      nextAction: string
+    }
+  }
+  inquiryDetail: {
+    back: string
+    customerRequest: string
+    context: string
+    operations: string
+    conversion: string
+    noTargets: string
+    unassigned: string
+    nextAction: string
+    firstResponseDue: string
+    source: string
+    save: string
+    assign: string
+    qualify: string
+    startWork: string
+    waitForCustomer: string
+    close: string
+    reopen: string
+    convertProposal: string
+    convertBookingSession: string
+    internalSummary: string
+    ownerPlaceholder: string
+    closeOutcome: string
+    conversionHint: string
+    loadFailed: string
+  }
   organizationForm: {
     fields: {
       name: string
