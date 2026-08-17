@@ -15,7 +15,7 @@ import {
   createVerifiedPaymentCallbackHandler,
   PAYMENT_LINK_ROUTE_PATHS,
   type PaymentLinkRoutesOptions,
-} from "../../src/payment-link/routes.js"
+} from "../../src/payment-link-routes.js"
 
 /**
  * A tiny chainable stub that mimics the drizzle query-builder surface the

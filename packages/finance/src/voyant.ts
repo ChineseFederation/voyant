@@ -36,6 +36,8 @@ import {
   financeInvoiceSettlementPollerRuntimePort,
   financeNotificationsRuntimePort,
   financeOperatorSettingsRuntimePort,
+  financePaymentLinkRuntimePort,
+  financePaymentReconciliationJobRuntimePort,
   financeProposalsPaymentPolicyRuntimePort,
 } from "./runtime-port.js"
 import { financeVoyantAdmin } from "./voyant-admin.js"
@@ -1169,5 +1171,119 @@ function omitUndefinedJsonOptions(options: Record<string, unknown>): VoyantGraph
   }
   return jsonOptions
 }
+
+export const financePaymentLinkVoyantModule = defineModule({
+  id: "@voyant-travel/finance#payment-link-routes",
+  packageName: "@voyant-travel/finance",
+  localId: "finance.payment-link",
+  requires: { capabilities: ["finance.data-owner"] },
+  runtime: {
+    entry: "@voyant-travel/finance/payment-link-routes",
+    export: "createPaymentLinkVoyantRuntime",
+  },
+  runtimePorts: [
+    requirePort(financePaymentLinkRuntimePort),
+    requirePort(financePaymentReconciliationJobRuntimePort),
+    // Optional: when a payment adapter is wired (self-host in-process OR the
+    // managed remote adapter), the IPN webhook verifies + applies callbacks.
+    { ...paymentAdapterRuntimePortReference, optional: true },
+  ],
+  api: [
+    {
+      id: "@voyant-travel/finance#payment-link-routes.api",
+      surface: "public",
+      mount: "/",
+      resource: "finance",
+      openapi: { document: "payment-link" },
+      anonymous: ["payment-link-config", "payment-link"],
+      // A payment link is opened by the payer in a browser; the session id in
+      // the path is the capability.
+      publishable: ["payment-link-config", "payment-link"],
+      runtime: {
+        entry: "@voyant-travel/finance/payment-link-routes",
+        export: "createPaymentLinkApiModule",
+      },
+    },
+  ],
+  jobs: [
+    {
+      id: "finance.reconcile-payment-sessions",
+      schedule: { every: "1m", overlap: "skip" },
+      scheduling: {
+        required: true,
+        profiles: {
+          eager: { every: "1m", overlap: "skip" },
+          economical: { every: "5m", overlap: "skip" },
+          "scale-to-zero": { cron: "*/15 * * * *", overlap: "skip" },
+        },
+      },
+      wakeup: true,
+      runtime: {
+        entry: "@voyant-travel/finance/payment-reconciliation-job",
+        export: "runPaymentAdapterReconciliationJob",
+      },
+    },
+  ],
+  tools: [
+    {
+      id: "@voyant-travel/finance#tool.get-payment-link",
+      name: "get_payment_link",
+      runtime: { entry: "@voyant-travel/finance/tools", export: "getPaymentLinkTool" },
+      requiredScopes: ["finance:read"],
+      context: ["paymentLink"],
+      risk: "high",
+    },
+    {
+      id: "@voyant-travel/finance#tool.create-invoice-payment-link",
+      name: "create_invoice_payment_link",
+      runtime: {
+        entry: "@voyant-travel/finance/tools",
+        export: "createInvoicePaymentLinkTool",
+      },
+      requiredScopes: ["finance:write"],
+      context: ["paymentLink"],
+      risk: "high",
+    },
+  ],
+  actions: [
+    {
+      id: "@voyant-travel/finance#action.inspect-payment-link",
+      version: "v1",
+      kind: "sensitive-read",
+      targetType: "payment-link",
+      resource: "finance",
+      action: "read",
+      requiredScopes: ["finance:read"],
+      risk: "high",
+      ledger: "required",
+      approval: "never",
+      allowedActorTypes: ["staff"],
+      from: { tools: ["@voyant-travel/finance#tool.get-payment-link"] },
+    },
+    {
+      id: "@voyant-travel/finance#action.create-invoice-payment-link",
+      version: "v1",
+      kind: "execute",
+      targetType: "invoice",
+      commandTargetField: "invoiceId",
+      targetLifecycle: "existing",
+      resource: "finance",
+      action: "write",
+      requiredScopes: ["finance:write"],
+      risk: "high",
+      ledger: "required",
+      approval: "required",
+      reversible: true,
+      existingTarget: { durability: "handler-command-result-v1" },
+      allowedActorTypes: ["staff"],
+      availability: { status: "available" },
+      effectBoundary: "local",
+      from: { tools: ["@voyant-travel/finance#tool.create-invoice-payment-link"] },
+    },
+  ],
+  meta: {
+    ownership: "package",
+  },
+})
 
 export default financeVoyantModule

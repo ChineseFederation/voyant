@@ -8,7 +8,7 @@ const claims = new Map([
   ["@voyant-travel/public-api#api.public", "storefront"],
   ["@voyant-travel/public-api#customer-portal.api", "customer-portal"],
   ["@voyant-travel/public-api#verification.api", "storefront-verification"],
-  ["@voyant-travel/public-api#payment-link.api", "payment-link"],
+  ["@voyant-travel/finance#payment-link.api", "payment-link"],
 ])
 
 for (const [apiId, document] of claims) {
@@ -25,7 +25,7 @@ for (const [file, apiId] of [
   ["openapi/admin/public-api.json", "@voyant-travel/public-api#api.admin"],
   ["openapi/public-api/public-api.json", "@voyant-travel/public-api#api.public"],
   ["openapi/public-api/customer-portal.json", "@voyant-travel/public-api#customer-portal.api"],
-  ["openapi/public-api/payment-link.json", "@voyant-travel/public-api#payment-link.api"],
+  ["openapi/public-api/payment-link.json", "@voyant-travel/finance#payment-link.api"],
   ["openapi/public-api/public-api-verification.json", "@voyant-travel/public-api#verification.api"],
 ]) {
   const document = JSON.parse(readFileSync(file, "utf8"))

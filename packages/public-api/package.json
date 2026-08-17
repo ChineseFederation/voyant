@@ -11,8 +11,6 @@
     "./customer-portal/public-routes": "./src/customer-portal/routes-public.ts",
     "./customer-portal/public-validation": "./src/customer-portal/validation-public.ts",
     "./customer-portal/routes": "./src/customer-portal/routes.ts",
-    "./payment-link": "./src/payment-link/routes.ts",
-    "./payment-reconciliation-job": "./src/payment-reconciliation-job.ts",
     "./presentation-money/voyant-data-fx": "./src/presentation-money/voyant-data-fx.ts",
     "./public-routes": "./src/routes-public.ts",
     "./runtime-contributor": "./src/runtime-contributor.ts",
@@ -29,8 +27,7 @@
     "./voyant": "./src/voyant.ts",
     "./openapi/admin": "./openapi/admin/public-api.json",
     "./openapi/public-api": "./openapi/public-api/public-api.json",
-    "./openapi/customer-portal": "./openapi/public-api/customer-portal.json",
-    "./openapi/payment-link": "./openapi/public-api/payment-link.json"
+    "./openapi/customer-portal": "./openapi/public-api/customer-portal.json"
   },
   "voyant": {
     "schemaVersion": "voyant.package.v1",
@@ -163,16 +160,6 @@
         "import": "./dist/customer-portal/routes.js",
         "default": "./dist/customer-portal/routes.js"
       },
-      "./payment-link": {
-        "types": "./dist/payment-link/routes.d.ts",
-        "import": "./dist/payment-link/routes.js",
-        "default": "./dist/payment-link/routes.js"
-      },
-      "./payment-reconciliation-job": {
-        "types": "./dist/payment-reconciliation-job.d.ts",
-        "import": "./dist/payment-reconciliation-job.js",
-        "default": "./dist/payment-reconciliation-job.js"
-      },
       "./presentation-money/voyant-data-fx": {
         "types": "./dist/presentation-money/voyant-data-fx.d.ts",
         "import": "./dist/presentation-money/voyant-data-fx.js",
@@ -245,8 +232,7 @@
       },
       "./openapi/admin": "./openapi/admin/public-api.json",
       "./openapi/public-api": "./openapi/public-api/public-api.json",
-      "./openapi/customer-portal": "./openapi/public-api/customer-portal.json",
-      "./openapi/payment-link": "./openapi/public-api/payment-link.json"
+      "./openapi/customer-portal": "./openapi/public-api/customer-portal.json"
     },
     "main": "./dist/index.js",
     "types": "./dist/index.d.ts"

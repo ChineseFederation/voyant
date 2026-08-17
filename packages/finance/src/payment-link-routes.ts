@@ -16,29 +16,24 @@
  *   GET  /v1/public/bookings/:bookingId/checkout-status
  *
  * The routes are mounted at their ABSOLUTE public paths so the deployment can
- * lazy-mount them via `lazyRoutes.paths`. All cross-module access that
- * storefront does not already depend on (inventory product media, trip
+ * lazy-mount them via `lazyRoutes.paths`. All cross-module access that finance
+ * does not already depend on (inventory product media, trip
  * envelopes/components reconciliation, the card-payment provider, and the
  * operator settings + checkout base URL) is INJECTED via `options` — the
- * package never statically imports inventory / trips / the netopia plugin /
+ * package never statically imports inventory / trips / the netopia adapter /
  * the operator settings module.
  *
- * Storefront already depends acyclically on `@voyant-travel/bookings` and
- * `@voyant-travel/finance`, so the booking / invoice / payment-session reads
- * use those schemas directly.
+ * These routes live here rather than in `@voyant-travel/payments` (voyant#4627).
+ * That package is the Connect contract surface a payment PROVIDER implements —
+ * initiate/status/verify, the provider catalog, remote transport — and owns no
+ * tables and no routes. A payment link is an invoice and a payment session,
+ * both of which finance owns, and finance already depends on payments and on
+ * bookings, so this is the only cycle-free home for it.
  */
 import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi"
 import { bookingItems, bookings } from "@voyant-travel/bookings/schema"
 import type { EventBus } from "@voyant-travel/core"
 import { defineGraphRuntimeFactory } from "@voyant-travel/core/project"
-import {
-  applyPaymentAdapterCallbackEvent,
-  buildConfiguredPaymentLinkUrl,
-  financeService,
-  refreshPaymentAdapterStatus,
-} from "@voyant-travel/finance"
-import { invoices, paymentSessions } from "@voyant-travel/finance/schema"
-import { paymentCheckoutSchema } from "@voyant-travel/finance/validation"
 import {
   openApiValidationHook,
   parseJsonBody,
@@ -58,7 +53,15 @@ import {
 import { and, asc, desc, eq, or } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import type { Context } from "hono"
-import { publicApiPaymentLinkRuntimePort } from "../runtime-port.js"
+import {
+  applyPaymentAdapterCallbackEvent,
+  buildConfiguredPaymentLinkUrl,
+  financeService,
+  refreshPaymentAdapterStatus,
+} from "./index.js"
+import { financePaymentLinkRuntimePort } from "./runtime-port.js"
+import { invoices, paymentSessions } from "./schema.js"
+import { paymentCheckoutSchema } from "./validation.js"
 
 const PUBLIC_PAYMENT_LINK_CONFIG_CACHE_CONTROL = "public, s-maxage=300, stale-while-revalidate=600"
 const paymentCallbackQuerySchema = z.object({
@@ -1220,7 +1223,7 @@ export function createPaymentLinkApiModule(options: PaymentLinkRoutesOptions): A
       load: async () =>
         stampOpenApiRegistryApiId(
           createPaymentLinkRoutes(options),
-          "@voyant-travel/public-api#payment-link.api",
+          "@voyant-travel/finance#payment-link-routes.api",
         ),
     },
     anonymous: ["payment-link-config", "payment-link"],
@@ -1229,7 +1232,7 @@ export function createPaymentLinkApiModule(options: PaymentLinkRoutesOptions): A
 
 export const createPaymentLinkVoyantRuntime = defineGraphRuntimeFactory(
   async ({ getPort, hasPort }) => {
-    const options = await getPort(publicApiPaymentLinkRuntimePort)
+    const options = await getPort(financePaymentLinkRuntimePort)
     // The payment adapter is optional: absent on deployments without a card
     // processor, present (self-host in-process OR the managed remote adapter)
     // when one is wired. When present, the IPN webhook verifies + applies.

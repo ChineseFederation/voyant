@@ -43,7 +43,7 @@ const migratedPorts = [
   "publicApiCustomerPortalRuntimePort",
   "publicApiIntakeRuntimePort",
   "publicApiOffersRuntimePort",
-  "publicApiPaymentLinkRuntimePort",
+  "financePaymentLinkRuntimePort",
   "customerVerificationRuntimePort",
 ]
 

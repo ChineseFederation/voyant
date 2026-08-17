@@ -413,9 +413,18 @@ describe("selected-graph MCP tool surface cost", () => {
     const runtime = createGeneratedGraphRuntime()
     const queryToolNames = new Set<string>()
     for (const tool of runtime.tools) {
-      const definition = await tool.load<{ name: string }>()
+      const definition = await tool.load<{
+        name: string
+        audience?: { allowed?: readonly string[] }
+      }>()
       const name = tool.name ?? definition.name
       if (!/^(?:get|list|search)_/.test(name)) continue
+      // The projection builds a <domain>_query from the STAFF read surface. A
+      // domain whose only reads are customer-audience contributes none, which is
+      // what @voyant-travel/public-api became once payment-link moved to finance
+      // (voyant#4627) and its customer-portal reads were all that remained.
+      const allowed = definition.audience?.allowed ?? []
+      if (allowed.length > 0 && !allowed.includes("staff")) continue
       const owner = String((tool as { unitId?: string }).unitId ?? "")
       const domain = owner.replace(/^@[^/]+\//, "").split("#")[0] ?? owner
       if (domain.length > 0) queryToolNames.add(`${domain}_query`)

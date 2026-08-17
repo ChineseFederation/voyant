@@ -1,14 +1,13 @@
 import type { VoyantGraphRuntimeFactoryContext } from "@voyant-travel/core/project"
-import { refreshPaymentAdapterStatus } from "@voyant-travel/finance"
-import { paymentSessions } from "@voyant-travel/finance/schema"
 import type { PaymentAdapter } from "@voyant-travel/payments"
 import { and, asc, inArray, isNotNull, or, sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
-
+import { refreshPaymentAdapterStatus } from "./index.js"
 import {
+  financePaymentReconciliationJobRuntimePort,
   type PaymentReconciliationJobRuntime,
-  publicApiPaymentReconciliationJobRuntimePort,
 } from "./runtime-port.js"
+import { paymentSessions } from "./schema.js"
 
 const POLLABLE_STATES = ["pending", "requires_redirect", "processing", "authorized"] as const
 const PAYMENT_ADAPTER_INITIATION_STATE_KEY = "paymentAdapterInitiationState"
@@ -102,6 +101,6 @@ export async function reconcilePaymentAdapterStatuses(
 export async function runPaymentAdapterReconciliationJob(
   context: VoyantGraphRuntimeFactoryContext,
 ): Promise<void> {
-  const runtime = await context.getPort(publicApiPaymentReconciliationJobRuntimePort)
+  const runtime = await context.getPort(financePaymentReconciliationJobRuntimePort)
   await reconcilePaymentAdapterStatuses(runtime, context.bindings)
 }

@@ -14,7 +14,7 @@ const flightsRuntimePortReference = { id: "flights.runtime" } as const
 // Lightweight reference (id only) so the deployment-graph manifest stays
 // import-cheap — importing the real port from @voyant-travel/payments would
 // pull the whole package into the manifest graph. Mirrors trips/voyant.ts.
-const paymentAdapterRuntimePortReference = {
+const _paymentAdapterRuntimePortReference = {
   id: "payments.adapter.runtime",
 } as const
 
@@ -22,8 +22,6 @@ import {
   publicApiCustomerPortalRuntimePort,
   publicApiIntakeRuntimePort,
   publicApiOffersRuntimePort,
-  publicApiPaymentLinkRuntimePort,
-  publicApiPaymentReconciliationJobRuntimePort,
 } from "./runtime-port.js"
 import {
   publicApiDynamicPackageSourceProviderPort,
@@ -507,120 +505,6 @@ export const publicApiShoppingProviderVoyantModule = defineModule({
       rationale:
         "This module binds managed customer shopping ports; product domains own agent-facing Tools.",
     },
-  },
-})
-
-export const publicApiPaymentLinkVoyantModule = defineModule({
-  id: "@voyant-travel/public-api#payment-link",
-  packageName: "@voyant-travel/public-api",
-  localId: "public-api.payment-link",
-  requires: { capabilities: ["public-api.data-owner"] },
-  runtime: {
-    entry: "@voyant-travel/public-api/payment-link",
-    export: "createPaymentLinkVoyantRuntime",
-  },
-  runtimePorts: [
-    requirePort(publicApiPaymentLinkRuntimePort),
-    requirePort(publicApiPaymentReconciliationJobRuntimePort),
-    // Optional: when a payment adapter is wired (self-host in-process OR the
-    // managed remote adapter), the IPN webhook verifies + applies callbacks.
-    { ...paymentAdapterRuntimePortReference, optional: true },
-  ],
-  api: [
-    {
-      id: "@voyant-travel/public-api#payment-link.api",
-      surface: "public",
-      mount: "/",
-      resource: "public-api",
-      openapi: { document: "payment-link" },
-      anonymous: ["payment-link-config", "payment-link"],
-      // A payment link is opened by the payer in a browser; the session id in
-      // the path is the capability.
-      publishable: ["payment-link-config", "payment-link"],
-      runtime: {
-        entry: "@voyant-travel/public-api/payment-link",
-        export: "createPaymentLinkApiModule",
-      },
-    },
-  ],
-  jobs: [
-    {
-      id: "public-api.reconcile-payment-sessions",
-      schedule: { every: "1m", overlap: "skip" },
-      scheduling: {
-        required: true,
-        profiles: {
-          eager: { every: "1m", overlap: "skip" },
-          economical: { every: "5m", overlap: "skip" },
-          "scale-to-zero": { cron: "*/15 * * * *", overlap: "skip" },
-        },
-      },
-      wakeup: true,
-      runtime: {
-        entry: "@voyant-travel/public-api/payment-reconciliation-job",
-        export: "runPaymentAdapterReconciliationJob",
-      },
-    },
-  ],
-  tools: [
-    {
-      id: "@voyant-travel/public-api#tool.get-payment-link",
-      name: "get_payment_link",
-      runtime: { entry: "@voyant-travel/public-api/tools", export: "getPaymentLinkTool" },
-      requiredScopes: ["public-api:read"],
-      context: ["publicApiPaymentLink"],
-      risk: "high",
-    },
-    {
-      id: "@voyant-travel/public-api#tool.create-invoice-payment-link",
-      name: "create_invoice_payment_link",
-      runtime: {
-        entry: "@voyant-travel/public-api/tools",
-        export: "createInvoicePaymentLinkTool",
-      },
-      requiredScopes: ["public-api:write"],
-      context: ["publicApiPaymentLink"],
-      risk: "high",
-    },
-  ],
-  actions: [
-    {
-      id: "@voyant-travel/public-api#action.inspect-payment-link",
-      version: "v1",
-      kind: "sensitive-read",
-      targetType: "payment-link",
-      resource: "public-api",
-      action: "read",
-      requiredScopes: ["public-api:read"],
-      risk: "high",
-      ledger: "required",
-      approval: "never",
-      allowedActorTypes: ["staff"],
-      from: { tools: ["@voyant-travel/public-api#tool.get-payment-link"] },
-    },
-    {
-      id: "@voyant-travel/public-api#action.create-invoice-payment-link",
-      version: "v1",
-      kind: "execute",
-      targetType: "invoice",
-      commandTargetField: "invoiceId",
-      targetLifecycle: "existing",
-      resource: "public-api",
-      action: "write",
-      requiredScopes: ["public-api:write"],
-      risk: "high",
-      ledger: "required",
-      approval: "required",
-      reversible: true,
-      existingTarget: { durability: "handler-command-result-v1" },
-      allowedActorTypes: ["staff"],
-      availability: { status: "available" },
-      effectBoundary: "local",
-      from: { tools: ["@voyant-travel/public-api#tool.create-invoice-payment-link"] },
-    },
-  ],
-  meta: {
-    ownership: "package",
   },
 })
 

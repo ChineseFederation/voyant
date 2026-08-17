@@ -1,4 +1,5 @@
 // agent-quality: file-size exception -- owner: operator; graph composition coverage.
+
 import {
   actionLedgerBookingDriftRuntimePort,
   actionLedgerFinanceDriftRuntimePort,
@@ -37,6 +38,7 @@ import {
   financeOperatorSettingsRuntimePort,
 } from "@voyant-travel/finance"
 import { BOOKING_SCHEDULE_SUBSCRIBER_RUNTIME_KEY } from "@voyant-travel/finance/booking-schedule-subscriber"
+import { financePaymentLinkRuntimePort } from "@voyant-travel/finance/runtime-port"
 import { flightsRuntimePort } from "@voyant-travel/flights"
 import { composeVoyantGraphRuntime } from "@voyant-travel/framework"
 import { customerVerificationRuntimePort } from "@voyant-travel/identity/runtime-port"
@@ -59,7 +61,6 @@ import {
   publicApiCustomerPortalRuntimePort,
   publicApiIntakeRuntimePort,
   publicApiOffersRuntimePort,
-  publicApiPaymentLinkRuntimePort,
 } from "@voyant-travel/public-api"
 import { realtimeRuntimePort } from "@voyant-travel/realtime"
 import { relationshipsRouteRuntimePort } from "@voyant-travel/relationships/voyant"
@@ -547,7 +548,7 @@ describe("selected Operator graph runtime composition", () => {
         publicApiCustomerPortalRuntimePort.id,
         publicApiIntakeRuntimePort.id,
         publicApiOffersRuntimePort.id,
-        publicApiPaymentLinkRuntimePort.id,
+        financePaymentLinkRuntimePort.id,
         customerVerificationRuntimePort.id,
         promotionRedemptionDatabaseRuntimePort.id,
         promotionsBulkReindexRuntimePort.id,

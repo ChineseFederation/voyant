@@ -40,7 +40,10 @@
     "./openapi/admin/booking-tax-settings": "./openapi/admin/booking-tax-settings.json",
     "./openapi/admin/booking-tax-preview": "./openapi/admin/booking-tax-preview.json",
     "./openapi/public-api": "./openapi/public-api/finance.json",
-    "./self-service-booking-source": "./src/self-service-booking-source.ts"
+    "./self-service-booking-source": "./src/self-service-booking-source.ts",
+    "./payment-link-routes": "./src/payment-link-routes.ts",
+    "./payment-reconciliation-job": "./src/payment-reconciliation-job.ts",
+    "./openapi/public-api/payment-link": "./openapi/public-api/payment-link.json"
   },
   "scripts": {
     "typecheck": "NODE_OPTIONS=--max-old-space-size=8192 tsc -p tsconfig.typecheck.json",
@@ -261,7 +264,18 @@
         "types": "./dist/self-service-booking-source.d.ts",
         "import": "./dist/self-service-booking-source.js",
         "default": "./dist/self-service-booking-source.js"
-      }
+      },
+      "./payment-link-routes": {
+        "types": "./dist/payment-link-routes.d.ts",
+        "import": "./dist/payment-link-routes.js",
+        "default": "./dist/payment-link-routes.js"
+      },
+      "./payment-reconciliation-job": {
+        "types": "./dist/payment-reconciliation-job.d.ts",
+        "import": "./dist/payment-reconciliation-job.js",
+        "default": "./dist/payment-reconciliation-job.js"
+      },
+      "./openapi/public-api/payment-link": "./openapi/public-api/payment-link.json"
     },
     "main": "./dist/index.js",
     "types": "./dist/index.d.ts"

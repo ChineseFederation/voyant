@@ -33,7 +33,7 @@ runtimePorts: [
     "packages/notifications/src/runtime-contributor.ts":
       "[customerVerificationRuntimePort.id]: verification\n",
     "packages/trips/src/runtime-contributor.ts":
-      "[publicApiPaymentLinkRuntimePort.id]: createStandardPaymentLinkRouteOptions()\n",
+      "[financePaymentLinkRuntimePort.id]: createStandardPaymentLinkRouteOptions()\n",
     ...overrides,
   }
 

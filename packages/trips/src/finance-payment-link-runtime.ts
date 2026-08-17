@@ -1,6 +1,10 @@
 /** Standard statically composed payment-link runtime selected by Storefront. */
 
 import type { CommerceCardPaymentRuntime } from "@voyant-travel/commerce/runtime-port"
+import type {
+  PaymentLinkRoutesOptions,
+  PaymentLinkTripData,
+} from "@voyant-travel/finance/payment-link-routes"
 import { productMedia, products } from "@voyant-travel/inventory/schema"
 import {
   getOperatorPaymentInstructions,
@@ -12,10 +16,6 @@ import type {
   PaymentCheckoutHandoff,
   PaymentHostedCheckout,
 } from "@voyant-travel/payments"
-import type {
-  PaymentLinkRoutesOptions,
-  PaymentLinkTripData,
-} from "@voyant-travel/public-api/payment-link"
 import { and, asc, desc, eq, inArray } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import type { Context } from "hono"

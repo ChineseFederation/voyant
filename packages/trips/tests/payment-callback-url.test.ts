@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { resolvePaymentCallbackUrl } from "../src/public-api-payment-link-runtime.js"
+import { resolvePaymentCallbackUrl } from "../src/finance-payment-link-runtime.js"
 
 describe("payment callback URL", () => {
   it("uses the dedicated callback origin", () => {

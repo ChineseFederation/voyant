@@ -216,7 +216,7 @@ export const STANDARD_OPERATOR_DISTRIBUTION_POLICY: {
     { resolve: "@voyant-travel/public-api" },
     { resolve: "@voyant-travel/public-api/customer-portal" },
     { resolve: "@voyant-travel/identity/verification" },
-    { resolve: "@voyant-travel/public-api/payment-link" },
+    { resolve: "@voyant-travel/finance/payment-link-routes" },
     { resolve: "@voyant-travel/trips" },
     { resolve: "@voyant-travel/flights" },
     { resolve: "@voyant-travel/setup", required: true },

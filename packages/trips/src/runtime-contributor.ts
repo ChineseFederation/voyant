@@ -17,12 +17,12 @@ import {
 import type { VoyantRuntimeHostPrimitives } from "@voyant-travel/core"
 import type { VoyantPort } from "@voyant-travel/core/project"
 import type { AnyDrizzleDb } from "@voyant-travel/db"
+import {
+  financePaymentLinkRuntimePort,
+  financePaymentReconciliationJobRuntimePort,
+} from "@voyant-travel/finance/runtime-port"
 import { type FlightsRuntime, flightsRuntimePort } from "@voyant-travel/flights"
 import { type PaymentAdapter, paymentAdapterRuntimePort } from "@voyant-travel/payments"
-import {
-  publicApiPaymentLinkRuntimePort,
-  publicApiPaymentReconciliationJobRuntimePort,
-} from "@voyant-travel/public-api"
 import {
   publicApiOpaqueReferenceIssuerPort,
   publicApiTripSelectionsRuntimePort,
@@ -32,7 +32,7 @@ import { createTripBookingSessionCompositeHandler } from "./booking-session-comp
 import {
   createCommerceCardPaymentRuntime,
   createStandardPaymentLinkRouteOptions,
-} from "./public-api-payment-link-runtime.js"
+} from "./finance-payment-link-runtime.js"
 import { publicApiTripOfferResolverPort } from "./public-api-trip-offer-resolver-port.js"
 import { createPublicApiTripSelectionsRuntime } from "./public-api-trip-selections-runtime.js"
 import type { TripsRoutesOptionsProvider } from "./routes.js"
@@ -110,8 +110,8 @@ export function createTripsRuntimePortContribution(
       ),
   })
   const contribution: Record<string, unknown> = {
-    [publicApiPaymentLinkRuntimePort.id]: createStandardPaymentLinkRouteOptions(paymentAdapter),
-    [publicApiPaymentReconciliationJobRuntimePort.id]: {
+    [financePaymentLinkRuntimePort.id]: createStandardPaymentLinkRouteOptions(paymentAdapter),
+    [financePaymentReconciliationJobRuntimePort.id]: {
       resolveDb: (bindings: unknown) =>
         host.primitives.database.resolve<PostgresJsDatabase>(bindings),
       resolveAdapter: () => (paymentAdapter ? Promise.resolve(paymentAdapter) : null),

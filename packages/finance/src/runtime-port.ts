@@ -1,12 +1,14 @@
 import type { VoyantRuntimeHostPrimitives } from "@voyant-travel/core"
 import { definePort } from "@voyant-travel/core/project"
 import type { AnyDrizzleDb } from "@voyant-travel/db"
+import type { PaymentAdapter } from "@voyant-travel/payments"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 
 import type { BookingTaxRouteOptions } from "./booking-tax.js"
 import type { CheckoutRoutesOptions } from "./checkout-routes.js"
 import type { CheckoutPaymentStarter } from "./checkout-service.js"
 import type { ResolveInvoiceFxSettings, UpdateInvoiceFxSettings } from "./invoice-fx.js"
+import type { PaymentLinkRoutesOptions } from "./payment-link-routes.js"
 import type { PaymentPolicy } from "./payment-policy.js"
 import type { PaymentPolicyEntityContext } from "./payment-policy-cascade.js"
 import type { BookingScheduleRoutesOptions } from "./payment-schedule/routes.js"
@@ -399,3 +401,31 @@ export const financeInvoiceSettlementPollerRuntimePort =
       }
     },
   })
+
+/**
+ * Options-shaped ports: the provider IS the options object the routes or job
+ * need, so the only invariant worth asserting is that one was supplied.
+ */
+function optionsPort<T extends object>(id: string) {
+  return definePort<T>({
+    id,
+    test(provider) {
+      if (provider === null || typeof provider !== "object") {
+        throw new Error(`${id} provider must be an options object.`)
+      }
+    },
+  })
+}
+
+export interface PaymentReconciliationJobRuntime {
+  resolveDb(bindings: unknown): PostgresJsDatabase | Promise<PostgresJsDatabase>
+  resolveAdapter(): PaymentAdapter | null | Promise<PaymentAdapter | null>
+  resolveEnv(bindings: unknown): Readonly<Record<string, unknown>>
+  warn?(message: string, detail?: unknown): void
+}
+
+export const financePaymentLinkRuntimePort = optionsPort<PaymentLinkRoutesOptions>(
+  "finance.payment-link.runtime",
+)
+export const financePaymentReconciliationJobRuntimePort =
+  optionsPort<PaymentReconciliationJobRuntime>("finance.payment-reconciliation-job.runtime")

@@ -5,14 +5,9 @@ import {
   type PublicApiToolContext,
   publicApiCustomerPortalTools,
   publicApiCustomerVerificationTools,
-  publicApiPaymentLinkTools,
 } from "../../src/tools.js"
 
-const allTools = [
-  ...publicApiCustomerPortalTools,
-  ...publicApiPaymentLinkTools,
-  ...publicApiCustomerVerificationTools,
-]
+const allTools = [...publicApiCustomerPortalTools, ...publicApiCustomerVerificationTools]
 
 function context(
   actor: ToolContext["actor"],
@@ -28,21 +23,17 @@ function context(
 }
 
 describe("storefront Tools", () => {
-  it("registers all three Storefront extension surfaces with stable capabilities", () => {
+  it("registers the remaining public-surface Tools with stable capabilities", () => {
     const registry = createToolRegistry()
     registry.registerAll(allTools)
     const manifest = registry.list()
 
     expect(publicApiCustomerPortalTools).toHaveLength(13)
-    expect(publicApiPaymentLinkTools).toHaveLength(2)
     expect(publicApiCustomerVerificationTools).toHaveLength(4)
-    expect(manifest).toHaveLength(19)
-    expect(new Set(manifest.map(({ capabilityId }) => capabilityId))).toHaveProperty("size", 19)
+    expect(manifest).toHaveLength(17)
+    expect(new Set(manifest.map(({ capabilityId }) => capabilityId))).toHaveProperty("size", 17)
     for (const tool of publicApiCustomerPortalTools) {
       expect(tool.owner).toBe("@voyant-travel/public-api#customer-portal")
-    }
-    for (const tool of publicApiPaymentLinkTools) {
-      expect(tool.owner).toBe("@voyant-travel/public-api#payment-link")
     }
     for (const tool of publicApiCustomerVerificationTools) {
       // The verification Tools moved onto the package's main graph unit when the
@@ -65,13 +56,6 @@ describe("storefront Tools", () => {
     await expect(
       registry.dispatch("start_my_email_verification", {}, context("staff", "staff")),
     ).rejects.toMatchObject({ code: "AUTHORIZATION_DENIED" })
-    await expect(
-      registry.dispatch(
-        "get_payment_link",
-        { sessionId: "pays_1" },
-        context("customer", "customer"),
-      ),
-    ).rejects.toMatchObject({ code: "AUTHORIZATION_DENIED" })
   })
 
   it("does not expose principal, destination, purpose, amount, or currency overrides", () => {
@@ -86,15 +70,9 @@ describe("storefront Tools", () => {
     expect(properties("start_my_email_verification")).not.toHaveProperty("destination")
     expect(properties("start_my_email_verification")).not.toHaveProperty("purpose")
     expect(properties("confirm_my_sms_verification")).toEqual({ code: expect.any(Object) })
-    expect(properties("create_invoice_payment_link")).not.toHaveProperty("amountCents")
-    expect(properties("create_invoice_payment_link")).not.toHaveProperty("currency")
-    expect(byName.get("create_invoice_payment_link")?.inputSchema.required).toEqual([
-      "invoiceId",
-      "idempotencyKey",
-    ])
   })
 
-  it("marks sends and payment-link creation as confirmation-gated high-risk writes", () => {
+  it("marks sends as confirmation-gated high-risk writes", () => {
     const registry = createToolRegistry()
     registry.registerAll(allTools)
     const byName = new Map(registry.list().map((tool) => [tool.name, tool]))
@@ -111,9 +89,5 @@ describe("storefront Tools", () => {
       "data-write",
       "sms",
     ])
-    expect(byName.get("create_invoice_payment_link")).toMatchObject({
-      tier: "write",
-      riskPolicy: { reversible: true, confirmationRequired: true },
-    })
   })
 })

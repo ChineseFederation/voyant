@@ -218,7 +218,7 @@ function checkSourceMarkers() {
       reason: "public operator settings/profile reads",
     },
     {
-      file: "packages/public-api/src/payment-link/routes.ts",
+      file: "packages/finance/src/payment-link-routes.ts",
       call: "cachePublicPaymentLinkConfig(c)",
       minimum: 1,
       reason: "public payment-link config read",

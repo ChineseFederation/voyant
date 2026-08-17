@@ -30,7 +30,7 @@ const packagePorts = {
   storefront: ["publicApiOffersRuntimePort", "publicApiCustomerPortalRuntimePort"],
   relationships: ["publicApiIntakeRuntimePort"],
   notifications: ["customerVerificationRuntimePort"],
-  trips: ["publicApiPaymentLinkRuntimePort"],
+  trips: ["financePaymentLinkRuntimePort"],
   legal: ["legalRuntimePort", "legalContractDocumentRuntimePort"],
   inventory: ["inventoryRuntimePort", "inventoryBrochureRuntimePort"],
 }

@@ -35,8 +35,8 @@ describe("trips deployment manifest", () => {
       provides: {
         ports: [
           { id: "commerce.card-payment.runtime" },
-          { id: "public-api.payment-link.runtime" },
-          { id: "public-api.payment-reconciliation-job.runtime" },
+          { id: "finance.payment-link.runtime" },
+          { id: "finance.payment-reconciliation-job.runtime" },
           { id: "public-api.shopping.opaque-reference-issuer" },
           { id: "trips.public-offer-resolver.runtime" },
           { id: "public-api.trip-selections.runtime" },

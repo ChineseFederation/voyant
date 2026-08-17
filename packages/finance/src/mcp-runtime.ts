@@ -24,6 +24,8 @@ import {
 } from "./invoice-issue-authorization.js"
 import { financeBookingToolServices } from "./mcp-booking-runtime.js"
 import { financeToolActionLedgerContext } from "./mcp-runtime-shared.js"
+import { buildConfiguredPaymentLinkUrl } from "./payment-link.js"
+import type { PaymentLinkRoutesOptions } from "./payment-link-routes.js"
 import {
   authorizeFinanceRefund,
   authorizeFinanceRefundSettlement,
@@ -35,6 +37,7 @@ import {
 import { invoiceSchema } from "./routes-invoice-schemas.js"
 import { getFinanceRouteRuntime } from "./routes-runtime.js"
 import type { Env } from "./routes-shared.js"
+import { financePaymentLinkRuntimePort } from "./runtime-port.js"
 import { type CreateInvoiceFromBookingInput, financeService } from "./service.js"
 import {
   executeBookingCancellationRefund,
@@ -48,11 +51,12 @@ import {
 } from "./service-issue.js"
 import { type InvoiceNumberAllocationErrorCode, PaymentValidationError } from "./service-shared.js"
 import { toJsonValue } from "./tool-json.js"
+import type { PaymentLinkToolServices } from "./tools.js"
 
 export * from "./tools.js"
 
 export const voyantToolContextContribution = defineToolContextContribution({
-  context: ["finance"],
+  context: ["finance", "paymentLink"],
   async contribute({ context, request, resources }) {
     const c = request as Context<Env>
     const db = context.db as Parameters<typeof financeService.listInvoices>[0]
@@ -63,7 +67,22 @@ export const voyantToolContextContribution = defineToolContextContribution({
       | BookingsCancellationPolicyRuntime
       | undefined
     if (cancellationPolicy) await bookingsCancellationPolicyRuntimePort.test(cancellationPolicy)
+    // The payment-link Tools moved here with the module (voyant#4627). Their
+    // options arrive through the runtime port a deployment fills, so the
+    // services only exist when one is wired.
+    const paymentLinkOptions = resources[financePaymentLinkRuntimePort.id] as
+      | PaymentLinkRoutesOptions
+      | undefined
     return {
+      ...(paymentLinkOptions
+        ? {
+            paymentLink: createPaymentLinkToolServices({
+              db: db as PostgresJsDatabase,
+              request: c,
+              runtime: paymentLinkOptions,
+            }),
+          }
+        : {}),
       finance: {
         listInvoices: (query: Parameters<typeof financeService.listInvoices>[1]) =>
           financeService.listInvoices(db, query),
@@ -1059,4 +1078,85 @@ function financeInvoiceIssueAuthorizationError(
 function toIsoString(value: Date | string | null): string | null {
   if (!value) return null
   return value instanceof Date ? value.toISOString() : value
+}
+
+export function createPaymentLinkToolServices(input: {
+  db: PostgresJsDatabase
+  request: Context
+  runtime: PaymentLinkRoutesOptions
+}): PaymentLinkToolServices {
+  const toDto = async (row: Awaited<ReturnType<typeof financeService.getPaymentSessionById>>) => {
+    if (!row) throw new ToolError("Payment link was not found.", "NOT_FOUND")
+    const paymentUrl = buildConfiguredPaymentLinkUrl(row.id, {
+      paymentLinkUrlTemplate:
+        (await input.runtime.resolvePaymentLinkUrlTemplate?.(input.request)) ?? null,
+      publicCheckoutBaseUrl: input.runtime.resolvePublicCheckoutBaseUrl(input.request),
+    })
+    if (!paymentUrl) {
+      throw new ToolError("The customer payment-link URL is not configured.", "MISSING_SERVICE")
+    }
+    return {
+      id: row.id,
+      status: row.status,
+      invoiceId: row.invoiceId,
+      bookingId: row.bookingId,
+      currency: row.currency,
+      amountCents: row.amountCents,
+      paymentMethod: row.paymentMethod,
+      provider: row.provider,
+      redirectUrl: row.redirectUrl,
+      expiresAt: row.expiresAt?.toISOString() ?? null,
+      createdAt: row.createdAt.toISOString(),
+      updatedAt: row.updatedAt.toISOString(),
+      paymentUrl,
+    }
+  }
+
+  return {
+    async createFromInvoice({ invoiceId, ...command }, admitted) {
+      let created: Awaited<ReturnType<typeof financeService.createPaymentSessionFromInvoice>>
+      const result = await executeAdmittedExistingTargetCommand(
+        {
+          db: input.db,
+          context: financeToolActionLedgerContext(input.request),
+          admitted: admitted as ToolHandlerActionPolicyContext,
+          commandInput: { invoiceId, ...command },
+          evaluatedRisk: "high",
+        },
+        {
+          async prepare(tx) {
+            created = await financeService.createPaymentSessionFromInvoice(
+              tx as PostgresJsDatabase,
+              invoiceId,
+              command,
+            )
+            if (!created) {
+              throw new ToolError(`Invoice "${invoiceId}" was not found.`, "NOT_FOUND", {
+                invoiceId,
+              })
+            }
+          },
+          execute() {
+            if (!created) throw new Error("Payment link creation produced no session")
+            return toDto(created)
+          },
+          async replay() {
+            const page = await financeService.listPaymentSessions(input.db, {
+              invoiceId,
+              idempotencyKey: command.idempotencyKey,
+              limit: 2,
+              offset: 0,
+            })
+            const row = page.data[0]
+            if (!row) throw new ToolError("Payment link was not found.", "NOT_FOUND")
+            return toDto(row)
+          },
+        },
+      )
+      return result.value
+    },
+    async get(sessionId) {
+      return toDto(await financeService.getPaymentSessionById(input.db, sessionId))
+    },
+  }
 }

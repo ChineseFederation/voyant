@@ -1,6 +1,4 @@
-import { executeAdmittedExistingTargetCommand } from "@voyant-travel/action-ledger"
 import type { ActionLedgerRequestContextValues } from "@voyant-travel/action-ledger/request-context"
-import { buildConfiguredPaymentLinkUrl, financeService } from "@voyant-travel/finance"
 import {
   type CustomerBuyerContext,
   type CustomerIdentityContext,
@@ -17,26 +15,16 @@ import {
   CustomerVerificationError,
   createCustomerVerificationService,
 } from "@voyant-travel/identity/verification/service"
-import {
-  defineToolContextContribution,
-  requireService,
-  ToolError,
-  type ToolHandlerActionPolicyContext,
-} from "@voyant-travel/tools"
+import { defineToolContextContribution, requireService, ToolError } from "@voyant-travel/tools"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import type { Context } from "hono"
 import { buildPublicCustomerPortalRouteRuntime } from "./customer-portal/route-runtime.js"
 import type { PublicCustomerPortalRouteOptions } from "./customer-portal/routes-public.js"
 import { publicCustomerPortalService } from "./customer-portal/service-public.js"
-import type { PaymentLinkRoutesOptions } from "./payment-link/routes.js"
-import {
-  publicApiCustomerPortalRuntimePort,
-  publicApiPaymentLinkRuntimePort,
-} from "./runtime-port.js"
+import { publicApiCustomerPortalRuntimePort } from "./runtime-port.js"
 import type {
   CustomerVerificationToolServices,
   PublicApiCustomerPortalToolServices,
-  PublicApiPaymentLinkToolServices,
 } from "./tools.js"
 
 export * from "./tools.js"
@@ -47,15 +35,12 @@ type PublicApiMcpContext = Context<{
 }>
 
 export const voyantToolContextContribution = defineToolContextContribution({
-  context: ["publicApiCustomerPortal", "publicApiPaymentLink", "customerVerification"],
+  context: ["publicApiCustomerPortal", "customerVerification"],
   async contribute({ request, context, resources }) {
     const c = request as PublicApiMcpContext
     const db = requireService((c.get("db") ?? context.db) as PostgresJsDatabase | undefined, "db")
     const customerPortalOptions = resources[publicApiCustomerPortalRuntimePort.id] as
       | PublicCustomerPortalRouteOptions
-      | undefined
-    const paymentLinkOptions = resources[publicApiPaymentLinkRuntimePort.id] as
-      | PaymentLinkRoutesOptions
       | undefined
     const verificationOptions = resources[customerVerificationRuntimePort.id] as
       | CustomerVerificationRoutesOptions
@@ -69,15 +54,6 @@ export const voyantToolContextContribution = defineToolContextContribution({
         buyer: () => requireToolCustomerBuyer(c),
         runtime: portalRuntime,
       }),
-      ...(paymentLinkOptions
-        ? {
-            publicApiPaymentLink: createPaymentLinkToolServices({
-              db,
-              request: c,
-              runtime: paymentLinkOptions,
-            }),
-          }
-        : {}),
       ...(verificationOptions
         ? {
             customerVerification: createVerificationToolServices({
@@ -303,88 +279,7 @@ export function createCustomerPortalToolServices(input: {
   }
 }
 
-export function createPaymentLinkToolServices(input: {
-  db: PostgresJsDatabase
-  request: Context
-  runtime: PaymentLinkRoutesOptions
-}): PublicApiPaymentLinkToolServices {
-  const toDto = async (row: Awaited<ReturnType<typeof financeService.getPaymentSessionById>>) => {
-    if (!row) throw new ToolError("Payment link was not found.", "NOT_FOUND")
-    const paymentUrl = buildConfiguredPaymentLinkUrl(row.id, {
-      paymentLinkUrlTemplate:
-        (await input.runtime.resolvePaymentLinkUrlTemplate?.(input.request)) ?? null,
-      publicCheckoutBaseUrl: input.runtime.resolvePublicCheckoutBaseUrl(input.request),
-    })
-    if (!paymentUrl) {
-      throw new ToolError("The customer payment-link URL is not configured.", "MISSING_SERVICE")
-    }
-    return {
-      id: row.id,
-      status: row.status,
-      invoiceId: row.invoiceId,
-      bookingId: row.bookingId,
-      currency: row.currency,
-      amountCents: row.amountCents,
-      paymentMethod: row.paymentMethod,
-      provider: row.provider,
-      redirectUrl: row.redirectUrl,
-      expiresAt: row.expiresAt?.toISOString() ?? null,
-      createdAt: row.createdAt.toISOString(),
-      updatedAt: row.updatedAt.toISOString(),
-      paymentUrl,
-    }
-  }
-
-  return {
-    async createFromInvoice({ invoiceId, ...command }, admitted) {
-      let created: Awaited<ReturnType<typeof financeService.createPaymentSessionFromInvoice>>
-      const result = await executeAdmittedExistingTargetCommand(
-        {
-          db: input.db,
-          context: actionLedgerContext(input.request),
-          admitted: admitted as ToolHandlerActionPolicyContext,
-          commandInput: { invoiceId, ...command },
-          evaluatedRisk: "high",
-        },
-        {
-          async prepare(tx) {
-            created = await financeService.createPaymentSessionFromInvoice(
-              tx as PostgresJsDatabase,
-              invoiceId,
-              command,
-            )
-            if (!created) {
-              throw new ToolError(`Invoice "${invoiceId}" was not found.`, "NOT_FOUND", {
-                invoiceId,
-              })
-            }
-          },
-          execute() {
-            if (!created) throw new Error("Payment link creation produced no session")
-            return toDto(created)
-          },
-          async replay() {
-            const page = await financeService.listPaymentSessions(input.db, {
-              invoiceId,
-              idempotencyKey: command.idempotencyKey,
-              limit: 2,
-              offset: 0,
-            })
-            const row = page.data[0]
-            if (!row) throw new ToolError("Payment link was not found.", "NOT_FOUND")
-            return toDto(row)
-          },
-        },
-      )
-      return result.value
-    },
-    async get(sessionId) {
-      return toDto(await financeService.getPaymentSessionById(input.db, sessionId))
-    },
-  }
-}
-
-function actionLedgerContext(c: Context): ActionLedgerRequestContextValues {
+function _actionLedgerContext(c: Context): ActionLedgerRequestContextValues {
   const vars = c.var as Record<string, unknown>
   return {
     userId: (vars.userId as string | undefined) ?? null,

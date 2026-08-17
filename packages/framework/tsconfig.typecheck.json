@@ -1119,9 +1119,13 @@
         "../finance/dist/order-payment-sessions.d.ts"
       ],
       "@voyant-travel/finance/payment-link": ["../finance/dist/payment-link.d.ts"],
+      "@voyant-travel/finance/payment-link-routes": ["../finance/dist/payment-link-routes.d.ts"],
       "@voyant-travel/finance/payment-policy": ["../finance/dist/payment-policy.d.ts"],
       "@voyant-travel/finance/payment-policy-cascade": [
         "../finance/dist/payment-policy-cascade.d.ts"
+      ],
+      "@voyant-travel/finance/payment-reconciliation-job": [
+        "../finance/dist/payment-reconciliation-job.d.ts"
       ],
       "@voyant-travel/finance/proforma-conversion-subscriber": [
         "../finance/dist/proforma-conversion-runtime.d.ts"
@@ -1928,10 +1932,6 @@
       ],
       "@voyant-travel/public-api/customer-portal/routes": [
         "../public-api/dist/customer-portal/routes.d.ts"
-      ],
-      "@voyant-travel/public-api/payment-link": ["../public-api/dist/payment-link/routes.d.ts"],
-      "@voyant-travel/public-api/payment-reconciliation-job": [
-        "../public-api/dist/payment-reconciliation-job.d.ts"
       ],
       "@voyant-travel/public-api/presentation-money/voyant-data-fx": [
         "../public-api/dist/presentation-money/voyant-data-fx.d.ts"

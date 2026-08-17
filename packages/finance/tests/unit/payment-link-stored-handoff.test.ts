@@ -1,6 +1,6 @@
 import type { PaymentHostedCheckout } from "@voyant-travel/payments"
 import { describe, expect, it } from "vitest"
-import { reusableStoredHandoff } from "../../src/payment-link/routes.js"
+import { reusableStoredHandoff } from "../../src/payment-link-routes.js"
 
 const embedded: PaymentHostedCheckout = {
   kind: "embedded",

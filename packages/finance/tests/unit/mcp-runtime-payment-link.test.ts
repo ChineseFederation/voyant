@@ -53,7 +53,11 @@ describe("invoice payment-link durable command", () => {
     const services = createPaymentLinkToolServices({
       db: {} as never,
       request: {
+        // finance resolves ledger context through c.get(); public-api read
+        // c.var. Both are the same Hono accessor, so the mock supplies both.
         var: { actor: "staff", organizationId: "org_1" },
+        get: (key: string) =>
+          ({ actor: "staff", organizationId: "org_1" })[key as "actor" | "organizationId"],
         req: { header: () => null },
       } as never,
       runtime: {

@@ -245,7 +245,7 @@ describe("graph runtime route posture", () => {
     const runtime = createVoyantGraphRuntime({
       graphHash: "sha256:payment-link-root-posture",
       entries: {
-        "@voyant-travel/public-api/payment-link": async () => ({
+        "@voyant-travel/finance/payment-link-routes": async () => ({
           createPaymentLinkModule: () => ({
             module: { name: "payment-link" },
             publicPath: "/",
@@ -254,26 +254,26 @@ describe("graph runtime route posture", () => {
       },
       modules: [
         {
-          id: "@voyant-travel/public-api#payment-link",
-          localId: "public-api.payment-link",
+          id: "@voyant-travel/finance#payment-link",
+          localId: "finance.payment-link",
           kind: "module",
           packageName: "@voyant-travel/public-api",
           order: 0,
           references: [
             {
               id: "payment-link-public-route",
-              unitId: "@voyant-travel/public-api#payment-link",
+              unitId: "@voyant-travel/finance#payment-link",
               facet: "api",
-              entityId: "@voyant-travel/public-api#payment-link.api",
+              entityId: "@voyant-travel/finance#payment-link.api",
               runtime: {
-                entry: "@voyant-travel/public-api/payment-link",
+                entry: "@voyant-travel/finance/payment-link-routes",
                 export: "createPaymentLinkModule",
               },
-              importEntry: "@voyant-travel/public-api/payment-link",
+              importEntry: "@voyant-travel/finance/payment-link-routes",
             },
           ],
           selectedIds: {
-            routes: ["@voyant-travel/public-api#payment-link.api"],
+            routes: ["@voyant-travel/finance#payment-link.api"],
             tools: [],
             events: [],
             webhooks: [],
@@ -281,16 +281,16 @@ describe("graph runtime route posture", () => {
           routes: [
             {
               route: {
-                id: "@voyant-travel/public-api#payment-link.api",
+                id: "@voyant-travel/finance#payment-link.api",
                 surface: "public",
                 mount: "/",
                 anonymous: ["payment-link-config", "payment-link"],
                 runtime: {
-                  entry: "@voyant-travel/public-api/payment-link",
+                  entry: "@voyant-travel/finance/payment-link-routes",
                   export: "createPaymentLinkModule",
                 },
               },
-              importEntry: "@voyant-travel/public-api/payment-link",
+              importEntry: "@voyant-travel/finance/payment-link-routes",
               referenceId: "payment-link-public-route",
             },
           ],

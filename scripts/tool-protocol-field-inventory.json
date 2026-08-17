@@ -73,6 +73,11 @@
       "rationale": "Retained because the caller chooses the stable identity of this retryable business command."
     },
     {
+      "id": "@voyant-travel/finance:create_invoice_payment_link:input.idempotencyKey",
+      "ownership": "caller-owned-command-identity",
+      "rationale": "Retained because the caller chooses the stable identity of this retryable business command."
+    },
+    {
       "id": "@voyant-travel/finance:issue_invoice_refund:input.idempotencyKey",
       "ownership": "caller-owned-command-identity",
       "rationale": "Retained because the caller chooses the stable identity of this retryable business command."
@@ -129,11 +134,6 @@
     },
     {
       "id": "@voyant-travel/mice:create_mice_program:input.idempotencyKey",
-      "ownership": "caller-owned-command-identity",
-      "rationale": "Retained because the caller chooses the stable identity of this retryable business command."
-    },
-    {
-      "id": "@voyant-travel/public-api:create_invoice_payment_link:input.idempotencyKey",
       "ownership": "caller-owned-command-identity",
       "rationale": "Retained because the caller chooses the stable identity of this retryable business command."
     }

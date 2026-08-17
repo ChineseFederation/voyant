@@ -9,8 +9,6 @@ import {
   publicApiCustomerPortalRuntimePort,
   publicApiIntakeRuntimePort,
   publicApiOffersRuntimePort,
-  publicApiPaymentLinkRuntimePort,
-  publicApiPaymentReconciliationJobRuntimePort,
 } from "../../src/runtime-port.js"
 import {
   publicApiDynamicPackageSourceProviderPort,
@@ -24,7 +22,6 @@ import {
 } from "../../src/shopping/runtime-port.js"
 import {
   publicApiCustomerPortalVoyantModule,
-  publicApiPaymentLinkVoyantModule,
   publicApiShoppingProviderVoyantModule,
   publicApiVoyantModule,
 } from "../../src/voyant.js"
@@ -32,10 +29,6 @@ import {
 describe("storefront deployment manifest", () => {
   it("exports import-cheap runtime port contracts", () => {
     expect(publicApiIntakeRuntimePort.id).toBe("public-api.intake.runtime")
-    expect(publicApiPaymentLinkRuntimePort.id).toBe("public-api.payment-link.runtime")
-    expect(publicApiPaymentReconciliationJobRuntimePort.id).toBe(
-      "public-api.payment-reconciliation-job.runtime",
-    )
   })
 
   it("declares the optional OSS shopping provider graph", () => {
@@ -210,68 +203,6 @@ describe("storefront deployment manifest", () => {
     })
   })
 
-  it("owns the payment-link bridge", () => {
-    expect(publicApiPaymentLinkVoyantModule).toMatchObject({
-      schemaVersion: "voyant.module.v1",
-      id: "@voyant-travel/public-api#payment-link",
-      packageName: "@voyant-travel/public-api",
-      requires: { capabilities: ["public-api.data-owner"] },
-      runtime: {
-        entry: "@voyant-travel/public-api/payment-link",
-        export: "createPaymentLinkVoyantRuntime",
-      },
-      runtimePorts: [
-        { id: "public-api.payment-link.runtime" },
-        { id: "public-api.payment-reconciliation-job.runtime" },
-        { id: "payments.adapter.runtime", optional: true },
-      ],
-      api: [
-        {
-          id: "@voyant-travel/public-api#payment-link.api",
-          surface: "public",
-          mount: "/",
-          resource: "public-api",
-          openapi: { document: "payment-link" },
-          anonymous: ["payment-link-config", "payment-link"],
-          runtime: {
-            entry: "@voyant-travel/public-api/payment-link",
-            export: "createPaymentLinkApiModule",
-          },
-        },
-      ],
-      jobs: [
-        {
-          id: "public-api.reconcile-payment-sessions",
-          schedule: { every: "1m", overlap: "skip" },
-          scheduling: { required: true },
-          runtime: {
-            entry: "@voyant-travel/public-api/payment-reconciliation-job",
-            export: "runPaymentAdapterReconciliationJob",
-          },
-        },
-      ],
-    })
-    const reconciliation = publicApiPaymentLinkVoyantModule.jobs?.find(
-      ({ id }) => id === "public-api.reconcile-payment-sessions",
-    )
-    expect(reconciliation).toMatchObject({
-      schedule: { every: "1m", overlap: "skip" },
-      scheduling: {
-        required: true,
-        profiles: {
-          eager: { every: "1m", overlap: "skip" },
-          economical: { every: "5m", overlap: "skip" },
-          "scale-to-zero": { cron: "*/15 * * * *", overlap: "skip" },
-        },
-      },
-      wakeup: true,
-      runtime: {
-        entry: "@voyant-travel/public-api/payment-reconciliation-job",
-        export: "runPaymentAdapterReconciliationJob",
-      },
-    })
-  })
-
   it("declares executable Tools and action-ledger bindings for every extension surface", () => {
     expect(publicApiCustomerPortalVoyantModule.tools).toHaveLength(13)
     expect(publicApiCustomerPortalVoyantModule.actions).toHaveLength(5)
@@ -281,16 +212,9 @@ describe("storefront deployment manifest", () => {
     // main graph unit rather than a module of their own.
     expect(publicApiVoyantModule.tools).toHaveLength(4)
     expect(publicApiVoyantModule.actions).toHaveLength(2)
-    expect(publicApiPaymentLinkVoyantModule.tools).toHaveLength(2)
-    expect(publicApiPaymentLinkVoyantModule.actions).toHaveLength(2)
     expect(publicApiVoyantModule.tools?.every(({ risk }) => risk === "high")).toBe(true)
-    expect(
-      publicApiPaymentLinkVoyantModule.tools?.find(
-        ({ name }) => name === "create_invoice_payment_link",
-      )?.risk,
-    ).toBe("high")
 
-    for (const module of [publicApiCustomerPortalVoyantModule, publicApiPaymentLinkVoyantModule]) {
+    for (const module of [publicApiCustomerPortalVoyantModule]) {
       expect(module.meta?.agentTools).toBeUndefined()
       expect(
         module.tools?.every(({ runtime }) => runtime.entry === "@voyant-travel/public-api/tools"),
@@ -314,18 +238,5 @@ describe("storefront deployment manifest", () => {
       },
       effectBoundary: "multistage",
     })
-    expect(publicApiPaymentLinkVoyantModule.actions).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          id: "@voyant-travel/public-api#action.create-invoice-payment-link",
-          targetType: "invoice",
-          commandTargetField: "invoiceId",
-          targetLifecycle: "existing",
-          allowedActorTypes: ["staff"],
-          approval: "required",
-          existingTarget: { durability: "handler-command-result-v1" },
-        }),
-      ]),
-    )
   })
 })

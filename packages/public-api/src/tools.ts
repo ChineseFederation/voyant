@@ -1,8 +1,6 @@
 import { customerVerificationChallengeRecordWireSchema } from "@voyant-travel/identity/verification/validation"
 import {
-  admitHandlerActionPolicy,
   defineTool,
-  type HandlerActionPolicyExpectation,
   READ_ONLY_RISK,
   requireService,
   type ToolContext,
@@ -29,12 +27,10 @@ import {
 
 const OWNER = "@voyant-travel/public-api"
 const CUSTOMER_PORTAL_OWNER = `${OWNER}#customer-portal`
-const PAYMENT_LINK_OWNER = `${OWNER}#payment-link`
 const VERSION = "v1"
 const READ_SCOPES = ["public-api:read"] as const
 const WRITE_SCOPES = ["public-api:write"] as const
 const CUSTOMER_AUDIENCE = { source: "grant", allowed: ["customer"] } as const
-const STAFF_AUDIENCE = { source: "grant", allowed: ["staff"] } as const
 const idSchema = z.string().trim().min(1)
 const bookingInputSchema = z.object({ bookingId: idSchema })
 const updateCompanionInputSchema = z
@@ -45,7 +41,7 @@ const updateDocumentInputSchema = z
   .extend(updateCustomerPortalProfileDocumentSchema.shape)
 const documentIdInputSchema = z.object({ documentId: idSchema })
 
-const paymentSessionStatusSchema = z.enum([
+const _paymentSessionStatusSchema = z.enum([
   "pending",
   "requires_redirect",
   "processing",
@@ -55,44 +51,6 @@ const paymentSessionStatusSchema = z.enum([
   "cancelled",
   "expired",
 ])
-const paymentLinkSchema = z.object({
-  id: z.string(),
-  status: paymentSessionStatusSchema,
-  invoiceId: z.string().nullable(),
-  bookingId: z.string().nullable(),
-  currency: z.string(),
-  amountCents: z.number().int(),
-  paymentMethod: z.string().nullable(),
-  provider: z.string().nullable(),
-  redirectUrl: z.string().nullable(),
-  expiresAt: z.string().datetime().nullable(),
-  createdAt: z.string().datetime(),
-  updatedAt: z.string().datetime(),
-  paymentUrl: z.string().min(1),
-})
-const createInvoicePaymentLinkInputSchema = z.object({
-  invoiceId: idSchema,
-  idempotencyKey: z.string().trim().min(1).max(255),
-  provider: z.string().trim().min(1).max(255).nullable().optional(),
-  paymentMethod: z
-    .enum([
-      "bank_transfer",
-      "credit_card",
-      "debit_card",
-      "cash",
-      "cheque",
-      "wallet",
-      "direct_bill",
-      "travel_credit",
-      "other",
-    ])
-    .nullable()
-    .optional(),
-  returnUrl: z.string().url().nullable().optional(),
-  cancelUrl: z.string().url().nullable().optional(),
-  expiresAt: z.string().datetime().nullable().optional(),
-})
-const getPaymentLinkInputSchema = z.object({ sessionId: idSchema })
 
 export interface PublicApiCustomerPortalToolServices {
   getProfile(): Promise<z.infer<typeof customerPortalProfileSchema>>
@@ -128,18 +86,9 @@ export interface PublicApiCustomerPortalToolServices {
   ): Promise<z.infer<typeof customerPortalProfileDocumentSchema>>
 }
 
-export interface PublicApiPaymentLinkToolServices {
-  createFromInvoice(
-    input: z.infer<typeof createInvoicePaymentLinkInputSchema>,
-    admitted: import("@voyant-travel/tools").ToolHandlerActionPolicyContext,
-  ): Promise<z.infer<typeof paymentLinkSchema>>
-  get(sessionId: string): Promise<z.infer<typeof paymentLinkSchema>>
-}
-
 export type PublicApiToolContext = ToolContext & {
   customerVerification?: CustomerVerificationToolServices
   publicApiCustomerPortal?: PublicApiCustomerPortalToolServices
-  publicApiPaymentLink?: PublicApiPaymentLinkToolServices
 }
 
 function customerPortal(ctx: PublicApiToolContext) {
@@ -150,13 +99,6 @@ function customerPortal(ctx: PublicApiToolContext) {
     )
   }
   return requireService(ctx.publicApiCustomerPortal, "publicApiCustomerPortal")
-}
-
-function paymentLink(ctx: PublicApiToolContext) {
-  if (ctx.actor !== "staff" || ctx.audience !== "staff") {
-    throw new ToolError("Payment-link Tools require a staff grant.", "AUTHORIZATION_DENIED")
-  }
-  return requireService(ctx.publicApiPaymentLink, "publicApiPaymentLink")
 }
 
 const customerRead = {
@@ -311,73 +253,6 @@ export const setMyPrimaryCustomerPortalDocumentTool = defineTool({
     customerPortal(ctx).setPrimaryDocument(documentId),
 })
 
-const staffPaymentRead = {
-  owner: PAYMENT_LINK_OWNER,
-  capabilityVersion: VERSION,
-  requiredScopes: READ_SCOPES,
-  audience: STAFF_AUDIENCE,
-  tier: "sensitive" as const,
-  riskPolicy: READ_ONLY_RISK,
-  annotations: { readOnlyHint: true, idempotentHint: true },
-}
-export const getPaymentLinkTool = defineTool({
-  ...staffPaymentRead,
-  capabilityId: `${OWNER}#tool.get-payment-link`,
-  name: "get_payment_link",
-  description: "Inspect one payment link using a staff grant without exposing provider payloads.",
-  inputSchema: getPaymentLinkInputSchema,
-  outputSchema: paymentLinkSchema,
-  handler: ({ sessionId }, ctx: PublicApiToolContext) => paymentLink(ctx).get(sessionId),
-})
-export const CREATE_INVOICE_PAYMENT_LINK_HANDLER_POLICY = {
-  capabilityId: `${OWNER}#tool.create-invoice-payment-link`,
-  capabilityVersion: VERSION,
-  canonicalName: "create_invoice_payment_link",
-  actionPolicy: {
-    id: `${OWNER}#action.create-invoice-payment-link`,
-    capabilityId: `${OWNER}#action.create-invoice-payment-link`,
-    version: VERSION,
-    kind: "execute",
-    targetType: "invoice",
-    commandTargetField: "invoiceId",
-    targetLifecycle: "existing",
-    existingTarget: { durability: "handler-command-result-v1" },
-    risk: "high",
-    ledger: "required",
-    approval: "required",
-    reversible: true,
-    allowedActorTypes: ["staff"],
-  },
-} as const satisfies HandlerActionPolicyExpectation
-
-export const createInvoicePaymentLinkTool = defineTool({
-  owner: PAYMENT_LINK_OWNER,
-  capabilityVersion: VERSION,
-  requiredScopes: WRITE_SCOPES,
-  audience: STAFF_AUDIENCE,
-  tier: "write",
-  capabilityId: `${OWNER}#tool.create-invoice-payment-link`,
-  name: "create_invoice_payment_link",
-  description:
-    "Create an idempotent payment link for an invoice's authoritative outstanding balance. Amount and currency cannot be overridden.",
-  inputSchema: createInvoicePaymentLinkInputSchema,
-  outputSchema: paymentLinkSchema,
-  riskPolicy: {
-    destructive: false,
-    reversible: true,
-    dryRunSupported: false,
-    confirmationRequired: true,
-    sideEffects: ["data-write"],
-  },
-  actionPolicyEnforcement: "handler",
-  annotations: { idempotentHint: true },
-  handler: (input, ctx: PublicApiToolContext) =>
-    paymentLink(ctx).createFromInvoice(
-      input,
-      admitHandlerActionPolicy(ctx, CREATE_INVOICE_PAYMENT_LINK_HANDLER_POLICY),
-    ),
-})
-
 export const publicApiCustomerPortalTools = [
   getMyCustomerPortalProfileTool,
   updateMyCustomerPortalProfileTool,
@@ -393,7 +268,6 @@ export const publicApiCustomerPortalTools = [
   updateMyCustomerPortalDocumentTool,
   setMyPrimaryCustomerPortalDocumentTool,
 ] as const
-export const publicApiPaymentLinkTools = [getPaymentLinkTool, createInvoicePaymentLinkTool] as const
 
 const verificationStartInputSchema = z.object({
   locale: z.string().trim().min(2).max(16).nullable().optional(),

@@ -72,7 +72,7 @@ requireMatch(
 )
 requireMatch(
   sources.tripsContributor,
-  /\[publicApiPaymentLinkRuntimePort\.id\]:\s*createStandardPaymentLinkRouteOptions/,
+  /\[financePaymentLinkRuntimePort\.id\]:\s*createStandardPaymentLinkRouteOptions/,
   "Trips contributor must own Storefront payment-link projection behavior",
 )
 requireMatch(

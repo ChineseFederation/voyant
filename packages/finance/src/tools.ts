@@ -13,6 +13,7 @@ import {
   READ_ONLY_RISK,
   requireService,
   type ToolContext,
+  ToolError,
   type ToolHandlerActionPolicyContext,
 } from "@voyant-travel/tools"
 import { listResponseSchema } from "@voyant-travel/types"
@@ -123,7 +124,10 @@ export interface FinanceToolServices {
   }): Promise<unknown>
 }
 
-export type FinanceToolContext = ToolContext & { finance?: FinanceToolServices }
+export type FinanceToolContext = ToolContext & {
+  finance?: FinanceToolServices
+  paymentLink?: PaymentLinkToolServices
+}
 
 function finance(ctx: FinanceToolContext): FinanceToolServices {
   return requireService(ctx.finance, "finance")
@@ -1056,3 +1060,141 @@ export const financeTools = [
   previewUnsyncedProformaFromBookingTool,
   issueUnsyncedProformaFromBookingTool,
 ] as const
+
+// Payment-link Tools moved here with the module (voyant#4627). They keep the
+// spread-constant shape they were written in; the owner is the surviving
+// @voyant-travel/finance#payment-link graph unit.
+const PAYMENT_LINK_OWNER = "@voyant-travel/finance#payment-link-routes"
+const PAYMENT_LINK_VERSION = "v1"
+const PAYMENT_LINK_READ_SCOPES = ["finance:read"] as const
+const PAYMENT_LINK_WRITE_SCOPES = ["finance:write"] as const
+const PAYMENT_LINK_STAFF_AUDIENCE = { source: "grant", allowed: ["staff"] } as const
+const paymentLinkIdSchema = z.string().trim().min(1)
+const paymentSessionStatusSchema = z.enum([
+  "pending",
+  "requires_redirect",
+  "processing",
+  "authorized",
+  "paid",
+  "failed",
+  "cancelled",
+  "expired",
+])
+
+const paymentLinkSchema = z.object({
+  id: z.string(),
+  status: paymentSessionStatusSchema,
+  invoiceId: z.string().nullable(),
+  bookingId: z.string().nullable(),
+  currency: z.string(),
+  amountCents: z.number().int(),
+  paymentMethod: z.string().nullable(),
+  provider: z.string().nullable(),
+  redirectUrl: z.string().nullable(),
+  expiresAt: z.string().datetime().nullable(),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+  paymentUrl: z.string().min(1),
+})
+const createInvoicePaymentLinkInputSchema = z.object({
+  invoiceId: paymentLinkIdSchema,
+  idempotencyKey: z.string().trim().min(1).max(255),
+  provider: z.string().trim().min(1).max(255).nullable().optional(),
+  paymentMethod: z
+    .enum([
+      "bank_transfer",
+      "credit_card",
+      "debit_card",
+      "cash",
+      "cheque",
+      "wallet",
+      "direct_bill",
+      "travel_credit",
+      "other",
+    ])
+    .nullable()
+    .optional(),
+  returnUrl: z.string().url().nullable().optional(),
+  cancelUrl: z.string().url().nullable().optional(),
+  expiresAt: z.string().datetime().nullable().optional(),
+})
+const getPaymentLinkInputSchema = z.object({ sessionId: paymentLinkIdSchema })
+export interface PaymentLinkToolServices {
+  createFromInvoice(
+    input: z.infer<typeof createInvoicePaymentLinkInputSchema>,
+    admitted: import("@voyant-travel/tools").ToolHandlerActionPolicyContext,
+  ): Promise<z.infer<typeof paymentLinkSchema>>
+  get(sessionId: string): Promise<z.infer<typeof paymentLinkSchema>>
+}
+function paymentLink(ctx: FinanceToolContext) {
+  if (ctx.actor !== "staff" || ctx.audience !== "staff") {
+    throw new ToolError("Payment-link Tools require a staff grant.", "AUTHORIZATION_DENIED")
+  }
+  return requireService(ctx.paymentLink, "paymentLink")
+}
+const staffPaymentRead = {
+  owner: PAYMENT_LINK_OWNER,
+  capabilityVersion: PAYMENT_LINK_VERSION,
+  requiredScopes: PAYMENT_LINK_READ_SCOPES,
+  audience: PAYMENT_LINK_STAFF_AUDIENCE,
+  tier: "sensitive" as const,
+  riskPolicy: READ_ONLY_RISK,
+  annotations: { readOnlyHint: true, idempotentHint: true },
+}
+export const getPaymentLinkTool = defineTool({
+  ...staffPaymentRead,
+  capabilityId: `@voyant-travel/finance#tool.get-payment-link`,
+  name: "get_payment_link",
+  description: "Inspect one payment link using a staff grant without exposing provider payloads.",
+  inputSchema: getPaymentLinkInputSchema,
+  outputSchema: paymentLinkSchema,
+  handler: ({ sessionId }, ctx: FinanceToolContext) => paymentLink(ctx).get(sessionId),
+})
+export const CREATE_INVOICE_PAYMENT_LINK_HANDLER_POLICY = {
+  capabilityId: `@voyant-travel/finance#tool.create-invoice-payment-link`,
+  capabilityVersion: PAYMENT_LINK_VERSION,
+  canonicalName: "create_invoice_payment_link",
+  actionPolicy: {
+    id: `@voyant-travel/finance#action.create-invoice-payment-link`,
+    capabilityId: `@voyant-travel/finance#action.create-invoice-payment-link`,
+    version: PAYMENT_LINK_VERSION,
+    kind: "execute",
+    targetType: "invoice",
+    commandTargetField: "invoiceId",
+    targetLifecycle: "existing",
+    existingTarget: { durability: "handler-command-result-v1" },
+    risk: "high",
+    ledger: "required",
+    approval: "required",
+    reversible: true,
+    allowedActorTypes: ["staff"],
+  },
+} as const satisfies HandlerActionPolicyExpectation
+export const createInvoicePaymentLinkTool = defineTool({
+  owner: PAYMENT_LINK_OWNER,
+  capabilityVersion: PAYMENT_LINK_VERSION,
+  requiredScopes: PAYMENT_LINK_WRITE_SCOPES,
+  audience: PAYMENT_LINK_STAFF_AUDIENCE,
+  tier: "write",
+  capabilityId: `@voyant-travel/finance#tool.create-invoice-payment-link`,
+  name: "create_invoice_payment_link",
+  description:
+    "Create an idempotent payment link for an invoice's authoritative outstanding balance. Amount and currency cannot be overridden.",
+  inputSchema: createInvoicePaymentLinkInputSchema,
+  outputSchema: paymentLinkSchema,
+  riskPolicy: {
+    destructive: false,
+    reversible: true,
+    dryRunSupported: false,
+    confirmationRequired: true,
+    sideEffects: ["data-write"],
+  },
+  actionPolicyEnforcement: "handler",
+  annotations: { idempotentHint: true },
+  handler: (input, ctx: FinanceToolContext) =>
+    paymentLink(ctx).createFromInvoice(
+      input,
+      admitHandlerActionPolicy(ctx, CREATE_INVOICE_PAYMENT_LINK_HANDLER_POLICY),
+    ),
+})
+export const financePaymentLinkTools = [getPaymentLinkTool, createInvoicePaymentLinkTool] as const

@@ -14,6 +14,7 @@ import {
   financeBookingsCreateVoyantPlugin,
   financeBookingTaxPreviewVoyantPlugin,
   financeBookingTaxSettingsVoyantPlugin,
+  financePaymentLinkVoyantModule,
   financeVoyantModule,
 } from "../../src/voyant.js"
 
@@ -806,6 +807,68 @@ describe("finance deployment manifest", () => {
         label: { namespace: "finance.admin", key: "invoicesPage.title" },
       }),
     ])
+  })
+
+  it("owns the payment-link bridge that moved off the public API layer", () => {
+    expect(financePaymentLinkVoyantModule).toMatchObject({
+      schemaVersion: "voyant.module.v1",
+      id: "@voyant-travel/finance#payment-link-routes",
+      packageName: "@voyant-travel/finance",
+      requires: { capabilities: ["finance.data-owner"] },
+      runtime: {
+        entry: "@voyant-travel/finance/payment-link-routes",
+        export: "createPaymentLinkVoyantRuntime",
+      },
+      runtimePorts: [
+        { id: "finance.payment-link.runtime" },
+        { id: "finance.payment-reconciliation-job.runtime" },
+        { id: "payments.adapter.runtime", optional: true },
+      ],
+      api: [
+        {
+          id: "@voyant-travel/finance#payment-link-routes.api",
+          surface: "public",
+          mount: "/",
+          resource: "finance",
+          openapi: { document: "payment-link" },
+          anonymous: ["payment-link-config", "payment-link"],
+          runtime: {
+            entry: "@voyant-travel/finance/payment-link-routes",
+            export: "createPaymentLinkApiModule",
+          },
+        },
+      ],
+      jobs: [
+        {
+          id: "finance.reconcile-payment-sessions",
+          schedule: { every: "1m", overlap: "skip" },
+          scheduling: { required: true },
+          runtime: {
+            entry: "@voyant-travel/finance/payment-reconciliation-job",
+            export: "runPaymentAdapterReconciliationJob",
+          },
+        },
+      ],
+    })
+    const reconciliation = financePaymentLinkVoyantModule.jobs?.find(
+      ({ id }) => id === "finance.reconcile-payment-sessions",
+    )
+    expect(reconciliation).toMatchObject({
+      schedule: { every: "1m", overlap: "skip" },
+      scheduling: {
+        required: true,
+        profiles: {
+          eager: { every: "1m", overlap: "skip" },
+          economical: { every: "5m", overlap: "skip" },
+          "scale-to-zero": { cron: "*/15 * * * *", overlap: "skip" },
+        },
+      },
+      wakeup: true,
+      runtime: {
+        entry: "@voyant-travel/finance/payment-reconciliation-job",
+        export: "runPaymentAdapterReconciliationJob",
+      },
+    })
   })
 })
 
