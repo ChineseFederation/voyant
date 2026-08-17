@@ -6,6 +6,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./checkout-inquiry": "./src/checkout-inquiry.ts",
+    "./inquiry-conversion": "./src/inquiry-conversion.ts",
     "./runtime-port": "./src/checkout-inquiry.ts",
     "./validation": "./src/validation.ts"
   },
@@ -32,6 +33,11 @@
         "types": "./dist/checkout-inquiry.d.ts",
         "import": "./dist/checkout-inquiry.js",
         "default": "./dist/checkout-inquiry.js"
+      },
+      "./inquiry-conversion": {
+        "types": "./dist/inquiry-conversion.d.ts",
+        "import": "./dist/inquiry-conversion.js",
+        "default": "./dist/inquiry-conversion.js"
       },
       "./runtime-port": {
         "types": "./dist/checkout-inquiry.d.ts",

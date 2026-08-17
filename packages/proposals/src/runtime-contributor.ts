@@ -11,9 +11,11 @@ import {
   financeProposalsPaymentPolicyRuntimePort,
 } from "@voyant-travel/finance/runtime-port"
 import { checkoutInquiryRuntimePort } from "@voyant-travel/proposals-contracts/checkout-inquiry"
+import { proposalInquiryConversionRuntimePort } from "@voyant-travel/proposals-contracts/inquiry-conversion"
 import { sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import { createCheckoutInquiryRuntime } from "./checkout-inquiry-runtime.js"
+import { createProposalInquiryConversionRuntime } from "./inquiry-conversion-runtime.js"
 import { createProposalsRuntime } from "./runtime.js"
 import {
   type ProposalsPresentationRuntime,
@@ -120,9 +122,11 @@ export function createProposalsRuntimePortContribution(
   host: ProposalsRuntimeContributorHost,
 ): Readonly<Record<string, unknown>> {
   const checkoutInquiry = createCheckoutInquiryRuntime()
+  const inquiryConversion = createProposalInquiryConversionRuntime()
   const runtime = Promise.resolve(createProposalsRuntime(host))
   return {
     [checkoutInquiryRuntimePort.id]: checkoutInquiry,
+    [proposalInquiryConversionRuntimePort.id]: inquiryConversion,
     [proposalsRuntimePort.id]: runtime.then((value) => value.proposals),
     [proposalsPresentationRuntimePort.id]: runtime.then((value) => value.proposal),
     [proposalsSnapshotRuntimePort.id]: runtime.then((value) => value.snapshot),
