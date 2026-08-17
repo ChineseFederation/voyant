@@ -51,6 +51,13 @@
       "files": ["packages/operations/openapi/admin/operations.json"]
     },
     {
+      "command": "pnpm generate:api-client",
+      "files": [
+        "packages/public-api-client/src/generated/paths.ts",
+        "packages/public-api-client/src/generated/key-kind.ts"
+      ]
+    },
+    {
       "command": "pnpm --filter @voyant-travel/public-api generate:shopping-openapi",
       "files": ["packages/public-api/openapi/public-api/public-api.json"]
     },

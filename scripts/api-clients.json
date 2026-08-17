@@ -1,0 +1,22 @@
+{
+  "$comment": [
+    "Generated API clients: which OpenAPI document each is typed from, and where",
+    "its output goes. Adding a client is a data edit, not a new script.",
+    "",
+    "The document supplies the shape of each operation. The resolved deployment",
+    "graph supplies who may call it — see docs/adr/0023-generated-api-clients.md.",
+    "The two cannot be collapsed: `x-voyant-key-kind` is stamped at composition",
+    "time and appears in none of the tracked documents.",
+    "",
+    "`keyKinds` is false for admin clients. The PK/SK line is a property of the",
+    "public surface; every /v1/admin/* route is secret-only by construction, so a",
+    "publishable subset there would be an empty type pretending to be a boundary."
+  ],
+  "clients": [
+    {
+      "document": "packages/public-api/openapi/public-api/public-api.json",
+      "outDir": "packages/public-api-client/src/generated",
+      "keyKinds": true
+    }
+  ]
+}

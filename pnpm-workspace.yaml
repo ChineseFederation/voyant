@@ -12,6 +12,8 @@ catalog:
   "drizzle-orm": ^0.45.2
   "hono": ^4.12.27
   "intl-messageformat": ^11.2.12
+  "openapi-fetch": ^0.17.0
+  "openapi-typescript": ^7.13.0
   "tsx": ^4.22.4
   "typescript": ^6.0.3
   "vite": ^8.1.3

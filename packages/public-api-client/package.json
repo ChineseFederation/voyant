@@ -16,7 +16,8 @@
     "./client": "./src/client.ts",
     "./errors": "./src/errors.ts",
     "./operations": "./src/operations.ts",
-    "./schemas": "./src/schemas.ts"
+    "./schemas": "./src/schemas.ts",
+    "./generated": "./src/generated/index.ts"
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
@@ -85,10 +86,18 @@
         "types": "./dist/schemas.d.ts",
         "import": "./dist/schemas.js",
         "default": "./dist/schemas.js"
+      },
+      "./generated": {
+        "types": "./dist/generated/index.d.ts",
+        "import": "./dist/generated/index.js",
+        "default": "./dist/generated/index.js"
       }
     },
     "main": "./dist/index.js",
     "types": "./dist/index.d.ts"
   },
-  "private": true
+  "private": true,
+  "dependencies": {
+    "openapi-fetch": "catalog:"
+  }
 }
