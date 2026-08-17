@@ -12,34 +12,7 @@ export interface paths {
       cookie?: never
     }
     /** Inspect action ledger drift and health */
-    get: {
-      parameters: {
-        query?: {
-          createdAtFrom?: string
-          sampleLimit?: number
-        }
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description The ledger and its domain projections are healthy */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content?: never
-        }
-        /** @description A ledger or domain projection health check failed */
-        503: {
-          headers: {
-            [name: string]: unknown
-          }
-          content?: never
-        }
-      }
-    }
+    get: operations["getAdminActionLedgerHealth"]
     put?: never
     post?: never
     delete?: never
@@ -58,42 +31,7 @@ export interface paths {
     get?: never
     put?: never
     /** Run action ledger drift checks and a write canary */
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          "application/json": {
-            /** Format: date-time */
-            createdAtFrom?: string
-            sampleLimit?: number
-            organizationId?: string
-            principalId?: string
-            idempotencyKey?: string
-          }
-        }
-      }
-      responses: {
-        /** @description The canary and all drift checks passed */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content?: never
-        }
-        /** @description The canary or a drift check failed */
-        503: {
-          headers: {
-            [name: string]: unknown
-          }
-          content?: never
-        }
-      }
-    }
+    post: operations["postAdminActionLedgerHealthCheck"]
     delete?: never
     options?: never
     head?: never
@@ -111,4 +49,213 @@ export interface components {
   pathItems: never
 }
 export type $defs = Record<string, never>
-export type operations = Record<string, never>
+export interface operations {
+  getAdminActionLedgerHealth: {
+    parameters: {
+      query?: {
+        createdAtFrom?: string
+        sampleLimit?: number
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description The action ledger and domain projections are healthy */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              ok: boolean
+              canary: {
+                ok: boolean
+                actionId: string
+                replayed: boolean
+                observedWrite: boolean
+              } | null
+              bookingDrift: {
+                ok: boolean
+                rows: {
+                  check: string
+                  missingCount: number
+                  sampleIds: string[]
+                }[]
+              }
+              financeDrift: {
+                ok: boolean
+                rows: {
+                  check: string
+                  missingCount: number
+                  sampleIds: string[]
+                }[]
+              }
+              productDrift: {
+                ok: boolean
+                rows: {
+                  check: string
+                  missingCount: number
+                  sampleIds: string[]
+                }[]
+              }
+            }
+          }
+        }
+      }
+      /** @description An action ledger or domain projection health check failed */
+      503: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              ok: boolean
+              canary: {
+                ok: boolean
+                actionId: string
+                replayed: boolean
+                observedWrite: boolean
+              } | null
+              bookingDrift: {
+                ok: boolean
+                rows: {
+                  check: string
+                  missingCount: number
+                  sampleIds: string[]
+                }[]
+              }
+              financeDrift: {
+                ok: boolean
+                rows: {
+                  check: string
+                  missingCount: number
+                  sampleIds: string[]
+                }[]
+              }
+              productDrift: {
+                ok: boolean
+                rows: {
+                  check: string
+                  missingCount: number
+                  sampleIds: string[]
+                }[]
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  postAdminActionLedgerHealthCheck: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          /** Format: date-time */
+          createdAtFrom?: string
+          sampleLimit?: number
+          organizationId?: string
+          principalId?: string
+          idempotencyKey?: string
+        }
+      }
+    }
+    responses: {
+      /** @description The canary and all drift checks passed */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              ok: boolean
+              canary: {
+                ok: boolean
+                actionId: string
+                replayed: boolean
+                observedWrite: boolean
+              } | null
+              bookingDrift: {
+                ok: boolean
+                rows: {
+                  check: string
+                  missingCount: number
+                  sampleIds: string[]
+                }[]
+              }
+              financeDrift: {
+                ok: boolean
+                rows: {
+                  check: string
+                  missingCount: number
+                  sampleIds: string[]
+                }[]
+              }
+              productDrift: {
+                ok: boolean
+                rows: {
+                  check: string
+                  missingCount: number
+                  sampleIds: string[]
+                }[]
+              }
+            }
+          }
+        }
+      }
+      /** @description The canary or a drift check failed */
+      503: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              ok: boolean
+              canary: {
+                ok: boolean
+                actionId: string
+                replayed: boolean
+                observedWrite: boolean
+              } | null
+              bookingDrift: {
+                ok: boolean
+                rows: {
+                  check: string
+                  missingCount: number
+                  sampleIds: string[]
+                }[]
+              }
+              financeDrift: {
+                ok: boolean
+                rows: {
+                  check: string
+                  missingCount: number
+                  sampleIds: string[]
+                }[]
+              }
+              productDrift: {
+                ok: boolean
+                rows: {
+                  check: string
+                  missingCount: number
+                  sampleIds: string[]
+                }[]
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

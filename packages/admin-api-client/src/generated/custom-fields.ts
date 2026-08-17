@@ -12,16 +12,7 @@ export interface paths {
       cookie?: never
     }
     /** List selected target and field-type capabilities */
-    get: {
-      parameters: {
-        query?: never
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody?: never
-      responses: never
-    }
+    get: operations["getAdminCustomFieldsTargets"]
     put?: never
     post?: never
     delete?: never
@@ -38,28 +29,27 @@ export interface paths {
       cookie?: never
     }
     /** List selected-target custom-field definitions */
-    get: {
-      parameters: {
-        query?: never
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody?: never
-      responses: never
-    }
+    get: operations["getAdminCustomFields"]
     put?: never
     /** Create an operator-owned custom-field definition */
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody?: never
-      responses: never
+    post: operations["postAdminCustomFields"]
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/admin/custom-fields/values": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
     }
+    /** List custom-field values */
+    get: operations["getAdminCustomFieldsValues"]
+    put?: never
+    post?: never
     delete?: never
     options?: never
     head?: never
@@ -74,68 +64,15 @@ export interface paths {
       cookie?: never
     }
     /** Get a custom-field definition */
-    get: {
-      parameters: {
-        query?: never
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody?: never
-      responses: never
-    }
+    get: operations["getAdminCustomFieldsById"]
     put?: never
     post?: never
     /** Delete a custom-field definition */
-    delete: {
-      parameters: {
-        query?: never
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody?: never
-      responses: never
-    }
+    delete: operations["deleteAdminCustomFieldsById"]
     options?: never
     head?: never
     /** Update a custom-field definition */
-    patch: {
-      parameters: {
-        query?: never
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody?: never
-      responses: never
-    }
-    trace?: never
-  }
-  "/v1/admin/custom-fields/values": {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    /** List custom-field values */
-    get: {
-      parameters: {
-        query?: never
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody?: never
-      responses: never
-    }
-    put?: never
-    post?: never
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
+    patch: operations["patchAdminCustomFieldsById"]
     trace?: never
   }
   "/v1/admin/custom-fields/{id}/value": {
@@ -147,16 +84,7 @@ export interface paths {
     }
     get?: never
     /** Upsert a custom-field value */
-    put: {
-      parameters: {
-        query?: never
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody?: never
-      responses: never
-    }
+    put: operations["putAdminCustomFieldsByIdValue"]
     post?: never
     delete?: never
     options?: never
@@ -175,16 +103,7 @@ export interface paths {
     put?: never
     post?: never
     /** Delete a custom-field value */
-    delete: {
-      parameters: {
-        query?: never
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody?: never
-      responses: never
-    }
+    delete: operations["deleteAdminCustomFieldsValuesById"]
     options?: never
     head?: never
     patch?: never
@@ -201,4 +120,655 @@ export interface components {
   pathItems: never
 }
 export type $defs = Record<string, never>
-export type operations = Record<string, never>
+export interface operations {
+  getAdminCustomFieldsTargets: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Selected custom-field target registry */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              namespace: string
+              label: string
+              fieldTypes: (
+                | "varchar"
+                | "text"
+                | "double"
+                | "monetary"
+                | "date"
+                | "boolean"
+                | "enum"
+                | "set"
+                | "json"
+                | "address"
+                | "phone"
+              )[]
+              capabilities: ("read" | "write" | "search" | "export" | "invoice" | "presentation")[]
+              ownerUnitId: string
+            }[]
+          }
+        }
+      }
+    }
+  }
+  getAdminCustomFields: {
+    parameters: {
+      query?: {
+        entityType?: string
+        ownerKind?: "platform" | "operator" | "app"
+        lifecycleState?: "active" | "inactive" | "deprecated"
+        limit?: number
+        offset?: number | null
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Selected-target custom-field definitions */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              entityType: string
+              key: string
+              label: string
+              /** @enum {string} */
+              fieldType:
+                | "varchar"
+                | "text"
+                | "double"
+                | "monetary"
+                | "date"
+                | "boolean"
+                | "enum"
+                | "set"
+                | "json"
+                | "address"
+                | "phone"
+              /** @default false */
+              isRequired: boolean
+              /** @default false */
+              isSearchable: boolean
+              /** @default true */
+              isExportable: boolean
+              /** @default false */
+              isInvoiceable: boolean
+              options?:
+                | {
+                    label: string
+                    value: string
+                  }[]
+                | null
+              id: string
+              namespace: string
+              /** @enum {string} */
+              ownerKind: "platform" | "operator" | "app"
+              ownerId: string | null
+              /** @enum {string} */
+              lifecycleState: "active" | "inactive" | "deprecated"
+              provenance: {
+                [key: string]: unknown
+              }
+              createdAt: string
+              updatedAt: string
+            }[]
+            total: number
+            limit: number
+            offset: number
+          }
+        }
+      }
+    }
+  }
+  postAdminCustomFields: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          entityType: string
+          key: string
+          label: string
+          /** @enum {string} */
+          fieldType:
+            | "varchar"
+            | "text"
+            | "double"
+            | "monetary"
+            | "date"
+            | "boolean"
+            | "enum"
+            | "set"
+            | "json"
+            | "address"
+            | "phone"
+          /** @default false */
+          isRequired?: boolean
+          /** @default false */
+          isSearchable?: boolean
+          /** @default true */
+          isExportable?: boolean
+          /** @default false */
+          isInvoiceable?: boolean
+          options?:
+            | {
+                label: string
+                value: string
+              }[]
+            | null
+        }
+      }
+    }
+    responses: {
+      /** @description Created custom-field definition */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              entityType: string
+              key: string
+              label: string
+              /** @enum {string} */
+              fieldType:
+                | "varchar"
+                | "text"
+                | "double"
+                | "monetary"
+                | "date"
+                | "boolean"
+                | "enum"
+                | "set"
+                | "json"
+                | "address"
+                | "phone"
+              /** @default false */
+              isRequired: boolean
+              /** @default false */
+              isSearchable: boolean
+              /** @default true */
+              isExportable: boolean
+              /** @default false */
+              isInvoiceable: boolean
+              options?:
+                | {
+                    label: string
+                    value: string
+                  }[]
+                | null
+              id: string
+              namespace: string
+              /** @enum {string} */
+              ownerKind: "platform" | "operator" | "app"
+              ownerId: string | null
+              /** @enum {string} */
+              lifecycleState: "active" | "inactive" | "deprecated"
+              provenance: {
+                [key: string]: unknown
+              }
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description Unsupported target or field type */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Duplicate custom-field key */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getAdminCustomFieldsValues: {
+    parameters: {
+      query?: {
+        entityType?: string
+        entityId?: string
+        definitionId?: string
+        limit?: number
+        offset?: number | null
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Paginated list of custom-field values */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              definitionId: string
+              entityType: string
+              entityId: string
+              namespace: string
+              key: string
+              textValue: string | null
+              numberValue: number | null
+              dateValue: string | null
+              booleanValue: boolean | null
+              monetaryValueCents: number | null
+              currencyCode: string | null
+              jsonValue:
+                | {
+                    [key: string]: unknown
+                  }
+                | string[]
+                | null
+            }[]
+            total: number
+            limit: number
+            offset: number
+          }
+        }
+      }
+      /** @description Unsupported custom-field target */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getAdminCustomFieldsById: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Custom-field definition */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              entityType: string
+              key: string
+              label: string
+              /** @enum {string} */
+              fieldType:
+                | "varchar"
+                | "text"
+                | "double"
+                | "monetary"
+                | "date"
+                | "boolean"
+                | "enum"
+                | "set"
+                | "json"
+                | "address"
+                | "phone"
+              /** @default false */
+              isRequired: boolean
+              /** @default false */
+              isSearchable: boolean
+              /** @default true */
+              isExportable: boolean
+              /** @default false */
+              isInvoiceable: boolean
+              options?:
+                | {
+                    label: string
+                    value: string
+                  }[]
+                | null
+              id: string
+              namespace: string
+              /** @enum {string} */
+              ownerKind: "platform" | "operator" | "app"
+              ownerId: string | null
+              /** @enum {string} */
+              lifecycleState: "active" | "inactive" | "deprecated"
+              provenance: {
+                [key: string]: unknown
+              }
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description Custom-field definition not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  deleteAdminCustomFieldsById: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Deleted custom-field definition */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            /** @enum {boolean} */
+            success: true
+          }
+        }
+      }
+      /** @description Definition is controlled by another owner */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Custom-field definition not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  patchAdminCustomFieldsById: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          key?: string
+          label?: string
+          isRequired?: boolean
+          isSearchable?: boolean
+          isExportable?: boolean
+          isInvoiceable?: boolean
+          options?:
+            | {
+                label: string
+                value: string
+              }[]
+            | null
+        }
+      }
+    }
+    responses: {
+      /** @description Updated custom-field definition */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              entityType: string
+              key: string
+              label: string
+              /** @enum {string} */
+              fieldType:
+                | "varchar"
+                | "text"
+                | "double"
+                | "monetary"
+                | "date"
+                | "boolean"
+                | "enum"
+                | "set"
+                | "json"
+                | "address"
+                | "phone"
+              /** @default false */
+              isRequired: boolean
+              /** @default false */
+              isSearchable: boolean
+              /** @default true */
+              isExportable: boolean
+              /** @default false */
+              isInvoiceable: boolean
+              options?:
+                | {
+                    label: string
+                    value: string
+                  }[]
+                | null
+              id: string
+              namespace: string
+              /** @enum {string} */
+              ownerKind: "platform" | "operator" | "app"
+              ownerId: string | null
+              /** @enum {string} */
+              lifecycleState: "active" | "inactive" | "deprecated"
+              provenance: {
+                [key: string]: unknown
+              }
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description Definition is controlled by another owner */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Custom-field definition not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  putAdminCustomFieldsByIdValue: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          entityType: string
+          entityId: string
+          textValue?: string | null
+          numberValue?: number | null
+          /** Format: date */
+          dateValue?: string | null
+          booleanValue?: boolean | null
+          monetaryValueCents?: number | null
+          currencyCode?: string | null
+          jsonValue?:
+            | {
+                [key: string]: unknown
+              }
+            | string[]
+            | null
+        }
+      }
+    }
+    responses: {
+      /** @description The upserted custom-field value */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              definitionId: string
+              entityType: string
+              entityId: string
+              namespace: string
+              key: string
+              textValue: string | null
+              numberValue: number | null
+              dateValue: string | null
+              booleanValue: boolean | null
+              monetaryValueCents: number | null
+              currencyCode: string | null
+              jsonValue:
+                | {
+                    [key: string]: unknown
+                  }
+                | string[]
+                | null
+            }
+          }
+        }
+      }
+      /** @description invalid_request */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Custom-field definition or entity not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  deleteAdminCustomFieldsValuesById: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Custom-field value deleted */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            /** @enum {boolean} */
+            success: true
+          }
+        }
+      }
+      /** @description Custom-field value not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+}

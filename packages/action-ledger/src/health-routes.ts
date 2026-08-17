@@ -127,6 +127,24 @@ const getActionLedgerHealthRoute = createRoute({
   responses: healthResponses,
 })
 
+/**
+ * `/health/check` runs the canary and the drift checks; `/health` reports the
+ * projections. Sharing `healthResponses` described both with the projection
+ * wording, which is not what this endpoint reports — the published document had
+ * the accurate prose and the routes did not, so generating it from them would
+ * have replaced a correct description with a generic one.
+ */
+const checkHealthResponses = {
+  200: {
+    description: "The canary and all drift checks passed",
+    content: { "application/json": { schema: actionLedgerHealthResponseSchema } },
+  },
+  503: {
+    description: "The canary or a drift check failed",
+    content: { "application/json": { schema: actionLedgerHealthResponseSchema } },
+  },
+} as const
+
 const checkActionLedgerHealthRoute = createRoute({
   method: "post",
   path: "/health/check",
@@ -136,7 +154,7 @@ const checkActionLedgerHealthRoute = createRoute({
       content: { "application/json": { schema: actionLedgerHealthCheckBodySchema } },
     },
   },
-  responses: healthResponses,
+  responses: checkHealthResponses,
 })
 
 export interface ActionLedgerHealthResponse {

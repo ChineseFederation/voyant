@@ -67,7 +67,11 @@
               }
             }
           }
-        }
+        },
+        "summary": "GET /v1/admin/navigation-preferences",
+        "tags": ["navigation-preferences"],
+        "x-voyant-module": "navigation-preferences",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/navigation-preferences/organization": {
@@ -158,7 +162,11 @@
               }
             }
           }
-        }
+        },
+        "summary": "PUT /v1/admin/navigation-preferences/organization",
+        "tags": ["navigation-preferences"],
+        "x-voyant-module": "navigation-preferences",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/navigation-preferences/me": {
@@ -236,7 +244,11 @@
               }
             }
           }
-        }
+        },
+        "summary": "PUT /v1/admin/navigation-preferences/me",
+        "tags": ["navigation-preferences"],
+        "x-voyant-module": "navigation-preferences",
+        "x-voyant-surface": "admin"
       }
     }
   }

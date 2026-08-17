@@ -7,29 +7,305 @@
   "paths": {
     "/v1/admin/action-ledger/health": {
       "get": {
-        "summary": "Inspect action ledger drift and health",
         "x-voyant-api-id": "@voyant-travel/action-ledger#health-extension.api",
         "parameters": [
           {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "required": false,
             "name": "createdAtFrom",
-            "in": "query",
-            "schema": { "type": "string", "format": "date-time" }
+            "in": "query"
           },
           {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "required": false,
             "name": "sampleLimit",
-            "in": "query",
-            "schema": { "type": "integer", "minimum": 1 }
+            "in": "query"
           }
         ],
         "responses": {
-          "200": { "description": "The ledger and its domain projections are healthy" },
-          "503": { "description": "A ledger or domain projection health check failed" }
-        }
+          "200": {
+            "description": "The action ledger and domain projections are healthy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "ok": {
+                          "type": "boolean"
+                        },
+                        "canary": {
+                          "type": ["object", "null"],
+                          "properties": {
+                            "ok": {
+                              "type": "boolean"
+                            },
+                            "actionId": {
+                              "type": "string"
+                            },
+                            "replayed": {
+                              "type": "boolean"
+                            },
+                            "observedWrite": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": ["ok", "actionId", "replayed", "observedWrite"]
+                        },
+                        "bookingDrift": {
+                          "type": "object",
+                          "properties": {
+                            "ok": {
+                              "type": "boolean"
+                            },
+                            "rows": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "check": {
+                                    "type": "string"
+                                  },
+                                  "missingCount": {
+                                    "type": "integer",
+                                    "minimum": 0
+                                  },
+                                  "sampleIds": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                },
+                                "required": ["check", "missingCount", "sampleIds"]
+                              }
+                            }
+                          },
+                          "required": ["ok", "rows"]
+                        },
+                        "financeDrift": {
+                          "type": "object",
+                          "properties": {
+                            "ok": {
+                              "type": "boolean"
+                            },
+                            "rows": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "check": {
+                                    "type": "string"
+                                  },
+                                  "missingCount": {
+                                    "type": "integer",
+                                    "minimum": 0
+                                  },
+                                  "sampleIds": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                },
+                                "required": ["check", "missingCount", "sampleIds"]
+                              }
+                            }
+                          },
+                          "required": ["ok", "rows"]
+                        },
+                        "productDrift": {
+                          "type": "object",
+                          "properties": {
+                            "ok": {
+                              "type": "boolean"
+                            },
+                            "rows": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "check": {
+                                    "type": "string"
+                                  },
+                                  "missingCount": {
+                                    "type": "integer",
+                                    "minimum": 0
+                                  },
+                                  "sampleIds": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                },
+                                "required": ["check", "missingCount", "sampleIds"]
+                              }
+                            }
+                          },
+                          "required": ["ok", "rows"]
+                        }
+                      },
+                      "required": ["ok", "canary", "bookingDrift", "financeDrift", "productDrift"]
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "An action ledger or domain projection health check failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "ok": {
+                          "type": "boolean"
+                        },
+                        "canary": {
+                          "type": ["object", "null"],
+                          "properties": {
+                            "ok": {
+                              "type": "boolean"
+                            },
+                            "actionId": {
+                              "type": "string"
+                            },
+                            "replayed": {
+                              "type": "boolean"
+                            },
+                            "observedWrite": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": ["ok", "actionId", "replayed", "observedWrite"]
+                        },
+                        "bookingDrift": {
+                          "type": "object",
+                          "properties": {
+                            "ok": {
+                              "type": "boolean"
+                            },
+                            "rows": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "check": {
+                                    "type": "string"
+                                  },
+                                  "missingCount": {
+                                    "type": "integer",
+                                    "minimum": 0
+                                  },
+                                  "sampleIds": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                },
+                                "required": ["check", "missingCount", "sampleIds"]
+                              }
+                            }
+                          },
+                          "required": ["ok", "rows"]
+                        },
+                        "financeDrift": {
+                          "type": "object",
+                          "properties": {
+                            "ok": {
+                              "type": "boolean"
+                            },
+                            "rows": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "check": {
+                                    "type": "string"
+                                  },
+                                  "missingCount": {
+                                    "type": "integer",
+                                    "minimum": 0
+                                  },
+                                  "sampleIds": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                },
+                                "required": ["check", "missingCount", "sampleIds"]
+                              }
+                            }
+                          },
+                          "required": ["ok", "rows"]
+                        },
+                        "productDrift": {
+                          "type": "object",
+                          "properties": {
+                            "ok": {
+                              "type": "boolean"
+                            },
+                            "rows": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "check": {
+                                    "type": "string"
+                                  },
+                                  "missingCount": {
+                                    "type": "integer",
+                                    "minimum": 0
+                                  },
+                                  "sampleIds": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                },
+                                "required": ["check", "missingCount", "sampleIds"]
+                              }
+                            }
+                          },
+                          "required": ["ok", "rows"]
+                        }
+                      },
+                      "required": ["ok", "canary", "bookingDrift", "financeDrift", "productDrift"]
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "getAdminActionLedgerHealth",
+        "summary": "Inspect action ledger drift and health",
+        "tags": ["action-ledger"],
+        "x-voyant-module": "action-ledger",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/action-ledger/health/check": {
       "post": {
-        "summary": "Run action ledger drift checks and a write canary",
         "x-voyant-api-id": "@voyant-travel/action-ledger#health-extension.api",
         "requestBody": {
           "required": true,
@@ -38,20 +314,305 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "createdAtFrom": { "type": "string", "format": "date-time" },
-                  "sampleLimit": { "type": "integer", "minimum": 1 },
-                  "organizationId": { "type": "string" },
-                  "principalId": { "type": "string" },
-                  "idempotencyKey": { "type": "string" }
+                  "createdAtFrom": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "sampleLimit": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 100
+                  },
+                  "organizationId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "principalId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "idempotencyKey": {
+                    "type": "string",
+                    "minLength": 1
+                  }
                 }
               }
             }
           }
         },
         "responses": {
-          "200": { "description": "The canary and all drift checks passed" },
-          "503": { "description": "The canary or a drift check failed" }
-        }
+          "200": {
+            "description": "The canary and all drift checks passed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "ok": {
+                          "type": "boolean"
+                        },
+                        "canary": {
+                          "type": ["object", "null"],
+                          "properties": {
+                            "ok": {
+                              "type": "boolean"
+                            },
+                            "actionId": {
+                              "type": "string"
+                            },
+                            "replayed": {
+                              "type": "boolean"
+                            },
+                            "observedWrite": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": ["ok", "actionId", "replayed", "observedWrite"]
+                        },
+                        "bookingDrift": {
+                          "type": "object",
+                          "properties": {
+                            "ok": {
+                              "type": "boolean"
+                            },
+                            "rows": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "check": {
+                                    "type": "string"
+                                  },
+                                  "missingCount": {
+                                    "type": "integer",
+                                    "minimum": 0
+                                  },
+                                  "sampleIds": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                },
+                                "required": ["check", "missingCount", "sampleIds"]
+                              }
+                            }
+                          },
+                          "required": ["ok", "rows"]
+                        },
+                        "financeDrift": {
+                          "type": "object",
+                          "properties": {
+                            "ok": {
+                              "type": "boolean"
+                            },
+                            "rows": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "check": {
+                                    "type": "string"
+                                  },
+                                  "missingCount": {
+                                    "type": "integer",
+                                    "minimum": 0
+                                  },
+                                  "sampleIds": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                },
+                                "required": ["check", "missingCount", "sampleIds"]
+                              }
+                            }
+                          },
+                          "required": ["ok", "rows"]
+                        },
+                        "productDrift": {
+                          "type": "object",
+                          "properties": {
+                            "ok": {
+                              "type": "boolean"
+                            },
+                            "rows": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "check": {
+                                    "type": "string"
+                                  },
+                                  "missingCount": {
+                                    "type": "integer",
+                                    "minimum": 0
+                                  },
+                                  "sampleIds": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                },
+                                "required": ["check", "missingCount", "sampleIds"]
+                              }
+                            }
+                          },
+                          "required": ["ok", "rows"]
+                        }
+                      },
+                      "required": ["ok", "canary", "bookingDrift", "financeDrift", "productDrift"]
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The canary or a drift check failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "ok": {
+                          "type": "boolean"
+                        },
+                        "canary": {
+                          "type": ["object", "null"],
+                          "properties": {
+                            "ok": {
+                              "type": "boolean"
+                            },
+                            "actionId": {
+                              "type": "string"
+                            },
+                            "replayed": {
+                              "type": "boolean"
+                            },
+                            "observedWrite": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": ["ok", "actionId", "replayed", "observedWrite"]
+                        },
+                        "bookingDrift": {
+                          "type": "object",
+                          "properties": {
+                            "ok": {
+                              "type": "boolean"
+                            },
+                            "rows": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "check": {
+                                    "type": "string"
+                                  },
+                                  "missingCount": {
+                                    "type": "integer",
+                                    "minimum": 0
+                                  },
+                                  "sampleIds": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                },
+                                "required": ["check", "missingCount", "sampleIds"]
+                              }
+                            }
+                          },
+                          "required": ["ok", "rows"]
+                        },
+                        "financeDrift": {
+                          "type": "object",
+                          "properties": {
+                            "ok": {
+                              "type": "boolean"
+                            },
+                            "rows": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "check": {
+                                    "type": "string"
+                                  },
+                                  "missingCount": {
+                                    "type": "integer",
+                                    "minimum": 0
+                                  },
+                                  "sampleIds": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                },
+                                "required": ["check", "missingCount", "sampleIds"]
+                              }
+                            }
+                          },
+                          "required": ["ok", "rows"]
+                        },
+                        "productDrift": {
+                          "type": "object",
+                          "properties": {
+                            "ok": {
+                              "type": "boolean"
+                            },
+                            "rows": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "check": {
+                                    "type": "string"
+                                  },
+                                  "missingCount": {
+                                    "type": "integer",
+                                    "minimum": 0
+                                  },
+                                  "sampleIds": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                },
+                                "required": ["check", "missingCount", "sampleIds"]
+                              }
+                            }
+                          },
+                          "required": ["ok", "rows"]
+                        }
+                      },
+                      "required": ["ok", "canary", "bookingDrift", "financeDrift", "productDrift"]
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "postAdminActionLedgerHealthCheck",
+        "summary": "Run action ledger drift checks and a write canary",
+        "tags": ["action-ledger"],
+        "x-voyant-module": "action-ledger",
+        "x-voyant-surface": "admin"
       }
     }
   }
