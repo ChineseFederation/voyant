@@ -1,5 +1,35 @@
 # @voyant-travel/operator-standard
 
+## 0.21.79
+
+### Patch Changes
+
+- Updated dependencies [8496d0c]
+  - @voyant-travel/public-api@0.265.0
+  - @voyant-travel/public-api-react@0.310.0
+  - @voyant-travel/notifications@0.150.18
+  - @voyant-travel/trips@0.237.9
+  - @voyant-travel/voyant-connect-adapter@0.39.1
+  - @voyant-travel/bookings-react@0.308.0
+  - @voyant-travel/cruises-react@0.307.0
+  - @voyant-travel/inventory-react@0.190.0
+  - @voyant-travel/action-ledger-react@0.197.0
+  - @voyant-travel/distribution-react@0.298.0
+  - @voyant-travel/finance-react@0.308.0
+  - @voyant-travel/identity-react@0.308.0
+  - @voyant-travel/legal-react@0.308.0
+  - @voyant-travel/operations-react@0.189.0
+  - @voyant-travel/trips-react@0.301.0
+  - @voyant-travel/admin-app@0.201.0
+  - @voyant-travel/catalog-react@0.306.0
+  - @voyant-travel/commerce-react@0.190.0
+  - @voyant-travel/flights-react@0.308.0
+  - @voyant-travel/operator-settings-react@0.166.0
+  - @voyant-travel/proposals-react@0.306.0
+  - @voyant-travel/relationships-react@0.308.0
+  - @voyant-travel/admin-host@0.159.0
+  - @voyant-travel/mice-react@0.176.0
+
 ## 0.21.78
 
 ### Patch Changes

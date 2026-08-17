@@ -1,5 +1,12 @@
 # @voyant-travel/notifications
 
+## 0.150.18
+
+### Patch Changes
+
+- Updated dependencies [8496d0c]
+  - @voyant-travel/public-api@0.265.0
+
 ## 0.150.17
 
 ### Patch Changes

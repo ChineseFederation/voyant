@@ -1,5 +1,12 @@
 # @voyant-travel/plugin-voyant-connect
 
+## 0.39.1
+
+### Patch Changes
+
+- Updated dependencies [8496d0c]
+  - @voyant-travel/public-api@0.265.0
+
 ## 0.39.0
 
 ### Patch Changes

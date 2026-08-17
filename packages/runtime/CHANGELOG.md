@@ -1,5 +1,11 @@
 # @voyant-travel/runtime
 
+## 0.25.9
+
+### Patch Changes
+
+- @voyant-travel/admin-host@0.159.0
+
 ## 0.25.8
 
 ### Patch Changes

@@ -1,5 +1,23 @@
 # @voyant-travel/public-api-react
 
+## 0.310.0
+
+### Minor Changes
+
+- 8496d0c: Extract the customer-portal wire contracts into
+  `@voyant-travel/public-api-contracts`, a publishable leaf whose only workspace
+  dependency is `@voyant-travel/schema-kit`. A browser client can now validate
+  `/v1/public/customer-portal` payloads without depending on the server package
+  and its eleven domain modules.
+
+### Patch Changes
+
+- Updated dependencies [8496d0c]
+  - @voyant-travel/public-api-contracts@0.1.0
+  - @voyant-travel/public-api@0.265.0
+  - @voyant-travel/public-api-client@0.293.0
+  - @voyant-travel/catalog-react@0.306.0
+
 ## 0.309.0
 
 ### Patch Changes

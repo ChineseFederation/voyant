@@ -1,5 +1,14 @@
 # @voyant-travel/cruises-react
 
+## 0.307.0
+
+### Patch Changes
+
+- Updated dependencies [8496d0c]
+  - @voyant-travel/public-api-react@0.310.0
+  - @voyant-travel/distribution-react@0.298.0
+  - @voyant-travel/catalog-react@0.306.0
+
 ## 0.306.0
 
 ### Patch Changes
