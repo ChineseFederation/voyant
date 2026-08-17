@@ -10,7 +10,5 @@
     "Shrinking means either giving the remaining paths a generator, or splitting the",
     "document so each half is owned by the route module that produces it."
   ],
-  "unownedPaths": {
-    "packages/public-api/openapi/public-api/public-api.json": 12
-  }
+  "unownedPaths": {}
 }

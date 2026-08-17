@@ -53,15 +53,15 @@
     ]
   },
   "scripts": {
-    "typecheck": "tsc -p tsconfig.typecheck.json",
-    "lint": "biome check src/",
-    "test": "vitest run",
-    "generate:shopping-openapi": "tsx scripts/generate-shopping-openapi.ts",
-    "verify:openapi-authority": "node scripts/check-openapi-authority.mjs",
     "build": "pnpm run clean && tsc -p tsconfig.build.json",
     "clean": "rm -rf dist tsconfig.tsbuildinfo tsconfig.build.tsbuildinfo",
+    "db:generate": "drizzle-kit generate --config=drizzle.migrations.config.ts --name=public_api_baseline && node ../../scripts/migrations/guard-create-type.mjs ./migrations && node ../../scripts/migrations/ensure-extensions.mjs ./migrations",
+    "generate:openapi": "tsx scripts/generate-openapi.ts",
+    "lint": "biome check src/",
     "prepack": "pnpm run build",
-    "db:generate": "drizzle-kit generate --config=drizzle.migrations.config.ts --name=public_api_baseline && node ../../scripts/migrations/guard-create-type.mjs ./migrations && node ../../scripts/migrations/ensure-extensions.mjs ./migrations"
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.typecheck.json",
+    "verify:openapi-authority": "node scripts/check-openapi-authority.mjs"
   },
   "dependencies": {
     "@hono/zod-openapi": "catalog:",

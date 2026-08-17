@@ -129,6 +129,7 @@
   "paths": {
     "/v1/public/products/{productId}/offers": {
       "get": {
+        "x-voyant-api-id": "@voyant-travel/public-api#api.public",
         "parameters": [
           {
             "schema": {
@@ -258,16 +259,15 @@
         },
         "operationId": "getPublicProductsByProductIdOffers",
         "summary": "GET /v1/public/products/{productId}/offers",
-        "tags": ["storefront"],
-        "x-voyant-module": "storefront",
+        "tags": ["products"],
+        "x-voyant-module": "products",
         "x-voyant-surface": "public-api",
-        "x-voyant-api-id": "@voyant-travel/public-api#api.public",
-        "x-voyant-unit-id": "@voyant-travel/public-api",
         "x-voyant-package-name": "@voyant-travel/public-api"
       }
     },
     "/v1/public/offers/{slug}": {
       "get": {
+        "x-voyant-api-id": "@voyant-travel/public-api#api.public",
         "parameters": [
           {
             "schema": {
@@ -410,16 +410,15 @@
         },
         "operationId": "getPublicOffersBySlug",
         "summary": "GET /v1/public/offers/{slug}",
-        "tags": ["storefront"],
-        "x-voyant-module": "storefront",
+        "tags": ["offers"],
+        "x-voyant-module": "offers",
         "x-voyant-surface": "public-api",
-        "x-voyant-api-id": "@voyant-travel/public-api#api.public",
-        "x-voyant-unit-id": "@voyant-travel/public-api",
         "x-voyant-package-name": "@voyant-travel/public-api"
       }
     },
     "/v1/public/offers/{slug}/apply": {
       "post": {
+        "x-voyant-api-id": "@voyant-travel/public-api#api.public",
         "parameters": [
           {
             "schema": {
@@ -766,16 +765,15 @@
         },
         "operationId": "postPublicOffersBySlugApply",
         "summary": "POST /v1/public/offers/{slug}/apply",
-        "tags": ["storefront"],
-        "x-voyant-module": "storefront",
+        "tags": ["offers"],
+        "x-voyant-module": "offers",
         "x-voyant-surface": "public-api",
-        "x-voyant-api-id": "@voyant-travel/public-api#api.public",
-        "x-voyant-unit-id": "@voyant-travel/public-api",
         "x-voyant-package-name": "@voyant-travel/public-api"
       }
     },
     "/v1/public/offers/redeem": {
       "post": {
+        "x-voyant-api-id": "@voyant-travel/public-api#api.public",
         "requestBody": {
           "required": true,
           "content": {
@@ -1117,16 +1115,15 @@
         },
         "operationId": "postPublicOffersRedeem",
         "summary": "POST /v1/public/offers/redeem",
-        "tags": ["storefront"],
-        "x-voyant-module": "storefront",
+        "tags": ["offers"],
+        "x-voyant-module": "offers",
         "x-voyant-surface": "public-api",
-        "x-voyant-api-id": "@voyant-travel/public-api#api.public",
-        "x-voyant-unit-id": "@voyant-travel/public-api",
         "x-voyant-package-name": "@voyant-travel/public-api"
       }
     },
     "/v1/public/leads": {
       "post": {
+        "x-voyant-api-id": "@voyant-travel/public-api#api.public",
         "requestBody": {
           "required": true,
           "content": {
@@ -1345,16 +1342,15 @@
         },
         "operationId": "postPublicLeads",
         "summary": "POST /v1/public/leads",
-        "tags": ["storefront"],
-        "x-voyant-module": "storefront",
+        "tags": ["leads"],
+        "x-voyant-module": "leads",
         "x-voyant-surface": "public-api",
-        "x-voyant-api-id": "@voyant-travel/public-api#api.public",
-        "x-voyant-unit-id": "@voyant-travel/public-api",
         "x-voyant-package-name": "@voyant-travel/public-api"
       }
     },
     "/v1/public/newsletter/subscribe": {
       "post": {
+        "x-voyant-api-id": "@voyant-travel/public-api#api.public",
         "requestBody": {
           "required": true,
           "content": {
@@ -1552,16 +1548,15 @@
         },
         "operationId": "postPublicNewsletterSubscribe",
         "summary": "POST /v1/public/newsletter/subscribe",
-        "tags": ["storefront"],
-        "x-voyant-module": "storefront",
+        "tags": ["newsletter"],
+        "x-voyant-module": "newsletter",
         "x-voyant-surface": "public-api",
-        "x-voyant-api-id": "@voyant-travel/public-api#api.public",
-        "x-voyant-unit-id": "@voyant-travel/public-api",
         "x-voyant-package-name": "@voyant-travel/public-api"
       }
     },
     "/v1/public/settings": {
       "get": {
+        "x-voyant-api-id": "@voyant-travel/public-api#api.public",
         "responses": {
           "200": {
             "description": "The deployment's public storefront settings",
@@ -1987,16 +1982,15 @@
         },
         "operationId": "getPublicSettings",
         "summary": "GET /v1/public/settings",
-        "tags": ["storefront"],
-        "x-voyant-module": "storefront",
+        "tags": ["settings"],
+        "x-voyant-module": "settings",
         "x-voyant-surface": "public-api",
-        "x-voyant-api-id": "@voyant-travel/public-api#api.public",
-        "x-voyant-unit-id": "@voyant-travel/public-api",
         "x-voyant-package-name": "@voyant-travel/public-api"
       }
     },
     "/v1/public/departures/{departureId}": {
       "get": {
+        "x-voyant-api-id": "@voyant-travel/public-api#api.public",
         "parameters": [
           {
             "schema": {
@@ -2291,16 +2285,15 @@
         },
         "operationId": "getPublicDeparturesByDepartureId",
         "summary": "GET /v1/public/departures/{departureId}",
-        "tags": ["storefront"],
-        "x-voyant-module": "storefront",
+        "tags": ["departures"],
+        "x-voyant-module": "departures",
         "x-voyant-surface": "public-api",
-        "x-voyant-api-id": "@voyant-travel/public-api#api.public",
-        "x-voyant-unit-id": "@voyant-travel/public-api",
         "x-voyant-package-name": "@voyant-travel/public-api"
       }
     },
     "/v1/public/products/{productId}/departures": {
       "get": {
+        "x-voyant-api-id": "@voyant-travel/public-api#api.public",
         "parameters": [
           {
             "schema": {
@@ -2644,16 +2637,15 @@
         },
         "operationId": "getPublicProductsByProductIdDepartures",
         "summary": "GET /v1/public/products/{productId}/departures",
-        "tags": ["storefront"],
-        "x-voyant-module": "storefront",
+        "tags": ["products"],
+        "x-voyant-module": "products",
         "x-voyant-surface": "public-api",
-        "x-voyant-api-id": "@voyant-travel/public-api#api.public",
-        "x-voyant-unit-id": "@voyant-travel/public-api",
         "x-voyant-package-name": "@voyant-travel/public-api"
       }
     },
     "/v1/public/products/{productId}/availability": {
       "get": {
+        "x-voyant-api-id": "@voyant-travel/public-api#api.public",
         "parameters": [
           {
             "schema": {
@@ -2898,16 +2890,15 @@
         },
         "operationId": "getPublicProductsByProductIdAvailability",
         "summary": "GET /v1/public/products/{productId}/availability",
-        "tags": ["storefront"],
-        "x-voyant-module": "storefront",
+        "tags": ["products"],
+        "x-voyant-module": "products",
         "x-voyant-surface": "public-api",
-        "x-voyant-api-id": "@voyant-travel/public-api#api.public",
-        "x-voyant-unit-id": "@voyant-travel/public-api",
         "x-voyant-package-name": "@voyant-travel/public-api"
       }
     },
     "/v1/public/products/{productId}/departures/{departureId}/itinerary": {
       "get": {
+        "x-voyant-api-id": "@voyant-travel/public-api#api.public",
         "parameters": [
           {
             "schema": {
@@ -3035,16 +3026,15 @@
         },
         "operationId": "getPublicProductsByProductIdDeparturesByDepartureIdItinerary",
         "summary": "GET /v1/public/products/{productId}/departures/{departureId}/itinerary",
-        "tags": ["storefront"],
-        "x-voyant-module": "storefront",
+        "tags": ["products"],
+        "x-voyant-module": "products",
         "x-voyant-surface": "public-api",
-        "x-voyant-api-id": "@voyant-travel/public-api#api.public",
-        "x-voyant-unit-id": "@voyant-travel/public-api",
         "x-voyant-package-name": "@voyant-travel/public-api"
       }
     },
     "/v1/public/products/{productId}/extensions": {
       "get": {
+        "x-voyant-api-id": "@voyant-travel/public-api#api.public",
         "parameters": [
           {
             "schema": {
@@ -3264,11 +3254,9 @@
         },
         "operationId": "getPublicProductsByProductIdExtensions",
         "summary": "GET /v1/public/products/{productId}/extensions",
-        "tags": ["storefront"],
-        "x-voyant-module": "storefront",
+        "tags": ["products"],
+        "x-voyant-module": "products",
         "x-voyant-surface": "public-api",
-        "x-voyant-api-id": "@voyant-travel/public-api#api.public",
-        "x-voyant-unit-id": "@voyant-travel/public-api",
         "x-voyant-package-name": "@voyant-travel/public-api"
       }
     },
