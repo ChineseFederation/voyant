@@ -7,72 +7,1677 @@
   },
   "paths": {
     "/v1/admin/apps": {
-      "get": { "summary": "List app registrations" },
-      "post": { "summary": "Create a custom app registration" }
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "required": false,
+            "name": "ownerId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": ["custom", "marketplace"]
+            },
+            "required": false,
+            "name": "distribution",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 100,
+              "default": 25
+            },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": ["integer", "null"],
+              "minimum": 0,
+              "default": 0
+            },
+            "required": false,
+            "name": "offset",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated app registrations",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {}
+                    },
+                    "total": {
+                      "type": "number"
+                    },
+                    "limit": {
+                      "type": "number"
+                    },
+                    "offset": {
+                      "type": "number"
+                    }
+                  },
+                  "required": ["data", "total", "limit", "offset"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "getAdminApps",
+        "summary": "List app registrations",
+        "tags": ["apps"],
+        "x-voyant-module": "apps",
+        "x-voyant-surface": "admin"
+      },
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "ownerId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 160
+                  },
+                  "displayName": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
+                  },
+                  "slug": {
+                    "type": "string",
+                    "pattern": "^[a-z0-9][a-z0-9-]{0,78}[a-z0-9]$"
+                  },
+                  "redirectUris": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "uri"
+                    },
+                    "default": []
+                  },
+                  "createdBy": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 160
+                  }
+                },
+                "required": ["ownerId", "displayName", "slug", "createdBy"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created custom app registration",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {}
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Duplicate app registration",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "postAdminApps",
+        "summary": "Create a custom app registration",
+        "tags": ["apps"],
+        "x-voyant-module": "apps",
+        "x-voyant-surface": "admin"
+      }
     },
     "/v1/admin/apps/oauth/authorize": {
-      "post": { "summary": "Approve app OAuth consent" }
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "response_type": {
+                    "type": "string",
+                    "enum": ["code"]
+                  },
+                  "client_id": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "release_id": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "redirect_uri": {
+                    "type": "string",
+                    "format": "uri"
+                  },
+                  "state": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "nonce": {
+                    "type": "string",
+                    "minLength": 43,
+                    "maxLength": 128
+                  },
+                  "code_challenge": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "code_challenge_method": {
+                    "type": "string",
+                    "enum": ["S256"]
+                  },
+                  "actor_id": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "operator_scopes": {
+                    "type": "string",
+                    "default": ""
+                  },
+                  "optional_scopes": {
+                    "type": "string",
+                    "default": ""
+                  }
+                },
+                "required": [
+                  "response_type",
+                  "client_id",
+                  "release_id",
+                  "redirect_uri",
+                  "state",
+                  "code_challenge",
+                  "code_challenge_method"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OAuth authorization redirect target",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "redirectUrl": {
+                          "type": "string",
+                          "format": "uri"
+                        },
+                        "state": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["redirectUrl", "state"]
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "App OAuth is not configured",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "postAdminAppsOauthAuthorize",
+        "summary": "Approve app OAuth consent",
+        "tags": ["apps"],
+        "x-voyant-module": "apps",
+        "x-voyant-surface": "admin"
+      }
     },
     "/v1/admin/apps/oauth/token": {
-      "post": { "summary": "Issue an app OAuth token" }
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "grant_type": {
+                        "type": "string",
+                        "enum": ["authorization_code"]
+                      },
+                      "code": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "redirect_uri": {
+                        "type": "string",
+                        "format": "uri"
+                      },
+                      "code_verifier": {
+                        "type": "string",
+                        "minLength": 43,
+                        "maxLength": 128
+                      },
+                      "client_id": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "client_secret": {
+                        "type": "string"
+                      }
+                    },
+                    "required": ["grant_type", "code", "redirect_uri", "code_verifier", "client_id"]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "grant_type": {
+                        "type": "string",
+                        "enum": ["refresh_token"]
+                      },
+                      "refresh_token": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "client_id": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "client_secret": {
+                        "type": "string"
+                      }
+                    },
+                    "required": ["grant_type", "refresh_token", "client_id"]
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OAuth token response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {}
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "App OAuth is not configured",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "postAdminAppsOauthToken",
+        "summary": "Issue an app OAuth token",
+        "tags": ["apps"],
+        "x-voyant-module": "apps",
+        "x-voyant-surface": "admin"
+      }
     },
     "/v1/admin/apps/oauth/revoke-installation": {
-      "post": { "summary": "Revoke installation credentials" }
-    },
-    "/v1/admin/apps/oauth/session-token/exchange": {
-      "post": { "summary": "Exchange an app session token" }
-    },
-    "/v1/admin/apps/install": {
-      "post": { "summary": "Install an app release" }
-    },
-    "/v1/admin/apps/marketplace/install-intents/resolve": {
-      "post": { "summary": "Resolve and admit an opaque Marketplace install intent" }
-    },
-    "/v1/admin/apps/installations": {
-      "get": { "summary": "List app installations" }
-    },
-    "/v1/admin/apps/installations/{installationId}": {
-      "get": { "summary": "Get app installation detail" }
-    },
-    "/v1/admin/apps/installations/{installationId}/audit": {
-      "get": { "summary": "List app installation audit events" }
-    },
-    "/v1/admin/apps/installations/{installationId}/pause": {
-      "post": { "summary": "Pause an app installation" }
-    },
-    "/v1/admin/apps/installations/{installationId}/resume": {
-      "post": { "summary": "Resume an app installation" }
-    },
-    "/v1/admin/apps/installations/{installationId}/uninstall": {
-      "post": { "summary": "Uninstall an app installation" }
-    },
-    "/v1/admin/apps/installations/{installationId}/activate": {
-      "post": { "summary": "Activate an app installation release" }
-    },
-    "/v1/admin/apps/installations/{installationId}/purge-preview": {
-      "post": { "summary": "Preview app installation purge impact" }
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "installationId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "actorId": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": ["installationId", "actorId"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Revoked installation credential generation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "installationId": {
+                      "type": "string"
+                    },
+                    "generation": {
+                      "type": "number"
+                    }
+                  },
+                  "required": ["installationId", "generation"]
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "App OAuth is not configured",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "postAdminAppsOauthRevokeInstallation",
+        "summary": "Revoke installation credentials",
+        "tags": ["apps"],
+        "x-voyant-module": "apps",
+        "x-voyant-surface": "admin"
+      }
     },
     "/v1/admin/apps/installations/{installationId}/session-token": {
-      "post": { "summary": "Issue an app extension session token" }
+      "post": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "required": true,
+            "name": "installationId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "entity": {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 80
+                      },
+                      "id": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200
+                      }
+                    },
+                    "required": ["type", "id"],
+                    "additionalProperties": false
+                  },
+                  "slot": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 80
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Issued app session token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {}
+                  }
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "App session tokens are not configured",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "postAdminAppsInstallationsByInstallationIdSessionToken",
+        "summary": "Issue an app extension session token",
+        "tags": ["apps"],
+        "x-voyant-module": "apps",
+        "x-voyant-surface": "admin"
+      }
+    },
+    "/v1/admin/apps/oauth/session-token/exchange": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "session_token": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "client_id": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "client_secret": {
+                    "type": "string"
+                  },
+                  "viewer_scopes": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "pattern": "^[a-z][a-z0-9-]*:[a-z][a-z0-9-]*$"
+                    },
+                    "default": []
+                  },
+                  "contextual_scopes": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "pattern": "^[a-z][a-z0-9-]*:[a-z][a-z0-9-]*$"
+                    }
+                  }
+                },
+                "required": ["session_token", "client_id"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Online app token response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {}
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "App session tokens are not configured",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "postAdminAppsOauthSessionTokenExchange",
+        "summary": "Exchange an app session token",
+        "tags": ["apps"],
+        "x-voyant-module": "apps",
+        "x-voyant-surface": "admin"
+      }
+    },
+    "/v1/admin/apps/install": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "appId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "releaseId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "actorId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 160
+                  },
+                  "grantedOptionalScopes": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "pattern": "^[a-z][a-z0-9-]*:[a-z][a-z0-9-]*$"
+                    }
+                  },
+                  "updatePolicy": {
+                    "type": "string",
+                    "enum": ["manual", "compatible", "patch", "pinned"]
+                  },
+                  "deploymentId": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": ["appId", "releaseId", "actorId"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Installed app",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {}
+                  }
+                }
+              }
+            }
+          }
+        },
+        "operationId": "postAdminAppsInstall",
+        "summary": "Install an app release",
+        "tags": ["apps"],
+        "x-voyant-module": "apps",
+        "x-voyant-surface": "admin"
+      }
+    },
+    "/v1/admin/apps/marketplace/install-intents/resolve": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "intent": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2048
+                  }
+                },
+                "required": ["intent"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Admitted Marketplace install intent",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "appId": {
+                          "type": "string"
+                        },
+                        "releaseId": {
+                          "type": "string"
+                        },
+                        "acquisitionId": {
+                          "type": "string"
+                        },
+                        "created": {
+                          "type": "boolean"
+                        },
+                        "existingInstallation": {
+                          "type": ["object", "null"],
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "releaseId": {
+                              "type": "string"
+                            },
+                            "status": {
+                              "type": "string",
+                              "enum": [
+                                "pending",
+                                "authorizing",
+                                "active",
+                                "paused",
+                                "degraded",
+                                "revoked",
+                                "uninstalled"
+                              ]
+                            }
+                          },
+                          "required": ["id", "releaseId", "status"],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "appId",
+                        "releaseId",
+                        "acquisitionId",
+                        "created",
+                        "existingInstallation"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Install intent unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Managed Marketplace is not configured",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "postAdminAppsMarketplaceInstallIntentsResolve",
+        "summary": "Resolve and admit an opaque Marketplace install intent",
+        "tags": ["apps"],
+        "x-voyant-module": "apps",
+        "x-voyant-surface": "admin"
+      }
     },
     "/v1/admin/apps/installations/{installationId}/setup-handoff": {
-      "post": { "summary": "Create a one-time Marketplace app setup handoff" }
+      "post": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "required": true,
+            "name": "installationId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created one-time app setup handoff",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "redirectUrl": {
+                          "type": "string",
+                          "format": "uri"
+                        }
+                      },
+                      "required": ["redirectUrl"],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Marketplace installation unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Managed Marketplace is not configured",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "postAdminAppsInstallationsByInstallationIdSetupHandoff",
+        "summary": "Create a one-time Marketplace app setup handoff",
+        "tags": ["apps"],
+        "x-voyant-module": "apps",
+        "x-voyant-surface": "admin"
+      }
     },
-    "/v1/admin/apps/installations/{installationId}/webhooks": {
-      "get": { "summary": "List app webhook delivery health" }
+    "/v1/admin/apps/installations": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "required": false,
+            "name": "appId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "pending",
+                "authorizing",
+                "active",
+                "paused",
+                "degraded",
+                "revoked",
+                "uninstalled"
+              ]
+            },
+            "required": false,
+            "name": "status",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "required": false,
+            "name": "deploymentId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 100,
+              "default": 25
+            },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": ["integer", "null"],
+              "minimum": 0,
+              "default": 0
+            },
+            "required": false,
+            "name": "offset",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated app installations",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {}
+                    },
+                    "total": {
+                      "type": "number"
+                    },
+                    "limit": {
+                      "type": "number"
+                    },
+                    "offset": {
+                      "type": "number"
+                    }
+                  },
+                  "required": ["data", "total", "limit", "offset"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "getAdminAppsInstallations",
+        "summary": "List app installations",
+        "tags": ["apps"],
+        "x-voyant-module": "apps",
+        "x-voyant-surface": "admin"
+      }
     },
-    "/v1/admin/apps/installations/{installationId}/webhooks/replay": {
-      "post": { "summary": "Replay an app webhook delivery" }
+    "/v1/admin/apps/installations/{installationId}": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "required": true,
+            "name": "installationId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "App installation detail",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {}
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "App installation not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "getAdminAppsInstallationsByInstallationId",
+        "summary": "Get app installation detail",
+        "tags": ["apps"],
+        "x-voyant-module": "apps",
+        "x-voyant-surface": "admin"
+      }
+    },
+    "/v1/admin/apps/installations/{installationId}/audit": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "required": true,
+            "name": "installationId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 200,
+              "default": 50
+            },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "App installation audit events",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {}
+                  }
+                }
+              }
+            }
+          }
+        },
+        "operationId": "getAdminAppsInstallationsByInstallationIdAudit",
+        "summary": "List app installation audit events",
+        "tags": ["apps"],
+        "x-voyant-module": "apps",
+        "x-voyant-surface": "admin"
+      }
+    },
+    "/v1/admin/apps/installations/{installationId}/pause": {
+      "post": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "required": true,
+            "name": "installationId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "actorId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 160
+                  }
+                },
+                "required": ["actorId"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Paused app installation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {}
+                  }
+                }
+              }
+            }
+          }
+        },
+        "operationId": "postAdminAppsInstallationsByInstallationIdPause",
+        "summary": "Pause an app installation",
+        "tags": ["apps"],
+        "x-voyant-module": "apps",
+        "x-voyant-surface": "admin"
+      }
+    },
+    "/v1/admin/apps/installations/{installationId}/resume": {
+      "post": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "required": true,
+            "name": "installationId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "actorId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 160
+                  }
+                },
+                "required": ["actorId"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Resumed app installation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {}
+                  }
+                }
+              }
+            }
+          }
+        },
+        "operationId": "postAdminAppsInstallationsByInstallationIdResume",
+        "summary": "Resume an app installation",
+        "tags": ["apps"],
+        "x-voyant-module": "apps",
+        "x-voyant-surface": "admin"
+      }
+    },
+    "/v1/admin/apps/installations/{installationId}/uninstall": {
+      "post": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "required": true,
+            "name": "installationId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "actorId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 160
+                  }
+                },
+                "required": ["actorId"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Uninstalled app installation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {}
+                  }
+                }
+              }
+            }
+          }
+        },
+        "operationId": "postAdminAppsInstallationsByInstallationIdUninstall",
+        "summary": "Uninstall an app installation",
+        "tags": ["apps"],
+        "x-voyant-module": "apps",
+        "x-voyant-surface": "admin"
+      }
+    },
+    "/v1/admin/apps/installations/{installationId}/activate": {
+      "post": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "required": true,
+            "name": "installationId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "releaseId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "actorId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 160
+                  },
+                  "grantedRequiredScopes": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "pattern": "^[a-z][a-z0-9-]*:[a-z][a-z0-9-]*$"
+                    }
+                  },
+                  "grantedOptionalScopes": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "pattern": "^[a-z][a-z0-9-]*:[a-z][a-z0-9-]*$"
+                    }
+                  },
+                  "updatePolicy": {
+                    "type": "string",
+                    "enum": ["manual", "compatible", "patch", "pinned"]
+                  }
+                },
+                "required": ["releaseId", "actorId"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Activated app installation release",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {}
+                  }
+                }
+              }
+            }
+          }
+        },
+        "operationId": "postAdminAppsInstallationsByInstallationIdActivate",
+        "summary": "Activate an app installation release",
+        "tags": ["apps"],
+        "x-voyant-module": "apps",
+        "x-voyant-surface": "admin"
+      }
+    },
+    "/v1/admin/apps/installations/{installationId}/purge-preview": {
+      "post": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "required": true,
+            "name": "installationId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "actorId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 160
+                  }
+                },
+                "required": ["actorId"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "App installation purge preview",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {}
+                  }
+                }
+              }
+            }
+          }
+        },
+        "operationId": "postAdminAppsInstallationsByInstallationIdPurgePreview",
+        "summary": "Preview app installation purge impact",
+        "tags": ["apps"],
+        "x-voyant-module": "apps",
+        "x-voyant-surface": "admin"
+      }
     },
     "/v1/admin/apps/{appId}": {
-      "get": { "summary": "Get an app registration" }
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "required": true,
+            "name": "appId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "App registration",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {}
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "App not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "getAdminAppsByAppId",
+        "summary": "Get an app registration",
+        "tags": ["apps"],
+        "x-voyant-module": "apps",
+        "x-voyant-surface": "admin"
+      }
     },
     "/v1/admin/apps/{appId}/releases": {
-      "get": { "summary": "List app releases" },
-      "post": { "summary": "Create an app release from an uploaded manifest" }
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "required": true,
+            "name": "appId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "App releases",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {}
+                  }
+                }
+              }
+            }
+          }
+        },
+        "operationId": "getAdminAppsByAppIdReleases",
+        "summary": "List app releases",
+        "tags": ["apps"],
+        "x-voyant-module": "apps",
+        "x-voyant-surface": "admin"
+      },
+      "post": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "required": true,
+            "name": "appId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "manifest": {},
+                  "createdBy": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 160
+                  },
+                  "provenance": {
+                    "type": "object",
+                    "additionalProperties": {},
+                    "default": {
+                      "source": "admin-upload"
+                    }
+                  }
+                },
+                "required": ["createdBy"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created app release",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {},
+                    "digest": {
+                      "type": "string"
+                    },
+                    "created": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": ["digest", "created"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "postAdminAppsByAppIdReleases",
+        "summary": "Create an app release from an uploaded manifest",
+        "tags": ["apps"],
+        "x-voyant-module": "apps",
+        "x-voyant-surface": "admin"
+      }
     },
     "/v1/admin/apps/{appId}/releases/fetch": {
-      "post": { "summary": "Create an app release from a fetched manifest" }
+      "post": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "required": true,
+            "name": "appId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "manifestUrl": {
+                    "type": "string",
+                    "format": "uri"
+                  },
+                  "createdBy": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 160
+                  }
+                },
+                "required": ["manifestUrl", "createdBy"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Fetched app release",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {},
+                    "digest": {
+                      "type": "string"
+                    },
+                    "created": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": ["digest", "created"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "postAdminAppsByAppIdReleasesFetch",
+        "summary": "Create an app release from a fetched manifest",
+        "tags": ["apps"],
+        "x-voyant-module": "apps",
+        "x-voyant-surface": "admin"
+      }
+    },
+    "/v1/admin/apps/installations/{installationId}/webhooks": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "required": true,
+            "name": "installationId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "App webhook delivery health",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {}
+                  }
+                }
+              }
+            }
+          }
+        },
+        "operationId": "getAdminAppsInstallationsByInstallationIdWebhooks",
+        "summary": "List app webhook delivery health",
+        "tags": ["apps"],
+        "x-voyant-module": "apps",
+        "x-voyant-surface": "admin"
+      }
+    },
+    "/v1/admin/apps/installations/{installationId}/webhooks/replay": {
+      "post": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "required": true,
+            "name": "installationId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "deliveryId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "actorId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 160
+                  }
+                },
+                "required": ["deliveryId", "actorId"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Replayed app webhook delivery",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {}
+                  }
+                }
+              }
+            }
+          }
+        },
+        "operationId": "postAdminAppsInstallationsByInstallationIdWebhooksReplay",
+        "summary": "Replay an app webhook delivery",
+        "tags": ["apps"],
+        "x-voyant-module": "apps",
+        "x-voyant-surface": "admin"
+      }
     }
   }
 }

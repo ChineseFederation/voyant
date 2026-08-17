@@ -9,6 +9,10 @@
   ],
   "generators": [
     {
+      "command": "pnpm --filter @voyant-travel/apps generate:openapi",
+      "files": ["packages/apps/openapi/admin/apps.json"]
+    },
+    {
       "command": "pnpm --filter @voyant-travel/catalog generate:openapi",
       "files": [
         "packages/catalog/openapi/admin/catalog-booking.json",
@@ -45,6 +49,10 @@
     {
       "command": "pnpm --filter @voyant-travel/media generate:openapi",
       "files": ["packages/media/openapi/admin/media-library.json"]
+    },
+    {
+      "command": "pnpm --filter @voyant-travel/mice generate:openapi",
+      "files": ["packages/mice/openapi/admin/mice.json"]
     },
     {
       "command": "pnpm --filter @voyant-travel/operations generate:openapi",

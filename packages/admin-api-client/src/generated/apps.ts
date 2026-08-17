@@ -12,28 +12,10 @@ export interface paths {
       cookie?: never
     }
     /** List app registrations */
-    get: {
-      parameters: {
-        query?: never
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody?: never
-      responses: never
-    }
+    get: operations["getAdminApps"]
     put?: never
     /** Create a custom app registration */
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody?: never
-      responses: never
-    }
+    post: operations["postAdminApps"]
     delete?: never
     options?: never
     head?: never
@@ -50,16 +32,7 @@ export interface paths {
     get?: never
     put?: never
     /** Approve app OAuth consent */
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody?: never
-      responses: never
-    }
+    post: operations["postAdminAppsOauthAuthorize"]
     delete?: never
     options?: never
     head?: never
@@ -76,16 +49,7 @@ export interface paths {
     get?: never
     put?: never
     /** Issue an app OAuth token */
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody?: never
-      responses: never
-    }
+    post: operations["postAdminAppsOauthToken"]
     delete?: never
     options?: never
     head?: never
@@ -102,16 +66,24 @@ export interface paths {
     get?: never
     put?: never
     /** Revoke installation credentials */
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody?: never
-      responses: never
+    post: operations["postAdminAppsOauthRevokeInstallation"]
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/admin/apps/installations/{installationId}/session-token": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
     }
+    get?: never
+    put?: never
+    /** Issue an app extension session token */
+    post: operations["postAdminAppsInstallationsByInstallationIdSessionToken"]
     delete?: never
     options?: never
     head?: never
@@ -128,16 +100,7 @@ export interface paths {
     get?: never
     put?: never
     /** Exchange an app session token */
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody?: never
-      responses: never
-    }
+    post: operations["postAdminAppsOauthSessionTokenExchange"]
     delete?: never
     options?: never
     head?: never
@@ -154,16 +117,7 @@ export interface paths {
     get?: never
     put?: never
     /** Install an app release */
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody?: never
-      responses: never
-    }
+    post: operations["postAdminAppsInstall"]
     delete?: never
     options?: never
     head?: never
@@ -180,16 +134,24 @@ export interface paths {
     get?: never
     put?: never
     /** Resolve and admit an opaque Marketplace install intent */
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody?: never
-      responses: never
+    post: operations["postAdminAppsMarketplaceInstallIntentsResolve"]
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/admin/apps/installations/{installationId}/setup-handoff": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
     }
+    get?: never
+    put?: never
+    /** Create a one-time Marketplace app setup handoff */
+    post: operations["postAdminAppsInstallationsByInstallationIdSetupHandoff"]
     delete?: never
     options?: never
     head?: never
@@ -204,16 +166,7 @@ export interface paths {
       cookie?: never
     }
     /** List app installations */
-    get: {
-      parameters: {
-        query?: never
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody?: never
-      responses: never
-    }
+    get: operations["getAdminAppsInstallations"]
     put?: never
     post?: never
     delete?: never
@@ -230,16 +183,7 @@ export interface paths {
       cookie?: never
     }
     /** Get app installation detail */
-    get: {
-      parameters: {
-        query?: never
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody?: never
-      responses: never
-    }
+    get: operations["getAdminAppsInstallationsByInstallationId"]
     put?: never
     post?: never
     delete?: never
@@ -256,16 +200,7 @@ export interface paths {
       cookie?: never
     }
     /** List app installation audit events */
-    get: {
-      parameters: {
-        query?: never
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody?: never
-      responses: never
-    }
+    get: operations["getAdminAppsInstallationsByInstallationIdAudit"]
     put?: never
     post?: never
     delete?: never
@@ -284,16 +219,7 @@ export interface paths {
     get?: never
     put?: never
     /** Pause an app installation */
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody?: never
-      responses: never
-    }
+    post: operations["postAdminAppsInstallationsByInstallationIdPause"]
     delete?: never
     options?: never
     head?: never
@@ -310,16 +236,7 @@ export interface paths {
     get?: never
     put?: never
     /** Resume an app installation */
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody?: never
-      responses: never
-    }
+    post: operations["postAdminAppsInstallationsByInstallationIdResume"]
     delete?: never
     options?: never
     head?: never
@@ -336,16 +253,7 @@ export interface paths {
     get?: never
     put?: never
     /** Uninstall an app installation */
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody?: never
-      responses: never
-    }
+    post: operations["postAdminAppsInstallationsByInstallationIdUninstall"]
     delete?: never
     options?: never
     head?: never
@@ -362,16 +270,7 @@ export interface paths {
     get?: never
     put?: never
     /** Activate an app installation release */
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody?: never
-      responses: never
-    }
+    post: operations["postAdminAppsInstallationsByInstallationIdActivate"]
     delete?: never
     options?: never
     head?: never
@@ -388,23 +287,49 @@ export interface paths {
     get?: never
     put?: never
     /** Preview app installation purge impact */
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody?: never
-      responses: never
-    }
+    post: operations["postAdminAppsInstallationsByInstallationIdPurgePreview"]
     delete?: never
     options?: never
     head?: never
     patch?: never
     trace?: never
   }
-  "/v1/admin/apps/installations/{installationId}/session-token": {
+  "/v1/admin/apps/{appId}": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** Get an app registration */
+    get: operations["getAdminAppsByAppId"]
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/admin/apps/{appId}/releases": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** List app releases */
+    get: operations["getAdminAppsByAppIdReleases"]
+    put?: never
+    /** Create an app release from an uploaded manifest */
+    post: operations["postAdminAppsByAppIdReleases"]
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/admin/apps/{appId}/releases/fetch": {
     parameters: {
       query?: never
       header?: never
@@ -413,43 +338,8 @@ export interface paths {
     }
     get?: never
     put?: never
-    /** Issue an app extension session token */
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody?: never
-      responses: never
-    }
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  "/v1/admin/apps/installations/{installationId}/setup-handoff": {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    get?: never
-    put?: never
-    /** Create a one-time Marketplace app setup handoff */
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody?: never
-      responses: never
-    }
+    /** Create an app release from a fetched manifest */
+    post: operations["postAdminAppsByAppIdReleasesFetch"]
     delete?: never
     options?: never
     head?: never
@@ -464,16 +354,7 @@ export interface paths {
       cookie?: never
     }
     /** List app webhook delivery health */
-    get: {
-      parameters: {
-        query?: never
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody?: never
-      responses: never
-    }
+    get: operations["getAdminAppsInstallationsByInstallationIdWebhooks"]
     put?: never
     post?: never
     delete?: never
@@ -492,104 +373,7 @@ export interface paths {
     get?: never
     put?: never
     /** Replay an app webhook delivery */
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody?: never
-      responses: never
-    }
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  "/v1/admin/apps/{appId}": {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    /** Get an app registration */
-    get: {
-      parameters: {
-        query?: never
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody?: never
-      responses: never
-    }
-    put?: never
-    post?: never
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  "/v1/admin/apps/{appId}/releases": {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    /** List app releases */
-    get: {
-      parameters: {
-        query?: never
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody?: never
-      responses: never
-    }
-    put?: never
-    /** Create an app release from an uploaded manifest */
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody?: never
-      responses: never
-    }
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  "/v1/admin/apps/{appId}/releases/fetch": {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    get?: never
-    put?: never
-    /** Create an app release from a fetched manifest */
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody?: never
-      responses: never
-    }
+    post: operations["postAdminAppsInstallationsByInstallationIdWebhooksReplay"]
     delete?: never
     options?: never
     head?: never
@@ -607,4 +391,915 @@ export interface components {
   pathItems: never
 }
 export type $defs = Record<string, never>
-export type operations = Record<string, never>
+export interface operations {
+  getAdminApps: {
+    parameters: {
+      query?: {
+        ownerId?: string
+        distribution?: "custom" | "marketplace"
+        limit?: number
+        offset?: number | null
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Paginated app registrations */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: unknown[]
+            total: number
+            limit: number
+            offset: number
+          }
+        }
+      }
+    }
+  }
+  postAdminApps: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          ownerId: string
+          displayName: string
+          slug: string
+          /** @default [] */
+          redirectUris?: string[]
+          createdBy: string
+        }
+      }
+    }
+    responses: {
+      /** @description Created custom app registration */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data?: unknown
+          }
+        }
+      }
+      /** @description Duplicate app registration */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  postAdminAppsOauthAuthorize: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          /** @enum {string} */
+          response_type: "code"
+          client_id: string
+          release_id: string
+          /** Format: uri */
+          redirect_uri: string
+          state: string
+          nonce?: string
+          code_challenge: string
+          /** @enum {string} */
+          code_challenge_method: "S256"
+          actor_id?: string
+          /** @default  */
+          operator_scopes?: string
+          /** @default  */
+          optional_scopes?: string
+        }
+      }
+    }
+    responses: {
+      /** @description OAuth authorization redirect target */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              /** Format: uri */
+              redirectUrl: string
+              state: string
+            }
+          }
+        }
+      }
+      /** @description App OAuth is not configured */
+      501: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  postAdminAppsOauthToken: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json":
+          | {
+              /** @enum {string} */
+              grant_type: "authorization_code"
+              code: string
+              /** Format: uri */
+              redirect_uri: string
+              code_verifier: string
+              client_id: string
+              client_secret?: string
+            }
+          | {
+              /** @enum {string} */
+              grant_type: "refresh_token"
+              refresh_token: string
+              client_id: string
+              client_secret?: string
+            }
+      }
+    }
+    responses: {
+      /** @description OAuth token response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description App OAuth is not configured */
+      501: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  postAdminAppsOauthRevokeInstallation: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          installationId: string
+          actorId: string
+        }
+      }
+    }
+    responses: {
+      /** @description Revoked installation credential generation */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            installationId: string
+            generation: number
+          }
+        }
+      }
+      /** @description App OAuth is not configured */
+      501: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  postAdminAppsInstallationsByInstallationIdSessionToken: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        installationId: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          entity?: {
+            type: string
+            id: string
+          }
+          slot?: string
+        }
+      }
+    }
+    responses: {
+      /** @description Issued app session token */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data?: unknown
+          }
+        }
+      }
+      /** @description App session tokens are not configured */
+      501: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  postAdminAppsOauthSessionTokenExchange: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          session_token: string
+          client_id: string
+          client_secret?: string
+          /** @default [] */
+          viewer_scopes?: string[]
+          contextual_scopes?: string[]
+        }
+      }
+    }
+    responses: {
+      /** @description Online app token response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description App session tokens are not configured */
+      501: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  postAdminAppsInstall: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          appId: string
+          releaseId: string
+          actorId: string
+          grantedOptionalScopes?: string[]
+          /** @enum {string} */
+          updatePolicy?: "manual" | "compatible" | "patch" | "pinned"
+          deploymentId?: string
+        }
+      }
+    }
+    responses: {
+      /** @description Installed app */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data?: unknown
+          }
+        }
+      }
+    }
+  }
+  postAdminAppsMarketplaceInstallIntentsResolve: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          intent: string
+        }
+      }
+    }
+    responses: {
+      /** @description Admitted Marketplace install intent */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              appId: string
+              releaseId: string
+              acquisitionId: string
+              created: boolean
+              existingInstallation: {
+                id: string
+                releaseId: string
+                /** @enum {string} */
+                status:
+                  | "pending"
+                  | "authorizing"
+                  | "active"
+                  | "paused"
+                  | "degraded"
+                  | "revoked"
+                  | "uninstalled"
+              } | null
+            }
+          }
+        }
+      }
+      /** @description Install intent unavailable */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Managed Marketplace is not configured */
+      501: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  postAdminAppsInstallationsByInstallationIdSetupHandoff: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        installationId: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Created one-time app setup handoff */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              /** Format: uri */
+              redirectUrl: string
+            }
+          }
+        }
+      }
+      /** @description Marketplace installation unavailable */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Managed Marketplace is not configured */
+      501: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getAdminAppsInstallations: {
+    parameters: {
+      query?: {
+        appId?: string
+        status?:
+          | "pending"
+          | "authorizing"
+          | "active"
+          | "paused"
+          | "degraded"
+          | "revoked"
+          | "uninstalled"
+        deploymentId?: string
+        limit?: number
+        offset?: number | null
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Paginated app installations */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: unknown[]
+            total: number
+            limit: number
+            offset: number
+          }
+        }
+      }
+    }
+  }
+  getAdminAppsInstallationsByInstallationId: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        installationId: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description App installation detail */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data?: unknown
+          }
+        }
+      }
+      /** @description App installation not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getAdminAppsInstallationsByInstallationIdAudit: {
+    parameters: {
+      query?: {
+        limit?: number
+      }
+      header?: never
+      path: {
+        installationId: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description App installation audit events */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data?: unknown
+          }
+        }
+      }
+    }
+  }
+  postAdminAppsInstallationsByInstallationIdPause: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        installationId: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          actorId: string
+        }
+      }
+    }
+    responses: {
+      /** @description Paused app installation */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data?: unknown
+          }
+        }
+      }
+    }
+  }
+  postAdminAppsInstallationsByInstallationIdResume: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        installationId: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          actorId: string
+        }
+      }
+    }
+    responses: {
+      /** @description Resumed app installation */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data?: unknown
+          }
+        }
+      }
+    }
+  }
+  postAdminAppsInstallationsByInstallationIdUninstall: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        installationId: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          actorId: string
+        }
+      }
+    }
+    responses: {
+      /** @description Uninstalled app installation */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data?: unknown
+          }
+        }
+      }
+    }
+  }
+  postAdminAppsInstallationsByInstallationIdActivate: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        installationId: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          releaseId: string
+          actorId: string
+          grantedRequiredScopes?: string[]
+          grantedOptionalScopes?: string[]
+          /** @enum {string} */
+          updatePolicy?: "manual" | "compatible" | "patch" | "pinned"
+        }
+      }
+    }
+    responses: {
+      /** @description Activated app installation release */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data?: unknown
+          }
+        }
+      }
+    }
+  }
+  postAdminAppsInstallationsByInstallationIdPurgePreview: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        installationId: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          actorId: string
+        }
+      }
+    }
+    responses: {
+      /** @description App installation purge preview */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data?: unknown
+          }
+        }
+      }
+    }
+  }
+  getAdminAppsByAppId: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        appId: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description App registration */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data?: unknown
+          }
+        }
+      }
+      /** @description App not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getAdminAppsByAppIdReleases: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        appId: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description App releases */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data?: unknown
+          }
+        }
+      }
+    }
+  }
+  postAdminAppsByAppIdReleases: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        appId: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          manifest?: unknown
+          createdBy: string
+          /**
+           * @default {
+           *       "source": "admin-upload"
+           *     }
+           */
+          provenance?: {
+            [key: string]: unknown
+          }
+        }
+      }
+    }
+    responses: {
+      /** @description Created app release */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data?: unknown
+            digest: string
+            created: boolean
+          }
+        }
+      }
+    }
+  }
+  postAdminAppsByAppIdReleasesFetch: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        appId: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          /** Format: uri */
+          manifestUrl: string
+          createdBy: string
+        }
+      }
+    }
+    responses: {
+      /** @description Fetched app release */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data?: unknown
+            digest: string
+            created: boolean
+          }
+        }
+      }
+    }
+  }
+  getAdminAppsInstallationsByInstallationIdWebhooks: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        installationId: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description App webhook delivery health */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data?: unknown
+          }
+        }
+      }
+    }
+  }
+  postAdminAppsInstallationsByInstallationIdWebhooksReplay: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        installationId: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          deliveryId: string
+          actorId: string
+        }
+      }
+    }
+    responses: {
+      /** @description Replayed app webhook delivery */
+      202: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data?: unknown
+          }
+        }
+      }
+    }
+  }
+}
