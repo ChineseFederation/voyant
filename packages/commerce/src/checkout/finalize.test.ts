@@ -33,7 +33,10 @@ const tables = vi.hoisted(() => ({
   },
 }))
 
-vi.mock("@voyant-travel/bookings", () => ({ bookingsService: {} }))
+vi.mock("@voyant-travel/bookings", () => ({
+  bookingsService: {},
+  listBookingPassThroughItems: vi.fn(async () => []),
+}))
 vi.mock("@voyant-travel/bookings/schema", () => ({
   bookingItems: { bookingId: "bookingItems.bookingId" },
   bookings: tables.bookings,

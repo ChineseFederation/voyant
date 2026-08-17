@@ -16,6 +16,7 @@ import {
   type AcceptanceSignatureLegalPort,
   persistAcceptanceSignature,
 } from "./acceptance-signature.js"
+import { type AncillaryOfferSource, ancillaryOfferSourceRuntimePort } from "./ancillary-ports.js"
 import { finalizeCheckout } from "./finalize.js"
 import {
   type CatalogCheckoutDatabaseRuntime,
@@ -68,6 +69,14 @@ export interface CheckoutFinalizeSubscriberRuntimeOptions<TBindings = unknown>
    * path consumes the same quota as the booking and finance routes.
    */
   resolveMonthlyBookingLimit?: MonthlyBookingLimitResolver
+  /**
+   * Sources bound to `commerce.ancillary-offer-source`.
+   *
+   * The half of the checkout seam that runs after the money: a premium was put
+   * on the booking before payment, and this is what turns it into an issued
+   * artifact. Empty — the normal case — leaves the saga step skipped.
+   */
+  ancillaryOfferSources?: readonly AncillaryOfferSource[]
 }
 
 interface ContractDocumentGeneratedPayload {
@@ -239,6 +248,7 @@ export function createCheckoutFinalizeSubscriberRuntime<TBindings = unknown>(
                   paymentIntent: data.paymentIntent,
                 },
                 monthlyBookingLimit,
+                ancillaryOfferSources: options.ancillaryOfferSources ?? [],
               })
               if (!options.legal) return
               await options.legal.recordBookingPaymentConfirmation(
@@ -327,10 +337,13 @@ export const createAcceptanceSignatureSubscriberGraphRuntime = defineGraphRuntim
 
 /** Selected-graph factory for inline payment finalization. */
 export const createCheckoutFinalizeSubscriberGraphRuntime = defineGraphRuntimeFactory(
-  async ({ getPort, hostOptions }) => {
+  async ({ getPort, getPorts, hostOptions }) => {
     const database = await getPort(catalogCheckoutDatabaseRuntimePort)
     const settlement = await getPort(catalogBookingSessionSettlementRuntimePort)
     const legal = await getPort(catalogCheckoutLegalRuntimePort)
+    // Many-valued and optional, like the checkout API extension's own read of
+    // it: zero bound sources is a supported, silent state, not a degraded one.
+    const ancillaryOfferSources = await getPorts(ancillaryOfferSourceRuntimePort)
     return {
       id: COMMERCE_CHECKOUT_FINALIZE_SUBSCRIBER_ID,
       eventType: "payment.completed",
@@ -338,6 +351,7 @@ export const createCheckoutFinalizeSubscriberGraphRuntime = defineGraphRuntimeFa
         const descriptor = createCheckoutFinalizeSubscriberRuntime({
           ...database,
           legal,
+          ancillaryOfferSources,
           settleBookingSession: (input) => settlement.commitPaidSession(input),
           // Finalizing a checkout accepts a booking, so this path draws on the
           // same monthly quota as the booking and finance routes. Before host

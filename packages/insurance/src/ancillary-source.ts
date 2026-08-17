@@ -632,6 +632,23 @@ export function createInsuranceAncillaryOfferSource(
         await attachInsuranceApplicationToBooking(db, application.id, input.bookingId)
       }
 
+      // A re-delivered `payment.completed` re-runs the finalize saga from its
+      // first step, so this is reached again for a policy that already exists.
+      // Answering from the row rather than asking the insurer again is what
+      // makes the second run free: `issue` is idempotent at the provider by
+      // key, but a second call still costs a round trip and a second
+      // `issueAttempts` bump that reads like a retry after a failure.
+      const existing = await getInsurancePolicyForApplication(db, application.id)
+      if (existing?.issueState === "issued") {
+        return {
+          status: "fulfilled",
+          reference: existing.policyNumber ?? existing.id,
+          settledPriceMinor: existing.premiumAmountMinor,
+          currency: existing.premiumCurrency,
+          documentIds: [],
+        }
+      }
+
       const provider = await resolveProvider(application.providerId)
       if (!provider) {
         return {

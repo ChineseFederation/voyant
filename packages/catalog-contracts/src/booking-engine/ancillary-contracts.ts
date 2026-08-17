@@ -168,6 +168,22 @@ export const ancillarySelectionV1 = z
     sourceId: z.string().optional(),
     providerId: z.string().optional(),
     quoteRef: z.string().optional(),
+    /**
+     * The price the traveller actually agreed to, snapshotted at acceptance.
+     *
+     * `prepare` is allowed to come back with a different amount — the port
+     * contract says a source that can no longer hold what it quoted returns
+     * what it can hold. Without the accepted terms recorded here there is
+     * nothing to compare that against, so the new price would simply be
+     * charged and the traveller would learn of it from the invoice. Optional
+     * because a selection stored before this field existed has no answer, and
+     * a comparison against nothing must not block a checkout.
+     */
+    acceptedPriceMinor: z.number().int().optional(),
+    acceptedCurrency: z
+      .string()
+      .regex(/^[A-Z]{3}$/)
+      .optional(),
     /** Only populated for an accepted offer. */
     travelers: z
       .array(

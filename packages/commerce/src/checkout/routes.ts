@@ -278,9 +278,13 @@ export function createCatalogCheckoutApiExtension(
           CATALOG_CHECKOUT_API_RUNTIME_KEY,
           typeof options === "function" ? options : () => options,
         )
+        // The list itself, not a factory that returns it. The container hands
+        // back whatever was registered without calling anything, so a thunk
+        // here reads as "not an array" at every consumer — which is how the
+        // key stayed registered and unread (voyant#4756).
         container.register(
           ANCILLARY_OFFER_SOURCES_RUNTIME_KEY,
-          () => bindings.ancillaryOfferSources ?? [],
+          bindings.ancillaryOfferSources ?? [],
         )
       },
     },

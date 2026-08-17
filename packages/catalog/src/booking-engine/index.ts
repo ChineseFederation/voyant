@@ -45,6 +45,11 @@ export {
   withBookingSessionAnalytics,
 } from "./analytics.js"
 export {
+  type CommittedAncillaryContactV1,
+  type CommittedAncillarySelectionsV1,
+  loadCommittedAncillarySelections,
+} from "./ancillary-commitment.js"
+export {
   type AncillaryOfferResolver,
   type AncillaryQuoteRequestV1,
   ancillaryQuoteRequestFromSelection,

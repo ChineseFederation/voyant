@@ -1,8 +1,13 @@
 // agent-quality: file-size exception -- owner: commerce; the checkout-start
 // service (card / bank-transfer collection intents) is one cohesive
 // entry point; splitting it would scatter a single request lifecycle.
-import { getBookingOriginByBookingId } from "@voyant-travel/bookings"
+import {
+  bookingsService,
+  getBookingOriginByBookingId,
+  listBookingPassThroughItems,
+} from "@voyant-travel/bookings"
 import { bookingActivityLog, bookingItems, bookings } from "@voyant-travel/bookings/schema"
+import { loadCommittedAncillarySelections } from "@voyant-travel/catalog/booking-engine"
 import type { EventBus } from "@voyant-travel/core"
 import {
   type CreateInvoiceFromBookingInput,
@@ -17,7 +22,15 @@ import {
 import { eq } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import { z } from "zod"
+import {
+  AncillaryApplicationExpiredError,
+  AncillaryPreparationError,
+  AncillaryTermsChangedError,
+  prepareBookingAncillaries,
+} from "./ancillary-commit.js"
+import type { AncillaryOfferSource } from "./ancillary-ports.js"
 import type { CheckoutStartOptions } from "./options.js"
+import { ANCILLARY_OFFER_SOURCES_RUNTIME_KEY } from "./runtime-ports.js"
 
 export const checkoutStartSchema = z.object({
   bookingId: z.string().min(1),
@@ -110,7 +123,7 @@ export async function startCatalogCheckout(
 ): Promise<CatalogCheckoutStartResult> {
   const publicChannel = requireActivePublicApiChannel(context)
   const db = context.db
-  const booking: typeof bookings.$inferSelect | null =
+  let booking: typeof bookings.$inferSelect | null =
     (await db.select().from(bookings).where(eq(bookings.id, body.bookingId)).limit(1))[0] ?? null
   if (!booking) throw new CatalogCheckoutStartError("booking_not_found", 404)
   if (!["confirmed", "in_progress", "completed"].includes(booking.status)) {
@@ -159,12 +172,119 @@ export async function startCatalogCheckout(
     }
   }
 
+  // The post-commit, pre-payment seam for anything quoted live from a third
+  // party. It sits here and not in the Booking Session commit because
+  // `prepare` is an HTTP call to that third party, and the commit transaction
+  // carries the session state machine and the settlement path — a round trip
+  // inside it either holds it open across the call or fails it after money has
+  // moved (voyant#4733, voyant#4734). Here the Booking exists, nothing has been
+  // charged, and the amount the payment provider is about to be asked for is
+  // still being assembled.
+  const chargedAncillaries = await chargeAcceptedAncillaries(context, booking)
+  if (chargedAncillaries > 0) {
+    // The premium is a Booking line, so the Booking total has to be re-rolled
+    // before anything reads an amount off it. The card path charges
+    // `sellAmountCents` and the bank-transfer path bills the item rows; both
+    // would otherwise collect a total that omits what the traveller bought.
+    await bookingsService.recomputeBookingTotal(db, booking.id)
+    booking =
+      (await db.select().from(bookings).where(eq(bookings.id, body.bookingId)).limit(1))[0] ??
+      booking
+  }
+
   switch (body.paymentIntent) {
     case "card":
       return startCardCheckout(context, booking, body)
     case "bank_transfer":
       return startBankTransferCheckout(context, booking, body)
   }
+}
+
+/**
+ * Open an application at every source the traveller accepted an offer from,
+ * and put each premium on the Booking. Returns how many lines were written.
+ *
+ * A failure here is a `502`, deliberately. The alternative — dropping the
+ * offer and letting checkout continue — charges a traveller who chose travel
+ * insurance for a trip without it, and nothing downstream ever says so.
+ */
+async function chargeAcceptedAncillaries(
+  context: CatalogCheckoutStartContext,
+  booking: typeof bookings.$inferSelect,
+): Promise<number> {
+  const sources = resolveAncillaryOfferSources(context)
+  if (sources.length === 0) return 0
+
+  const committed = await loadCommittedAncillarySelections(context.db, booking.id)
+  if (!committed || committed.accepted.length === 0) return 0
+
+  try {
+    const result = await prepareBookingAncillaries({
+      db: context.db,
+      bookingId: booking.id,
+      bookingSessionId: committed.bookingSessionId,
+      sources,
+      accepted: committed.accepted,
+      // The Session's billing step first, the Booking's own contact columns
+      // when it left one blank. They are the same fact recorded twice, and a
+      // third party that refuses a nameless application would otherwise fail a
+      // checkout over which copy was consulted.
+      contact: {
+        firstName: committed.contact.firstName || (booking.contactFirstName ?? ""),
+        lastName: committed.contact.lastName || (booking.contactLastName ?? ""),
+        email: committed.contact.email || (booking.contactEmail ?? ""),
+        ...(committed.contact.phone || booking.contactPhone
+          ? { phone: committed.contact.phone || (booking.contactPhone ?? "") }
+          : {}),
+      },
+      listPassThroughItems: listBookingPassThroughItems,
+      ...(context.options.resolveAncillaryTaxTreatmentCode
+        ? { resolveTaxTreatmentCode: context.options.resolveAncillaryTaxTreatmentCode }
+        : {}),
+    })
+    // Newly prepared AND already-charged both count. If a previous attempt
+    // committed the line and then died before the total was re-rolled, the
+    // retry finds the marker, prepares nothing, and would skip the recompute
+    // for good — leaving the card path collecting a `sellAmountCents` that
+    // omits a premium the invoice still bills.
+    return result.prepared.length + result.alreadyCharged.length
+  } catch (error) {
+    if (error instanceof AncillaryApplicationExpiredError) {
+      console.error("[catalog-checkout] ancillary application expired", error)
+      throw new CatalogCheckoutStartError("ancillary_application_expired", 409)
+    }
+    if (error instanceof AncillaryTermsChangedError) {
+      console.error("[catalog-checkout] ancillary terms changed", error)
+      throw new CatalogCheckoutStartError("ancillary_terms_changed", 409)
+    }
+    if (error instanceof AncillaryPreparationError) {
+      console.error("[catalog-checkout] ancillary preparation failed", error)
+      throw new CatalogCheckoutStartError("ancillary_preparation_failed", 502)
+    }
+    throw error
+  }
+}
+
+/**
+ * The bound sources, or none.
+ *
+ * Zero is the normal state and stays silent all the way down: a deployment
+ * that has connected nothing registers an empty list, and one that has not
+ * composed the checkout extension at all resolves to nothing.
+ */
+function resolveAncillaryOfferSources(
+  context: CatalogCheckoutStartContext,
+): readonly AncillaryOfferSource[] {
+  let resolved: unknown
+  try {
+    resolved = context.resolveRuntime?.(ANCILLARY_OFFER_SOURCES_RUNTIME_KEY)
+  } catch {
+    // The container throws for an unregistered key, and a deployment that
+    // mounted these routes without the checkout extension's bootstrap has none
+    // bound. That is the same silence as binding zero sources.
+    return []
+  }
+  return Array.isArray(resolved) ? (resolved as readonly AncillaryOfferSource[]) : []
 }
 
 function requireActivePublicApiChannel(

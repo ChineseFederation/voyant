@@ -423,6 +423,9 @@ describe("catalog-checkout subscriber runtimes", () => {
       hostOptions: { finalize, resolveMonthlyBookingLimit: () => live },
       getPort: async (port: { id: string }) =>
         port.id === catalogCheckoutLegalRuntimePort.id ? legalPort : { withDb },
+      // Many-valued and optional: a deployment with no ancillary source bound
+      // resolves to an empty list, which is the normal case.
+      getPorts: async () => [],
     } as never)
 
     await (descriptor as SubscriberRuntimeDescriptor).register({

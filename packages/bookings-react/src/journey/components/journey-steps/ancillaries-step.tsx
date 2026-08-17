@@ -126,6 +126,11 @@ function AncillaryGroupCard({
         sourceId: offer.sourceId,
         providerId: offer.providerId,
         quoteRef: offer.quoteRef,
+        // What the traveller is agreeing to, recorded at the moment they agree.
+        // Checkout compares the price the source can actually hold against this
+        // and refuses rather than charging terms nobody consented to.
+        acceptedPriceMinor: offer.price.amountMinor,
+        acceptedCurrency: offer.price.currency,
         travelers: [],
         selectedOptionIds: [],
         acceptedDisclosures: [],

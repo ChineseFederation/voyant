@@ -147,4 +147,18 @@ export interface CheckoutStartOptions extends CheckoutModuleOptions {
     description: string
     returnUrl?: string
   }): Promise<{ redirectUrl: string | null } | null>
+  /**
+   * The tax treatment to stamp on a third-party premium line, per source.
+   *
+   * Injected because commerce does not know what an ancillary is. Travel
+   * insurance is VAT-exempt in most of the EU and taxed elsewhere; the module
+   * that binds the source knows which, and the treatment travels on the row
+   * rather than being resolved from the operator's own tax policy — a
+   * pass-through line is not the operator's supply. Absent, or returning
+   * `null`, means the line simply carries no tax row.
+   */
+  resolveAncillaryTaxTreatmentCode?(source: {
+    sourceId: string
+    kind: string
+  }): string | null | undefined
 }

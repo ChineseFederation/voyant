@@ -11,6 +11,7 @@
  * no margin for a markup rule to find and no basis for a commission.
  */
 
+import { and, eq } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 
 import { bookingItems } from "./schema-items.js"
@@ -72,6 +73,52 @@ export async function addBookingPassThroughItem(
     })
     .returning({ id: bookingItems.id })
   return row ? { bookingItemId: row.id } : null
+}
+
+export interface BookingPassThroughItem {
+  bookingItemId: string
+  title: string
+  /** What the booking charged for the line, in minor units. */
+  priceMinor: number
+  currency: string
+  sourceOfferId: string | null
+  metadata: Record<string, unknown> | null
+}
+
+/**
+ * The pass-through lines on a booking, for whoever collected the money.
+ *
+ * Exists so a module that sold something it did not price can find its own
+ * lines back — at charge time to avoid writing a second one, and after payment
+ * to reconcile against what the third party settled — without reading
+ * `booking_items` itself.
+ */
+export async function listBookingPassThroughItems(
+  db: PostgresJsDatabase,
+  bookingId: string,
+): Promise<BookingPassThroughItem[]> {
+  const rows = await db
+    .select({
+      id: bookingItems.id,
+      title: bookingItems.title,
+      totalSellAmountCents: bookingItems.totalSellAmountCents,
+      sellCurrency: bookingItems.sellCurrency,
+      sourceOfferId: bookingItems.sourceOfferId,
+      metadata: bookingItems.metadata,
+    })
+    .from(bookingItems)
+    .where(
+      and(eq(bookingItems.bookingId, bookingId), eq(bookingItems.pricingTreatment, "pass_through")),
+    )
+
+  return rows.map((row) => ({
+    bookingItemId: row.id,
+    title: row.title,
+    priceMinor: row.totalSellAmountCents ?? 0,
+    currency: row.sellCurrency ?? "",
+    sourceOfferId: row.sourceOfferId ?? null,
+    metadata: (row.metadata as Record<string, unknown> | null) ?? null,
+  }))
 }
 
 export interface RecordBookingSystemActivityInput {

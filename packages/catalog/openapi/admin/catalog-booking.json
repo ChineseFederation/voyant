@@ -23692,6 +23692,13 @@
                             "quoteRef": {
                               "type": "string"
                             },
+                            "acceptedPriceMinor": {
+                              "type": "integer"
+                            },
+                            "acceptedCurrency": {
+                              "type": "string",
+                              "pattern": "^[A-Z]{3}$"
+                            },
                             "travelers": {
                               "type": "array",
                               "items": {

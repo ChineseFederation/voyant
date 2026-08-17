@@ -7,6 +7,10 @@
  *      created by canonical Booking Session Commit.
  *   2. issue_invoice — explicit fallback when finance auto-generation
  *      isn't wired. Idempotent — checks if an invoice already exists.
+ *   3. link_payment_to_invoice — back-links the paid session to the invoice.
+ *   4. fulfill_ancillaries — issues whatever third party was charged on the
+ *      booking, and reconciles what it issued against what was charged. Last
+ *      because it is the one step that cannot be taken back.
  *
  * Compensation: if `issue_invoice` fails after the booking is
  * already committed, we don't mutate Booking lifecycle — the payment and
@@ -83,6 +87,24 @@ export interface CheckoutFinalizeDeps {
     /** Hint from the saga input — when set, prefer linking this session. */
     paymentSessionId?: string
   }) => Promise<{ paymentId: string | null; sessionsLinked: number }>
+  /**
+   * Issue whatever third party was charged on this booking, now that the money
+   * is in, and reconcile what it issued against what was charged.
+   *
+   * Optional in the same sense as every other dep here: returning `null` means
+   * "nothing to do" — a deployment with no ancillary source bound, or a booking
+   * that carries no third-party line. Catalog neither knows nor asks what is on
+   * the other side; commerce owns the port and supplies this.
+   *
+   * It must not throw for a supplier outcome. This step runs after a captured
+   * payment, so a refusal or an outage is a result to record on the booking,
+   * and the saga has to complete for the payment linkage above it to stay
+   * settled. The recorder carries the outcome out for observability.
+   */
+  fulfillAncillaries?: (input: {
+    bookingId: string
+    invoiceId?: string | null
+  }) => Promise<Record<string, unknown> | null>
 }
 
 async function runStep<T>(
@@ -156,6 +178,26 @@ export const checkoutFinalizeSaga = createSaga("checkout-finalize", [
       }),
     )
   }),
+
+  // Last, and after the payment is linked, because it is the only step whose
+  // precondition is "the money is definitely in". Everything before it can be
+  // re-run against an unpaid booking without consequence; asking a supplier to
+  // issue cannot be taken back.
+  sagaStep<CheckoutFinalizeInput, Record<string, unknown> | null>("fulfill_ancillaries").run(
+    async (input, ctx) => {
+      const deps = ctx.results.__deps as CheckoutFinalizeDeps | undefined
+      if (!deps) throw new Error("checkout-finalize: deps not seeded into context")
+      if (!deps.fulfillAncillaries) return null
+
+      const issueOutput = ctx.results.issue_invoice as { invoiceId: string } | null | undefined
+      return runStep("fulfill_ancillaries", deps.recorder, () =>
+        deps.fulfillAncillaries!({
+          bookingId: input.bookingId,
+          invoiceId: issueOutput?.invoiceId ?? null,
+        }),
+      )
+    },
+  ),
 ])
 
 export interface RunCheckoutFinalizeOptions {

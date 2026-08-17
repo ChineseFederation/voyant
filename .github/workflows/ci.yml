@@ -309,7 +309,15 @@ jobs:
     # a runner ~30% slower than usual cancels it mid-suite, and every file added
     # to the lane brings that closer. Raised to 20 so the cap stays a backstop
     # against a hang rather than a budget the lane is already spending.
-    timeout-minutes: 20
+    #
+    # Raised again to 30 for the same reason, with the arithmetic spelled out so
+    # the next person does not have to rediscover it: the lane now names 54
+    # files, each paying its own process start and database setup, and the
+    # insurance work (voyant#4750, voyant#4756) added four. At 20 it was being
+    # cancelled mid-suite with every test passing — a budget, not a backstop.
+    # If this needs raising a third time, the answer is probably to stop giving
+    # each file its own process rather than to add another ten minutes.
+    timeout-minutes: 30
     env:
       HUSKY: 0
       NODE_OPTIONS: --conditions=development --max-old-space-size=12288
@@ -370,6 +378,8 @@ jobs:
                 tests/integration/linked-payment-contract-confirmation.test.ts
               pnpm --filter @voyant-travel/commerce exec vitest run \
                 tests/integration/fx-rate-capture.test.ts
+              pnpm --filter @voyant-travel/commerce exec vitest run \
+                tests/integration/ancillary-checkout-fulfilment.test.ts
               pnpm --filter @voyant-travel/cruises exec vitest run \
                 tests/integration/created-target-tools.test.ts
               pnpm --filter @voyant-travel/auth exec vitest run \
@@ -444,6 +454,8 @@ jobs:
                 tests/integration/insurer-disclosure-terms.test.ts
               pnpm --filter @voyant-travel/insurance exec vitest run \
                 tests/integration/durable-issue-command.test.ts
+              pnpm --filter @voyant-travel/insurance exec vitest run \
+                tests/integration/ancillary-source-fulfilment.test.ts
               pnpm --filter @voyant-travel/db exec vitest run \
                 tests/integration/outbox.test.ts
               pnpm --filter @voyant-travel/notifications exec vitest run \

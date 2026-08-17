@@ -121,6 +121,8 @@ export {
   type AddBookingPassThroughItemInput,
   type AddedBookingPassThroughItem,
   addBookingPassThroughItem,
+  type BookingPassThroughItem,
+  listBookingPassThroughItems,
   type RecordBookingSystemActivityInput,
   recordBookingSystemActivity,
 } from "./service-pass-through-items.js"

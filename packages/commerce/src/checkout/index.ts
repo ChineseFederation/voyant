@@ -22,12 +22,26 @@ export {
   persistAcceptanceSignature,
 } from "./acceptance-signature.js"
 export {
+  type AncillaryContact,
+  AncillaryPreparationError,
+  type FulfillBookingAncillariesInput,
+  type FulfillBookingAncillariesResult,
+  type FulfilledBookingAncillary,
+  fulfillBookingAncillaries,
+  type PrepareBookingAncillariesInput,
+  type PrepareBookingAncillariesResult,
+  type PreparedBookingAncillary,
+  prepareBookingAncillaries,
+} from "./ancillary-commit.js"
+export {
+  type AncillaryItemMarker,
   AncillaryPremiumDriftError,
   type AncillaryPremiumReconciliation,
   type MaterializeAncillaryPassThroughItemInput,
   type MaterializedAncillaryItem,
   materializeAncillaryPassThroughItem,
   type ReconcileAncillaryPremiumInput,
+  readAncillaryItemMarker,
   reconcileAncillaryPremium,
 } from "./ancillary-materialization.js"
 export {
