@@ -5490,6 +5490,114 @@ export interface operations {
       }
     }
     responses: {
+      /** @description Replayed existing inquiry */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              subject: string
+              /** @enum {string} */
+              kind: "product" | "custom_trip" | "general"
+              /** @enum {string} */
+              status:
+                | "new"
+                | "triaged"
+                | "in_progress"
+                | "waiting_on_customer"
+                | "qualified"
+                | "converted"
+                | "closed"
+              /** @enum {string|null} */
+              closeOutcome:
+                | "lost"
+                | "not_serviceable"
+                | "no_response"
+                | "duplicate"
+                | "spam"
+                | "customer_withdrew"
+                | "other"
+                | null
+              closeNote: string | null
+              duplicateOfInquiryId: string | null
+              priority: string
+              personId: string | null
+              organizationId: string | null
+              contactSnapshot: {
+                name?: string
+                /** Format: email */
+                email?: string
+                phone?: string
+              }
+              ownerId: string | null
+              teamId: string | null
+              unassignedReason: string | null
+              nextActionAt: string | null
+              firstResponseDueAt: string | null
+              firstRespondedAt: string | null
+              travelBrief: {
+                /** @enum {number} */
+                version: 1
+                destinations?: {
+                  placeId?: string
+                  label: string
+                }[]
+                origin?: {
+                  placeId?: string
+                  label: string
+                }
+                /** Format: date */
+                startDate?: string
+                /** Format: date */
+                endDate?: string
+                /** @enum {string} */
+                dateFlexibility?: "exact" | "few_days" | "few_weeks" | "open"
+                durationNights?: number
+                adults?: number
+                children?: {
+                  age?: number
+                }[]
+                rooms?: number
+                budget?: {
+                  amountCents?: number
+                  currency: string
+                  /** @enum {string} */
+                  basis?: "total" | "per_person"
+                  /** @enum {string} */
+                  flexibility?: "firm" | "approximate" | "unknown"
+                }
+                interests?: string[]
+                accessibilityOrDietaryNotes?: string
+              } | null
+              customerMessage: string | null
+              internalSummary: string | null
+              source: string
+              sourceRef: string | null
+              sourceUrl: string | null
+              locale: string | null
+              consentSnapshot: {
+                [key: string]: unknown
+              } | null
+              tags: string[]
+              customFields: {
+                [key: string]: {
+                  [key: string]: unknown
+                }
+              }
+              lastActivityAt: string | null
+              qualifiedAt: string | null
+              convertedAt: string | null
+              closedAt: string | null
+              createdAt: string
+              updatedAt: string
+            }
+            replayed: boolean
+          }
+        }
+      }
       /** @description Created inquiry */
       201: {
         headers: {
@@ -5594,6 +5702,7 @@ export interface operations {
               createdAt: string
               updatedAt: string
             }
+            replayed: boolean
           }
         }
       }

@@ -1,3 +1,4 @@
+import { insertOutboxEvents } from "@voyant-travel/db/outbox"
 import type {
   AssignInquiryInput,
   CloseInquiryInput,
@@ -8,10 +9,30 @@ import type {
   TransitionInquiryInput,
   UpdateInquiryInput,
 } from "@voyant-travel/relationships-contracts"
-import { and, asc, eq, ilike, isNotNull, isNull, lt, notInArray, or, sql } from "drizzle-orm"
+import {
+  and,
+  asc,
+  eq,
+  ilike,
+  inArray,
+  isNotNull,
+  isNull,
+  lt,
+  notInArray,
+  or,
+  sql,
+} from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 
-import { inquiries, organizations, people } from "../schema.js"
+import {
+  INQUIRY_ASSIGNED_EVENT,
+  INQUIRY_CLOSED_EVENT,
+  INQUIRY_CREATED_EVENT,
+  INQUIRY_REOPENED_EVENT,
+  INQUIRY_STATUS_CHANGED_EVENT,
+  INQUIRY_UPDATED_EVENT,
+} from "../events.js"
+import { type Inquiry, inquiries, organizations, people } from "../schema.js"
 import { paginate } from "./helpers.js"
 
 export type InquiryServiceErrorCode =
@@ -92,6 +113,37 @@ async function lockedInquiry(db: PostgresJsDatabase, id: string) {
   return row
 }
 
+type InquiryMutationTestHooks = {
+  /** Test-only rollback seam between the domain write and its outbox write. */
+  beforeOutbox?: (tx: PostgresJsDatabase) => Promise<void>
+}
+
+function requireActor(actorId: string) {
+  if (!actorId) {
+    throw new InquiryServiceError("INQUIRY_CUSTOMER_REQUIRED", "A staff actor is required")
+  }
+}
+
+function inquiryEventId(name: string, inquiryId: string, changedAt?: Date) {
+  const suffix = changedAt ? `_${changedAt.getTime()}` : ""
+  return `evt_relationships_${name.replaceAll(".", "_")}_${inquiryId}${suffix}`
+}
+
+async function writeInquiryEvent(
+  db: PostgresJsDatabase,
+  name: string,
+  data: Record<string, unknown>,
+  eventId: string,
+) {
+  await insertOutboxEvents(db, [
+    {
+      name,
+      data,
+      metadata: { category: "domain", source: "service", eventId },
+    },
+  ])
+}
+
 export const inquiriesService = {
   async listInquiries(
     db: PostgresJsDatabase,
@@ -100,9 +152,10 @@ export const inquiriesService = {
   ) {
     const conditions = []
     const actionable = notInArray(inquiries.status, ["converted", "closed"])
-    if (query.view === "actionable") conditions.push(actionable)
-    if (query.view === "new") conditions.push(eq(inquiries.status, "new"))
-    if (query.view === "mine") {
+    const view = query.view ?? "actionable"
+    if (view === "actionable") conditions.push(actionable)
+    if (view === "new") conditions.push(eq(inquiries.status, "new"))
+    if (view === "mine") {
       if (!currentUserId) {
         throw new InquiryServiceError(
           "INQUIRY_CUSTOMER_REQUIRED",
@@ -111,18 +164,18 @@ export const inquiriesService = {
       }
       conditions.push(eq(inquiries.ownerId, currentUserId))
     }
-    if (query.view === "unassigned") conditions.push(isNull(inquiries.ownerId), actionable)
-    if (query.view === "overdue") {
+    if (view === "unassigned") conditions.push(isNull(inquiries.ownerId), actionable)
+    if (view === "overdue") {
       conditions.push(
         isNotNull(inquiries.nextActionAt),
         lt(inquiries.nextActionAt, new Date()),
         actionable,
       )
     }
-    if (query.view === "waiting") conditions.push(eq(inquiries.status, "waiting_on_customer"))
-    if (query.view === "qualified") conditions.push(eq(inquiries.status, "qualified"))
-    if (query.view === "converted") conditions.push(eq(inquiries.status, "converted"))
-    if (query.view === "closed") conditions.push(eq(inquiries.status, "closed"))
+    if (view === "waiting") conditions.push(eq(inquiries.status, "waiting_on_customer"))
+    if (view === "qualified") conditions.push(eq(inquiries.status, "qualified"))
+    if (view === "converted") conditions.push(eq(inquiries.status, "converted"))
+    if (view === "closed") conditions.push(eq(inquiries.status, "closed"))
     if (query.status) conditions.push(eq(inquiries.status, query.status))
     if (query.ownerId) conditions.push(eq(inquiries.ownerId, query.ownerId))
     if (query.teamId) conditions.push(eq(inquiries.teamId, query.teamId))
@@ -160,7 +213,12 @@ export const inquiriesService = {
         .where(where)
         .limit(query.limit)
         .offset(query.offset)
-        .orderBy(asc(overdueOrder), asc(priorityOrder), asc(inquiries.createdAt)),
+        .orderBy(
+          asc(overdueOrder),
+          asc(priorityOrder),
+          asc(inquiries.createdAt),
+          asc(inquiries.id),
+        ),
       db.select({ count: sql<number>`count(*)::int` }).from(inquiries).where(where),
       query.limit,
       query.offset,
@@ -172,34 +230,96 @@ export const inquiriesService = {
     return row ?? null
   },
 
-  async createInquiry(db: PostgresJsDatabase, input: CreateInquiryInput) {
-    await assertRelatedRecords(db, input)
-    const { firstResponseDueAt, nextActionAt, ...values } = input
-    const [row] = await db
-      .insert(inquiries)
-      .values({
-        ...values,
-        ...updateDates({ firstResponseDueAt, nextActionAt }),
-        personId: input.personId ?? null,
-        organizationId: input.organizationId ?? null,
-        ownerId: input.ownerId ?? null,
-        teamId: input.teamId ?? null,
-        unassignedReason: input.ownerId ? null : (input.unassignedReason ?? null),
-      })
-      .returning()
-    if (!row) throw new Error("Inquiry insert returned no row")
-    return row
+  async createInquiry(
+    db: PostgresJsDatabase,
+    input: CreateInquiryInput,
+    actorId: string,
+    testHooks?: InquiryMutationTestHooks,
+  ) {
+    requireActor(actorId)
+    return db.transaction(async (tx) => {
+      await assertRelatedRecords(tx, input)
+      const { firstResponseDueAt, nextActionAt, ...values } = input
+      const [created] = await tx
+        .insert(inquiries)
+        .values({
+          ...values,
+          ...updateDates({ firstResponseDueAt, nextActionAt }),
+          personId: input.personId ?? null,
+          organizationId: input.organizationId ?? null,
+          ownerId: input.ownerId ?? null,
+          teamId: input.teamId ?? null,
+          unassignedReason: input.ownerId ? null : (input.unassignedReason ?? null),
+        })
+        .onConflictDoNothing({
+          target: [inquiries.source, inquiries.sourceRef],
+          where: sql`${inquiries.sourceRef} is not null`,
+        })
+        .returning()
+      if (created) {
+        await testHooks?.beforeOutbox?.(tx)
+        await writeInquiryEvent(
+          tx,
+          INQUIRY_CREATED_EVENT,
+          { id: created.id, actorId },
+          inquiryEventId(INQUIRY_CREATED_EVENT, created.id),
+        )
+        return { inquiry: created, replayed: false as const }
+      }
+      if (!input.sourceRef) throw new Error("Inquiry insert returned no row")
+      const [replayed] = await tx
+        .select()
+        .from(inquiries)
+        .where(and(eq(inquiries.source, input.source), eq(inquiries.sourceRef, input.sourceRef)))
+        .limit(1)
+      if (!replayed) throw new Error("Inquiry idempotency replay returned no row")
+      return { inquiry: replayed, replayed: true as const }
+    })
   },
 
-  async updateInquiry(db: PostgresJsDatabase, id: string, input: UpdateInquiryInput) {
-    await assertRelatedRecords(db, input)
-    const { nextActionAt, ...values } = input
-    const [row] = await db
-      .update(inquiries)
-      .set({ ...values, ...updateDates({ nextActionAt }), updatedAt: new Date() })
-      .where(eq(inquiries.id, id))
-      .returning()
-    return row ?? null
+  async updateInquiry(
+    db: PostgresJsDatabase,
+    id: string,
+    input: UpdateInquiryInput,
+    actorId: string,
+    testHooks?: InquiryMutationTestHooks,
+  ) {
+    requireActor(actorId)
+    return db.transaction(async (tx) => {
+      const current = await lockedInquiry(tx, id)
+      if (current.status === "closed" || current.status === "converted") {
+        throw new InquiryServiceError(
+          "INQUIRY_ALREADY_RESOLVED",
+          "A resolved inquiry cannot be edited",
+        )
+      }
+      await assertRelatedRecords(tx, input)
+      const personId = input.personId === undefined ? current.personId : input.personId
+      const organizationId =
+        input.organizationId === undefined ? current.organizationId : input.organizationId
+      if (current.status === "qualified" && !personId && !organizationId) {
+        throw new InquiryServiceError(
+          "INQUIRY_CUSTOMER_REQUIRED",
+          "A qualified inquiry must retain a Person or Organization",
+        )
+      }
+      const { nextActionAt, ...values } = input
+      const now = new Date()
+      const [row] = await tx
+        .update(inquiries)
+        .set({ ...values, ...updateDates({ nextActionAt }), updatedAt: now })
+        .where(eq(inquiries.id, id))
+        .returning()
+      if (!row) throw new InquiryServiceError("INQUIRY_NOT_FOUND", "Inquiry not found")
+      await testHooks?.beforeOutbox?.(tx)
+      await writeInquiryEvent(
+        tx,
+        INQUIRY_UPDATED_EVENT,
+        { id: row.id, actorId },
+        inquiryEventId(INQUIRY_UPDATED_EVENT, row.id, now),
+      )
+      return row
+    })
   },
 
   async transitionInquiry(
@@ -207,10 +327,9 @@ export const inquiriesService = {
     id: string,
     input: TransitionInquiryInput,
     actorId: string,
+    testHooks?: InquiryMutationTestHooks,
   ) {
-    if (!actorId) {
-      throw new InquiryServiceError("INQUIRY_CUSTOMER_REQUIRED", "A staff actor is required")
-    }
+    requireActor(actorId)
     return db.transaction(async (tx) => {
       const current = await lockedInquiry(tx, id)
       if (!canTransitionInquiry(current.status, input.status)) {
@@ -258,11 +377,25 @@ export const inquiriesService = {
         .where(eq(inquiries.id, id))
         .returning()
       if (!row) throw new InquiryServiceError("INQUIRY_NOT_FOUND", "Inquiry not found")
+      await testHooks?.beforeOutbox?.(tx)
+      await writeInquiryEvent(
+        tx,
+        INQUIRY_STATUS_CHANGED_EVENT,
+        { id: row.id, actorId, from: current.status, to: row.status },
+        inquiryEventId(INQUIRY_STATUS_CHANGED_EVENT, row.id, now),
+      )
       return row
     })
   },
 
-  async assignInquiry(db: PostgresJsDatabase, id: string, input: AssignInquiryInput) {
+  async assignInquiry(
+    db: PostgresJsDatabase,
+    id: string,
+    input: AssignInquiryInput,
+    actorId: string,
+    testHooks?: InquiryMutationTestHooks,
+  ) {
+    requireActor(actorId)
     return db.transaction(async (tx) => {
       const current = await lockedInquiry(tx, id)
       if (current.status === "closed" || current.status === "converted") {
@@ -271,37 +404,72 @@ export const inquiriesService = {
           "A resolved inquiry cannot be reassigned",
         )
       }
+      const now = new Date()
       const [row] = await tx
         .update(inquiries)
         .set({
           ownerId: input.ownerId,
           teamId: input.teamId === undefined ? current.teamId : input.teamId,
           unassignedReason: input.ownerId ? null : input.unassignedReason,
-          updatedAt: new Date(),
+          updatedAt: now,
         })
         .where(eq(inquiries.id, id))
         .returning()
       if (!row) throw new InquiryServiceError("INQUIRY_NOT_FOUND", "Inquiry not found")
+      await testHooks?.beforeOutbox?.(tx)
+      await writeInquiryEvent(
+        tx,
+        INQUIRY_ASSIGNED_EVENT,
+        { id: row.id, actorId, ownerId: row.ownerId, teamId: row.teamId },
+        inquiryEventId(INQUIRY_ASSIGNED_EVENT, row.id, now),
+      )
       return row
     })
   },
 
-  async closeInquiry(db: PostgresJsDatabase, id: string, input: CloseInquiryInput) {
+  async closeInquiry(
+    db: PostgresJsDatabase,
+    id: string,
+    input: CloseInquiryInput,
+    actorId: string,
+    testHooks?: InquiryMutationTestHooks,
+  ) {
+    requireActor(actorId)
     return db.transaction(async (tx) => {
-      const current = await lockedInquiry(tx, id)
-      if (current.status === "closed" || current.status === "converted") {
-        throw new InquiryServiceError("INQUIRY_ALREADY_RESOLVED", "Inquiry is already resolved")
-      }
+      let current: Inquiry | undefined
+      let duplicate: Inquiry | undefined
       if (input.outcome === "duplicate") {
-        if (input.duplicateOfInquiryId === id) {
+        const duplicateId = input.duplicateOfInquiryId ?? ""
+        if (duplicateId === id) {
           throw new InquiryServiceError(
             "INVALID_DUPLICATE_INQUIRY",
             "An inquiry cannot duplicate itself",
           )
         }
-        const duplicate = await inquiriesService.getInquiry(tx, input.duplicateOfInquiryId ?? "")
+        const rows = await tx
+          .select()
+          .from(inquiries)
+          .where(inArray(inquiries.id, [id, duplicateId]))
+          .orderBy(asc(inquiries.id))
+          .for("update")
+        current = rows.find((row) => row.id === id)
+        duplicate = rows.find((row) => row.id === duplicateId)
+        if (!current) throw new InquiryServiceError("INQUIRY_NOT_FOUND", "Inquiry not found")
         if (!duplicate) {
           throw new InquiryServiceError("INVALID_DUPLICATE_INQUIRY", "Duplicate inquiry not found")
+        }
+      } else {
+        current = await lockedInquiry(tx, id)
+      }
+      if (current.status === "closed" || current.status === "converted") {
+        throw new InquiryServiceError("INQUIRY_ALREADY_RESOLVED", "Inquiry is already resolved")
+      }
+      if (input.outcome === "duplicate") {
+        if (duplicate?.duplicateOfInquiryId || duplicate?.closeOutcome === "duplicate") {
+          throw new InquiryServiceError(
+            "INVALID_DUPLICATE_INQUIRY",
+            "A duplicate inquiry must point directly to a canonical inquiry",
+          )
         }
       }
       const now = new Date()
@@ -320,11 +488,25 @@ export const inquiriesService = {
         .where(eq(inquiries.id, id))
         .returning()
       if (!row) throw new InquiryServiceError("INQUIRY_NOT_FOUND", "Inquiry not found")
+      await testHooks?.beforeOutbox?.(tx)
+      await writeInquiryEvent(
+        tx,
+        INQUIRY_CLOSED_EVENT,
+        { id: row.id, actorId, outcome: row.closeOutcome },
+        inquiryEventId(INQUIRY_CLOSED_EVENT, row.id, now),
+      )
       return row
     })
   },
 
-  async reopenInquiry(db: PostgresJsDatabase, id: string, input: ReopenInquiryInput) {
+  async reopenInquiry(
+    db: PostgresJsDatabase,
+    id: string,
+    input: ReopenInquiryInput,
+    actorId: string,
+    testHooks?: InquiryMutationTestHooks,
+  ) {
+    requireActor(actorId)
     return db.transaction(async (tx) => {
       const current = await lockedInquiry(tx, id)
       if (current.status !== "closed") {
@@ -341,6 +523,7 @@ export const inquiriesService = {
           "Reopening to triage requires an owner or an unassigned reason",
         )
       }
+      const now = new Date()
       const [row] = await tx
         .update(inquiries)
         .set({
@@ -351,11 +534,18 @@ export const inquiriesService = {
           closedAt: null,
           nextActionAt: date(input.nextActionAt),
           unassignedReason,
-          updatedAt: new Date(),
+          updatedAt: now,
         })
         .where(eq(inquiries.id, id))
         .returning()
       if (!row) throw new InquiryServiceError("INQUIRY_NOT_FOUND", "Inquiry not found")
+      await testHooks?.beforeOutbox?.(tx)
+      await writeInquiryEvent(
+        tx,
+        INQUIRY_REOPENED_EVENT,
+        { id: row.id, actorId },
+        inquiryEventId(INQUIRY_REOPENED_EVENT, row.id, now),
+      )
       return row
     })
   },

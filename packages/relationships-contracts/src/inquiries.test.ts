@@ -54,6 +54,11 @@ describe("Inquiry contracts", () => {
   })
 
   it("accepts canonical work-queue views and composes explicit filters", () => {
+    expect(inquiryListQuerySchema.parse({})).toMatchObject({
+      view: "actionable",
+      limit: 50,
+      offset: 0,
+    })
     expect(inquiryListQuerySchema.parse({ view: "mine", status: "in_progress" })).toMatchObject({
       view: "mine",
       status: "in_progress",

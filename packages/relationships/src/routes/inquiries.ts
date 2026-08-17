@@ -1,5 +1,4 @@
 import { createRoute, OpenAPIHono, type z } from "@hono/zod-openapi"
-import type { EventBus } from "@voyant-travel/core"
 import {
   openApiValidationHook,
   parseJsonBody,
@@ -7,21 +6,13 @@ import {
   requireUserId,
 } from "@voyant-travel/hono"
 import {
+  inquiryCreateResponseSchema,
   inquiryListResponseSchema,
   inquiryResponseSchema,
 } from "@voyant-travel/relationships-contracts"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import type { Context } from "hono"
 
-import {
-  emitInquiryAssigned,
-  emitInquiryClosed,
-  emitInquiryEvent,
-  emitInquiryStatusChanged,
-  INQUIRY_CREATED_EVENT,
-  INQUIRY_REOPENED_EVENT,
-  INQUIRY_UPDATED_EVENT,
-} from "../events.js"
 import { InquiryServiceError, relationshipsService } from "../service/index.js"
 import {
   assignInquirySchema,
@@ -38,7 +29,6 @@ type Env = {
   Variables: {
     db: PostgresJsDatabase
     userId?: string
-    eventBus?: EventBus
   }
 }
 
@@ -60,8 +50,10 @@ const documentedAssignSchema: z.ZodObject = assignInquirySchema
 const documentedCloseSchema: z.ZodObject = closeInquirySchema
 const documentedReopenSchema: z.ZodObject = reopenInquirySchema
 const documentedInquiryResponseSchema: z.ZodObject = inquiryResponseSchema
+const documentedInquiryCreateResponseSchema: z.ZodObject = inquiryCreateResponseSchema
 const documentedInquiryListResponseSchema: z.ZodObject = inquiryListResponseSchema
 const inquiryResponse = jsonContent(documentedInquiryResponseSchema)
+const inquiryCreateResponse = jsonContent(documentedInquiryCreateResponseSchema)
 
 function serviceErrorResponse(c: Context<Env>, error: unknown) {
   if (!(error instanceof InquiryServiceError)) throw error
@@ -88,7 +80,8 @@ const createRouteDefinition = createRoute({
   path: "/inquiries",
   request: requiredJsonBody(documentedCreateSchema),
   responses: {
-    201: { description: "Created inquiry", ...inquiryResponse },
+    200: { description: "Replayed existing inquiry", ...inquiryCreateResponse },
+    201: { description: "Created inquiry", ...inquiryCreateResponse },
     404: { description: "Related record not found", ...jsonContent(errorResponseSchema) },
     409: { description: "Inquiry conflict", ...jsonContent(errorResponseSchema) },
   },
@@ -155,12 +148,13 @@ inquiryRoutes.openapi(listRoute, async (c) => {
 inquiryRoutes.openapi(createRouteDefinition, async (c) => {
   const actorId = requireUserId(c)
   try {
-    const row = await relationshipsService.createInquiry(
+    const result = await relationshipsService.createInquiry(
       c.get("db"),
       await parseJsonBody(c, createInquirySchema),
+      actorId,
     )
-    await emitInquiryEvent(c.get("eventBus"), INQUIRY_CREATED_EVENT, { id: row.id, actorId })
-    return c.json({ data: row }, 201)
+    const body = { data: result.inquiry, replayed: result.replayed }
+    return result.replayed ? c.json(body, 200) : c.json(body, 201)
   } catch (error) {
     return serviceErrorResponse(c, error)
   }
@@ -176,9 +170,8 @@ inquiryRoutes.openapi(updateRoute, async (c) => {
       c.get("db"),
       c.req.valid("param").id,
       await parseJsonBody(c, updateInquirySchema),
+      actorId,
     )
-    if (!row) return c.json({ error: "Inquiry not found" }, 404)
-    await emitInquiryEvent(c.get("eventBus"), INQUIRY_UPDATED_EVENT, { id: row.id, actorId })
     return c.json({ data: row }, 200)
   } catch (error) {
     return serviceErrorResponse(c, error)
@@ -187,7 +180,6 @@ inquiryRoutes.openapi(updateRoute, async (c) => {
 inquiryRoutes.openapi(transitionRoute, async (c) => {
   const actorId = requireUserId(c)
   const id = c.req.valid("param").id
-  const previous = await relationshipsService.getInquiry(c.get("db"), id)
   try {
     const row = await relationshipsService.transitionInquiry(
       c.get("db"),
@@ -195,12 +187,6 @@ inquiryRoutes.openapi(transitionRoute, async (c) => {
       await parseJsonBody(c, transitionInquirySchema),
       actorId,
     )
-    await emitInquiryStatusChanged(c.get("eventBus"), {
-      id,
-      actorId,
-      from: previous?.status ?? "unknown",
-      to: row.status,
-    })
     return c.json({ data: row }, 200)
   } catch (error) {
     return serviceErrorResponse(c, error)
@@ -214,13 +200,8 @@ inquiryRoutes.openapi(assignRoute, async (c) => {
       c.get("db"),
       id,
       await parseJsonBody(c, assignInquirySchema),
-    )
-    await emitInquiryAssigned(c.get("eventBus"), {
-      id,
       actorId,
-      ownerId: row.ownerId,
-      teamId: row.teamId,
-    })
+    )
     return c.json({ data: row }, 200)
   } catch (error) {
     return serviceErrorResponse(c, error)
@@ -234,12 +215,8 @@ inquiryRoutes.openapi(closeRoute, async (c) => {
       c.get("db"),
       id,
       await parseJsonBody(c, closeInquirySchema),
-    )
-    await emitInquiryClosed(c.get("eventBus"), {
-      id,
       actorId,
-      outcome: row.closeOutcome ?? "other",
-    })
+    )
     return c.json({ data: row }, 200)
   } catch (error) {
     return serviceErrorResponse(c, error)
@@ -253,8 +230,8 @@ inquiryRoutes.openapi(reopenRoute, async (c) => {
       c.get("db"),
       id,
       await parseJsonBody(c, reopenInquirySchema),
+      actorId,
     )
-    await emitInquiryEvent(c.get("eventBus"), INQUIRY_REOPENED_EVENT, { id, actorId })
     return c.json({ data: row }, 200)
   } catch (error) {
     return serviceErrorResponse(c, error)

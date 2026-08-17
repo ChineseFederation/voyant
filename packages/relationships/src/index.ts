@@ -63,10 +63,6 @@ export type {
   RelationshipChangeAction,
 } from "./events.js"
 export {
-  emitInquiryAssigned,
-  emitInquiryClosed,
-  emitInquiryEvent,
-  emitInquiryStatusChanged,
   emitOrganizationChanged,
   emitPersonChanged,
   INQUIRY_ASSIGNED_EVENT,
@@ -177,6 +173,7 @@ export type {
   AssignInquiryInput,
   CloseInquiryInput,
   CreateInquiryInput,
+  InquiryCreateResponse,
   InquiryListQueryInput,
   InquiryRecord,
   ReopenInquiryInput,
@@ -198,6 +195,7 @@ export {
   customerSignalStatusSchema,
   inquiryCloseOutcomeSchema,
   inquiryContactSnapshotSchema,
+  inquiryCreateResponseSchema,
   inquiryKindSchema,
   inquiryListQuerySchema,
   inquiryListResponseSchema,

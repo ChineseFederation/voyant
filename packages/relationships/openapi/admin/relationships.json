@@ -9560,6 +9560,7 @@
                 "converted",
                 "closed"
               ],
+              "default": "actionable",
               "description": "Saved work-queue view; combined with explicit filters using AND"
             },
             "required": false,
@@ -10246,6 +10247,323 @@
           }
         },
         "responses": {
+          "200": {
+            "description": "Replayed existing inquiry",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "subject": {
+                          "type": "string"
+                        },
+                        "kind": {
+                          "type": "string",
+                          "enum": ["product", "custom_trip", "general"]
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "new",
+                            "triaged",
+                            "in_progress",
+                            "waiting_on_customer",
+                            "qualified",
+                            "converted",
+                            "closed"
+                          ]
+                        },
+                        "closeOutcome": {
+                          "type": ["string", "null"],
+                          "enum": [
+                            "lost",
+                            "not_serviceable",
+                            "no_response",
+                            "duplicate",
+                            "spam",
+                            "customer_withdrew",
+                            "other",
+                            null
+                          ]
+                        },
+                        "closeNote": {
+                          "type": ["string", "null"]
+                        },
+                        "duplicateOfInquiryId": {
+                          "type": ["string", "null"]
+                        },
+                        "priority": {
+                          "type": "string"
+                        },
+                        "personId": {
+                          "type": ["string", "null"]
+                        },
+                        "organizationId": {
+                          "type": ["string", "null"]
+                        },
+                        "contactSnapshot": {
+                          "type": "object",
+                          "properties": {
+                            "name": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 200
+                            },
+                            "email": {
+                              "type": "string",
+                              "maxLength": 320,
+                              "format": "email"
+                            },
+                            "phone": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 80
+                            }
+                          }
+                        },
+                        "ownerId": {
+                          "type": ["string", "null"]
+                        },
+                        "teamId": {
+                          "type": ["string", "null"]
+                        },
+                        "unassignedReason": {
+                          "type": ["string", "null"]
+                        },
+                        "nextActionAt": {
+                          "type": ["string", "null"]
+                        },
+                        "firstResponseDueAt": {
+                          "type": ["string", "null"]
+                        },
+                        "firstRespondedAt": {
+                          "type": ["string", "null"]
+                        },
+                        "travelBrief": {
+                          "type": ["object", "null"],
+                          "properties": {
+                            "version": {
+                              "type": "number",
+                              "enum": [1]
+                            },
+                            "destinations": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "placeId": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "label": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 200
+                                  }
+                                },
+                                "required": ["label"]
+                              },
+                              "maxItems": 20
+                            },
+                            "origin": {
+                              "type": "object",
+                              "properties": {
+                                "placeId": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "label": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 200
+                                }
+                              },
+                              "required": ["label"]
+                            },
+                            "startDate": {
+                              "type": "string",
+                              "format": "date"
+                            },
+                            "endDate": {
+                              "type": "string",
+                              "format": "date"
+                            },
+                            "dateFlexibility": {
+                              "type": "string",
+                              "enum": ["exact", "few_days", "few_weeks", "open"]
+                            },
+                            "durationNights": {
+                              "type": "integer",
+                              "minimum": 1,
+                              "maximum": 365
+                            },
+                            "adults": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 100
+                            },
+                            "children": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "age": {
+                                    "type": "integer",
+                                    "minimum": 0,
+                                    "maximum": 17
+                                  }
+                                }
+                              },
+                              "maxItems": 100
+                            },
+                            "rooms": {
+                              "type": "integer",
+                              "minimum": 1,
+                              "maximum": 100
+                            },
+                            "budget": {
+                              "type": "object",
+                              "properties": {
+                                "amountCents": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "currency": {
+                                  "type": "string",
+                                  "pattern": "^[A-Z]{3}$"
+                                },
+                                "basis": {
+                                  "type": "string",
+                                  "enum": ["total", "per_person"]
+                                },
+                                "flexibility": {
+                                  "type": "string",
+                                  "enum": ["firm", "approximate", "unknown"]
+                                }
+                              },
+                              "required": ["currency"]
+                            },
+                            "interests": {
+                              "type": "array",
+                              "items": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 100
+                              },
+                              "maxItems": 50
+                            },
+                            "accessibilityOrDietaryNotes": {
+                              "type": "string",
+                              "maxLength": 4000
+                            }
+                          },
+                          "required": ["version"]
+                        },
+                        "customerMessage": {
+                          "type": ["string", "null"]
+                        },
+                        "internalSummary": {
+                          "type": ["string", "null"]
+                        },
+                        "source": {
+                          "type": "string"
+                        },
+                        "sourceRef": {
+                          "type": ["string", "null"]
+                        },
+                        "sourceUrl": {
+                          "type": ["string", "null"]
+                        },
+                        "locale": {
+                          "type": ["string", "null"]
+                        },
+                        "consentSnapshot": {
+                          "type": ["object", "null"],
+                          "additionalProperties": {}
+                        },
+                        "tags": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "customFields": {
+                          "type": "object",
+                          "additionalProperties": {
+                            "type": "object",
+                            "additionalProperties": {}
+                          }
+                        },
+                        "lastActivityAt": {
+                          "type": ["string", "null"]
+                        },
+                        "qualifiedAt": {
+                          "type": ["string", "null"]
+                        },
+                        "convertedAt": {
+                          "type": ["string", "null"]
+                        },
+                        "closedAt": {
+                          "type": ["string", "null"]
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        },
+                        "updatedAt": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "subject",
+                        "kind",
+                        "status",
+                        "closeOutcome",
+                        "closeNote",
+                        "duplicateOfInquiryId",
+                        "priority",
+                        "personId",
+                        "organizationId",
+                        "contactSnapshot",
+                        "ownerId",
+                        "teamId",
+                        "unassignedReason",
+                        "nextActionAt",
+                        "firstResponseDueAt",
+                        "firstRespondedAt",
+                        "travelBrief",
+                        "customerMessage",
+                        "internalSummary",
+                        "source",
+                        "sourceRef",
+                        "sourceUrl",
+                        "locale",
+                        "consentSnapshot",
+                        "tags",
+                        "customFields",
+                        "lastActivityAt",
+                        "qualifiedAt",
+                        "convertedAt",
+                        "closedAt",
+                        "createdAt",
+                        "updatedAt"
+                      ]
+                    },
+                    "replayed": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": ["data", "replayed"]
+                }
+              }
+            }
+          },
           "201": {
             "description": "Created inquiry",
             "content": {
@@ -10553,9 +10871,12 @@
                         "createdAt",
                         "updatedAt"
                       ]
+                    },
+                    "replayed": {
+                      "type": "boolean"
                     }
                   },
-                  "required": ["data"]
+                  "required": ["data", "replayed"]
                 }
               }
             }

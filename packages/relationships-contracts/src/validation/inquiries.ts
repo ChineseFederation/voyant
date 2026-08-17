@@ -133,7 +133,7 @@ export const inquiryListQuerySchema = paginationSchema.extend({
       "closed",
     ])
     .describe("Saved work-queue view; combined with explicit filters using AND")
-    .optional(),
+    .default("actionable"),
   status: inquiryStatusSchema.optional(),
   ownerId: z.string().optional(),
   teamId: z.string().optional(),
@@ -236,6 +236,10 @@ export const inquiryRecordSchema = z.object({
 })
 
 export const inquiryResponseSchema = z.object({ data: inquiryRecordSchema })
+export const inquiryCreateResponseSchema = z.object({
+  data: inquiryRecordSchema,
+  replayed: z.boolean(),
+})
 export const inquiryListResponseSchema = z.object({
   data: z.array(inquiryRecordSchema),
   total: z.number().int(),
@@ -256,3 +260,4 @@ export type AssignInquiryInput = z.infer<typeof assignInquirySchema>
 export type CloseInquiryInput = z.infer<typeof closeInquirySchema>
 export type ReopenInquiryInput = z.infer<typeof reopenInquirySchema>
 export type InquiryRecord = z.infer<typeof inquiryRecordSchema>
+export type InquiryCreateResponse = z.infer<typeof inquiryCreateResponseSchema>

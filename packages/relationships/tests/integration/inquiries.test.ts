@@ -1,3 +1,5 @@
+import { eventOutboxTable } from "@voyant-travel/db/schema"
+import { inquiryListQuerySchema } from "@voyant-travel/relationships-contracts"
 import { eq } from "drizzle-orm"
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest"
 
@@ -35,15 +37,19 @@ describe.skipIf(!DB_AVAILABLE)("inquiriesService", () => {
   }
 
   it("creates and retrieves an unqualified custom inquiry", async () => {
-    const created = await inquiriesService.createInquiry(db, {
-      subject: "Custom Japan itinerary",
-      kind: "custom_trip",
-      priority: "normal",
-      contactSnapshot: { email: "ari@example.com" },
-      source: "phone",
-      tags: [],
-      customFields: {},
-    })
+    const { inquiry: created } = await inquiriesService.createInquiry(
+      db,
+      {
+        subject: "Custom Japan itinerary",
+        kind: "custom_trip",
+        priority: "normal",
+        contactSnapshot: { email: "ari@example.com" },
+        source: "phone",
+        tags: [],
+        customFields: {},
+      },
+      "user_1",
+    )
 
     expect(created.id).toMatch(/^inq_/)
     expect(created.status).toBe("new")
@@ -54,22 +60,26 @@ describe.skipIf(!DB_AVAILABLE)("inquiriesService", () => {
 
   it("enforces triage, follow-up, and qualification invariants", async () => {
     const person = await seedPerson()
-    const created = await inquiriesService.createInquiry(db, {
-      subject: "Known traveler",
-      kind: "general",
-      personId: person.id,
-      priority: "normal",
-      contactSnapshot: { email: "ari@example.com" },
-      source: "admin",
-      tags: [],
-      customFields: {},
-    })
+    const { inquiry: created } = await inquiriesService.createInquiry(
+      db,
+      {
+        subject: "Known traveler",
+        kind: "general",
+        personId: person.id,
+        priority: "normal",
+        contactSnapshot: { email: "ari@example.com" },
+        source: "admin",
+        tags: [],
+        customFields: {},
+      },
+      "user_1",
+    )
 
     await expect(
       inquiriesService.transitionInquiry(db, created.id, { status: "triaged" }, "user_1"),
     ).rejects.toMatchObject<Partial<InquiryServiceError>>({ code: "INQUIRY_ASSIGNMENT_REQUIRED" })
 
-    await inquiriesService.assignInquiry(db, created.id, { ownerId: "user_1" })
+    await inquiriesService.assignInquiry(db, created.id, { ownerId: "user_1" }, "user_1")
     await inquiriesService.transitionInquiry(db, created.id, { status: "triaged" }, "user_1")
     await expect(
       inquiriesService.transitionInquiry(db, created.id, { status: "in_progress" }, "user_1"),
@@ -91,61 +101,96 @@ describe.skipIf(!DB_AVAILABLE)("inquiriesService", () => {
   })
 
   it("closes with evidence and reopens to triage", async () => {
-    const created = await inquiriesService.createInquiry(db, {
-      subject: "Unsupported request",
-      kind: "general",
-      priority: "normal",
-      contactSnapshot: { phone: "+40 123" },
-      source: "phone",
-      tags: [],
-      customFields: {},
-    })
-    const closed = await inquiriesService.closeInquiry(db, created.id, {
-      outcome: "not_serviceable",
-      note: "Outside operating region",
-    })
+    const { inquiry: created } = await inquiriesService.createInquiry(
+      db,
+      {
+        subject: "Unsupported request",
+        kind: "general",
+        priority: "normal",
+        contactSnapshot: { phone: "+40 123" },
+        source: "phone",
+        tags: [],
+        customFields: {},
+      },
+      "user_1",
+    )
+    const closed = await inquiriesService.closeInquiry(
+      db,
+      created.id,
+      { outcome: "not_serviceable", note: "Outside operating region" },
+      "user_1",
+    )
     expect(closed.status).toBe("closed")
     expect(closed.closedAt).toBeInstanceOf(Date)
 
-    const reopened = await inquiriesService.reopenInquiry(db, created.id, {
-      unassignedReason: "Needs reassessment",
-    })
+    const reopened = await inquiriesService.reopenInquiry(
+      db,
+      created.id,
+      { unassignedReason: "Needs reassessment" },
+      "user_1",
+    )
     expect(reopened.status).toBe("triaged")
     expect(reopened.closeOutcome).toBeNull()
     expect(reopened.closedAt).toBeNull()
   })
 
   it("applies saved views before pagination and composes explicit filters", async () => {
-    const overdue = await inquiriesService.createInquiry(db, {
-      subject: "Unassigned overdue",
-      kind: "general",
-      priority: "normal",
-      contactSnapshot: { email: "overdue@example.com" },
-      source: "admin",
-      nextActionAt: "2020-01-01T00:00:00.000Z",
-      tags: [],
-      customFields: {},
-    })
-    const mine = await inquiriesService.createInquiry(db, {
-      subject: "Mine",
-      kind: "product",
-      priority: "normal",
-      ownerId: "user_1",
-      contactSnapshot: { email: "mine@example.com" },
-      source: "admin",
-      tags: [],
-      customFields: {},
-    })
-    const terminal = await inquiriesService.createInquiry(db, {
-      subject: "Closed but historically overdue",
-      kind: "general",
-      priority: "normal",
-      contactSnapshot: { email: "closed@example.com" },
-      source: "admin",
-      tags: [],
-      customFields: {},
-    })
-    await inquiriesService.closeInquiry(db, terminal.id, { outcome: "spam" })
+    const { inquiry: overdue } = await inquiriesService.createInquiry(
+      db,
+      {
+        subject: "Unassigned overdue",
+        kind: "general",
+        priority: "normal",
+        contactSnapshot: { email: "overdue@example.com" },
+        source: "admin",
+        nextActionAt: "2020-01-01T00:00:00.000Z",
+        tags: [],
+        customFields: {},
+      },
+      "user_1",
+    )
+    const { inquiry: mine } = await inquiriesService.createInquiry(
+      db,
+      {
+        subject: "Mine",
+        kind: "product",
+        priority: "normal",
+        ownerId: "user_1",
+        contactSnapshot: { email: "mine@example.com" },
+        source: "admin",
+        tags: [],
+        customFields: {},
+      },
+      "user_1",
+    )
+    const { inquiry: terminal } = await inquiriesService.createInquiry(
+      db,
+      {
+        subject: "Closed but historically overdue",
+        kind: "general",
+        priority: "normal",
+        contactSnapshot: { email: "closed@example.com" },
+        source: "admin",
+        tags: [],
+        customFields: {},
+      },
+      "user_1",
+    )
+    await inquiriesService.closeInquiry(db, terminal.id, { outcome: "spam" }, "user_1")
+    const { inquiry: converted } = await inquiriesService.createInquiry(
+      db,
+      {
+        subject: "Converted",
+        kind: "general",
+        priority: "normal",
+        contactSnapshot: { email: "converted@example.com" },
+        source: "admin",
+        tags: [],
+        customFields: {},
+      },
+      "user_1",
+    )
+    await db.update(inquiries).set({ status: "converted" }).where(eq(inquiries.id, converted.id))
     await db
       .update(inquiries)
       .set({ nextActionAt: new Date("2020-01-01T00:00:00.000Z") })
@@ -160,6 +205,14 @@ describe.skipIf(!DB_AVAILABLE)("inquiriesService", () => {
       expect.arrayContaining([overdue.id, mine.id]),
     )
     expect(actionable.data.map(({ id }) => id)).not.toContain(terminal.id)
+
+    const defaultView = await inquiriesService.listInquiries(
+      db,
+      inquiryListQuerySchema.parse({ limit: 50, offset: 0 }),
+      "user_1",
+    )
+    expect(defaultView.data.map(({ id }) => id)).not.toContain(terminal.id)
+    expect(defaultView.data.map(({ id }) => id)).not.toContain(converted.id)
 
     const unassigned = await inquiriesService.listInquiries(
       db,
@@ -181,5 +234,156 @@ describe.skipIf(!DB_AVAILABLE)("inquiriesService", () => {
       "user_1",
     )
     expect(mineAndClosed.total).toBe(0)
+  })
+
+  it("replays source idempotency keys, including concurrent creates", async () => {
+    const input = {
+      subject: "Storefront replay",
+      kind: "general" as const,
+      priority: "normal" as const,
+      contactSnapshot: { email: "replay@example.com" },
+      source: "api" as const,
+      sourceRef: "submission-123",
+      tags: [],
+      customFields: {},
+    }
+
+    const [first, second] = await Promise.all([
+      inquiriesService.createInquiry(db, input, "user_1"),
+      inquiriesService.createInquiry(db, { ...input, subject: "Ignored duplicate" }, "user_2"),
+    ])
+
+    expect([first.replayed, second.replayed].sort()).toEqual([false, true])
+    expect(first.inquiry.id).toBe(second.inquiry.id)
+    expect(first.inquiry.subject).toBe(second.inquiry.subject)
+    expect(["Storefront replay", "Ignored duplicate"]).toContain(first.inquiry.subject)
+    const replay = await inquiriesService.createInquiry(db, input, "user_3")
+    expect(replay).toMatchObject({ replayed: true, inquiry: { id: first.inquiry.id } })
+    expect(await db.select().from(inquiries)).toHaveLength(1)
+    const createdEvents = (await db.select().from(eventOutboxTable)).filter(
+      ({ name }: { name: string }) => name === "inquiry.created",
+    )
+    expect(createdEvents).toHaveLength(1)
+  })
+
+  it("writes mutation events atomically and captures the locked previous status", async () => {
+    const { inquiry } = await inquiriesService.createInquiry(
+      db,
+      {
+        subject: "Atomic lifecycle",
+        kind: "general",
+        priority: "normal",
+        contactSnapshot: { email: "atomic@example.com" },
+        source: "admin",
+        tags: [],
+        customFields: {},
+      },
+      "user_1",
+    )
+    await inquiriesService.assignInquiry(db, inquiry.id, { ownerId: "user_1" }, "user_1")
+    await inquiriesService.transitionInquiry(db, inquiry.id, { status: "triaged" }, "user_1")
+
+    const statusEvent = (await db.select().from(eventOutboxTable)).find(
+      ({ name }: { name: string }) => name === "inquiry.status_changed",
+    )
+    expect(statusEvent).toMatchObject({
+      payload: { id: inquiry.id, actorId: "user_1", from: "new", to: "triaged" },
+      metadata: expect.objectContaining({
+        eventId: expect.stringContaining(`inquiry_status_changed_${inquiry.id}`),
+      }),
+    })
+
+    await expect(
+      inquiriesService.updateInquiry(db, inquiry.id, { subject: "Must roll back" }, "user_1", {
+        beforeOutbox: async () => {
+          throw new Error("outbox unavailable")
+        },
+      }),
+    ).rejects.toThrow("outbox unavailable")
+    expect((await inquiriesService.getInquiry(db, inquiry.id))?.subject).toBe("Atomic lifecycle")
+    expect(
+      (await db.select().from(eventOutboxTable)).filter(
+        ({ name }: { name: string }) => name === "inquiry.updated",
+      ),
+    ).toHaveLength(0)
+  })
+
+  it("rejects terminal edits and removing the final customer from a qualified inquiry", async () => {
+    const person = await seedPerson()
+    const { inquiry: qualified } = await inquiriesService.createInquiry(
+      db,
+      {
+        subject: "Qualified traveler",
+        kind: "general",
+        priority: "normal",
+        personId: person.id,
+        ownerId: "user_1",
+        contactSnapshot: { email: "qualified@example.com" },
+        source: "admin",
+        tags: [],
+        customFields: {},
+      },
+      "user_1",
+    )
+    await inquiriesService.transitionInquiry(db, qualified.id, { status: "triaged" }, "user_1")
+    await inquiriesService.transitionInquiry(db, qualified.id, { status: "qualified" }, "user_1")
+    await expect(
+      inquiriesService.updateInquiry(db, qualified.id, { personId: null }, "user_1"),
+    ).rejects.toMatchObject<Partial<InquiryServiceError>>({ code: "INQUIRY_CUSTOMER_REQUIRED" })
+
+    const { inquiry: terminal } = await inquiriesService.createInquiry(
+      db,
+      {
+        subject: "Closed inquiry",
+        kind: "general",
+        priority: "normal",
+        contactSnapshot: { email: "closed-edit@example.com" },
+        source: "admin",
+        tags: [],
+        customFields: {},
+      },
+      "user_1",
+    )
+    await inquiriesService.closeInquiry(db, terminal.id, { outcome: "spam" }, "user_1")
+    await expect(
+      inquiriesService.updateInquiry(db, terminal.id, { subject: "No edit" }, "user_1"),
+    ).rejects.toMatchObject<Partial<InquiryServiceError>>({ code: "INQUIRY_ALREADY_RESOLVED" })
+  })
+
+  it("rejects duplicate chains so reciprocal duplicate cycles cannot form", async () => {
+    const create = async (subject: string) =>
+      (
+        await inquiriesService.createInquiry(
+          db,
+          {
+            subject,
+            kind: "general",
+            priority: "normal",
+            contactSnapshot: { email: `${subject.toLowerCase()}@example.com` },
+            source: "admin",
+            tags: [],
+            customFields: {},
+          },
+          "user_1",
+        )
+      ).inquiry
+    const a = await create("A")
+    const b = await create("B")
+    const c = await create("C")
+
+    await inquiriesService.closeInquiry(
+      db,
+      a.id,
+      { outcome: "duplicate", duplicateOfInquiryId: b.id },
+      "user_1",
+    )
+    await expect(
+      inquiriesService.closeInquiry(
+        db,
+        c.id,
+        { outcome: "duplicate", duplicateOfInquiryId: a.id },
+        "user_1",
+      ),
+    ).rejects.toMatchObject<Partial<InquiryServiceError>>({ code: "INVALID_DUPLICATE_INQUIRY" })
   })
 })

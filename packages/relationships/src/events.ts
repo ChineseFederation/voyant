@@ -26,44 +26,6 @@ export interface InquiryClosedEvent extends InquiryEvent {
   outcome: string
 }
 
-export async function emitInquiryEvent(
-  eventBus: EventBus | undefined,
-  type: typeof INQUIRY_CREATED_EVENT | typeof INQUIRY_UPDATED_EVENT | typeof INQUIRY_REOPENED_EVENT,
-  payload: InquiryEvent,
-): Promise<void> {
-  await eventBus?.emit(type, payload, { category: "domain", source: "service" })
-}
-
-export async function emitInquiryAssigned(
-  eventBus: EventBus | undefined,
-  payload: InquiryAssignedEvent,
-): Promise<void> {
-  await eventBus?.emit(INQUIRY_ASSIGNED_EVENT, payload, {
-    category: "domain",
-    source: "service",
-  })
-}
-
-export async function emitInquiryStatusChanged(
-  eventBus: EventBus | undefined,
-  payload: InquiryStatusChangedEvent,
-): Promise<void> {
-  await eventBus?.emit(INQUIRY_STATUS_CHANGED_EVENT, payload, {
-    category: "domain",
-    source: "service",
-  })
-}
-
-export async function emitInquiryClosed(
-  eventBus: EventBus | undefined,
-  payload: InquiryClosedEvent,
-): Promise<void> {
-  await eventBus?.emit(INQUIRY_CLOSED_EVENT, payload, {
-    category: "domain",
-    source: "service",
-  })
-}
-
 export const CUSTOMER_SIGNAL_CREATED_EVENT = "customer.signal.created" as const
 
 export type CustomerSignalCreatedIntake =
