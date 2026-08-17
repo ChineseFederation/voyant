@@ -1,5 +1,13 @@
 # @voyant-travel/public-api-react
 
+## 0.309.0
+
+### Patch Changes
+
+- @voyant-travel/accommodations@0.216.0
+- @voyant-travel/public-api-client@0.292.0
+- @voyant-travel/catalog-react@0.305.0
+
 ## 0.308.0
 
 ### Patch Changes
