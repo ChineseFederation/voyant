@@ -1,6 +1,6 @@
 {
   "name": "@voyant-travel/public-api-contracts",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Customer-portal request and response contracts for the Public API — validate /v1/public/customer-portal payloads in a browser without the server.",
   "license": "Apache-2.0",
   "repository": {
