@@ -1,7 +1,7 @@
 import { eventOutboxTable } from "@voyant-travel/db/schema"
 import { inquiryListQuerySchema } from "@voyant-travel/relationships-contracts"
 import { eq } from "drizzle-orm"
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest"
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { inquiries, people } from "../../src/schema.js"
 import { type InquiryServiceError, inquiriesService } from "../../src/service/inquiries.js"
@@ -289,7 +289,7 @@ describe.skipIf(!DB_AVAILABLE)("inquiriesService", () => {
     expect(statusEvent).toMatchObject({
       payload: { id: inquiry.id, actorId: "user_1", from: "new", to: "triaged" },
       metadata: expect.objectContaining({
-        eventId: expect.stringContaining(`inquiry_status_changed_${inquiry.id}`),
+        eventId: expect.stringMatching(/^evt_[0-9a-f-]+$/),
       }),
     })
 
@@ -306,6 +306,39 @@ describe.skipIf(!DB_AVAILABLE)("inquiriesService", () => {
         ({ name }: { name: string }) => name === "inquiry.updated",
       ),
     ).toHaveLength(0)
+  })
+
+  it("retains repeated same-type mutation events within the same millisecond", async () => {
+    const { inquiry } = await inquiriesService.createInquiry(
+      db,
+      {
+        subject: "Rapid assignments",
+        kind: "general",
+        priority: "normal",
+        contactSnapshot: { email: "rapid@example.com" },
+        source: "admin",
+        tags: [],
+        customFields: {},
+      },
+      "user_1",
+    )
+
+    vi.useFakeTimers({ toFake: ["Date"] })
+    vi.setSystemTime(new Date("2026-08-18T12:00:00.000Z"))
+    try {
+      await inquiriesService.assignInquiry(db, inquiry.id, { ownerId: "user_1" }, "user_1")
+      await inquiriesService.assignInquiry(db, inquiry.id, { ownerId: "user_2" }, "user_2")
+    } finally {
+      vi.useRealTimers()
+    }
+
+    const assignmentEvents = (await db.select().from(eventOutboxTable)).filter(
+      ({ name }: { name: string }) => name === "inquiry.assigned",
+    )
+    expect(assignmentEvents).toHaveLength(2)
+    expect(new Set(assignmentEvents.map(({ eventId }: { eventId: string }) => eventId)).size).toBe(
+      2,
+    )
   })
 
   it("rejects terminal edits and removing the final customer from a qualified inquiry", async () => {

@@ -1,3 +1,4 @@
+import { generateEventId } from "@voyant-travel/core"
 import { insertOutboxEvents } from "@voyant-travel/db/outbox"
 import type {
   AssignInquiryInput,
@@ -124,16 +125,15 @@ function requireActor(actorId: string) {
   }
 }
 
-function inquiryEventId(name: string, inquiryId: string, changedAt?: Date) {
-  const suffix = changedAt ? `_${changedAt.getTime()}` : ""
-  return `evt_relationships_${name.replaceAll(".", "_")}_${inquiryId}${suffix}`
+function inquiryCreatedEventId(inquiryId: string) {
+  return `evt_relationships_inquiry_created_${inquiryId}`
 }
 
 async function writeInquiryEvent(
   db: PostgresJsDatabase,
   name: string,
   data: Record<string, unknown>,
-  eventId: string,
+  eventId = generateEventId(),
 ) {
   await insertOutboxEvents(db, [
     {
@@ -262,7 +262,7 @@ export const inquiriesService = {
           tx,
           INQUIRY_CREATED_EVENT,
           { id: created.id, actorId },
-          inquiryEventId(INQUIRY_CREATED_EVENT, created.id),
+          inquiryCreatedEventId(created.id),
         )
         return { inquiry: created, replayed: false as const }
       }
@@ -312,12 +312,7 @@ export const inquiriesService = {
         .returning()
       if (!row) throw new InquiryServiceError("INQUIRY_NOT_FOUND", "Inquiry not found")
       await testHooks?.beforeOutbox?.(tx)
-      await writeInquiryEvent(
-        tx,
-        INQUIRY_UPDATED_EVENT,
-        { id: row.id, actorId },
-        inquiryEventId(INQUIRY_UPDATED_EVENT, row.id, now),
-      )
+      await writeInquiryEvent(tx, INQUIRY_UPDATED_EVENT, { id: row.id, actorId })
       return row
     })
   },
@@ -378,12 +373,12 @@ export const inquiriesService = {
         .returning()
       if (!row) throw new InquiryServiceError("INQUIRY_NOT_FOUND", "Inquiry not found")
       await testHooks?.beforeOutbox?.(tx)
-      await writeInquiryEvent(
-        tx,
-        INQUIRY_STATUS_CHANGED_EVENT,
-        { id: row.id, actorId, from: current.status, to: row.status },
-        inquiryEventId(INQUIRY_STATUS_CHANGED_EVENT, row.id, now),
-      )
+      await writeInquiryEvent(tx, INQUIRY_STATUS_CHANGED_EVENT, {
+        id: row.id,
+        actorId,
+        from: current.status,
+        to: row.status,
+      })
       return row
     })
   },
@@ -417,12 +412,12 @@ export const inquiriesService = {
         .returning()
       if (!row) throw new InquiryServiceError("INQUIRY_NOT_FOUND", "Inquiry not found")
       await testHooks?.beforeOutbox?.(tx)
-      await writeInquiryEvent(
-        tx,
-        INQUIRY_ASSIGNED_EVENT,
-        { id: row.id, actorId, ownerId: row.ownerId, teamId: row.teamId },
-        inquiryEventId(INQUIRY_ASSIGNED_EVENT, row.id, now),
-      )
+      await writeInquiryEvent(tx, INQUIRY_ASSIGNED_EVENT, {
+        id: row.id,
+        actorId,
+        ownerId: row.ownerId,
+        teamId: row.teamId,
+      })
       return row
     })
   },
@@ -489,12 +484,11 @@ export const inquiriesService = {
         .returning()
       if (!row) throw new InquiryServiceError("INQUIRY_NOT_FOUND", "Inquiry not found")
       await testHooks?.beforeOutbox?.(tx)
-      await writeInquiryEvent(
-        tx,
-        INQUIRY_CLOSED_EVENT,
-        { id: row.id, actorId, outcome: row.closeOutcome },
-        inquiryEventId(INQUIRY_CLOSED_EVENT, row.id, now),
-      )
+      await writeInquiryEvent(tx, INQUIRY_CLOSED_EVENT, {
+        id: row.id,
+        actorId,
+        outcome: row.closeOutcome,
+      })
       return row
     })
   },
@@ -540,12 +534,7 @@ export const inquiriesService = {
         .returning()
       if (!row) throw new InquiryServiceError("INQUIRY_NOT_FOUND", "Inquiry not found")
       await testHooks?.beforeOutbox?.(tx)
-      await writeInquiryEvent(
-        tx,
-        INQUIRY_REOPENED_EVENT,
-        { id: row.id, actorId },
-        inquiryEventId(INQUIRY_REOPENED_EVENT, row.id, now),
-      )
+      await writeInquiryEvent(tx, INQUIRY_REOPENED_EVENT, { id: row.id, actorId })
       return row
     })
   },
