@@ -137,9 +137,8 @@ export function createRelationshipsAdminExtension(
           const { getInquiriesQueryOptions } = await import("../query-options.js")
           return queryClient.ensureQueryData(
             getInquiriesQueryOptions(loaderClient(runtime), {
+              view: "actionable",
               limit: 50,
-              sortBy: "nextActionAt",
-              sortDir: "asc",
             }),
           )
         },

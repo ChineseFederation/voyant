@@ -23,8 +23,10 @@ import type {
   InquiryRecord,
   InquiryStatus,
 } from "../inquiry-schemas.js"
+import { filterInquiryQueue } from "../inquiry-ui-model.js"
 
 export type InquirySavedView =
+  | "actionable"
   | "new"
   | "mine"
   | "unassigned"
@@ -47,11 +49,12 @@ export interface InquiryQueueProps {
   filters: InquiryQueueFilters
   onFiltersChange: (filters: InquiryQueueFilters) => void
   onInquiryOpen: (inquiry: InquiryRecord) => void
+  getInquiryHref: (inquiry: InquiryRecord) => string
   isPending?: boolean
   error?: unknown
 }
 
-const views: InquirySavedView[] = [
+const views = [
   "new",
   "mine",
   "unassigned",
@@ -60,9 +63,10 @@ const views: InquirySavedView[] = [
   "qualified",
   "converted",
   "closed",
-]
+] as const satisfies readonly InquirySavedView[]
 const statuses: InquiryStatus[] = [
   "new",
+  "triaged",
   "in_progress",
   "waiting_on_customer",
   "qualified",
@@ -72,7 +76,6 @@ const statuses: InquiryStatus[] = [
 const priorities: InquiryPriority[] = ["low", "normal", "high", "urgent"]
 const kinds: InquiryKind[] = ["product", "custom_trip", "general"]
 
-const label = (value: string) => value.replaceAll("_", " ")
 const formatDate = (value: string | null) =>
   value ? new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(new Date(value)) : "—"
 
@@ -81,11 +84,14 @@ export function InquiryQueue({
   filters,
   onFiltersChange,
   onInquiryOpen,
+  getInquiryHref,
   isPending,
   error,
 }: InquiryQueueProps) {
   const messages = useCrmUiMessagesOrDefault().inquiryQueue
+  const labels = useCrmUiMessagesOrDefault().inquiryLabels
   const patch = (next: Partial<InquiryQueueFilters>) => onFiltersChange({ ...filters, ...next })
+  const visibleInquiries = filterInquiryQueue(inquiries, filters.view, filters.status)
 
   return (
     <div className="flex flex-col gap-5">
@@ -94,7 +100,7 @@ export function InquiryQueue({
         <p className="text-sm text-muted-foreground">{messages.description}</p>
       </div>
 
-      <fieldset className="flex flex-wrap gap-2" aria-label="Saved inquiry views">
+      <fieldset className="flex flex-wrap gap-2" aria-label={messages.savedViewsLabel}>
         {views.map((view) => (
           <button
             type="button"
@@ -112,6 +118,7 @@ export function InquiryQueue({
         <Input
           className="min-w-64 flex-1"
           value={filters.search ?? ""}
+          aria-label={messages.searchLabel}
           placeholder={messages.searchPlaceholder}
           onChange={(event) => patch({ search: event.target.value || undefined })}
         />
@@ -119,6 +126,8 @@ export function InquiryQueue({
           value={filters.status}
           allLabel={messages.filters.allStatuses}
           values={statuses}
+          ariaLabel={messages.statusFilterLabel}
+          labels={labels.statuses}
           onChange={(status) =>
             patch({ status: status as InquiryStatus | undefined, view: undefined })
           }
@@ -127,12 +136,16 @@ export function InquiryQueue({
           value={filters.priority}
           allLabel={messages.filters.allPriorities}
           values={priorities}
+          ariaLabel={messages.priorityFilterLabel}
+          labels={labels.priorities}
           onChange={(priority) => patch({ priority: priority as InquiryPriority | undefined })}
         />
         <FilterSelect
           value={filters.kind}
           allLabel={messages.filters.allKinds}
           values={kinds}
+          ariaLabel={messages.kindFilterLabel}
+          labels={labels.kinds}
           onChange={(kind) => patch({ kind: kind as InquiryKind | undefined })}
         />
       </div>
@@ -156,30 +169,41 @@ export function InquiryQueue({
               {isPending ? (
                 <TableRow>
                   <TableCell colSpan={6} className="h-28 text-center text-muted-foreground">
-                    Loading…
+                    {messages.loading}
                   </TableCell>
                 </TableRow>
-              ) : inquiries.length === 0 ? (
+              ) : visibleInquiries.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={6} className="h-28 text-center text-muted-foreground">
                     {messages.empty}
                   </TableCell>
                 </TableRow>
               ) : (
-                inquiries.map((inquiry) => (
-                  <TableRow
-                    key={inquiry.id}
-                    className="cursor-pointer"
-                    tabIndex={0}
-                    onClick={() => onInquiryOpen(inquiry)}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter") onInquiryOpen(inquiry)
-                    }}
-                  >
+                visibleInquiries.map((inquiry) => (
+                  <TableRow key={inquiry.id}>
                     <TableCell>
-                      <div className="font-medium">{inquiry.subject}</div>
+                      <a
+                        href={getInquiryHref(inquiry)}
+                        className="rounded-sm font-medium outline-none hover:text-primary focus-visible:ring-2 focus-visible:ring-ring"
+                        onClick={(event) => {
+                          if (
+                            event.button !== 0 ||
+                            event.metaKey ||
+                            event.ctrlKey ||
+                            event.shiftKey ||
+                            event.altKey
+                          )
+                            return
+                          event.preventDefault()
+                          onInquiryOpen(inquiry)
+                        }}
+                      >
+                        {inquiry.subject}
+                      </a>
                       <div className="text-xs capitalize text-muted-foreground">
-                        {label(inquiry.kind)} · {inquiry.source}
+                        {labels.kinds[inquiry.kind]} ·{" "}
+                        {labels.sources[inquiry.source as keyof typeof labels.sources] ??
+                          inquiry.source}
                       </div>
                     </TableCell>
                     <TableCell>
@@ -192,7 +216,7 @@ export function InquiryQueue({
                     </TableCell>
                     <TableCell>
                       <Badge variant="outline" className="capitalize">
-                        {label(inquiry.status)}
+                        {labels.statuses[inquiry.status]}
                       </Badge>
                     </TableCell>
                     <TableCell>
@@ -200,7 +224,7 @@ export function InquiryQueue({
                         variant={inquiry.priority === "urgent" ? "destructive" : "secondary"}
                         className="capitalize"
                       >
-                        {inquiry.priority}
+                        {labels.priorities[inquiry.priority]}
                       </Badge>
                     </TableCell>
                     <TableCell>{inquiry.ownerId ?? "—"}</TableCell>
@@ -228,11 +252,15 @@ function FilterSelect({
   value,
   values,
   allLabel,
+  ariaLabel,
+  labels,
   onChange,
 }: {
   value?: string
   values: readonly string[]
   allLabel: string
+  ariaLabel: string
+  labels: Record<string, string>
   onChange: (value: string | undefined) => void
 }) {
   return (
@@ -240,14 +268,14 @@ function FilterSelect({
       value={value ?? "all"}
       onValueChange={(next) => onChange(!next || next === "all" ? undefined : next)}
     >
-      <SelectTrigger className="w-44">
+      <SelectTrigger className="w-44" aria-label={ariaLabel}>
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
         <SelectItem value="all">{allLabel}</SelectItem>
         {values.map((item) => (
           <SelectItem key={item} value={item} className="capitalize">
-            {label(item)}
+            {labels[item] ?? item}
           </SelectItem>
         ))}
       </SelectContent>

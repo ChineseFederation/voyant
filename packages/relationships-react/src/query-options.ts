@@ -20,6 +20,14 @@ import {
 
 const basePath = "/v1/admin/relationships"
 
+export function buildInquiriesQueryString(filters: InquiriesListFilters = {}) {
+  const params = new URLSearchParams()
+  for (const [key, value] of Object.entries(filters)) {
+    if (value !== undefined && value !== "") params.set(key, String(value))
+  }
+  return params.toString()
+}
+
 export function getInquiriesQueryOptions(
   client: FetchWithValidationOptions,
   filters: InquiriesListFilters = {},
@@ -27,11 +35,7 @@ export function getInquiriesQueryOptions(
   return queryOptions({
     queryKey: relationshipsQueryKeys.inquiriesList(filters),
     queryFn: () => {
-      const params = new URLSearchParams()
-      for (const [key, value] of Object.entries(filters)) {
-        if (value !== undefined && value !== "") params.set(key, String(value))
-      }
-      const query = params.toString()
+      const query = buildInquiriesQueryString(filters)
       return fetchWithValidation(
         `${basePath}/inquiries${query ? `?${query}` : ""}`,
         inquiryListResponse,

@@ -3,13 +3,12 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { fetchWithValidation } from "../client.js"
 import {
-  type InquiryCloseOutcome,
   type InquiryKind,
   type InquiryPriority,
-  type InquiryStatus,
   inquiryConversionCommandResponse,
   inquirySingleResponse,
 } from "../inquiry-schemas.js"
+import type { CloseInquiryInput, TransitionInquiryInput } from "../inquiry-ui-model.js"
 import { useVoyantContext } from "../provider.js"
 import { relationshipsQueryKeys } from "../query-keys.js"
 
@@ -99,8 +98,8 @@ export function useInquiryMutation() {
     onSuccess: settle,
   })
   const transition = useMutation({
-    mutationFn: ({ id, status }: { id: string; status: InquiryStatus }) =>
-      commit(id, "/transition", { status }),
+    mutationFn: ({ id, input }: { id: string; input: TransitionInquiryInput }) =>
+      commit(id, "/transition", input),
     onSuccess: settle,
   })
   const assign = useMutation({
@@ -108,27 +107,28 @@ export function useInquiryMutation() {
       id,
       ownerId,
       teamId,
+      unassignedReason,
     }: {
       id: string
-      ownerId?: string | null
+      ownerId: string | null
       teamId?: string | null
-    }) => commit(id, "/assign", { ownerId, teamId }),
+      unassignedReason?: string | null
+    }) => commit(id, "/assign", { ownerId, teamId, unassignedReason }),
     onSuccess: settle,
   })
   const close = useMutation({
-    mutationFn: ({
-      id,
-      outcome,
-      note,
-    }: {
-      id: string
-      outcome: InquiryCloseOutcome
-      note?: string
-    }) => commit(id, "/close", { outcome, note }),
+    mutationFn: ({ id, input }: { id: string; input: CloseInquiryInput }) =>
+      commit(id, "/close", input),
     onSuccess: settle,
   })
   const reopen = useMutation({
-    mutationFn: (id: string) => commit(id, "/reopen"),
+    mutationFn: ({
+      id,
+      input = {},
+    }: {
+      id: string
+      input?: { nextActionAt?: string | null; unassignedReason?: string | null }
+    }) => commit(id, "/reopen", input),
     onSuccess: settle,
   })
   const convert = useMutation({

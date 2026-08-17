@@ -150,6 +150,7 @@ export {
   relationshipsQueryKeys,
 } from "./query-keys.js"
 export {
+  buildInquiriesQueryString,
   getActivitiesQueryOptions,
   getInquiriesQueryOptions,
   getInquiryQueryOptions,

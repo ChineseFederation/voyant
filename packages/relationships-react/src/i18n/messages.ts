@@ -57,6 +57,12 @@ export type CrmUiMessages = {
     searchPlaceholder: string
     empty: string
     loadFailed: string
+    loading: string
+    savedViewsLabel: string
+    searchLabel: string
+    statusFilterLabel: string
+    priorityFilterLabel: string
+    kindFilterLabel: string
     views: Record<
       "new" | "mine" | "unassigned" | "overdue" | "waiting" | "qualified" | "converted" | "closed",
       string
@@ -70,6 +76,32 @@ export type CrmUiMessages = {
       owner: string
       nextAction: string
     }
+  }
+  inquiryLabels: {
+    kinds: Record<"product" | "custom_trip" | "general", string>
+    statuses: Record<
+      | "new"
+      | "triaged"
+      | "in_progress"
+      | "waiting_on_customer"
+      | "qualified"
+      | "converted"
+      | "closed",
+      string
+    >
+    priorities: Record<"low" | "normal" | "high" | "urgent", string>
+    closeOutcomes: Record<
+      | "lost"
+      | "not_serviceable"
+      | "no_response"
+      | "duplicate"
+      | "spam"
+      | "customer_withdrew"
+      | "other",
+      string
+    >
+    sources: Record<"storefront" | "phone" | "email" | "admin" | "import" | "api", string>
+    targetKinds: Record<"product" | "option_unit" | "departure", string>
   }
   inquiryDetail: {
     back: string
@@ -86,7 +118,13 @@ export type CrmUiMessages = {
     assign: string
     qualify: string
     startWork: string
+    triage: string
+    returnToWork: string
     waitForCustomer: string
+    noFollowUpExpected: string
+    followUpRequired: string
+    customerRequired: string
+    ownerRequired: string
     close: string
     reopen: string
     convertProposal: string
@@ -94,6 +132,10 @@ export type CrmUiMessages = {
     internalSummary: string
     ownerPlaceholder: string
     closeOutcome: string
+    duplicateInquiryId: string
+    closeNote: string
+    contact: string
+    personLinked: string
     conversionHint: string
     loadFailed: string
   }

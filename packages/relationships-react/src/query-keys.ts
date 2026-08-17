@@ -58,6 +58,7 @@ export interface CustomerSignalsListFilters {
 
 export interface InquiriesListFilters {
   view?:
+    | "actionable"
     | "new"
     | "mine"
     | "unassigned"
@@ -73,14 +74,9 @@ export interface InquiriesListFilters {
   priority?: string
   source?: string
   kind?: string
-  targetId?: string
-  slaState?: "due" | "overdue" | "met"
-  createdFrom?: string
-  createdTo?: string
-  nextActionFrom?: string
-  nextActionTo?: string
-  sortBy?: "createdAt" | "updatedAt" | "lastActivityAt" | "nextActionAt"
-  sortDir?: "asc" | "desc"
+  personId?: string
+  organizationId?: string
+  overdue?: boolean
   limit?: number
   offset?: number
 }

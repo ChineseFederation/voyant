@@ -10,24 +10,33 @@ const inquiry: InquiryRecord = inquiryRecordSchema.parse({
   kind: "custom_trip",
   status: "qualified",
   closeOutcome: null,
+  closeNote: null,
+  duplicateOfInquiryId: null,
   priority: "high",
-  personId: null,
+  personId: "per_01",
   organizationId: null,
   contactSnapshot: { name: "Ana Pop", email: "ana@example.test", phone: null },
   ownerId: "usr_sales",
   teamId: null,
+  unassignedReason: null,
   nextActionAt: "2026-08-20T09:00:00.000Z",
   firstResponseDueAt: "2026-08-18T14:00:00.000Z",
   firstRespondedAt: null,
-  travelBrief: { destinations: ["Greece"], adults: 2, children: 2 },
+  travelBrief: {
+    version: 1,
+    destinations: [{ label: "Greece" }],
+    adults: 2,
+    children: [{ age: 8 }, { age: 11 }],
+  },
   customerMessage: "We would like a quiet island.",
   internalSummary: "Needs two connected rooms.",
   source: "storefront",
   sourceRef: "submission_01",
   sourceUrl: null,
   locale: "en",
+  consentSnapshot: null,
   tags: ["family"],
-  metadata: null,
+  customFields: {},
   targets: [],
   createdAt: "2026-08-18T10:00:00.000Z",
   updatedAt: "2026-08-18T10:00:00.000Z",
@@ -45,10 +54,13 @@ describe("Inquiry operator surfaces", () => {
         filters={{ view: "qualified" }}
         onFiltersChange={vi.fn()}
         onInquiryOpen={vi.fn()}
+        getInquiryHref={(row) => `/inquiries/${row.id}`}
       />,
     )
     expect(html).toContain("Inquiry queue")
     expect(html).toContain("Family holiday in Greece")
+    expect(html).toContain('href="/inquiries/inq_01"')
+    expect(html).toContain('aria-label="Search inquiries"')
   })
 
   it("renders request, operational, and conversion context in the detail workspace", () => {

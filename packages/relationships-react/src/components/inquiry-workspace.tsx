@@ -18,7 +18,14 @@ import {
 import { ArrowLeft, CalendarClock, UserRound } from "lucide-react"
 import { useState } from "react"
 import { useCrmUiMessagesOrDefault } from "../i18n/index.js"
-import type { InquiryCloseOutcome, InquiryRecord, InquiryStatus } from "../inquiry-schemas.js"
+import type { InquiryCloseOutcome, InquiryRecord } from "../inquiry-schemas.js"
+import {
+  buildCloseInput,
+  buildTransitionInput,
+  type CloseInquiryInput,
+  findBookingSessionTarget,
+  type TransitionInquiryInput,
+} from "../inquiry-ui-model.js"
 
 export interface InquiryWorkspaceProps {
   inquiry: InquiryRecord
@@ -29,8 +36,8 @@ export interface InquiryWorkspaceProps {
     nextActionAt?: string | null
   }) => Promise<unknown>
   onAssign: (ownerId: string | null) => Promise<unknown>
-  onTransition: (status: InquiryStatus) => Promise<unknown>
-  onClose: (outcome: InquiryCloseOutcome) => Promise<unknown>
+  onTransition: (input: TransitionInquiryInput) => Promise<unknown>
+  onClose: (input: CloseInquiryInput) => Promise<unknown>
   onReopen: () => Promise<unknown>
   onConvertToProposal: () => Promise<unknown>
   onConvertToBookingSession: (targetLinkId: string) => Promise<unknown>
@@ -38,13 +45,13 @@ export interface InquiryWorkspaceProps {
 
 const closeOutcomes: InquiryCloseOutcome[] = [
   "lost",
+  "no_response",
   "spam",
   "duplicate",
   "not_serviceable",
   "customer_withdrew",
   "other",
 ]
-const humanize = (value: string) => value.replaceAll("_", " ")
 const dateTimeValue = (value: string | null) => (value ? value.slice(0, 16) : "")
 const formatDateTime = (value: string | null) =>
   value
@@ -56,11 +63,25 @@ const formatDateTime = (value: string | null) =>
 export function InquiryWorkspace(props: InquiryWorkspaceProps) {
   const { inquiry } = props
   const messages = useCrmUiMessagesOrDefault().inquiryDetail
+  const labels = useCrmUiMessagesOrDefault().inquiryLabels
   const [summary, setSummary] = useState(inquiry.internalSummary ?? "")
   const [nextActionAt, setNextActionAt] = useState(dateTimeValue(inquiry.nextActionAt))
   const [ownerId, setOwnerId] = useState(inquiry.ownerId ?? "")
   const [closeOutcome, setCloseOutcome] = useState<InquiryCloseOutcome>("lost")
-  const productTarget = inquiry.targets[0]
+  const [duplicateOfInquiryId, setDuplicateOfInquiryId] = useState("")
+  const [closeNote, setCloseNote] = useState("")
+  const [noFollowUpExpected, setNoFollowUpExpected] = useState(false)
+  const bookingTarget = findBookingSessionTarget(inquiry.targets)
+  const followUp = nextActionAt
+    ? { nextActionAt: new Date(nextActionAt).toISOString() }
+    : { noFollowUpExpected }
+  const transition = (status: TransitionInquiryInput["status"]) => {
+    const input = buildTransitionInput(inquiry, status, followUp)
+    if (input) void props.onTransition(input)
+  }
+  const canAdvanceWithFollowUp = Boolean(nextActionAt || noFollowUpExpected)
+  const hasCustomer = Boolean(inquiry.personId || inquiry.organizationId)
+  const closeInput = buildCloseInput(closeOutcome, { duplicateOfInquiryId, note: closeNote })
 
   return (
     <div className="flex flex-col gap-5">
@@ -74,35 +95,58 @@ export function InquiryWorkspace(props: InquiryWorkspaceProps) {
             <h1 className="text-2xl font-bold tracking-tight">{inquiry.subject}</h1>
             <div className="mt-2 flex gap-2">
               <Badge variant="outline" className="capitalize">
-                {humanize(inquiry.status)}
+                {labels.statuses[inquiry.status]}
               </Badge>
               <Badge
                 variant={inquiry.priority === "urgent" ? "destructive" : "secondary"}
                 className="capitalize"
               >
-                {inquiry.priority}
+                {labels.priorities[inquiry.priority]}
               </Badge>
               <Badge variant="outline" className="capitalize">
-                {humanize(inquiry.kind)}
+                {labels.kinds[inquiry.kind]}
               </Badge>
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
             {inquiry.status === "new" ? (
-              <Button variant="outline" onClick={() => void props.onTransition("in_progress")}>
-                {messages.startWork}
+              <Button
+                variant="outline"
+                disabled={!inquiry.ownerId}
+                title={!inquiry.ownerId ? messages.ownerRequired : undefined}
+                onClick={() => transition("triaged")}
+              >
+                {messages.triage}
+              </Button>
+            ) : null}
+            {inquiry.status === "triaged" || inquiry.status === "waiting_on_customer" ? (
+              <Button
+                variant="outline"
+                disabled={!canAdvanceWithFollowUp}
+                title={!canAdvanceWithFollowUp ? messages.followUpRequired : undefined}
+                onClick={() => transition("in_progress")}
+              >
+                {inquiry.status === "waiting_on_customer"
+                  ? messages.returnToWork
+                  : messages.startWork}
               </Button>
             ) : null}
             {inquiry.status === "in_progress" ? (
               <Button
                 variant="outline"
-                onClick={() => void props.onTransition("waiting_on_customer")}
+                disabled={!canAdvanceWithFollowUp}
+                title={!canAdvanceWithFollowUp ? messages.followUpRequired : undefined}
+                onClick={() => transition("waiting_on_customer")}
               >
                 {messages.waitForCustomer}
               </Button>
             ) : null}
-            {["new", "in_progress", "waiting_on_customer"].includes(inquiry.status) ? (
-              <Button onClick={() => void props.onTransition("qualified")}>
+            {["triaged", "in_progress", "waiting_on_customer"].includes(inquiry.status) ? (
+              <Button
+                disabled={!hasCustomer}
+                title={!hasCustomer ? messages.customerRequired : undefined}
+                onClick={() => transition("qualified")}
+              >
                 {messages.qualify}
               </Button>
             ) : null}
@@ -135,7 +179,8 @@ export function InquiryWorkspace(props: InquiryWorkspaceProps) {
                   <div key={target.id} className="rounded-md border p-3">
                     <div className="font-medium">{target.label ?? target.targetId}</div>
                     <div className="text-xs capitalize text-muted-foreground">
-                      {humanize(target.kind)}
+                      {labels.targetKinds[target.kind as keyof typeof labels.targetKinds] ??
+                        target.kind}
                     </div>
                   </div>
                 ))
@@ -170,6 +215,15 @@ export function InquiryWorkspace(props: InquiryWorkspaceProps) {
                 value={nextActionAt}
                 onChange={(event) => setNextActionAt(event.target.value)}
               />
+              <label className="flex items-center gap-2 text-sm" htmlFor="inquiry-no-follow-up">
+                <input
+                  id="inquiry-no-follow-up"
+                  type="checkbox"
+                  checked={noFollowUpExpected}
+                  onChange={(event) => setNoFollowUpExpected(event.target.checked)}
+                />
+                {messages.noFollowUpExpected}
+              </label>
               <Button
                 disabled={props.isSaving}
                 onClick={() =>
@@ -188,7 +242,7 @@ export function InquiryWorkspace(props: InquiryWorkspaceProps) {
         <div className="flex flex-col gap-4">
           <Card>
             <CardHeader>
-              <CardTitle>Contact</CardTitle>
+              <CardTitle>{messages.contact}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2 text-sm">
               <div className="flex items-center gap-2">
@@ -197,7 +251,7 @@ export function InquiryWorkspace(props: InquiryWorkspaceProps) {
               </div>
               <div>{inquiry.contactSnapshot.email ?? "—"}</div>
               <div>{inquiry.contactSnapshot.phone ?? "—"}</div>
-              {inquiry.personId ? <Badge variant="secondary">Person linked</Badge> : null}
+              {inquiry.personId ? <Badge variant="secondary">{messages.personLinked}</Badge> : null}
             </CardContent>
           </Card>
           <Card>
@@ -207,7 +261,7 @@ export function InquiryWorkspace(props: InquiryWorkspaceProps) {
             <CardContent className="space-y-3 text-sm">
               <div>
                 <span className="text-muted-foreground">{messages.source}: </span>
-                {inquiry.source}
+                {labels.sources[inquiry.source as keyof typeof labels.sources] ?? inquiry.source}
               </div>
               <div className="flex items-center gap-2">
                 <CalendarClock className="size-4" />
@@ -222,7 +276,11 @@ export function InquiryWorkspace(props: InquiryWorkspaceProps) {
                   value={ownerId}
                   onChange={(event) => setOwnerId(event.target.value)}
                 />
-                <Button variant="outline" onClick={() => void props.onAssign(ownerId || null)}>
+                <Button
+                  variant="outline"
+                  disabled={!ownerId.trim()}
+                  onClick={() => void props.onAssign(ownerId.trim())}
+                >
                   {messages.assign}
                 </Button>
               </div>
@@ -237,16 +295,36 @@ export function InquiryWorkspace(props: InquiryWorkspaceProps) {
                     </SelectTrigger>
                     <SelectContent>
                       {closeOutcomes.map((outcome) => (
-                        <SelectItem value={outcome} key={outcome} className="capitalize">
-                          {humanize(outcome)}
+                        <SelectItem value={outcome} key={outcome}>
+                          {labels.closeOutcomes[outcome]}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
-                  <Button variant="destructive" onClick={() => void props.onClose(closeOutcome)}>
+                  <Button
+                    variant="destructive"
+                    disabled={!closeInput}
+                    onClick={() => closeInput && void props.onClose(closeInput)}
+                  >
                     {messages.close}
                   </Button>
                 </div>
+              ) : null}
+              {closeOutcome === "duplicate" ? (
+                <Input
+                  aria-label={messages.duplicateInquiryId}
+                  placeholder={messages.duplicateInquiryId}
+                  value={duplicateOfInquiryId}
+                  onChange={(event) => setDuplicateOfInquiryId(event.target.value)}
+                />
+              ) : null}
+              {closeOutcome === "other" ? (
+                <Textarea
+                  aria-label={messages.closeNote}
+                  placeholder={messages.closeNote}
+                  value={closeNote}
+                  onChange={(event) => setCloseNote(event.target.value)}
+                />
               ) : null}
             </CardContent>
           </Card>
@@ -266,9 +344,9 @@ export function InquiryWorkspace(props: InquiryWorkspaceProps) {
               <Button
                 className="w-full"
                 variant="outline"
-                disabled={inquiry.status !== "qualified" || !productTarget}
+                disabled={inquiry.status !== "qualified" || !bookingTarget}
                 onClick={() =>
-                  productTarget && void props.onConvertToBookingSession(productTarget.id)
+                  bookingTarget && void props.onConvertToBookingSession(bookingTarget.id)
                 }
               >
                 {messages.convertBookingSession}

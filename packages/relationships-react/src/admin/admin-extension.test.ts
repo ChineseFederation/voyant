@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest"
+import type { AdminRouteLoaderContext } from "@voyant-travel/admin"
+import { describe, expect, it, vi } from "vitest"
 
 import {
   createRelationshipsAdminExtension,
@@ -133,6 +134,26 @@ describe("createRelationshipsAdminExtension", () => {
     expect(ssrById.get("relationships-people-detail")).toBeUndefined()
     expect(ssrById.get("relationships-organizations-detail")).toBeUndefined()
     expect(ssrById.get("relationships-inquiries-detail")).toBeUndefined()
+  })
+
+  it("loads the inquiry queue as actionable open work by default", async () => {
+    const route = createRelationshipsAdminExtension().routes?.find(
+      (candidate) => candidate.id === "relationships-inquiries-index",
+    )
+    const ensureQueryData = vi.fn().mockResolvedValue(undefined)
+    await route?.loader?.({
+      queryClient: { ensureQueryData },
+      runtime: { baseUrl: "https://example.test" },
+      params: {},
+    } as unknown as AdminRouteLoaderContext)
+    const options = ensureQueryData.mock.calls[0]?.[0] as { queryKey?: readonly unknown[] }
+    expect(options.queryKey).toEqual([
+      "voyant",
+      "relationships",
+      "inquiries",
+      "list",
+      { view: "actionable", limit: 50 },
+    ])
   })
 })
 
