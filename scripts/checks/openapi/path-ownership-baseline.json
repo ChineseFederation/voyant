@@ -1,0 +1,19 @@
+{
+  "$comment": [
+    "Paths sitting in a generated OpenAPI document that its generator does not produce.",
+    "",
+    "verify:openapi-drift registers a FILE. Several generators patch only the paths they",
+    "own and carry the rest through untouched, so those paths are never regenerated or",
+    "compared while the file reports as matching its routes.",
+    "",
+    "THESE COUNTS MAY ONLY SHRINK, and a document not listed here may never gain one.",
+    "Shrinking means either giving the remaining paths a generator, or splitting the",
+    "document so each half is owned by the route module that produces it."
+  ],
+  "unownedPaths": {
+    "packages/finance/openapi/admin/finance.json": 99,
+    "packages/finance/openapi/public-api/finance.json": 11,
+    "packages/legal/openapi/admin/legal.json": 15,
+    "packages/public-api/openapi/public-api/public-api.json": 12
+  }
+}
