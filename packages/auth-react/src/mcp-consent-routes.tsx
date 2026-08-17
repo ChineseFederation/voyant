@@ -5,6 +5,7 @@ import type { ReactNode } from "react"
 import { z } from "zod"
 import { AuthLayout } from "./components/auth-layout.js"
 import { McpConsentPage } from "./components/mcp-consent-page.js"
+import { fetchMcpConsentClient } from "./mcp-consent-client.js"
 
 /**
  * The OAuth consent screen an MCP connector sends the operator to.
@@ -73,14 +74,7 @@ function McpConsentRoute() {
   const client = useQuery({
     queryKey: ["mcp-consent-client", client_id],
     enabled: Boolean(client_id),
-    queryFn: async () => {
-      const response = await fetcher(
-        `${baseUrl}/auth/admin/oauth2/public-client?client_id=${encodeURIComponent(client_id ?? "")}`,
-        { credentials: "include" },
-      )
-      if (!response.ok) return null
-      return (await response.json()) as { name?: string | null; client_name?: string | null }
-    },
+    queryFn: () => fetchMcpConsentClient({ baseUrl, fetcher, clientId: client_id ?? "" }),
   })
 
   return (

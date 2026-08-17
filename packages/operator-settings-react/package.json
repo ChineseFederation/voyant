@@ -46,6 +46,7 @@
     "@types/react-dom": "^19.2.3",
     "@voyant-travel/admin": "workspace:^",
     "@voyant-travel/admin-app": "workspace:^",
+    "@voyant-travel/auth-react": "workspace:^",
     "@voyant-travel/finance": "workspace:^",
     "@voyant-travel/finance-react": "workspace:^",
     "@voyant-travel/operator-settings": "workspace:^",
