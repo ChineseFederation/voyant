@@ -14,7 +14,13 @@ app.route(
   }),
 )
 
-const document = app.getOpenAPIDocument({
+// `getOpenAPI31Document`, not `getOpenAPIDocument`. The latter builds a 3.0
+// document, and passing `openapi: "3.1.0"` only relabels it — the body still
+// used 3.0's `nullable: true`, which 3.1 has no such keyword for and silently
+// ignores. Every `z.string().nullable()` therefore published as a plain
+// non-nullable string, and a client generated from this document would be typed
+// to expect a value the API may not send.
+const document = app.getOpenAPI31Document({
   openapi: "3.1.0",
   info: {
     title: "Voyant Operator Webhooks Admin API",

@@ -37,9 +37,7 @@
                           },
                           "payloadSchema": {
                             "type": "object",
-                            "additionalProperties": {
-                              "nullable": true
-                            }
+                            "additionalProperties": {}
                           }
                         },
                         "required": ["id", "eventType", "version", "payloadSchema"]
@@ -122,8 +120,7 @@
                             "type": "integer"
                           },
                           "description": {
-                            "type": "string",
-                            "nullable": true
+                            "type": ["string", "null"]
                           },
                           "createdAt": {
                             "anyOf": [
@@ -157,7 +154,7 @@
                                 "format": "date-time"
                               },
                               {
-                                "nullable": true
+                                "type": "null"
                               }
                             ]
                           },
@@ -255,8 +252,7 @@
                     "default": 5
                   },
                   "description": {
-                    "type": "string",
-                    "nullable": true,
+                    "type": ["string", "null"],
                     "maxLength": 500,
                     "default": null
                   }
@@ -300,8 +296,7 @@
                               "type": "integer"
                             },
                             "description": {
-                              "type": "string",
-                              "nullable": true
+                              "type": ["string", "null"]
                             },
                             "createdAt": {
                               "anyOf": [
@@ -335,7 +330,7 @@
                                   "format": "date-time"
                                 },
                                 {
-                                  "nullable": true
+                                  "type": "null"
                                 }
                               ]
                             },
@@ -481,8 +476,7 @@
                           "type": "integer"
                         },
                         "description": {
-                          "type": "string",
-                          "nullable": true
+                          "type": ["string", "null"]
                         },
                         "createdAt": {
                           "anyOf": [
@@ -516,7 +510,7 @@
                               "format": "date-time"
                             },
                             {
-                              "nullable": true
+                              "type": "null"
                             }
                           ]
                         },
@@ -637,8 +631,7 @@
                     "default": 5
                   },
                   "description": {
-                    "type": "string",
-                    "nullable": true,
+                    "type": ["string", "null"],
                     "maxLength": 500,
                     "default": null
                   }
@@ -678,8 +671,7 @@
                           "type": "integer"
                         },
                         "description": {
-                          "type": "string",
-                          "nullable": true
+                          "type": ["string", "null"]
                         },
                         "createdAt": {
                           "anyOf": [
@@ -713,7 +705,7 @@
                               "format": "date-time"
                             },
                             {
-                              "nullable": true
+                              "type": "null"
                             }
                           ]
                         },
@@ -922,8 +914,7 @@
                           "type": "integer"
                         },
                         "description": {
-                          "type": "string",
-                          "nullable": true
+                          "type": ["string", "null"]
                         },
                         "createdAt": {
                           "anyOf": [
@@ -957,7 +948,7 @@
                               "format": "date-time"
                             },
                             {
-                              "nullable": true
+                              "type": "null"
                             }
                           ]
                         },
@@ -1081,8 +1072,7 @@
                           "type": "integer"
                         },
                         "description": {
-                          "type": "string",
-                          "nullable": true
+                          "type": ["string", "null"]
                         },
                         "createdAt": {
                           "anyOf": [
@@ -1116,7 +1106,7 @@
                               "format": "date-time"
                             },
                             {
-                              "nullable": true
+                              "type": "null"
                             }
                           ]
                         },
@@ -1243,8 +1233,7 @@
                               "type": "integer"
                             },
                             "description": {
-                              "type": "string",
-                              "nullable": true
+                              "type": ["string", "null"]
                             },
                             "createdAt": {
                               "anyOf": [
@@ -1278,7 +1267,7 @@
                                   "format": "date-time"
                                 },
                                 {
-                                  "nullable": true
+                                  "type": "null"
                                 }
                               ]
                             },
@@ -1411,8 +1400,7 @@
                           "type": "string"
                         },
                         "subscriptionId": {
-                          "type": "string",
-                          "nullable": true
+                          "type": ["string", "null"]
                         },
                         "sourceEvent": {
                           "type": "string"
@@ -1428,12 +1416,10 @@
                           "type": "integer"
                         },
                         "responseStatus": {
-                          "type": "integer",
-                          "nullable": true
+                          "type": ["integer", "null"]
                         },
                         "errorMessage": {
-                          "type": "string",
-                          "nullable": true
+                          "type": ["string", "null"]
                         },
                         "createdAt": {
                           "anyOf": [
@@ -1456,7 +1442,7 @@
                               "format": "date-time"
                             },
                             {
-                              "nullable": true
+                              "type": "null"
                             }
                           ]
                         }
@@ -1607,8 +1593,7 @@
                             "type": "string"
                           },
                           "subscriptionId": {
-                            "type": "string",
-                            "nullable": true
+                            "type": ["string", "null"]
                           },
                           "sourceEvent": {
                             "type": "string"
@@ -1624,12 +1609,10 @@
                             "type": "integer"
                           },
                           "responseStatus": {
-                            "type": "integer",
-                            "nullable": true
+                            "type": ["integer", "null"]
                           },
                           "errorMessage": {
-                            "type": "string",
-                            "nullable": true
+                            "type": ["string", "null"]
                           },
                           "createdAt": {
                             "anyOf": [
@@ -1652,7 +1635,7 @@
                                 "format": "date-time"
                               },
                               {
-                                "nullable": true
+                                "type": "null"
                               }
                             ]
                           }
@@ -1743,8 +1726,7 @@
                           "type": "string"
                         },
                         "subscriptionId": {
-                          "type": "string",
-                          "nullable": true
+                          "type": ["string", "null"]
                         },
                         "sourceEvent": {
                           "type": "string"
@@ -1760,12 +1742,10 @@
                           "type": "integer"
                         },
                         "responseStatus": {
-                          "type": "integer",
-                          "nullable": true
+                          "type": ["integer", "null"]
                         },
                         "errorMessage": {
-                          "type": "string",
-                          "nullable": true
+                          "type": ["string", "null"]
                         },
                         "createdAt": {
                           "anyOf": [
@@ -1788,7 +1768,7 @@
                               "format": "date-time"
                             },
                             {
-                              "nullable": true
+                              "type": "null"
                             }
                           ]
                         }
@@ -1894,8 +1874,7 @@
                           "type": "string"
                         },
                         "subscriptionId": {
-                          "type": "string",
-                          "nullable": true
+                          "type": ["string", "null"]
                         },
                         "sourceEvent": {
                           "type": "string"
@@ -1911,12 +1890,10 @@
                           "type": "integer"
                         },
                         "responseStatus": {
-                          "type": "integer",
-                          "nullable": true
+                          "type": ["integer", "null"]
                         },
                         "errorMessage": {
-                          "type": "string",
-                          "nullable": true
+                          "type": ["string", "null"]
                         },
                         "createdAt": {
                           "anyOf": [
@@ -1939,7 +1916,7 @@
                               "format": "date-time"
                             },
                             {
-                              "nullable": true
+                              "type": "null"
                             }
                           ]
                         }
@@ -2030,5 +2007,6 @@
         }
       }
     }
-  }
+  },
+  "webhooks": {}
 }

@@ -252,7 +252,7 @@ export interface operations {
               description: string | null
               createdAt: string
               updatedAt: string
-              lastDeliveryAt: string | unknown
+              lastDeliveryAt: string | null
               failureCount: number
             }[]
           }
@@ -322,7 +322,7 @@ export interface operations {
                 description: string | null
                 createdAt: string
                 updatedAt: string
-                lastDeliveryAt: string | unknown
+                lastDeliveryAt: string | null
                 failureCount: number
               }
               secret: string
@@ -403,7 +403,7 @@ export interface operations {
               description: string | null
               createdAt: string
               updatedAt: string
-              lastDeliveryAt: string | unknown
+              lastDeliveryAt: string | null
               failureCount: number
             }
           }
@@ -536,7 +536,7 @@ export interface operations {
               description: string | null
               createdAt: string
               updatedAt: string
-              lastDeliveryAt: string | unknown
+              lastDeliveryAt: string | null
               failureCount: number
             }
           }
@@ -615,7 +615,7 @@ export interface operations {
               description: string | null
               createdAt: string
               updatedAt: string
-              lastDeliveryAt: string | unknown
+              lastDeliveryAt: string | null
               failureCount: number
             }
           }
@@ -683,7 +683,7 @@ export interface operations {
               description: string | null
               createdAt: string
               updatedAt: string
-              lastDeliveryAt: string | unknown
+              lastDeliveryAt: string | null
               failureCount: number
             }
           }
@@ -752,7 +752,7 @@ export interface operations {
                 description: string | null
                 createdAt: string
                 updatedAt: string
-                lastDeliveryAt: string | unknown
+                lastDeliveryAt: string | null
                 failureCount: number
               }
               secret: string
@@ -830,7 +830,7 @@ export interface operations {
               responseStatus: number | null
               errorMessage: string | null
               createdAt: string
-              finishedAt: string | unknown
+              finishedAt: string | null
             }
           }
         }
@@ -922,7 +922,7 @@ export interface operations {
               responseStatus: number | null
               errorMessage: string | null
               createdAt: string
-              finishedAt: string | unknown
+              finishedAt: string | null
             }[]
           }
         }
@@ -980,7 +980,7 @@ export interface operations {
               responseStatus: number | null
               errorMessage: string | null
               createdAt: string
-              finishedAt: string | unknown
+              finishedAt: string | null
             }
           }
         }
@@ -1049,7 +1049,7 @@ export interface operations {
               responseStatus: number | null
               errorMessage: string | null
               createdAt: string
-              finishedAt: string | unknown
+              finishedAt: string | null
             }
           }
         }
