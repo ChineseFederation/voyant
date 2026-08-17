@@ -858,7 +858,9 @@ export interface operations {
               sourceRef: string | null
               tags: string[]
               customFields: {
-                [key: string]: unknown
+                [key: string]: {
+                  [key: string]: unknown
+                }
               }
               notes: string | null
               createdAt: string
@@ -904,7 +906,9 @@ export interface operations {
           /** @default [] */
           tags?: string[]
           customFields?: {
-            [key: string]: unknown
+            [key: string]: {
+              [key: string]: unknown
+            }
           }
           notes?: string | null
         }
@@ -937,7 +941,9 @@ export interface operations {
               sourceRef: string | null
               tags: string[]
               customFields: {
-                [key: string]: unknown
+                [key: string]: {
+                  [key: string]: unknown
+                }
               }
               notes: string | null
               createdAt: string
@@ -997,7 +1003,9 @@ export interface operations {
               sourceRef: string | null
               tags: string[]
               customFields: {
-                [key: string]: unknown
+                [key: string]: {
+                  [key: string]: unknown
+                }
               }
               notes: string | null
               createdAt: string
@@ -1096,7 +1104,9 @@ export interface operations {
           sourceRef?: string | null
           tags?: string[]
           customFields?: {
-            [key: string]: unknown
+            [key: string]: {
+              [key: string]: unknown
+            }
           }
           notes?: string | null
         }
@@ -1129,7 +1139,9 @@ export interface operations {
               sourceRef: string | null
               tags: string[]
               customFields: {
-                [key: string]: unknown
+                [key: string]: {
+                  [key: string]: unknown
+                }
               }
               notes: string | null
               createdAt: string
@@ -1206,7 +1218,9 @@ export interface operations {
               sourceRef: string | null
               tags: string[]
               customFields: {
-                [key: string]: unknown
+                [key: string]: {
+                  [key: string]: unknown
+                }
               }
               notes: string | null
               createdAt: string
@@ -1740,7 +1754,9 @@ export interface operations {
               sourceRef: string | null
               tags: string[]
               customFields: {
-                [key: string]: unknown
+                [key: string]: {
+                  [key: string]: unknown
+                }
               }
               dateOfBirth: string | null
               notes: string | null
@@ -1795,7 +1811,9 @@ export interface operations {
           /** @default [] */
           tags?: string[]
           customFields?: {
-            [key: string]: unknown
+            [key: string]: {
+              [key: string]: unknown
+            }
           }
           /** Format: date */
           dateOfBirth?: string | null
@@ -1846,7 +1864,9 @@ export interface operations {
               sourceRef: string | null
               tags: string[]
               customFields: {
-                [key: string]: unknown
+                [key: string]: {
+                  [key: string]: unknown
+                }
               }
               dateOfBirth: string | null
               notes: string | null
@@ -1914,7 +1934,9 @@ export interface operations {
               sourceRef: string | null
               tags: string[]
               customFields: {
-                [key: string]: unknown
+                [key: string]: {
+                  [key: string]: unknown
+                }
               }
               dateOfBirth: string | null
               notes: string | null
@@ -2011,7 +2033,9 @@ export interface operations {
           sourceRef?: string | null
           tags?: string[]
           customFields?: {
-            [key: string]: unknown
+            [key: string]: {
+              [key: string]: unknown
+            }
           }
           /** Format: date */
           dateOfBirth?: string | null
@@ -2062,7 +2086,9 @@ export interface operations {
               sourceRef: string | null
               tags: string[]
               customFields: {
-                [key: string]: unknown
+                [key: string]: {
+                  [key: string]: unknown
+                }
               }
               dateOfBirth: string | null
               notes: string | null
@@ -2147,7 +2173,9 @@ export interface operations {
               sourceRef: string | null
               tags: string[]
               customFields: {
-                [key: string]: unknown
+                [key: string]: {
+                  [key: string]: unknown
+                }
               }
               dateOfBirth: string | null
               notes: string | null
@@ -2665,12 +2693,17 @@ export interface operations {
             data: {
               id: string
               personId: string
+              /** @enum {string} */
+              source: "manual" | "payment"
               brand: string
               last4: string | null
               holderName: string | null
               expMonth: number | null
               expYear: number | null
-              processorToken: string
+              providerId: string | null
+              authorizedReuses: string[]
+              /** @enum {string} */
+              status: "usable" | "requires_new_agreement" | "expired" | "revoked"
               isDefault: boolean
               createdAt: string
             }[]
@@ -2726,12 +2759,17 @@ export interface operations {
             data: {
               id: string
               personId: string
+              /** @enum {string} */
+              source: "manual" | "payment"
               brand: string
               last4: string | null
               holderName: string | null
               expMonth: number | null
               expYear: number | null
-              processorToken: string
+              providerId: string | null
+              authorizedReuses: string[]
+              /** @enum {string} */
+              status: "usable" | "requires_new_agreement" | "expired" | "revoked"
               isDefault: boolean
               createdAt: string
             }
@@ -2833,12 +2871,17 @@ export interface operations {
             data: {
               id: string
               personId: string
+              /** @enum {string} */
+              source: "manual" | "payment"
               brand: string
               last4: string | null
               holderName: string | null
               expMonth: number | null
               expYear: number | null
-              processorToken: string
+              providerId: string | null
+              authorizedReuses: string[]
+              /** @enum {string} */
+              status: "usable" | "requires_new_agreement" | "expired" | "revoked"
               isDefault: boolean
               createdAt: string
             }
@@ -2906,7 +2949,10 @@ export interface operations {
               content: string | null
               sentAt: string | null
               createdAt: string
-              /** @enum {string} */
+              /**
+               * @default logged
+               * @enum {string}
+               */
               source: "logged" | "notification"
             }[]
           }
@@ -2958,7 +3004,10 @@ export interface operations {
               content: string | null
               sentAt: string | null
               createdAt: string
-              /** @enum {string} */
+              /**
+               * @default logged
+               * @enum {string}
+               */
               source: "logged" | "notification"
             }
           }
@@ -5103,7 +5152,7 @@ export interface operations {
         ownerId?: string
         status?: "planned" | "done" | "cancelled"
         type?: "call" | "email" | "meeting" | "task" | "follow_up" | "note"
-        entityType?: "organization" | "person" | "proposal" | "activity"
+        entityType?: "organization" | "person" | "proposal" | "activity" | "booking"
         entityId?: string
         search?: string
       }
@@ -5133,7 +5182,9 @@ export interface operations {
               location: string | null
               description: string | null
               customFields: {
-                [key: string]: unknown
+                [key: string]: {
+                  [key: string]: unknown
+                }
               }
               createdAt: string
               updatedAt: string
@@ -5195,7 +5246,9 @@ export interface operations {
               location: string | null
               description: string | null
               customFields: {
-                [key: string]: unknown
+                [key: string]: {
+                  [key: string]: unknown
+                }
               }
               createdAt: string
               updatedAt: string
@@ -5247,7 +5300,9 @@ export interface operations {
               location: string | null
               description: string | null
               customFields: {
-                [key: string]: unknown
+                [key: string]: {
+                  [key: string]: unknown
+                }
               }
               createdAt: string
               updatedAt: string
@@ -5355,7 +5410,9 @@ export interface operations {
               location: string | null
               description: string | null
               customFields: {
-                [key: string]: unknown
+                [key: string]: {
+                  [key: string]: unknown
+                }
               }
               createdAt: string
               updatedAt: string
@@ -5409,7 +5466,7 @@ export interface operations {
               id: string
               activityId: string
               /** @enum {string} */
-              entityType: "organization" | "person" | "proposal" | "activity"
+              entityType: "organization" | "person" | "proposal" | "activity" | "booking"
               entityId: string
               /** @enum {string} */
               role: "primary" | "related"
@@ -5433,7 +5490,7 @@ export interface operations {
       content: {
         "application/json": {
           /** @enum {string} */
-          entityType: "organization" | "person" | "proposal" | "activity"
+          entityType: "organization" | "person" | "proposal" | "activity" | "booking"
           entityId: string
           /**
            * @default related
@@ -5455,7 +5512,7 @@ export interface operations {
               id: string
               activityId: string
               /** @enum {string} */
-              entityType: "organization" | "person" | "proposal" | "activity"
+              entityType: "organization" | "person" | "proposal" | "activity" | "booking"
               entityId: string
               /** @enum {string} */
               role: "primary" | "related"

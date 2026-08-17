@@ -287,7 +287,10 @@
                           },
                           "customFields": {
                             "type": "object",
-                            "additionalProperties": {}
+                            "additionalProperties": {
+                              "type": "object",
+                              "additionalProperties": {}
+                            }
                           },
                           "notes": {
                             "type": ["string", "null"]
@@ -428,7 +431,10 @@
                   },
                   "customFields": {
                     "type": "object",
-                    "additionalProperties": {}
+                    "additionalProperties": {
+                      "type": "object",
+                      "additionalProperties": {}
+                    }
                   },
                   "notes": {
                     "type": ["string", "null"]
@@ -502,7 +508,10 @@
                         },
                         "customFields": {
                           "type": "object",
-                          "additionalProperties": {}
+                          "additionalProperties": {
+                            "type": "object",
+                            "additionalProperties": {}
+                          }
                         },
                         "notes": {
                           "type": ["string", "null"]
@@ -648,7 +657,10 @@
                         },
                         "customFields": {
                           "type": "object",
-                          "additionalProperties": {}
+                          "additionalProperties": {
+                            "type": "object",
+                            "additionalProperties": {}
+                          }
                         },
                         "notes": {
                           "type": ["string", "null"]
@@ -803,7 +815,10 @@
                   },
                   "customFields": {
                     "type": "object",
-                    "additionalProperties": {}
+                    "additionalProperties": {
+                      "type": "object",
+                      "additionalProperties": {}
+                    }
                   },
                   "notes": {
                     "type": ["string", "null"]
@@ -876,7 +891,10 @@
                         },
                         "customFields": {
                           "type": "object",
-                          "additionalProperties": {}
+                          "additionalProperties": {
+                            "type": "object",
+                            "additionalProperties": {}
+                          }
                         },
                         "notes": {
                           "type": ["string", "null"]
@@ -1126,7 +1144,10 @@
                         },
                         "customFields": {
                           "type": "object",
-                          "additionalProperties": {}
+                          "additionalProperties": {
+                            "type": "object",
+                            "additionalProperties": {}
+                          }
                         },
                         "notes": {
                           "type": ["string", "null"]
@@ -2308,7 +2329,10 @@
                           },
                           "customFields": {
                             "type": "object",
-                            "additionalProperties": {}
+                            "additionalProperties": {
+                              "type": "object",
+                              "additionalProperties": {}
+                            }
                           },
                           "dateOfBirth": {
                             "type": ["string", "null"]
@@ -2454,7 +2478,10 @@
                   },
                   "customFields": {
                     "type": "object",
-                    "additionalProperties": {}
+                    "additionalProperties": {
+                      "type": "object",
+                      "additionalProperties": {}
+                    }
                   },
                   "dateOfBirth": {
                     "type": ["string", "null"],
@@ -2594,7 +2621,10 @@
                         },
                         "customFields": {
                           "type": "object",
-                          "additionalProperties": {}
+                          "additionalProperties": {
+                            "type": "object",
+                            "additionalProperties": {}
+                          }
                         },
                         "dateOfBirth": {
                           "type": ["string", "null"]
@@ -2760,7 +2790,10 @@
                         },
                         "customFields": {
                           "type": "object",
-                          "additionalProperties": {}
+                          "additionalProperties": {
+                            "type": "object",
+                            "additionalProperties": {}
+                          }
                         },
                         "dateOfBirth": {
                           "type": ["string", "null"]
@@ -2920,7 +2953,10 @@
                   },
                   "customFields": {
                     "type": "object",
-                    "additionalProperties": {}
+                    "additionalProperties": {
+                      "type": "object",
+                      "additionalProperties": {}
+                    }
                   },
                   "dateOfBirth": {
                     "type": ["string", "null"],
@@ -3059,7 +3095,10 @@
                         },
                         "customFields": {
                           "type": "object",
-                          "additionalProperties": {}
+                          "additionalProperties": {
+                            "type": "object",
+                            "additionalProperties": {}
+                          }
                         },
                         "dateOfBirth": {
                           "type": ["string", "null"]
@@ -3313,7 +3352,10 @@
                         },
                         "customFields": {
                           "type": "object",
-                          "additionalProperties": {}
+                          "additionalProperties": {
+                            "type": "object",
+                            "additionalProperties": {}
+                          }
                         },
                         "dateOfBirth": {
                           "type": ["string", "null"]
@@ -4394,6 +4436,10 @@
                           "personId": {
                             "type": "string"
                           },
+                          "source": {
+                            "type": "string",
+                            "enum": ["manual", "payment"]
+                          },
                           "brand": {
                             "type": "string"
                           },
@@ -4409,8 +4455,18 @@
                           "expYear": {
                             "type": ["integer", "null"]
                           },
-                          "processorToken": {
-                            "type": "string"
+                          "providerId": {
+                            "type": ["string", "null"]
+                          },
+                          "authorizedReuses": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": ["usable", "requires_new_agreement", "expired", "revoked"]
                           },
                           "isDefault": {
                             "type": "boolean"
@@ -4422,12 +4478,15 @@
                         "required": [
                           "id",
                           "personId",
+                          "source",
                           "brand",
                           "last4",
                           "holderName",
                           "expMonth",
                           "expYear",
-                          "processorToken",
+                          "providerId",
+                          "authorizedReuses",
+                          "status",
                           "isDefault",
                           "createdAt"
                         ]
@@ -4556,6 +4615,10 @@
                         "personId": {
                           "type": "string"
                         },
+                        "source": {
+                          "type": "string",
+                          "enum": ["manual", "payment"]
+                        },
                         "brand": {
                           "type": "string"
                         },
@@ -4571,8 +4634,18 @@
                         "expYear": {
                           "type": ["integer", "null"]
                         },
-                        "processorToken": {
-                          "type": "string"
+                        "providerId": {
+                          "type": ["string", "null"]
+                        },
+                        "authorizedReuses": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": ["usable", "requires_new_agreement", "expired", "revoked"]
                         },
                         "isDefault": {
                           "type": "boolean"
@@ -4584,12 +4657,15 @@
                       "required": [
                         "id",
                         "personId",
+                        "source",
                         "brand",
                         "last4",
                         "holderName",
                         "expMonth",
                         "expYear",
-                        "processorToken",
+                        "providerId",
+                        "authorizedReuses",
+                        "status",
                         "isDefault",
                         "createdAt"
                       ]
@@ -4715,6 +4791,10 @@
                         "personId": {
                           "type": "string"
                         },
+                        "source": {
+                          "type": "string",
+                          "enum": ["manual", "payment"]
+                        },
                         "brand": {
                           "type": "string"
                         },
@@ -4730,8 +4810,18 @@
                         "expYear": {
                           "type": ["integer", "null"]
                         },
-                        "processorToken": {
-                          "type": "string"
+                        "providerId": {
+                          "type": ["string", "null"]
+                        },
+                        "authorizedReuses": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": ["usable", "requires_new_agreement", "expired", "revoked"]
                         },
                         "isDefault": {
                           "type": "boolean"
@@ -4743,12 +4833,15 @@
                       "required": [
                         "id",
                         "personId",
+                        "source",
                         "brand",
                         "last4",
                         "holderName",
                         "expMonth",
                         "expYear",
-                        "processorToken",
+                        "providerId",
+                        "authorizedReuses",
+                        "status",
                         "isDefault",
                         "createdAt"
                       ]
@@ -4968,7 +5061,8 @@
                           },
                           "source": {
                             "type": "string",
-                            "enum": ["logged", "notification"]
+                            "enum": ["logged", "notification"],
+                            "default": "logged"
                           }
                         },
                         "required": [
@@ -4980,8 +5074,7 @@
                           "subject",
                           "content",
                           "sentAt",
-                          "createdAt",
-                          "source"
+                          "createdAt"
                         ]
                       }
                     }
@@ -5089,7 +5182,8 @@
                         },
                         "source": {
                           "type": "string",
-                          "enum": ["logged", "notification"]
+                          "enum": ["logged", "notification"],
+                          "default": "logged"
                         }
                       },
                       "required": [
@@ -5101,8 +5195,7 @@
                         "subject",
                         "content",
                         "sentAt",
-                        "createdAt",
-                        "source"
+                        "createdAt"
                       ]
                     }
                   },
@@ -9482,7 +9575,7 @@
           {
             "schema": {
               "type": "string",
-              "enum": ["organization", "person", "proposal", "activity"]
+              "enum": ["organization", "person", "proposal", "activity", "booking"]
             },
             "required": false,
             "name": "entityType",
@@ -9549,7 +9642,10 @@
                           },
                           "customFields": {
                             "type": "object",
-                            "additionalProperties": {}
+                            "additionalProperties": {
+                              "type": "object",
+                              "additionalProperties": {}
+                            }
                           },
                           "createdAt": {
                             "type": "string"
@@ -9685,7 +9781,10 @@
                         },
                         "customFields": {
                           "type": "object",
-                          "additionalProperties": {}
+                          "additionalProperties": {
+                            "type": "object",
+                            "additionalProperties": {}
+                          }
                         },
                         "createdAt": {
                           "type": "string"
@@ -9796,7 +9895,10 @@
                         },
                         "customFields": {
                           "type": "object",
-                          "additionalProperties": {}
+                          "additionalProperties": {
+                            "type": "object",
+                            "additionalProperties": {}
+                          }
                         },
                         "createdAt": {
                           "type": "string"
@@ -9947,7 +10049,10 @@
                         },
                         "customFields": {
                           "type": "object",
-                          "additionalProperties": {}
+                          "additionalProperties": {
+                            "type": "object",
+                            "additionalProperties": {}
+                          }
                         },
                         "createdAt": {
                           "type": "string"
@@ -10108,7 +10213,7 @@
                           },
                           "entityType": {
                             "type": "string",
-                            "enum": ["organization", "person", "proposal", "activity"]
+                            "enum": ["organization", "person", "proposal", "activity", "booking"]
                           },
                           "entityId": {
                             "type": "string"
@@ -10167,7 +10272,7 @@
                 "properties": {
                   "entityType": {
                     "type": "string",
-                    "enum": ["organization", "person", "proposal", "activity"]
+                    "enum": ["organization", "person", "proposal", "activity", "booking"]
                   },
                   "entityId": {
                     "type": "string"
@@ -10202,7 +10307,7 @@
                         },
                         "entityType": {
                           "type": "string",
-                          "enum": ["organization", "person", "proposal", "activity"]
+                          "enum": ["organization", "person", "proposal", "activity", "booking"]
                         },
                         "entityId": {
                           "type": "string"

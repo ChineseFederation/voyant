@@ -123,6 +123,10 @@
       "files": ["packages/public-api/openapi/public-api/public-api.json"]
     },
     {
+      "command": "pnpm --filter @voyant-travel/relationships generate:openapi",
+      "files": ["packages/relationships/openapi/admin/relationships.json"]
+    },
+    {
       "command": "pnpm --filter @voyant-travel/trips generate:openapi",
       "files": [
         "packages/trips/openapi/admin/trips.json",
