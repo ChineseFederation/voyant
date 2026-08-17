@@ -11,7 +11,6 @@
     "document so each half is owned by the route module that produces it."
   ],
   "unownedPaths": {
-    "packages/legal/openapi/admin/legal.json": 15,
     "packages/public-api/openapi/public-api/public-api.json": 12
   }
 }

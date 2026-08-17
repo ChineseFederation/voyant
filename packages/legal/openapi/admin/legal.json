@@ -5468,6 +5468,318 @@
         "x-voyant-surface": "admin"
       }
     },
+    "/v1/admin/legal/contracts/{id}/booking-review": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The booking-contract revision under review",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "contract": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "contractNumber": {
+                              "type": ["string", "null"]
+                            },
+                            "scope": {
+                              "type": "string",
+                              "enum": ["customer", "supplier", "partner", "channel", "other"]
+                            },
+                            "status": {
+                              "type": "string",
+                              "enum": [
+                                "draft",
+                                "issued",
+                                "sent",
+                                "signed",
+                                "executed",
+                                "expired",
+                                "void"
+                              ]
+                            },
+                            "title": {
+                              "type": "string"
+                            },
+                            "bookingId": {
+                              "type": ["string", "null"]
+                            },
+                            "language": {
+                              "type": "string"
+                            },
+                            "templateVersionId": {
+                              "type": ["string", "null"]
+                            },
+                            "renderedBodyFormat": {
+                              "type": "string",
+                              "enum": ["markdown", "html", "lexical_json"]
+                            },
+                            "renderedBody": {
+                              "type": ["string", "null"]
+                            },
+                            "variables": {
+                              "type": ["object", "null"],
+                              "additionalProperties": {}
+                            },
+                            "metadata": {
+                              "type": ["object", "null"],
+                              "additionalProperties": {}
+                            },
+                            "issuedAt": {
+                              "type": ["string", "null"]
+                            },
+                            "sentAt": {
+                              "type": ["string", "null"]
+                            },
+                            "executedAt": {
+                              "type": ["string", "null"]
+                            },
+                            "expiresAt": {
+                              "type": ["string", "null"]
+                            },
+                            "voidedAt": {
+                              "type": ["string", "null"]
+                            },
+                            "createdAt": {
+                              "type": "string"
+                            },
+                            "updatedAt": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "contractNumber",
+                            "scope",
+                            "status",
+                            "title",
+                            "bookingId",
+                            "language",
+                            "templateVersionId",
+                            "renderedBodyFormat",
+                            "renderedBody",
+                            "variables",
+                            "metadata",
+                            "issuedAt",
+                            "sentAt",
+                            "executedAt",
+                            "expiresAt",
+                            "voidedAt",
+                            "createdAt",
+                            "updatedAt"
+                          ]
+                        },
+                        "contentFingerprint": {
+                          "type": "string"
+                        },
+                        "effectiveStatus": {
+                          "type": "string",
+                          "enum": ["draft", "sent", "viewed", "declined", "signed", "void"]
+                        },
+                        "revision": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0
+                        },
+                        "previousRevisionId": {
+                          "type": ["string", "null"]
+                        },
+                        "booking": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "reference": {
+                              "type": "string"
+                            },
+                            "customerName": {
+                              "type": ["string", "null"]
+                            },
+                            "customerEmail": {
+                              "type": ["string", "null"]
+                            },
+                            "language": {
+                              "type": "string"
+                            },
+                            "currency": {
+                              "type": "string"
+                            },
+                            "totalAmountCents": {
+                              "type": ["integer", "null"]
+                            },
+                            "startDate": {
+                              "type": ["string", "null"]
+                            },
+                            "endDate": {
+                              "type": ["string", "null"]
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "reference",
+                            "customerName",
+                            "customerEmail",
+                            "language",
+                            "currency",
+                            "totalAmountCents",
+                            "startDate",
+                            "endDate"
+                          ]
+                        },
+                        "products": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "title": {
+                                "type": "string"
+                              },
+                              "quantity": {
+                                "type": "integer",
+                                "exclusiveMinimum": 0
+                              },
+                              "amountCents": {
+                                "type": ["integer", "null"]
+                              },
+                              "currency": {
+                                "type": "string"
+                              }
+                            },
+                            "required": ["title", "quantity", "amountCents", "currency"]
+                          }
+                        },
+                        "template": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            },
+                            "versionId": {
+                              "type": "string"
+                            },
+                            "version": {
+                              "type": "integer",
+                              "exclusiveMinimum": 0
+                            },
+                            "language": {
+                              "type": "string"
+                            }
+                          },
+                          "required": ["id", "name", "versionId", "version", "language"]
+                        },
+                        "commercialTerms": {
+                          "type": "object",
+                          "additionalProperties": {}
+                        },
+                        "delivery": {
+                          "type": "object",
+                          "properties": {
+                            "recipient": {
+                              "type": ["string", "null"]
+                            },
+                            "channel": {
+                              "type": ["string", "null"],
+                              "enum": ["email", "sms", "whatsapp", null]
+                            },
+                            "sentRevision": {
+                              "type": ["integer", "null"],
+                              "exclusiveMinimum": 0
+                            },
+                            "sentAt": {
+                              "type": ["string", "null"]
+                            },
+                            "viewedAt": {
+                              "type": ["string", "null"]
+                            },
+                            "declinedAt": {
+                              "type": ["string", "null"]
+                            },
+                            "notificationsSuppressed": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": [
+                            "recipient",
+                            "channel",
+                            "sentRevision",
+                            "sentAt",
+                            "viewedAt",
+                            "declinedAt",
+                            "notificationsSuppressed"
+                          ]
+                        },
+                        "voidConsequences": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "required": [
+                        "contract",
+                        "contentFingerprint",
+                        "effectiveStatus",
+                        "revision",
+                        "previousRevisionId",
+                        "booking",
+                        "products",
+                        "template",
+                        "commercialTerms",
+                        "delivery",
+                        "voidConsequences"
+                      ]
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Contract not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "getAdminLegalContractsByIdBookingReview",
+        "summary": "GET /v1/admin/legal/contracts/{id}/booking-review",
+        "tags": ["legal"],
+        "x-voyant-module": "legal",
+        "x-voyant-surface": "admin"
+      }
+    },
     "/v1/admin/legal/contracts/{id}/signatures": {
       "get": {
         "parameters": [
@@ -10270,6 +10582,9 @@
                 "payment",
                 "pricing",
                 "commission",
+                "insurer_product_information",
+                "insurer_terms",
+                "demands_and_needs",
                 "other"
               ]
             },
@@ -10284,6 +10599,14 @@
             },
             "required": false,
             "name": "acceptanceStatus",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "name": "sourceVersionId",
             "in": "query"
           }
         ],
@@ -10346,6 +10669,9 @@
                               "payment",
                               "pricing",
                               "commission",
+                              "insurer_product_information",
+                              "insurer_terms",
+                              "demands_and_needs",
                               "other"
                             ]
                           },
@@ -10372,6 +10698,15 @@
                             "type": ["string", "null"]
                           },
                           "acceptedBy": {
+                            "type": ["string", "null"]
+                          },
+                          "sourceVersionId": {
+                            "type": ["string", "null"]
+                          },
+                          "archivedStorageKey": {
+                            "type": ["string", "null"]
+                          },
+                          "archivedChecksum": {
                             "type": ["string", "null"]
                           },
                           "metadata": {},
@@ -10401,6 +10736,9 @@
                           "acceptanceStatus",
                           "acceptedAt",
                           "acceptedBy",
+                          "sourceVersionId",
+                          "archivedStorageKey",
+                          "archivedChecksum",
                           "createdAt",
                           "updatedAt"
                         ]
@@ -10560,6 +10898,9 @@
                       "payment",
                       "pricing",
                       "commission",
+                      "insurer_product_information",
+                      "insurer_terms",
+                      "demands_and_needs",
                       "other"
                     ],
                     "default": "terms_and_conditions"
@@ -10596,6 +10937,54 @@
                   "acceptedBy": {
                     "type": ["string", "null"],
                     "maxLength": 255
+                  },
+                  "sourceVersionId": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "enum": [""]
+                      },
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 255
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "archivedStorageKey": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "enum": [""]
+                      },
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 1024
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "archivedChecksum": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "enum": [""]
+                      },
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 255
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
                   },
                   "metadata": {
                     "type": ["object", "null"],
@@ -10664,6 +11053,9 @@
                             "payment",
                             "pricing",
                             "commission",
+                            "insurer_product_information",
+                            "insurer_terms",
+                            "demands_and_needs",
                             "other"
                           ]
                         },
@@ -10690,6 +11082,15 @@
                           "type": ["string", "null"]
                         },
                         "acceptedBy": {
+                          "type": ["string", "null"]
+                        },
+                        "sourceVersionId": {
+                          "type": ["string", "null"]
+                        },
+                        "archivedStorageKey": {
+                          "type": ["string", "null"]
+                        },
+                        "archivedChecksum": {
                           "type": ["string", "null"]
                         },
                         "metadata": {},
@@ -10719,6 +11120,9 @@
                         "acceptanceStatus",
                         "acceptedAt",
                         "acceptedBy",
+                        "sourceVersionId",
+                        "archivedStorageKey",
+                        "archivedChecksum",
                         "createdAt",
                         "updatedAt"
                       ]
@@ -10822,6 +11226,9 @@
                             "payment",
                             "pricing",
                             "commission",
+                            "insurer_product_information",
+                            "insurer_terms",
+                            "demands_and_needs",
                             "other"
                           ]
                         },
@@ -10848,6 +11255,15 @@
                           "type": ["string", "null"]
                         },
                         "acceptedBy": {
+                          "type": ["string", "null"]
+                        },
+                        "sourceVersionId": {
+                          "type": ["string", "null"]
+                        },
+                        "archivedStorageKey": {
+                          "type": ["string", "null"]
+                        },
+                        "archivedChecksum": {
                           "type": ["string", "null"]
                         },
                         "metadata": {},
@@ -10877,6 +11293,9 @@
                         "acceptanceStatus",
                         "acceptedAt",
                         "acceptedBy",
+                        "sourceVersionId",
+                        "archivedStorageKey",
+                        "archivedChecksum",
                         "createdAt",
                         "updatedAt"
                       ]
@@ -11052,6 +11471,9 @@
                       "payment",
                       "pricing",
                       "commission",
+                      "insurer_product_information",
+                      "insurer_terms",
+                      "demands_and_needs",
                       "other"
                     ],
                     "default": "terms_and_conditions"
@@ -11088,6 +11510,54 @@
                   "acceptedBy": {
                     "type": ["string", "null"],
                     "maxLength": 255
+                  },
+                  "sourceVersionId": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "enum": [""]
+                      },
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 255
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "archivedStorageKey": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "enum": [""]
+                      },
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 1024
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "archivedChecksum": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "enum": [""]
+                      },
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 255
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
                   },
                   "metadata": {
                     "type": ["object", "null"],
@@ -11155,6 +11625,9 @@
                             "payment",
                             "pricing",
                             "commission",
+                            "insurer_product_information",
+                            "insurer_terms",
+                            "demands_and_needs",
                             "other"
                           ]
                         },
@@ -11181,6 +11654,15 @@
                           "type": ["string", "null"]
                         },
                         "acceptedBy": {
+                          "type": ["string", "null"]
+                        },
+                        "sourceVersionId": {
+                          "type": ["string", "null"]
+                        },
+                        "archivedStorageKey": {
+                          "type": ["string", "null"]
+                        },
+                        "archivedChecksum": {
                           "type": ["string", "null"]
                         },
                         "metadata": {},
@@ -11210,6 +11692,9 @@
                         "acceptanceStatus",
                         "acceptedAt",
                         "acceptedBy",
+                        "sourceVersionId",
+                        "archivedStorageKey",
+                        "archivedChecksum",
                         "createdAt",
                         "updatedAt"
                       ]
@@ -11311,8 +11796,8 @@
         "x-voyant-surface": "admin"
       }
     },
-    "/v1/admin/legal/contracts/{id}/booking-review": {
-      "get": {
+    "/v1/admin/legal/terms/{id}/acceptance": {
+      "post": {
         "parameters": [
           {
             "schema": {
@@ -11323,9 +11808,31 @@
             "in": "path"
           }
         ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "acceptedBy": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 255
+                  },
+                  "acceptedAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  }
+                },
+                "required": ["acceptedBy"]
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
-            "description": "The booking-contract revision under review",
+            "description": "The accepted legal term",
             "content": {
               "application/json": {
                 "schema": {
@@ -11334,263 +11841,124 @@
                     "data": {
                       "type": "object",
                       "properties": {
-                        "contract": {
-                          "type": "object",
-                          "properties": {
-                            "id": {
-                              "type": "string"
-                            },
-                            "contractNumber": {
-                              "type": ["string", "null"]
-                            },
-                            "scope": {
-                              "type": "string",
-                              "enum": ["customer", "supplier", "partner", "channel", "other"]
-                            },
-                            "status": {
-                              "type": "string",
-                              "enum": [
-                                "draft",
-                                "issued",
-                                "sent",
-                                "signed",
-                                "executed",
-                                "expired",
-                                "void"
-                              ]
-                            },
-                            "title": {
-                              "type": "string"
-                            },
-                            "bookingId": {
-                              "type": ["string", "null"]
-                            },
-                            "language": {
-                              "type": "string"
-                            },
-                            "templateVersionId": {
-                              "type": ["string", "null"]
-                            },
-                            "renderedBodyFormat": {
-                              "type": "string",
-                              "enum": ["markdown", "html", "lexical_json"]
-                            },
-                            "renderedBody": {
-                              "type": ["string", "null"]
-                            },
-                            "variables": {
-                              "type": ["object", "null"],
-                              "additionalProperties": {}
-                            },
-                            "metadata": {
-                              "type": ["object", "null"],
-                              "additionalProperties": {}
-                            },
-                            "issuedAt": {
-                              "type": ["string", "null"]
-                            },
-                            "sentAt": {
-                              "type": ["string", "null"]
-                            },
-                            "executedAt": {
-                              "type": ["string", "null"]
-                            },
-                            "expiresAt": {
-                              "type": ["string", "null"]
-                            },
-                            "voidedAt": {
-                              "type": ["string", "null"]
-                            },
-                            "createdAt": {
-                              "type": "string"
-                            },
-                            "updatedAt": {
-                              "type": "string"
-                            }
-                          },
-                          "required": [
-                            "id",
-                            "contractNumber",
-                            "scope",
-                            "status",
-                            "title",
-                            "bookingId",
-                            "language",
-                            "templateVersionId",
-                            "renderedBodyFormat",
-                            "renderedBody",
-                            "variables",
-                            "metadata",
-                            "issuedAt",
-                            "sentAt",
-                            "executedAt",
-                            "expiresAt",
-                            "voidedAt",
-                            "createdAt",
-                            "updatedAt"
-                          ]
-                        },
-                        "contentFingerprint": {
+                        "id": {
                           "type": "string"
                         },
-                        "effectiveStatus": {
-                          "type": "string",
-                          "enum": ["draft", "sent", "viewed", "declined", "signed", "void"]
-                        },
-                        "revision": {
-                          "type": "integer",
-                          "exclusiveMinimum": 0
-                        },
-                        "previousRevisionId": {
+                        "contractId": {
                           "type": ["string", "null"]
                         },
-                        "booking": {
-                          "type": "object",
-                          "properties": {
-                            "id": {
-                              "type": "string"
-                            },
-                            "reference": {
-                              "type": "string"
-                            },
-                            "customerName": {
-                              "type": ["string", "null"]
-                            },
-                            "customerEmail": {
-                              "type": ["string", "null"]
-                            },
-                            "language": {
-                              "type": "string"
-                            },
-                            "currency": {
-                              "type": "string"
-                            },
-                            "totalAmountCents": {
-                              "type": ["integer", "null"]
-                            },
-                            "startDate": {
-                              "type": ["string", "null"]
-                            },
-                            "endDate": {
-                              "type": ["string", "null"]
-                            }
-                          },
-                          "required": [
-                            "id",
-                            "reference",
-                            "customerName",
-                            "customerEmail",
-                            "language",
-                            "currency",
-                            "totalAmountCents",
-                            "startDate",
-                            "endDate"
+                        "policyVersionId": {
+                          "type": ["string", "null"]
+                        },
+                        "targetKind": {
+                          "type": ["string", "null"],
+                          "enum": [
+                            "booking",
+                            "proposal_version",
+                            "program",
+                            "product",
+                            "inventory_item",
+                            "supplier_channel_relationship",
+                            "provider_source_ref",
+                            null
                           ]
                         },
-                        "products": {
-                          "type": "array",
-                          "items": {
-                            "type": "object",
-                            "properties": {
-                              "title": {
-                                "type": "string"
-                              },
-                              "quantity": {
-                                "type": "integer",
-                                "exclusiveMinimum": 0
-                              },
-                              "amountCents": {
-                                "type": ["integer", "null"]
-                              },
-                              "currency": {
-                                "type": "string"
-                              }
-                            },
-                            "required": ["title", "quantity", "amountCents", "currency"]
-                          }
+                        "targetId": {
+                          "type": ["string", "null"]
                         },
-                        "template": {
-                          "type": "object",
-                          "properties": {
-                            "id": {
-                              "type": "string"
-                            },
-                            "name": {
-                              "type": "string"
-                            },
-                            "versionId": {
-                              "type": "string"
-                            },
-                            "version": {
-                              "type": "integer",
-                              "exclusiveMinimum": 0
-                            },
-                            "language": {
-                              "type": "string"
-                            }
-                          },
-                          "required": ["id", "name", "versionId", "version", "language"]
+                        "targetProvider": {
+                          "type": ["string", "null"]
                         },
-                        "commercialTerms": {
-                          "type": "object",
-                          "additionalProperties": {}
+                        "targetSourceRef": {
+                          "type": ["string", "null"]
                         },
-                        "delivery": {
-                          "type": "object",
-                          "properties": {
-                            "recipient": {
-                              "type": ["string", "null"]
-                            },
-                            "channel": {
-                              "type": ["string", "null"],
-                              "enum": ["email", "sms", "whatsapp", null]
-                            },
-                            "sentRevision": {
-                              "type": ["integer", "null"],
-                              "exclusiveMinimum": 0
-                            },
-                            "sentAt": {
-                              "type": ["string", "null"]
-                            },
-                            "viewedAt": {
-                              "type": ["string", "null"]
-                            },
-                            "declinedAt": {
-                              "type": ["string", "null"]
-                            },
-                            "notificationsSuppressed": {
-                              "type": "boolean"
-                            }
-                          },
-                          "required": [
-                            "recipient",
-                            "channel",
-                            "sentRevision",
-                            "sentAt",
-                            "viewedAt",
-                            "declinedAt",
-                            "notificationsSuppressed"
+                        "legacyTransactionOfferId": {
+                          "type": ["string", "null"]
+                        },
+                        "legacyTransactionOrderId": {
+                          "type": ["string", "null"]
+                        },
+                        "termType": {
+                          "type": "string",
+                          "enum": [
+                            "terms_and_conditions",
+                            "cancellation",
+                            "guarantee",
+                            "payment",
+                            "pricing",
+                            "commission",
+                            "insurer_product_information",
+                            "insurer_terms",
+                            "demands_and_needs",
+                            "other"
                           ]
                         },
-                        "voidConsequences": {
-                          "type": "array",
-                          "items": {
-                            "type": "string"
-                          }
+                        "title": {
+                          "type": "string"
+                        },
+                        "body": {
+                          "type": "string"
+                        },
+                        "language": {
+                          "type": ["string", "null"]
+                        },
+                        "required": {
+                          "type": "boolean"
+                        },
+                        "sortOrder": {
+                          "type": "integer"
+                        },
+                        "acceptanceStatus": {
+                          "type": "string",
+                          "enum": ["not_required", "pending", "accepted", "declined"]
+                        },
+                        "acceptedAt": {
+                          "type": ["string", "null"]
+                        },
+                        "acceptedBy": {
+                          "type": ["string", "null"]
+                        },
+                        "sourceVersionId": {
+                          "type": ["string", "null"]
+                        },
+                        "archivedStorageKey": {
+                          "type": ["string", "null"]
+                        },
+                        "archivedChecksum": {
+                          "type": ["string", "null"]
+                        },
+                        "metadata": {},
+                        "createdAt": {
+                          "type": "string"
+                        },
+                        "updatedAt": {
+                          "type": "string"
                         }
                       },
                       "required": [
-                        "contract",
-                        "contentFingerprint",
-                        "effectiveStatus",
-                        "revision",
-                        "previousRevisionId",
-                        "booking",
-                        "products",
-                        "template",
-                        "commercialTerms",
-                        "delivery",
-                        "voidConsequences"
+                        "id",
+                        "contractId",
+                        "policyVersionId",
+                        "targetKind",
+                        "targetId",
+                        "targetProvider",
+                        "targetSourceRef",
+                        "legacyTransactionOfferId",
+                        "legacyTransactionOrderId",
+                        "termType",
+                        "title",
+                        "body",
+                        "language",
+                        "required",
+                        "sortOrder",
+                        "acceptanceStatus",
+                        "acceptedAt",
+                        "acceptedBy",
+                        "sourceVersionId",
+                        "archivedStorageKey",
+                        "archivedChecksum",
+                        "createdAt",
+                        "updatedAt"
                       ]
                     }
                   },
@@ -11599,8 +11967,24 @@
               }
             }
           },
+          "400": {
+            "description": "Invalid request body, or the term carries no archived disclosure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
           "404": {
-            "description": "Contract not found",
+            "description": "Legal term not found",
             "content": {
               "application/json": {
                 "schema": {
@@ -11616,8 +12000,8 @@
             }
           }
         },
-        "operationId": "getAdminLegalContractsByIdBookingReview",
-        "summary": "GET /v1/admin/legal/contracts/{id}/booking-review",
+        "operationId": "postAdminLegalTermsByIdAcceptance",
+        "summary": "POST /v1/admin/legal/terms/{id}/acceptance",
         "tags": ["legal"],
         "x-voyant-module": "legal",
         "x-voyant-surface": "admin"

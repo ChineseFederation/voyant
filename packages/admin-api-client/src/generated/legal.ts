@@ -303,6 +303,23 @@ export interface paths {
     patch?: never
     trace?: never
   }
+  "/v1/admin/legal/contracts/{id}/booking-review": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** GET /v1/admin/legal/contracts/{id}/booking-review */
+    get: operations["getAdminLegalContractsByIdBookingReview"]
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
   "/v1/admin/legal/contracts/{id}/signatures": {
     parameters: {
       query?: never
@@ -675,17 +692,17 @@ export interface paths {
     patch: operations["patchAdminLegalTermsById"]
     trace?: never
   }
-  "/v1/admin/legal/contracts/{id}/booking-review": {
+  "/v1/admin/legal/terms/{id}/acceptance": {
     parameters: {
       query?: never
       header?: never
       path?: never
       cookie?: never
     }
-    /** GET /v1/admin/legal/contracts/{id}/booking-review */
-    get: operations["getAdminLegalContractsByIdBookingReview"]
+    get?: never
     put?: never
-    post?: never
+    /** POST /v1/admin/legal/terms/{id}/acceptance */
+    post: operations["postAdminLegalTermsByIdAcceptance"]
     delete?: never
     options?: never
     head?: never
@@ -2883,6 +2900,113 @@ export interface operations {
       }
     }
   }
+  getAdminLegalContractsByIdBookingReview: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description The booking-contract revision under review */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              contract: {
+                id: string
+                contractNumber: string | null
+                /** @enum {string} */
+                scope: "customer" | "supplier" | "partner" | "channel" | "other"
+                /** @enum {string} */
+                status: "draft" | "issued" | "sent" | "signed" | "executed" | "expired" | "void"
+                title: string
+                bookingId: string | null
+                language: string
+                templateVersionId: string | null
+                /** @enum {string} */
+                renderedBodyFormat: "markdown" | "html" | "lexical_json"
+                renderedBody: string | null
+                variables: {
+                  [key: string]: unknown
+                } | null
+                metadata: {
+                  [key: string]: unknown
+                } | null
+                issuedAt: string | null
+                sentAt: string | null
+                executedAt: string | null
+                expiresAt: string | null
+                voidedAt: string | null
+                createdAt: string
+                updatedAt: string
+              }
+              contentFingerprint: string
+              /** @enum {string} */
+              effectiveStatus: "draft" | "sent" | "viewed" | "declined" | "signed" | "void"
+              revision: number
+              previousRevisionId: string | null
+              booking: {
+                id: string
+                reference: string
+                customerName: string | null
+                customerEmail: string | null
+                language: string
+                currency: string
+                totalAmountCents: number | null
+                startDate: string | null
+                endDate: string | null
+              }
+              products: {
+                title: string
+                quantity: number
+                amountCents: number | null
+                currency: string
+              }[]
+              template: {
+                id: string
+                name: string
+                versionId: string
+                version: number
+                language: string
+              }
+              commercialTerms: {
+                [key: string]: unknown
+              }
+              delivery: {
+                recipient: string | null
+                /** @enum {string|null} */
+                channel: "email" | "sms" | "whatsapp" | null
+                sentRevision: number | null
+                sentAt: string | null
+                viewedAt: string | null
+                declinedAt: string | null
+                notificationsSuppressed: boolean
+              }
+              voidConsequences: string[]
+            }
+          }
+        }
+      }
+      /** @description Contract not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
   getAdminLegalContractsByIdSignatures: {
     parameters: {
       query?: never
@@ -5015,8 +5139,12 @@ export interface operations {
           | "payment"
           | "pricing"
           | "commission"
+          | "insurer_product_information"
+          | "insurer_terms"
+          | "demands_and_needs"
           | "other"
         acceptanceStatus?: "not_required" | "pending" | "accepted" | "declined"
+        sourceVersionId?: string
       }
       header?: never
       path?: never
@@ -5058,6 +5186,9 @@ export interface operations {
                 | "payment"
                 | "pricing"
                 | "commission"
+                | "insurer_product_information"
+                | "insurer_terms"
+                | "demands_and_needs"
                 | "other"
               title: string
               body: string
@@ -5068,6 +5199,9 @@ export interface operations {
               acceptanceStatus: "not_required" | "pending" | "accepted" | "declined"
               acceptedAt: string | null
               acceptedBy: string | null
+              sourceVersionId: string | null
+              archivedStorageKey: string | null
+              archivedChecksum: string | null
               metadata?: unknown
               createdAt: string
               updatedAt: string
@@ -5118,6 +5252,9 @@ export interface operations {
             | "payment"
             | "pricing"
             | "commission"
+            | "insurer_product_information"
+            | "insurer_terms"
+            | "demands_and_needs"
             | "other"
           title: string
           body: string
@@ -5133,6 +5270,9 @@ export interface operations {
           acceptanceStatus?: "not_required" | "pending" | "accepted" | "declined"
           acceptedAt?: string | null
           acceptedBy?: string | null
+          sourceVersionId?: "" | string | null
+          archivedStorageKey?: "" | string | null
+          archivedChecksum?: "" | string | null
           metadata?: {
             [key: string]: unknown
           } | null
@@ -5174,6 +5314,9 @@ export interface operations {
                 | "payment"
                 | "pricing"
                 | "commission"
+                | "insurer_product_information"
+                | "insurer_terms"
+                | "demands_and_needs"
                 | "other"
               title: string
               body: string
@@ -5184,6 +5327,9 @@ export interface operations {
               acceptanceStatus: "not_required" | "pending" | "accepted" | "declined"
               acceptedAt: string | null
               acceptedBy: string | null
+              sourceVersionId: string | null
+              archivedStorageKey: string | null
+              archivedChecksum: string | null
               metadata?: unknown
               createdAt: string
               updatedAt: string
@@ -5249,6 +5395,9 @@ export interface operations {
                 | "payment"
                 | "pricing"
                 | "commission"
+                | "insurer_product_information"
+                | "insurer_terms"
+                | "demands_and_needs"
                 | "other"
               title: string
               body: string
@@ -5259,6 +5408,9 @@ export interface operations {
               acceptanceStatus: "not_required" | "pending" | "accepted" | "declined"
               acceptedAt: string | null
               acceptedBy: string | null
+              sourceVersionId: string | null
+              archivedStorageKey: string | null
+              archivedChecksum: string | null
               metadata?: unknown
               createdAt: string
               updatedAt: string
@@ -5354,6 +5506,9 @@ export interface operations {
             | "payment"
             | "pricing"
             | "commission"
+            | "insurer_product_information"
+            | "insurer_terms"
+            | "demands_and_needs"
             | "other"
           title?: string
           body?: string
@@ -5369,6 +5524,9 @@ export interface operations {
           acceptanceStatus?: "not_required" | "pending" | "accepted" | "declined"
           acceptedAt?: string | null
           acceptedBy?: string | null
+          sourceVersionId?: "" | string | null
+          archivedStorageKey?: "" | string | null
+          archivedChecksum?: "" | string | null
           metadata?: {
             [key: string]: unknown
           } | null
@@ -5410,6 +5568,9 @@ export interface operations {
                 | "payment"
                 | "pricing"
                 | "commission"
+                | "insurer_product_information"
+                | "insurer_terms"
+                | "demands_and_needs"
                 | "other"
               title: string
               body: string
@@ -5420,6 +5581,9 @@ export interface operations {
               acceptanceStatus: "not_required" | "pending" | "accepted" | "declined"
               acceptedAt: string | null
               acceptedBy: string | null
+              sourceVersionId: string | null
+              archivedStorageKey: string | null
+              archivedChecksum: string | null
               metadata?: unknown
               createdAt: string
               updatedAt: string
@@ -5451,7 +5615,7 @@ export interface operations {
       }
     }
   }
-  getAdminLegalContractsByIdBookingReview: {
+  postAdminLegalTermsByIdAcceptance: {
     parameters: {
       query?: never
       header?: never
@@ -5460,9 +5624,17 @@ export interface operations {
       }
       cookie?: never
     }
-    requestBody?: never
+    requestBody: {
+      content: {
+        "application/json": {
+          acceptedBy: string
+          /** Format: date-time */
+          acceptedAt?: string
+        }
+      }
+    }
     responses: {
-      /** @description The booking-contract revision under review */
+      /** @description The accepted legal term */
       200: {
         headers: {
           [name: string]: unknown
@@ -5470,82 +5642,67 @@ export interface operations {
         content: {
           "application/json": {
             data: {
-              contract: {
-                id: string
-                contractNumber: string | null
-                /** @enum {string} */
-                scope: "customer" | "supplier" | "partner" | "channel" | "other"
-                /** @enum {string} */
-                status: "draft" | "issued" | "sent" | "signed" | "executed" | "expired" | "void"
-                title: string
-                bookingId: string | null
-                language: string
-                templateVersionId: string | null
-                /** @enum {string} */
-                renderedBodyFormat: "markdown" | "html" | "lexical_json"
-                renderedBody: string | null
-                variables: {
-                  [key: string]: unknown
-                } | null
-                metadata: {
-                  [key: string]: unknown
-                } | null
-                issuedAt: string | null
-                sentAt: string | null
-                executedAt: string | null
-                expiresAt: string | null
-                voidedAt: string | null
-                createdAt: string
-                updatedAt: string
-              }
-              contentFingerprint: string
+              id: string
+              contractId: string | null
+              policyVersionId: string | null
+              /** @enum {string|null} */
+              targetKind:
+                | "booking"
+                | "proposal_version"
+                | "program"
+                | "product"
+                | "inventory_item"
+                | "supplier_channel_relationship"
+                | "provider_source_ref"
+                | null
+              targetId: string | null
+              targetProvider: string | null
+              targetSourceRef: string | null
+              legacyTransactionOfferId: string | null
+              legacyTransactionOrderId: string | null
               /** @enum {string} */
-              effectiveStatus: "draft" | "sent" | "viewed" | "declined" | "signed" | "void"
-              revision: number
-              previousRevisionId: string | null
-              booking: {
-                id: string
-                reference: string
-                customerName: string | null
-                customerEmail: string | null
-                language: string
-                currency: string
-                totalAmountCents: number | null
-                startDate: string | null
-                endDate: string | null
-              }
-              products: {
-                title: string
-                quantity: number
-                amountCents: number | null
-                currency: string
-              }[]
-              template: {
-                id: string
-                name: string
-                versionId: string
-                version: number
-                language: string
-              }
-              commercialTerms: {
-                [key: string]: unknown
-              }
-              delivery: {
-                recipient: string | null
-                /** @enum {string|null} */
-                channel: "email" | "sms" | "whatsapp" | null
-                sentRevision: number | null
-                sentAt: string | null
-                viewedAt: string | null
-                declinedAt: string | null
-                notificationsSuppressed: boolean
-              }
-              voidConsequences: string[]
+              termType:
+                | "terms_and_conditions"
+                | "cancellation"
+                | "guarantee"
+                | "payment"
+                | "pricing"
+                | "commission"
+                | "insurer_product_information"
+                | "insurer_terms"
+                | "demands_and_needs"
+                | "other"
+              title: string
+              body: string
+              language: string | null
+              required: boolean
+              sortOrder: number
+              /** @enum {string} */
+              acceptanceStatus: "not_required" | "pending" | "accepted" | "declined"
+              acceptedAt: string | null
+              acceptedBy: string | null
+              sourceVersionId: string | null
+              archivedStorageKey: string | null
+              archivedChecksum: string | null
+              metadata?: unknown
+              createdAt: string
+              updatedAt: string
             }
           }
         }
       }
-      /** @description Contract not found */
+      /** @description Invalid request body, or the term carries no archived disclosure */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Legal term not found */
       404: {
         headers: {
           [name: string]: unknown
