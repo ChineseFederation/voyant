@@ -60,4 +60,16 @@ await writeFile(documentUrl, `${JSON.stringify(next, null, 2)}\n`)
 // Keep the committed document's canonical formatting. Without this step,
 // JSON.stringify expands every existing compact array and hides the two-path
 // semantic change inside thousands of formatting-only lines.
-await promisify(execFile)("biome", ["format", "--write", fileURLToPath(documentUrl)])
+//
+// The document passed biome's default 1 MiB ceiling as the public surface
+// grew, and biome refuses an oversized file rather than skipping it — so this
+// step started exiting non-zero, leaving an unformatted document behind and
+// making the generator unrunnable. The spec drifted from the routes while it
+// was broken. The ceiling is raised here rather than in biome.json so that
+// repo-wide runs keep skipping the 1.8 MiB migration snapshots.
+await promisify(execFile)("biome", [
+  "format",
+  "--write",
+  "--files-max-size=8388608",
+  fileURLToPath(documentUrl),
+])
