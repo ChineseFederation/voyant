@@ -508,7 +508,7 @@ export const distributionUiRo = {
         suppliersTitle: "Furnizori Include/Exclude",
         sourcesTitle: "Surse de aprovizionare Include/Exclude",
         sourcesDescription:
-          "Alege ce furnizori conectati vinde acest canal. Conectarea unui furnizor nu il publica — stocul ramane in afara magazinului pana cand se aplica aici o regula Include.",
+          "Alege ce furnizori conectati vinde acest canal. Conectarea unui furnizor nu il publica — stocul ramane nepublicat pana cand se aplica aici o regula Include.",
         sourceLabel: "Sursa de aprovizionare",
         sourcePlaceholder: "Selecteaza sursa de aprovizionare",
         sourceEntryCount: "{count} intrari",

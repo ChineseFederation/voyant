@@ -229,9 +229,9 @@ export const authUiRo: AuthUiMessages = {
       title: "Acorda acces business",
       description:
         "Creeaza acces business pentru un client existent si, optional, leaga o organizatie existenta.",
-      publicApiOriginLabel: "Originea magazinului",
-      publicApiOriginPlaceholder: "https://magazin.exemplu.ro",
-      publicApiOriginRequired: "Este necesara o origine valida a magazinului.",
+      publicApiOriginLabel: "Origine permisa",
+      publicApiOriginPlaceholder: "https://site.exemplu.ro",
+      publicApiOriginRequired: "Este necesara o origine valida.",
       customerEmailLabel: "Email client",
       customerEmailPlaceholder: "client@example.com",
       businessNameLabel: "Numele companiei",

@@ -503,7 +503,7 @@ export const distributionUiEn = {
         suppliersTitle: "Suppliers Include/Exclude",
         sourcesTitle: "Supply sources Include/Exclude",
         sourcesDescription:
-          "Choose which connected suppliers this channel sells. Connecting a supplier does not publish it — inventory stays out of the storefront until an Include rule applies here.",
+          "Choose which connected suppliers this channel sells. Connecting a supplier does not publish it — inventory stays unpublished until an Include rule applies here.",
         sourceLabel: "Supply source",
         sourcePlaceholder: "Select supply source",
         sourceEntryCount: "{count} entries",

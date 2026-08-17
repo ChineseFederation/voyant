@@ -227,9 +227,9 @@ export const authUiEn: AuthUiMessages = {
       title: "Provision business access",
       description:
         "Create business access for an existing customer, optionally linking an existing organization.",
-      publicApiOriginLabel: "Storefront origin",
-      publicApiOriginPlaceholder: "https://shop.example.com",
-      publicApiOriginRequired: "A valid storefront origin is required.",
+      publicApiOriginLabel: "Allowed origin",
+      publicApiOriginPlaceholder: "https://site.example.com",
+      publicApiOriginRequired: "A valid origin is required.",
       customerEmailLabel: "Customer email",
       customerEmailPlaceholder: "customer@example.com",
       businessNameLabel: "Business name",

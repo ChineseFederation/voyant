@@ -69,7 +69,7 @@ export const mediaUiEn: MediaUiMessages = {
       defaultLanguageLabel: "Default language",
       languageTagPlaceholder: "e.g. en or en-GB",
       translationsTitle: "Alt text translations",
-      translationsHint: "Add localized alt text for each language used by your storefronts.",
+      translationsHint: "Add localized alt text for each language your sites use.",
       languageTagLabel: "Language tag",
       addTranslation: "Add translation",
       removeTranslation: "Remove translation",
