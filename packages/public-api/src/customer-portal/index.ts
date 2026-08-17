@@ -20,8 +20,10 @@ export { createPublicCustomerPortalRoutes, publicCustomerPortalRoutes } from "./
 export { publicCustomerPortalService } from "./service-public.js"
 export type {
   BootstrapCustomerPortalInput,
+  BootstrapCustomerPortalParsed,
   BootstrapCustomerPortalResult,
   CreateCustomerPortalCompanionInput,
+  CreateCustomerPortalCompanionParsed,
   CreateCustomerPortalProfileDocumentInput,
   CustomerPortalAddress,
   CustomerPortalBookingBillingContact,

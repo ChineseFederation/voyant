@@ -33,9 +33,9 @@ import { and, asc, desc, eq, exists, inArray, isNull, or, sql } from "drizzle-or
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 
 import type {
-  BootstrapCustomerPortalInput,
+  BootstrapCustomerPortalParsed,
   BootstrapCustomerPortalResult,
-  CreateCustomerPortalCompanionInput,
+  CreateCustomerPortalCompanionParsed,
   CustomerPortalAddress,
   CustomerPortalBookingBillingContact,
   CustomerPortalBookingDetail,
@@ -102,7 +102,7 @@ async function persistBootstrapMarketingConsent(
   db: PostgresJsDatabase,
   userId: string,
   authProfile: Awaited<ReturnType<typeof getAuthProfileRow>>,
-  input: BootstrapCustomerPortalInput,
+  input: BootstrapCustomerPortalParsed,
 ): Promise<void> {
   if (
     !authProfile ||
@@ -1875,7 +1875,7 @@ export const publicCustomerPortalService = {
   async bootstrap(
     db: PostgresJsDatabase,
     userId: string,
-    input: BootstrapCustomerPortalInput,
+    input: BootstrapCustomerPortalParsed,
   ): Promise<
     | BootstrapCustomerPortalResult
     | { error: "not_found" | "customer_record_not_found" | "customer_record_claimed" }
@@ -2226,7 +2226,7 @@ export const publicCustomerPortalService = {
   async createCompanion(
     db: PostgresJsDatabase,
     userId: string,
-    input: CreateCustomerPortalCompanionInput,
+    input: CreateCustomerPortalCompanionParsed,
   ): Promise<CustomerPortalCompanion | null> {
     const personId = await resolveLinkedCustomerRecordId(db, userId)
     if (!personId) {

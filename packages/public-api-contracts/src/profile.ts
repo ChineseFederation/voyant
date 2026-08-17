@@ -324,25 +324,25 @@ export const importCustomerPortalBookingParticipantsResultSchema =
   importCustomerPortalBookingTravelersResultSchema
 
 export type CustomerPortalProfile = z.infer<typeof customerPortalProfileSchema>
-export type UpdateCustomerPortalProfileInput = z.infer<typeof updateCustomerPortalProfileSchema>
+export type UpdateCustomerPortalProfileInput = z.input<typeof updateCustomerPortalProfileSchema>
 export type CustomerPortalAddress = z.infer<typeof customerPortalAddressSchema>
 export type UpdateCustomerPortalAddressInput = z.input<typeof updateCustomerPortalAddressSchema>
 export type CustomerPortalProfileDocument = z.infer<typeof customerPortalProfileDocumentSchema>
-export type CreateCustomerPortalProfileDocumentInput = z.infer<
+export type CreateCustomerPortalProfileDocumentInput = z.input<
   typeof createCustomerPortalProfileDocumentSchema
 >
-export type UpdateCustomerPortalProfileDocumentInput = z.infer<
+export type UpdateCustomerPortalProfileDocumentInput = z.input<
   typeof updateCustomerPortalProfileDocumentSchema
 >
-export type BootstrapCustomerPortalInput = z.infer<typeof bootstrapCustomerPortalSchema>
+export type BootstrapCustomerPortalInput = z.input<typeof bootstrapCustomerPortalSchema>
 export type BootstrapCustomerPortalResult = z.infer<typeof bootstrapCustomerPortalResultSchema>
 export type CustomerPortalBootstrapCandidate = z.infer<
   typeof customerPortalBootstrapCandidateSchema
 >
 export type CustomerPortalCompanion = z.infer<typeof customerPortalCompanionSchema>
-export type CreateCustomerPortalCompanionInput = z.infer<typeof createCustomerPortalCompanionSchema>
-export type UpdateCustomerPortalCompanionInput = z.infer<typeof updateCustomerPortalCompanionSchema>
-export type ImportCustomerPortalBookingTravelersInput = z.infer<
+export type CreateCustomerPortalCompanionInput = z.input<typeof createCustomerPortalCompanionSchema>
+export type UpdateCustomerPortalCompanionInput = z.input<typeof updateCustomerPortalCompanionSchema>
+export type ImportCustomerPortalBookingTravelersInput = z.input<
   typeof importCustomerPortalBookingTravelersSchema
 >
 export type ImportCustomerPortalBookingTravelersResult = z.infer<
@@ -351,3 +351,16 @@ export type ImportCustomerPortalBookingTravelersResult = z.infer<
 export type ImportCustomerPortalBookingParticipantsInput = ImportCustomerPortalBookingTravelersInput
 export type ImportCustomerPortalBookingParticipantsResult =
   ImportCustomerPortalBookingTravelersResult
+
+/**
+ * The post-parse shapes for the two request bodies that carry `.default()`.
+ *
+ * `XInput` is what a caller sends; zod fills the defaults, so a server reading
+ * `input.role` needs the OUTPUT type instead. Exporting only the `z.infer`
+ * flavour made every consumer re-derive its request types by hand, which is the
+ * defect this pair fixes (voyant#4627 follow-up).
+ */
+export type BootstrapCustomerPortalParsed = z.output<typeof bootstrapCustomerPortalSchema>
+export type CreateCustomerPortalCompanionParsed = z.output<
+  typeof createCustomerPortalCompanionSchema
+>
