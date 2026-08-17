@@ -5174,16 +5174,13 @@
                     "maxLength": 255
                   },
                   "templateId": {
-                    "type": "string",
-                    "nullable": true
+                    "type": ["string", "null"]
                   },
                   "templateSlug": {
-                    "type": "string",
-                    "nullable": true
+                    "type": ["string", "null"]
                   },
                   "scheduledFor": {
-                    "type": "string",
-                    "nullable": true
+                    "type": ["string", "null"]
                   }
                 },
                 "required": ["idempotencyKey"],
@@ -5403,16 +5400,13 @@
                     "maxLength": 255
                   },
                   "templateId": {
-                    "type": "string",
-                    "nullable": true
+                    "type": ["string", "null"]
                   },
                   "templateSlug": {
-                    "type": "string",
-                    "nullable": true
+                    "type": ["string", "null"]
                   },
                   "scheduledFor": {
-                    "type": "string",
-                    "nullable": true
+                    "type": ["string", "null"]
                   }
                 },
                 "required": ["idempotencyKey"],
@@ -6082,8 +6076,7 @@
                         "enum": [false]
                       },
                       "documentTypes": {
-                        "type": "array",
-                        "nullable": true,
+                        "type": ["array", "null"],
                         "items": {
                           "type": "string",
                           "enum": ["contract", "invoice", "proforma", "brochure"]
@@ -6104,20 +6097,16 @@
                             "maxLength": 255
                           },
                           "templateId": {
-                            "type": "string",
-                            "nullable": true
+                            "type": ["string", "null"]
                           },
                           "templateSlug": {
-                            "type": "string",
-                            "nullable": true
+                            "type": ["string", "null"]
                           },
                           "scheduledFor": {
-                            "type": "string",
-                            "nullable": true
+                            "type": ["string", "null"]
                           },
                           "documentTypes": {
-                            "type": "array",
-                            "nullable": true,
+                            "type": ["array", "null"],
                             "items": {
                               "type": "string",
                               "enum": ["contract", "invoice", "proforma", "brochure"]
@@ -6329,20 +6318,16 @@
                     "maxLength": 255
                   },
                   "templateId": {
-                    "type": "string",
-                    "nullable": true
+                    "type": ["string", "null"]
                   },
                   "templateSlug": {
-                    "type": "string",
-                    "nullable": true
+                    "type": ["string", "null"]
                   },
                   "scheduledFor": {
-                    "type": "string",
-                    "nullable": true
+                    "type": ["string", "null"]
                   },
                   "documentTypes": {
-                    "type": "array",
-                    "nullable": true,
+                    "type": ["array", "null"],
                     "items": {
                       "type": "string",
                       "enum": ["contract", "invoice", "proforma", "brochure"]

@@ -156,10 +156,9 @@
                     "additionalProperties": {}
                   },
                   "subjectRef": {
-                    "type": "string",
+                    "type": ["string", "null"],
                     "minLength": 1,
                     "maxLength": 255,
-                    "nullable": true,
                     "description": "What this challenge authorizes beyond its purpose - the booking draft id for a self-service create. Bound at start so a verified challenge cannot be redirected at another draft."
                   }
                 },
@@ -329,10 +328,9 @@
                     "additionalProperties": {}
                   },
                   "subjectRef": {
-                    "type": "string",
+                    "type": ["string", "null"],
                     "minLength": 1,
                     "maxLength": 255,
-                    "nullable": true,
                     "description": "What this challenge authorizes beyond its purpose - the booking draft id for a self-service create. Bound at start so a verified challenge cannot be redirected at another draft."
                   }
                 },

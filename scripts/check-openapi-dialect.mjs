@@ -74,11 +74,17 @@ for (const file of documents) {
     )
   }
 
-  // `nullable` is a 3.0 keyword that 3.1 ignores, so `{type: "string", nullable:
-  // true}` reads as a plain non-nullable string — a client generated from it is
-  // typed to expect a value the API may not send. 87 of them predate this check,
-  // so the count is a ratchet: it may shrink, never grow, and a document not in
-  // the baseline may never gain one.
+  // `nullable` is a 3.0 keyword; 3.1 spells it `type: ["string", "null"]`.
+  //
+  // This is a conformance rule, not a correctness one. `openapi-typescript`
+  // honours both spellings identically — verified with a controlled fixture,
+  // after an earlier version of this comment claimed the opposite and had to be
+  // corrected. The point is that a document declaring 3.1 should be readable by
+  // anything implementing 3.1, not only by tools that still accept the older
+  // keyword.
+  //
+  // The count is a ratchet: it may shrink, never grow, and a document not in the
+  // baseline may never gain one.
   const nullables = (JSON.stringify(parsed).match(/"nullable"/g) ?? []).length
   const allowed = baseline[file] ?? 0
   if (nullables > allowed) {

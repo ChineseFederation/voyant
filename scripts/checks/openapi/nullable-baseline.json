@@ -1,22 +1,18 @@
 {
   "$comment": [
-    "Documents still carrying the OpenAPI 3.0 `nullable` keyword while declaring 3.1.",
+    "Documents carrying the OpenAPI 3.0 `nullable` keyword while declaring 3.1.",
     "",
-    "3.1 has no `nullable`. It is silently ignored, so `{type: 'string', nullable: true}`",
-    "reads as a plain non-nullable string to every 3.1 tool — including the client",
-    "generators. A consumer is then typed to expect a value the API may not send.",
+    "3.1 removed `nullable`; the spelling is a type union, `type: ['string', 'null']`.",
+    "Where a schema has no `type` at all, `nullable` was already a no-op and the",
+    "keyword is simply dropped.",
     "",
-    "The correct 3.1 spelling is a type union: `type: ['string', 'null']`. Where the",
-    "schema has no `type` at all, `nullable` was already a no-op and the keyword is",
-    "simply dropped.",
+    "What this is NOT: a claim that consumers get wrong types. `openapi-typescript`",
+    "honours both spellings identically — verified with a controlled fixture, after",
+    "an earlier version of this file asserted the opposite. The reason to convert is",
+    "conformance: a document that declares 3.1 should be readable by anything that",
+    "implements 3.1, not only by tools that still accept the 3.0 keyword.",
     "",
-    "THESE COUNTS MAY ONLY SHRINK. A document not listed here may never gain one.",
-    "Two of the five are generated (finance, webhook-delivery), so fixing those means",
-    "fixing what the generator emits, not editing the artifact."
+    "THESE COUNTS MAY ONLY SHRINK, and a document not listed here may never gain one."
   ],
-  "documents": {
-    "packages/identity/openapi/public-api/identity-verification.json": 2,
-    "packages/notifications/openapi/admin/notifications.json": 15,
-    "packages/setup/openapi/admin/setup.json": 34
-  }
+  "documents": {}
 }

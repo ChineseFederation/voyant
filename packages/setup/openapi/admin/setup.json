@@ -25,21 +25,18 @@
                       "type": "object",
                       "properties": {
                         "state": {
-                          "type": "object",
-                          "nullable": true,
+                          "type": ["object", "null"],
                           "properties": {
                             "startedAt": {
                               "type": "string",
                               "format": "date-time"
                             },
                             "firstRunOpenedAt": {
-                              "type": "string",
-                              "nullable": true,
+                              "type": ["string", "null"],
                               "format": "date-time"
                             },
                             "dismissedAt": {
-                              "type": "string",
-                              "nullable": true,
+                              "type": ["string", "null"],
                               "format": "date-time"
                             },
                             "steps": {
@@ -57,13 +54,11 @@
                                     "format": "date-time"
                                   },
                                   "completedAt": {
-                                    "type": "string",
-                                    "nullable": true,
+                                    "type": ["string", "null"],
                                     "format": "date-time"
                                   },
                                   "skippedAt": {
-                                    "type": "string",
-                                    "nullable": true,
+                                    "type": ["string", "null"],
                                     "format": "date-time"
                                   }
                                 },
@@ -72,9 +67,7 @@
                             },
                             "prefill": {
                               "type": "object",
-                              "additionalProperties": {
-                                "nullable": true
-                              }
+                              "additionalProperties": {}
                             }
                           },
                           "required": [
@@ -104,9 +97,7 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "error": {
-                      "nullable": true
-                    }
+                    "error": {}
                   }
                 }
               }
@@ -119,9 +110,7 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "error": {
-                      "nullable": true
-                    }
+                    "error": {}
                   }
                 }
               }
@@ -175,13 +164,11 @@
                           "format": "date-time"
                         },
                         "firstRunOpenedAt": {
-                          "type": "string",
-                          "nullable": true,
+                          "type": ["string", "null"],
                           "format": "date-time"
                         },
                         "dismissedAt": {
-                          "type": "string",
-                          "nullable": true,
+                          "type": ["string", "null"],
                           "format": "date-time"
                         },
                         "steps": {
@@ -199,13 +186,11 @@
                                 "format": "date-time"
                               },
                               "completedAt": {
-                                "type": "string",
-                                "nullable": true,
+                                "type": ["string", "null"],
                                 "format": "date-time"
                               },
                               "skippedAt": {
-                                "type": "string",
-                                "nullable": true,
+                                "type": ["string", "null"],
                                 "format": "date-time"
                               }
                             },
@@ -214,9 +199,7 @@
                         },
                         "prefill": {
                           "type": "object",
-                          "additionalProperties": {
-                            "nullable": true
-                          }
+                          "additionalProperties": {}
                         },
                         "shouldRedirect": {
                           "type": "boolean"
@@ -244,9 +227,7 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "error": {
-                      "nullable": true
-                    }
+                    "error": {}
                   }
                 }
               }
@@ -259,9 +240,7 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "error": {
-                      "nullable": true
-                    }
+                    "error": {}
                   }
                 }
               }
@@ -274,9 +253,7 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "error": {
-                      "nullable": true
-                    }
+                    "error": {}
                   }
                 }
               }
@@ -322,13 +299,11 @@
                           "format": "date-time"
                         },
                         "completedAt": {
-                          "type": "string",
-                          "nullable": true,
+                          "type": ["string", "null"],
                           "format": "date-time"
                         },
                         "skippedAt": {
-                          "type": "string",
-                          "nullable": true,
+                          "type": ["string", "null"],
                           "format": "date-time"
                         }
                       },
@@ -347,9 +322,7 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "error": {
-                      "nullable": true
-                    }
+                    "error": {}
                   }
                 }
               }
@@ -362,9 +335,7 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "error": {
-                      "nullable": true
-                    }
+                    "error": {}
                   }
                 }
               }
@@ -377,9 +348,7 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "error": {
-                      "nullable": true
-                    }
+                    "error": {}
                   }
                 }
               }
@@ -425,13 +394,11 @@
                           "format": "date-time"
                         },
                         "completedAt": {
-                          "type": "string",
-                          "nullable": true,
+                          "type": ["string", "null"],
                           "format": "date-time"
                         },
                         "skippedAt": {
-                          "type": "string",
-                          "nullable": true,
+                          "type": ["string", "null"],
                           "format": "date-time"
                         }
                       },
@@ -450,9 +417,7 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "error": {
-                      "nullable": true
-                    }
+                    "error": {}
                   }
                 }
               }
@@ -465,9 +430,7 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "error": {
-                      "nullable": true
-                    }
+                    "error": {}
                   }
                 }
               }
@@ -480,9 +443,7 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "error": {
-                      "nullable": true
-                    }
+                    "error": {}
                   }
                 }
               }
@@ -511,13 +472,11 @@
                           "format": "date-time"
                         },
                         "firstRunOpenedAt": {
-                          "type": "string",
-                          "nullable": true,
+                          "type": ["string", "null"],
                           "format": "date-time"
                         },
                         "dismissedAt": {
-                          "type": "string",
-                          "nullable": true,
+                          "type": ["string", "null"],
                           "format": "date-time"
                         },
                         "steps": {
@@ -535,13 +494,11 @@
                                 "format": "date-time"
                               },
                               "completedAt": {
-                                "type": "string",
-                                "nullable": true,
+                                "type": ["string", "null"],
                                 "format": "date-time"
                               },
                               "skippedAt": {
-                                "type": "string",
-                                "nullable": true,
+                                "type": ["string", "null"],
                                 "format": "date-time"
                               }
                             },
@@ -550,9 +507,7 @@
                         },
                         "prefill": {
                           "type": "object",
-                          "additionalProperties": {
-                            "nullable": true
-                          }
+                          "additionalProperties": {}
                         }
                       },
                       "required": [
@@ -576,9 +531,7 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "error": {
-                      "nullable": true
-                    }
+                    "error": {}
                   }
                 }
               }
@@ -591,9 +544,7 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "error": {
-                      "nullable": true
-                    }
+                    "error": {}
                   }
                 }
               }
@@ -606,9 +557,7 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "error": {
-                      "nullable": true
-                    }
+                    "error": {}
                   }
                 }
               }
