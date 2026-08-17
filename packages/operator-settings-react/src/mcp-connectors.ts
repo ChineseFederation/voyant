@@ -5,12 +5,6 @@
  * assistant they approved. Revoking deletes that row, and the MCP surface
  * re-checks it on every request, so disconnecting takes effect on the
  * assistant's next call.
- *
- * Every URL below is written on the **shared** `/auth` prefix. The admin shell
- * injects a realm-scoping fetcher that maps `/auth/*` into the admin realm
- * exactly once; naming the realm here as well produced
- * `/api/auth/admin/admin/oauth2/...` and a 404 on each of these calls
- * ([#4793](https://github.com/voyant-travel/voyant/issues/4793)).
  */
 
 export interface McpConsentRecord {
@@ -63,7 +57,7 @@ export async function listMcpConnectors(
   baseUrl: string,
   fetcher: McpFetcher,
 ): Promise<McpConnector[]> {
-  const response = await fetcher(`${baseUrl}/auth/oauth2/get-consents`, {
+  const response = await fetcher(`${baseUrl}/auth/admin/oauth2/get-consents`, {
     credentials: "include",
   })
   if (!response.ok) throw new Error("consents")
@@ -73,7 +67,7 @@ export async function listMcpConnectors(
     consents.map(async (consent) => {
       try {
         const clientResponse = await fetcher(
-          `${baseUrl}/auth/oauth2/get-client?client_id=${encodeURIComponent(consent.clientId)}`,
+          `${baseUrl}/auth/admin/oauth2/get-client?client_id=${encodeURIComponent(consent.clientId)}`,
           { credentials: "include" },
         )
         return toMcpConnector(consent, clientResponse.ok ? await clientResponse.json() : null)
@@ -90,7 +84,7 @@ export async function revokeMcpConnector(
   fetcher: McpFetcher,
   consentId: string,
 ): Promise<void> {
-  const response = await fetcher(`${baseUrl}/auth/oauth2/delete-consent`, {
+  const response = await fetcher(`${baseUrl}/auth/admin/oauth2/delete-consent`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     credentials: "include",

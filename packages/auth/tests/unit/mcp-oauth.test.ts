@@ -216,12 +216,8 @@ describe("mcpOAuthProviderConfig", () => {
     expect(config.allowUnauthenticatedClientRegistration).toBe(true)
   })
 
-  it("defaults a scope-omitting registration to exactly what discovery advertises", () => {
-    // A hosted client reads `scopes_supported` and asks for all of it. If the
-    // registration default were narrower, `authorize` would answer its own
-    // advertised scopes with `invalid_scope`.
-    expect(config.clientRegistrationDefaultScopes).toEqual(config.scopes)
-    expect(config.clientRegistrationDefaultScopes).toContain(MCP_OAUTH_SCOPE_READ)
+  it("registers new connectors read-only until consent widens them", () => {
+    expect(config.clientRegistrationDefaultScopes).toEqual([MCP_OAUTH_SCOPE_READ])
   })
 
   it("hashes tokens and client secrets at rest", () => {

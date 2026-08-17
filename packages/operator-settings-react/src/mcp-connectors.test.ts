@@ -1,4 +1,3 @@
-import { createAuthBasePathFetcher } from "@voyant-travel/auth-react/client"
 import { describe, expect, it, vi } from "vitest"
 import { listMcpConnectors, revokeMcpConnector, toMcpConnector } from "./mcp-connectors.js"
 
@@ -7,22 +6,6 @@ const consent = {
   clientId: "client_abc",
   scopes: ["mcp:read"],
   createdAt: "2026-07-29T10:00:00.000Z",
-}
-
-/**
- * The admin shell's real realm-scoping fetcher, not a stub.
- *
- * These calls run inside the shell, whose fetcher maps `/auth/*` into the admin
- * realm. Asserting the URL the caller builds — rather than the one the shell
- * ends up requesting — is what let `/api/auth/admin/admin/oauth2/...` pass a
- * green suite (#4793).
- */
-function adminShellFetcher(transport: (url: string, init?: RequestInit) => Promise<Response>) {
-  return createAuthBasePathFetcher(transport, {
-    baseUrl: "/api",
-    authBasePath: "/auth/admin",
-    sharedPaths: ["/me", "/status", "/shell-bootstrap"],
-  })
 }
 
 describe("toMcpConnector", () => {
@@ -46,23 +29,6 @@ describe("toMcpConnector", () => {
 })
 
 describe("listMcpConnectors", () => {
-  it("reads both endpoints through the shell with exactly one realm segment", async () => {
-    const transport = vi.fn(async (url: string) =>
-      url.includes("get-consents") ? Response.json([consent]) : Response.json({ name: "Claude" }),
-    )
-
-    await listMcpConnectors("/api", adminShellFetcher(transport))
-
-    const requested = transport.mock.calls.map(([url]) => url)
-    expect(requested).toEqual([
-      "/api/auth/admin/oauth2/get-consents",
-      "/api/auth/admin/oauth2/get-client?client_id=client_abc",
-    ])
-    for (const url of requested) {
-      expect(url.split("/").filter((segment) => segment === "admin")).toHaveLength(1)
-    }
-  })
-
   it("resolves each consent to its registered client name", async () => {
     const fetcher = vi.fn(async (url: string) =>
       url.includes("get-consents")
@@ -70,7 +36,7 @@ describe("listMcpConnectors", () => {
         : Response.json({ name: "Claude Desktop" }),
     )
 
-    await expect(listMcpConnectors("/api", adminShellFetcher(fetcher))).resolves.toEqual([
+    await expect(listMcpConnectors("/api", fetcher)).resolves.toEqual([
       expect.objectContaining({ id: "consent_1", name: "Claude Desktop", canWrite: false }),
     ])
   })
@@ -80,7 +46,7 @@ describe("listMcpConnectors", () => {
       url.includes("get-consents") ? Response.json([consent]) : new Response("", { status: 500 }),
     )
 
-    const connectors = await listMcpConnectors("/api", adminShellFetcher(fetcher))
+    const connectors = await listMcpConnectors("/api", fetcher)
 
     // Hiding a live grant because a name lookup failed would keep the operator
     // from revoking something that still has access.
@@ -92,17 +58,17 @@ describe("listMcpConnectors", () => {
   it("throws when the consent list itself cannot be read", async () => {
     const fetcher = vi.fn(async () => new Response("", { status: 401 }))
 
-    await expect(listMcpConnectors("/api", adminShellFetcher(fetcher))).rejects.toThrow()
+    await expect(listMcpConnectors("/api", fetcher)).rejects.toThrow()
   })
 })
 
 describe("revokeMcpConnector", () => {
-  it("posts the consent id to the admin realm's delete endpoint", async () => {
-    const transport = vi.fn(async () => Response.json({}))
+  it("posts the consent id to the delete endpoint", async () => {
+    const fetcher = vi.fn(async () => Response.json({}))
 
-    await revokeMcpConnector("/api", adminShellFetcher(transport), "consent_1")
+    await revokeMcpConnector("/api", fetcher, "consent_1")
 
-    expect(transport).toHaveBeenCalledWith(
+    expect(fetcher).toHaveBeenCalledWith(
       "/api/auth/admin/oauth2/delete-consent",
       expect.objectContaining({ method: "POST", body: JSON.stringify({ id: "consent_1" }) }),
     )
@@ -111,8 +77,6 @@ describe("revokeMcpConnector", () => {
   it("surfaces a failed revoke instead of reporting success", async () => {
     const fetcher = vi.fn(async () => new Response("", { status: 404 }))
 
-    await expect(
-      revokeMcpConnector("/api", adminShellFetcher(fetcher), "consent_1"),
-    ).rejects.toThrow()
+    await expect(revokeMcpConnector("/api", fetcher, "consent_1")).rejects.toThrow()
   })
 })

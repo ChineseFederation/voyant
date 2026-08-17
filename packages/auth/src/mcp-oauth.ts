@@ -194,16 +194,9 @@ export function mcpOAuthProviderConfig(options: McpOAuthPluginOptions) {
     // of the flow. The consent screen, not registration, is the trust boundary.
     allowDynamicClientRegistration: true,
     allowUnauthenticatedClientRegistration: true,
-    // A client that registers without a `scope` field — which is what ChatGPT
-    // does — gets this as its permanent registered scope set, and `authorize`
-    // rejects anything outside it with `invalid_scope`. So it has to match what
-    // discovery advertises: a server that publishes three scopes and then
-    // registers clients for one has told the client to ask for something it
-    // will refuse. Narrowing here is not a security control either, because it
-    // happens before any human is involved; the trust boundary is the operator
-    // on the consent screen, and after that `resolveMcpGrantScopes` clamps the
-    // grant to the approver's own permissions on every single request.
-    clientRegistrationDefaultScopes: [...MCP_OAUTH_SCOPES],
+    // A newly registered connector starts read-only; asking for write forces it
+    // through consent for the wider grant.
+    clientRegistrationDefaultScopes: [MCP_OAUTH_SCOPE_READ],
     clientRegistrationAllowedScopes: [...MCP_OAUTH_SCOPES],
     // Tokens are bearer credentials for the whole operator workspace: never
     // readable from a database dump.

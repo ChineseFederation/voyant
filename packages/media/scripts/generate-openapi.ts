@@ -8,6 +8,12 @@ const committed = JSON.parse(readFileSync(artifactPath, "utf8")) as OpenApiDocum
 const live = createMediaLibraryRoutes({
   resolveStorage: () => null,
 }).getOpenAPI31Document({
+  // `getOpenAPI31Document` emits only what it is given, so omitting this
+  // produced a document with no `openapi` field at all — not an OpenAPI
+  // document, and rejected outright by anything that validates one. It was
+  // invisible because the drift check regenerates and compares, and the
+  // generator omitted the field just as consistently as the artifact lacked it.
+  openapi: committed.openapi ?? "3.1.0",
   info: committed.info,
   servers: committed.servers,
 })
@@ -21,6 +27,7 @@ writeFileSync(artifactPath, `${JSON.stringify(live, null, 2)}\n`)
 type OpenApiOperation = Record<string, unknown>
 type OpenApiPathItem = Record<string, OpenApiOperation>
 type OpenApiDocument = {
+  openapi?: string
   info: { title: string; version: string; description?: string }
   servers?: Array<{ url: string; description?: string }>
   paths: Record<string, OpenApiPathItem>

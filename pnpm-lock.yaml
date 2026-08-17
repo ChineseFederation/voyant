@@ -1011,6 +1011,25 @@ importers:
         specifier: 'catalog:'
         version: 4.1.9(@opentelemetry/api@1.9.0)(@types/node@25.5.2)(jsdom@29.1.1(@noble/hashes@2.2.0))(msw@2.12.14(@types/node@25.5.2)(typescript@6.0.3))(vite@8.1.3(@types/node@25.5.2)(esbuild@0.28.1)(jiti@2.7.0)(sass@1.77.4)(terser@5.16.9)(tsx@4.22.4)(yaml@2.8.3))
 
+  packages/admin-api-client:
+    dependencies:
+      '@voyant-travel/core':
+        specifier: workspace:^
+        version: link:../core
+      openapi-fetch:
+        specifier: 'catalog:'
+        version: 0.17.0
+    devDependencies:
+      '@voyant-travel/voyant-typescript-config':
+        specifier: workspace:^
+        version: link:../typescript-config
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.9(@opentelemetry/api@1.9.0)(@types/node@25.5.2)(jsdom@29.1.1(@noble/hashes@2.2.0))(msw@2.12.14(@types/node@25.5.2)(typescript@6.0.3))(vite@8.1.3(@types/node@25.5.2)(esbuild@0.28.1)(jiti@2.7.0)(sass@1.77.4)(terser@5.16.9)(tsx@4.22.4)(yaml@2.8.3))
+
   packages/admin-app:
     devDependencies:
       '@tanstack/react-query':
@@ -1468,9 +1487,6 @@ importers:
       '@tanstack/react-router':
         specifier: ^1.170.17
         version: 1.170.17(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
-      '@testing-library/react':
-        specifier: ^16.3.2
-        version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       '@types/react':
         specifier: ^19.2.17
         version: 19.2.17
@@ -1492,9 +1508,6 @@ importers:
       '@voyant-travel/voyant-typescript-config':
         specifier: workspace:^
         version: link:../typescript-config
-      jsdom:
-        specifier: ^29.1.1
-        version: 29.1.1(@noble/hashes@2.2.0)
       lucide-react:
         specifier: ^1.23.0
         version: 1.23.0(react@19.2.7)
@@ -4535,9 +4548,6 @@ importers:
       '@voyant-travel/admin-app':
         specifier: workspace:^
         version: link:../admin-app
-      '@voyant-travel/auth-react':
-        specifier: workspace:^
-        version: link:../auth-react
       '@voyant-travel/finance':
         specifier: workspace:^
         version: link:../finance

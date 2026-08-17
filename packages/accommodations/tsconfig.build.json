@@ -29,6 +29,8 @@
       "@voyant-travel/action-ledger/tools": ["../action-ledger/dist/mcp-runtime.d.ts"],
       "@voyant-travel/action-ledger/voyant": ["../action-ledger/dist/voyant.d.ts"],
       "@voyant-travel/admin": ["../admin/dist/index.d.ts"],
+      "@voyant-travel/admin-api-client": ["../admin-api-client/dist/index.d.ts"],
+      "@voyant-travel/admin-api-client/*": ["../admin-api-client/dist/generated/*.d.ts"],
       "@voyant-travel/admin-app": ["../admin-app/dist/index.d.ts"],
       "@voyant-travel/admin-app/core-extension": ["../admin-app/dist/core-extension/index.d.ts"],
       "@voyant-travel/admin-app/runtime": ["../admin-app/dist/runtime.d.ts"],

@@ -14,6 +14,11 @@
   ],
   "clients": [
     {
+      "surface": "admin",
+      "outDir": "packages/admin-api-client/src/generated",
+      "keyKinds": false
+    },
+    {
       "document": "packages/public-api/openapi/public-api/public-api.json",
       "outDir": "packages/public-api-client/src/generated",
       "keyKinds": true
