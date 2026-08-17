@@ -284,8 +284,8 @@ describe("createCatalogEnrichmentFetchers", () => {
         deckPlans: [{ name: "Upper Deck", level: 3, imageUrl: "https://example.com/d3.jpg" }],
         images: ["https://example.com/ship.jpg"],
       },
-      // Cruise-level itinerary is empty for sourced cruises, so the Itinerary
-      // tab falls back to the first sailing's stops.
+      // The cruise-level itinerary may be empty, so the Itinerary tab falls
+      // back to the first sailing that has a route.
       itinerary: [
         { dayNumber: 1, title: "Athens", location: "Athens", date: "2026-06-01" },
         { dayNumber: 2, title: "Mykonos", location: "Mykonos", date: "2026-06-02" },
@@ -335,6 +335,54 @@ describe("createCatalogEnrichmentFetchers", () => {
         },
       ],
     })
+  })
+
+  test("skips a sailing with no stops when falling back to a cruise itinerary", async () => {
+    const fetchImpl = vi.fn<typeof globalThis.fetch>(async () =>
+      ok({
+        data: {
+          content: {
+            cruise: { id: "crus_1", name: "Greek Isles" },
+            sailings: [
+              {
+                id: "sail_1",
+                start_date: "2026-06-01",
+                end_date: "2026-06-08",
+                itinerary_stops: [],
+                lowest_price_cents: null,
+                currency: null,
+              },
+              {
+                id: "sail_2",
+                start_date: "2026-07-01",
+                end_date: "2026-07-08",
+                itinerary_stops: [
+                  { day_number: 1, port_name: "Athens", date: "2026-07-01" },
+                  { day_number: 2, port_name: "Mykonos", date: "2026-07-02" },
+                ],
+                lowest_price_cents: null,
+                currency: null,
+              },
+            ],
+            policies: [],
+          },
+          served_locale: "en-GB",
+          match_kind: "exact",
+          source: "sourced-fresh",
+          served_stale: false,
+          synthesized: false,
+          machine_translated: false,
+        },
+      }),
+    )
+    const fetchers = createCatalogEnrichmentFetchers({ baseUrl: "/api", fetch: fetchImpl })
+
+    const result = await fetchers.loadProductDetail(hit("crus_1"))
+
+    expect(result?.itinerary).toMatchObject([
+      { dayNumber: 1, title: "Athens", date: "2026-07-01" },
+      { dayNumber: 2, title: "Mykonos", date: "2026-07-02" },
+    ])
   })
 
   test("sanitizes cruise cabin names (strips HTML, dedupes name===code grades)", async () => {

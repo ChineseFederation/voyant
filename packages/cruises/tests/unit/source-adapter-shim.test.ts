@@ -361,11 +361,69 @@ describe("cruiseAdapterToSourceAdapter.getContent", () => {
     expect(content.cabin_categories[0].square_feet).toBe("170")
     expect(content.cabin_categories[0].grade_codes).toEqual(["IN1", "IN2"])
     expect(content.cabin_categories[0].wheelchair_accessible).toBe(true)
-    expect(content.itinerary_stops).toEqual([])
+    // Cruise-level stops mirror the first sailing that has an itinerary.
+    expect(content.itinerary_stops).toMatchObject([
+      { day_number: 1, port_name: "Athens", departure_time: "17:00" },
+      { day_number: 2, port_name: "Mykonos", arrival_time: "08:00", departure_time: "18:00" },
+    ])
     // Inclusions / exclusions HTML lands in supplier_notes.
     expect(
       content.policies.filter((p: { kind: string }) => p.kind === "supplier_notes"),
     ).toHaveLength(2)
+  })
+
+  it("takes the cruise-level itinerary from the first sailing that has stops", async () => {
+    const sailingRefs = ["sailing-empty", "sailing-1"] as const
+    const adapter = makeStubAdapter({
+      async listSailingsForCruise() {
+        return sailingRefs.map((externalId, i) => ({
+          sourceRef: { externalId, connectionId: "conn-x" },
+          cruiseRef: { externalId: "cruise-1", connectionId: "conn-x" },
+          shipRef: { externalId: "ship-1", connectionId: "conn-x" },
+          departureDate: `2026-0${6 + i}-01`,
+          returnDate: `2026-0${6 + i}-08`,
+          salesStatus: "open" as const,
+        }))
+      },
+    })
+    const shim = cruiseAdapterToSourceAdapter(adapter)
+    const result = await shim.getContent!(
+      { connection_id: "conn-x" },
+      {
+        entity_module: "cruises",
+        entity_id: `crus_${encodeSourceRef({ externalId: "cruise-1", connectionId: "conn-x" })}`,
+        locale: "en-GB",
+      },
+    )
+
+    // biome-ignore lint/suspicious/noExplicitAny: result.content is unknown -- owner: cruises; existing suppression is intentional pending typed cleanup.
+    const content = result.content as any
+    expect(content.sailings[0].itinerary_stops).toEqual([])
+    expect(content.itinerary_stops).toMatchObject([
+      { day_number: 1, port_name: "Athens" },
+      { day_number: 2, port_name: "Mykonos" },
+    ])
+  })
+
+  it("leaves the cruise-level itinerary empty when no sailing has stops", async () => {
+    const adapter = makeStubAdapter({
+      async fetchSailingItinerary() {
+        return []
+      },
+    })
+    const shim = cruiseAdapterToSourceAdapter(adapter)
+    const result = await shim.getContent!(
+      { connection_id: "conn-x" },
+      {
+        entity_module: "cruises",
+        entity_id: `crus_${encodeSourceRef({ externalId: "cruise-1", connectionId: "conn-x" })}`,
+        locale: "en-GB",
+      },
+    )
+
+    // biome-ignore lint/suspicious/noExplicitAny: result.content is unknown -- owner: cruises; existing suppression is intentional pending typed cleanup.
+    const content = result.content as any
+    expect(content.itinerary_stops).toEqual([])
   })
 
   it("throws when the cruise adapter returns null for the entity_id", async () => {

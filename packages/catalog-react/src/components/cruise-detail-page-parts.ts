@@ -80,7 +80,12 @@ export function mapCruiseContent(content: unknown): CruiseDetail | null {
   const ship = asRecord(c?.ship)
   const sailingsRaw = Array.isArray(c?.sailings) ? c.sailings : []
   const cabinsRaw = Array.isArray(c?.cabin_categories) ? c.cabin_categories : []
-  const stopsRaw = Array.isArray(c?.itinerary_stops) ? c.itinerary_stops : []
+  // The route is per-sailing; the cruise-level array is a representative copy
+  // an adapter may leave empty. Fall back to the first sailing that has one so
+  // the Itinerary section still renders, matching the operator-side mapper.
+  const cruiseStopsRaw = Array.isArray(c?.itinerary_stops) ? c.itinerary_stops : []
+  const stopsRaw =
+    cruiseStopsRaw.length > 0 ? cruiseStopsRaw : firstSailingItineraryStops(sailingsRaw)
   return {
     name: asStr(cruise.name),
     description: asStr(cruise.description),
@@ -147,6 +152,14 @@ export function mapCruiseContent(content: unknown): CruiseDetail | null {
       }
     }),
   }
+}
+
+function firstSailingItineraryStops(sailings: readonly unknown[]): unknown[] {
+  for (const sailing of sailings) {
+    const stops = asRecord(sailing)?.itinerary_stops
+    if (Array.isArray(stops) && stops.length > 0) return stops
+  }
+  return []
 }
 
 export function formatCruiseType(type: string | null, s: SearchMessages): string | null {

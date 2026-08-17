@@ -275,7 +275,8 @@ export function cruiseAdapterToSourceAdapter(
     ): Promise<GetContentResult> {
       // Compose the cruise adapter's per-aspect fetches into one
       // `CruiseContent` payload. Itinerary is per-sailing, so it stays
-      // attached to each sailing instead of being flattened onto the cruise.
+      // attached to each sailing; the cruise-level array carries a
+      // representative copy for consumers that render one route.
       const sourceRef = entityIdToSourceRef(request.entity_id)
       const cruise = await cruiseAdapter.fetchCruise(sourceRef)
       if (!cruise) {
@@ -294,12 +295,21 @@ export function cruiseAdapterToSourceAdapter(
         ),
       )
 
+      // A cruise's route genuinely varies per sailing (reverse directions,
+      // seasonal variants), so the cruise-level array is the first sailing
+      // that has one rather than a merge — the same representative itinerary
+      // `@voyant-travel/connect-adapter` publishes. Consumers that care about
+      // an exact route read the selected sailing's `itinerary_stops`.
+      const representativeItinerary =
+        sailingsWithItinerary.find((sailing) => sailing.itinerary_stops.length > 0)
+          ?.itinerary_stops ?? []
+
       const content: CruiseContent = {
         cruise: cruiseSummaryFrom(cruise),
         ship: ship ? cruiseShipFrom(ship) : null,
         sailings: sailingsWithItinerary,
         cabin_categories: ship?.categories?.map(cruiseCabinCategoryFrom) ?? [],
-        itinerary_stops: [],
+        itinerary_stops: representativeItinerary,
         policies: cruisePoliciesFrom(cruise),
       }
 

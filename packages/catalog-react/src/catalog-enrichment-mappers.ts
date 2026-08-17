@@ -306,12 +306,12 @@ function mapCruiseContentToEnrichment(content: CruiseContentPayload): CatalogDet
         }
       : null,
     // Cruise itinerary lives per-sailing in the content payload; the cruise-level
-    // `itinerary_stops` is empty for sourced cruises. Fall back to the first
-    // sailing's stops so the Itinerary tab shows the representative route.
+    // `itinerary_stops` is a representative copy an adapter may leave empty. Fall
+    // back to the first sailing that has a route so the Itinerary tab shows it.
     itinerary: mapCruiseItineraryStops(
       content.itinerary_stops?.length
         ? content.itinerary_stops
-        : (content.sailings?.[0]?.itinerary_stops ?? []),
+        : firstSailingItineraryStops(content.sailings ?? []),
     ),
     media: [],
     options: (content.cabin_categories ?? []).map((c) => ({
@@ -343,6 +343,15 @@ function mapCruiseContentToEnrichment(content: CruiseContentPayload): CatalogDet
       itinerary: mapCruiseItineraryStops(s.itinerary_stops ?? []),
     })),
   }
+}
+
+function firstSailingItineraryStops(
+  sailings: NonNullable<CruiseContentPayload["sailings"]>,
+): CruiseItineraryStopPayload[] {
+  for (const sailing of sailings) {
+    if (sailing.itinerary_stops?.length) return sailing.itinerary_stops
+  }
+  return []
 }
 
 function mapCruiseItineraryStops(

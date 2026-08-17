@@ -91,3 +91,47 @@ describe("cabin rate row join", () => {
     expect(findCabinForPrice(detail?.cabins ?? [], price("88-from-2027_CLASSIC"))).toBeUndefined()
   })
 })
+
+/**
+ * The route is per-sailing, so an adapter may publish it only there. #4782: the
+ * source-adapter shim left the cruise-level array empty and the Itinerary
+ * section disappeared entirely, though every sailing carried its stops.
+ */
+describe("itinerary mapping", () => {
+  const stops = [
+    { day_number: 1, port_name: "Paris", departure_time: "18:00", is_at_sea: false },
+    { day_number: 2, port_name: "Reims", arrival_time: "08:00" },
+  ]
+
+  it("reads the cruise-level stops when the payload has them", () => {
+    const detail = mapCruiseContent({
+      cruise: { name: "Rhine" },
+      itinerary_stops: stops,
+      sailings: [{ id: "s1", itinerary_stops: [{ day_number: 1, port_name: "Basel" }] }],
+    })
+    expect(detail?.itinerary.map((s) => s.portName)).toEqual(["Paris", "Reims"])
+  })
+
+  it("falls back to the first sailing that has stops", () => {
+    const detail = mapCruiseContent({
+      cruise: { name: "Rhine" },
+      itinerary_stops: [],
+      sailings: [
+        { id: "s1", itinerary_stops: [] },
+        { id: "s2", itinerary_stops: stops },
+      ],
+    })
+    expect(detail?.itinerary).toMatchObject([
+      { dayNumber: 1, portName: "Paris", departureTime: "18:00", isAtSea: false },
+      { dayNumber: 2, portName: "Reims", arrivalTime: "08:00" },
+    ])
+  })
+
+  it("has no itinerary when neither the cruise nor any sailing carries one", () => {
+    const detail = mapCruiseContent({
+      cruise: { name: "Rhine" },
+      sailings: [{ id: "s1" }],
+    })
+    expect(detail?.itinerary).toEqual([])
+  })
+})
