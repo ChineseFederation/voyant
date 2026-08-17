@@ -4,6 +4,7 @@ import type {
   ProposalInquiryPipelinePreference,
   ProposalInquiryProductTargetSnapshot,
 } from "@voyant-travel/proposals-contracts/inquiry-conversion"
+import { formatProposalInquirySourceRef } from "@voyant-travel/proposals-contracts/inquiry-conversion"
 import { and, asc, eq, sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 
@@ -24,7 +25,6 @@ interface InquiryProposalRecord {
   id: string
   pipelineId: string
   stageId: string
-  status: string
 }
 
 interface CreateInquiryProposalRecord {
@@ -35,19 +35,19 @@ interface CreateInquiryProposalRecord {
   ownerId: string | null
   actorId: string | null
   tags: readonly string[]
-  inquiryId: string
+  sourceRef: string
   pipelineId: string
   stageId: string
   productTargets: readonly ProposalInquiryProductTargetSnapshot[]
 }
 
 interface ProposalInquiryConversionStore {
-  withInquiryLock<T>(
+  withConversionLock<T>(
     database: unknown,
-    inquiryId: string,
+    sourceRef: string,
     operation: (database: unknown) => Promise<T>,
   ): Promise<T>
-  findByInquiry(database: unknown, inquiryId: string): Promise<InquiryProposalRecord[]>
+  findBySourceRef(database: unknown, sourceRef: string): Promise<InquiryProposalRecord[]>
   getPipeline(database: unknown, pipelineId: string): Promise<PipelineRecord | null>
   getDefaultPipeline(database: unknown): Promise<PipelineRecord | null>
   getStage(database: unknown, stageId: string): Promise<StageRecord | null>
@@ -63,26 +63,25 @@ type PipelineSelectionOutcome =
   | Extract<ProposalInquiryConversionOutcome, { kind: "refused" }>
 
 const drizzleProposalInquiryConversionStore: ProposalInquiryConversionStore = {
-  withInquiryLock(database, inquiryId, operation) {
+  withConversionLock(database, sourceRef, operation) {
     const db = database as PostgresJsDatabase
     return db.transaction(async (tx) => {
       await tx.execute(
-        sql`SELECT pg_advisory_xact_lock(hashtextextended(${`proposals:inquiry:${inquiryId}`}, 0))`,
+        sql`SELECT pg_advisory_xact_lock(hashtextextended(${`proposals:inquiry-conversion:${sourceRef}`}, 0))`,
       )
       return operation(tx)
     })
   },
 
-  async findByInquiry(database, inquiryId) {
+  async findBySourceRef(database, sourceRef) {
     return (database as PostgresJsDatabase)
       .select({
         id: proposals.id,
         pipelineId: proposals.pipelineId,
         stageId: proposals.stageId,
-        status: proposals.status,
       })
       .from(proposals)
-      .where(and(eq(proposals.source, "inquiry"), eq(proposals.sourceRef, inquiryId)))
+      .where(and(eq(proposals.source, "inquiry"), eq(proposals.sourceRef, sourceRef)))
       .limit(2)
   },
 
@@ -138,7 +137,7 @@ const drizzleProposalInquiryConversionStore: ProposalInquiryConversionStore = {
         stageId: input.stageId,
         status: "open",
         source: "inquiry",
-        sourceRef: input.inquiryId,
+        sourceRef: input.sourceRef,
         tags: [...input.tags],
         createdBy: input.actorId,
         updatedBy: input.actorId,
@@ -147,7 +146,6 @@ const drizzleProposalInquiryConversionStore: ProposalInquiryConversionStore = {
         id: proposals.id,
         pipelineId: proposals.pipelineId,
         stageId: proposals.stageId,
-        status: proposals.status,
       })
     if (!proposal) throw new Error("Proposal insertion returned no row")
 
@@ -175,12 +173,12 @@ export function createProposalInquiryConversionRuntime(
 ): ProposalInquiryConversionRuntime {
   return {
     convertInquiry(database, input) {
-      return store.withInquiryLock(database, input.inquiryId, async (lockedDatabase) => {
-        const existing = await store.findByInquiry(lockedDatabase, input.inquiryId)
+      const sourceRef = formatProposalInquirySourceRef(input.inquiryId, input.idempotencyKey)
+      return store.withConversionLock(database, sourceRef, async (lockedDatabase) => {
+        const existing = await store.findBySourceRef(lockedDatabase, sourceRef)
         if (existing.length > 1) return refused("source_conflict")
         const proposal = existing[0]
         if (proposal) {
-          if (proposal.status !== "open") return refused("source_proposal_not_open")
           return {
             kind: "replayed",
             proposalId: proposal.id,
@@ -204,7 +202,7 @@ export function createProposalInquiryConversionRuntime(
           ownerId: input.ownerId ?? null,
           actorId: input.actorId ?? null,
           tags: input.tags ?? [],
-          inquiryId: input.inquiryId,
+          sourceRef,
           pipelineId: selection.pipelineId,
           stageId: selection.stageId,
           productTargets: input.productTargets ?? [],

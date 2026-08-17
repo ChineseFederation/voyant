@@ -13,6 +13,8 @@ export interface ProposalInquiryProductTargetSnapshot {
 
 export interface ConvertInquiryToProposalInput {
   inquiryId: string
+  /** Identifies this conversion operation; exact retries resolve the same Proposal. */
+  idempotencyKey: string
   title: string
   summary?: string | null
   personId?: string | null
@@ -32,7 +34,6 @@ export type ProposalInquiryConversionRefusalReason =
   | "stage_closed"
   | "open_stage_not_found"
   | "source_conflict"
-  | "source_proposal_not_open"
 
 export interface ProposalInquiryConversionSuccess {
   kind: "created" | "replayed"
@@ -55,6 +56,36 @@ export interface ProposalInquiryConversionRuntime {
     database: unknown,
     input: ConvertInquiryToProposalInput,
   ): Promise<ProposalInquiryConversionOutcome>
+}
+
+/**
+ * Proposal-owned durable identity for one Inquiry conversion operation.
+ *
+ * `source` remains `inquiry`; `sourceRef` is
+ * `<percent-encoded inquiry id>/conversion/<percent-encoded idempotency key>`.
+ * The reversible form keeps the originating Inquiry navigable while allowing
+ * separate conversion operations for that Inquiry to create separate targets.
+ */
+export function formatProposalInquirySourceRef(inquiryId: string, idempotencyKey: string): string {
+  return `${encodeURIComponent(inquiryId)}/conversion/${encodeURIComponent(idempotencyKey)}`
+}
+
+export function parseProposalInquirySourceRef(
+  sourceRef: string,
+): { inquiryId: string; idempotencyKey: string } | null {
+  const marker = "/conversion/"
+  const markerIndex = sourceRef.indexOf(marker)
+  if (markerIndex < 1) return null
+  const encodedInquiryId = sourceRef.slice(0, markerIndex)
+  const encodedIdempotencyKey = sourceRef.slice(markerIndex + marker.length)
+  try {
+    return {
+      inquiryId: decodeURIComponent(encodedInquiryId),
+      idempotencyKey: decodeURIComponent(encodedIdempotencyKey),
+    }
+  } catch {
+    return null
+  }
 }
 
 /** Import-cheap port consumed by the Relationships conversion coordinator. */

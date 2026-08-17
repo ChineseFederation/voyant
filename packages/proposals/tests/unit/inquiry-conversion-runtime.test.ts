@@ -14,14 +14,14 @@ import { createProposalsRuntimePortContribution } from "../../src/runtime-contri
 
 function createStore(overrides: Record<string, unknown> = {}) {
   return {
-    withInquiryLock: vi.fn(
+    withConversionLock: vi.fn(
       async (
         _database: unknown,
-        _inquiryId: string,
+        _sourceRef: string,
         operation: (database: unknown) => Promise<unknown>,
       ) => operation("locked-db"),
     ),
-    findByInquiry: vi.fn().mockResolvedValue([]),
+    findBySourceRef: vi.fn().mockResolvedValue([]),
     getPipeline: vi.fn(),
     getDefaultPipeline: vi
       .fn()
@@ -35,11 +35,39 @@ function createStore(overrides: Record<string, unknown> = {}) {
         id: "proposal_1",
         pipelineId: input.pipelineId,
         stageId: input.stageId,
-        status: "open",
       }),
     ),
     ...overrides,
   }
+}
+
+function createStatefulStore() {
+  const proposalsBySourceRef = new Map<
+    string,
+    Array<{ id: string; pipelineId: string; stageId: string }>
+  >()
+  let sequence = 0
+  const store = createStore({
+    findBySourceRef: vi.fn(async (_database: unknown, sourceRef: string) => {
+      return proposalsBySourceRef.get(sourceRef) ?? []
+    }),
+    createProposal: vi.fn(
+      async (
+        _database: unknown,
+        input: { sourceRef: string; pipelineId: string; stageId: string },
+      ) => {
+        sequence += 1
+        const proposal = {
+          id: `proposal_${sequence}`,
+          pipelineId: input.pipelineId,
+          stageId: input.stageId,
+        }
+        proposalsBySourceRef.set(input.sourceRef, [proposal])
+        return proposal
+      },
+    ),
+  })
+  return { store, proposalsBySourceRef }
 }
 
 describe("Proposal Inquiry conversion runtime", () => {
@@ -50,6 +78,7 @@ describe("Proposal Inquiry conversion runtime", () => {
     await expect(
       runtime.convertInquiry("db", {
         inquiryId: "inq_1",
+        idempotencyKey: "conversion_1",
         title: "Custom Japan journey",
         summary: "Two weeks in autumn",
         personId: "person_1",
@@ -72,7 +101,11 @@ describe("Proposal Inquiry conversion runtime", () => {
       pipelineId: "pipeline_default",
       stageId: "stage_initial",
     })
-    expect(store.withInquiryLock).toHaveBeenCalledWith("db", "inq_1", expect.any(Function))
+    expect(store.withConversionLock).toHaveBeenCalledWith(
+      "db",
+      "inq_1/conversion/conversion_1",
+      expect.any(Function),
+    )
     expect(store.createProposal).toHaveBeenCalledWith("locked-db", {
       title: "Custom Japan journey",
       description: "Two weeks in autumn",
@@ -81,7 +114,7 @@ describe("Proposal Inquiry conversion runtime", () => {
       ownerId: "staff_1",
       actorId: "staff_2",
       tags: ["bespoke", "japan"],
-      inquiryId: "inq_1",
+      sourceRef: "inq_1/conversion/conversion_1",
       pipelineId: "pipeline_default",
       stageId: "stage_initial",
       productTargets: [
@@ -96,21 +129,25 @@ describe("Proposal Inquiry conversion runtime", () => {
     expect(store.createProposal.mock.calls[0]?.[1]).not.toHaveProperty("valueAmountCents")
   })
 
-  it("replays the Proposal already linked to the Inquiry before resolving defaults", async () => {
+  it("replays the same conversion after the Proposal lifecycle changes", async () => {
     const store = createStore({
-      findByInquiry: vi.fn().mockResolvedValue([
+      findBySourceRef: vi.fn().mockResolvedValue([
         {
           id: "proposal_existing",
           pipelineId: "pipeline_old",
           stageId: "stage_old",
-          status: "open",
+          status: "won",
         },
       ]),
     })
     const runtime = createProposalInquiryConversionRuntime(store as never)
 
     await expect(
-      runtime.convertInquiry("db", { inquiryId: "inq_1", title: "Ignored on replay" }),
+      runtime.convertInquiry("db", {
+        inquiryId: "inq_1",
+        idempotencyKey: "conversion_1",
+        title: "Ignored on replay",
+      }),
     ).resolves.toEqual({
       kind: "replayed",
       proposalId: "proposal_existing",
@@ -118,6 +155,69 @@ describe("Proposal Inquiry conversion runtime", () => {
       stageId: "stage_old",
     })
     expect(store.getDefaultPipeline).not.toHaveBeenCalled()
+    expect(store.createProposal).not.toHaveBeenCalled()
+  })
+
+  it("creates once and replays an exact idempotency-key retry", async () => {
+    const { store } = createStatefulStore()
+    const runtime = createProposalInquiryConversionRuntime(store as never)
+    const input = {
+      inquiryId: "inq_1",
+      idempotencyKey: "conversion_1",
+      title: "One operation",
+    }
+
+    await expect(runtime.convertInquiry("db", input)).resolves.toMatchObject({
+      kind: "created",
+      proposalId: "proposal_1",
+    })
+    await expect(runtime.convertInquiry("db", input)).resolves.toMatchObject({
+      kind: "replayed",
+      proposalId: "proposal_1",
+    })
+    expect(store.createProposal).toHaveBeenCalledTimes(1)
+  })
+
+  it("creates another Proposal when the same Inquiry uses a different operation key", async () => {
+    const { store, proposalsBySourceRef } = createStatefulStore()
+    const runtime = createProposalInquiryConversionRuntime(store as never)
+
+    await expect(
+      runtime.convertInquiry("db", {
+        inquiryId: "inq_1",
+        idempotencyKey: "conversion_1",
+        title: "First pursuit",
+      }),
+    ).resolves.toMatchObject({ kind: "created", proposalId: "proposal_1" })
+    await expect(
+      runtime.convertInquiry("db", {
+        inquiryId: "inq_1",
+        idempotencyKey: "conversion_2",
+        title: "Second pursuit",
+      }),
+    ).resolves.toMatchObject({ kind: "created", proposalId: "proposal_2" })
+
+    expect(proposalsBySourceRef.has("inq_1/conversion/conversion_1")).toBe(true)
+    expect(proposalsBySourceRef.has("inq_1/conversion/conversion_2")).toBe(true)
+    expect(store.createProposal).toHaveBeenCalledTimes(2)
+  })
+
+  it("refuses ambiguous duplicate targets for one Inquiry operation", async () => {
+    const store = createStore({
+      findBySourceRef: vi.fn().mockResolvedValue([
+        { id: "proposal_1", pipelineId: "pipeline_1", stageId: "stage_1" },
+        { id: "proposal_2", pipelineId: "pipeline_1", stageId: "stage_1" },
+      ]),
+    })
+    const runtime = createProposalInquiryConversionRuntime(store as never)
+
+    await expect(
+      runtime.convertInquiry("db", {
+        inquiryId: "inq_1",
+        idempotencyKey: "conversion_1",
+        title: "Ambiguous operation",
+      }),
+    ).resolves.toEqual({ kind: "refused", reason: "source_conflict" })
     expect(store.createProposal).not.toHaveBeenCalled()
   })
 
@@ -133,6 +233,7 @@ describe("Proposal Inquiry conversion runtime", () => {
     await expect(
       runtime.convertInquiry("db", {
         inquiryId: "inq_1",
+        idempotencyKey: "conversion_1",
         title: "Mismatch",
         pipeline: { pipelineId: "pipeline_1", stageId: "stage_other" },
       }),
@@ -151,22 +252,15 @@ describe("Proposal Inquiry conversion runtime", () => {
       { getInitialOpenStage: vi.fn().mockResolvedValue(null) },
       "open_stage_not_found",
     ],
-    [
-      "a closed source Proposal",
-      {
-        findByInquiry: vi
-          .fn()
-          .mockResolvedValue([
-            { id: "proposal_1", pipelineId: "pipeline_1", stageId: "stage_1", status: "lost" },
-          ]),
-      },
-      "source_proposal_not_open",
-    ],
   ])("returns a typed refusal for %s", async (_label, overrides, reason) => {
     const store = createStore(overrides)
     const runtime = createProposalInquiryConversionRuntime(store as never)
     await expect(
-      runtime.convertInquiry("db", { inquiryId: "inq_1", title: "Inquiry" }),
+      runtime.convertInquiry("db", {
+        inquiryId: "inq_1",
+        idempotencyKey: "conversion_1",
+        title: "Inquiry",
+      }),
     ).resolves.toEqual({ kind: "refused", reason })
     expect(store.createProposal).not.toHaveBeenCalled()
   })
