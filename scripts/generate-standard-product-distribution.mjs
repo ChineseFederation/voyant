@@ -42,7 +42,10 @@ const bomPackages = [
   ...new Set([...standardPackages, ...manifestReferencePackages, ...distributionSourcePackages]),
 ].sort()
 const distributionRuntimeEntryDeps = {
-  "@better-auth/api-key": "^1.6.23",
+  // The api-key package and Better Auth core are a coupled release train. A
+  // lockfile-less starter must not pair api-key 1.6.x with Better Auth 1.7.x:
+  // api-key 1.6 imports core exports that 1.7 removed.
+  "@better-auth/api-key": "1.6.23",
   "@fontsource-variable/inter-tight": "^5.2.7",
   "@scalar/api-reference-react": "0.9.51",
   "@tailwindcss/vite": "^4.3.2",
@@ -75,7 +78,7 @@ const distributionRuntimeEntryDeps = {
   "@voyant-travel/utils": "workspace:*",
   "@voyant-travel/vite-config": "workspace:*",
   "drizzle-orm": "catalog:",
-  "better-auth": "^1.6.23",
+  "better-auth": "1.6.23",
   pg: "^8.22.0",
   react: "^19.2.7",
   "react-dom": "^19.2.7",
