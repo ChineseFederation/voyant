@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest"
 import {
   assignInquirySchema,
   closeInquirySchema,
+  convertInquiryToProposalSchema,
   createInquirySchema,
   inquiryListQuerySchema,
   inquiryRecordSchema,
@@ -51,6 +52,19 @@ describe("Inquiry contracts", () => {
     expect(closeInquirySchema.safeParse({ outcome: "duplicate" }).success).toBe(false)
     expect(closeInquirySchema.safeParse({ outcome: "other" }).success).toBe(false)
     expect(closeInquirySchema.safeParse({ outcome: "spam" }).success).toBe(true)
+  })
+
+  it("requires a persisted idempotency key for Proposal conversion", () => {
+    expect(
+      convertInquiryToProposalSchema.parse({ kind: "proposal", idempotencyKey: "proposal-alt-1" }),
+    ).toEqual({
+      kind: "proposal",
+      idempotencyKey: "proposal-alt-1",
+      keepInquiryOpen: false,
+    })
+    expect(
+      convertInquiryToProposalSchema.safeParse({ kind: "proposal", idempotencyKey: " " }).success,
+    ).toBe(false)
   })
 
   it("accepts canonical work-queue views and composes explicit filters", () => {

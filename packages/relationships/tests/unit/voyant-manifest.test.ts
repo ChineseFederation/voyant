@@ -8,6 +8,7 @@ import {
 import { assertPortConforms } from "@voyant-travel/core/project"
 import { customFieldValueOperationsRuntimePort } from "@voyant-travel/core/runtime-port"
 import { financeStoredInstrumentRuntimePort } from "@voyant-travel/finance/runtime-port"
+import { proposalInquiryConversionRuntimePort } from "@voyant-travel/proposals-contracts/inquiry-conversion"
 import { describe, expect, it, vi } from "vitest"
 import { createRelationshipsVoyantRuntime, relationshipsRouteRuntimePort } from "../../src/index.js"
 import { RELATIONSHIPS_ROUTE_RUNTIME_CONTAINER_KEY } from "../../src/route-runtime.js"
@@ -38,6 +39,7 @@ describe("relationships deployment manifest", () => {
         { id: customFieldsRuntimePort.id },
         { id: "relationships.route-runtime" },
         { id: "relationships.booking-enrichment-database" },
+        { id: proposalInquiryConversionRuntimePort.id },
         // Optional: a deployment can select CRM without Bookings, and then
         // nothing emits `booking.confirmed` for the enrichment subscriber.
         { id: "bookings.crm-snapshot.runtime", optional: true },
@@ -69,6 +71,14 @@ describe("relationships deployment manifest", () => {
         expect.objectContaining({
           resource: "relationships-pii",
           actions: [expect.objectContaining({ action: "read", sensitive: true })],
+        }),
+      ]),
+    )
+    expect(relationshipsVoyantModule.events).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          eventType: "inquiry.converted",
+          audit: { sourceModule: "relationships", category: "domain" },
         }),
       ]),
     )
@@ -176,8 +186,13 @@ describe("relationships deployment manifest", () => {
       forEntity: () => [],
     }))
     const customFieldsForWrite = vi.fn(customFields)
+    const proposalInquiryConversion = { convertInquiry: vi.fn() }
     await expect(
-      assertPortConforms(relationshipsRouteRuntimePort, { customFields, customFieldsForWrite }),
+      assertPortConforms(relationshipsRouteRuntimePort, {
+        customFields,
+        customFieldsForWrite,
+        proposalInquiryConversion,
+      }),
     ).resolves.toBeUndefined()
     await expect(
       assertPortConforms(relationshipsRouteRuntimePort, { customFields: true } as never),
@@ -201,7 +216,11 @@ describe("relationships deployment manifest", () => {
       },
       runtimePorts: {},
       hasPort: () => true,
-      getPort: vi.fn(async () => ({ customFields, customFieldsForWrite })) as never,
+      getPort: vi.fn(async () => ({
+        customFields,
+        customFieldsForWrite,
+        proposalInquiryConversion,
+      })) as never,
       getPorts: vi.fn(async () => []) as never,
     })
     const container = createContainer()
@@ -212,6 +231,7 @@ describe("relationships deployment manifest", () => {
     expect(container.resolve(RELATIONSHIPS_ROUTE_RUNTIME_CONTAINER_KEY)).toMatchObject({
       customFields,
       customFieldsForWrite,
+      proposalInquiryConversion: { convertInquiry: expect.any(Function) },
     })
   })
 

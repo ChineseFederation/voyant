@@ -766,6 +766,23 @@ export interface paths {
     patch?: never
     trace?: never
   }
+  "/v1/admin/relationships/inquiries/{id}/convert": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** POST /v1/admin/relationships/inquiries/{id}/convert */
+    post: operations["postAdminRelationshipsInquiriesByIdConvert"]
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
   "/v1/admin/relationships/activities": {
     parameters: {
       query?: never
@@ -6670,6 +6687,128 @@ export interface operations {
       }
       /** @description Inquiry lifecycle conflict */
       409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  postAdminRelationshipsInquiriesByIdConvert: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          /** @enum {string} */
+          kind: "proposal"
+          idempotencyKey: string
+          pipelineId?: string | null
+          stageId?: string | null
+          /** @default false */
+          keepInquiryOpen?: boolean
+        }
+      }
+    }
+    responses: {
+      /** @description Replayed Inquiry conversion */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              /** @enum {string} */
+              kind: "created" | "replayed"
+              conversionId: string
+              inquiryId: string
+              /** @enum {string} */
+              inquiryStatus: "qualified" | "converted"
+              target: {
+                /** @enum {string} */
+                kind: "proposal"
+                id: string
+                pipelineId: string
+                stageId: string
+              }
+            }
+          }
+        }
+      }
+      /** @description Created Inquiry conversion */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              /** @enum {string} */
+              kind: "created" | "replayed"
+              conversionId: string
+              inquiryId: string
+              /** @enum {string} */
+              inquiryStatus: "qualified" | "converted"
+              target: {
+                /** @enum {string} */
+                kind: "proposal"
+                id: string
+                pipelineId: string
+                stageId: string
+              }
+            }
+          }
+        }
+      }
+      /** @description Inquiry not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Inquiry lifecycle conflict or Proposal refusal */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json":
+            | {
+                error: string
+                /** @enum {string} */
+                reason:
+                  | "invalid_input"
+                  | "pipeline_not_found"
+                  | "default_pipeline_not_found"
+                  | "stage_not_found"
+                  | "stage_pipeline_mismatch"
+                  | "stage_closed"
+                  | "open_stage_not_found"
+                  | "source_conflict"
+              }
+            | {
+                error: string
+              }
+        }
+      }
+      /** @description Proposal conversion unavailable */
+      503: {
         headers: {
           [name: string]: unknown
         }

@@ -1,4 +1,5 @@
 import { createRoute, OpenAPIHono, type z } from "@hono/zod-openapi"
+import type { ModuleContainer } from "@voyant-travel/core"
 import {
   openApiValidationHook,
   parseJsonBody,
@@ -8,15 +9,26 @@ import {
 import {
   inquiryCreateResponseSchema,
   inquiryListResponseSchema,
+  inquiryProposalConversionRefusalSchema,
+  inquiryProposalConversionResultSchema,
   inquiryResponseSchema,
 } from "@voyant-travel/relationships-contracts"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import type { Context } from "hono"
-
-import { InquiryServiceError, relationshipsService } from "../service/index.js"
+import {
+  RELATIONSHIPS_ROUTE_RUNTIME_CONTAINER_KEY,
+  type RelationshipsRouteRuntime,
+} from "../route-runtime.js"
+import {
+  convertInquiryToProposal,
+  InquiryProposalConversionRefusedError,
+  InquiryServiceError,
+  relationshipsService,
+} from "../service/index.js"
 import {
   assignInquirySchema,
   closeInquirySchema,
+  convertInquiryToProposalSchema,
   createInquirySchema,
   inquiryListQuerySchema,
   reopenInquirySchema,
@@ -29,6 +41,7 @@ type Env = {
   Variables: {
     db: PostgresJsDatabase
     userId?: string
+    container?: ModuleContainer
   }
 }
 
@@ -49,11 +62,13 @@ const documentedTransitionSchema: z.ZodObject = transitionInquirySchema
 const documentedAssignSchema: z.ZodObject = assignInquirySchema
 const documentedCloseSchema: z.ZodObject = closeInquirySchema
 const documentedReopenSchema: z.ZodObject = reopenInquirySchema
+const documentedConvertSchema: z.ZodObject = convertInquiryToProposalSchema
 const documentedInquiryResponseSchema: z.ZodObject = inquiryResponseSchema
 const documentedInquiryCreateResponseSchema: z.ZodObject = inquiryCreateResponseSchema
 const documentedInquiryListResponseSchema: z.ZodObject = inquiryListResponseSchema
 const inquiryResponse = jsonContent(documentedInquiryResponseSchema)
 const inquiryCreateResponse = jsonContent(documentedInquiryCreateResponseSchema)
+const inquiryConversionResponse = jsonContent(inquiryProposalConversionResultSchema)
 
 function serviceErrorResponse(c: Context<Env>, error: unknown) {
   if (!(error instanceof InquiryServiceError)) throw error
@@ -137,6 +152,21 @@ const reopenRoute = createRoute({
   path: "/inquiries/{id}/reopen",
   request: { params: idParamSchema, ...requiredJsonBody(documentedReopenSchema) },
   responses: commandResponses,
+})
+const convertRoute = createRoute({
+  method: "post",
+  path: "/inquiries/{id}/convert",
+  request: { params: idParamSchema, ...requiredJsonBody(documentedConvertSchema) },
+  responses: {
+    200: { description: "Replayed Inquiry conversion", ...inquiryConversionResponse },
+    201: { description: "Created Inquiry conversion", ...inquiryConversionResponse },
+    404: { description: "Inquiry not found", ...jsonContent(errorResponseSchema) },
+    409: {
+      description: "Inquiry lifecycle conflict or Proposal refusal",
+      ...jsonContent(inquiryProposalConversionRefusalSchema.or(errorResponseSchema)),
+    },
+    503: { description: "Proposal conversion unavailable", ...jsonContent(errorResponseSchema) },
+  },
 })
 
 export const inquiryRoutes = new OpenAPIHono<Env>({ defaultHook: openApiValidationHook })
@@ -234,6 +264,31 @@ inquiryRoutes.openapi(reopenRoute, async (c) => {
     )
     return c.json({ data: row }, 200)
   } catch (error) {
+    return serviceErrorResponse(c, error)
+  }
+})
+inquiryRoutes.openapi(convertRoute, async (c) => {
+  const actorId = requireUserId(c)
+  const runtime = c.get("container")?.resolve(RELATIONSHIPS_ROUTE_RUNTIME_CONTAINER_KEY) as
+    | RelationshipsRouteRuntime
+    | undefined
+  if (!runtime?.proposalInquiryConversion) {
+    return c.json({ error: "Proposal conversion is unavailable" }, 503)
+  }
+  try {
+    const result = await convertInquiryToProposal(
+      c.get("db"),
+      runtime.proposalInquiryConversion,
+      c.req.valid("param").id,
+      await parseJsonBody(c, convertInquiryToProposalSchema),
+      actorId,
+    )
+    const body = { data: result }
+    return result.kind === "created" ? c.json(body, 201) : c.json(body, 200)
+  } catch (error) {
+    if (error instanceof InquiryProposalConversionRefusedError) {
+      return c.json({ error: error.message, reason: error.reason }, 409)
+    }
     return serviceErrorResponse(c, error)
   }
 })

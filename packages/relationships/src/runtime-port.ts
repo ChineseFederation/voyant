@@ -63,6 +63,14 @@ export const relationshipsRouteRuntimePort = definePort<RelationshipsRouteRuntim
     if (provider.resolveKmsProvider && typeof provider.resolveKmsProvider !== "function") {
       throw new Error("relationships.route-runtime provider resolveKmsProvider must be a function.")
     }
+    if (
+      provider.proposalInquiryConversion &&
+      typeof provider.proposalInquiryConversion.convertInquiry !== "function"
+    ) {
+      throw new Error(
+        "relationships.route-runtime proposalInquiryConversion must implement convertInquiry().",
+      )
+    }
   },
 })
 

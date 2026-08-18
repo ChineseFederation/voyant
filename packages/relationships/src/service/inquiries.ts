@@ -44,6 +44,8 @@ export type InquiryServiceErrorCode =
   | "INQUIRY_NEXT_ACTION_REQUIRED"
   | "INQUIRY_CUSTOMER_REQUIRED"
   | "INQUIRY_ALREADY_RESOLVED"
+  | "INQUIRY_CONVERSION_NOT_READY"
+  | "INQUIRY_CONVERSION_REFUSED"
   | "INVALID_DUPLICATE_INQUIRY"
 
 export class InquiryServiceError extends Error {

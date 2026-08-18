@@ -38,6 +38,15 @@ export const inquiryCloseOutcomeEnum = pgEnum("inquiry_close_outcome", [
   "customer_withdrew",
   "other",
 ])
+export const inquiryConversionKindEnum = pgEnum("inquiry_conversion_kind", [
+  "proposal",
+  "booking_session",
+  "booking",
+])
+export const inquiryConversionModeEnum = pgEnum("inquiry_conversion_mode", [
+  "created",
+  "attached_existing",
+])
 
 type InquiryContactSnapshot = z.infer<typeof inquiryContactSnapshotSchema>
 
@@ -104,3 +113,40 @@ export const inquiries = pgTable(
 
 export type Inquiry = typeof inquiries.$inferSelect
 export type NewInquiry = typeof inquiries.$inferInsert
+
+export interface InquiryProposalTargetSnapshot {
+  kind: "proposal"
+  pipelineId: string
+  stageId: string
+}
+
+/** Durable provenance and replay boundary for every successful Inquiry handoff. */
+export const inquiryConversions = pgTable(
+  "inquiry_conversions",
+  {
+    id: typeId("inquiryConversions"),
+    inquiryId: typeIdRef("inquiry_id")
+      .notNull()
+      .references(() => inquiries.id, { onDelete: "cascade" }),
+    kind: inquiryConversionKindEnum("kind").notNull(),
+    targetId: text("target_id").notNull(),
+    targetSnapshot: jsonb("target_snapshot").$type<InquiryProposalTargetSnapshot>().notNull(),
+    idempotencyKey: text("idempotency_key").notNull(),
+    mode: inquiryConversionModeEnum("mode").notNull(),
+    actorId: text("actor_id").notNull(),
+    inquiryStatus: inquiryStatusEnum("inquiry_status").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("uq_inquiry_conversions_operation").on(
+      table.inquiryId,
+      table.kind,
+      table.idempotencyKey,
+    ),
+    index("idx_inquiry_conversions_target").on(table.kind, table.targetId),
+    index("idx_inquiry_conversions_inquiry_created").on(table.inquiryId, table.createdAt),
+  ],
+)
+
+export type InquiryConversion = typeof inquiryConversions.$inferSelect
+export type NewInquiryConversion = typeof inquiryConversions.$inferInsert

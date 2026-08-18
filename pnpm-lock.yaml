@@ -5461,6 +5461,9 @@ importers:
       '@voyant-travel/identity':
         specifier: workspace:^
         version: link:../identity
+      '@voyant-travel/proposals-contracts':
+        specifier: workspace:^
+        version: link:../proposals-contracts
       '@voyant-travel/relationships-contracts':
         specifier: workspace:^
         version: link:../relationships-contracts

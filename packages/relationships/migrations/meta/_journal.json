@@ -57,6 +57,13 @@
       "when": 1787004325942,
       "tag": "20260817220525_inquiry_management",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1787013000000,
+      "tag": "20260818033000_inquiry_proposal_conversion",
+      "breakpoints": true
     }
   ]
 }
