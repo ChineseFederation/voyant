@@ -9,6 +9,7 @@ import {
   type RelationshipsRouteRuntimeOptions,
 } from "./route-runtime.js"
 import { relationshipsRoutes } from "./routes/index.js"
+import { publicInquiryRoutes } from "./routes/inquiries-public.js"
 import { relationshipsRouteRuntimePort } from "./runtime-port.js"
 import { relationshipsService } from "./service/index.js"
 
@@ -49,6 +50,9 @@ export function createRelationshipsApiModule(
   return {
     module,
     adminRoutes: relationshipsRoutes,
+    publicRoutes: publicInquiryRoutes,
+    anonymous: true,
+    optionalCustomerAuth: true,
   }
 }
 
@@ -65,6 +69,7 @@ export type {
   InquiryConvertedEvent,
   InquiryEvent,
   InquiryStatusChangedEvent,
+  InquiryTargetChangedEvent,
   OrganizationChangedEvent,
   PersonChangedEvent,
   RelationshipChangeAction,
@@ -78,6 +83,8 @@ export {
   INQUIRY_CREATED_EVENT,
   INQUIRY_REOPENED_EVENT,
   INQUIRY_STATUS_CHANGED_EVENT,
+  INQUIRY_TARGET_ADDED_EVENT,
+  INQUIRY_TARGET_REMOVED_EVENT,
   INQUIRY_UPDATED_EVENT,
   ORGANIZATION_CHANGED_EVENT,
   PERSON_CHANGED_EVENT,

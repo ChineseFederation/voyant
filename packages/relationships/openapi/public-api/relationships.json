@@ -1,0 +1,431 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Voyant Public API",
+    "version": "0.0.0",
+    "description": "Generated from the composed public API. Do not edit by hand."
+  },
+  "servers": [
+    {
+      "url": "/",
+      "description": "This deployment (same origin)"
+    }
+  ],
+  "paths": {
+    "/v1/public/relationships/inquiries": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "sourceRef": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 500
+                  },
+                  "subject": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 300
+                  },
+                  "kind": {
+                    "type": "string",
+                    "enum": ["product", "custom_trip", "general"]
+                  },
+                  "contactSnapshot": {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200
+                      },
+                      "email": {
+                        "type": "string",
+                        "maxLength": 320,
+                        "format": "email"
+                      },
+                      "phone": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 80
+                      }
+                    }
+                  },
+                  "customerMessage": {
+                    "type": ["string", "null"],
+                    "maxLength": 20000
+                  },
+                  "travelBrief": {
+                    "type": ["object", "null"],
+                    "properties": {
+                      "version": {
+                        "type": "number",
+                        "enum": [1]
+                      },
+                      "destinations": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "placeId": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "label": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 200
+                            }
+                          },
+                          "required": ["label"]
+                        },
+                        "maxItems": 20
+                      },
+                      "origin": {
+                        "type": "object",
+                        "properties": {
+                          "placeId": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "label": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200
+                          }
+                        },
+                        "required": ["label"]
+                      },
+                      "startDate": {
+                        "type": "string",
+                        "format": "date"
+                      },
+                      "endDate": {
+                        "type": "string",
+                        "format": "date"
+                      },
+                      "dateFlexibility": {
+                        "type": "string",
+                        "enum": ["exact", "few_days", "few_weeks", "open"]
+                      },
+                      "durationNights": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 365
+                      },
+                      "adults": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 100
+                      },
+                      "children": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "age": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 17
+                            }
+                          }
+                        },
+                        "maxItems": 100
+                      },
+                      "rooms": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 100
+                      },
+                      "budget": {
+                        "type": "object",
+                        "properties": {
+                          "amountCents": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "currency": {
+                            "type": "string",
+                            "pattern": "^[A-Z]{3}$"
+                          },
+                          "basis": {
+                            "type": "string",
+                            "enum": ["total", "per_person"]
+                          },
+                          "flexibility": {
+                            "type": "string",
+                            "enum": ["firm", "approximate", "unknown"]
+                          }
+                        },
+                        "required": ["currency"]
+                      },
+                      "interests": {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 100
+                        },
+                        "maxItems": 50
+                      },
+                      "accessibilityOrDietaryNotes": {
+                        "type": "string",
+                        "maxLength": 4000
+                      }
+                    },
+                    "required": ["version"]
+                  },
+                  "targets": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string",
+                          "enum": ["product", "option_unit"]
+                        },
+                        "targetId": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 500
+                        },
+                        "snapshot": {
+                          "type": "object",
+                          "properties": {
+                            "title": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 500
+                            },
+                            "optionLabel": {
+                              "type": ["string", "null"],
+                              "minLength": 1,
+                              "maxLength": 500
+                            },
+                            "startDate": {
+                              "type": ["string", "null"],
+                              "format": "date"
+                            },
+                            "endDate": {
+                              "type": ["string", "null"],
+                              "format": "date"
+                            },
+                            "publicUrl": {
+                              "type": ["string", "null"],
+                              "maxLength": 2000,
+                              "format": "uri"
+                            },
+                            "sourceChannel": {
+                              "type": ["string", "null"],
+                              "minLength": 1,
+                              "maxLength": 200
+                            }
+                          },
+                          "required": ["title"]
+                        }
+                      },
+                      "required": ["kind", "targetId", "snapshot"]
+                    },
+                    "maxItems": 20,
+                    "default": []
+                  },
+                  "locale": {
+                    "type": ["string", "null"],
+                    "minLength": 2,
+                    "maxLength": 35
+                  },
+                  "sourceUrl": {
+                    "type": ["string", "null"],
+                    "maxLength": 2000,
+                    "format": "uri"
+                  },
+                  "tags": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 100
+                    },
+                    "maxItems": 100,
+                    "default": []
+                  },
+                  "customFields": {
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": "object",
+                      "additionalProperties": {}
+                    },
+                    "default": {}
+                  },
+                  "consentSnapshot": {
+                    "type": ["object", "null"],
+                    "additionalProperties": {}
+                  }
+                },
+                "required": ["sourceRef", "subject", "kind", "contactSnapshot"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Replayed Inquiry intake",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "inquiryId": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": ["new"]
+                        },
+                        "duplicate": {
+                          "type": "boolean"
+                        },
+                        "receivedAt": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["inquiryId", "status", "duplicate", "receivedAt"]
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Received Inquiry intake",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "inquiryId": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": ["new"]
+                        },
+                        "duplicate": {
+                          "type": "boolean"
+                        },
+                        "receivedAt": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["inquiryId", "status", "duplicate", "receivedAt"]
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid guarded intake request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing active channel or intake guard",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Known Person or target not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Inquiry intake conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Guarded intake rate limit exceeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "postPublicRelationshipsInquiries",
+        "summary": "POST /v1/public/relationships/inquiries",
+        "tags": ["relationships"],
+        "x-voyant-module": "relationships",
+        "x-voyant-surface": "public-api",
+        "x-voyant-api-id": "@voyant-travel/relationships#api.public",
+        "x-voyant-unit-id": "@voyant-travel/relationships",
+        "x-voyant-package-name": "@voyant-travel/relationships"
+      }
+    }
+  }
+}

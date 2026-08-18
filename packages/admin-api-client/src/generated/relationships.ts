@@ -766,6 +766,40 @@ export interface paths {
     patch?: never
     trace?: never
   }
+  "/v1/admin/relationships/inquiries/{id}/targets": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** POST /v1/admin/relationships/inquiries/{id}/targets */
+    post: operations["postAdminRelationshipsInquiriesByIdTargets"]
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/admin/relationships/inquiries/{id}/targets/{linkId}": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    post?: never
+    /** DELETE /v1/admin/relationships/inquiries/{id}/targets/{linkId} */
+    delete: operations["deleteAdminRelationshipsInquiriesByIdTargetsByLinkId"]
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
   "/v1/admin/relationships/inquiries/{id}/convert": {
     parameters: {
       query?: never
@@ -5408,6 +5442,25 @@ export interface operations {
               closedAt: string | null
               createdAt: string
               updatedAt: string
+              targets: {
+                /** @enum {string} */
+                kind: "product" | "option_unit" | "catalog_item" | "trip"
+                targetId: string
+                snapshot: {
+                  title: string
+                  optionLabel?: string | null
+                  /** Format: date */
+                  startDate?: string | null
+                  /** Format: date */
+                  endDate?: string | null
+                  /** Format: uri */
+                  publicUrl?: string | null
+                  sourceChannel?: string | null
+                }
+                linkId: string
+                inquiryId: string
+                createdAt: string
+              }[]
             }[]
             total: number
             limit: number
@@ -5610,6 +5663,25 @@ export interface operations {
               closedAt: string | null
               createdAt: string
               updatedAt: string
+              targets: {
+                /** @enum {string} */
+                kind: "product" | "option_unit" | "catalog_item" | "trip"
+                targetId: string
+                snapshot: {
+                  title: string
+                  optionLabel?: string | null
+                  /** Format: date */
+                  startDate?: string | null
+                  /** Format: date */
+                  endDate?: string | null
+                  /** Format: uri */
+                  publicUrl?: string | null
+                  sourceChannel?: string | null
+                }
+                linkId: string
+                inquiryId: string
+                createdAt: string
+              }[]
             }
             replayed: boolean
           }
@@ -5718,6 +5790,25 @@ export interface operations {
               closedAt: string | null
               createdAt: string
               updatedAt: string
+              targets: {
+                /** @enum {string} */
+                kind: "product" | "option_unit" | "catalog_item" | "trip"
+                targetId: string
+                snapshot: {
+                  title: string
+                  optionLabel?: string | null
+                  /** Format: date */
+                  startDate?: string | null
+                  /** Format: date */
+                  endDate?: string | null
+                  /** Format: uri */
+                  publicUrl?: string | null
+                  sourceChannel?: string | null
+                }
+                linkId: string
+                inquiryId: string
+                createdAt: string
+              }[]
             }
             replayed: boolean
           }
@@ -5861,6 +5952,25 @@ export interface operations {
               closedAt: string | null
               createdAt: string
               updatedAt: string
+              targets: {
+                /** @enum {string} */
+                kind: "product" | "option_unit" | "catalog_item" | "trip"
+                targetId: string
+                snapshot: {
+                  title: string
+                  optionLabel?: string | null
+                  /** Format: date */
+                  startDate?: string | null
+                  /** Format: date */
+                  endDate?: string | null
+                  /** Format: uri */
+                  publicUrl?: string | null
+                  sourceChannel?: string | null
+                }
+                linkId: string
+                inquiryId: string
+                createdAt: string
+              }[]
             }
           }
         }
@@ -6059,6 +6169,25 @@ export interface operations {
               closedAt: string | null
               createdAt: string
               updatedAt: string
+              targets: {
+                /** @enum {string} */
+                kind: "product" | "option_unit" | "catalog_item" | "trip"
+                targetId: string
+                snapshot: {
+                  title: string
+                  optionLabel?: string | null
+                  /** Format: date */
+                  startDate?: string | null
+                  /** Format: date */
+                  endDate?: string | null
+                  /** Format: uri */
+                  publicUrl?: string | null
+                  sourceChannel?: string | null
+                }
+                linkId: string
+                inquiryId: string
+                createdAt: string
+              }[]
             }
           }
         }
@@ -6212,6 +6341,25 @@ export interface operations {
               closedAt: string | null
               createdAt: string
               updatedAt: string
+              targets: {
+                /** @enum {string} */
+                kind: "product" | "option_unit" | "catalog_item" | "trip"
+                targetId: string
+                snapshot: {
+                  title: string
+                  optionLabel?: string | null
+                  /** Format: date */
+                  startDate?: string | null
+                  /** Format: date */
+                  endDate?: string | null
+                  /** Format: uri */
+                  publicUrl?: string | null
+                  sourceChannel?: string | null
+                }
+                linkId: string
+                inquiryId: string
+                createdAt: string
+              }[]
             }
           }
         }
@@ -6362,6 +6510,25 @@ export interface operations {
               closedAt: string | null
               createdAt: string
               updatedAt: string
+              targets: {
+                /** @enum {string} */
+                kind: "product" | "option_unit" | "catalog_item" | "trip"
+                targetId: string
+                snapshot: {
+                  title: string
+                  optionLabel?: string | null
+                  /** Format: date */
+                  startDate?: string | null
+                  /** Format: date */
+                  endDate?: string | null
+                  /** Format: uri */
+                  publicUrl?: string | null
+                  sourceChannel?: string | null
+                }
+                linkId: string
+                inquiryId: string
+                createdAt: string
+              }[]
             }
           }
         }
@@ -6520,6 +6687,25 @@ export interface operations {
               closedAt: string | null
               createdAt: string
               updatedAt: string
+              targets: {
+                /** @enum {string} */
+                kind: "product" | "option_unit" | "catalog_item" | "trip"
+                targetId: string
+                snapshot: {
+                  title: string
+                  optionLabel?: string | null
+                  /** Format: date */
+                  startDate?: string | null
+                  /** Format: date */
+                  endDate?: string | null
+                  /** Format: uri */
+                  publicUrl?: string | null
+                  sourceChannel?: string | null
+                }
+                linkId: string
+                inquiryId: string
+                createdAt: string
+              }[]
             }
           }
         }
@@ -6670,6 +6856,25 @@ export interface operations {
               closedAt: string | null
               createdAt: string
               updatedAt: string
+              targets: {
+                /** @enum {string} */
+                kind: "product" | "option_unit" | "catalog_item" | "trip"
+                targetId: string
+                snapshot: {
+                  title: string
+                  optionLabel?: string | null
+                  /** Format: date */
+                  startDate?: string | null
+                  /** Format: date */
+                  endDate?: string | null
+                  /** Format: uri */
+                  publicUrl?: string | null
+                  sourceChannel?: string | null
+                }
+                linkId: string
+                inquiryId: string
+                createdAt: string
+              }[]
             }
           }
         }
@@ -6686,6 +6891,132 @@ export interface operations {
         }
       }
       /** @description Inquiry lifecycle conflict */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  postAdminRelationshipsInquiriesByIdTargets: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          /** @enum {string} */
+          kind: "product" | "option_unit" | "catalog_item" | "trip"
+          targetId: string
+          snapshot: {
+            title: string
+            optionLabel?: string | null
+            /** Format: date */
+            startDate?: string | null
+            /** Format: date */
+            endDate?: string | null
+            /** Format: uri */
+            publicUrl?: string | null
+            sourceChannel?: string | null
+          }
+        }
+      }
+    }
+    responses: {
+      /** @description Linked Inquiry target */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              /** @enum {string} */
+              kind: "product" | "option_unit" | "catalog_item" | "trip"
+              targetId: string
+              snapshot: {
+                title: string
+                optionLabel?: string | null
+                /** Format: date */
+                startDate?: string | null
+                /** Format: date */
+                endDate?: string | null
+                /** Format: uri */
+                publicUrl?: string | null
+                sourceChannel?: string | null
+              }
+              linkId: string
+              inquiryId: string
+              createdAt: string
+            }
+          }
+        }
+      }
+      /** @description Inquiry or target not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Inquiry target conflict */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  deleteAdminRelationshipsInquiriesByIdTargetsByLinkId: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+        linkId: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Inquiry target removed */
+      204: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description Inquiry or target not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Inquiry target conflict */
       409: {
         headers: {
           [name: string]: unknown

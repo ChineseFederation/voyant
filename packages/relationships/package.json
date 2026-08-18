@@ -17,13 +17,14 @@
     "./runtime-port": "./src/runtime-port.ts",
     "./booking-enrichment-subscriber": "./src/booking-enrichment/subscriber-runtime.ts",
     "./voyant": "./src/voyant.ts",
-    "./openapi/admin": "./openapi/admin/relationships.json"
+    "./openapi/admin": "./openapi/admin/relationships.json",
+    "./openapi/public-api": "./openapi/public-api/relationships.json"
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "clean": "rm -rf dist tsconfig.tsbuildinfo",
     "db:generate": "drizzle-kit generate --config=drizzle.migrations.config.ts --name=relationships_baseline && node ../../scripts/migrations/guard-create-type.mjs ./migrations && node ../../scripts/migrations/ensure-extensions.mjs ./migrations",
-    "generate:openapi": "node --import tsx scripts/generate-openapi.ts && biome format --write openapi/admin/relationships.json",
+    "generate:openapi": "node --import tsx scripts/generate-openapi.ts && biome format --write openapi/admin/relationships.json openapi/public-api/relationships.json",
     "lint": "biome check src/",
     "prepack": "pnpm run build",
     "test": "vitest run",
@@ -129,7 +130,8 @@
         "import": "./dist/voyant.js",
         "default": "./dist/voyant.js"
       },
-      "./openapi/admin": "./openapi/admin/relationships.json"
+      "./openapi/admin": "./openapi/admin/relationships.json",
+      "./openapi/public-api": "./openapi/public-api/relationships.json"
     },
     "main": "./dist/index.js",
     "types": "./dist/index.d.ts"

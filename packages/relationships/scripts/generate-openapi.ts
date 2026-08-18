@@ -22,55 +22,69 @@ import { resolve } from "node:path"
 import { stampModuleMetadata } from "@voyant-travel/hono/openapi"
 
 import { relationshipsRoutes } from "../src/routes/index.js"
+import { publicInquiryRoutes } from "../src/routes/inquiries-public.js"
 
-const PREFIX = "/v1/admin/relationships"
-const artifactPath = resolve(import.meta.dirname, "..", "openapi/admin/relationships.json")
-const artifact = JSON.parse(readFileSync(artifactPath, "utf8"))
-
-const live = relationshipsRoutes.getOpenAPI31Document({
-  openapi: artifact.openapi,
-  info: artifact.info,
-})
-
-// The route module mounts at `/`, so its own document is prefix-relative. The
-// published document is absolute, and `stampModuleMetadata` derives operation
-// ids, summaries and the owning module from the absolute path — so re-prefix
-// before stamping, not after.
-const prefixed = {
-  ...live,
-  paths: Object.fromEntries(
-    Object.entries(live.paths ?? {}).map(([path, item]) => [
-      path === "/" ? PREFIX : `${PREFIX}${path}`,
-      item,
-    ]),
-  ),
-}
-const stamped = stampModuleMetadata(prefixed, new Map([[PREFIX, "relationships"]]))
-
-// `stampModuleMetadata` derives the module, surface and operation ids. The graph
-// stamps — which bundle an operation belongs to — are this document's own
-// convention and are not derived from the routes, so they are applied here
-// rather than silently dropped. Composition adds them again for the document a
-// deployment serves; a per-package artifact that carries them should keep
-// carrying them.
 const OPERATION_METHODS = ["get", "post", "put", "patch", "delete", "head", "options"]
-for (const pathItem of Object.values(stamped.paths ?? {})) {
-  if (!pathItem || typeof pathItem !== "object") continue
-  for (const method of OPERATION_METHODS) {
-    const operation = (pathItem as Record<string, unknown>)[method]
-    if (!operation || typeof operation !== "object") continue
-    Object.assign(operation, {
-      "x-voyant-api-id": "@voyant-travel/relationships#api.admin",
-      "x-voyant-unit-id": "@voyant-travel/relationships",
-      "x-voyant-package-name": "@voyant-travel/relationships",
-    })
+
+function generate(
+  routes: typeof relationshipsRoutes,
+  artifactRelativePath: string,
+  prefix: string,
+  apiId: string,
+) {
+  const artifactPath = resolve(import.meta.dirname, "..", artifactRelativePath)
+  const artifact = JSON.parse(readFileSync(artifactPath, "utf8"))
+  const live = routes.getOpenAPI31Document({
+    openapi: artifact.openapi,
+    info: artifact.info,
+  })
+
+  // The route module mounts at `/`, so its own document is prefix-relative. The
+  // published document is absolute, and `stampModuleMetadata` derives operation
+  // ids, summaries and the owning module from the absolute path — so re-prefix
+  // before stamping, not after.
+  const prefixed = {
+    ...live,
+    paths: Object.fromEntries(
+      Object.entries(live.paths ?? {}).map(([path, item]) => [
+        path === "/" ? prefix : `${prefix}${path}`,
+        item,
+      ]),
+    ),
   }
+  const stamped = stampModuleMetadata(prefixed, new Map([[prefix, "relationships"]]))
+
+  // `stampModuleMetadata` derives the module, surface and operation ids. The graph
+  // stamps — which bundle an operation belongs to — are this document's own
+  // convention and are not derived from the routes, so they are applied here.
+  for (const pathItem of Object.values(stamped.paths ?? {})) {
+    if (!pathItem || typeof pathItem !== "object") continue
+    for (const method of OPERATION_METHODS) {
+      const operation = (pathItem as Record<string, unknown>)[method]
+      if (!operation || typeof operation !== "object") continue
+      Object.assign(operation, {
+        "x-voyant-api-id": apiId,
+        "x-voyant-unit-id": "@voyant-travel/relationships",
+        "x-voyant-package-name": "@voyant-travel/relationships",
+      })
+    }
+  }
+
+  writeFileSync(
+    artifactPath,
+    `${JSON.stringify({ ...artifact, paths: stamped.paths ?? {} }, null, 2)}\n`,
+  )
 }
 
-// Built from the live surface alone, never merged into what the artifact held:
-// merging only ever adds, so a path the surface stopped serving would survive
-// forever with nothing regenerating or comparing it.
-writeFileSync(
-  artifactPath,
-  `${JSON.stringify({ ...artifact, paths: stamped.paths ?? {} }, null, 2)}\n`,
+generate(
+  relationshipsRoutes,
+  "openapi/admin/relationships.json",
+  "/v1/admin/relationships",
+  "@voyant-travel/relationships#api.admin",
+)
+generate(
+  publicInquiryRoutes as typeof relationshipsRoutes,
+  "openapi/public-api/relationships.json",
+  "/v1/public/relationships",
+  "@voyant-travel/relationships#api.public",
 )

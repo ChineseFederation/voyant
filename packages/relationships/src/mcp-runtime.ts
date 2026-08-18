@@ -1,5 +1,6 @@
 import type { ActionLedgerRequestContextValues } from "@voyant-travel/action-ledger"
 import type { EventBus, ModuleContainer } from "@voyant-travel/core"
+import { createLinkService } from "@voyant-travel/db/links"
 import {
   defineToolContextContribution,
   deriveCommandIdempotencyKey,
@@ -20,6 +21,7 @@ import {
 } from "./route-runtime.js"
 import { relationshipsService } from "./service/index.js"
 import { convertInquiryToProposal } from "./service/inquiry-conversions.js"
+import { inquiryOptionUnitLink, inquiryProductLink } from "./standard-links.js"
 import {
   assignInquirySchema,
   closeInquirySchema,
@@ -45,6 +47,14 @@ export const voyantToolContextContribution = defineToolContextContribution({
   contribute: ({ request, context }) => {
     const c = request as Context<RelationshipsMcpEnv>
     const db = context.db as PostgresJsDatabase
+    const inquiryTargetLinks = createLinkService(
+      () => db,
+      [inquiryProductLink, inquiryOptionUnitLink],
+    )
+    const withInquiryTargets = async <T extends { id: string }>(inquiry: T) => ({
+      ...inquiry,
+      targets: await relationshipsService.listInquiryTargets(db, inquiryTargetLinks, inquiry.id),
+    })
     const eventBus = c.get("eventBus")
     const proposalInquiryConversion = (
       c.get("container")?.resolve(RELATIONSHIPS_ROUTE_RUNTIME_CONTAINER_KEY) as
@@ -284,12 +294,28 @@ export const voyantToolContextContribution = defineToolContextContribution({
           if (!inquiry) {
             throw new ToolError("Created Inquiry could not be resolved.", "PROVIDER_ERROR")
           }
-          return { data: inquiry, replayed: result.replayed }
+          return { data: await withInquiryTargets(inquiry), replayed: result.replayed }
         },
-        assignInquiry: ({ id, ...input }: { id: string; [key: string]: unknown }) =>
-          relationshipsService.assignInquiry(db, id, assignInquirySchema.parse(input), authorId()),
-        closeInquiry: ({ id, ...input }: { id: string; [key: string]: unknown }) =>
-          relationshipsService.closeInquiry(db, id, closeInquirySchema.parse(input), authorId()),
+        async assignInquiry({ id, ...input }: { id: string; [key: string]: unknown }) {
+          return withInquiryTargets(
+            await relationshipsService.assignInquiry(
+              db,
+              id,
+              assignInquirySchema.parse(input),
+              authorId(),
+            ),
+          )
+        },
+        async closeInquiry({ id, ...input }: { id: string; [key: string]: unknown }) {
+          return withInquiryTargets(
+            await relationshipsService.closeInquiry(
+              db,
+              id,
+              closeInquirySchema.parse(input),
+              authorId(),
+            ),
+          )
+        },
         async convertInquiry({ id, ...input }: { id: string; [key: string]: unknown }) {
           if (!proposalInquiryConversion) {
             throw new ToolError(
@@ -305,15 +331,26 @@ export const voyantToolContextContribution = defineToolContextContribution({
             authorId(),
           )
         },
-        reopenInquiry: ({ id, ...input }: { id: string; [key: string]: unknown }) =>
-          relationshipsService.reopenInquiry(db, id, reopenInquirySchema.parse(input), authorId()),
-        transitionInquiry: ({ id, ...input }: { id: string; [key: string]: unknown }) =>
-          relationshipsService.transitionInquiry(
-            db,
-            id,
-            transitionInquirySchema.parse(input),
-            authorId(),
-          ),
+        async reopenInquiry({ id, ...input }: { id: string; [key: string]: unknown }) {
+          return withInquiryTargets(
+            await relationshipsService.reopenInquiry(
+              db,
+              id,
+              reopenInquirySchema.parse(input),
+              authorId(),
+            ),
+          )
+        },
+        async transitionInquiry({ id, ...input }: { id: string; [key: string]: unknown }) {
+          return withInquiryTargets(
+            await relationshipsService.transitionInquiry(
+              db,
+              id,
+              transitionInquirySchema.parse(input),
+              authorId(),
+            ),
+          )
+        },
       },
     }
   },

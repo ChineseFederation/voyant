@@ -5213,6 +5213,9 @@ importers:
       '@voyant-travel/public-api':
         specifier: workspace:^
         version: link:../public-api
+      '@voyant-travel/relationships-contracts':
+        specifier: workspace:^
+        version: link:../relationships-contracts
       '@voyant-travel/voyant-typescript-config':
         specifier: workspace:^
         version: link:../typescript-config

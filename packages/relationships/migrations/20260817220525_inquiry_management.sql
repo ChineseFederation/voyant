@@ -1,6 +1,15 @@
-CREATE TYPE "public"."inquiry_close_outcome" AS ENUM('lost', 'not_serviceable', 'no_response', 'duplicate', 'spam', 'customer_withdrew', 'other');--> statement-breakpoint
-CREATE TYPE "public"."inquiry_kind" AS ENUM('product', 'custom_trip', 'general');--> statement-breakpoint
-CREATE TYPE "public"."inquiry_status" AS ENUM('new', 'triaged', 'in_progress', 'waiting_on_customer', 'qualified', 'converted', 'closed');--> statement-breakpoint
+DO $$ BEGIN
+ CREATE TYPE "public"."inquiry_close_outcome" AS ENUM('lost', 'not_serviceable', 'no_response', 'duplicate', 'spam', 'customer_withdrew', 'other');
+EXCEPTION WHEN duplicate_object THEN null;
+END $$;--> statement-breakpoint
+DO $$ BEGIN
+ CREATE TYPE "public"."inquiry_kind" AS ENUM('product', 'custom_trip', 'general');
+EXCEPTION WHEN duplicate_object THEN null;
+END $$;--> statement-breakpoint
+DO $$ BEGIN
+ CREATE TYPE "public"."inquiry_status" AS ENUM('new', 'triaged', 'in_progress', 'waiting_on_customer', 'qualified', 'converted', 'closed');
+EXCEPTION WHEN duplicate_object THEN null;
+END $$;--> statement-breakpoint
 CREATE TABLE "inquiries" (
 	"id" text PRIMARY KEY NOT NULL,
 	"subject" text NOT NULL,

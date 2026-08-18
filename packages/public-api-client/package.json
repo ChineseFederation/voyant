@@ -33,6 +33,7 @@
     "@voyant-travel/catalog-contracts": "workspace:^",
     "@voyant-travel/finance": "workspace:^",
     "@voyant-travel/public-api": "workspace:^",
+    "@voyant-travel/relationships-contracts": "workspace:^",
     "zod": "^4.0.0"
   },
   "devDependencies": {
@@ -41,6 +42,7 @@
     "@voyant-travel/catalog-contracts": "workspace:^",
     "@voyant-travel/finance": "workspace:^",
     "@voyant-travel/public-api": "workspace:^",
+    "@voyant-travel/relationships-contracts": "workspace:^",
     "@voyant-travel/voyant-typescript-config": "workspace:^",
     "typescript": "catalog:",
     "vitest": "catalog:",

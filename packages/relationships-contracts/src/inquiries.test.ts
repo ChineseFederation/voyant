@@ -152,6 +152,7 @@ describe("Inquiry contracts", () => {
       subject: "Question about Kyoto",
       kind: "product",
       contactSnapshot: { email: "traveler@example.com" },
+      personId: "per_body_override",
       targets: [
         {
           kind: "product",
@@ -162,6 +163,7 @@ describe("Inquiry contracts", () => {
     })
     expect(intake.targets).toHaveLength(1)
     expect("source" in intake).toBe(false)
+    expect("personId" in intake).toBe(false)
     expect(
       publicInquiryReceiptSchema.safeParse({
         data: {
@@ -172,5 +174,33 @@ describe("Inquiry contracts", () => {
         },
       }).success,
     ).toBe(true)
+  })
+
+  it("accepts targetless custom intake but requires a Product target for product intake", () => {
+    expect(
+      createPublicInquirySchema.safeParse({
+        sourceRef: "custom-1",
+        subject: "Design a custom trip",
+        kind: "custom_trip",
+        contactSnapshot: { phone: "+40 700 000 000" },
+      }).success,
+    ).toBe(true)
+    expect(
+      createPublicInquirySchema.safeParse({
+        sourceRef: "product-1",
+        subject: "Product question without a product",
+        kind: "product",
+        contactSnapshot: { email: "traveler@example.com" },
+      }).success,
+    ).toBe(false)
+    expect(
+      createPublicInquirySchema.safeParse({
+        sourceRef: "unsupported-1",
+        subject: "Unsupported public target",
+        kind: "general",
+        contactSnapshot: { email: "traveler@example.com" },
+        targets: [{ kind: "trip", targetId: "trpe_1", snapshot: { title: "Draft" } }],
+      }).success,
+    ).toBe(false)
   })
 })

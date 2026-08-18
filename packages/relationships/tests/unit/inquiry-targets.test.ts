@@ -1,4 +1,3 @@
-import type { LinkService } from "@voyant-travel/core"
 import { describe, expect, it, vi } from "vitest"
 
 import { type InquiryServiceError, inquiriesService } from "../../src/service/inquiries.js"
@@ -44,7 +43,6 @@ describe("Inquiry targets", () => {
     await expect(
       inquiriesService.addInquiryTarget(
         {} as never,
-        {} as LinkService,
         "inq_1",
         { kind: "trip", targetId: "trpe_1", snapshot: { title: "Draft trip" } },
         "staff_1",

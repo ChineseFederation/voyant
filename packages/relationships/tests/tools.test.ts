@@ -1,4 +1,5 @@
 import { createToolRegistry, type ToolContext } from "@voyant-travel/tools"
+// agent-quality: file-size exception -- owner: relationships; the module tool registry stays in one contract fixture so every contributed operation is exercised together.
 import { describe, expect, it } from "vitest"
 import {
   RELATIONSHIPS_INQUIRY_HANDLER_ACTION_POLICY,
@@ -263,6 +264,7 @@ function inquiry(overrides: Record<string, unknown> = {}) {
     closedAt: null,
     createdAt: timestamp,
     updatedAt: timestamp,
+    targets: [],
     ...overrides,
   }
 }

@@ -9936,6 +9936,74 @@
                           },
                           "updatedAt": {
                             "type": "string"
+                          },
+                          "targets": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "kind": {
+                                  "type": "string",
+                                  "enum": ["product", "option_unit", "catalog_item", "trip"]
+                                },
+                                "targetId": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 500
+                                },
+                                "snapshot": {
+                                  "type": "object",
+                                  "properties": {
+                                    "title": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 500
+                                    },
+                                    "optionLabel": {
+                                      "type": ["string", "null"],
+                                      "minLength": 1,
+                                      "maxLength": 500
+                                    },
+                                    "startDate": {
+                                      "type": ["string", "null"],
+                                      "format": "date"
+                                    },
+                                    "endDate": {
+                                      "type": ["string", "null"],
+                                      "format": "date"
+                                    },
+                                    "publicUrl": {
+                                      "type": ["string", "null"],
+                                      "maxLength": 2000,
+                                      "format": "uri"
+                                    },
+                                    "sourceChannel": {
+                                      "type": ["string", "null"],
+                                      "minLength": 1,
+                                      "maxLength": 200
+                                    }
+                                  },
+                                  "required": ["title"]
+                                },
+                                "linkId": {
+                                  "type": "string"
+                                },
+                                "inquiryId": {
+                                  "type": "string"
+                                },
+                                "createdAt": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "kind",
+                                "targetId",
+                                "snapshot",
+                                "linkId",
+                                "inquiryId",
+                                "createdAt"
+                              ]
+                            }
                           }
                         },
                         "required": [
@@ -9971,7 +10039,8 @@
                           "convertedAt",
                           "closedAt",
                           "createdAt",
-                          "updatedAt"
+                          "updatedAt",
+                          "targets"
                         ]
                       }
                     },
@@ -10517,6 +10586,74 @@
                         },
                         "updatedAt": {
                           "type": "string"
+                        },
+                        "targets": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "kind": {
+                                "type": "string",
+                                "enum": ["product", "option_unit", "catalog_item", "trip"]
+                              },
+                              "targetId": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 500
+                              },
+                              "snapshot": {
+                                "type": "object",
+                                "properties": {
+                                  "title": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 500
+                                  },
+                                  "optionLabel": {
+                                    "type": ["string", "null"],
+                                    "minLength": 1,
+                                    "maxLength": 500
+                                  },
+                                  "startDate": {
+                                    "type": ["string", "null"],
+                                    "format": "date"
+                                  },
+                                  "endDate": {
+                                    "type": ["string", "null"],
+                                    "format": "date"
+                                  },
+                                  "publicUrl": {
+                                    "type": ["string", "null"],
+                                    "maxLength": 2000,
+                                    "format": "uri"
+                                  },
+                                  "sourceChannel": {
+                                    "type": ["string", "null"],
+                                    "minLength": 1,
+                                    "maxLength": 200
+                                  }
+                                },
+                                "required": ["title"]
+                              },
+                              "linkId": {
+                                "type": "string"
+                              },
+                              "inquiryId": {
+                                "type": "string"
+                              },
+                              "createdAt": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "kind",
+                              "targetId",
+                              "snapshot",
+                              "linkId",
+                              "inquiryId",
+                              "createdAt"
+                            ]
+                          }
                         }
                       },
                       "required": [
@@ -10552,7 +10689,8 @@
                         "convertedAt",
                         "closedAt",
                         "createdAt",
-                        "updatedAt"
+                        "updatedAt",
+                        "targets"
                       ]
                     },
                     "replayed": {
@@ -10834,6 +10972,74 @@
                         },
                         "updatedAt": {
                           "type": "string"
+                        },
+                        "targets": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "kind": {
+                                "type": "string",
+                                "enum": ["product", "option_unit", "catalog_item", "trip"]
+                              },
+                              "targetId": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 500
+                              },
+                              "snapshot": {
+                                "type": "object",
+                                "properties": {
+                                  "title": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 500
+                                  },
+                                  "optionLabel": {
+                                    "type": ["string", "null"],
+                                    "minLength": 1,
+                                    "maxLength": 500
+                                  },
+                                  "startDate": {
+                                    "type": ["string", "null"],
+                                    "format": "date"
+                                  },
+                                  "endDate": {
+                                    "type": ["string", "null"],
+                                    "format": "date"
+                                  },
+                                  "publicUrl": {
+                                    "type": ["string", "null"],
+                                    "maxLength": 2000,
+                                    "format": "uri"
+                                  },
+                                  "sourceChannel": {
+                                    "type": ["string", "null"],
+                                    "minLength": 1,
+                                    "maxLength": 200
+                                  }
+                                },
+                                "required": ["title"]
+                              },
+                              "linkId": {
+                                "type": "string"
+                              },
+                              "inquiryId": {
+                                "type": "string"
+                              },
+                              "createdAt": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "kind",
+                              "targetId",
+                              "snapshot",
+                              "linkId",
+                              "inquiryId",
+                              "createdAt"
+                            ]
+                          }
                         }
                       },
                       "required": [
@@ -10869,7 +11075,8 @@
                         "convertedAt",
                         "closedAt",
                         "createdAt",
-                        "updatedAt"
+                        "updatedAt",
+                        "targets"
                       ]
                     },
                     "replayed": {
@@ -11207,6 +11414,74 @@
                         },
                         "updatedAt": {
                           "type": "string"
+                        },
+                        "targets": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "kind": {
+                                "type": "string",
+                                "enum": ["product", "option_unit", "catalog_item", "trip"]
+                              },
+                              "targetId": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 500
+                              },
+                              "snapshot": {
+                                "type": "object",
+                                "properties": {
+                                  "title": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 500
+                                  },
+                                  "optionLabel": {
+                                    "type": ["string", "null"],
+                                    "minLength": 1,
+                                    "maxLength": 500
+                                  },
+                                  "startDate": {
+                                    "type": ["string", "null"],
+                                    "format": "date"
+                                  },
+                                  "endDate": {
+                                    "type": ["string", "null"],
+                                    "format": "date"
+                                  },
+                                  "publicUrl": {
+                                    "type": ["string", "null"],
+                                    "maxLength": 2000,
+                                    "format": "uri"
+                                  },
+                                  "sourceChannel": {
+                                    "type": ["string", "null"],
+                                    "minLength": 1,
+                                    "maxLength": 200
+                                  }
+                                },
+                                "required": ["title"]
+                              },
+                              "linkId": {
+                                "type": "string"
+                              },
+                              "inquiryId": {
+                                "type": "string"
+                              },
+                              "createdAt": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "kind",
+                              "targetId",
+                              "snapshot",
+                              "linkId",
+                              "inquiryId",
+                              "createdAt"
+                            ]
+                          }
                         }
                       },
                       "required": [
@@ -11242,7 +11517,8 @@
                         "convertedAt",
                         "closedAt",
                         "createdAt",
-                        "updatedAt"
+                        "updatedAt",
+                        "targets"
                       ]
                     }
                   },
@@ -11763,6 +12039,74 @@
                         },
                         "updatedAt": {
                           "type": "string"
+                        },
+                        "targets": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "kind": {
+                                "type": "string",
+                                "enum": ["product", "option_unit", "catalog_item", "trip"]
+                              },
+                              "targetId": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 500
+                              },
+                              "snapshot": {
+                                "type": "object",
+                                "properties": {
+                                  "title": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 500
+                                  },
+                                  "optionLabel": {
+                                    "type": ["string", "null"],
+                                    "minLength": 1,
+                                    "maxLength": 500
+                                  },
+                                  "startDate": {
+                                    "type": ["string", "null"],
+                                    "format": "date"
+                                  },
+                                  "endDate": {
+                                    "type": ["string", "null"],
+                                    "format": "date"
+                                  },
+                                  "publicUrl": {
+                                    "type": ["string", "null"],
+                                    "maxLength": 2000,
+                                    "format": "uri"
+                                  },
+                                  "sourceChannel": {
+                                    "type": ["string", "null"],
+                                    "minLength": 1,
+                                    "maxLength": 200
+                                  }
+                                },
+                                "required": ["title"]
+                              },
+                              "linkId": {
+                                "type": "string"
+                              },
+                              "inquiryId": {
+                                "type": "string"
+                              },
+                              "createdAt": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "kind",
+                              "targetId",
+                              "snapshot",
+                              "linkId",
+                              "inquiryId",
+                              "createdAt"
+                            ]
+                          }
                         }
                       },
                       "required": [
@@ -11798,7 +12142,8 @@
                         "convertedAt",
                         "closedAt",
                         "createdAt",
-                        "updatedAt"
+                        "updatedAt",
+                        "targets"
                       ]
                     }
                   },
@@ -12162,6 +12507,74 @@
                         },
                         "updatedAt": {
                           "type": "string"
+                        },
+                        "targets": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "kind": {
+                                "type": "string",
+                                "enum": ["product", "option_unit", "catalog_item", "trip"]
+                              },
+                              "targetId": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 500
+                              },
+                              "snapshot": {
+                                "type": "object",
+                                "properties": {
+                                  "title": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 500
+                                  },
+                                  "optionLabel": {
+                                    "type": ["string", "null"],
+                                    "minLength": 1,
+                                    "maxLength": 500
+                                  },
+                                  "startDate": {
+                                    "type": ["string", "null"],
+                                    "format": "date"
+                                  },
+                                  "endDate": {
+                                    "type": ["string", "null"],
+                                    "format": "date"
+                                  },
+                                  "publicUrl": {
+                                    "type": ["string", "null"],
+                                    "maxLength": 2000,
+                                    "format": "uri"
+                                  },
+                                  "sourceChannel": {
+                                    "type": ["string", "null"],
+                                    "minLength": 1,
+                                    "maxLength": 200
+                                  }
+                                },
+                                "required": ["title"]
+                              },
+                              "linkId": {
+                                "type": "string"
+                              },
+                              "inquiryId": {
+                                "type": "string"
+                              },
+                              "createdAt": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "kind",
+                              "targetId",
+                              "snapshot",
+                              "linkId",
+                              "inquiryId",
+                              "createdAt"
+                            ]
+                          }
                         }
                       },
                       "required": [
@@ -12197,7 +12610,8 @@
                         "convertedAt",
                         "closedAt",
                         "createdAt",
-                        "updatedAt"
+                        "updatedAt",
+                        "targets"
                       ]
                     }
                   },
@@ -12558,6 +12972,74 @@
                         },
                         "updatedAt": {
                           "type": "string"
+                        },
+                        "targets": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "kind": {
+                                "type": "string",
+                                "enum": ["product", "option_unit", "catalog_item", "trip"]
+                              },
+                              "targetId": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 500
+                              },
+                              "snapshot": {
+                                "type": "object",
+                                "properties": {
+                                  "title": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 500
+                                  },
+                                  "optionLabel": {
+                                    "type": ["string", "null"],
+                                    "minLength": 1,
+                                    "maxLength": 500
+                                  },
+                                  "startDate": {
+                                    "type": ["string", "null"],
+                                    "format": "date"
+                                  },
+                                  "endDate": {
+                                    "type": ["string", "null"],
+                                    "format": "date"
+                                  },
+                                  "publicUrl": {
+                                    "type": ["string", "null"],
+                                    "maxLength": 2000,
+                                    "format": "uri"
+                                  },
+                                  "sourceChannel": {
+                                    "type": ["string", "null"],
+                                    "minLength": 1,
+                                    "maxLength": 200
+                                  }
+                                },
+                                "required": ["title"]
+                              },
+                              "linkId": {
+                                "type": "string"
+                              },
+                              "inquiryId": {
+                                "type": "string"
+                              },
+                              "createdAt": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "kind",
+                              "targetId",
+                              "snapshot",
+                              "linkId",
+                              "inquiryId",
+                              "createdAt"
+                            ]
+                          }
                         }
                       },
                       "required": [
@@ -12593,7 +13075,8 @@
                         "convertedAt",
                         "closedAt",
                         "createdAt",
-                        "updatedAt"
+                        "updatedAt",
+                        "targets"
                       ]
                     }
                   },
@@ -12962,6 +13445,74 @@
                         },
                         "updatedAt": {
                           "type": "string"
+                        },
+                        "targets": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "kind": {
+                                "type": "string",
+                                "enum": ["product", "option_unit", "catalog_item", "trip"]
+                              },
+                              "targetId": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 500
+                              },
+                              "snapshot": {
+                                "type": "object",
+                                "properties": {
+                                  "title": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 500
+                                  },
+                                  "optionLabel": {
+                                    "type": ["string", "null"],
+                                    "minLength": 1,
+                                    "maxLength": 500
+                                  },
+                                  "startDate": {
+                                    "type": ["string", "null"],
+                                    "format": "date"
+                                  },
+                                  "endDate": {
+                                    "type": ["string", "null"],
+                                    "format": "date"
+                                  },
+                                  "publicUrl": {
+                                    "type": ["string", "null"],
+                                    "maxLength": 2000,
+                                    "format": "uri"
+                                  },
+                                  "sourceChannel": {
+                                    "type": ["string", "null"],
+                                    "minLength": 1,
+                                    "maxLength": 200
+                                  }
+                                },
+                                "required": ["title"]
+                              },
+                              "linkId": {
+                                "type": "string"
+                              },
+                              "inquiryId": {
+                                "type": "string"
+                              },
+                              "createdAt": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "kind",
+                              "targetId",
+                              "snapshot",
+                              "linkId",
+                              "inquiryId",
+                              "createdAt"
+                            ]
+                          }
                         }
                       },
                       "required": [
@@ -12997,7 +13548,8 @@
                         "convertedAt",
                         "closedAt",
                         "createdAt",
-                        "updatedAt"
+                        "updatedAt",
+                        "targets"
                       ]
                     }
                   },
@@ -13353,6 +13905,74 @@
                         },
                         "updatedAt": {
                           "type": "string"
+                        },
+                        "targets": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "kind": {
+                                "type": "string",
+                                "enum": ["product", "option_unit", "catalog_item", "trip"]
+                              },
+                              "targetId": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 500
+                              },
+                              "snapshot": {
+                                "type": "object",
+                                "properties": {
+                                  "title": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 500
+                                  },
+                                  "optionLabel": {
+                                    "type": ["string", "null"],
+                                    "minLength": 1,
+                                    "maxLength": 500
+                                  },
+                                  "startDate": {
+                                    "type": ["string", "null"],
+                                    "format": "date"
+                                  },
+                                  "endDate": {
+                                    "type": ["string", "null"],
+                                    "format": "date"
+                                  },
+                                  "publicUrl": {
+                                    "type": ["string", "null"],
+                                    "maxLength": 2000,
+                                    "format": "uri"
+                                  },
+                                  "sourceChannel": {
+                                    "type": ["string", "null"],
+                                    "minLength": 1,
+                                    "maxLength": 200
+                                  }
+                                },
+                                "required": ["title"]
+                              },
+                              "linkId": {
+                                "type": "string"
+                              },
+                              "inquiryId": {
+                                "type": "string"
+                              },
+                              "createdAt": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "kind",
+                              "targetId",
+                              "snapshot",
+                              "linkId",
+                              "inquiryId",
+                              "createdAt"
+                            ]
+                          }
                         }
                       },
                       "required": [
@@ -13388,7 +14008,8 @@
                         "convertedAt",
                         "closedAt",
                         "createdAt",
-                        "updatedAt"
+                        "updatedAt",
+                        "targets"
                       ]
                     }
                   },
@@ -13432,6 +14053,264 @@
         },
         "operationId": "postAdminRelationshipsInquiriesByIdReopen",
         "summary": "POST /v1/admin/relationships/inquiries/{id}/reopen",
+        "tags": ["relationships"],
+        "x-voyant-module": "relationships",
+        "x-voyant-surface": "admin",
+        "x-voyant-api-id": "@voyant-travel/relationships#api.admin",
+        "x-voyant-unit-id": "@voyant-travel/relationships",
+        "x-voyant-package-name": "@voyant-travel/relationships"
+      }
+    },
+    "/v1/admin/relationships/inquiries/{id}/targets": {
+      "post": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": ["product", "option_unit", "catalog_item", "trip"]
+                  },
+                  "targetId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 500
+                  },
+                  "snapshot": {
+                    "type": "object",
+                    "properties": {
+                      "title": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 500
+                      },
+                      "optionLabel": {
+                        "type": ["string", "null"],
+                        "minLength": 1,
+                        "maxLength": 500
+                      },
+                      "startDate": {
+                        "type": ["string", "null"],
+                        "format": "date"
+                      },
+                      "endDate": {
+                        "type": ["string", "null"],
+                        "format": "date"
+                      },
+                      "publicUrl": {
+                        "type": ["string", "null"],
+                        "maxLength": 2000,
+                        "format": "uri"
+                      },
+                      "sourceChannel": {
+                        "type": ["string", "null"],
+                        "minLength": 1,
+                        "maxLength": 200
+                      }
+                    },
+                    "required": ["title"]
+                  }
+                },
+                "required": ["kind", "targetId", "snapshot"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Linked Inquiry target",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string",
+                          "enum": ["product", "option_unit", "catalog_item", "trip"]
+                        },
+                        "targetId": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 500
+                        },
+                        "snapshot": {
+                          "type": "object",
+                          "properties": {
+                            "title": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 500
+                            },
+                            "optionLabel": {
+                              "type": ["string", "null"],
+                              "minLength": 1,
+                              "maxLength": 500
+                            },
+                            "startDate": {
+                              "type": ["string", "null"],
+                              "format": "date"
+                            },
+                            "endDate": {
+                              "type": ["string", "null"],
+                              "format": "date"
+                            },
+                            "publicUrl": {
+                              "type": ["string", "null"],
+                              "maxLength": 2000,
+                              "format": "uri"
+                            },
+                            "sourceChannel": {
+                              "type": ["string", "null"],
+                              "minLength": 1,
+                              "maxLength": 200
+                            }
+                          },
+                          "required": ["title"]
+                        },
+                        "linkId": {
+                          "type": "string"
+                        },
+                        "inquiryId": {
+                          "type": "string"
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "targetId",
+                        "snapshot",
+                        "linkId",
+                        "inquiryId",
+                        "createdAt"
+                      ]
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Inquiry or target not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Inquiry target conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "postAdminRelationshipsInquiriesByIdTargets",
+        "summary": "POST /v1/admin/relationships/inquiries/{id}/targets",
+        "tags": ["relationships"],
+        "x-voyant-module": "relationships",
+        "x-voyant-surface": "admin",
+        "x-voyant-api-id": "@voyant-travel/relationships#api.admin",
+        "x-voyant-unit-id": "@voyant-travel/relationships",
+        "x-voyant-package-name": "@voyant-travel/relationships"
+      }
+    },
+    "/v1/admin/relationships/inquiries/{id}/targets/{linkId}": {
+      "delete": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "required": true,
+            "name": "linkId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Inquiry target removed"
+          },
+          "404": {
+            "description": "Inquiry or target not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Inquiry target conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "deleteAdminRelationshipsInquiriesByIdTargetsByLinkId",
+        "summary": "DELETE /v1/admin/relationships/inquiries/{id}/targets/{linkId}",
         "tags": ["relationships"],
         "x-voyant-module": "relationships",
         "x-voyant-surface": "admin",

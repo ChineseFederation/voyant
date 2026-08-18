@@ -127,6 +127,7 @@ const inquiryRow: InferSelectModel<typeof inquiries> = {
   createdAt,
   updatedAt,
 }
+const inquiryResponseRow = { ...inquiryRow, targets: [] }
 
 const personDocumentRow: InferSelectModel<typeof personDocuments> = {
   id: "person_documents_00000000000000000",
@@ -182,7 +183,7 @@ const singleCases = [
   ["activity link", activityLinkSchema, activityLinkRow],
   ["activity participant", activityParticipantSchema, activityParticipantRow],
   ["customer signal", customerSignalSchema, customerSignalRow],
-  ["inquiry", inquirySchema, inquiryRow],
+  ["inquiry", inquirySchema, inquiryResponseRow],
   ["person document", personDocumentSchema, personDocumentRow],
   ["person relationship", personRelationshipSchema, personRelationshipRow],
   ["travel snapshot", personTravelSnapshotSchema, travelSnapshot],
@@ -204,7 +205,7 @@ describe("relationships rest list response contracts", () => {
   const listCases = [
     ["activity", activitySchema, activityRow],
     ["customer signal", customerSignalSchema, customerSignalRow],
-    ["inquiry", inquirySchema, inquiryRow],
+    ["inquiry", inquirySchema, inquiryResponseRow],
   ] as const
 
   for (const [label, schema, row] of listCases) {

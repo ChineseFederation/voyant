@@ -7,6 +7,7 @@ import {
   requireUserId,
 } from "@voyant-travel/hono"
 import {
+  addInquiryTargetSchema,
   inquiryCreateResponseSchema,
   inquiryListResponseSchema,
   inquiryProposalConversionRefusalSchema,
@@ -27,7 +28,6 @@ import {
   relationshipsService,
 } from "../service/index.js"
 import {
-  addInquiryTargetSchema,
   assignInquirySchema,
   closeInquirySchema,
   convertInquiryToProposalSchema,
@@ -333,7 +333,6 @@ inquiryRoutes.openapi(addTargetRoute, async (c) => {
   try {
     const data = await relationshipsService.addInquiryTarget(
       c.get("db"),
-      requireLink(c),
       c.req.valid("param").id,
       await parseJsonBody(c, addInquiryTargetSchema),
       requireUserId(c),
@@ -346,13 +345,7 @@ inquiryRoutes.openapi(addTargetRoute, async (c) => {
 inquiryRoutes.openapi(deleteTargetRoute, async (c) => {
   try {
     const { id, linkId } = c.req.valid("param")
-    await relationshipsService.deleteInquiryTarget(
-      c.get("db"),
-      requireLink(c),
-      id,
-      linkId,
-      requireUserId(c),
-    )
+    await relationshipsService.deleteInquiryTarget(c.get("db"), id, linkId, requireUserId(c))
     return c.body(null, 204)
   } catch (error) {
     return serviceErrorResponse(c, error)

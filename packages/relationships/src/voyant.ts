@@ -136,6 +136,20 @@ const inquiryConvertedPayloadSchema = {
   additionalProperties: false,
 } as const
 
+const inquiryTargetChangedPayloadSchema = {
+  type: "object",
+  required: ["id", "actorId", "linkId", "kind", "targetId", "occurredAt"],
+  properties: {
+    id: { type: "string" },
+    actorId: { type: "string" },
+    linkId: { type: "string" },
+    kind: { type: "string", enum: ["product", "option_unit"] },
+    targetId: { type: "string" },
+    occurredAt: { type: "string", format: "date-time" },
+  },
+  additionalProperties: false,
+} as const
+
 /** Import-cheap deployment declaration owned by the relationships package. */
 export const relationshipsVoyantModule = defineModule({
   id: "@voyant-travel/relationships",
@@ -172,6 +186,20 @@ export const relationshipsVoyantModule = defineModule({
       mount: "relationships",
       openapi: { document: "relationships" },
       resource: "crm",
+      transactional: true,
+      runtime: {
+        entry: "@voyant-travel/relationships",
+        export: "createRelationshipsVoyantRuntime",
+      },
+    },
+    {
+      id: "@voyant-travel/relationships#api.public",
+      surface: "public",
+      mount: "relationships",
+      openapi: { document: "relationships" },
+      resource: "crm",
+      anonymous: true,
+      guardedIntake: true,
       transactional: true,
       runtime: {
         entry: "@voyant-travel/relationships",
@@ -274,6 +302,22 @@ export const relationshipsVoyantModule = defineModule({
       eventType: "inquiry.reopened",
       version: "1.0.0",
       payloadSchema: inquiryEventPayloadSchema,
+      visibility: "internal",
+      audit: { sourceModule: "relationships", category: "domain" },
+    },
+    {
+      id: "@voyant-travel/relationships#event.inquiry.target-added",
+      eventType: "inquiry.target_added",
+      version: "1.0.0",
+      payloadSchema: inquiryTargetChangedPayloadSchema,
+      visibility: "internal",
+      audit: { sourceModule: "relationships", category: "domain" },
+    },
+    {
+      id: "@voyant-travel/relationships#event.inquiry.target-removed",
+      eventType: "inquiry.target_removed",
+      version: "1.0.0",
+      payloadSchema: inquiryTargetChangedPayloadSchema,
       visibility: "internal",
       audit: { sourceModule: "relationships", category: "domain" },
     },

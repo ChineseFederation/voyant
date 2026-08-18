@@ -1,10 +1,13 @@
+// agent-quality: file-size exception -- owner: relationships; Inquiry lifecycle, idempotency, target projection, and audit writes remain co-located behind one service contract.
 import { generateEventId, type LinkService } from "@voyant-travel/core"
+import { createLinkService } from "@voyant-travel/db/links"
 import { insertOutboxEvents } from "@voyant-travel/db/outbox"
 import type {
   AddInquiryTargetInput,
   AssignInquiryInput,
   CloseInquiryInput,
   CreateInquiryInput,
+  CreatePublicInquiryInput,
   InquiryListQueryInput,
   InquiryStatus,
   InquiryTargetRecord,
@@ -33,6 +36,8 @@ import {
   INQUIRY_CREATED_EVENT,
   INQUIRY_REOPENED_EVENT,
   INQUIRY_STATUS_CHANGED_EVENT,
+  INQUIRY_TARGET_ADDED_EVENT,
+  INQUIRY_TARGET_REMOVED_EVENT,
   INQUIRY_UPDATED_EVENT,
 } from "../events.js"
 import {
@@ -132,6 +137,11 @@ type InquiryMutationTestHooks = {
   beforeOutbox?: (tx: PostgresJsDatabase) => Promise<void>
 }
 
+type InquiryTargetMutationTestHooks = {
+  /** Test-only rollback seam after link/snapshot mutation and before the outbox write. */
+  beforeOutbox?: (tx: PostgresJsDatabase) => Promise<void>
+}
+
 function requireActor(actorId: string) {
   if (!actorId) {
     throw new InquiryServiceError("INQUIRY_CUSTOMER_REQUIRED", "A staff actor is required")
@@ -184,6 +194,55 @@ async function writeInquiryEvent(
 }
 
 export const inquiriesService = {
+  async createPublicInquiry(
+    db: PostgresJsDatabase,
+    input: CreatePublicInquiryInput,
+    context: {
+      actorId: string
+      channelId: string
+      relationshipPersonId?: string | null
+    },
+  ) {
+    for (const target of input.targets) targetLinkFor(target.kind)
+    return db.transaction(async (tx) => {
+      const { targets, ...inquiryInput } = input
+      const result = await this.createInquiry(
+        tx,
+        {
+          ...inquiryInput,
+          source: "storefront",
+          sourceRef: `${context.channelId}:${input.sourceRef}`,
+          personId: context.relationshipPersonId ?? null,
+          customFields: {
+            ...input.customFields,
+            relationships: {
+              ...input.customFields.relationships,
+              sourceChannelId: context.channelId,
+            },
+          },
+        },
+        context.actorId,
+      )
+      if (!result.replayed) {
+        for (const target of targets) {
+          await this.addInquiryTarget(
+            tx,
+            result.inquiry.id,
+            {
+              ...target,
+              snapshot: {
+                ...target.snapshot,
+                sourceChannel: target.snapshot.sourceChannel ?? context.channelId,
+              },
+            },
+            context.actorId,
+          )
+        }
+      }
+      return result
+    })
+  },
+
   async listInquiryTargets(
     db: PostgresJsDatabase,
     link: LinkService,
@@ -239,10 +298,10 @@ export const inquiriesService = {
 
   async addInquiryTarget(
     db: PostgresJsDatabase,
-    link: LinkService,
     inquiryId: string,
     input: AddInquiryTargetInput,
     actorId: string,
+    testHooks?: InquiryTargetMutationTestHooks,
   ): Promise<InquiryTargetRecord> {
     requireActor(actorId)
     const definition = targetLinkFor(input.kind)
@@ -261,7 +320,8 @@ export const inquiriesService = {
           "A resolved inquiry cannot gain targets",
         )
       }
-      const linked = await link.create(definition.tableName, inquiryId, input.targetId)
+      const transactionLink = createLinkService(() => tx, Object.values(targetLinks))
+      const linked = await transactionLink.create(definition.tableName, inquiryId, input.targetId)
       const [stored] = await tx
         .insert(inquiryTargetSnapshots)
         .values({
@@ -283,17 +343,26 @@ export const inquiriesService = {
             .limit(1)
         )[0]
       if (!row) throw new Error("Inquiry target snapshot could not be persisted")
-      await writeInquiryEvent(tx, INQUIRY_UPDATED_EVENT, { id: inquiryId, actorId })
+      await testHooks?.beforeOutbox?.(tx)
+      const occurredAt = row.createdAt.toISOString()
+      await writeInquiryEvent(tx, INQUIRY_TARGET_ADDED_EVENT, {
+        id: inquiryId,
+        actorId,
+        linkId: row.linkId,
+        kind: row.kind,
+        targetId: row.targetId,
+        occurredAt,
+      })
       return serializeTarget(row)
     })
   },
 
   async deleteInquiryTarget(
     db: PostgresJsDatabase,
-    link: LinkService,
     inquiryId: string,
     targetLinkId: string,
     actorId: string,
+    testHooks?: InquiryTargetMutationTestHooks,
   ): Promise<void> {
     requireActor(actorId)
     return db.transaction(async (tx) => {
@@ -318,9 +387,19 @@ export const inquiriesService = {
         throw new InquiryServiceError("INQUIRY_TARGET_NOT_FOUND", "Inquiry target not found")
       }
       const definition = targetLinkFor(snapshot.kind)
-      await link.delete(definition.tableName, inquiryId, snapshot.targetId)
+      const transactionLink = createLinkService(() => tx, Object.values(targetLinks))
+      await transactionLink.delete(definition.tableName, inquiryId, snapshot.targetId)
       await tx.delete(inquiryTargetSnapshots).where(eq(inquiryTargetSnapshots.linkId, targetLinkId))
-      await writeInquiryEvent(tx, INQUIRY_UPDATED_EVENT, { id: inquiryId, actorId })
+      await testHooks?.beforeOutbox?.(tx)
+      const occurredAt = new Date().toISOString()
+      await writeInquiryEvent(tx, INQUIRY_TARGET_REMOVED_EVENT, {
+        id: inquiryId,
+        actorId,
+        linkId: snapshot.linkId,
+        kind: snapshot.kind,
+        targetId: snapshot.targetId,
+        occurredAt,
+      })
     })
   },
 

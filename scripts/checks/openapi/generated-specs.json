@@ -132,7 +132,10 @@
     },
     {
       "command": "pnpm --filter @voyant-travel/relationships generate:openapi",
-      "files": ["packages/relationships/openapi/admin/relationships.json"]
+      "files": [
+        "packages/relationships/openapi/admin/relationships.json",
+        "packages/relationships/openapi/public-api/relationships.json"
+      ]
     },
     {
       "command": "pnpm --filter @voyant-travel/trips generate:openapi",

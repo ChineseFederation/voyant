@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import {
   createPublicApiLead,
+  createPublicInquiry,
   createVoyantPublicApiClient,
   publicApiLeadIntakeInputSchema,
   publicApiNewsletterSubscribeInputSchema,
@@ -71,6 +72,36 @@ describe("storefront intake operations", () => {
 
     expect(result.doubleOptIn).toBe("requested")
     expect(calls[0]?.url).toBe("https://operator.example.com/v1/public/newsletter/subscribe")
+    expect(calls[0]?.init?.method).toBe("POST")
+  })
+
+  it("posts canonical targetless custom Inquiry intake through the client", async () => {
+    const calls: Array<{ url: string; init?: RequestInit }> = []
+    const result = await createPublicInquiry(
+      {
+        baseUrl: "https://operator.example.com/",
+        fetcher: async (url, init) => {
+          calls.push({ url, init })
+          return Response.json({
+            data: {
+              inquiryId: "inq_123",
+              status: "new",
+              duplicate: false,
+              receivedAt: "2026-08-18T08:00:00.000Z",
+            },
+          })
+        },
+      },
+      {
+        sourceRef: "custom-1",
+        subject: "Plan a custom trip",
+        kind: "custom_trip",
+        contactSnapshot: { email: "traveler@example.com" },
+      },
+    )
+
+    expect(result.inquiryId).toBe("inq_123")
+    expect(calls[0]?.url).toBe("https://operator.example.com/v1/public/relationships/inquiries")
     expect(calls[0]?.init?.method).toBe("POST")
   })
 

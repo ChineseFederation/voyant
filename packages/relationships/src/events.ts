@@ -7,6 +7,8 @@ export const INQUIRY_STATUS_CHANGED_EVENT = "inquiry.status_changed" as const
 export const INQUIRY_CLOSED_EVENT = "inquiry.closed" as const
 export const INQUIRY_REOPENED_EVENT = "inquiry.reopened" as const
 export const INQUIRY_CONVERTED_EVENT = "inquiry.converted" as const
+export const INQUIRY_TARGET_ADDED_EVENT = "inquiry.target_added" as const
+export const INQUIRY_TARGET_REMOVED_EVENT = "inquiry.target_removed" as const
 
 export interface InquiryEvent {
   id: string
@@ -32,6 +34,13 @@ export interface InquiryConvertedEvent extends InquiryEvent {
   kind: "proposal"
   targetId: string
   inquiryStatus: "qualified" | "converted"
+}
+
+export interface InquiryTargetChangedEvent extends InquiryEvent {
+  linkId: string
+  kind: "product" | "option_unit"
+  targetId: string
+  occurredAt: string
 }
 
 export const CUSTOMER_SIGNAL_CREATED_EVENT = "customer.signal.created" as const

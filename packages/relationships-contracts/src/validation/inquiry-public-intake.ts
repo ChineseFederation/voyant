@@ -10,28 +10,36 @@ import {
 } from "./inquiries.js"
 
 export const publicInquiryTargetSchema = z.object({
-  kind: z.enum(["product", "option_unit", "catalog_item"]),
+  kind: z.enum(["product", "option_unit"]),
   targetId: z.string().trim().min(1).max(500),
   snapshot: inquiryTargetSnapshotSchema,
 })
 
 /** Guarded storefront intake. Source is fixed by the route, never trusted from the body. */
-export const createPublicInquirySchema = z.object({
-  sourceRef: z.string().trim().min(1).max(500),
-  subject: z.string().trim().min(1).max(300),
-  kind: inquiryKindSchema,
-  contactSnapshot: inquiryContactSnapshotSchema,
-  personId: z.string().min(1).nullable().optional(),
-  customerSessionRef: z.string().trim().min(1).max(500).nullable().optional(),
-  customerMessage: z.string().max(20_000).nullable().optional(),
-  travelBrief: inquiryTravelBriefV1Schema.nullable().optional(),
-  targets: z.array(publicInquiryTargetSchema).max(20).default([]),
-  locale: z.string().trim().min(2).max(35).nullable().optional(),
-  sourceUrl: z.string().url().max(2_000).nullable().optional(),
-  tags: z.array(z.string().trim().min(1).max(100)).max(100).default([]),
-  customFields: inquiryCustomFieldsSchema.default({}),
-  consentSnapshot: inquiryConsentSnapshotSchema.nullable().optional(),
-})
+export const createPublicInquirySchema = z
+  .object({
+    sourceRef: z.string().trim().min(1).max(500),
+    subject: z.string().trim().min(1).max(300),
+    kind: inquiryKindSchema,
+    contactSnapshot: inquiryContactSnapshotSchema,
+    customerMessage: z.string().max(20_000).nullable().optional(),
+    travelBrief: inquiryTravelBriefV1Schema.nullable().optional(),
+    targets: z.array(publicInquiryTargetSchema).max(20).default([]),
+    locale: z.string().trim().min(2).max(35).nullable().optional(),
+    sourceUrl: z.string().url().max(2_000).nullable().optional(),
+    tags: z.array(z.string().trim().min(1).max(100)).max(100).default([]),
+    customFields: inquiryCustomFieldsSchema.default({}),
+    consentSnapshot: inquiryConsentSnapshotSchema.nullable().optional(),
+  })
+  .superRefine((input, context) => {
+    if (input.kind === "product" && !input.targets.some((target) => target.kind === "product")) {
+      context.addIssue({
+        code: "custom",
+        path: ["targets"],
+        message: "A product Inquiry requires a Product target",
+      })
+    }
+  })
 
 export const publicInquiryReceiptSchema = z.object({
   data: z.object({

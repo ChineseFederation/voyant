@@ -1,10 +1,13 @@
+import { generateLinkTableSql } from "@voyant-travel/core"
+import { createLinkService } from "@voyant-travel/db/links"
 import { eventOutboxTable } from "@voyant-travel/db/schema"
 import { inquiryListQuerySchema } from "@voyant-travel/relationships-contracts"
-import { eq } from "drizzle-orm"
+import { eq, sql } from "drizzle-orm"
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest"
 
-import { inquiries, people } from "../../src/schema.js"
+import { inquiries, inquiryTargetSnapshots, people } from "../../src/schema.js"
 import { type InquiryServiceError, inquiriesService } from "../../src/service/inquiries.js"
+import { inquiryOptionUnitLink, inquiryProductLink } from "../../src/standard-links.js"
 
 const DB_AVAILABLE = Boolean(process.env.TEST_DATABASE_URL)
 
@@ -16,11 +19,19 @@ describe.skipIf(!DB_AVAILABLE)("inquiriesService", () => {
     const { createTestDb, cleanupTestDb } = await import("@voyant-travel/db/test-utils")
     db = createTestDb()
     await cleanupTestDb(db)
+    for (const definition of [inquiryProductLink, inquiryOptionUnitLink]) {
+      const ddl = generateLinkTableSql(definition)
+      await db.execute(sql.raw(ddl.createTable))
+      for (const index of ddl.indexes) await db.execute(sql.raw(index))
+    }
   })
 
   beforeEach(async () => {
     const { cleanupTestDb } = await import("@voyant-travel/db/test-utils")
     await cleanupTestDb(db)
+    for (const definition of [inquiryProductLink, inquiryOptionUnitLink]) {
+      await db.execute(sql.raw(`DELETE FROM "${definition.tableName}"`))
+    }
   })
 
   afterAll(async () => {
@@ -56,6 +67,70 @@ describe.skipIf(!DB_AVAILABLE)("inquiriesService", () => {
     expect((await inquiriesService.getInquiry(db, created.id))?.subject).toBe(
       "Custom Japan itinerary",
     )
+  })
+
+  it("rolls back neutral target links with snapshot and outbox failures", async () => {
+    const { inquiry } = await inquiriesService.createInquiry(
+      db,
+      {
+        subject: "Atomic product target",
+        kind: "product",
+        contactSnapshot: { email: "ari@example.com" },
+        source: "admin",
+        tags: [],
+        customFields: {},
+      },
+      "user_1",
+    )
+    const link = createLinkService(() => db, [inquiryProductLink, inquiryOptionUnitLink])
+    const input = {
+      kind: "product" as const,
+      targetId: "prod_atomic",
+      snapshot: { title: "Atomic product" },
+    }
+
+    await expect(
+      inquiriesService.addInquiryTarget(db, inquiry.id, input, "user_1", {
+        beforeOutbox: async () => {
+          throw new Error("rollback target")
+        },
+      }),
+    ).rejects.toThrow("rollback target")
+    expect(await link.list(inquiryProductLink.tableName, { leftId: inquiry.id })).toEqual([])
+    expect(
+      await db
+        .select()
+        .from(inquiryTargetSnapshots)
+        .where(eq(inquiryTargetSnapshots.inquiryId, inquiry.id)),
+    ).toEqual([])
+
+    const added = await inquiriesService.addInquiryTarget(db, inquiry.id, input, "user_1")
+    await expect(
+      inquiriesService.deleteInquiryTarget(db, inquiry.id, added.linkId, "user_1", {
+        beforeOutbox: async () => {
+          throw new Error("rollback removal")
+        },
+      }),
+    ).rejects.toThrow("rollback removal")
+    expect(await link.list(inquiryProductLink.tableName, { leftId: inquiry.id })).toHaveLength(1)
+    expect(
+      await db
+        .select()
+        .from(inquiryTargetSnapshots)
+        .where(eq(inquiryTargetSnapshots.linkId, added.linkId)),
+    ).toHaveLength(1)
+    const targetEvents = await db
+      .select()
+      .from(eventOutboxTable)
+      .where(eq(eventOutboxTable.name, "inquiry.target_added"))
+    expect(targetEvents).toHaveLength(1)
+    expect(targetEvents[0]?.data).toMatchObject({
+      actorId: "user_1",
+      linkId: added.linkId,
+      kind: "product",
+      targetId: "prod_atomic",
+      occurredAt: expect.stringMatching(/^2026-|^20\d\d-/),
+    })
   })
 
   it("enforces triage, follow-up, and qualification invariants", async () => {
