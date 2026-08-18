@@ -7,7 +7,10 @@ import {
   type SelectedAdminExtensionFactoryContext,
   withAdminRouteMessagesProvider,
 } from "@voyant-travel/admin"
-import { INQUIRY_DETAIL_DESTINATION } from "@voyant-travel/relationships-contracts"
+import {
+  INQUIRY_DETAIL_DESTINATION,
+  inquiryDetailPathTemplate,
+} from "@voyant-travel/relationships-contracts"
 import { Building, ClipboardList, Users } from "lucide-react"
 
 // Lean statics only: the client module (fetcher) and the skeletons. Query
@@ -147,7 +150,7 @@ export function createRelationshipsAdminExtension(
       },
       {
         id: "relationships-inquiries-detail",
-        path: `${inquiriesBasePath}/$id`,
+        path: inquiryDetailPathTemplate(inquiriesBasePath).replace("{inquiryId}", "$id"),
         title: inquiries,
         destination: INQUIRY_DETAIL_DESTINATION,
         destinationParams: { id: "inquiryId" },

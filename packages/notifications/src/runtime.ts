@@ -20,19 +20,12 @@ export function createNotificationsRuntime(
   return {
     resolveProviders,
     resolveAdminDestination: (bindings, destination, params) => {
-      const configured = primitives.config.read(bindings, "adminDestinations")
-      if (configured && typeof configured === "object") {
-        const resolver = (configured as Record<string, unknown>)[destination]
-        if (typeof resolver === "function") {
-          return (resolver as (value: Readonly<Record<string, string>>) => string)(params)
-        }
-      }
-      if (destination === "inquiry.detail" && params.inquiryId) {
-        return `/inquiries/${encodeURIComponent(params.inquiryId)}`
-      }
-      throw new Error(
-        `No admin destination resolver is configured for ${JSON.stringify(destination)}.`,
+      if (destination !== "inquiry.detail" || !params.inquiryId) return null
+      const template = nonEmpty(
+        primitives.env(bindings).ADMIN_DESTINATION_INQUIRY_DETAIL_PATH_TEMPLATE,
       )
+      if (!template?.includes("{inquiryId}") || !template.startsWith("/")) return null
+      return template.replace("{inquiryId}", encodeURIComponent(params.inquiryId))
     },
     resolvePublicCheckoutBaseUrl: (bindings) => resolvePublicBaseUrl(primitives.env(bindings)),
     resolvePaymentLinkUrlTemplate: async (db, bindings) =>

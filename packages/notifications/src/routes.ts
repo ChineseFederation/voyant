@@ -101,7 +101,7 @@ export type NotificationsRoutesOptions = {
     bindings: Record<string, unknown>,
     destination: string,
     params: Readonly<Record<string, string>>,
-  ) => string
+  ) => string | null
   publicCheckoutBaseUrl?: string | null
   resolvePublicCheckoutBaseUrl?: (bindings: Record<string, unknown>) => string | null | undefined
   /**

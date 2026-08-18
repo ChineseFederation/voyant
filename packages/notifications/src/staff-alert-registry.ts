@@ -379,7 +379,7 @@ export interface StaffAlertContextResolver<K extends StaffAlertEventKey = StaffA
 export type StaffAlertAdminDestinationResolver = (
   destination: string,
   params: Readonly<Record<string, string>>,
-) => string
+) => string | null
 
 export type StaffAlertContextResolverRegistry = {
   readonly [K in StaffAlertEventKey]?: StaffAlertContextResolver<K>

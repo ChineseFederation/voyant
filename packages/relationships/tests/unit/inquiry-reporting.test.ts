@@ -62,7 +62,7 @@ describe("inquiry activity reporting", () => {
     let statement: SQL | undefined
     const execute = vi.fn(async (query: SQL) => {
       statement = query
-      return [{ report_column_0: "12.5", report_column_1: "1" }]
+      return [{ report_column_0: "12.5", report_column_1: "2147483648" }]
     })
     const result = await inquiryActivityDataset.execute(
       { db: { execute }, grantedScopes: ["crm:read"] },
@@ -90,10 +90,32 @@ describe("inquiry activity reporting", () => {
       { id: "averageResponseMinutes", label: "averageResponseMinutes", valueType: "number" },
       { id: "overdue", label: "overdue", valueType: "integer" },
     ])
-    expect(result.rows).toEqual([{ averageResponseMinutes: 12.5, overdue: 1 }])
+    expect(result.rows).toEqual([{ averageResponseMinutes: 12.5, overdue: 2_147_483_648 }])
     const compiled = new PgDialect().sqlToQuery(statement!)
     expect(compiled.sql).toContain('"inquiries"."first_responded_at"')
     expect(compiled.sql).toContain('"inquiries"."next_action_at"')
+    expect(compiled.sql).toContain("SUM(")
+    expect(compiled.sql).not.toMatch(/SUM\([^)]*\)::integer/)
+  })
+
+  it("preserves integral sums beyond JavaScript safe integer range", async () => {
+    const execute = vi.fn(async () => [{ report_column_0: "9007199254740993" }])
+    const result = await inquiryActivityDataset.execute(
+      { db: { execute }, grantedScopes: ["crm:read"] },
+      {
+        query: {
+          dataset: { id: INQUIRY_ACTIVITY_DATASET_ID },
+          select: [{ kind: "aggregate", operation: "sum", field: "overdueCount", as: "overdue" }],
+          filters: [],
+          groupBy: [],
+          orderBy: [],
+        },
+        parameters: {},
+        maximumRows: 1,
+      },
+    )
+    expect(result.columns[0]?.valueType).toBe("integer")
+    expect(result.rows).toEqual([{ overdue: "9007199254740993" }])
   })
 
   it("rejects invalid filter types and operators before querying Postgres", async () => {

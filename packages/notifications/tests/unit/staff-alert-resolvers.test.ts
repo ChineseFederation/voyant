@@ -60,6 +60,26 @@ describe("staff alert resolvers", () => {
     })
   })
 
+  it("suppresses an Inquiry alert when its selected destination is unavailable", async () => {
+    vi.spyOn(relationshipsService, "getInquiry").mockResolvedValue({
+      id: "inq_1",
+      subject: "Private tour",
+      contactSnapshot: { email: "ana@example.com" },
+      ownerId: null,
+      source: "storefront",
+      status: "new",
+      firstResponseDueAt: null,
+    } as Awaited<ReturnType<typeof relationshipsService.getInquiry>>)
+
+    await expect(
+      staffAlertContextResolvers["staff.inquiry.created"]?.resolve({
+        db,
+        payload: { id: "inq_1" },
+        resolveAdminDestination: () => null,
+      }),
+    ).resolves.toBeNull()
+  })
+
   it("fills a booking alert from the columns bookings actually has", async () => {
     vi.spyOn(bookingsService, "getBookingById").mockResolvedValue(
       bookingRow as Awaited<ReturnType<typeof bookingsService.getBookingById>>,

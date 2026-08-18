@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { INQUIRY_DETAIL_DESTINATION } from "./inquiry-navigation.js"
+import { INQUIRY_DETAIL_DESTINATION, inquiryDetailPathTemplate } from "./inquiry-navigation.js"
 import {
   assignInquirySchema,
   closeInquirySchema,
@@ -24,6 +24,7 @@ describe("Inquiry contracts", () => {
 
   it("owns the import-cheap semantic detail destination", () => {
     expect(INQUIRY_DETAIL_DESTINATION).toBe("inquiry.detail")
+    expect(inquiryDetailPathTemplate("/solicitari/")).toBe("/solicitari/{inquiryId}")
   })
 
   it("applies safe defaults to admin capture", () => {

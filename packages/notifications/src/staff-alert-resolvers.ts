@@ -308,9 +308,11 @@ function inquiryResolver<
       if (eventKey === "staff.inquiry.assigned" && assignedOwnerId === undefined) return null
       const snapshot = inquiry.contactSnapshot as Record<string, unknown>
       const name = asString(snapshot.name) ?? asString(snapshot.email) ?? asString(snapshot.phone)
+      const adminPath = resolveAdminDestination(INQUIRY_DETAIL_DESTINATION, { inquiryId })
+      if (!adminPath) return null
 
       return {
-        adminPath: resolveAdminDestination(INQUIRY_DETAIL_DESTINATION, { inquiryId }),
+        adminPath,
         assigneeUserId: eventKey === "staff.inquiry.assigned" ? assignedOwnerId : inquiry.ownerId,
         actorUserId: asString(payload.actorId),
         inquiryId,

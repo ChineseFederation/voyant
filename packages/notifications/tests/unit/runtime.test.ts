@@ -1,5 +1,6 @@
 import type { VoyantRuntimeHostPrimitives } from "@voyant-travel/core"
 import { beforeEach, describe, expect, it, vi } from "vitest"
+import { inquiryDetailPathTemplate } from "@voyant-travel/relationships-contracts"
 
 const resolveInvoicePayUrlTemplate = vi.fn<() => Promise<string | null>>()
 vi.mock("@voyant-travel/operator-settings/service", () => ({
@@ -43,16 +44,19 @@ describe("createNotificationsRuntime", () => {
   })
 
   it("resolves semantic admin destinations through deployment-selected mounts", () => {
-    const host = primitives({})
-    vi.mocked(host.config.read).mockReturnValue({
-      "inquiry.detail": ({ inquiryId }: { inquiryId: string }) => `/solicitari/${inquiryId}`,
+    const host = primitives({
+      ADMIN_DESTINATION_INQUIRY_DETAIL_PATH_TEMPLATE: inquiryDetailPathTemplate("/solicitari"),
     })
     const runtime = createNotificationsRuntime(host)
 
-    expect(runtime.resolveAdminDestination?.({}, "inquiry.detail", { inquiryId: "inq_1" })).toBe(
-      "/solicitari/inq_1",
+    expect(runtime.resolveAdminDestination({}, "inquiry.detail", { inquiryId: "inq/1" })).toBe(
+      "/solicitari/inq%2F1",
     )
-    expect(host.config.read).toHaveBeenCalledWith({}, "adminDestinations")
+  })
+
+  it("fails closed when the selected destination template is absent", () => {
+    const runtime = createNotificationsRuntime(primitives({}))
+    expect(runtime.resolveAdminDestination({}, "inquiry.detail", { inquiryId: "inq_1" })).toBeNull()
   })
 })
 

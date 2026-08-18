@@ -24,6 +24,7 @@ function provider(): NotificationsRuntimeProvider {
   return {
     resolveDb: () => ({}) as PostgresJsDatabase,
     resolveProviders: () => [],
+    resolveAdminDestination: () => null,
     resolveReminderJobRuntime: () => jobRuntime,
   }
 }
@@ -45,6 +46,7 @@ describe("Notifications runtime port", () => {
       assertPortConforms(notificationsRuntimePort, {
         resolveDb: vi.fn(),
         resolveProviders: vi.fn(),
+        resolveAdminDestination: vi.fn(),
       } as never),
     ).rejects.toThrow(/resolveReminderJobRuntime/)
   })

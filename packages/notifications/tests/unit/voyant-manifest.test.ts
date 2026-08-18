@@ -16,6 +16,13 @@ describe("notifications deployment manifest", () => {
       schemaVersion: "voyant.module.v1",
       id: "@voyant-travel/notifications",
       packageName: "@voyant-travel/notifications",
+      config: [
+        {
+          id: "@voyant-travel/notifications#config.admin-inquiry-detail-path-template",
+          key: "ADMIN_DESTINATION_INQUIRY_DETAIL_PATH_TEMPLATE",
+          required: false,
+        },
+      ],
       provides: {
         capabilities: ["notifications.delivery"],
         ports: [

@@ -97,7 +97,7 @@ export const inquiryActivityDataset: ReportDatasetContribution = {
               id,
               normalize(
                 (row as Record<string, unknown>)[`report_column_${index}`],
-                compiled.numeric.has(id),
+                compiled.outputTypes.get(id),
               ),
             ]),
           ),
@@ -116,7 +116,7 @@ function compile(query: ReportQuery, parameters: ReportParameters, maximumRows: 
   if (groups.size !== query.groupBy.length) throw new Error("A field may only be grouped once.")
   const aggregateContext = groups.size > 0 || query.select.some((item) => item.kind === "aggregate")
   const outputs: string[] = []
-  const numeric = new Set<string>()
+  const outputTypes = new Map<string, ReportDatasetField["valueType"]>()
   const columns: ReportResult["columns"][number][] = []
   const aliases = new Map<string, SQL>()
   const selections = query.select.map((selection, index) => {
@@ -149,7 +149,7 @@ function compile(query: ReportQuery, parameters: ReportParameters, maximumRows: 
         : groups.get(selection.field)?.timeGrain
           ? "date"
           : definition!.valueType
-    if (["integer", "number", "currency"].includes(valueType)) numeric.add(output)
+    outputTypes.set(output, valueType)
     columns.push({
       id: output,
       label: selection.kind === "field" ? definition!.label : output,
@@ -181,7 +181,7 @@ function compile(query: ReportQuery, parameters: ReportParameters, maximumRows: 
       LIMIT ${limit + 1}`,
     columns,
     outputs,
-    numeric,
+    outputTypes,
     limit,
   }
 }
@@ -224,7 +224,7 @@ function aggregateExpression(
       return sql`COUNT(DISTINCT ${field.expression})::integer`
     case "sum":
       return field.definition.valueType === "integer"
-        ? sql`SUM(${field.expression})::integer`
+        ? sql`SUM(${field.expression})`
         : sql`SUM(${field.expression})::double precision`
     case "average":
       return sql`AVG(${field.expression})::double precision`
@@ -331,9 +331,19 @@ function requireOrderedField(definition: ReportDatasetField, operator: string) {
   if (!["integer", "number", "currency", "date", "datetime"].includes(definition.valueType))
     throw new Error(`${operator} is not supported for ${definition.valueType} fields.`)
 }
-function normalize(value: unknown, numeric: boolean) {
+function normalize(value: unknown, valueType: ReportDatasetField["valueType"] | undefined) {
   if (value instanceof Date) return value.toISOString()
-  if (numeric && typeof value === "string" && Number.isFinite(Number(value))) return Number(value)
+  if (valueType === "integer" && typeof value === "string" && /^-?\d+$/.test(value)) {
+    const numeric = Number(value)
+    return Number.isSafeInteger(numeric) ? numeric : value
+  }
+  if (
+    (valueType === "number" || valueType === "currency") &&
+    typeof value === "string" &&
+    Number.isFinite(Number(value))
+  ) {
+    return Number(value)
+  }
   return value
 }
 function requireScope(scopes: readonly string[]) {
