@@ -114,6 +114,40 @@ export const inquiries = pgTable(
 export type Inquiry = typeof inquiries.$inferSelect
 export type NewInquiry = typeof inquiries.$inferInsert
 
+export interface InquiryTargetSnapshotValue {
+  title: string
+  optionLabel?: string | null
+  startDate?: string | null
+  endDate?: string | null
+  publicUrl?: string | null
+  sourceChannel?: string | null
+}
+
+/** Relationships-owned immutable context for a neutral standard-link row. */
+export const inquiryTargetSnapshots = pgTable(
+  "inquiry_target_snapshots",
+  {
+    linkId: text("link_id").primaryKey(),
+    inquiryId: typeIdRef("inquiry_id")
+      .notNull()
+      .references(() => inquiries.id, { onDelete: "cascade" }),
+    kind: text("kind").$type<"product" | "option_unit">().notNull(),
+    targetId: text("target_id").notNull(),
+    snapshot: jsonb("snapshot").$type<InquiryTargetSnapshotValue>().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("uq_inquiry_target_snapshots_target").on(
+      table.inquiryId,
+      table.kind,
+      table.targetId,
+    ),
+    index("idx_inquiry_target_snapshots_inquiry").on(table.inquiryId, table.createdAt),
+  ],
+)
+
+export type InquiryTargetSnapshot = typeof inquiryTargetSnapshots.$inferSelect
+
 export interface InquiryProposalTargetSnapshot {
   kind: "proposal"
   pipelineId: string

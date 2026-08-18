@@ -193,6 +193,11 @@ export const relationshipsVoyantModule = defineModule({
   ],
   links: [
     {
+      id: "@voyant-travel/relationships#linkable.inquiry",
+      kind: "linkable",
+      source: "@voyant-travel/relationships/linkables",
+    },
+    {
       id: "@voyant-travel/relationships#linkable.organization",
       kind: "linkable",
       source: "@voyant-travel/relationships/linkables",
@@ -201,6 +206,18 @@ export const relationshipsVoyantModule = defineModule({
       id: "@voyant-travel/relationships#linkable.person",
       kind: "linkable",
       source: "@voyant-travel/relationships/linkables",
+    },
+    {
+      id: "@voyant-travel/relationships#link.inquiry-product",
+      kind: "definition",
+      source: "@voyant-travel/relationships/standard-links",
+      export: "inquiryProductLink",
+    },
+    {
+      id: "@voyant-travel/relationships#link.inquiry-option-unit",
+      kind: "definition",
+      source: "@voyant-travel/relationships/standard-links",
+      export: "inquiryOptionUnitLink",
     },
   ],
   events: [

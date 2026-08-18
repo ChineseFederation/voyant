@@ -1,11 +1,13 @@
-import { generateEventId } from "@voyant-travel/core"
+import { generateEventId, type LinkService } from "@voyant-travel/core"
 import { insertOutboxEvents } from "@voyant-travel/db/outbox"
 import type {
+  AddInquiryTargetInput,
   AssignInquiryInput,
   CloseInquiryInput,
   CreateInquiryInput,
   InquiryListQueryInput,
   InquiryStatus,
+  InquiryTargetRecord,
   ReopenInquiryInput,
   TransitionInquiryInput,
   UpdateInquiryInput,
@@ -33,7 +35,14 @@ import {
   INQUIRY_STATUS_CHANGED_EVENT,
   INQUIRY_UPDATED_EVENT,
 } from "../events.js"
-import { type Inquiry, inquiries, organizations, people } from "../schema.js"
+import {
+  type Inquiry,
+  inquiries,
+  inquiryTargetSnapshots,
+  organizations,
+  people,
+} from "../schema.js"
+import { inquiryOptionUnitLink, inquiryProductLink } from "../standard-links.js"
 import { paginate } from "./helpers.js"
 
 export type InquiryServiceErrorCode =
@@ -47,6 +56,8 @@ export type InquiryServiceErrorCode =
   | "INQUIRY_CONVERSION_NOT_READY"
   | "INQUIRY_CONVERSION_REFUSED"
   | "INVALID_DUPLICATE_INQUIRY"
+  | "INQUIRY_TARGET_NOT_FOUND"
+  | "INQUIRY_TARGET_UNSUPPORTED"
 
 export class InquiryServiceError extends Error {
   constructor(
@@ -131,6 +142,32 @@ function inquiryCreatedEventId(inquiryId: string) {
   return `evt_relationships_inquiry_created_${inquiryId}`
 }
 
+const targetLinks = {
+  product: inquiryProductLink,
+  option_unit: inquiryOptionUnitLink,
+} as const
+
+function targetLinkFor(kind: AddInquiryTargetInput["kind"]) {
+  if (kind === "catalog_item" || kind === "trip") {
+    throw new InquiryServiceError(
+      "INQUIRY_TARGET_UNSUPPORTED",
+      `Inquiry target kind ${kind} has no selected owner linkable`,
+    )
+  }
+  return targetLinks[kind]
+}
+
+function serializeTarget(row: typeof inquiryTargetSnapshots.$inferSelect): InquiryTargetRecord {
+  return {
+    linkId: row.linkId,
+    inquiryId: row.inquiryId,
+    kind: row.kind,
+    targetId: row.targetId,
+    snapshot: row.snapshot,
+    createdAt: row.createdAt.toISOString(),
+  }
+}
+
 async function writeInquiryEvent(
   db: PostgresJsDatabase,
   name: string,
@@ -147,6 +184,146 @@ async function writeInquiryEvent(
 }
 
 export const inquiriesService = {
+  async listInquiryTargets(
+    db: PostgresJsDatabase,
+    link: LinkService,
+    inquiryId: string,
+  ): Promise<InquiryTargetRecord[]> {
+    return (await this.listInquiryTargetsForInquiries(db, link, [inquiryId])).get(inquiryId) ?? []
+  },
+
+  async listInquiryTargetsForInquiries(
+    db: PostgresJsDatabase,
+    link: LinkService,
+    inquiryIds: string[],
+  ): Promise<Map<string, InquiryTargetRecord[]>> {
+    const grouped = new Map(inquiryIds.map((id) => [id, [] as InquiryTargetRecord[]]))
+    if (inquiryIds.length === 0) return grouped
+    const rows = await db
+      .select()
+      .from(inquiryTargetSnapshots)
+      .where(inArray(inquiryTargetSnapshots.inquiryId, inquiryIds))
+      .orderBy(asc(inquiryTargetSnapshots.createdAt), asc(inquiryTargetSnapshots.linkId))
+    const activeIds = new Set<string>()
+    for (const definition of Object.values(targetLinks)) {
+      const links = await link.list(definition.tableName, { leftIds: inquiryIds })
+      for (const row of links) activeIds.add(row.id)
+    }
+    for (const row of rows) {
+      if (activeIds.has(row.linkId)) grouped.get(row.inquiryId)?.push(serializeTarget(row))
+    }
+    return grouped
+  },
+
+  async resolveInquiryTarget(
+    db: PostgresJsDatabase,
+    link: LinkService,
+    inquiryId: string,
+    targetLinkId: string,
+  ): Promise<InquiryTargetRecord | null> {
+    const [snapshot] = await db
+      .select()
+      .from(inquiryTargetSnapshots)
+      .where(
+        and(
+          eq(inquiryTargetSnapshots.inquiryId, inquiryId),
+          eq(inquiryTargetSnapshots.linkId, targetLinkId),
+        ),
+      )
+      .limit(1)
+    if (!snapshot) return null
+    const definition = targetLinkFor(snapshot.kind)
+    const active = await link.list(definition.tableName, { leftId: inquiryId })
+    return active.some((row) => row.id === targetLinkId) ? serializeTarget(snapshot) : null
+  },
+
+  async addInquiryTarget(
+    db: PostgresJsDatabase,
+    link: LinkService,
+    inquiryId: string,
+    input: AddInquiryTargetInput,
+    actorId: string,
+  ): Promise<InquiryTargetRecord> {
+    requireActor(actorId)
+    const definition = targetLinkFor(input.kind)
+    const expectedPrefix = definition.right.linkable.idPrefix
+    if (expectedPrefix && !input.targetId.startsWith(`${expectedPrefix}_`)) {
+      throw new InquiryServiceError(
+        "INQUIRY_TARGET_NOT_FOUND",
+        `Target id does not identify a ${input.kind}`,
+      )
+    }
+    return db.transaction(async (tx) => {
+      const inquiry = await lockedInquiry(tx, inquiryId)
+      if (inquiry.status === "closed" || inquiry.status === "converted") {
+        throw new InquiryServiceError(
+          "INQUIRY_ALREADY_RESOLVED",
+          "A resolved inquiry cannot gain targets",
+        )
+      }
+      const linked = await link.create(definition.tableName, inquiryId, input.targetId)
+      const [stored] = await tx
+        .insert(inquiryTargetSnapshots)
+        .values({
+          linkId: linked.id,
+          inquiryId,
+          kind: input.kind,
+          targetId: input.targetId,
+          snapshot: input.snapshot,
+        })
+        .onConflictDoNothing()
+        .returning()
+      const row =
+        stored ??
+        (
+          await tx
+            .select()
+            .from(inquiryTargetSnapshots)
+            .where(eq(inquiryTargetSnapshots.linkId, linked.id))
+            .limit(1)
+        )[0]
+      if (!row) throw new Error("Inquiry target snapshot could not be persisted")
+      await writeInquiryEvent(tx, INQUIRY_UPDATED_EVENT, { id: inquiryId, actorId })
+      return serializeTarget(row)
+    })
+  },
+
+  async deleteInquiryTarget(
+    db: PostgresJsDatabase,
+    link: LinkService,
+    inquiryId: string,
+    targetLinkId: string,
+    actorId: string,
+  ): Promise<void> {
+    requireActor(actorId)
+    return db.transaction(async (tx) => {
+      const inquiry = await lockedInquiry(tx, inquiryId)
+      if (inquiry.status === "closed" || inquiry.status === "converted") {
+        throw new InquiryServiceError(
+          "INQUIRY_ALREADY_RESOLVED",
+          "A resolved inquiry cannot lose targets",
+        )
+      }
+      const [snapshot] = await tx
+        .select()
+        .from(inquiryTargetSnapshots)
+        .where(
+          and(
+            eq(inquiryTargetSnapshots.inquiryId, inquiryId),
+            eq(inquiryTargetSnapshots.linkId, targetLinkId),
+          ),
+        )
+        .limit(1)
+      if (!snapshot) {
+        throw new InquiryServiceError("INQUIRY_TARGET_NOT_FOUND", "Inquiry target not found")
+      }
+      const definition = targetLinkFor(snapshot.kind)
+      await link.delete(definition.tableName, inquiryId, snapshot.targetId)
+      await tx.delete(inquiryTargetSnapshots).where(eq(inquiryTargetSnapshots.linkId, targetLinkId))
+      await writeInquiryEvent(tx, INQUIRY_UPDATED_EVENT, { id: inquiryId, actorId })
+    })
+  },
+
   async listInquiries(
     db: PostgresJsDatabase,
     query: InquiryListQueryInput,

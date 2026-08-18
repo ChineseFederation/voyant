@@ -6,6 +6,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./linkables": "./src/linkables.ts",
+    "./standard-links": "./src/standard-links.ts",
     "./events": "./src/events.ts",
     "./schema": "./src/schema.ts",
     "./validation": "./src/validation.ts",
@@ -38,6 +39,8 @@
     "@voyant-travel/finance": "workspace:^",
     "@voyant-travel/hono": "workspace:^",
     "@voyant-travel/identity": "workspace:^",
+    "@voyant-travel/inventory": "workspace:^",
+    "@voyant-travel/operations": "workspace:^",
     "@voyant-travel/relationships-contracts": "workspace:^",
     "@voyant-travel/proposals-contracts": "workspace:^",
     "@voyant-travel/tools": "workspace:^",
@@ -70,6 +73,11 @@
         "types": "./dist/linkables.d.ts",
         "import": "./dist/linkables.js",
         "default": "./dist/linkables.js"
+      },
+      "./standard-links": {
+        "types": "./dist/standard-links.d.ts",
+        "import": "./dist/standard-links.js",
+        "default": "./dist/standard-links.js"
       },
       "./events": {
         "types": "./dist/events.d.ts",

@@ -12,8 +12,14 @@ import { relationshipsRoutes } from "./routes/index.js"
 import { relationshipsRouteRuntimePort } from "./runtime-port.js"
 import { relationshipsService } from "./service/index.js"
 
-export { organizationLinkable, personLinkable, relationshipsLinkable } from "./linkables.js"
+export {
+  inquiryLinkable,
+  organizationLinkable,
+  personLinkable,
+  relationshipsLinkable,
+} from "./linkables.js"
 export type { RelationshipsRoutes } from "./routes/index.js"
+export { inquiryOptionUnitLink, inquiryProductLink } from "./standard-links.js"
 
 export const relationshipsModule: Module = {
   name: "relationships",

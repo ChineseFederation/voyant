@@ -1,5 +1,5 @@
-import { createRoute, OpenAPIHono, type z } from "@hono/zod-openapi"
-import type { ModuleContainer } from "@voyant-travel/core"
+import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi"
+import type { LinkService, ModuleContainer } from "@voyant-travel/core"
 import {
   openApiValidationHook,
   parseJsonBody,
@@ -12,6 +12,7 @@ import {
   inquiryProposalConversionRefusalSchema,
   inquiryProposalConversionResultSchema,
   inquiryResponseSchema,
+  inquiryTargetResponseSchema,
 } from "@voyant-travel/relationships-contracts"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import type { Context } from "hono"
@@ -26,6 +27,7 @@ import {
   relationshipsService,
 } from "../service/index.js"
 import {
+  addInquiryTargetSchema,
   assignInquirySchema,
   closeInquirySchema,
   convertInquiryToProposalSchema,
@@ -42,6 +44,7 @@ type Env = {
     db: PostgresJsDatabase
     userId?: string
     container?: ModuleContainer
+    link?: LinkService
   }
 }
 
@@ -69,6 +72,24 @@ const documentedInquiryListResponseSchema: z.ZodObject = inquiryListResponseSche
 const inquiryResponse = jsonContent(documentedInquiryResponseSchema)
 const inquiryCreateResponse = jsonContent(documentedInquiryCreateResponseSchema)
 const inquiryConversionResponse = jsonContent(inquiryProposalConversionResultSchema)
+const inquiryTargetResponse = jsonContent(inquiryTargetResponseSchema)
+
+function requireLink(c: Context<Env>): LinkService {
+  const link = c.get("link")
+  if (!link) throw new Error("Inquiry target links are unavailable")
+  return link
+}
+
+async function withTargets(
+  db: PostgresJsDatabase,
+  link: LinkService,
+  inquiry: Record<string, unknown>,
+) {
+  return {
+    ...inquiry,
+    targets: await relationshipsService.listInquiryTargets(db, link, inquiry.id as string),
+  }
+}
 
 function serviceErrorResponse(c: Context<Env>, error: unknown) {
   if (!(error instanceof InquiryServiceError)) throw error
@@ -123,6 +144,26 @@ const updateRoute = createRoute({
     409: { description: "Inquiry conflict", ...jsonContent(errorResponseSchema) },
   },
 })
+const addTargetRoute = createRoute({
+  method: "post",
+  path: "/inquiries/{id}/targets",
+  request: { params: idParamSchema, ...requiredJsonBody(addInquiryTargetSchema) },
+  responses: {
+    201: { description: "Linked Inquiry target", ...inquiryTargetResponse },
+    404: { description: "Inquiry or target not found", ...jsonContent(errorResponseSchema) },
+    409: { description: "Inquiry target conflict", ...jsonContent(errorResponseSchema) },
+  },
+})
+const deleteTargetRoute = createRoute({
+  method: "delete",
+  path: "/inquiries/{id}/targets/{linkId}",
+  request: { params: idParamSchema.extend({ linkId: z.string().min(1) }) },
+  responses: {
+    204: { description: "Inquiry target removed" },
+    404: { description: "Inquiry or target not found", ...jsonContent(errorResponseSchema) },
+    409: { description: "Inquiry target conflict", ...jsonContent(errorResponseSchema) },
+  },
+})
 
 const commandResponses = {
   200: { description: "Updated inquiry", ...inquiryResponse },
@@ -173,7 +214,23 @@ export const inquiryRoutes = new OpenAPIHono<Env>({ defaultHook: openApiValidati
 
 inquiryRoutes.openapi(listRoute, async (c) => {
   const query = parseQuery(c, inquiryListQuerySchema)
-  return c.json(await relationshipsService.listInquiries(c.get("db"), query, requireUserId(c)), 200)
+  const db = c.get("db")
+  const result = await relationshipsService.listInquiries(db, query, requireUserId(c))
+  const targets = await relationshipsService.listInquiryTargetsForInquiries(
+    db,
+    requireLink(c),
+    result.data.map((inquiry) => inquiry.id),
+  )
+  return c.json(
+    {
+      ...result,
+      data: result.data.map((inquiry) => ({
+        ...inquiry,
+        targets: targets.get(inquiry.id) ?? [],
+      })),
+    },
+    200,
+  )
 })
 inquiryRoutes.openapi(createRouteDefinition, async (c) => {
   const actorId = requireUserId(c)
@@ -183,7 +240,10 @@ inquiryRoutes.openapi(createRouteDefinition, async (c) => {
       await parseJsonBody(c, createInquirySchema),
       actorId,
     )
-    const body = { data: result.inquiry, replayed: result.replayed }
+    const body = {
+      data: await withTargets(c.get("db"), requireLink(c), result.inquiry),
+      replayed: result.replayed,
+    }
     return result.replayed ? c.json(body, 200) : c.json(body, 201)
   } catch (error) {
     return serviceErrorResponse(c, error)
@@ -191,7 +251,9 @@ inquiryRoutes.openapi(createRouteDefinition, async (c) => {
 })
 inquiryRoutes.openapi(getRoute, async (c) => {
   const row = await relationshipsService.getInquiry(c.get("db"), c.req.valid("param").id)
-  return row ? c.json({ data: row }, 200) : c.json({ error: "Inquiry not found" }, 404)
+  return row
+    ? c.json({ data: await withTargets(c.get("db"), requireLink(c), row) }, 200)
+    : c.json({ error: "Inquiry not found" }, 404)
 })
 inquiryRoutes.openapi(updateRoute, async (c) => {
   const actorId = requireUserId(c)
@@ -202,7 +264,7 @@ inquiryRoutes.openapi(updateRoute, async (c) => {
       await parseJsonBody(c, updateInquirySchema),
       actorId,
     )
-    return c.json({ data: row }, 200)
+    return c.json({ data: await withTargets(c.get("db"), requireLink(c), row) }, 200)
   } catch (error) {
     return serviceErrorResponse(c, error)
   }
@@ -217,7 +279,7 @@ inquiryRoutes.openapi(transitionRoute, async (c) => {
       await parseJsonBody(c, transitionInquirySchema),
       actorId,
     )
-    return c.json({ data: row }, 200)
+    return c.json({ data: await withTargets(c.get("db"), requireLink(c), row) }, 200)
   } catch (error) {
     return serviceErrorResponse(c, error)
   }
@@ -232,7 +294,7 @@ inquiryRoutes.openapi(assignRoute, async (c) => {
       await parseJsonBody(c, assignInquirySchema),
       actorId,
     )
-    return c.json({ data: row }, 200)
+    return c.json({ data: await withTargets(c.get("db"), requireLink(c), row) }, 200)
   } catch (error) {
     return serviceErrorResponse(c, error)
   }
@@ -247,7 +309,7 @@ inquiryRoutes.openapi(closeRoute, async (c) => {
       await parseJsonBody(c, closeInquirySchema),
       actorId,
     )
-    return c.json({ data: row }, 200)
+    return c.json({ data: await withTargets(c.get("db"), requireLink(c), row) }, 200)
   } catch (error) {
     return serviceErrorResponse(c, error)
   }
@@ -262,7 +324,36 @@ inquiryRoutes.openapi(reopenRoute, async (c) => {
       await parseJsonBody(c, reopenInquirySchema),
       actorId,
     )
-    return c.json({ data: row }, 200)
+    return c.json({ data: await withTargets(c.get("db"), requireLink(c), row) }, 200)
+  } catch (error) {
+    return serviceErrorResponse(c, error)
+  }
+})
+inquiryRoutes.openapi(addTargetRoute, async (c) => {
+  try {
+    const data = await relationshipsService.addInquiryTarget(
+      c.get("db"),
+      requireLink(c),
+      c.req.valid("param").id,
+      await parseJsonBody(c, addInquiryTargetSchema),
+      requireUserId(c),
+    )
+    return c.json({ data }, 201)
+  } catch (error) {
+    return serviceErrorResponse(c, error)
+  }
+})
+inquiryRoutes.openapi(deleteTargetRoute, async (c) => {
+  try {
+    const { id, linkId } = c.req.valid("param")
+    await relationshipsService.deleteInquiryTarget(
+      c.get("db"),
+      requireLink(c),
+      id,
+      linkId,
+      requireUserId(c),
+    )
+    return c.body(null, 204)
   } catch (error) {
     return serviceErrorResponse(c, error)
   }

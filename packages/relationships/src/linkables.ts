@@ -14,7 +14,15 @@ export const organizationLinkable: LinkableDefinition = {
   idPrefix: "org",
 }
 
+export const inquiryLinkable: LinkableDefinition = {
+  module: "relationships",
+  entity: "inquiry",
+  table: "inquiries",
+  idPrefix: "inq",
+}
+
 export const relationshipsLinkable = {
+  inquiry: inquiryLinkable,
   person: personLinkable,
   organization: organizationLinkable,
 }

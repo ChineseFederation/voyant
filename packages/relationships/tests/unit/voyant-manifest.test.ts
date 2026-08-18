@@ -62,8 +62,11 @@ describe("relationships deployment manifest", () => {
       schema: [{ id: "@voyant-travel/relationships#schema" }],
       migrations: [{ id: "@voyant-travel/relationships#migrations" }],
       links: [
+        { id: "@voyant-travel/relationships#linkable.inquiry" },
         { id: "@voyant-travel/relationships#linkable.organization" },
         { id: "@voyant-travel/relationships#linkable.person" },
+        { id: "@voyant-travel/relationships#link.inquiry-product" },
+        { id: "@voyant-travel/relationships#link.inquiry-option-unit" },
       ],
     })
     expect(relationshipsVoyantModule.access?.resources).toEqual(
