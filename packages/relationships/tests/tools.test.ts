@@ -446,7 +446,7 @@ describe("relationships (crm) tools", () => {
         operation: "add",
         kind: "product",
         targetId: "prd_1",
-        snapshot: { label: "Japan private tour" },
+        snapshot: { title: "Japan private tour" },
       },
       ctx({
         manageInquiryTarget: async (input) => ({
@@ -456,7 +456,7 @@ describe("relationships (crm) tools", () => {
             inquiryId: input.id,
             kind: "product",
             targetId: "prd_1",
-            snapshot: { label: "Japan private tour" },
+            snapshot: { title: "Japan private tour" },
             createdAt: "2026-08-18T13:00:00.000Z",
           },
         }),
