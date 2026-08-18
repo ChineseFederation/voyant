@@ -7,7 +7,7 @@ describe("inquiry first-response overdue scan", () => {
     const where = vi.fn(async () => [
       { id: "inq_1", firstResponseDueAt: new Date("2026-08-18T08:00:00.000Z") },
     ])
-    const db = {
+    const tx = {
       select: vi.fn(() => ({ from: vi.fn(() => ({ where })) })),
       insert: vi.fn(() => ({
         values: vi.fn(() => ({
@@ -19,6 +19,11 @@ describe("inquiry first-response overdue scan", () => {
         })),
       })),
     }
+    const db = {
+      transaction: vi.fn(async (operation: (database: typeof tx) => Promise<number>) =>
+        operation(tx),
+      ),
+    }
     const insertEvents = vi.fn(async (_db, events) => [{ id: "out_1", ...events[0] }])
 
     await expect(
@@ -29,7 +34,7 @@ describe("inquiry first-response overdue scan", () => {
       ),
     ).resolves.toBe(1)
 
-    expect(insertEvents).toHaveBeenCalledWith(db, [
+    expect(insertEvents).toHaveBeenCalledWith(tx, [
       {
         name: "inquiry.first_response_overdue",
         data: { id: "inq_1", firstResponseDueAt: "2026-08-18T08:00:00.000Z" },
@@ -41,7 +46,7 @@ describe("inquiry first-response overdue scan", () => {
   })
 
   it("does not enqueue when another scan already claimed the overdue window", async () => {
-    const db = {
+    const tx = {
       select: vi.fn(() => ({
         from: vi.fn(() => ({
           where: vi.fn(async () => [
@@ -55,11 +60,64 @@ describe("inquiry first-response overdue scan", () => {
         })),
       })),
     }
+    const db = {
+      transaction: vi.fn(async (operation: (database: typeof tx) => Promise<number>) =>
+        operation(tx),
+      ),
+    }
     const insertEvents = vi.fn()
 
     await expect(
       emitFirstResponseOverdueEvents(db as never, new Date(), insertEvents as never),
     ).resolves.toBe(0)
     expect(insertEvents).not.toHaveBeenCalled()
+  })
+
+  it("rolls back a claim when the outbox insert fails so the next scan retries it", async () => {
+    let claimed = false
+    const dueAt = new Date("2026-08-18T08:00:00.000Z")
+    const tx = {
+      select: vi.fn(() => ({
+        from: vi.fn(() => ({
+          where: vi.fn(async () => [{ id: "inq_1", firstResponseDueAt: dueAt }]),
+        })),
+      })),
+      insert: vi.fn(() => ({
+        values: vi.fn(() => ({
+          onConflictDoNothing: vi.fn(() => ({
+            returning: vi.fn(async () => {
+              if (claimed) return []
+              claimed = true
+              return [{ id: "inq_1", firstResponseDueAt: dueAt }]
+            }),
+          })),
+        })),
+      })),
+    }
+    const db = {
+      transaction: vi.fn(async (operation: (database: typeof tx) => Promise<number>) => {
+        const before = claimed
+        try {
+          return await operation(tx)
+        } catch (error) {
+          claimed = before
+          throw error
+        }
+      }),
+    }
+    const insertEvents = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("outbox unavailable"))
+      .mockResolvedValueOnce([{ id: "out_1" }])
+
+    await expect(
+      emitFirstResponseOverdueEvents(db as never, new Date(), insertEvents as never),
+    ).rejects.toThrow("outbox unavailable")
+    await expect(
+      emitFirstResponseOverdueEvents(db as never, new Date(), insertEvents as never),
+    ).resolves.toBe(1)
+
+    expect(db.transaction).toHaveBeenCalledTimes(2)
+    expect(insertEvents).toHaveBeenCalledTimes(2)
   })
 })

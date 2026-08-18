@@ -24,11 +24,16 @@ const expressions: Record<FieldId, SQL> = {
   status: sql`${inquiries.status}`,
   kind: sql`${inquiries.kind}`,
   source: sql`${inquiries.source}`,
+  locale: sql`${inquiries.locale}`,
   priority: sql`${inquiries.priority}`,
   ownerId: sql`${inquiries.ownerId}`,
   teamId: sql`${inquiries.teamId}`,
   firstResponseDueAt: sql`${inquiries.firstResponseDueAt}`,
   firstRespondedAt: sql`${inquiries.firstRespondedAt}`,
+  qualifiedAt: sql`${inquiries.qualifiedAt}`,
+  convertedAt: sql`${inquiries.convertedAt}`,
+  closedAt: sql`${inquiries.closedAt}`,
+  closeOutcome: sql`${inquiries.closeOutcome}`,
   conversionCount: sql`COALESCE(conversion_totals.conversion_count, 0)`,
 }
 

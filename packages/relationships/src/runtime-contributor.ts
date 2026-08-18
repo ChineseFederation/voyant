@@ -252,10 +252,8 @@ export function createRelationshipsRuntimePortContribution(
   return {
     [publicApiIntakeRuntimePortReference.id]: createPublicApiIntakePersistence(),
     [relationshipsInquiryOverdueJobRuntimePort.id]: {
-      withDb: <T>(bindings: unknown, operation: (db: AnyDrizzleDb) => Promise<T>) =>
-        host.primitives.database.transaction(bindings, (database) =>
-          operation(database as AnyDrizzleDb),
-        ),
+      withDb: <T>(bindings: unknown, operation: (db: PostgresJsDatabase) => Promise<T>) =>
+        operation(host.primitives.database.resolve<PostgresJsDatabase>(bindings)),
     },
     [customFieldValueReaderRuntimePort.id]: customFields,
     [customFieldValueLifecycleRuntimePort.id]: relationshipCustomFieldValues,

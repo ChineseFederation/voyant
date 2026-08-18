@@ -37,7 +37,7 @@ describe("staff alert resolvers", () => {
       id: "inq_1",
       subject: "Private tour",
       contactSnapshot: { email: "ana@example.com" },
-      ownerId: "usr_1",
+      ownerId: "usr_current",
       source: "storefront",
       status: "triaged",
       firstResponseDueAt: new Date("2026-08-18T10:00:00.000Z"),
@@ -45,13 +45,13 @@ describe("staff alert resolvers", () => {
 
     const context = await staffAlertContextResolvers["staff.inquiry.assigned"]?.resolve({
       db,
-      payload: { id: "inq_1", actorId: "usr_2" },
+      payload: { id: "inq_1", actorId: "usr_2", ownerId: "usr_event" },
     })
 
     expect(context).toMatchObject({
       inquiryId: "inq_1",
       adminPath: "/inquiries/inq_1",
-      assigneeUserId: "usr_1",
+      assigneeUserId: "usr_event",
       actorUserId: "usr_2",
       contact: { name: "ana@example.com", email: "ana@example.com" },
       firstResponseDueAt: "2026-08-18T10:00:00.000Z",

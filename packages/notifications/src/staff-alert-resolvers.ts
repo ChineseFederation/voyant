@@ -300,13 +300,15 @@ function inquiryResolver<
       if (!inquiryId) return null
       const inquiry = await relationshipsService.getInquiry(db as PostgresJsDatabase, inquiryId)
       if (!inquiry) return null
+      const assignedOwnerId = payload.ownerId === null ? null : asString(payload.ownerId)
+      if (eventKey === "staff.inquiry.assigned" && assignedOwnerId === undefined) return null
       const snapshot = inquiry.contactSnapshot as Record<string, unknown>
       const name = asString(snapshot.name) ?? asString(snapshot.email) ?? asString(snapshot.phone)
 
       return {
         // This is the registered `inquiry.detail` destination's path shape.
         adminPath: `/inquiries/${inquiryId}`,
-        assigneeUserId: inquiry.ownerId,
+        assigneeUserId: eventKey === "staff.inquiry.assigned" ? assignedOwnerId : inquiry.ownerId,
         actorUserId: asString(payload.actorId),
         inquiryId,
         alertKind,
