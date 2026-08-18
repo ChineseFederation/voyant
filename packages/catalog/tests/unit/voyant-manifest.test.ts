@@ -27,6 +27,7 @@ describe("catalog deployment manifest", () => {
           { id: "catalog.booking-session-maintenance-job" },
           { id: "catalog.booking-session-settlement-runtime" },
           { id: "catalog.composite-booking-session.runtime" },
+          { id: "catalog.inquiry-booking-session.runtime" },
           { id: "catalog.runtime-services" },
           { id: "catalog.reindex-products-job" },
           { id: "catalog.sources-sync-job" },

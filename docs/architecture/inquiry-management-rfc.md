@@ -614,7 +614,8 @@ Use this when the customer asked about a reusable Product and should complete
 traveler details, receive a binding Quote, optionally obtain a Hold, and Commit
 through the standard journey.
 
-The command asks the Booking Platform to create a Booking Session for the
+The command asks Catalog, which owns Booking Sessions in the current package
+architecture, to create a Booking Session for the
 selected target and seeds only data accepted by the target's published Booking
 Requirements. Unknown or untrusted fields remain unanswered. The returned
 session id is recorded as the conversion target.
@@ -629,7 +630,7 @@ provides the earlier provenance.
 Use this for a staff-assisted or offline reservation where the existing Booking
 owner command supports direct creation and all required information is known.
 
-Inquiry delegates to the Booking-owned creation command. That command remains
+Inquiry delegates to Catalog Commit's owner command. That command remains
 responsible for requirements, availability, pricing/financial policy,
 idempotency, origin, and audit. Inquiry cannot bypass a Quote, Hold, approval,
 or provider reservation that the selected booking mode requires.
@@ -883,7 +884,8 @@ collector is supposed to supply.
 | `relationships` | Aggregate, migrations, routes, services, target links, events, tools, conversion coordinator |
 | `relationships-react` | Inquiry queue, detail workspace, hooks, admin extension, semantic destinations |
 | `storefront` / `storefront-sdk` | Canonical guarded Inquiry intake and Product/custom form clients |
-| `bookings` | Booking Session/Booking conversion provider; retire `booking_inquiries` |
+| `catalog` | Booking Session conversion provider and future direct Booking through Catalog Commit |
+| `bookings` | Retire `booking_inquiries`; remain the owner of persisted Booking records after Commit |
 | `proposals` | Proposal conversion provider; source provenance; remove old checkout-inquiry seam |
 | `notifications` | Inquiry alerts and semantic links |
 | `realtime` / `realtime-react` | Inquiry invalidation hints |

@@ -1,30 +1,19 @@
-import { insertOutboxEvents } from "@voyant-travel/db/outbox"
+import { sha256 } from "@voyant-travel/action-ledger"
 import type { CatalogInquiryBookingSessionRuntime } from "@voyant-travel/catalog/inquiry-booking-session-runtime-port"
+import type { LinkService } from "@voyant-travel/core"
+import { insertOutboxEvents } from "@voyant-travel/db/outbox"
+import type {
+  ConvertInquiryToBookingCommand,
+  ConvertInquiryToBookingSessionCommand,
+  InquiryBookingConversionRefusalReason,
+  InquiryBookingConversionResult,
+} from "@voyant-travel/relationships-contracts"
 import { and, eq, sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 
 import { INQUIRY_CONVERTED_EVENT } from "../events.js"
 import { inquiries, inquiryConversions } from "../schema.js"
-import { InquiryServiceError } from "./inquiries.js"
-
-export type InquiryBookingTarget = {
-  linkId: string
-  inquiryId: string
-  kind: "product" | "option_unit" | "catalog_item" | "trip"
-  targetId: string
-}
-
-export interface InquiryBookingTargetResolver {
-  resolve(db: PostgresJsDatabase, inquiryId: string, targetLinkId: string): Promise<InquiryBookingTarget | null>
-}
-
-export type InquiryBookingConversionRefusalReason =
-  | "booking_session_required"
-  | "target_not_found"
-  | "unsupported_target"
-  | "idempotency_conflict"
-  | "invalid_selection"
-  | "target_unavailable"
+import { InquiryServiceError, inquiriesService } from "./inquiries.js"
 
 export class InquiryBookingConversionRefusedError extends InquiryServiceError {
   constructor(readonly reason: InquiryBookingConversionRefusalReason) {
@@ -36,24 +25,23 @@ export class InquiryBookingConversionRefusedError extends InquiryServiceError {
 export async function convertInquiryToBookingTarget(
   db: PostgresJsDatabase,
   sessionRuntime: CatalogInquiryBookingSessionRuntime,
-  targetResolver: InquiryBookingTargetResolver,
+  link: LinkService,
   inquiryId: string,
-  command:
-    | {
-        kind: "booking_session"
-        idempotencyKey: string
-        targetLinkId: string
-        channelId?: string | null
-        selection?: Record<string, unknown>
-        keepInquiryOpen: boolean
-      }
-    | { kind: "booking"; idempotencyKey: string },
+  command: ConvertInquiryToBookingSessionCommand | ConvertInquiryToBookingCommand,
   actorId: string,
-) {
-  if (!actorId) throw new InquiryServiceError("INQUIRY_CUSTOMER_REQUIRED", "A staff actor is required")
+  testHooks?: { beforeOutbox?: (tx: PostgresJsDatabase) => Promise<void> },
+): Promise<InquiryBookingConversionResult> {
+  if (!actorId)
+    throw new InquiryServiceError("INQUIRY_CUSTOMER_REQUIRED", "A staff actor is required")
   if (command.kind === "booking") {
     throw new InquiryBookingConversionRefusedError("booking_session_required")
   }
+  const commandFingerprint = await sha256({
+    targetLinkId: command.targetLinkId,
+    channelId: command.channelId ?? null,
+    selection: command.selection ?? null,
+    keepInquiryOpen: command.keepInquiryOpen,
+  })
 
   return db.transaction(async (tx) => {
     await tx.execute(
@@ -70,7 +58,15 @@ export async function convertInquiryToBookingTarget(
         ),
       )
       .limit(1)
-    if (existing) return conversionResult("replayed", existing)
+    if (existing) {
+      if (
+        existing.targetSnapshot.kind !== "booking_session" ||
+        existing.targetSnapshot.commandFingerprint !== commandFingerprint
+      ) {
+        throw new InquiryBookingConversionRefusedError("idempotency_conflict")
+      }
+      return conversionResult("replayed", existing)
+    }
 
     const [inquiry] = await tx
       .select()
@@ -87,19 +83,23 @@ export async function convertInquiryToBookingTarget(
       )
     }
     if (!inquiry.personId && !inquiry.organizationId) {
-      throw new InquiryServiceError("INQUIRY_CUSTOMER_REQUIRED", "Conversion requires a Person or Organization")
+      throw new InquiryServiceError(
+        "INQUIRY_CUSTOMER_REQUIRED",
+        "Conversion requires a Person or Organization",
+      )
     }
 
-    const target = await targetResolver.resolve(tx, inquiryId, command.targetLinkId)
+    const target = await inquiriesService.resolveInquiryTarget(
+      tx,
+      link,
+      inquiryId,
+      command.targetLinkId,
+    )
     if (!target || target.inquiryId !== inquiryId || target.linkId !== command.targetLinkId) {
       throw new InquiryBookingConversionRefusedError("target_not_found")
     }
     const sessionTarget =
-      target.kind === "product"
-        ? ({ kind: "product", productId: target.targetId } as const)
-        : target.kind === "catalog_item"
-          ? ({ kind: "catalog_item", catalogItemId: target.targetId } as const)
-          : null
+      target.kind === "product" ? ({ kind: "product", productId: target.targetId } as const) : null
     if (!sessionTarget) throw new InquiryBookingConversionRefusedError("unsupported_target")
 
     const ownerKey = await ownerIdempotencyKey(inquiryId, command.idempotencyKey)
@@ -123,7 +123,11 @@ export async function convertInquiryToBookingTarget(
         inquiryId,
         kind: "booking_session",
         targetId: outcome.bookingSessionId,
-        targetSnapshot: { kind: "booking_session", targetLinkId: target.linkId },
+        targetSnapshot: {
+          kind: "booking_session",
+          targetLinkId: target.linkId,
+          commandFingerprint,
+        },
         idempotencyKey: command.idempotencyKey,
         mode: "created",
         actorId,
@@ -141,6 +145,7 @@ export async function convertInquiryToBookingTarget(
         updatedAt: now,
       })
       .where(eq(inquiries.id, inquiryId))
+    await testHooks?.beforeOutbox?.(tx)
     await insertOutboxEvents(tx, [
       {
         name: INQUIRY_CONVERTED_EVENT,
@@ -171,7 +176,10 @@ async function ownerIdempotencyKey(inquiryId: string, idempotencyKey: string): P
   ).join("")}`
 }
 
-function conversionResult(kind: "created" | "replayed", conversion: typeof inquiryConversions.$inferSelect) {
+function conversionResult(
+  kind: "created" | "replayed",
+  conversion: typeof inquiryConversions.$inferSelect,
+) {
   return {
     kind,
     conversionId: conversion.id,

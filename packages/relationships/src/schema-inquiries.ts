@@ -157,6 +157,7 @@ export interface InquiryProposalTargetSnapshot {
 export interface InquiryBookingSessionTargetSnapshot {
   kind: "booking_session"
   targetLinkId: string
+  commandFingerprint: string
 }
 
 /** Durable provenance and replay boundary for every successful Inquiry handoff. */

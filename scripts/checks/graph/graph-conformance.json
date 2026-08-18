@@ -30,6 +30,7 @@
         "relationships.mice.runtime",
         "custom-fields.runtime",
         "proposals.inquiry-conversion.runtime",
+        "catalog.inquiry-booking-session.runtime",
         "relationships.booking-enrichment-database"
       ],
       "runtimeExport": "createRelationshipsRuntimePortContribution"

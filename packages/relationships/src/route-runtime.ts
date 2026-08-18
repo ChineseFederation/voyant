@@ -1,11 +1,10 @@
+import type { CatalogInquiryBookingSessionRuntime } from "@voyant-travel/catalog/inquiry-booking-session-runtime-port"
 import type { CustomFieldRegistryResolver } from "@voyant-travel/core/custom-fields"
 import type { ProposalInquiryConversionRuntime } from "@voyant-travel/proposals-contracts/inquiry-conversion"
 import type { InquiryMaterializedTargetKind } from "@voyant-travel/relationships-contracts/inquiry-target-authority/runtime-port"
-import type { CatalogInquiryBookingSessionRuntime } from "@voyant-travel/catalog/inquiry-booking-session-runtime-port"
 import { createKmsProviderFromEnv, type KmsProvider } from "@voyant-travel/utils"
 
 import type { RelationshipsPersonNotificationsRuntime } from "./runtime-port.js"
-import type { InquiryBookingTargetResolver } from "./service/inquiry-booking-conversions.js"
 
 export const RELATIONSHIPS_ROUTE_RUNTIME_CONTAINER_KEY = "runtime.relationships.routes"
 
@@ -49,7 +48,6 @@ export interface RelationshipsRouteRuntime {
   proposalInquiryConversion?: ProposalInquiryConversionRuntime
   inquiryTargetValidation?: InquiryTargetValidationRuntime
   inquiryBookingSession?: CatalogInquiryBookingSessionRuntime
-  inquiryBookingTargetResolver?: InquiryBookingTargetResolver
 }
 
 export interface RelationshipsRouteRuntimeOptions {
@@ -60,7 +58,6 @@ export interface RelationshipsRouteRuntimeOptions {
   proposalInquiryConversion?: ProposalInquiryConversionRuntime
   inquiryTargetValidation?: InquiryTargetValidationRuntime
   inquiryBookingSession?: CatalogInquiryBookingSessionRuntime
-  inquiryBookingTargetResolver?: InquiryBookingTargetResolver
 }
 
 function buildRuntimeEnv(bindings: Record<string, unknown>): Record<string, string | undefined> {
@@ -101,11 +98,7 @@ export function buildRelationshipsRouteRuntime(
     customFieldsForWrite: options.customFieldsForWrite,
     personNotifications: options.personNotifications,
     proposalInquiryConversion: options.proposalInquiryConversion,
-<<<<<<< ours
     inquiryTargetValidation: options.inquiryTargetValidation,
-=======
     inquiryBookingSession: options.inquiryBookingSession,
-    inquiryBookingTargetResolver: options.inquiryBookingTargetResolver,
->>>>>>> theirs
   }
 }

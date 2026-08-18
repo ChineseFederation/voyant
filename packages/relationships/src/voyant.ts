@@ -131,7 +131,7 @@ const inquiryConvertedPayloadSchema = {
     id: { type: "string" },
     actorId: { type: "string" },
     conversionId: { type: "string" },
-    kind: { type: "string", enum: ["proposal", "booking_session", "booking"] },
+    kind: { type: "string", enum: ["proposal", "booking_session"] },
     targetId: { type: "string" },
     inquiryStatus: { type: "string", enum: ["qualified", "converted"] },
   },

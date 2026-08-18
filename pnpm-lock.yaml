@@ -5452,6 +5452,9 @@ importers:
       '@voyant-travel/bookings':
         specifier: workspace:^
         version: link:../bookings
+      '@voyant-travel/catalog':
+        specifier: workspace:^
+        version: link:../catalog
       '@voyant-travel/core':
         specifier: workspace:^
         version: link:../core

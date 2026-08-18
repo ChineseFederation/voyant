@@ -1,4 +1,5 @@
 import { bookingsRelationshipsRuntimePort } from "@voyant-travel/bookings/runtime-port"
+import { catalogInquiryBookingSessionRuntimePort } from "@voyant-travel/catalog/inquiry-booking-session-runtime-port"
 import { createContainer, createEventBus } from "@voyant-travel/core"
 import {
   customFieldsRuntimePort,
@@ -43,6 +44,7 @@ describe("relationships deployment manifest", () => {
         { id: "relationships.booking-enrichment-database" },
         { id: proposalInquiryConversionRuntimePort.id, optional: true },
         { id: inquiryTargetAuthorityRuntimePort.id, optional: true, cardinality: "many" },
+        { id: catalogInquiryBookingSessionRuntimePort.id, optional: true },
         // Optional: a deployment can select CRM without Bookings, and then
         // nothing emits `booking.confirmed` for the enrichment subscriber.
         { id: "bookings.crm-snapshot.runtime", optional: true },

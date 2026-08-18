@@ -4,13 +4,16 @@ import {
   openApiValidationHook,
   parseJsonBody,
   parseQuery,
+  requireAdditionalPermission,
   requireUserId,
 } from "@voyant-travel/hono"
 import {
   addInquiryTargetSchema,
-  inquiryCreateResponseSchema,
+  type InquiryBookingConversionResult,
+  type InquiryProposalConversionResult,
   inquiryBookingConversionRefusalSchema,
   inquiryBookingConversionResultSchema,
+  inquiryCreateResponseSchema,
   inquiryListResponseSchema,
   inquiryProposalConversionRefusalSchema,
   inquiryProposalConversionResultSchema,
@@ -376,12 +379,18 @@ inquiryRoutes.openapi(deleteTargetRoute, async (c) => {
 inquiryRoutes.openapi(convertRoute, async (c) => {
   const actorId = requireUserId(c)
   const command = await parseJsonBody(c, convertInquirySchema)
+  await requireAdditionalPermission(
+    c,
+    command.kind === "proposal"
+      ? { resource: "proposals", action: "write" }
+      : { resource: "catalog", action: "booking-session-write" },
+  )
   const runtime = c.get("container")?.resolve(RELATIONSHIPS_ROUTE_RUNTIME_CONTAINER_KEY) as
     | RelationshipsRouteRuntime
     | undefined
   try {
     const inquiryId = c.req.valid("param").id
-    let result
+    let result: InquiryProposalConversionResult | InquiryBookingConversionResult
     if (command.kind === "proposal") {
       if (!runtime?.proposalInquiryConversion) {
         return c.json({ error: "Proposal conversion is unavailable" }, 503)
@@ -396,13 +405,13 @@ inquiryRoutes.openapi(convertRoute, async (c) => {
     } else if (command.kind === "booking") {
       throw new InquiryBookingConversionRefusedError("booking_session_required")
     } else {
-      if (!runtime?.inquiryBookingSession || !runtime.inquiryBookingTargetResolver) {
+      if (!runtime?.inquiryBookingSession) {
         return c.json({ error: "Booking Session conversion is unavailable" }, 503)
       }
       result = await convertInquiryToBookingTarget(
         c.get("db"),
         runtime.inquiryBookingSession,
-        runtime.inquiryBookingTargetResolver,
+        requireLink(c),
         inquiryId,
         command,
         actorId,

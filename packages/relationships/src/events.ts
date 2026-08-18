@@ -31,7 +31,7 @@ export interface InquiryClosedEvent extends InquiryEvent {
 
 export interface InquiryConvertedEvent extends InquiryEvent {
   conversionId: string
-  kind: "proposal" | "booking_session" | "booking"
+  kind: "proposal" | "booking_session"
   targetId: string
   inquiryStatus: "qualified" | "converted"
 }
