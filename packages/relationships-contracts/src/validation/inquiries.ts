@@ -31,6 +31,33 @@ export const inquirySourceSchema = z.enum([
   "api",
 ])
 
+/** Cross-module subjects an Inquiry can retain as immutable intake context. */
+export const inquiryTargetKindSchema = z.enum(["product", "option_unit", "catalog_item", "trip"])
+
+export const inquiryTargetSnapshotSchema = z.object({
+  title: z.string().trim().min(1).max(500),
+  optionLabel: z.string().trim().min(1).max(500).nullable().optional(),
+  startDate: z.string().date().nullable().optional(),
+  endDate: z.string().date().nullable().optional(),
+  publicUrl: z.string().url().max(2_000).nullable().optional(),
+  sourceChannel: z.string().trim().min(1).max(200).nullable().optional(),
+})
+
+export const addInquiryTargetSchema = z.object({
+  kind: inquiryTargetKindSchema,
+  targetId: z.string().trim().min(1).max(500),
+  snapshot: inquiryTargetSnapshotSchema,
+})
+
+export const inquiryTargetRecordSchema = addInquiryTargetSchema.extend({
+  linkId: z.string(),
+  inquiryId: z.string(),
+  createdAt: z.string(),
+})
+
+export const inquiryTargetsResponseSchema = z.object({ data: z.array(inquiryTargetRecordSchema) })
+export const inquiryTargetResponseSchema = z.object({ data: inquiryTargetRecordSchema })
+
 export const inquiryContactSnapshotSchema = z
   .object({
     name: z.string().trim().min(1).max(200).optional(),
@@ -272,6 +299,7 @@ export const inquiryRecordSchema = z.object({
   closedAt: isoTimestampSchema.nullable(),
   createdAt: isoTimestampSchema,
   updatedAt: isoTimestampSchema,
+  targets: z.array(inquiryTargetRecordSchema),
 })
 
 export const inquiryResponseSchema = z.object({ data: inquiryRecordSchema })
@@ -287,6 +315,10 @@ export const inquiryListResponseSchema = z.object({
 })
 
 export type InquiryKind = z.infer<typeof inquiryKindSchema>
+export type InquiryTargetKind = z.infer<typeof inquiryTargetKindSchema>
+export type InquiryTargetSnapshot = z.infer<typeof inquiryTargetSnapshotSchema>
+export type AddInquiryTargetInput = z.infer<typeof addInquiryTargetSchema>
+export type InquiryTargetRecord = z.infer<typeof inquiryTargetRecordSchema>
 export type InquiryStatus = z.infer<typeof inquiryStatusSchema>
 export type InquiryPriority = z.infer<typeof inquiryPrioritySchema>
 export type InquiryCloseOutcome = z.infer<typeof inquiryCloseOutcomeSchema>

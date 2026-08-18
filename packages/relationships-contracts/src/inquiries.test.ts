@@ -5,9 +5,12 @@ import {
   closeInquirySchema,
   convertInquiryToProposalSchema,
   createInquirySchema,
+  createPublicInquirySchema,
   inquiryListQuerySchema,
   inquiryRecordSchema,
+  inquiryTargetRecordSchema,
   inquiryTravelBriefV1Schema,
+  publicInquiryReceiptSchema,
 } from "./validation.js"
 
 describe("Inquiry contracts", () => {
@@ -118,6 +121,55 @@ describe("Inquiry contracts", () => {
         closedAt: null,
         createdAt: "2026-08-18T00:00:00.000Z",
         updatedAt: "2026-08-18T00:00:00.000Z",
+        targets: [],
+      }).success,
+    ).toBe(true)
+  })
+
+  it("owns immutable cross-module target snapshots", () => {
+    expect(
+      inquiryTargetRecordSchema.parse({
+        linkId: "link_1",
+        inquiryId: "inq_1",
+        kind: "option_unit",
+        targetId: "avsl_1",
+        snapshot: {
+          title: "Danube cruise",
+          optionLabel: "12 September",
+          startDate: "2026-09-12",
+          endDate: "2026-09-19",
+          publicUrl: "https://travel.example/cruises/1",
+          sourceChannel: "storefront-web",
+        },
+        createdAt: "2026-08-18T00:00:00.000Z",
+      }),
+    ).toMatchObject({ kind: "option_unit", targetId: "avsl_1" })
+  })
+
+  it("keeps public intake source-controlled and returns an idempotent receipt", () => {
+    const intake = createPublicInquirySchema.parse({
+      sourceRef: "submission-1",
+      subject: "Question about Kyoto",
+      kind: "product",
+      contactSnapshot: { email: "traveler@example.com" },
+      targets: [
+        {
+          kind: "product",
+          targetId: "prod_1",
+          snapshot: { title: "Kyoto discovery" },
+        },
+      ],
+    })
+    expect(intake.targets).toHaveLength(1)
+    expect("source" in intake).toBe(false)
+    expect(
+      publicInquiryReceiptSchema.safeParse({
+        data: {
+          inquiryId: "inq_1",
+          status: "new",
+          duplicate: true,
+          receivedAt: "2026-08-18T00:00:00.000Z",
+        },
       }).success,
     ).toBe(true)
   })
