@@ -268,6 +268,6 @@ async function resolvePipelineSelection(
 
 function refused(
   reason: Extract<ProposalInquiryConversionOutcome, { kind: "refused" }>["reason"],
-): ProposalInquiryConversionOutcome {
+): Extract<ProposalInquiryConversionOutcome, { kind: "refused" }> {
   return { kind: "refused", reason }
 }
