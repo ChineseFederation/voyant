@@ -30,7 +30,7 @@
     "build": "tsc -p tsconfig.build.json",
     "clean": "rm -rf dist tsconfig.tsbuildinfo",
     "db:generate": "drizzle-kit generate --config=drizzle.migrations.config.ts --name=commerce_baseline && node ../../scripts/migrations/guard-create-type.mjs ./migrations && node ../../scripts/migrations/ensure-extensions.mjs ./migrations",
-    "generate:openapi": "node --import tsx scripts/generate-markets-openapi.ts && node --import tsx scripts/generate-pricing-openapi.ts && node --import tsx scripts/generate-sellability-openapi.ts && node --import tsx scripts/generate-promotions-openapi.ts && node --import tsx scripts/generate-markets-public-openapi.ts && node --import tsx scripts/generate-pricing-public-openapi.ts && biome format --write openapi/admin/markets.json openapi/admin/pricing.json openapi/admin/sellability.json openapi/admin/promotions.json openapi/public-api/markets.json openapi/public-api/pricing.json",
+    "generate:openapi": "node --import tsx scripts/generate-markets-openapi.ts && node --import tsx scripts/generate-pricing-openapi.ts && node --import tsx scripts/generate-sellability-openapi.ts && node --import tsx scripts/generate-promotions-openapi.ts && node --import tsx scripts/generate-markets-public-openapi.ts && node --import tsx scripts/generate-pricing-public-openapi.ts && node --import tsx scripts/generate-catalog-public-openapi.ts && biome format --write openapi/admin/markets.json openapi/admin/pricing.json openapi/admin/sellability.json openapi/admin/promotions.json openapi/public-api/markets.json openapi/public-api/pricing.json ../catalog/openapi/public-api/catalog.json",
     "lint": "biome check src/",
     "prepack": "pnpm run build",
     "test": "vitest run",

@@ -1,0 +1,18 @@
+{
+  "$comment": "Tracked OpenAPI documents that no generator produces, and why. Every tracked document must be here or in generated-specs.json; check-openapi-document-closure.mjs holds that. `limit` is the ratchet — it may only fall, and it falls in the same commit that removes an entry.",
+  "limit": 3,
+  "documents": {
+    "packages/legal/openapi/admin/contract-document.json": {
+      "reason": "Declares no paths at all, so there is nothing to generate. Deleting it is a smaller decision than writing a generator for an empty document, and should be settled first.",
+      "issue": "https://github.com/voyant-travel/voyant/issues/4852"
+    },
+    "packages/mice/openapi/admin/mice-booking.json": {
+      "reason": "src/booking-extension.ts mounts an OpenAPIHono app but registers plain .get/.put/.delete handlers — the app type is misleading about what it can emit. With no createRoute there is no schema to generate from; the fix is route authoring, not tooling.",
+      "issue": "https://github.com/voyant-travel/voyant/issues/4852"
+    },
+    "packages/reporting/openapi/admin/reporting.json": {
+      "reason": "No createRoute anywhere in src — the seven paths are hand-written against plain Hono handlers, so the request and response shapes exist only as prose in this artifact.",
+      "issue": "https://github.com/voyant-travel/voyant/issues/4852"
+    }
+  }
+}

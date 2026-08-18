@@ -28,15 +28,14 @@ import { readFileSync } from "node:fs"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
 
-import { trackedFilesIn } from "./lib/tracked-files.mjs"
+import { trackedDocuments } from "./checks/openapi/documents.mjs"
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
-const DOCUMENT = /^(?:packages|apps)\/[^/]+\/openapi\/[^/]+\/[^/]+\.json$/
 /** The dialect this repository writes. 3.1 aligns OpenAPI with JSON Schema. */
 const DIALECT = /^3\.1\.\d+$/
 
-const tracked = trackedFilesIn(root)
-if (tracked === null) {
+const documents = trackedDocuments(root)
+if (documents === null) {
   console.error("check-openapi-dialect: not a git toplevel; nothing to check.")
   process.exit(1)
 }
@@ -45,7 +44,6 @@ const baseline = JSON.parse(
   readFileSync(path.join(root, "scripts/checks/openapi/nullable-baseline.json"), "utf8"),
 ).documents
 
-const documents = tracked.filter((file) => DOCUMENT.test(file)).sort()
 const violations = []
 const improved = []
 

@@ -14,3 +14,78 @@ export function driftedFiles(snapshots) {
     return before.equals(after) ? [] : [`${file}: checked-in document is stale`]
   })
 }
+/**
+ * Pure part of the document-closure check, so the cases that matter can be
+ * tested without a repository.
+ *
+ * @param {{
+ *   documents: ReadonlyArray<string>,
+ *   registered: ReadonlySet<string>,
+ *   exempt: Readonly<Record<string, { reason?: string, issue?: string }>>,
+ *   limit: number,
+ * }} input
+ * @returns {string[]} one line per violation
+ */
+export function closureViolations({ documents, registered, exempt, limit }) {
+  const violations = []
+
+  // A closure check that enumerated nothing would pass while checking nothing,
+  // and it would read as coverage — the worst of the two ways to be wrong.
+  if (documents.length === 0) {
+    return ["matched no tracked OpenAPI documents, which cannot be right"]
+  }
+
+  for (const file of documents) {
+    const isGenerated = registered.has(file)
+    const isExempt = Object.hasOwn(exempt, file)
+
+    if (isGenerated && isExempt) {
+      violations.push(
+        `${file} is registered in generated-specs.json AND recorded in not-generatable.json. ` +
+          `It is generated, so delete its not-generatable entry — an exemption that outlives ` +
+          `its reason quietly makes the document look unchecked when it is checked.`,
+      )
+      continue
+    }
+    if (!isGenerated && !isExempt) {
+      violations.push(
+        `${file} is in neither generated-specs.json nor not-generatable.json, so nothing ` +
+          `verifies it and nothing says why. Register a generator for it, or record it in ` +
+          `not-generatable.json with the reason it cannot be generated.`,
+      )
+    }
+  }
+
+  const tracked = new Set(documents)
+  for (const [file, entry] of Object.entries(exempt)) {
+    if (!tracked.has(file)) {
+      violations.push(`not-generatable.json names ${file}, which is not a tracked document`)
+      continue
+    }
+    // The reason is the whole point of the file. Without it the entry records
+    // that someone once decided something, which is not a fact anyone can act on.
+    if (typeof entry?.reason !== "string" || entry.reason.trim() === "") {
+      violations.push(`not-generatable.json entry for ${file} has no \`reason\``)
+    }
+  }
+
+  // A ratchet, in the repository's usual shape. The entries ARE the declaration,
+  // so unlike the nullable baseline there is nothing derived to compare them
+  // against — `limit` supplies the second number, which is what makes ADDING one
+  // a deliberate, reviewable act rather than a way to legitimise a hand-written
+  // document.
+  const count = Object.keys(exempt).length
+  if (count > limit) {
+    violations.push(
+      `not-generatable.json holds ${count} entries, above its limit of ${limit}. ` +
+        `The exemption list may only shrink.`,
+    )
+  } else if (count < limit) {
+    violations.push(
+      `not-generatable.json holds ${count} entries, below its limit of ${limit}. ` +
+        `Lower \`limit\` in the same commit that removes an entry.`,
+    )
+  }
+
+  return violations
+}

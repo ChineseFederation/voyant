@@ -70,7 +70,8 @@
         "packages/commerce/openapi/admin/sellability.json",
         "packages/commerce/openapi/admin/promotions.json",
         "packages/commerce/openapi/public-api/markets.json",
-        "packages/commerce/openapi/public-api/pricing.json"
+        "packages/commerce/openapi/public-api/pricing.json",
+        "packages/catalog/openapi/public-api/catalog.json"
       ]
     },
     {
