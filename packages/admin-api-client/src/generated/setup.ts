@@ -11,6 +11,7 @@ export interface paths {
       path?: never
       cookie?: never
     }
+    /** GET /v1/admin/setup */
     get: operations["getSetupState"]
     put?: never
     post?: never
@@ -29,6 +30,7 @@ export interface paths {
     }
     get?: never
     put?: never
+    /** POST /v1/admin/setup/initialize */
     post: operations["initializeSetup"]
     delete?: never
     options?: never
@@ -45,6 +47,7 @@ export interface paths {
     }
     get?: never
     put?: never
+    /** POST /v1/admin/setup/steps/{stepId}/complete */
     post: operations["completeSetupStep"]
     delete?: never
     options?: never
@@ -61,6 +64,7 @@ export interface paths {
     }
     get?: never
     put?: never
+    /** POST /v1/admin/setup/steps/{stepId}/skip */
     post: operations["skipSetupStep"]
     delete?: never
     options?: never
@@ -77,6 +81,7 @@ export interface paths {
     }
     get?: never
     put?: never
+    /** POST /v1/admin/setup/dismiss */
     post: operations["dismissSetup"]
     delete?: never
     options?: never

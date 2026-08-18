@@ -70,12 +70,13 @@
           {
             "schema": {
               "type": "string",
-              "enum": ["include", "exclude", "only"]
+              "enum": ["include", "exclude", "only"],
+              "description": "How to treat system-provisioned channels (today: Direct). Defaults to `include` - publication and product-mapping pickers must be able to target Direct. The counterparty list passes `exclude`."
             },
             "required": false,
+            "description": "How to treat system-provisioned channels (today: Direct). Defaults to `include` - publication and product-mapping pickers must be able to target Direct. The counterparty list passes `exclude`.",
             "name": "system",
-            "in": "query",
-            "description": "How to treat system-provisioned channels (today: Direct). Defaults to `include` \u2014 publication and product-mapping pickers must be able to target Direct. The counterparty list passes `exclude`."
+            "in": "query"
           }
         ],
         "responses": {
@@ -191,7 +192,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getAdminDistributionChannels",
+        "summary": "GET /v1/admin/distribution/channels",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       },
       "post": {
         "x-voyant-api-id": "@voyant-travel/distribution#api",
@@ -251,6 +257,11 @@
                   "metadata": {
                     "type": ["object", "null"],
                     "additionalProperties": {}
+                  },
+                  "presetKey": {
+                    "type": ["string", "null"],
+                    "minLength": 1,
+                    "description": "Catalog entry this channel is created from, recorded as a stable identity for connectors. One of: getyourguide, viator, tripadvisor, klook, civitatis, musement, airbnb-experiences, voyant-connect. Omit it for a channel you describe yourself. Partner-type presets (partner-affiliate, partner-reseller, partner-api) are rejected: they name a shape of relationship, not a counterparty, and an operator may have many channels of each."
                   }
                 },
                 "required": ["name", "kind"]
@@ -391,7 +402,74 @@
               }
             }
           }
-        }
+        },
+        "operationId": "postAdminDistributionChannels",
+        "summary": "POST /v1/admin/distribution/channels",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
+      }
+    },
+    "/v1/admin/distribution/channels/presets": {
+      "get": {
+        "x-voyant-api-id": "@voyant-travel/distribution#api",
+        "responses": {
+          "200": {
+            "description": "Known networks and partner types a channel can be created from",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "key": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "direct",
+                              "affiliate",
+                              "ota",
+                              "reseller",
+                              "marketplace",
+                              "api_partner",
+                              "connect"
+                            ]
+                          },
+                          "identity": {
+                            "type": "string",
+                            "enum": ["network", "partner-type"]
+                          },
+                          "website": {
+                            "type": "string"
+                          },
+                          "description": {
+                            "type": "string"
+                          }
+                        },
+                        "required": ["key", "name", "kind", "identity"]
+                      }
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "listChannelPresets",
+        "summary": "GET /v1/admin/distribution/channels/presets",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/distribution/channels/batch-update": {
@@ -614,7 +692,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "postAdminDistributionChannelsBatchUpdate",
+        "summary": "POST /v1/admin/distribution/channels/batch-update",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/distribution/channels/batch-delete": {
@@ -698,65 +781,12 @@
               }
             }
           }
-        }
-      }
-    },
-    "/v1/admin/distribution/channels/presets": {
-      "get": {
-        "responses": {
-          "200": {
-            "description": "Known networks and partner types a channel can be created from",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "data": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "key": {
-                            "type": "string"
-                          },
-                          "name": {
-                            "type": "string"
-                          },
-                          "kind": {
-                            "type": "string",
-                            "enum": [
-                              "direct",
-                              "affiliate",
-                              "ota",
-                              "reseller",
-                              "marketplace",
-                              "api_partner",
-                              "connect"
-                            ]
-                          },
-                          "identity": {
-                            "type": "string",
-                            "enum": ["network", "partner-type"]
-                          },
-                          "website": {
-                            "type": "string"
-                          },
-                          "description": {
-                            "type": "string"
-                          }
-                        },
-                        "required": ["key", "name", "kind", "identity"]
-                      }
-                    }
-                  },
-                  "required": ["data"]
-                }
-              }
-            }
-          }
         },
-        "operationId": "listChannelPresets",
-        "tags": ["distribution"]
+        "operationId": "postAdminDistributionChannelsBatchDelete",
+        "summary": "POST /v1/admin/distribution/channels/batch-delete",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/distribution/channels/{id}": {
@@ -889,7 +919,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getAdminDistributionChannelsById",
+        "summary": "GET /v1/admin/distribution/channels/{id}",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       },
       "patch": {
         "x-voyant-api-id": "@voyant-travel/distribution#api",
@@ -1114,7 +1149,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "patchAdminDistributionChannelsById",
+        "summary": "PATCH /v1/admin/distribution/channels/{id}",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       },
       "delete": {
         "x-voyant-api-id": "@voyant-travel/distribution#api",
@@ -1178,7 +1218,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "deleteAdminDistributionChannelsById",
+        "summary": "DELETE /v1/admin/distribution/channels/{id}",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/distribution/channels/{id}/contact-points": {
@@ -1283,7 +1328,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getAdminDistributionChannelsByIdContactPoints",
+        "summary": "GET /v1/admin/distribution/channels/{id}/contact-points",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       },
       "post": {
         "x-voyant-api-id": "@voyant-travel/distribution#api",
@@ -1450,7 +1500,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "postAdminDistributionChannelsByIdContactPoints",
+        "summary": "POST /v1/admin/distribution/channels/{id}/contact-points",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/distribution/channel-contact-points/{contactPointId}": {
@@ -1628,7 +1683,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "patchAdminDistributionChannelContactPointsByContactPointId",
+        "summary": "PATCH /v1/admin/distribution/channel-contact-points/{contactPointId}",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       },
       "delete": {
         "x-voyant-api-id": "@voyant-travel/distribution#api",
@@ -1676,7 +1736,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "deleteAdminDistributionChannelContactPointsByContactPointId",
+        "summary": "DELETE /v1/admin/distribution/channel-contact-points/{contactPointId}",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/distribution/channels/{id}/contacts": {
@@ -1785,7 +1850,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getAdminDistributionChannelsByIdContacts",
+        "summary": "GET /v1/admin/distribution/channels/{id}/contacts",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       },
       "post": {
         "x-voyant-api-id": "@voyant-travel/distribution#api",
@@ -1962,7 +2032,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "postAdminDistributionChannelsByIdContacts",
+        "summary": "POST /v1/admin/distribution/channels/{id}/contacts",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/distribution/channel-contacts/{contactId}": {
@@ -2150,7 +2225,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "patchAdminDistributionChannelContactsByContactId",
+        "summary": "PATCH /v1/admin/distribution/channel-contacts/{contactId}",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       },
       "delete": {
         "x-voyant-api-id": "@voyant-travel/distribution#api",
@@ -2198,7 +2278,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "deleteAdminDistributionChannelContactsByContactId",
+        "summary": "DELETE /v1/admin/distribution/channel-contacts/{contactId}",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/distribution/contracts": {
@@ -2269,7 +2354,7 @@
                             "type": "string"
                           },
                           "channelId": {
-                            "type": ["string", "null"]
+                            "type": "string"
                           },
                           "supplierId": {
                             "type": ["string", "null"]
@@ -2356,7 +2441,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getAdminDistributionContracts",
+        "summary": "GET /v1/admin/distribution/contracts",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       },
       "post": {
         "x-voyant-api-id": "@voyant-travel/distribution#api",
@@ -2516,7 +2606,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "postAdminDistributionContracts",
+        "summary": "POST /v1/admin/distribution/contracts",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/distribution/contracts/batch-update": {
@@ -2715,7 +2810,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "postAdminDistributionContractsBatchUpdate",
+        "summary": "POST /v1/admin/distribution/contracts/batch-update",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/distribution/contracts/batch-delete": {
@@ -2799,7 +2899,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "postAdminDistributionContractsBatchDelete",
+        "summary": "POST /v1/admin/distribution/contracts/batch-delete",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/distribution/contracts/{id}": {
@@ -2923,7 +3028,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getAdminDistributionContractsById",
+        "summary": "GET /v1/admin/distribution/contracts/{id}",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       },
       "patch": {
         "x-voyant-api-id": "@voyant-travel/distribution#api",
@@ -3108,7 +3218,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "patchAdminDistributionContractsById",
+        "summary": "PATCH /v1/admin/distribution/contracts/{id}",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       },
       "delete": {
         "x-voyant-api-id": "@voyant-travel/distribution#api",
@@ -3156,7 +3271,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "deleteAdminDistributionContractsById",
+        "summary": "DELETE /v1/admin/distribution/contracts/{id}",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/distribution/commission-rules": {
@@ -3297,7 +3417,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getAdminDistributionCommissionRules",
+        "summary": "GET /v1/admin/distribution/commission-rules",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       },
       "post": {
         "x-voyant-api-id": "@voyant-travel/distribution#api",
@@ -3441,7 +3566,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "postAdminDistributionCommissionRules",
+        "summary": "POST /v1/admin/distribution/commission-rules",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/distribution/commission-rules/batch-update": {
@@ -3624,7 +3754,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "postAdminDistributionCommissionRulesBatchUpdate",
+        "summary": "POST /v1/admin/distribution/commission-rules/batch-update",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/distribution/commission-rules/batch-delete": {
@@ -3708,7 +3843,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "postAdminDistributionCommissionRulesBatchDelete",
+        "summary": "POST /v1/admin/distribution/commission-rules/batch-delete",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/distribution/commission-rules/{id}": {
@@ -3815,7 +3955,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getAdminDistributionCommissionRulesById",
+        "summary": "GET /v1/admin/distribution/commission-rules/{id}",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       },
       "patch": {
         "x-voyant-api-id": "@voyant-travel/distribution#api",
@@ -3984,7 +4129,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "patchAdminDistributionCommissionRulesById",
+        "summary": "PATCH /v1/admin/distribution/commission-rules/{id}",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       },
       "delete": {
         "x-voyant-api-id": "@voyant-travel/distribution#api",
@@ -4032,7 +4182,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "deleteAdminDistributionCommissionRulesById",
+        "summary": "DELETE /v1/admin/distribution/commission-rules/{id}",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/distribution/product-mappings": {
@@ -4188,7 +4343,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getAdminDistributionProductMappings",
+        "summary": "GET /v1/admin/distribution/product-mappings",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       },
       "post": {
         "x-voyant-api-id": "@voyant-travel/distribution#api",
@@ -4355,7 +4515,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "postAdminDistributionProductMappings",
+        "summary": "POST /v1/admin/distribution/product-mappings",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/distribution/product-mappings/batch-update": {
@@ -4557,7 +4722,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "postAdminDistributionProductMappingsBatchUpdate",
+        "summary": "POST /v1/admin/distribution/product-mappings/batch-update",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/distribution/product-mappings/batch-delete": {
@@ -4641,7 +4811,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "postAdminDistributionProductMappingsBatchDelete",
+        "summary": "POST /v1/admin/distribution/product-mappings/batch-delete",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/distribution/product-mappings/{id}": {
@@ -4763,7 +4938,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getAdminDistributionProductMappingsById",
+        "summary": "GET /v1/admin/distribution/product-mappings/{id}",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       },
       "patch": {
         "x-voyant-api-id": "@voyant-travel/distribution#api",
@@ -4951,7 +5131,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "patchAdminDistributionProductMappingsById",
+        "summary": "PATCH /v1/admin/distribution/product-mappings/{id}",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       },
       "delete": {
         "x-voyant-api-id": "@voyant-travel/distribution#api",
@@ -4999,7 +5184,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "deleteAdminDistributionProductMappingsById",
+        "summary": "DELETE /v1/admin/distribution/product-mappings/{id}",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/distribution/product-publications": {
@@ -5128,7 +5318,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getAdminDistributionProductPublications",
+        "summary": "GET /v1/admin/distribution/product-publications",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       },
       "put": {
         "x-voyant-api-id": "@voyant-travel/distribution#api",
@@ -5253,7 +5448,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "putAdminDistributionProductPublications",
+        "summary": "PUT /v1/admin/distribution/product-publications",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/distribution/product-publications/{id}": {
@@ -5348,7 +5548,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getAdminDistributionProductPublicationsById",
+        "summary": "GET /v1/admin/distribution/product-publications/{id}",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       },
       "patch": {
         "x-voyant-api-id": "@voyant-travel/distribution#api",
@@ -5486,7 +5691,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "patchAdminDistributionProductPublicationsById",
+        "summary": "PATCH /v1/admin/distribution/product-publications/{id}",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       },
       "delete": {
         "x-voyant-api-id": "@voyant-travel/distribution#api",
@@ -5534,7 +5744,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "deleteAdminDistributionProductPublicationsById",
+        "summary": "DELETE /v1/admin/distribution/product-publications/{id}",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/distribution/supplier-publications": {
@@ -5663,7 +5878,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getAdminDistributionSupplierPublications",
+        "summary": "GET /v1/admin/distribution/supplier-publications",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       },
       "put": {
         "x-voyant-api-id": "@voyant-travel/distribution#api",
@@ -5791,7 +6011,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "putAdminDistributionSupplierPublications",
+        "summary": "PUT /v1/admin/distribution/supplier-publications",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/distribution/supplier-publications/preview": {
@@ -5887,7 +6112,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "postAdminDistributionSupplierPublicationsPreview",
+        "summary": "POST /v1/admin/distribution/supplier-publications/preview",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/distribution/supplier-publications/{id}": {
@@ -5982,7 +6212,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getAdminDistributionSupplierPublicationsById",
+        "summary": "GET /v1/admin/distribution/supplier-publications/{id}",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       },
       "patch": {
         "x-voyant-api-id": "@voyant-travel/distribution#api",
@@ -6123,7 +6358,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "patchAdminDistributionSupplierPublicationsById",
+        "summary": "PATCH /v1/admin/distribution/supplier-publications/{id}",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       },
       "delete": {
         "x-voyant-api-id": "@voyant-travel/distribution#api",
@@ -6171,7 +6411,860 @@
               }
             }
           }
-        }
+        },
+        "operationId": "deleteAdminDistributionSupplierPublicationsById",
+        "summary": "DELETE /v1/admin/distribution/supplier-publications/{id}",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
+      }
+    },
+    "/v1/admin/distribution/publication-sources": {
+      "get": {
+        "x-voyant-api-id": "@voyant-travel/distribution#api",
+        "responses": {
+          "200": {
+            "description": "Supply sources discovery has found, with their entry counts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "sourceKind": {
+                            "type": "string"
+                          },
+                          "sourceConnectionId": {
+                            "type": ["string", "null"]
+                          },
+                          "entryCount": {
+                            "type": "integer"
+                          }
+                        },
+                        "required": ["sourceKind", "sourceConnectionId", "entryCount"]
+                      }
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "getAdminDistributionPublicationSources",
+        "summary": "GET /v1/admin/distribution/publication-sources",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
+      }
+    },
+    "/v1/admin/distribution/source-publications": {
+      "get": {
+        "x-voyant-api-id": "@voyant-travel/distribution#api",
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 50
+            },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": ["integer", "null"],
+              "minimum": 0,
+              "default": 0
+            },
+            "required": false,
+            "name": "offset",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "name": "channelId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "name": "sourceKind",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "name": "sourceConnectionId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": ["include", "exclude"]
+            },
+            "required": false,
+            "name": "decision",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated supply source publication rules",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "channelId": {
+                            "type": "string"
+                          },
+                          "sourceKind": {
+                            "type": "string"
+                          },
+                          "sourceConnectionId": {
+                            "type": ["string", "null"]
+                          },
+                          "decision": {
+                            "type": "string",
+                            "enum": ["include", "exclude"]
+                          },
+                          "reason": {
+                            "type": ["string", "null"]
+                          },
+                          "createdBy": {
+                            "type": ["string", "null"]
+                          },
+                          "updatedBy": {
+                            "type": ["string", "null"]
+                          },
+                          "metadata": {
+                            "type": ["object", "null"],
+                            "additionalProperties": {}
+                          },
+                          "createdAt": {
+                            "type": "string"
+                          },
+                          "updatedAt": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "channelId",
+                          "sourceKind",
+                          "sourceConnectionId",
+                          "decision",
+                          "reason",
+                          "createdBy",
+                          "updatedBy",
+                          "metadata",
+                          "createdAt",
+                          "updatedAt"
+                        ]
+                      }
+                    },
+                    "total": {
+                      "type": "integer"
+                    },
+                    "limit": {
+                      "type": "integer"
+                    },
+                    "offset": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": ["data", "total", "limit", "offset"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "getAdminDistributionSourcePublications",
+        "summary": "GET /v1/admin/distribution/source-publications",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
+      },
+      "put": {
+        "x-voyant-api-id": "@voyant-travel/distribution#api",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "channelId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "sourceKind": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "sourceConnectionId": {
+                    "type": ["string", "null"],
+                    "minLength": 1
+                  },
+                  "decision": {
+                    "type": "string",
+                    "enum": ["include", "exclude"]
+                  },
+                  "reason": {
+                    "type": ["string", "null"],
+                    "minLength": 1
+                  },
+                  "createdBy": {
+                    "type": ["string", "null"],
+                    "minLength": 1
+                  },
+                  "updatedBy": {
+                    "type": ["string", "null"],
+                    "minLength": 1
+                  },
+                  "metadata": {
+                    "type": ["object", "null"],
+                    "additionalProperties": {}
+                  }
+                },
+                "required": ["channelId", "sourceKind", "decision"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The authored source publication rule with affected count",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "channelId": {
+                          "type": "string"
+                        },
+                        "sourceKind": {
+                          "type": "string"
+                        },
+                        "sourceConnectionId": {
+                          "type": ["string", "null"]
+                        },
+                        "decision": {
+                          "type": "string",
+                          "enum": ["include", "exclude"]
+                        },
+                        "reason": {
+                          "type": ["string", "null"]
+                        },
+                        "createdBy": {
+                          "type": ["string", "null"]
+                        },
+                        "updatedBy": {
+                          "type": ["string", "null"]
+                        },
+                        "metadata": {
+                          "type": ["object", "null"],
+                          "additionalProperties": {}
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        },
+                        "updatedAt": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "channelId",
+                        "sourceKind",
+                        "sourceConnectionId",
+                        "decision",
+                        "reason",
+                        "createdBy",
+                        "updatedBy",
+                        "metadata",
+                        "createdAt",
+                        "updatedAt"
+                      ]
+                    },
+                    "affectedEntryCount": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": ["data", "affectedEntryCount"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "invalid_request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "putAdminDistributionSourcePublications",
+        "summary": "PUT /v1/admin/distribution/source-publications",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
+      }
+    },
+    "/v1/admin/distribution/source-publications/preview": {
+      "post": {
+        "x-voyant-api-id": "@voyant-travel/distribution#api",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "channelId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "sourceKind": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "sourceConnectionId": {
+                    "type": ["string", "null"],
+                    "minLength": 1
+                  },
+                  "decision": {
+                    "type": "string",
+                    "enum": ["include", "exclude"]
+                  },
+                  "reason": {
+                    "type": ["string", "null"],
+                    "minLength": 1
+                  },
+                  "metadata": {
+                    "type": ["object", "null"],
+                    "additionalProperties": {}
+                  }
+                },
+                "required": ["channelId", "sourceKind", "decision"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Dry-run source publication affected-entry count",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "channelId": {
+                          "type": "string"
+                        },
+                        "sourceKind": {
+                          "type": "string"
+                        },
+                        "sourceConnectionId": {
+                          "type": ["string", "null"]
+                        },
+                        "decision": {
+                          "type": "string",
+                          "enum": ["include", "exclude"]
+                        },
+                        "reason": {
+                          "type": ["string", "null"]
+                        },
+                        "metadata": {
+                          "type": ["object", "null"],
+                          "additionalProperties": {}
+                        }
+                      },
+                      "required": ["channelId", "sourceKind", "decision"]
+                    },
+                    "affectedEntryCount": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": ["data", "affectedEntryCount"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "invalid_request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "postAdminDistributionSourcePublicationsPreview",
+        "summary": "POST /v1/admin/distribution/source-publications/preview",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
+      }
+    },
+    "/v1/admin/distribution/source-publications/effective": {
+      "post": {
+        "x-voyant-api-id": "@voyant-travel/distribution#api",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "channelId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "sourceKind": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "sourceConnectionId": {
+                    "type": ["string", "null"],
+                    "minLength": 1
+                  }
+                },
+                "required": ["channelId", "sourceKind"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Effective publication decision for a channel and supply source",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "channelId": {
+                          "type": "string"
+                        },
+                        "sourceKind": {
+                          "type": "string"
+                        },
+                        "sourceConnectionId": {
+                          "type": ["string", "null"]
+                        },
+                        "published": {
+                          "type": "boolean"
+                        },
+                        "decision": {
+                          "type": ["string", "null"],
+                          "enum": ["include", "exclude", null]
+                        },
+                        "reason": {
+                          "type": "string",
+                          "enum": [
+                            "channel_missing",
+                            "channel_inactive",
+                            "connection_decision",
+                            "source_kind_decision",
+                            "default_deny"
+                          ]
+                        },
+                        "source": {
+                          "type": "string",
+                          "enum": ["connection", "source_kind", "channel", "default"]
+                        },
+                        "ruleId": {
+                          "type": ["string", "null"]
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "channelId",
+                        "sourceKind",
+                        "sourceConnectionId",
+                        "published",
+                        "decision",
+                        "reason",
+                        "source",
+                        "ruleId",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "postAdminDistributionSourcePublicationsEffective",
+        "summary": "POST /v1/admin/distribution/source-publications/effective",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
+      }
+    },
+    "/v1/admin/distribution/source-publications/{id}": {
+      "get": {
+        "x-voyant-api-id": "@voyant-travel/distribution#api",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A source publication rule by id",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "channelId": {
+                          "type": "string"
+                        },
+                        "sourceKind": {
+                          "type": "string"
+                        },
+                        "sourceConnectionId": {
+                          "type": ["string", "null"]
+                        },
+                        "decision": {
+                          "type": "string",
+                          "enum": ["include", "exclude"]
+                        },
+                        "reason": {
+                          "type": ["string", "null"]
+                        },
+                        "createdBy": {
+                          "type": ["string", "null"]
+                        },
+                        "updatedBy": {
+                          "type": ["string", "null"]
+                        },
+                        "metadata": {
+                          "type": ["object", "null"],
+                          "additionalProperties": {}
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        },
+                        "updatedAt": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "channelId",
+                        "sourceKind",
+                        "sourceConnectionId",
+                        "decision",
+                        "reason",
+                        "createdBy",
+                        "updatedBy",
+                        "metadata",
+                        "createdAt",
+                        "updatedAt"
+                      ]
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Source publication not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "getAdminDistributionSourcePublicationsById",
+        "summary": "GET /v1/admin/distribution/source-publications/{id}",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
+      },
+      "patch": {
+        "x-voyant-api-id": "@voyant-travel/distribution#api",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "decision": {
+                    "type": "string",
+                    "enum": ["include", "exclude"]
+                  },
+                  "reason": {
+                    "type": ["string", "null"],
+                    "minLength": 1
+                  },
+                  "updatedBy": {
+                    "type": ["string", "null"],
+                    "minLength": 1
+                  },
+                  "metadata": {
+                    "type": ["object", "null"],
+                    "additionalProperties": {}
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The updated source publication rule with affected count",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "channelId": {
+                          "type": "string"
+                        },
+                        "sourceKind": {
+                          "type": "string"
+                        },
+                        "sourceConnectionId": {
+                          "type": ["string", "null"]
+                        },
+                        "decision": {
+                          "type": "string",
+                          "enum": ["include", "exclude"]
+                        },
+                        "reason": {
+                          "type": ["string", "null"]
+                        },
+                        "createdBy": {
+                          "type": ["string", "null"]
+                        },
+                        "updatedBy": {
+                          "type": ["string", "null"]
+                        },
+                        "metadata": {
+                          "type": ["object", "null"],
+                          "additionalProperties": {}
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        },
+                        "updatedAt": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "channelId",
+                        "sourceKind",
+                        "sourceConnectionId",
+                        "decision",
+                        "reason",
+                        "createdBy",
+                        "updatedBy",
+                        "metadata",
+                        "createdAt",
+                        "updatedAt"
+                      ]
+                    },
+                    "affectedEntryCount": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": ["data", "affectedEntryCount"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "invalid_request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Source publication not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "patchAdminDistributionSourcePublicationsById",
+        "summary": "PATCH /v1/admin/distribution/source-publications/{id}",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
+      },
+      "delete": {
+        "x-voyant-api-id": "@voyant-travel/distribution#api",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Source publication deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [true]
+                    }
+                  },
+                  "required": ["success"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Source publication not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "deleteAdminDistributionSourcePublicationsById",
+        "summary": "DELETE /v1/admin/distribution/source-publications/{id}",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/distribution/publications/effective": {
@@ -6271,7 +7364,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "postAdminDistributionPublicationsEffective",
+        "summary": "POST /v1/admin/distribution/publications/effective",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/distribution/publication-reindex-intents": {
@@ -6294,16 +7392,22 @@
                             "type": "string"
                           },
                           "channelId": {
-                            "type": "string"
+                            "type": ["string", "null"]
                           },
                           "kind": {
                             "type": "string",
-                            "enum": ["product", "supplier", "catalog"]
+                            "enum": ["product", "supplier", "source", "catalog"]
                           },
                           "productId": {
                             "type": ["string", "null"]
                           },
                           "supplierId": {
+                            "type": ["string", "null"]
+                          },
+                          "sourceKind": {
+                            "type": ["string", "null"]
+                          },
+                          "sourceConnectionId": {
                             "type": ["string", "null"]
                           },
                           "cursor": {
@@ -6315,6 +7419,15 @@
                           },
                           "attempts": {
                             "type": "integer"
+                          },
+                          "nextAttemptAt": {
+                            "type": "string"
+                          },
+                          "leaseOwner": {
+                            "type": ["string", "null"]
+                          },
+                          "leaseUntil": {
+                            "type": ["string", "null"]
                           },
                           "requestedBy": {
                             "type": ["string", "null"]
@@ -6345,9 +7458,14 @@
                           "kind",
                           "productId",
                           "supplierId",
+                          "sourceKind",
+                          "sourceConnectionId",
                           "cursor",
                           "status",
                           "attempts",
+                          "nextAttemptAt",
+                          "leaseOwner",
+                          "leaseUntil",
                           "requestedBy",
                           "lastError",
                           "metadata",
@@ -6364,7 +7482,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getAdminDistributionPublicationReindexIntents",
+        "summary": "GET /v1/admin/distribution/publication-reindex-intents",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/distribution/booking-links": {
@@ -6526,7 +7649,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getAdminDistributionBookingLinks",
+        "summary": "GET /v1/admin/distribution/booking-links",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       },
       "post": {
         "x-voyant-api-id": "@voyant-travel/distribution#api",
@@ -6695,7 +7823,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "postAdminDistributionBookingLinks",
+        "summary": "POST /v1/admin/distribution/booking-links",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/distribution/booking-links/batch-update": {
@@ -6887,7 +8020,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "postAdminDistributionBookingLinksBatchUpdate",
+        "summary": "POST /v1/admin/distribution/booking-links/batch-update",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/distribution/booking-links/batch-delete": {
@@ -6971,7 +8109,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "postAdminDistributionBookingLinksBatchDelete",
+        "summary": "POST /v1/admin/distribution/booking-links/batch-delete",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/distribution/booking-links/{id}": {
@@ -7100,7 +8243,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getAdminDistributionBookingLinksById",
+        "summary": "GET /v1/admin/distribution/booking-links/{id}",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       },
       "patch": {
         "x-voyant-api-id": "@voyant-travel/distribution#api",
@@ -7278,7 +8426,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "patchAdminDistributionBookingLinksById",
+        "summary": "PATCH /v1/admin/distribution/booking-links/{id}",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       },
       "delete": {
         "x-voyant-api-id": "@voyant-travel/distribution#api",
@@ -7326,7 +8479,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "deleteAdminDistributionBookingLinksById",
+        "summary": "DELETE /v1/admin/distribution/booking-links/{id}",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/distribution/webhook-events": {
@@ -7455,7 +8613,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getAdminDistributionWebhookEvents",
+        "summary": "GET /v1/admin/distribution/webhook-events",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       },
       "post": {
         "x-voyant-api-id": "@voyant-travel/distribution#api",
@@ -7581,7 +8744,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "postAdminDistributionWebhookEvents",
+        "summary": "POST /v1/admin/distribution/webhook-events",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/distribution/webhook-events/batch-update": {
@@ -7746,7 +8914,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "postAdminDistributionWebhookEventsBatchUpdate",
+        "summary": "POST /v1/admin/distribution/webhook-events/batch-update",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/distribution/webhook-events/batch-delete": {
@@ -7830,7 +9003,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "postAdminDistributionWebhookEventsBatchDelete",
+        "summary": "POST /v1/admin/distribution/webhook-events/batch-delete",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/distribution/webhook-events/{id}": {
@@ -7925,7 +9103,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getAdminDistributionWebhookEventsById",
+        "summary": "GET /v1/admin/distribution/webhook-events/{id}",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       },
       "patch": {
         "x-voyant-api-id": "@voyant-travel/distribution#api",
@@ -8076,7 +9259,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "patchAdminDistributionWebhookEventsById",
+        "summary": "PATCH /v1/admin/distribution/webhook-events/{id}",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       },
       "delete": {
         "x-voyant-api-id": "@voyant-travel/distribution#api",
@@ -8124,7 +9312,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "deleteAdminDistributionWebhookEventsById",
+        "summary": "DELETE /v1/admin/distribution/webhook-events/{id}",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/distribution/inventory-allotments": {
@@ -8291,7 +9484,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getAdminDistributionInventoryAllotments",
+        "summary": "GET /v1/admin/distribution/inventory-allotments",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       },
       "post": {
         "x-voyant-api-id": "@voyant-travel/distribution#api",
@@ -8439,7 +9637,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "postAdminDistributionInventoryAllotments",
+        "summary": "POST /v1/admin/distribution/inventory-allotments",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/distribution/inventory-allotments/batch-update": {
@@ -8626,7 +9829,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "postAdminDistributionInventoryAllotmentsBatchUpdate",
+        "summary": "POST /v1/admin/distribution/inventory-allotments/batch-update",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/distribution/inventory-allotments/batch-delete": {
@@ -8710,7 +9918,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "postAdminDistributionInventoryAllotmentsBatchDelete",
+        "summary": "POST /v1/admin/distribution/inventory-allotments/batch-delete",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/distribution/inventory-allotments/{id}": {
@@ -8819,7 +10032,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getAdminDistributionInventoryAllotmentsById",
+        "summary": "GET /v1/admin/distribution/inventory-allotments/{id}",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       },
       "patch": {
         "x-voyant-api-id": "@voyant-travel/distribution#api",
@@ -8992,7 +10210,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "patchAdminDistributionInventoryAllotmentsById",
+        "summary": "PATCH /v1/admin/distribution/inventory-allotments/{id}",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       },
       "delete": {
         "x-voyant-api-id": "@voyant-travel/distribution#api",
@@ -9040,7 +10263,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "deleteAdminDistributionInventoryAllotmentsById",
+        "summary": "DELETE /v1/admin/distribution/inventory-allotments/{id}",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/distribution/inventory-allotment-targets": {
@@ -9192,7 +10420,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getAdminDistributionInventoryAllotmentTargets",
+        "summary": "GET /v1/admin/distribution/inventory-allotment-targets",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       },
       "post": {
         "x-voyant-api-id": "@voyant-travel/distribution#api",
@@ -9327,7 +10560,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "postAdminDistributionInventoryAllotmentTargets",
+        "summary": "POST /v1/admin/distribution/inventory-allotment-targets",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/distribution/inventory-allotment-targets/batch-update": {
@@ -9501,7 +10739,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "postAdminDistributionInventoryAllotmentTargetsBatchUpdate",
+        "summary": "POST /v1/admin/distribution/inventory-allotment-targets/batch-update",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/distribution/inventory-allotment-targets/batch-delete": {
@@ -9585,7 +10828,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "postAdminDistributionInventoryAllotmentTargetsBatchDelete",
+        "summary": "POST /v1/admin/distribution/inventory-allotment-targets/batch-delete",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/distribution/inventory-allotment-targets/{id}": {
@@ -9686,7 +10934,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getAdminDistributionInventoryAllotmentTargetsById",
+        "summary": "GET /v1/admin/distribution/inventory-allotment-targets/{id}",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       },
       "patch": {
         "x-voyant-api-id": "@voyant-travel/distribution#api",
@@ -9846,7 +11099,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "patchAdminDistributionInventoryAllotmentTargetsById",
+        "summary": "PATCH /v1/admin/distribution/inventory-allotment-targets/{id}",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       },
       "delete": {
         "x-voyant-api-id": "@voyant-travel/distribution#api",
@@ -9894,7 +11152,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "deleteAdminDistributionInventoryAllotmentTargetsById",
+        "summary": "DELETE /v1/admin/distribution/inventory-allotment-targets/{id}",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/distribution/inventory-release-rules": {
@@ -10011,7 +11274,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getAdminDistributionInventoryReleaseRules",
+        "summary": "GET /v1/admin/distribution/inventory-release-rules",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       },
       "post": {
         "x-voyant-api-id": "@voyant-travel/distribution#api",
@@ -10127,7 +11395,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "postAdminDistributionInventoryReleaseRules",
+        "summary": "POST /v1/admin/distribution/inventory-release-rules",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/distribution/inventory-release-rules/batch-update": {
@@ -10282,7 +11555,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "postAdminDistributionInventoryReleaseRulesBatchUpdate",
+        "summary": "POST /v1/admin/distribution/inventory-release-rules/batch-update",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/distribution/inventory-release-rules/batch-delete": {
@@ -10366,7 +11644,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "postAdminDistributionInventoryReleaseRulesBatchDelete",
+        "summary": "POST /v1/admin/distribution/inventory-release-rules/batch-delete",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/distribution/inventory-release-rules/{id}": {
@@ -10457,7 +11740,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getAdminDistributionInventoryReleaseRulesById",
+        "summary": "GET /v1/admin/distribution/inventory-release-rules/{id}",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       },
       "patch": {
         "x-voyant-api-id": "@voyant-travel/distribution#api",
@@ -10598,7 +11886,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "patchAdminDistributionInventoryReleaseRulesById",
+        "summary": "PATCH /v1/admin/distribution/inventory-release-rules/{id}",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       },
       "delete": {
         "x-voyant-api-id": "@voyant-travel/distribution#api",
@@ -10646,7 +11939,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "deleteAdminDistributionInventoryReleaseRulesById",
+        "summary": "DELETE /v1/admin/distribution/inventory-release-rules/{id}",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/distribution/settlement-runs": {
@@ -10795,7 +12093,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getAdminDistributionSettlementRuns",
+        "summary": "GET /v1/admin/distribution/settlement-runs",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       },
       "post": {
         "x-voyant-api-id": "@voyant-travel/distribution#api",
@@ -10955,7 +12258,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "postAdminDistributionSettlementRuns",
+        "summary": "POST /v1/admin/distribution/settlement-runs",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/distribution/settlement-runs/{id}": {
@@ -11070,7 +12378,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getAdminDistributionSettlementRunsById",
+        "summary": "GET /v1/admin/distribution/settlement-runs/{id}",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       },
       "patch": {
         "x-voyant-api-id": "@voyant-travel/distribution#api",
@@ -11255,7 +12568,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "patchAdminDistributionSettlementRunsById",
+        "summary": "PATCH /v1/admin/distribution/settlement-runs/{id}",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       },
       "delete": {
         "x-voyant-api-id": "@voyant-travel/distribution#api",
@@ -11303,7 +12621,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "deleteAdminDistributionSettlementRunsById",
+        "summary": "DELETE /v1/admin/distribution/settlement-runs/{id}",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/distribution/settlement-items": {
@@ -11459,7 +12782,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getAdminDistributionSettlementItems",
+        "summary": "GET /v1/admin/distribution/settlement-items",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       },
       "post": {
         "x-voyant-api-id": "@voyant-travel/distribution#api",
@@ -11617,7 +12945,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "postAdminDistributionSettlementItems",
+        "summary": "POST /v1/admin/distribution/settlement-items",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/distribution/settlement-items/{id}": {
@@ -11731,7 +13064,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getAdminDistributionSettlementItemsById",
+        "summary": "GET /v1/admin/distribution/settlement-items/{id}",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       },
       "patch": {
         "x-voyant-api-id": "@voyant-travel/distribution#api",
@@ -11914,7 +13252,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "patchAdminDistributionSettlementItemsById",
+        "summary": "PATCH /v1/admin/distribution/settlement-items/{id}",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       },
       "delete": {
         "x-voyant-api-id": "@voyant-travel/distribution#api",
@@ -11962,7 +13305,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "deleteAdminDistributionSettlementItemsById",
+        "summary": "DELETE /v1/admin/distribution/settlement-items/{id}",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/distribution/reconciliation-runs": {
@@ -12103,7 +13451,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getAdminDistributionReconciliationRuns",
+        "summary": "GET /v1/admin/distribution/reconciliation-runs",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       },
       "post": {
         "x-voyant-api-id": "@voyant-travel/distribution#api",
@@ -12248,7 +13601,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "postAdminDistributionReconciliationRuns",
+        "summary": "POST /v1/admin/distribution/reconciliation-runs",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/distribution/reconciliation-runs/{id}": {
@@ -12355,7 +13713,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getAdminDistributionReconciliationRunsById",
+        "summary": "GET /v1/admin/distribution/reconciliation-runs/{id}",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       },
       "patch": {
         "x-voyant-api-id": "@voyant-travel/distribution#api",
@@ -12525,7 +13888,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "patchAdminDistributionReconciliationRunsById",
+        "summary": "PATCH /v1/admin/distribution/reconciliation-runs/{id}",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       },
       "delete": {
         "x-voyant-api-id": "@voyant-travel/distribution#api",
@@ -12573,7 +13941,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "deleteAdminDistributionReconciliationRunsById",
+        "summary": "DELETE /v1/admin/distribution/reconciliation-runs/{id}",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/distribution/reconciliation-items": {
@@ -12742,7 +14115,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getAdminDistributionReconciliationItems",
+        "summary": "GET /v1/admin/distribution/reconciliation-items",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       },
       "post": {
         "x-voyant-api-id": "@voyant-travel/distribution#api",
@@ -12895,7 +14273,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "postAdminDistributionReconciliationItems",
+        "summary": "POST /v1/admin/distribution/reconciliation-items",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/distribution/reconciliation-items/{id}": {
@@ -13006,7 +14389,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getAdminDistributionReconciliationItemsById",
+        "summary": "GET /v1/admin/distribution/reconciliation-items/{id}",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       },
       "patch": {
         "x-voyant-api-id": "@voyant-travel/distribution#api",
@@ -13184,7 +14572,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "patchAdminDistributionReconciliationItemsById",
+        "summary": "PATCH /v1/admin/distribution/reconciliation-items/{id}",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       },
       "delete": {
         "x-voyant-api-id": "@voyant-travel/distribution#api",
@@ -13232,7 +14625,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "deleteAdminDistributionReconciliationItemsById",
+        "summary": "DELETE /v1/admin/distribution/reconciliation-items/{id}",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/distribution/inventory-release-executions": {
@@ -13390,7 +14788,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getAdminDistributionInventoryReleaseExecutions",
+        "summary": "GET /v1/admin/distribution/inventory-release-executions",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       },
       "post": {
         "x-voyant-api-id": "@voyant-travel/distribution#api",
@@ -13536,7 +14939,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "postAdminDistributionInventoryReleaseExecutions",
+        "summary": "POST /v1/admin/distribution/inventory-release-executions",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/distribution/inventory-release-executions/{id}": {
@@ -13644,7 +15052,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getAdminDistributionInventoryReleaseExecutionsById",
+        "summary": "GET /v1/admin/distribution/inventory-release-executions/{id}",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       },
       "patch": {
         "x-voyant-api-id": "@voyant-travel/distribution#api",
@@ -13815,7 +15228,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "patchAdminDistributionInventoryReleaseExecutionsById",
+        "summary": "PATCH /v1/admin/distribution/inventory-release-executions/{id}",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       },
       "delete": {
         "x-voyant-api-id": "@voyant-travel/distribution#api",
@@ -13863,7 +15281,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "deleteAdminDistributionInventoryReleaseExecutionsById",
+        "summary": "DELETE /v1/admin/distribution/inventory-release-executions/{id}",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/distribution/settlement-policies": {
@@ -14017,7 +15440,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getAdminDistributionSettlementPolicies",
+        "summary": "GET /v1/admin/distribution/settlement-policies",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       },
       "post": {
         "x-voyant-api-id": "@voyant-travel/distribution#api",
@@ -14170,7 +15598,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "postAdminDistributionSettlementPolicies",
+        "summary": "POST /v1/admin/distribution/settlement-policies",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/distribution/settlement-policies/{id}": {
@@ -14281,7 +15714,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getAdminDistributionSettlementPoliciesById",
+        "summary": "GET /v1/admin/distribution/settlement-policies/{id}",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       },
       "patch": {
         "x-voyant-api-id": "@voyant-travel/distribution#api",
@@ -14459,7 +15897,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "patchAdminDistributionSettlementPoliciesById",
+        "summary": "PATCH /v1/admin/distribution/settlement-policies/{id}",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       },
       "delete": {
         "x-voyant-api-id": "@voyant-travel/distribution#api",
@@ -14507,7 +15950,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "deleteAdminDistributionSettlementPoliciesById",
+        "summary": "DELETE /v1/admin/distribution/settlement-policies/{id}",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/distribution/reconciliation-policies": {
@@ -14661,7 +16109,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getAdminDistributionReconciliationPolicies",
+        "summary": "GET /v1/admin/distribution/reconciliation-policies",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       },
       "post": {
         "x-voyant-api-id": "@voyant-travel/distribution#api",
@@ -14815,7 +16268,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "postAdminDistributionReconciliationPolicies",
+        "summary": "POST /v1/admin/distribution/reconciliation-policies",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/distribution/reconciliation-policies/{id}": {
@@ -14926,7 +16384,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getAdminDistributionReconciliationPoliciesById",
+        "summary": "GET /v1/admin/distribution/reconciliation-policies/{id}",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       },
       "patch": {
         "x-voyant-api-id": "@voyant-travel/distribution#api",
@@ -15105,7 +16568,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "patchAdminDistributionReconciliationPoliciesById",
+        "summary": "PATCH /v1/admin/distribution/reconciliation-policies/{id}",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       },
       "delete": {
         "x-voyant-api-id": "@voyant-travel/distribution#api",
@@ -15153,7 +16621,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "deleteAdminDistributionReconciliationPoliciesById",
+        "summary": "DELETE /v1/admin/distribution/reconciliation-policies/{id}",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/distribution/release-schedules": {
@@ -15283,7 +16756,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getAdminDistributionReleaseSchedules",
+        "summary": "GET /v1/admin/distribution/release-schedules",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       },
       "post": {
         "x-voyant-api-id": "@voyant-travel/distribution#api",
@@ -15406,7 +16884,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "postAdminDistributionReleaseSchedules",
+        "summary": "POST /v1/admin/distribution/release-schedules",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/distribution/release-schedules/{id}": {
@@ -15501,7 +16984,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getAdminDistributionReleaseSchedulesById",
+        "summary": "GET /v1/admin/distribution/release-schedules/{id}",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       },
       "patch": {
         "x-voyant-api-id": "@voyant-travel/distribution#api",
@@ -15649,7 +17137,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "patchAdminDistributionReleaseSchedulesById",
+        "summary": "PATCH /v1/admin/distribution/release-schedules/{id}",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       },
       "delete": {
         "x-voyant-api-id": "@voyant-travel/distribution#api",
@@ -15697,7 +17190,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "deleteAdminDistributionReleaseSchedulesById",
+        "summary": "DELETE /v1/admin/distribution/release-schedules/{id}",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/distribution/remittance-exceptions": {
@@ -15847,7 +17345,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getAdminDistributionRemittanceExceptions",
+        "summary": "GET /v1/admin/distribution/remittance-exceptions",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       },
       "post": {
         "x-voyant-api-id": "@voyant-travel/distribution#api",
@@ -15994,7 +17497,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "postAdminDistributionRemittanceExceptions",
+        "summary": "POST /v1/admin/distribution/remittance-exceptions",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/distribution/remittance-exceptions/{id}": {
@@ -16102,7 +17610,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getAdminDistributionRemittanceExceptionsById",
+        "summary": "GET /v1/admin/distribution/remittance-exceptions/{id}",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       },
       "patch": {
         "x-voyant-api-id": "@voyant-travel/distribution#api",
@@ -16274,7 +17787,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "patchAdminDistributionRemittanceExceptionsById",
+        "summary": "PATCH /v1/admin/distribution/remittance-exceptions/{id}",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       },
       "delete": {
         "x-voyant-api-id": "@voyant-travel/distribution#api",
@@ -16322,7 +17840,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "deleteAdminDistributionRemittanceExceptionsById",
+        "summary": "DELETE /v1/admin/distribution/remittance-exceptions/{id}",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/distribution/settlement-approvals": {
@@ -16439,7 +17962,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getAdminDistributionSettlementApprovals",
+        "summary": "GET /v1/admin/distribution/settlement-approvals",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       },
       "post": {
         "x-voyant-api-id": "@voyant-travel/distribution#api",
@@ -16553,7 +18081,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "postAdminDistributionSettlementApprovals",
+        "summary": "POST /v1/admin/distribution/settlement-approvals",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/distribution/settlement-approvals/{id}": {
@@ -16644,7 +18177,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getAdminDistributionSettlementApprovalsById",
+        "summary": "GET /v1/admin/distribution/settlement-approvals/{id}",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       },
       "patch": {
         "x-voyant-api-id": "@voyant-travel/distribution#api",
@@ -16783,7 +18321,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "patchAdminDistributionSettlementApprovalsById",
+        "summary": "PATCH /v1/admin/distribution/settlement-approvals/{id}",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       },
       "delete": {
         "x-voyant-api-id": "@voyant-travel/distribution#api",
@@ -16831,7 +18374,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "deleteAdminDistributionSettlementApprovalsById",
+        "summary": "DELETE /v1/admin/distribution/settlement-approvals/{id}",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       }
     }
   },

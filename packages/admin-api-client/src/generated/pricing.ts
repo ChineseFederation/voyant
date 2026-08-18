@@ -2238,6 +2238,8 @@ export interface operations {
               description: string | null
               /** @enum {string} */
               pricingMode: "per_person" | "per_booking" | "starting_from" | "free" | "on_request"
+              /** @enum {string|null} */
+              occupancyPriceBasis: "supplement" | "all_in" | null
               baseSellAmountCents: number | null
               baseCostAmountCents: number | null
               minPerBooking: number | null
@@ -2283,6 +2285,8 @@ export interface operations {
            * @enum {string}
            */
           pricingMode?: "per_person" | "per_booking" | "starting_from" | "free" | "on_request"
+          /** @enum {string|null} */
+          occupancyPriceBasis?: "supplement" | "all_in" | null
           baseSellAmountCents?: number | null
           baseCostAmountCents?: number | null
           minPerBooking?: number | null
@@ -2320,6 +2324,8 @@ export interface operations {
               description: string | null
               /** @enum {string} */
               pricingMode: "per_person" | "per_booking" | "starting_from" | "free" | "on_request"
+              /** @enum {string|null} */
+              occupancyPriceBasis: "supplement" | "all_in" | null
               baseSellAmountCents: number | null
               baseCostAmountCents: number | null
               minPerBooking: number | null
@@ -2369,6 +2375,8 @@ export interface operations {
               description: string | null
               /** @enum {string} */
               pricingMode: "per_person" | "per_booking" | "starting_from" | "free" | "on_request"
+              /** @enum {string|null} */
+              occupancyPriceBasis: "supplement" | "all_in" | null
               baseSellAmountCents: number | null
               baseCostAmountCents: number | null
               minPerBooking: number | null
@@ -2456,6 +2464,8 @@ export interface operations {
           description?: string | null
           /** @enum {string} */
           pricingMode?: "per_person" | "per_booking" | "starting_from" | "free" | "on_request"
+          /** @enum {string|null} */
+          occupancyPriceBasis?: "supplement" | "all_in" | null
           baseSellAmountCents?: number | null
           baseCostAmountCents?: number | null
           minPerBooking?: number | null
@@ -2490,6 +2500,8 @@ export interface operations {
               description: string | null
               /** @enum {string} */
               pricingMode: "per_person" | "per_booking" | "starting_from" | "free" | "on_request"
+              /** @enum {string|null} */
+              occupancyPriceBasis: "supplement" | "all_in" | null
               baseSellAmountCents: number | null
               baseCostAmountCents: number | null
               minPerBooking: number | null

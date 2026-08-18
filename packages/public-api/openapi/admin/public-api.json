@@ -189,13 +189,28 @@
                             "defaultContractTemplateId": {
                               "type": ["string", "null"],
                               "minLength": 1
+                            },
+                            "storedInstrumentMandate": {
+                              "type": ["object", "null"],
+                              "properties": {
+                                "enabled": {
+                                  "type": "boolean"
+                                },
+                                "revision": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 64
+                                }
+                              },
+                              "required": ["enabled", "revision"]
                             }
                           },
                           "required": [
                             "termsUrl",
                             "privacyUrl",
                             "cancellationUrl",
-                            "defaultContractTemplateId"
+                            "defaultContractTemplateId",
+                            "storedInstrumentMandate"
                           ]
                         },
                         "localization": {
@@ -617,6 +632,20 @@
                       "defaultContractTemplateId": {
                         "type": ["string", "null"],
                         "minLength": 1
+                      },
+                      "storedInstrumentMandate": {
+                        "type": ["object", "null"],
+                        "properties": {
+                          "enabled": {
+                            "type": "boolean"
+                          },
+                          "revision": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 64
+                          }
+                        },
+                        "required": ["enabled", "revision"]
                       }
                     }
                   },
@@ -978,13 +1007,28 @@
                             "defaultContractTemplateId": {
                               "type": ["string", "null"],
                               "minLength": 1
+                            },
+                            "storedInstrumentMandate": {
+                              "type": ["object", "null"],
+                              "properties": {
+                                "enabled": {
+                                  "type": "boolean"
+                                },
+                                "revision": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 64
+                                }
+                              },
+                              "required": ["enabled", "revision"]
                             }
                           },
                           "required": [
                             "termsUrl",
                             "privacyUrl",
                             "cancellationUrl",
-                            "defaultContractTemplateId"
+                            "defaultContractTemplateId",
+                            "storedInstrumentMandate"
                           ]
                         },
                         "localization": {

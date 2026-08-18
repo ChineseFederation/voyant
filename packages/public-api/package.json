@@ -56,7 +56,7 @@
     "build": "pnpm run clean && tsc -p tsconfig.build.json",
     "clean": "rm -rf dist tsconfig.tsbuildinfo tsconfig.build.tsbuildinfo",
     "db:generate": "drizzle-kit generate --config=drizzle.migrations.config.ts --name=public_api_baseline && node ../../scripts/migrations/guard-create-type.mjs ./migrations && node ../../scripts/migrations/ensure-extensions.mjs ./migrations",
-    "generate:openapi": "tsx scripts/generate-openapi.ts",
+    "generate:openapi": "tsx scripts/generate-openapi.ts && node --import tsx scripts/generate-admin-openapi.ts && node --import tsx scripts/generate-customer-portal-openapi.ts && biome format --write --files-max-size=8388608 openapi/public-api/public-api.json openapi/admin/public-api.json openapi/public-api/customer-portal.json",
     "lint": "biome check src/",
     "prepack": "pnpm run build",
     "test": "vitest run",

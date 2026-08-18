@@ -362,7 +362,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getPublicCruises",
+        "summary": "GET /v1/public/cruises",
+        "tags": ["cruises"],
+        "x-voyant-module": "cruises",
+        "x-voyant-surface": "public-api"
       }
     },
     "/v1/public/cruises/sailings/{key}": {
@@ -461,7 +466,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getPublicCruisesSailingsByKey",
+        "summary": "GET /v1/public/cruises/sailings/{key}",
+        "tags": ["cruises"],
+        "x-voyant-module": "cruises",
+        "x-voyant-surface": "public-api"
       }
     },
     "/v1/public/cruises/sailings/{key}/quote": {
@@ -711,7 +721,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "postPublicCruisesSailingsByKeyQuote",
+        "summary": "POST /v1/public/cruises/sailings/{key}/quote",
+        "tags": ["cruises"],
+        "x-voyant-module": "cruises",
+        "x-voyant-surface": "public-api"
       }
     },
     "/v1/public/cruises/ships/{key}/effective": {
@@ -822,7 +837,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getPublicCruisesShipsByKeyEffective",
+        "summary": "GET /v1/public/cruises/ships/{key}/effective",
+        "tags": ["cruises"],
+        "x-voyant-module": "cruises",
+        "x-voyant-surface": "public-api"
       }
     },
     "/v1/public/cruises/ships/{key}": {
@@ -933,7 +953,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getPublicCruisesShipsByKey",
+        "summary": "GET /v1/public/cruises/ships/{key}",
+        "tags": ["cruises"],
+        "x-voyant-module": "cruises",
+        "x-voyant-surface": "public-api"
       }
     },
     "/v1/public/cruises/{slug}": {
@@ -1199,7 +1224,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getPublicCruisesBySlug",
+        "summary": "GET /v1/public/cruises/{slug}",
+        "tags": ["cruises"],
+        "x-voyant-module": "cruises",
+        "x-voyant-surface": "public-api"
       }
     }
   },

@@ -16,8 +16,21 @@
       ]
     },
     {
+      "command": "pnpm --filter @voyant-travel/accommodations generate:openapi",
+      "files": ["packages/accommodations/openapi/admin/accommodations.json"]
+    },
+    {
       "command": "pnpm --filter @voyant-travel/apps generate:openapi",
       "files": ["packages/apps/openapi/admin/apps.json"]
+    },
+    {
+      "command": "pnpm --filter @voyant-travel/bookings generate:openapi",
+      "files": [
+        "packages/bookings/openapi/admin/bookings.json",
+        "packages/bookings/openapi/admin/booking-extras.json",
+        "packages/bookings/openapi/admin/booking-requirements.json",
+        "packages/bookings/openapi/public-api/booking-requirements.json"
+      ]
     },
     {
       "command": "pnpm --filter @voyant-travel/catalog generate:openapi",
@@ -42,15 +55,51 @@
       "files": ["packages/event-catalog/openapi/admin/event-catalog.json"]
     },
     {
+      "command": "pnpm --filter @voyant-travel/commerce generate:openapi",
+      "files": [
+        "packages/commerce/openapi/admin/markets.json",
+        "packages/commerce/openapi/admin/pricing.json",
+        "packages/commerce/openapi/admin/sellability.json",
+        "packages/commerce/openapi/admin/promotions.json",
+        "packages/commerce/openapi/public-api/markets.json",
+        "packages/commerce/openapi/public-api/pricing.json"
+      ]
+    },
+    {
+      "command": "pnpm --filter @voyant-travel/cruises generate:openapi",
+      "files": [
+        "packages/cruises/openapi/admin/cruises.json",
+        "packages/cruises/openapi/public-api/cruises.json"
+      ]
+    },
+    {
+      "command": "pnpm --filter @voyant-travel/distribution generate:openapi",
+      "files": [
+        "packages/distribution/openapi/admin/distribution.json",
+        "packages/distribution/openapi/admin/suppliers.json",
+        "packages/distribution/openapi/admin/external-refs.json",
+        "packages/distribution/openapi/admin/distribution-channel-push.json"
+      ]
+    },
+    {
       "command": "pnpm --filter @voyant-travel/finance generate:openapi",
       "files": [
         "packages/finance/openapi/admin/finance.json",
-        "packages/finance/openapi/public-api/finance.json"
+        "packages/finance/openapi/public-api/finance.json",
+        "packages/finance/openapi/admin/booking-tax-settings.json",
+        "packages/finance/openapi/admin/booking-tax-preview.json"
       ]
     },
     {
       "command": "pnpm --filter @voyant-travel/flights generate:openapi",
       "files": ["packages/flights/openapi/admin/flights.json"]
+    },
+    {
+      "command": "pnpm --filter @voyant-travel/identity generate:openapi",
+      "files": [
+        "packages/identity/openapi/admin/identity.json",
+        "packages/identity/openapi/public-api/identity-verification.json"
+      ]
     },
     {
       "command": "pnpm --filter @voyant-travel/insurance generate:openapi",
@@ -61,7 +110,9 @@
       "files": [
         "packages/inventory/openapi/admin/inventory-authoring.json",
         "packages/inventory/openapi/admin/products.json",
-        "packages/inventory/openapi/public-api/products.json"
+        "packages/inventory/openapi/public-api/products.json",
+        "packages/inventory/openapi/admin/extras.json",
+        "packages/inventory/openapi/admin/inventory-booking.json"
       ]
     },
     {
@@ -81,8 +132,66 @@
       "files": ["packages/navigation-preferences/openapi/admin/navigation-preferences.json"]
     },
     {
+      "command": "pnpm --filter @voyant-travel/notifications generate:openapi",
+      "files": ["packages/notifications/openapi/admin/notifications.json"]
+    },
+    {
       "command": "pnpm --filter @voyant-travel/operations generate:openapi",
       "files": ["packages/operations/openapi/admin/operations.json"]
+    },
+    {
+      "command": "pnpm --filter @voyant-travel/operator-settings openapi:generate",
+      "files": [
+        "packages/operator-settings/openapi/admin/operator-settings.json",
+        "packages/operator-settings/openapi/public-api/operator-settings.json"
+      ]
+    },
+    {
+      "command": "pnpm --filter @voyant-travel/proposals generate:openapi",
+      "files": [
+        "packages/proposals/openapi/admin/proposals.json",
+        "packages/proposals/openapi/admin/proposals-booking.json"
+      ]
+    },
+    {
+      "command": "pnpm --filter @voyant-travel/public-api generate:openapi",
+      "files": [
+        "packages/public-api/openapi/public-api/public-api.json",
+        "packages/public-api/openapi/admin/public-api.json",
+        "packages/public-api/openapi/public-api/customer-portal.json"
+      ]
+    },
+    {
+      "command": "pnpm --filter @voyant-travel/public-document-delivery generate:openapi",
+      "files": [
+        "packages/public-document-delivery/openapi/public-api/public-document-delivery.json"
+      ]
+    },
+    {
+      "command": "pnpm --filter @voyant-travel/realtime generate:openapi",
+      "files": [
+        "packages/realtime/openapi/admin/realtime-admin.json",
+        "packages/realtime/openapi/public-api/realtime-public.json"
+      ]
+    },
+    {
+      "command": "pnpm --filter @voyant-travel/relationships generate:openapi",
+      "files": ["packages/relationships/openapi/admin/relationships.json"]
+    },
+    {
+      "command": "pnpm --filter @voyant-travel/setup generate:openapi",
+      "files": ["packages/setup/openapi/admin/setup.json"]
+    },
+    {
+      "command": "pnpm --filter @voyant-travel/trips generate:openapi",
+      "files": [
+        "packages/trips/openapi/admin/trips.json",
+        "packages/trips/openapi/public-api/trips.json"
+      ]
+    },
+    {
+      "command": "pnpm --filter @voyant-travel/webhook-delivery generate:openapi",
+      "files": ["packages/webhook-delivery/openapi/admin/operator-webhooks.json"]
     },
     {
       "command": "pnpm generate:api-client",
@@ -151,25 +260,6 @@
         "packages/public-api-client/src/generated/key-kind.ts",
         "packages/public-api-client/src/generated/index.ts"
       ]
-    },
-    {
-      "command": "pnpm --filter @voyant-travel/public-api generate:openapi",
-      "files": ["packages/public-api/openapi/public-api/public-api.json"]
-    },
-    {
-      "command": "pnpm --filter @voyant-travel/relationships generate:openapi",
-      "files": ["packages/relationships/openapi/admin/relationships.json"]
-    },
-    {
-      "command": "pnpm --filter @voyant-travel/trips generate:openapi",
-      "files": [
-        "packages/trips/openapi/admin/trips.json",
-        "packages/trips/openapi/public-api/trips.json"
-      ]
-    },
-    {
-      "command": "pnpm --filter @voyant-travel/webhook-delivery generate:openapi",
-      "files": ["packages/webhook-delivery/openapi/admin/operator-webhooks.json"]
     }
   ]
 }

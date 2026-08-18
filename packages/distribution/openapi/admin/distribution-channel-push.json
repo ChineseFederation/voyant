@@ -7,81 +7,631 @@
   "paths": {
     "/v1/admin/distribution/links": {
       "get": {
-        "summary": "List channel booking links and status counts",
         "x-voyant-api-id": "@voyant-travel/distribution#channel-push-extension.api",
         "parameters": [
-          { "name": "status", "in": "query", "schema": { "type": "string" } },
-          { "name": "channelId", "in": "query", "schema": { "type": "string" } },
-          { "name": "bookingId", "in": "query", "schema": { "type": "string" } },
           {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "name": "status",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "name": "channelId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "name": "bookingId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
             "name": "limit",
-            "in": "query",
-            "schema": { "type": "integer", "minimum": 1, "maximum": 500, "default": 50 }
+            "in": "query"
           }
         ],
-        "responses": { "200": { "description": "Channel booking links and counts" } }
+        "responses": {
+          "200": {
+            "description": "Channel booking links and status counts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "link": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "channelId": {
+                                "type": "string"
+                              },
+                              "bookingId": {
+                                "type": "string"
+                              },
+                              "bookingItemId": {
+                                "type": ["string", "null"]
+                              },
+                              "externalBookingId": {
+                                "type": ["string", "null"]
+                              },
+                              "externalReference": {
+                                "type": ["string", "null"]
+                              },
+                              "externalStatus": {
+                                "type": ["string", "null"]
+                              },
+                              "bookedAtExternal": {
+                                "type": ["string", "null"]
+                              },
+                              "lastSyncedAt": {
+                                "type": ["string", "null"]
+                              },
+                              "sourceKind": {
+                                "type": ["string", "null"]
+                              },
+                              "sourceConnectionId": {
+                                "type": ["string", "null"]
+                              },
+                              "pushStatus": {
+                                "type": "string"
+                              },
+                              "pushAttempts": {
+                                "type": "integer"
+                              },
+                              "lastPushAt": {
+                                "type": ["string", "null"]
+                              },
+                              "lastError": {
+                                "type": ["string", "null"]
+                              },
+                              "pushedPayloadHash": {
+                                "type": ["string", "null"]
+                              },
+                              "idempotencyKey": {
+                                "type": ["string", "null"]
+                              },
+                              "createdAt": {
+                                "type": "string"
+                              },
+                              "updatedAt": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "channelId",
+                              "bookingId",
+                              "bookingItemId",
+                              "externalBookingId",
+                              "externalReference",
+                              "externalStatus",
+                              "bookedAtExternal",
+                              "lastSyncedAt",
+                              "sourceKind",
+                              "sourceConnectionId",
+                              "pushStatus",
+                              "pushAttempts",
+                              "lastPushAt",
+                              "lastError",
+                              "pushedPayloadHash",
+                              "idempotencyKey",
+                              "createdAt",
+                              "updatedAt"
+                            ]
+                          },
+                          "channelName": {
+                            "type": "string"
+                          },
+                          "channelKind": {
+                            "type": "string",
+                            "enum": [
+                              "direct",
+                              "affiliate",
+                              "ota",
+                              "reseller",
+                              "marketplace",
+                              "api_partner",
+                              "connect"
+                            ]
+                          }
+                        },
+                        "required": ["link", "channelName", "channelKind"]
+                      }
+                    },
+                    "counts": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "integer"
+                      }
+                    }
+                  },
+                  "required": ["data", "counts"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "getAdminDistributionLinks",
+        "summary": "List channel booking links and status counts",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/distribution/retry/{bookingId}": {
       "post": {
-        "summary": "Retry channel delivery for a booking",
         "x-voyant-api-id": "@voyant-travel/distribution#channel-push-extension.api",
         "parameters": [
-          { "name": "bookingId", "in": "path", "required": true, "schema": { "type": "string" } }
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "bookingId",
+            "in": "path"
+          }
         ],
         "responses": {
-          "200": { "description": "The retry attempt completed" },
-          "500": { "description": "The retry attempt failed" }
-        }
+          "200": {
+            "description": "Booking push retry result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "ok": {
+                          "type": "boolean"
+                        },
+                        "bookingId": {
+                          "type": "string"
+                        },
+                        "attempted": {
+                          "type": "integer"
+                        },
+                        "succeeded": {
+                          "type": "integer"
+                        },
+                        "failed": {
+                          "type": "integer"
+                        },
+                        "compensated": {
+                          "type": "integer"
+                        },
+                        "outcomes": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "channelId": {
+                                "type": "string"
+                              },
+                              "bookingItemId": {
+                                "type": ["string", "null"]
+                              },
+                              "status": {
+                                "type": "string",
+                                "enum": ["ok", "failed", "skipped", "compensated"]
+                              },
+                              "upstreamRef": {
+                                "type": "string"
+                              },
+                              "error": {
+                                "type": "string"
+                              }
+                            },
+                            "required": ["channelId", "bookingItemId", "status"]
+                          }
+                        },
+                        "targetCount": {
+                          "type": "integer"
+                        },
+                        "insertedLinks": {
+                          "type": "integer"
+                        },
+                        "reason": {
+                          "type": "string",
+                          "enum": ["no_pending_links", "booking_missing", "no_targets"]
+                        }
+                      },
+                      "required": [
+                        "ok",
+                        "bookingId",
+                        "attempted",
+                        "succeeded",
+                        "failed",
+                        "compensated",
+                        "outcomes",
+                        "targetCount",
+                        "insertedLinks"
+                      ]
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Booking push retry failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "postAdminDistributionRetryByBookingId",
+        "summary": "Retry channel delivery for a booking",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/distribution/deliveries": {
       "get": {
-        "summary": "List channel webhook deliveries",
         "x-voyant-api-id": "@voyant-travel/distribution#channel-push-extension.api",
         "parameters": [
-          { "name": "bookingId", "in": "query", "schema": { "type": "string" } },
-          { "name": "channelId", "in": "query", "schema": { "type": "string" } },
           {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "name": "bookingId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "name": "channelId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
             "name": "limit",
-            "in": "query",
-            "schema": { "type": "integer", "minimum": 1, "maximum": 500, "default": 50 }
+            "in": "query"
           }
         ],
-        "responses": { "200": { "description": "Matching webhook deliveries" } }
+        "responses": {
+          "200": {
+            "description": "Channel push webhook deliveries",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "pattern": "^whde_[0-9a-hjkmnp-tv-z]{26}$"
+                          },
+                          "sourceModule": {
+                            "type": "string"
+                          },
+                          "sourceEvent": {
+                            "type": "string"
+                          },
+                          "sourceEntityModule": {
+                            "type": ["string", "null"]
+                          },
+                          "sourceEntityId": {
+                            "type": ["string", "null"]
+                          },
+                          "subscriptionId": {
+                            "type": ["string", "null"]
+                          },
+                          "targetUrl": {
+                            "type": "string"
+                          },
+                          "targetKind": {
+                            "type": ["string", "null"]
+                          },
+                          "targetRef": {
+                            "type": ["string", "null"]
+                          },
+                          "requestMethod": {
+                            "type": "string"
+                          },
+                          "requestHeaders": {
+                            "type": ["object", "null"],
+                            "additionalProperties": {
+                              "type": "string"
+                            }
+                          },
+                          "requestBodyHash": {
+                            "type": ["string", "null"]
+                          },
+                          "requestBodyExcerpt": {
+                            "type": ["string", "null"]
+                          },
+                          "requestPayload": {
+                            "type": ["object", "null"],
+                            "additionalProperties": {}
+                          },
+                          "deliveryContract": {
+                            "type": ["object", "null"],
+                            "additionalProperties": {}
+                          },
+                          "responseStatus": {
+                            "type": ["integer", "null"]
+                          },
+                          "responseHeaders": {
+                            "type": ["object", "null"],
+                            "additionalProperties": {
+                              "type": "string"
+                            }
+                          },
+                          "responseBodyExcerpt": {
+                            "type": ["string", "null"]
+                          },
+                          "attemptNumber": {
+                            "type": "integer"
+                          },
+                          "parentDeliveryId": {
+                            "type": ["string", "null"]
+                          },
+                          "idempotencyKey": {
+                            "type": ["string", "null"]
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": ["pending", "in_flight", "succeeded", "failed", "abandoned"]
+                          },
+                          "scheduledFor": {
+                            "type": ["string", "null"],
+                            "format": "date-time"
+                          },
+                          "startedAt": {
+                            "type": ["string", "null"],
+                            "format": "date-time"
+                          },
+                          "finishedAt": {
+                            "type": ["string", "null"],
+                            "format": "date-time"
+                          },
+                          "durationMs": {
+                            "type": ["integer", "null"]
+                          },
+                          "errorClass": {
+                            "type": ["string", "null"],
+                            "enum": [
+                              "network",
+                              "timeout",
+                              "4xx",
+                              "5xx",
+                              "adapter_error",
+                              "rate_limited",
+                              null
+                            ]
+                          },
+                          "errorMessage": {
+                            "type": ["string", "null"]
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "updatedAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "sourceModule",
+                          "sourceEvent",
+                          "sourceEntityModule",
+                          "sourceEntityId",
+                          "subscriptionId",
+                          "targetUrl",
+                          "targetKind",
+                          "targetRef",
+                          "requestMethod",
+                          "requestHeaders",
+                          "requestBodyHash",
+                          "requestBodyExcerpt",
+                          "requestPayload",
+                          "deliveryContract",
+                          "responseStatus",
+                          "responseHeaders",
+                          "responseBodyExcerpt",
+                          "attemptNumber",
+                          "parentDeliveryId",
+                          "idempotencyKey",
+                          "status",
+                          "scheduledFor",
+                          "startedAt",
+                          "finishedAt",
+                          "durationMs",
+                          "errorClass",
+                          "errorMessage",
+                          "createdAt",
+                          "updatedAt"
+                        ]
+                      }
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "getAdminDistributionDeliveries",
+        "summary": "List channel webhook deliveries",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/distribution/throttling": {
       "get": {
-        "summary": "Inspect recent per-channel throttling",
         "x-voyant-api-id": "@voyant-travel/distribution#channel-push-extension.api",
         "parameters": [
           {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
             "name": "sinceMs",
-            "in": "query",
-            "schema": { "type": "integer", "minimum": 0, "default": 3600000 }
+            "in": "query"
           }
         ],
-        "responses": { "200": { "description": "Per-channel throttling counts" } }
+        "responses": {
+          "200": {
+            "description": "Recent rate limiting by channel",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "channelId": {
+                            "type": "string"
+                          },
+                          "count": {
+                            "type": "integer"
+                          }
+                        },
+                        "required": ["channelId", "count"]
+                      }
+                    },
+                    "sinceMs": {
+                      "type": "number"
+                    }
+                  },
+                  "required": ["data", "sinceMs"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "getAdminDistributionThrottling",
+        "summary": "Inspect recent per-channel throttling",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/distribution/reconcile/{flow}": {
       "post": {
-        "summary": "Run a channel reconciliation flow",
         "x-voyant-api-id": "@voyant-travel/distribution#channel-push-extension.api",
         "parameters": [
           {
-            "name": "flow",
-            "in": "path",
+            "schema": {
+              "type": "string"
+            },
             "required": true,
-            "schema": { "type": "string", "enum": ["bookings", "availability", "content"] }
+            "name": "flow",
+            "in": "path"
           }
         ],
         "responses": {
-          "200": { "description": "The reconciliation flow completed" },
-          "400": { "description": "The flow name is unknown" },
-          "500": { "description": "The reconciliation flow failed" }
-        }
+          "200": {
+            "description": "Channel push reconciliation result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "scanned": {
+                          "type": "integer"
+                        },
+                        "triggered": {
+                          "type": "integer"
+                        }
+                      },
+                      "required": ["scanned", "triggered"]
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Unknown channel push flow",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Channel push reconciliation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "postAdminDistributionReconcileByFlow",
+        "summary": "Run a channel reconciliation flow",
+        "tags": ["distribution"],
+        "x-voyant-module": "distribution",
+        "x-voyant-surface": "admin"
       }
     }
   }

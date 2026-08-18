@@ -338,6 +338,92 @@ export interface paths {
     patch?: never
     trace?: never
   }
+  "/v1/admin/notifications/staff-alerts": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** GET /v1/admin/notifications/staff-alerts */
+    get: operations["getAdminNotificationsStaffAlerts"]
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/admin/notifications/staff-alerts/{eventKey}": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    /** PATCH /v1/admin/notifications/staff-alerts/{eventKey} */
+    patch: operations["patchAdminNotificationsStaffAlertsByEventKey"]
+    trace?: never
+  }
+  "/v1/admin/notifications/staff-alerts/{eventKey}/test": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** POST /v1/admin/notifications/staff-alerts/{eventKey}/test */
+    post: operations["postAdminNotificationsStaffAlertsByEventKeyTest"]
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/admin/notifications/staff-alert-preferences": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** GET /v1/admin/notifications/staff-alert-preferences */
+    get: operations["getAdminNotificationsStaffAlertPreferences"]
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/admin/notifications/staff-alert-preferences/{eventKey}": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    /** PUT /v1/admin/notifications/staff-alert-preferences/{eventKey} */
+    put: operations["putAdminNotificationsStaffAlertPreferencesByEventKey"]
+    post?: never
+    /** DELETE /v1/admin/notifications/staff-alert-preferences/{eventKey} */
+    delete: operations["deleteAdminNotificationsStaffAlertPreferencesByEventKey"]
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
   "/v1/admin/notifications/payment-sessions/{id}/send": {
     parameters: {
       query?: never
@@ -1000,7 +1086,13 @@ export interface operations {
       }
       cookie?: never
     }
-    requestBody?: never
+    requestBody: {
+      content: {
+        "application/json": {
+          idempotencyKey: string
+        }
+      }
+    }
     responses: {
       /** @description The resent notification delivery */
       201: {
@@ -2590,6 +2682,263 @@ export interface operations {
             error: string
           }
         }
+      }
+    }
+  }
+  getAdminNotificationsStaffAlerts: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Every staff alert with its deployment default applied */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              eventKey: string
+              eventType: string
+              group: string
+              enabled: boolean
+              routeToAssignee: boolean
+              supportsAssigneeRouting: boolean
+              routeToRoles: string[]
+              extraAddresses: string[]
+              configured: boolean
+            }[]
+          }
+        }
+      }
+    }
+  }
+  patchAdminNotificationsStaffAlertsByEventKey: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        eventKey: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          enabled?: boolean
+          routeToAssignee?: boolean
+          routeToRoles?: string[]
+          extraAddresses?: string[]
+        }
+      }
+    }
+    responses: {
+      /** @description The updated staff alert */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              eventKey: string
+              eventType: string
+              group: string
+              enabled: boolean
+              routeToAssignee: boolean
+              supportsAssigneeRouting: boolean
+              routeToRoles: string[]
+              extraAddresses: string[]
+              configured: boolean
+            }
+          }
+        }
+      }
+      /** @description invalid_request: request body failed validation */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Unknown staff alert */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+    }
+  }
+  postAdminNotificationsStaffAlertsByEventKeyTest: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        eventKey: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Outcome of sending a sample of this alert to the current user */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              sent: boolean
+              recipient: string | null
+              reason: string | null
+            }
+          }
+        }
+      }
+      /** @description Unknown staff alert */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+    }
+  }
+  getAdminNotificationsStaffAlertPreferences: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Effective staff alert state for the current user */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              eventKey: string
+              eventType: string
+              group: string
+              enabled: boolean
+              deploymentEnabled: boolean
+              override: boolean | null
+            }[]
+          }
+        }
+      }
+      /** @description No authenticated staff user */
+      401: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+    }
+  }
+  putAdminNotificationsStaffAlertPreferencesByEventKey: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        eventKey: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          enabled: boolean
+        }
+      }
+    }
+    responses: {
+      /** @description The current user's updated preferences */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              eventKey: string
+              eventType: string
+              group: string
+              enabled: boolean
+              deploymentEnabled: boolean
+              override: boolean | null
+            }[]
+          }
+        }
+      }
+      /** @description invalid_request: request body failed validation */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description No authenticated staff user */
+      401: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+    }
+  }
+  deleteAdminNotificationsStaffAlertPreferencesByEventKey: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        eventKey: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Preferences after dropping the override, back to inheriting */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              eventKey: string
+              eventType: string
+              group: string
+              enabled: boolean
+              deploymentEnabled: boolean
+              override: boolean | null
+            }[]
+          }
+        }
+      }
+      /** @description No authenticated staff user */
+      401: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
       }
     }
   }

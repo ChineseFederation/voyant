@@ -930,6 +930,26 @@
             "required": false,
             "name": "includeInactiveExtras",
             "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 500
+            },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": ["integer", "null"],
+              "minimum": 0,
+              "default": 0
+            },
+            "required": false,
+            "name": "offset",
+            "in": "query"
           }
         ],
         "responses": {
@@ -1414,9 +1434,31 @@
                               "fulfillmentComplete"
                             ]
                           }
+                        },
+                        "pagination": {
+                          "type": "object",
+                          "properties": {
+                            "limit": {
+                              "type": ["integer", "null"]
+                            },
+                            "offset": {
+                              "type": "integer"
+                            },
+                            "total": {
+                              "type": "integer"
+                            }
+                          },
+                          "required": ["limit", "offset", "total"]
                         }
                       },
-                      "required": ["slot", "extras", "travelers", "selections", "summaries"]
+                      "required": [
+                        "slot",
+                        "extras",
+                        "travelers",
+                        "selections",
+                        "summaries",
+                        "pagination"
+                      ]
                     }
                   },
                   "required": ["data"]

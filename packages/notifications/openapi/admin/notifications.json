@@ -1395,6 +1395,24 @@
             "in": "path"
           }
         ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "idempotencyKey": {
+                    "type": "string",
+                    "minLength": 8,
+                    "maxLength": 255
+                  }
+                },
+                "required": ["idempotencyKey"]
+              }
+            }
+          }
+        },
         "responses": {
           "201": {
             "description": "The resent notification delivery",
@@ -5149,6 +5167,505 @@
         "x-voyant-package-name": "@voyant-travel/notifications"
       }
     },
+    "/v1/admin/notifications/staff-alerts": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Every staff alert with its deployment default applied",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "eventKey": {
+                            "type": "string"
+                          },
+                          "eventType": {
+                            "type": "string"
+                          },
+                          "group": {
+                            "type": "string"
+                          },
+                          "enabled": {
+                            "type": "boolean"
+                          },
+                          "routeToAssignee": {
+                            "type": "boolean"
+                          },
+                          "supportsAssigneeRouting": {
+                            "type": "boolean"
+                          },
+                          "routeToRoles": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "extraAddresses": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "configured": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "eventKey",
+                          "eventType",
+                          "group",
+                          "enabled",
+                          "routeToAssignee",
+                          "supportsAssigneeRouting",
+                          "routeToRoles",
+                          "extraAddresses",
+                          "configured"
+                        ]
+                      }
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "getAdminNotificationsStaffAlerts",
+        "summary": "GET /v1/admin/notifications/staff-alerts",
+        "tags": ["notifications"],
+        "x-voyant-module": "notifications",
+        "x-voyant-surface": "admin"
+      }
+    },
+    "/v1/admin/notifications/staff-alerts/{eventKey}": {
+      "patch": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "required": true,
+            "name": "eventKey",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "enabled": {
+                    "type": "boolean"
+                  },
+                  "routeToAssignee": {
+                    "type": "boolean"
+                  },
+                  "routeToRoles": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "extraAddresses": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "email"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The updated staff alert",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "eventKey": {
+                          "type": "string"
+                        },
+                        "eventType": {
+                          "type": "string"
+                        },
+                        "group": {
+                          "type": "string"
+                        },
+                        "enabled": {
+                          "type": "boolean"
+                        },
+                        "routeToAssignee": {
+                          "type": "boolean"
+                        },
+                        "supportsAssigneeRouting": {
+                          "type": "boolean"
+                        },
+                        "routeToRoles": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "extraAddresses": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "configured": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "eventKey",
+                        "eventType",
+                        "group",
+                        "enabled",
+                        "routeToAssignee",
+                        "supportsAssigneeRouting",
+                        "routeToRoles",
+                        "extraAddresses",
+                        "configured"
+                      ]
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "invalid_request: request body failed validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown staff alert"
+          }
+        },
+        "operationId": "patchAdminNotificationsStaffAlertsByEventKey",
+        "summary": "PATCH /v1/admin/notifications/staff-alerts/{eventKey}",
+        "tags": ["notifications"],
+        "x-voyant-module": "notifications",
+        "x-voyant-surface": "admin"
+      }
+    },
+    "/v1/admin/notifications/staff-alerts/{eventKey}/test": {
+      "post": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "required": true,
+            "name": "eventKey",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Outcome of sending a sample of this alert to the current user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "sent": {
+                          "type": "boolean"
+                        },
+                        "recipient": {
+                          "type": ["string", "null"]
+                        },
+                        "reason": {
+                          "type": ["string", "null"]
+                        }
+                      },
+                      "required": ["sent", "recipient", "reason"]
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown staff alert"
+          }
+        },
+        "operationId": "postAdminNotificationsStaffAlertsByEventKeyTest",
+        "summary": "POST /v1/admin/notifications/staff-alerts/{eventKey}/test",
+        "tags": ["notifications"],
+        "x-voyant-module": "notifications",
+        "x-voyant-surface": "admin"
+      }
+    },
+    "/v1/admin/notifications/staff-alert-preferences": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Effective staff alert state for the current user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "eventKey": {
+                            "type": "string"
+                          },
+                          "eventType": {
+                            "type": "string"
+                          },
+                          "group": {
+                            "type": "string"
+                          },
+                          "enabled": {
+                            "type": "boolean"
+                          },
+                          "deploymentEnabled": {
+                            "type": "boolean"
+                          },
+                          "override": {
+                            "type": ["boolean", "null"]
+                          }
+                        },
+                        "required": [
+                          "eventKey",
+                          "eventType",
+                          "group",
+                          "enabled",
+                          "deploymentEnabled",
+                          "override"
+                        ]
+                      }
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No authenticated staff user"
+          }
+        },
+        "operationId": "getAdminNotificationsStaffAlertPreferences",
+        "summary": "GET /v1/admin/notifications/staff-alert-preferences",
+        "tags": ["notifications"],
+        "x-voyant-module": "notifications",
+        "x-voyant-surface": "admin"
+      }
+    },
+    "/v1/admin/notifications/staff-alert-preferences/{eventKey}": {
+      "put": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "required": true,
+            "name": "eventKey",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "enabled": {
+                    "type": "boolean"
+                  }
+                },
+                "required": ["enabled"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The current user's updated preferences",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "eventKey": {
+                            "type": "string"
+                          },
+                          "eventType": {
+                            "type": "string"
+                          },
+                          "group": {
+                            "type": "string"
+                          },
+                          "enabled": {
+                            "type": "boolean"
+                          },
+                          "deploymentEnabled": {
+                            "type": "boolean"
+                          },
+                          "override": {
+                            "type": ["boolean", "null"]
+                          }
+                        },
+                        "required": [
+                          "eventKey",
+                          "eventType",
+                          "group",
+                          "enabled",
+                          "deploymentEnabled",
+                          "override"
+                        ]
+                      }
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "invalid_request: request body failed validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No authenticated staff user"
+          }
+        },
+        "operationId": "putAdminNotificationsStaffAlertPreferencesByEventKey",
+        "summary": "PUT /v1/admin/notifications/staff-alert-preferences/{eventKey}",
+        "tags": ["notifications"],
+        "x-voyant-module": "notifications",
+        "x-voyant-surface": "admin"
+      },
+      "delete": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "required": true,
+            "name": "eventKey",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Preferences after dropping the override, back to inheriting",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "eventKey": {
+                            "type": "string"
+                          },
+                          "eventType": {
+                            "type": "string"
+                          },
+                          "group": {
+                            "type": "string"
+                          },
+                          "enabled": {
+                            "type": "boolean"
+                          },
+                          "deploymentEnabled": {
+                            "type": "boolean"
+                          },
+                          "override": {
+                            "type": ["boolean", "null"]
+                          }
+                        },
+                        "required": [
+                          "eventKey",
+                          "eventType",
+                          "group",
+                          "enabled",
+                          "deploymentEnabled",
+                          "override"
+                        ]
+                      }
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No authenticated staff user"
+          }
+        },
+        "operationId": "deleteAdminNotificationsStaffAlertPreferencesByEventKey",
+        "summary": "DELETE /v1/admin/notifications/staff-alert-preferences/{eventKey}",
+        "tags": ["notifications"],
+        "x-voyant-module": "notifications",
+        "x-voyant-surface": "admin"
+      }
+    },
     "/v1/admin/notifications/payment-sessions/{id}/send": {
       "post": {
         "parameters": [
@@ -5754,6 +6271,77 @@
             "in": "path"
           }
         ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "sendNotification": {
+                        "type": "boolean",
+                        "enum": [false]
+                      },
+                      "documentTypes": {
+                        "type": ["array", "null"],
+                        "items": {
+                          "type": "string",
+                          "enum": ["contract", "invoice", "proforma", "brochure"]
+                        }
+                      }
+                    },
+                    "required": ["sendNotification"],
+                    "additionalProperties": false
+                  },
+                  {
+                    "allOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "idempotencyKey": {
+                            "type": "string",
+                            "minLength": 8,
+                            "maxLength": 255
+                          },
+                          "templateId": {
+                            "type": ["string", "null"]
+                          },
+                          "templateSlug": {
+                            "type": ["string", "null"]
+                          },
+                          "scheduledFor": {
+                            "type": ["string", "null"]
+                          },
+                          "documentTypes": {
+                            "type": ["array", "null"],
+                            "items": {
+                              "type": "string",
+                              "enum": ["contract", "invoice", "proforma", "brochure"]
+                            }
+                          }
+                        },
+                        "required": ["idempotencyKey"],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "sendNotification": {
+                            "type": "boolean",
+                            "enum": [true],
+                            "default": true
+                          }
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Preview / skipped outcome (no delivery attempted)",
@@ -6061,78 +6649,7 @@
         "x-voyant-surface": "admin",
         "x-voyant-api-id": "@voyant-travel/notifications#api.admin",
         "x-voyant-unit-id": "@voyant-travel/notifications",
-        "x-voyant-package-name": "@voyant-travel/notifications",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "anyOf": [
-                  {
-                    "type": "object",
-                    "properties": {
-                      "sendNotification": {
-                        "type": "boolean",
-                        "enum": [false]
-                      },
-                      "documentTypes": {
-                        "type": ["array", "null"],
-                        "items": {
-                          "type": "string",
-                          "enum": ["contract", "invoice", "proforma", "brochure"]
-                        }
-                      }
-                    },
-                    "required": ["sendNotification"],
-                    "additionalProperties": false
-                  },
-                  {
-                    "allOf": [
-                      {
-                        "type": "object",
-                        "properties": {
-                          "idempotencyKey": {
-                            "type": "string",
-                            "minLength": 8,
-                            "maxLength": 255
-                          },
-                          "templateId": {
-                            "type": ["string", "null"]
-                          },
-                          "templateSlug": {
-                            "type": ["string", "null"]
-                          },
-                          "scheduledFor": {
-                            "type": ["string", "null"]
-                          },
-                          "documentTypes": {
-                            "type": ["array", "null"],
-                            "items": {
-                              "type": "string",
-                              "enum": ["contract", "invoice", "proforma", "brochure"]
-                            }
-                          }
-                        },
-                        "required": ["idempotencyKey"],
-                        "additionalProperties": false
-                      },
-                      {
-                        "type": "object",
-                        "properties": {
-                          "sendNotification": {
-                            "type": "boolean",
-                            "enum": [true],
-                            "default": true
-                          }
-                        }
-                      }
-                    ]
-                  }
-                ]
-              }
-            }
-          }
-        }
+        "x-voyant-package-name": "@voyant-travel/notifications"
       }
     },
     "/v1/admin/notifications/bookings/{id}/send-documents": {
@@ -6147,6 +6664,41 @@
             "in": "path"
           }
         ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "idempotencyKey": {
+                    "type": "string",
+                    "minLength": 8,
+                    "maxLength": 255
+                  },
+                  "templateId": {
+                    "type": ["string", "null"]
+                  },
+                  "templateSlug": {
+                    "type": ["string", "null"]
+                  },
+                  "scheduledFor": {
+                    "type": ["string", "null"]
+                  },
+                  "documentTypes": {
+                    "type": ["array", "null"],
+                    "items": {
+                      "type": "string",
+                      "enum": ["contract", "invoice", "proforma", "brochure"]
+                    }
+                  }
+                },
+                "required": ["idempotencyKey"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
         "responses": {
           "201": {
             "description": "The dispatched booking-documents notification result",
@@ -6304,42 +6856,7 @@
         "x-voyant-surface": "admin",
         "x-voyant-api-id": "@voyant-travel/notifications#api.admin",
         "x-voyant-unit-id": "@voyant-travel/notifications",
-        "x-voyant-package-name": "@voyant-travel/notifications",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "idempotencyKey": {
-                    "type": "string",
-                    "minLength": 8,
-                    "maxLength": 255
-                  },
-                  "templateId": {
-                    "type": ["string", "null"]
-                  },
-                  "templateSlug": {
-                    "type": ["string", "null"]
-                  },
-                  "scheduledFor": {
-                    "type": ["string", "null"]
-                  },
-                  "documentTypes": {
-                    "type": ["array", "null"],
-                    "items": {
-                      "type": "string",
-                      "enum": ["contract", "invoice", "proforma", "brochure"]
-                    }
-                  }
-                },
-                "required": ["idempotencyKey"],
-                "additionalProperties": false
-              }
-            }
-          }
-        }
+        "x-voyant-package-name": "@voyant-travel/notifications"
       }
     }
   },

@@ -3993,6 +3993,10 @@
                               "on_request"
                             ]
                           },
+                          "occupancyPriceBasis": {
+                            "type": ["string", "null"],
+                            "enum": ["supplement", "all_in", null]
+                          },
                           "baseSellAmountCents": {
                             "type": ["integer", "null"]
                           },
@@ -4039,6 +4043,7 @@
                           "name",
                           "description",
                           "pricingMode",
+                          "occupancyPriceBasis",
                           "baseSellAmountCents",
                           "baseCostAmountCents",
                           "minPerBooking",
@@ -4114,6 +4119,10 @@
                     "type": "string",
                     "enum": ["per_person", "per_booking", "starting_from", "free", "on_request"],
                     "default": "per_person"
+                  },
+                  "occupancyPriceBasis": {
+                    "type": ["string", "null"],
+                    "enum": ["supplement", "all_in", null]
                   },
                   "baseSellAmountCents": {
                     "type": ["integer", "null"],
@@ -4204,6 +4213,10 @@
                             "on_request"
                           ]
                         },
+                        "occupancyPriceBasis": {
+                          "type": ["string", "null"],
+                          "enum": ["supplement", "all_in", null]
+                        },
                         "baseSellAmountCents": {
                           "type": ["integer", "null"]
                         },
@@ -4250,6 +4263,7 @@
                         "name",
                         "description",
                         "pricingMode",
+                        "occupancyPriceBasis",
                         "baseSellAmountCents",
                         "baseCostAmountCents",
                         "minPerBooking",
@@ -4337,6 +4351,10 @@
                             "on_request"
                           ]
                         },
+                        "occupancyPriceBasis": {
+                          "type": ["string", "null"],
+                          "enum": ["supplement", "all_in", null]
+                        },
                         "baseSellAmountCents": {
                           "type": ["integer", "null"]
                         },
@@ -4383,6 +4401,7 @@
                         "name",
                         "description",
                         "pricingMode",
+                        "occupancyPriceBasis",
                         "baseSellAmountCents",
                         "baseCostAmountCents",
                         "minPerBooking",
@@ -4474,6 +4493,10 @@
                     "type": "string",
                     "enum": ["per_person", "per_booking", "starting_from", "free", "on_request"]
                   },
+                  "occupancyPriceBasis": {
+                    "type": ["string", "null"],
+                    "enum": ["supplement", "all_in", null]
+                  },
                   "baseSellAmountCents": {
                     "type": ["integer", "null"],
                     "minimum": 0
@@ -4559,6 +4582,10 @@
                             "on_request"
                           ]
                         },
+                        "occupancyPriceBasis": {
+                          "type": ["string", "null"],
+                          "enum": ["supplement", "all_in", null]
+                        },
                         "baseSellAmountCents": {
                           "type": ["integer", "null"]
                         },
@@ -4605,6 +4632,7 @@
                         "name",
                         "description",
                         "pricingMode",
+                        "occupancyPriceBasis",
                         "baseSellAmountCents",
                         "baseCostAmountCents",
                         "minPerBooking",

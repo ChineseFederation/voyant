@@ -191,6 +191,10 @@
                     },
                     "default": []
                   },
+                  "travelerCount": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
                   "limit": {
                     "type": "integer",
                     "minimum": 1,
@@ -319,6 +323,10 @@
                           "required": ["quantity"]
                         },
                         "default": []
+                      },
+                      "travelerCount": {
+                        "type": "integer",
+                        "minimum": 1
                       },
                       "limit": {
                         "type": "integer",

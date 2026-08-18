@@ -13,96 +13,8 @@ export interface paths {
     }
     get?: never
     put?: never
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          bookingId: string
-        }
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          "application/json": {
-            travelerId: string
-            expectedBookingRevision: number
-            reason: string
-            /** @description At least one traveler correction field must be provided. */
-            patch: {
-              firstName?: string
-              lastName?: string
-              /** Format: email */
-              email?: string | null
-              phone?: string | null
-              preferredLanguage?: string | null
-            }
-          }
-        }
-      }
-      responses: {
-        /** @description Idempotent or no-op preview */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": components["schemas"]["BookingAmendmentPreviewNoOpResponse"]
-          }
-        }
-        /** @description Traveler correction preview */
-        201: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": components["schemas"]["BookingAmendmentOkResponse"]
-          }
-        }
-        /** @description Missing or invalid Idempotency-Key header */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-              currentBookingRevision?: number
-              bookingItemId?: string
-              reason?: string
-            }
-          }
-        }
-        /** @description Booking or traveler not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-              currentBookingRevision?: number
-              bookingItemId?: string
-              reason?: string
-            }
-          }
-        }
-        /** @description Revision or idempotency conflict */
-        409: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-              currentBookingRevision?: number
-              bookingItemId?: string
-              reason?: string
-            }
-          }
-        }
-      }
-    }
+    /** POST /v1/admin/bookings/{bookingId}/amendments/traveler-corrections/preview */
+    post: operations["postAdminBookingsByBookingIdAmendmentsTravelerCorrectionsPreview"]
     delete?: never
     options?: never
     head?: never
@@ -118,116 +30,42 @@ export interface paths {
     }
     get?: never
     put?: never
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          bookingId: string
-        }
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          "application/json": {
-            expectedBookingRevision: number
-            reason: string
-            change:
-              | {
-                  /** @enum {string} */
-                  type: "traveler_add"
-                  /** @description One or more distinct Booking Item ids; duplicate ids are rejected. */
-                  bookingItemIds: string[]
-                  traveler: {
-                    personId?: string | null
-                    /**
-                     * @default traveler
-                     * @enum {string}
-                     */
-                    participantType?: "traveler" | "occupant" | "other"
-                    /** @enum {string|null} */
-                    travelerCategory?: "adult" | "child" | "infant" | "senior" | "other" | null
-                    firstName: string
-                    lastName: string
-                    /** Format: email */
-                    email?: string | null
-                    phone?: string | null
-                    preferredLanguage?: string | null
-                  }
-                }
-              | {
-                  /** @enum {string} */
-                  type: "traveler_drop"
-                  /** @description One or more distinct Booking Item ids; duplicate ids are rejected. */
-                  bookingItemIds: string[]
-                  travelerId: string
-                }
-          }
-        }
-      }
-      responses: {
-        /** @description Idempotent or no-op preview */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": components["schemas"]["BookingAmendmentPreviewNoOpResponse"]
-          }
-        }
-        /** @description Traveler correction preview */
-        201: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": components["schemas"]["BookingAmendmentOkResponse"]
-          }
-        }
-        /** @description Missing or invalid Idempotency-Key header */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-              currentBookingRevision?: number
-              bookingItemId?: string
-              reason?: string
-            }
-          }
-        }
-        /** @description Booking or traveler not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-              currentBookingRevision?: number
-              bookingItemId?: string
-              reason?: string
-            }
-          }
-        }
-        /** @description Revision or idempotency conflict */
-        409: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-              currentBookingRevision?: number
-              bookingItemId?: string
-              reason?: string
-            }
-          }
-        }
-      }
+    /** POST /v1/admin/bookings/{bookingId}/amendments/traveler-roster/preview */
+    post: operations["postAdminBookingsByBookingIdAmendmentsTravelerRosterPreview"]
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/admin/bookings/{bookingId}/amendments/items/preview": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
     }
+    get?: never
+    put?: never
+    /** POST /v1/admin/bookings/{bookingId}/amendments/items/preview */
+    post: operations["postAdminBookingsByBookingIdAmendmentsItemsPreview"]
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/admin/bookings/{bookingId}/amendments/items/move/preview": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** POST /v1/admin/bookings/{bookingId}/amendments/items/move/preview */
+    post: operations["postAdminBookingsByBookingIdAmendmentsItemsMovePreview"]
     delete?: never
     options?: never
     head?: never
@@ -241,30 +79,8 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    get: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          bookingId: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Booking Amendment history */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: components["schemas"]["BookingAmendment"][]
-            }
-          }
-        }
-      }
-    }
+    /** GET /v1/admin/bookings/{bookingId}/amendments */
+    get: operations["getAdminBookingsByBookingIdAmendments"]
     put?: never
     post?: never
     delete?: never
@@ -280,45 +96,8 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    get: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          bookingId: string
-          amendmentId: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Booking Amendment */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: components["schemas"]["BookingAmendment"]
-            }
-          }
-        }
-        /** @description Booking Amendment not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-              currentBookingRevision?: number
-              bookingItemId?: string
-              reason?: string
-            }
-          }
-        }
-      }
-    }
+    /** GET /v1/admin/bookings/{bookingId}/amendments/{amendmentId} */
+    get: operations["getAdminBookingsByBookingIdAmendmentsByAmendmentId"]
     put?: never
     post?: never
     delete?: never
@@ -336,79 +115,8 @@ export interface paths {
     }
     get?: never
     put?: never
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          bookingId: string
-          amendmentId: string
-        }
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          "application/json": {
-            proposedRevisionId: string
-          }
-        }
-      }
-      responses: {
-        /** @description Accepted Booking Amendment */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: components["schemas"]["BookingAmendment"]
-            }
-          }
-        }
-        /** @description Missing or invalid Idempotency-Key header */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-              currentBookingRevision?: number
-              bookingItemId?: string
-              reason?: string
-            }
-          }
-        }
-        /** @description Booking Amendment not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-              currentBookingRevision?: number
-              bookingItemId?: string
-              reason?: string
-            }
-          }
-        }
-        /** @description Acceptance conflict */
-        409: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-              currentBookingRevision?: number
-              bookingItemId?: string
-              reason?: string
-            }
-          }
-        }
-      }
-    }
+    /** POST /v1/admin/bookings/{bookingId}/amendments/{amendmentId}/accept */
+    post: operations["postAdminBookingsByBookingIdAmendmentsByAmendmentIdAccept"]
     delete?: never
     options?: never
     head?: never
@@ -424,82 +132,8 @@ export interface paths {
     }
     get?: never
     put?: never
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          bookingId: string
-          amendmentId: string
-        }
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          "application/json": {
-            expectedBookingRevision: number
-            proposedRevisionId: string
-          }
-        }
-      }
-      responses: {
-        /** @description Applied Booking Amendment */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": components["schemas"]["BookingAmendmentOkResponse"]
-          }
-        }
-        /** @description Booking Amendment is waiting for supplier reconciliation */
-        202: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": components["schemas"]["BookingAmendmentApplyPendingResponse"]
-          }
-        }
-        /** @description Missing or invalid Idempotency-Key header */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-              currentBookingRevision?: number
-              bookingItemId?: string
-              reason?: string
-            }
-          }
-        }
-        /** @description Booking Amendment not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-              currentBookingRevision?: number
-              bookingItemId?: string
-              reason?: string
-            }
-          }
-        }
-        /** @description Apply conflict */
-        409: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": components["schemas"]["BookingAmendmentApplyConflictResponse"]
-          }
-        }
-      }
-    }
+    /** POST /v1/admin/bookings/{bookingId}/amendments/{amendmentId}/apply */
+    post: operations["postAdminBookingsByBookingIdAmendmentsByAmendmentIdApply"]
     delete?: never
     options?: never
     head?: never
@@ -515,75 +149,42 @@ export interface paths {
     }
     get?: never
     put?: never
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          bookingId: string
-          amendmentId: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Applied Booking Amendment */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": components["schemas"]["BookingAmendmentOkResponse"]
-          }
-        }
-        /** @description Booking Amendment is waiting for supplier reconciliation */
-        202: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": components["schemas"]["BookingAmendmentApplyPendingResponse"]
-          }
-        }
-        /** @description Missing or invalid Idempotency-Key header */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-              currentBookingRevision?: number
-              bookingItemId?: string
-              reason?: string
-            }
-          }
-        }
-        /** @description Booking Amendment not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-              currentBookingRevision?: number
-              bookingItemId?: string
-              reason?: string
-            }
-          }
-        }
-        /** @description Apply conflict */
-        409: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": components["schemas"]["BookingAmendmentApplyConflictResponse"]
-          }
-        }
-      }
+    /** POST /v1/admin/bookings/{bookingId}/amendments/{amendmentId}/reconcile */
+    post: operations["postAdminBookingsByBookingIdAmendmentsByAmendmentIdReconcile"]
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/admin/bookings/inquiries": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
     }
+    /** GET /v1/admin/bookings/inquiries */
+    get: operations["getAdminBookingsInquiries"]
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/admin/bookings/inquiries/{id}": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** GET /v1/admin/bookings/inquiries/{id} */
+    get: operations["getAdminBookingsInquiriesById"]
+    put?: never
+    post?: never
     delete?: never
     options?: never
     head?: never
@@ -599,61 +200,8 @@ export interface paths {
     }
     get?: never
     put?: never
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      /** @description Pricing preview selection */
-      requestBody: {
-        content: {
-          "application/json": {
-            productId: string
-            optionId?: string | null
-            catalogId?: string | null
-          }
-        }
-      }
-      responses: {
-        /** @description A resolved pricing snapshot */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                [key: string]: unknown
-              }
-            }
-          }
-        }
-        /** @description invalid_request — request input failed validation */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-        /** @description Pricing unavailable for this selection */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** POST /v1/admin/bookings/pricing-preview */
+    post: operations["postAdminBookingsPricingPreview"]
     delete?: never
     options?: never
     head?: never
@@ -667,74 +215,8 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    get: {
-      parameters: {
-        query?: {
-          from?: string
-          to?: string
-          upcomingLimit?: number | null
-        }
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Pre-aggregated dashboard metrics */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                total: number
-                totalPax: number
-                countsByStatus: {
-                  /** @enum {string} */
-                  status: "confirmed" | "in_progress" | "completed" | "cancelled"
-                  count: number
-                }[]
-                monthlyCounts: {
-                  yearMonth: string
-                  count: number
-                }[]
-                monthlyRevenue: {
-                  yearMonth: string
-                  currency: string
-                  sellAmountCents: number
-                }[]
-                upcomingDepartures: {
-                  count: number
-                  items: {
-                    id: string
-                    bookingNumber: string | null
-                    /** @enum {string} */
-                    status: "confirmed" | "in_progress" | "completed" | "cancelled"
-                    startDate: string | null
-                    endDate: string | null
-                    pax: number | null
-                    sellCurrency: string | null
-                    sellAmountCents: number | null
-                  }[]
-                }
-              }
-            }
-          }
-        }
-        /** @description invalid_request — request input failed validation */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** GET /v1/admin/bookings/aggregates */
+    get: operations["getAdminBookingsAggregates"]
     put?: never
     post?: never
     delete?: never
@@ -750,159 +232,8 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    get: {
-      parameters: {
-        query?: {
-          bookingId?: string
-          bookingNumber?: string
-          bookingCode?: string
-          email?: string
-        }
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description An internal/admin booking overview */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                bookingId: string
-                bookingNumber: string
-                revision: number
-                /** @enum {string} */
-                status: "confirmed" | "in_progress" | "completed" | "cancelled"
-                sellCurrency: string
-                sellAmountCents: number | null
-                startDate: string | null
-                endDate: string | null
-                pax: number | null
-                confirmedAt: string | null
-                cancelledAt: string | null
-                completedAt: string | null
-                travelers: {
-                  id: string
-                  /** @enum {string} */
-                  participantType: "traveler" | "occupant" | "other"
-                  firstName: string
-                  lastName: string
-                  isPrimary: boolean
-                }[]
-                items: {
-                  id: string
-                  title: string
-                  description: string | null
-                  /** @enum {string} */
-                  itemType:
-                    | "unit"
-                    | "extra"
-                    | "service"
-                    | "fee"
-                    | "tax"
-                    | "discount"
-                    | "adjustment"
-                    | "accommodation"
-                    | "transport"
-                    | "other"
-                  /** @enum {string} */
-                  status: "confirmed" | "cancelled" | "fulfilled"
-                  serviceDate: string | null
-                  startsAt: string | null
-                  endsAt: string | null
-                  quantity: number
-                  sellCurrency: string
-                  unitSellAmountCents: number | null
-                  totalSellAmountCents: number | null
-                  costCurrency: string | null
-                  unitCostAmountCents: number | null
-                  totalCostAmountCents: number | null
-                  notes: string | null
-                  productId: string | null
-                  optionId: string | null
-                  optionUnitId: string | null
-                  pricingCategoryId: string | null
-                  travelerLinks: {
-                    id: string
-                    travelerId: string
-                    /** @enum {string} */
-                    role: "traveler" | "occupant" | "beneficiary" | "other"
-                    isPrimary: boolean
-                  }[]
-                  details?: unknown
-                }[]
-                documents: {
-                  id: string
-                  travelerId: string | null
-                  /** @enum {string} */
-                  type:
-                    | "visa"
-                    | "insurance"
-                    | "health"
-                    | "passport_copy"
-                    | "contract"
-                    | "invoice"
-                    | "proforma"
-                    | "credit_note"
-                    | "other"
-                  fileName: string
-                  fileUrl: string
-                  issuedBy?: string | null
-                  issuedSeries?: string | null
-                  issuedNumber?: string | null
-                  issuedAt?: string | null
-                }[]
-                fulfillments: {
-                  id: string
-                  bookingItemId: string | null
-                  travelerId: string | null
-                  /** @enum {string} */
-                  fulfillmentType:
-                    | "service_voucher"
-                    | "ticket"
-                    | "pdf"
-                    | "qr_code"
-                    | "barcode"
-                    | "mobile"
-                    | "other"
-                  /** @enum {string} */
-                  deliveryChannel: "download" | "email" | "api" | "wallet" | "other"
-                  /** @enum {string} */
-                  status: "pending" | "issued" | "reissued" | "revoked" | "failed"
-                  artifactUrl: string | null
-                }[]
-              }
-            }
-          }
-        }
-        /** @description invalid_request — request input failed validation */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-        /** @description Booking overview not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** GET /v1/admin/bookings/overview */
+    get: operations["getAdminBookingsOverview"]
     put?: never
     post?: never
     delete?: never
@@ -918,47 +249,8 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    get: {
-      parameters: {
-        query: {
-          slotId: string
-        }
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Sharing groups for a slot */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                label: string
-                occupancy: number
-                roomTypeId: string | null
-                bookingIds: string[]
-              }[]
-            }
-          }
-        }
-        /** @description invalid_request — request input failed validation */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** GET /v1/admin/bookings/sharing-groups */
+    get: operations["getAdminBookingsSharingGroups"]
     put?: never
     post?: never
     delete?: never
@@ -974,49 +266,8 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    get: {
-      parameters: {
-        query: {
-          slotId: string
-        }
-        header?: never
-        path: {
-          groupId: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Travelers in a sharing group (PII redacted unless reveal-authorized) */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: ({
-                id: string
-                bookingId: string
-                bookingNumber: string
-              } & {
-                [key: string]: unknown
-              })[]
-            }
-          }
-        }
-        /** @description invalid_request — request input failed validation */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** GET /v1/admin/bookings/sharing-groups/{groupId}/travelers */
+    get: operations["getAdminBookingsSharingGroupsByGroupIdTravelers"]
     put?: never
     post?: never
     delete?: never
@@ -1032,52 +283,8 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    get: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Booking allocations */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                bookingId: string
-                bookingItemId: string
-                productId: string | null
-                optionId: string | null
-                optionUnitId: string | null
-                pricingCategoryId: string | null
-                availabilitySlotId: string | null
-                quantity: number
-                /** @enum {string} */
-                allocationType: "unit" | "pickup" | "resource"
-                /** @enum {string} */
-                status: "held" | "confirmed" | "released" | "expired" | "cancelled" | "fulfilled"
-                holdExpiresAt: string | null
-                confirmedAt: string | null
-                releasedAt: string | null
-                metadata: {
-                  [key: string]: unknown
-                } | null
-                createdAt: string
-                updatedAt: string
-              }[]
-            }
-          }
-        }
-      }
-    }
+    /** GET /v1/admin/bookings/{id}/allocations */
+    get: operations["getAdminBookingsByIdAllocations"]
     put?: never
     post?: never
     delete?: never
@@ -1093,60 +300,8 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    get: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Booking activity log */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                bookingId: string
-                actorId: string | null
-                /** @enum {string} */
-                activityType:
-                  | "booking_created"
-                  | "booking_reserved"
-                  | "booking_converted"
-                  | "booking_confirmed"
-                  | "booking_started"
-                  | "booking_completed"
-                  | "hold_extended"
-                  | "hold_expired"
-                  | "status_change"
-                  | "status_overridden"
-                  | "item_update"
-                  | "allocation_released"
-                  | "fulfillment_issued"
-                  | "fulfillment_updated"
-                  | "redemption_recorded"
-                  | "supplier_update"
-                  | "traveler_update"
-                  | "note_added"
-                  | "system_action"
-                description: string
-                metadata: {
-                  [key: string]: unknown
-                } | null
-                createdAt: string
-              }[]
-            }
-          }
-        }
-      }
-    }
+    /** GET /v1/admin/bookings/{id}/activity */
+    get: operations["getAdminBookingsByIdActivity"]
     put?: never
     post?: never
     delete?: never
@@ -1162,43 +317,8 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    get: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Shared-room group membership for this booking (or null) */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data:
-                | ({
-                    id: string
-                    membership: {
-                      id: string
-                      groupId: string
-                      bookingId: string
-                    } & {
-                      [key: string]: unknown
-                    }
-                  } & {
-                    [key: string]: unknown
-                  })
-                | null
-            }
-          }
-        }
-      }
-    }
+    /** GET /v1/admin/bookings/{id}/group */
+    get: operations["getAdminBookingsByIdGroup"]
     put?: never
     post?: never
     delete?: never
@@ -1216,154 +336,8 @@ export interface paths {
     }
     get?: never
     put?: never
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      /** @description Cancel options */
-      requestBody?: {
-        content: {
-          "application/json": {
-            note?: string | null
-            suppressNotifications?: boolean
-          }
-        }
-      }
-      responses: {
-        /** @description The cancelled booking */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                bookingNumber: string
-                revision: number
-                /** @enum {string} */
-                status: "confirmed" | "in_progress" | "completed" | "cancelled"
-                personId: string | null
-                organizationId: string | null
-                /** @enum {string} */
-                sourceType:
-                  | "direct"
-                  | "manual"
-                  | "affiliate"
-                  | "ota"
-                  | "reseller"
-                  | "api_partner"
-                  | "internal"
-                externalBookingRef: string | null
-                communicationLanguage: string | null
-                contactFirstName: string | null
-                contactLastName: string | null
-                contactPartyType: string | null
-                contactTaxId: string | null
-                contactEmail: string | null
-                contactPhone: string | null
-                contactPreferredLanguage: string | null
-                contactCountry: string | null
-                contactRegion: string | null
-                contactCity: string | null
-                contactAddressLine1: string | null
-                contactAddressLine2: string | null
-                contactPostalCode: string | null
-                sellCurrency: string
-                baseCurrency: string | null
-                fxRateSetId: string | null
-                sellAmountCents: number | null
-                baseSellAmountCents: number | null
-                costAmountCents: number | null
-                baseCostAmountCents: number | null
-                marginPercent: number | null
-                startDate: string | null
-                endDate: string | null
-                pax: number | null
-                internalNotes: string | null
-                notificationsSuppressed: boolean
-                customerPaymentPolicy?: unknown
-                priceOverride: {
-                  [key: string]: unknown
-                } | null
-                customFields: {
-                  [key: string]: {
-                    [key: string]: unknown
-                  }
-                }
-                acceptedAt: string | null
-                confirmedAt: string | null
-                cancelledAt: string | null
-                completedAt: string | null
-                redeemedAt: string | null
-                createdAt: string
-                updatedAt: string
-              }
-            }
-          }
-        }
-        /** @description approval_required — an action approval was requested */
-        202: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              [key: string]: unknown
-            }
-          }
-        }
-        /** @description invalid_request — request input failed validation */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-        /** @description Forbidden */
-        403: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-        /** @description Booking not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-        /** @description Invalid transition / approval idempotency conflict */
-        409: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** POST /v1/admin/bookings/{id}/cancel */
+    post: operations["postAdminBookingsByIdCancel"]
     delete?: never
     options?: never
     head?: never
@@ -1379,153 +353,8 @@ export interface paths {
     }
     get?: never
     put?: never
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      /** @description Start options */
-      requestBody?: {
-        content: {
-          "application/json": {
-            note?: string | null
-          }
-        }
-      }
-      responses: {
-        /** @description The in-progress booking */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                bookingNumber: string
-                revision: number
-                /** @enum {string} */
-                status: "confirmed" | "in_progress" | "completed" | "cancelled"
-                personId: string | null
-                organizationId: string | null
-                /** @enum {string} */
-                sourceType:
-                  | "direct"
-                  | "manual"
-                  | "affiliate"
-                  | "ota"
-                  | "reseller"
-                  | "api_partner"
-                  | "internal"
-                externalBookingRef: string | null
-                communicationLanguage: string | null
-                contactFirstName: string | null
-                contactLastName: string | null
-                contactPartyType: string | null
-                contactTaxId: string | null
-                contactEmail: string | null
-                contactPhone: string | null
-                contactPreferredLanguage: string | null
-                contactCountry: string | null
-                contactRegion: string | null
-                contactCity: string | null
-                contactAddressLine1: string | null
-                contactAddressLine2: string | null
-                contactPostalCode: string | null
-                sellCurrency: string
-                baseCurrency: string | null
-                fxRateSetId: string | null
-                sellAmountCents: number | null
-                baseSellAmountCents: number | null
-                costAmountCents: number | null
-                baseCostAmountCents: number | null
-                marginPercent: number | null
-                startDate: string | null
-                endDate: string | null
-                pax: number | null
-                internalNotes: string | null
-                notificationsSuppressed: boolean
-                customerPaymentPolicy?: unknown
-                priceOverride: {
-                  [key: string]: unknown
-                } | null
-                customFields: {
-                  [key: string]: {
-                    [key: string]: unknown
-                  }
-                }
-                acceptedAt: string | null
-                confirmedAt: string | null
-                cancelledAt: string | null
-                completedAt: string | null
-                redeemedAt: string | null
-                createdAt: string
-                updatedAt: string
-              }
-            }
-          }
-        }
-        /** @description approval_required — an action approval was requested */
-        202: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              [key: string]: unknown
-            }
-          }
-        }
-        /** @description invalid_request — request input failed validation */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-        /** @description Forbidden */
-        403: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-        /** @description Booking not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-        /** @description Invalid transition / approval idempotency conflict */
-        409: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** POST /v1/admin/bookings/{id}/start */
+    post: operations["postAdminBookingsByIdStart"]
     delete?: never
     options?: never
     head?: never
@@ -1541,153 +370,8 @@ export interface paths {
     }
     get?: never
     put?: never
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      /** @description Complete options */
-      requestBody?: {
-        content: {
-          "application/json": {
-            note?: string | null
-          }
-        }
-      }
-      responses: {
-        /** @description The completed booking */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                bookingNumber: string
-                revision: number
-                /** @enum {string} */
-                status: "confirmed" | "in_progress" | "completed" | "cancelled"
-                personId: string | null
-                organizationId: string | null
-                /** @enum {string} */
-                sourceType:
-                  | "direct"
-                  | "manual"
-                  | "affiliate"
-                  | "ota"
-                  | "reseller"
-                  | "api_partner"
-                  | "internal"
-                externalBookingRef: string | null
-                communicationLanguage: string | null
-                contactFirstName: string | null
-                contactLastName: string | null
-                contactPartyType: string | null
-                contactTaxId: string | null
-                contactEmail: string | null
-                contactPhone: string | null
-                contactPreferredLanguage: string | null
-                contactCountry: string | null
-                contactRegion: string | null
-                contactCity: string | null
-                contactAddressLine1: string | null
-                contactAddressLine2: string | null
-                contactPostalCode: string | null
-                sellCurrency: string
-                baseCurrency: string | null
-                fxRateSetId: string | null
-                sellAmountCents: number | null
-                baseSellAmountCents: number | null
-                costAmountCents: number | null
-                baseCostAmountCents: number | null
-                marginPercent: number | null
-                startDate: string | null
-                endDate: string | null
-                pax: number | null
-                internalNotes: string | null
-                notificationsSuppressed: boolean
-                customerPaymentPolicy?: unknown
-                priceOverride: {
-                  [key: string]: unknown
-                } | null
-                customFields: {
-                  [key: string]: {
-                    [key: string]: unknown
-                  }
-                }
-                acceptedAt: string | null
-                confirmedAt: string | null
-                cancelledAt: string | null
-                completedAt: string | null
-                redeemedAt: string | null
-                createdAt: string
-                updatedAt: string
-              }
-            }
-          }
-        }
-        /** @description approval_required — an action approval was requested */
-        202: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              [key: string]: unknown
-            }
-          }
-        }
-        /** @description invalid_request — request input failed validation */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-        /** @description Forbidden */
-        403: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-        /** @description Booking not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-        /** @description Invalid transition / approval idempotency conflict */
-        409: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** POST /v1/admin/bookings/{id}/complete */
+    post: operations["postAdminBookingsByIdComplete"]
     delete?: never
     options?: never
     head?: never
@@ -1703,169 +387,8 @@ export interface paths {
     }
     get?: never
     put?: never
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      /** @description Status override input */
-      requestBody: {
-        content: {
-          "application/json": {
-            /** @enum {string} */
-            status: "confirmed" | "in_progress" | "completed" | "cancelled"
-            reason: string
-            note?: string | null
-            suppressNotifications?: boolean
-            suppressLifecycleEvents?: boolean
-          }
-        }
-      }
-      responses: {
-        /** @description The booking with overridden status */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                bookingNumber: string
-                revision: number
-                /** @enum {string} */
-                status: "confirmed" | "in_progress" | "completed" | "cancelled"
-                personId: string | null
-                organizationId: string | null
-                /** @enum {string} */
-                sourceType:
-                  | "direct"
-                  | "manual"
-                  | "affiliate"
-                  | "ota"
-                  | "reseller"
-                  | "api_partner"
-                  | "internal"
-                externalBookingRef: string | null
-                communicationLanguage: string | null
-                contactFirstName: string | null
-                contactLastName: string | null
-                contactPartyType: string | null
-                contactTaxId: string | null
-                contactEmail: string | null
-                contactPhone: string | null
-                contactPreferredLanguage: string | null
-                contactCountry: string | null
-                contactRegion: string | null
-                contactCity: string | null
-                contactAddressLine1: string | null
-                contactAddressLine2: string | null
-                contactPostalCode: string | null
-                sellCurrency: string
-                baseCurrency: string | null
-                fxRateSetId: string | null
-                sellAmountCents: number | null
-                baseSellAmountCents: number | null
-                costAmountCents: number | null
-                baseCostAmountCents: number | null
-                marginPercent: number | null
-                startDate: string | null
-                endDate: string | null
-                pax: number | null
-                internalNotes: string | null
-                notificationsSuppressed: boolean
-                customerPaymentPolicy?: unknown
-                priceOverride: {
-                  [key: string]: unknown
-                } | null
-                customFields: {
-                  [key: string]: {
-                    [key: string]: unknown
-                  }
-                }
-                acceptedAt: string | null
-                confirmedAt: string | null
-                cancelledAt: string | null
-                completedAt: string | null
-                redeemedAt: string | null
-                createdAt: string
-                updatedAt: string
-              }
-            }
-          }
-        }
-        /** @description approval_required — an action approval was requested */
-        202: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              [key: string]: unknown
-            }
-          }
-        }
-        /** @description invalid_request — request input failed validation */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-        /** @description Monthly booking plan limit reached */
-        402: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-        /** @description Forbidden */
-        403: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-        /** @description Booking not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-        /** @description Approval idempotency conflict */
-        409: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** POST /v1/admin/bookings/{id}/override-status */
+    post: operations["postAdminBookingsByIdOverrideStatus"]
     delete?: never
     options?: never
     head?: never
@@ -1879,69 +402,8 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    get: {
-      parameters: {
-        query?: {
-          cursorOccurredAt?: string
-          cursorId?: string
-          limit?: number
-        }
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Booking-scoped action timeline */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                [key: string]: unknown
-              }[]
-              travelers: {
-                id: string
-                firstName: string | null
-                lastName: string | null
-              }[]
-              pageInfo: {
-                nextCursor: {
-                  occurredAt: string
-                  id: string
-                } | null
-              }
-            }
-          }
-        }
-        /** @description invalid_request — request input failed validation */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-        /** @description Booking not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** GET /v1/admin/bookings/{id}/action-ledger */
+    get: operations["getAdminBookingsByIdActionLedger"]
     put?: never
     post?: never
     delete?: never
@@ -1959,112 +421,8 @@ export interface paths {
     }
     get?: never
     put?: never
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-          approvalId: string
-        }
-        cookie?: never
-      }
-      /** @description Approval decision */
-      requestBody: {
-        content: {
-          "application/json": {
-            /** @enum {string} */
-            status: "approved" | "denied"
-          }
-        }
-      }
-      responses: {
-        /** @description The approval decision result */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                approval: {
-                  [key: string]: unknown
-                }
-                decisionAction: {
-                  [key: string]: unknown
-                }
-              }
-            }
-          }
-        }
-        /** @description invalid_request — request input failed validation */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-        /** @description Unauthorized */
-        401: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-        /** @description Forbidden */
-        403: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-        /** @description Action approval not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-        /** @description Action approval is not a booking status approval / already decided */
-        409: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-        /** @description Unhandled action approval validation failure */
-        500: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** POST /v1/admin/bookings/{id}/action-approvals/{approvalId}/decide */
+    post: operations["postAdminBookingsByIdActionApprovalsByApprovalIdDecide"]
     delete?: never
     options?: never
     head?: never
@@ -2078,128 +436,11 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    get: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Booking travelers (PII redacted unless reveal-authorized) */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                bookingId: string
-                /** @enum {string} */
-                participantType: "traveler" | "occupant" | "other"
-                /** @enum {string|null} */
-                travelerCategory: "adult" | "child" | "infant" | "senior" | "other" | null
-                firstName: string
-                lastName: string
-                email: string | null
-                phone: string | null
-                preferredLanguage: string | null
-                specialRequests: string | null
-                isPrimary: boolean
-                notes: string | null
-                createdAt: string
-                updatedAt: string
-              }[]
-            }
-          }
-        }
-      }
-    }
+    /** GET /v1/admin/bookings/{id}/travelers */
+    get: operations["getAdminBookingsByIdTravelers"]
     put?: never
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      /** @description Traveler to create */
-      requestBody: {
-        content: {
-          "application/json": {
-            firstName: string
-            lastName: string
-            /** Format: email */
-            email?: string | null
-            phone?: string | null
-            preferredLanguage?: string | null
-            specialRequests?: string | null
-            /** @enum {string|null} */
-            travelerCategory?: "adult" | "child" | "infant" | "senior" | "other" | null
-            isPrimary?: boolean | null
-            notes?: string | null
-          }
-        }
-      }
-      responses: {
-        /** @description The created traveler */
-        201: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                bookingId: string
-                /** @enum {string} */
-                participantType: "traveler" | "occupant" | "other"
-                /** @enum {string|null} */
-                travelerCategory: "adult" | "child" | "infant" | "senior" | "other" | null
-                firstName: string
-                lastName: string
-                email: string | null
-                phone: string | null
-                preferredLanguage: string | null
-                specialRequests: string | null
-                isPrimary: boolean
-                notes: string | null
-                createdAt: string
-                updatedAt: string
-              }
-            }
-          }
-        }
-        /** @description invalid_request — request input failed validation */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-        /** @description Booking not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** POST /v1/admin/bookings/{id}/travelers */
+    post: operations["postAdminBookingsByIdTravelers"]
     delete?: never
     options?: never
     head?: never
@@ -2213,82 +454,8 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    get: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-          travelerId: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description The traveler with decrypted travel details */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                bookingId: string
-                /** @enum {string} */
-                participantType: "traveler" | "occupant" | "other"
-                /** @enum {string|null} */
-                travelerCategory: "adult" | "child" | "infant" | "senior" | "other" | null
-                firstName: string
-                lastName: string
-                email: string | null
-                phone: string | null
-                preferredLanguage: string | null
-                specialRequests: string | null
-                isPrimary: boolean
-                notes: string | null
-                createdAt: string
-                updatedAt: string
-                travelDetails?: unknown
-              }
-            }
-          }
-        }
-        /** @description Forbidden */
-        403: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-        /** @description Traveler not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-        /** @description Booking PII encryption is not configured */
-        500: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** GET /v1/admin/bookings/{id}/travelers/{travelerId}/reveal */
+    get: operations["getAdminBookingsByIdTravelersByTravelerIdReveal"]
     put?: never
     post?: never
     delete?: never
@@ -2304,220 +471,16 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    get: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-          travelerId: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description The traveler's decrypted travel details */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data?: unknown
-            }
-          }
-        }
-        /** @description Forbidden */
-        403: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-        /** @description Traveler or travel details not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-        /** @description Booking PII encryption is not configured */
-        500: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** GET /v1/admin/bookings/{id}/travelers/{travelerId}/travel-details */
+    get: operations["getAdminBookingsByIdTravelersByTravelerIdTravelDetails"]
     put?: never
     post?: never
-    delete: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-          travelerId: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description The travel details were deleted */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              success: boolean
-            }
-          }
-        }
-        /** @description Forbidden */
-        403: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-        /** @description Traveler or travel details not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-        /** @description Booking PII encryption is not configured */
-        500: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** DELETE /v1/admin/bookings/{id}/travelers/{travelerId}/travel-details */
+    delete: operations["deleteAdminBookingsByIdTravelersByTravelerIdTravelDetails"]
     options?: never
     head?: never
-    patch: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-          travelerId: string
-        }
-        cookie?: never
-      }
-      /** @description Travel details to upsert */
-      requestBody: {
-        content: {
-          "application/json": {
-            nationality?: string | null
-            /** @enum {string|null} */
-            documentType?: "passport" | "id_card" | "driver_license" | "visa" | "other" | null
-            documentNumber?: string | null
-            documentExpiry?: string | null
-            documentIssuingCountry?: string | null
-            documentIssuingAuthority?: string | null
-            documentPersonDocumentId?: string | null
-            dateOfBirth?: string | null
-            dietaryRequirements?: string | null
-            accessibilityNeeds?: string | null
-            isLeadTraveler?: boolean | null
-            sharingGroupId?: string | null
-            roomTypeId?: string | null
-            /** @enum {string|null} */
-            bedPreference?: "single" | "twin" | "double" | "no-preference" | null
-            allocations?: {
-              [key: string]: string
-            }
-          }
-        }
-      }
-      responses: {
-        /** @description The upserted travel details */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data?: unknown
-            }
-          }
-        }
-        /** @description invalid_request — request input failed validation */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-        /** @description Forbidden */
-        403: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-        /** @description Traveler not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-        /** @description Booking PII encryption is not configured */
-        500: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** PATCH /v1/admin/bookings/{id}/travelers/{travelerId}/travel-details */
+    patch: operations["patchAdminBookingsByIdTravelersByTravelerIdTravelDetails"]
     trace?: never
   }
   "/v1/admin/bookings/{id}/travelers/with-travel-details": {
@@ -2529,106 +492,8 @@ export interface paths {
     }
     get?: never
     put?: never
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      /** @description Traveler with encrypted travel details */
-      requestBody: {
-        content: {
-          "application/json": {
-            personId?: string | null
-            /**
-             * @default traveler
-             * @enum {string}
-             */
-            participantType?: "traveler" | "occupant" | "other"
-            /** @enum {string|null} */
-            travelerCategory?: "adult" | "child" | "infant" | "senior" | "other" | null
-            firstName: string
-            lastName: string
-            /** Format: email */
-            email?: string | null
-            phone?: string | null
-            preferredLanguage?: string | null
-            specialRequests?: string | null
-            /** @default false */
-            isPrimary?: boolean
-            notes?: string | null
-            nationality?: string | null
-            /** @enum {string|null} */
-            documentType?: "passport" | "id_card" | "driver_license" | "visa" | "other" | null
-            documentNumber?: string | null
-            documentExpiry?: string | null
-            documentIssuingCountry?: string | null
-            documentIssuingAuthority?: string | null
-            documentPersonDocumentId?: string | null
-            dateOfBirth?: string | null
-            dietaryRequirements?: string | null
-            accessibilityNeeds?: string | null
-            isLeadTraveler?: boolean | null
-            sharingGroupId?: string | null
-            roomTypeId?: string | null
-            /** @enum {string|null} */
-            bedPreference?: "single" | "twin" | "double" | "no-preference" | null
-            allocations?: {
-              [key: string]: string
-            }
-          }
-        }
-      }
-      responses: {
-        /** @description The created traveler with travel details */
-        201: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data?: unknown
-            }
-          }
-        }
-        /** @description invalid_request — request input failed validation */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-        /** @description Booking not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-        /** @description Booking PII encryption is not configured */
-        500: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** POST /v1/admin/bookings/{id}/travelers/with-travel-details */
+    post: operations["postAdminBookingsByIdTravelersWithTravelDetails"]
     delete?: never
     options?: never
     head?: never
@@ -2648,107 +513,8 @@ export interface paths {
     delete?: never
     options?: never
     head?: never
-    patch: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-          travelerId: string
-        }
-        cookie?: never
-      }
-      /** @description Traveler + travel details update */
-      requestBody?: {
-        content: {
-          "application/json": {
-            personId?: string | null
-            /**
-             * @default traveler
-             * @enum {string}
-             */
-            participantType?: "traveler" | "occupant" | "other"
-            /** @enum {string|null} */
-            travelerCategory?: "adult" | "child" | "infant" | "senior" | "other" | null
-            firstName?: string
-            lastName?: string
-            /** Format: email */
-            email?: string | null
-            phone?: string | null
-            preferredLanguage?: string | null
-            specialRequests?: string | null
-            /** @default false */
-            isPrimary?: boolean
-            notes?: string | null
-            nationality?: string | null
-            /** @enum {string|null} */
-            documentType?: "passport" | "id_card" | "driver_license" | "visa" | "other" | null
-            documentNumber?: string | null
-            documentExpiry?: string | null
-            documentIssuingCountry?: string | null
-            documentIssuingAuthority?: string | null
-            documentPersonDocumentId?: string | null
-            dateOfBirth?: string | null
-            dietaryRequirements?: string | null
-            accessibilityNeeds?: string | null
-            isLeadTraveler?: boolean | null
-            sharingGroupId?: string | null
-            roomTypeId?: string | null
-            /** @enum {string|null} */
-            bedPreference?: "single" | "twin" | "double" | "no-preference" | null
-            allocations?: {
-              [key: string]: string
-            }
-          }
-        }
-      }
-      responses: {
-        /** @description The updated traveler with travel details */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data?: unknown
-            }
-          }
-        }
-        /** @description invalid_request — request input failed validation */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-        /** @description Traveler not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-        /** @description Booking PII encryption is not configured */
-        500: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** PATCH /v1/admin/bookings/{id}/travelers/{travelerId}/with-travel-details */
+    patch: operations["patchAdminBookingsByIdTravelersByTravelerIdWithTravelDetails"]
     trace?: never
   }
   "/v1/admin/bookings/{id}/travelers/{travelerId}": {
@@ -2761,125 +527,12 @@ export interface paths {
     get?: never
     put?: never
     post?: never
-    delete: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-          travelerId: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description The traveler was deleted */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              success: boolean
-            }
-          }
-        }
-        /** @description Traveler not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** DELETE /v1/admin/bookings/{id}/travelers/{travelerId} */
+    delete: operations["deleteAdminBookingsByIdTravelersByTravelerId"]
     options?: never
     head?: never
-    patch: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-          travelerId: string
-        }
-        cookie?: never
-      }
-      /** @description Partial traveler update */
-      requestBody?: {
-        content: {
-          "application/json": {
-            firstName?: string
-            lastName?: string
-            /** Format: email */
-            email?: string | null
-            phone?: string | null
-            preferredLanguage?: string | null
-            specialRequests?: string | null
-            /** @enum {string|null} */
-            travelerCategory?: "adult" | "child" | "infant" | "senior" | "other" | null
-            isPrimary?: boolean | null
-            notes?: string | null
-          }
-        }
-      }
-      responses: {
-        /** @description The updated traveler */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                bookingId: string
-                /** @enum {string} */
-                participantType: "traveler" | "occupant" | "other"
-                /** @enum {string|null} */
-                travelerCategory: "adult" | "child" | "infant" | "senior" | "other" | null
-                firstName: string
-                lastName: string
-                email: string | null
-                phone: string | null
-                preferredLanguage: string | null
-                specialRequests: string | null
-                isPrimary: boolean
-                notes: string | null
-                createdAt: string
-                updatedAt: string
-              }
-            }
-          }
-        }
-        /** @description invalid_request — request input failed validation */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-        /** @description Traveler not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** PATCH /v1/admin/bookings/{id}/travelers/{travelerId} */
+    patch: operations["patchAdminBookingsByIdTravelersByTravelerId"]
     trace?: never
   }
   "/v1/admin/bookings/{id}/items": {
@@ -2889,229 +542,11 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    get: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Booking items */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                bookingId: string
-                title: string
-                description: string | null
-                /** @enum {string} */
-                itemType:
-                  | "unit"
-                  | "extra"
-                  | "service"
-                  | "fee"
-                  | "tax"
-                  | "discount"
-                  | "adjustment"
-                  | "accommodation"
-                  | "transport"
-                  | "other"
-                /** @enum {string} */
-                status: "confirmed" | "cancelled" | "fulfilled"
-                serviceDate: string | null
-                startsAt: string | null
-                endsAt: string | null
-                quantity: number
-                sellCurrency: string
-                unitSellAmountCents: number | null
-                totalSellAmountCents: number | null
-                costCurrency: string | null
-                unitCostAmountCents: number | null
-                totalCostAmountCents: number | null
-                notes: string | null
-                productId: string | null
-                optionId: string | null
-                optionUnitId: string | null
-                pricingCategoryId: string | null
-                availabilitySlotId: string | null
-                productNameSnapshot: string | null
-                optionNameSnapshot: string | null
-                unitNameSnapshot: string | null
-                departureLabelSnapshot: string | null
-                sourceSnapshotId: string | null
-                sourceOfferId: string | null
-                metadata: {
-                  [key: string]: unknown
-                } | null
-                createdAt: string
-                updatedAt: string
-              }[]
-            }
-          }
-        }
-      }
-    }
+    /** GET /v1/admin/bookings/{id}/items */
+    get: operations["getAdminBookingsByIdItems"]
     put?: never
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      /** @description Booking item to add */
-      requestBody: {
-        content: {
-          "application/json": {
-            title: string
-            description?: string | null
-            /**
-             * @default unit
-             * @enum {string}
-             */
-            itemType?:
-              | "unit"
-              | "extra"
-              | "service"
-              | "fee"
-              | "tax"
-              | "discount"
-              | "adjustment"
-              | "accommodation"
-              | "transport"
-              | "other"
-            serviceDate?: string | null
-            startsAt?: string | null
-            endsAt?: string | null
-            /** @default 1 */
-            quantity?: number
-            sellCurrency: string
-            unitSellAmountCents?: number | null
-            totalSellAmountCents?: number | null
-            costCurrency?: string | null
-            unitCostAmountCents?: number | null
-            totalCostAmountCents?: number | null
-            notes?: string | null
-            productId?: string | null
-            optionId?: string | null
-            optionUnitId?: string | null
-            pricingCategoryId?: string | null
-            availabilitySlotId?: string | null
-            productNameSnapshot?: string | null
-            optionNameSnapshot?: string | null
-            unitNameSnapshot?: string | null
-            departureLabelSnapshot?: string | null
-            sourceSnapshotId?: string | null
-            sourceOfferId?: string | null
-            metadata?: {
-              [key: string]: unknown
-            } | null
-          }
-        }
-      }
-      responses: {
-        /** @description The created booking item */
-        201: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                bookingId: string
-                title: string
-                description: string | null
-                /** @enum {string} */
-                itemType:
-                  | "unit"
-                  | "extra"
-                  | "service"
-                  | "fee"
-                  | "tax"
-                  | "discount"
-                  | "adjustment"
-                  | "accommodation"
-                  | "transport"
-                  | "other"
-                /** @enum {string} */
-                status: "confirmed" | "cancelled" | "fulfilled"
-                serviceDate: string | null
-                startsAt: string | null
-                endsAt: string | null
-                quantity: number
-                sellCurrency: string
-                unitSellAmountCents: number | null
-                totalSellAmountCents: number | null
-                costCurrency: string | null
-                unitCostAmountCents: number | null
-                totalCostAmountCents: number | null
-                notes: string | null
-                productId: string | null
-                optionId: string | null
-                optionUnitId: string | null
-                pricingCategoryId: string | null
-                availabilitySlotId: string | null
-                productNameSnapshot: string | null
-                optionNameSnapshot: string | null
-                unitNameSnapshot: string | null
-                departureLabelSnapshot: string | null
-                sourceSnapshotId: string | null
-                sourceOfferId: string | null
-                metadata: {
-                  [key: string]: unknown
-                } | null
-                createdAt: string
-                updatedAt: string
-              }
-            }
-          }
-        }
-        /** @description invalid_request — request input failed validation */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-        /** @description Booking not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-        /** @description Booking item mutations are not allowed for this booking */
-        409: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** POST /v1/admin/bookings/{id}/items */
+    post: operations["postAdminBookingsByIdItems"]
     delete?: never
     options?: never
     head?: never
@@ -3128,208 +563,12 @@ export interface paths {
     get?: never
     put?: never
     post?: never
-    delete: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-          itemId: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description The booking item was deleted */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              success: boolean
-            }
-          }
-        }
-        /** @description Booking item not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-        /** @description Booking item mutations are not allowed for this booking */
-        409: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** DELETE /v1/admin/bookings/{id}/items/{itemId} */
+    delete: operations["deleteAdminBookingsByIdItemsByItemId"]
     options?: never
     head?: never
-    patch: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-          itemId: string
-        }
-        cookie?: never
-      }
-      /** @description Partial booking item update */
-      requestBody?: {
-        content: {
-          "application/json": {
-            title?: string
-            description?: string | null
-            /**
-             * @default unit
-             * @enum {string}
-             */
-            itemType?:
-              | "unit"
-              | "extra"
-              | "service"
-              | "fee"
-              | "tax"
-              | "discount"
-              | "adjustment"
-              | "accommodation"
-              | "transport"
-              | "other"
-            serviceDate?: string | null
-            startsAt?: string | null
-            endsAt?: string | null
-            /** @default 1 */
-            quantity?: number
-            sellCurrency?: string
-            unitSellAmountCents?: number | null
-            totalSellAmountCents?: number | null
-            costCurrency?: string | null
-            unitCostAmountCents?: number | null
-            totalCostAmountCents?: number | null
-            notes?: string | null
-            productId?: string | null
-            optionId?: string | null
-            optionUnitId?: string | null
-            pricingCategoryId?: string | null
-            availabilitySlotId?: string | null
-            productNameSnapshot?: string | null
-            optionNameSnapshot?: string | null
-            unitNameSnapshot?: string | null
-            departureLabelSnapshot?: string | null
-            sourceSnapshotId?: string | null
-            sourceOfferId?: string | null
-            metadata?: {
-              [key: string]: unknown
-            } | null
-          }
-        }
-      }
-      responses: {
-        /** @description The updated booking item */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                bookingId: string
-                title: string
-                description: string | null
-                /** @enum {string} */
-                itemType:
-                  | "unit"
-                  | "extra"
-                  | "service"
-                  | "fee"
-                  | "tax"
-                  | "discount"
-                  | "adjustment"
-                  | "accommodation"
-                  | "transport"
-                  | "other"
-                /** @enum {string} */
-                status: "confirmed" | "cancelled" | "fulfilled"
-                serviceDate: string | null
-                startsAt: string | null
-                endsAt: string | null
-                quantity: number
-                sellCurrency: string
-                unitSellAmountCents: number | null
-                totalSellAmountCents: number | null
-                costCurrency: string | null
-                unitCostAmountCents: number | null
-                totalCostAmountCents: number | null
-                notes: string | null
-                productId: string | null
-                optionId: string | null
-                optionUnitId: string | null
-                pricingCategoryId: string | null
-                availabilitySlotId: string | null
-                productNameSnapshot: string | null
-                optionNameSnapshot: string | null
-                unitNameSnapshot: string | null
-                departureLabelSnapshot: string | null
-                sourceSnapshotId: string | null
-                sourceOfferId: string | null
-                metadata: {
-                  [key: string]: unknown
-                } | null
-                createdAt: string
-                updatedAt: string
-              }
-            }
-          }
-        }
-        /** @description invalid_request — request input failed validation */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-        /** @description Booking item not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-        /** @description Booking item mutations are not allowed for this booking */
-        409: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** PATCH /v1/admin/bookings/{id}/items/{itemId} */
+    patch: operations["patchAdminBookingsByIdItemsByItemId"]
     trace?: never
   }
   "/v1/admin/bookings/{id}/items/{itemId}/travelers": {
@@ -3339,120 +578,11 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    get: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-          itemId: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Booking item travelers */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                bookingItemId: string
-                travelerId: string
-                /** @enum {string} */
-                role: "traveler" | "occupant" | "beneficiary" | "other"
-                isPrimary: boolean
-                createdAt: string
-              }[]
-            }
-          }
-        }
-      }
-    }
+    /** GET /v1/admin/bookings/{id}/items/{itemId}/travelers */
+    get: operations["getAdminBookingsByIdItemsByItemIdTravelers"]
     put?: never
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-          itemId: string
-        }
-        cookie?: never
-      }
-      /** @description Traveler to link to item */
-      requestBody: {
-        content: {
-          "application/json": {
-            travelerId?: string
-            /**
-             * @default traveler
-             * @enum {string}
-             */
-            role?: "traveler" | "occupant" | "beneficiary" | "other"
-            /** @default false */
-            isPrimary?: boolean
-          }
-        }
-      }
-      responses: {
-        /** @description The created item-traveler link */
-        201: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                bookingItemId: string
-                travelerId: string
-                /** @enum {string} */
-                role: "traveler" | "occupant" | "beneficiary" | "other"
-                isPrimary: boolean
-                createdAt: string
-              }
-            }
-          }
-        }
-        /** @description invalid_request — request input failed validation */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-        /** @description Booking item or traveler not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-        /** @description Booking item mutations are not allowed for this booking */
-        409: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** POST /v1/admin/bookings/{id}/items/{itemId}/travelers */
+    post: operations["postAdminBookingsByIdItemsByItemIdTravelers"]
     delete?: never
     options?: never
     head?: never
@@ -3469,54 +599,8 @@ export interface paths {
     get?: never
     put?: never
     post?: never
-    delete: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-          itemId: string
-          linkId: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description The item-traveler link was removed */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              success: boolean
-            }
-          }
-        }
-        /** @description Booking item or item-traveler link not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-        /** @description Booking item mutations are not allowed for this booking */
-        409: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** DELETE /v1/admin/bookings/{id}/items/{itemId}/travelers/{linkId} */
+    delete: operations["deleteAdminBookingsByIdItemsByItemIdTravelersByLinkId"]
     options?: never
     head?: never
     patch?: never
@@ -3529,126 +613,11 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    get: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Booking supplier statuses */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                bookingId: string
-                supplierServiceId: string | null
-                supplierId: string | null
-                serviceName: string
-                /** @enum {string} */
-                status: "pending" | "confirmed" | "rejected" | "cancelled"
-                supplierReference: string | null
-                costCurrency: string
-                costAmountCents: number
-                supplierInvoiceLineId: string | null
-                notes: string | null
-                confirmedAt: string | null
-                createdAt: string
-                updatedAt: string
-              }[]
-            }
-          }
-        }
-      }
-    }
+    /** GET /v1/admin/bookings/{id}/supplier-statuses */
+    get: operations["getAdminBookingsByIdSupplierStatuses"]
     put?: never
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      /** @description Supplier status to create */
-      requestBody: {
-        content: {
-          "application/json": {
-            supplierServiceId?: string | null
-            serviceName: string
-            /**
-             * @default pending
-             * @enum {string}
-             */
-            status?: "pending" | "confirmed" | "rejected" | "cancelled"
-            supplierReference?: string | null
-            costCurrency: string
-            costAmountCents: number
-            notes?: string | null
-          }
-        }
-      }
-      responses: {
-        /** @description The created supplier status */
-        201: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                bookingId: string
-                supplierServiceId: string | null
-                supplierId: string | null
-                serviceName: string
-                /** @enum {string} */
-                status: "pending" | "confirmed" | "rejected" | "cancelled"
-                supplierReference: string | null
-                costCurrency: string
-                costAmountCents: number
-                supplierInvoiceLineId: string | null
-                notes: string | null
-                confirmedAt: string | null
-                createdAt: string
-                updatedAt: string
-              }
-            }
-          }
-        }
-        /** @description invalid_request — request input failed validation */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-        /** @description Booking not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** POST /v1/admin/bookings/{id}/supplier-statuses */
+    post: operations["postAdminBookingsByIdSupplierStatuses"]
     delete?: never
     options?: never
     head?: never
@@ -3668,87 +637,8 @@ export interface paths {
     delete?: never
     options?: never
     head?: never
-    patch: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-          statusId: string
-        }
-        cookie?: never
-      }
-      /** @description Partial supplier status update */
-      requestBody?: {
-        content: {
-          "application/json": {
-            supplierServiceId?: string | null
-            serviceName?: string
-            /**
-             * @default pending
-             * @enum {string}
-             */
-            status?: "pending" | "confirmed" | "rejected" | "cancelled"
-            supplierReference?: string | null
-            costCurrency?: string
-            costAmountCents?: number
-            notes?: string | null
-            confirmedAt?: string | null
-          }
-        }
-      }
-      responses: {
-        /** @description The updated supplier status */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                bookingId: string
-                supplierServiceId: string | null
-                supplierId: string | null
-                serviceName: string
-                /** @enum {string} */
-                status: "pending" | "confirmed" | "rejected" | "cancelled"
-                supplierReference: string | null
-                costCurrency: string
-                costAmountCents: number
-                supplierInvoiceLineId: string | null
-                notes: string | null
-                confirmedAt: string | null
-                createdAt: string
-                updatedAt: string
-              }
-            }
-          }
-        }
-        /** @description invalid_request — request input failed validation */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-        /** @description Supplier status not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** PATCH /v1/admin/bookings/{id}/supplier-statuses/{statusId} */
+    patch: operations["patchAdminBookingsByIdSupplierStatusesByStatusId"]
     trace?: never
   }
   "/v1/admin/bookings/{id}/fulfillments": {
@@ -3758,162 +648,11 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    get: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Booking fulfillments */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                bookingId: string
-                bookingItemId: string | null
-                travelerId: string | null
-                /** @enum {string} */
-                fulfillmentType:
-                  | "service_voucher"
-                  | "ticket"
-                  | "pdf"
-                  | "qr_code"
-                  | "barcode"
-                  | "mobile"
-                  | "other"
-                /** @enum {string} */
-                deliveryChannel: "download" | "email" | "api" | "wallet" | "other"
-                /** @enum {string} */
-                status: "pending" | "issued" | "reissued" | "revoked" | "failed"
-                artifactUrl: string | null
-                payload: {
-                  [key: string]: unknown
-                } | null
-                issuedAt: string | null
-                revokedAt: string | null
-                createdAt: string
-                updatedAt: string
-              }[]
-            }
-          }
-        }
-      }
-    }
+    /** GET /v1/admin/bookings/{id}/fulfillments */
+    get: operations["getAdminBookingsByIdFulfillments"]
     put?: never
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      /** @description Fulfillment to issue */
-      requestBody: {
-        content: {
-          "application/json": {
-            bookingItemId?: string | null
-            travelerId?: string | null
-            /** @enum {string} */
-            fulfillmentType:
-              | "service_voucher"
-              | "ticket"
-              | "pdf"
-              | "qr_code"
-              | "barcode"
-              | "mobile"
-              | "other"
-            /** @enum {string} */
-            deliveryChannel: "download" | "email" | "api" | "wallet" | "other"
-            /**
-             * @default issued
-             * @enum {string}
-             */
-            status?: "pending" | "issued" | "reissued" | "revoked" | "failed"
-            /** Format: uri */
-            artifactUrl?: string | null
-            payload?: {
-              [key: string]: unknown
-            } | null
-            /** Format: date-time */
-            issuedAt?: string | null
-            /** Format: date-time */
-            revokedAt?: string | null
-          }
-        }
-      }
-      responses: {
-        /** @description The issued fulfillment */
-        201: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                bookingId: string
-                bookingItemId: string | null
-                travelerId: string | null
-                /** @enum {string} */
-                fulfillmentType:
-                  | "service_voucher"
-                  | "ticket"
-                  | "pdf"
-                  | "qr_code"
-                  | "barcode"
-                  | "mobile"
-                  | "other"
-                /** @enum {string} */
-                deliveryChannel: "download" | "email" | "api" | "wallet" | "other"
-                /** @enum {string} */
-                status: "pending" | "issued" | "reissued" | "revoked" | "failed"
-                artifactUrl: string | null
-                payload: {
-                  [key: string]: unknown
-                } | null
-                issuedAt: string | null
-                revokedAt: string | null
-                createdAt: string
-                updatedAt: string
-              }
-            }
-          }
-        }
-        /** @description invalid_request — request input failed validation */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-        /** @description Booking, item, or traveler not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** POST /v1/admin/bookings/{id}/fulfillments */
+    post: operations["postAdminBookingsByIdFulfillments"]
     delete?: never
     options?: never
     head?: never
@@ -3933,112 +672,8 @@ export interface paths {
     delete?: never
     options?: never
     head?: never
-    patch: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-          fulfillmentId: string
-        }
-        cookie?: never
-      }
-      /** @description Partial fulfillment update */
-      requestBody?: {
-        content: {
-          "application/json": {
-            bookingItemId?: string | null
-            travelerId?: string | null
-            /** @enum {string} */
-            fulfillmentType?:
-              | "service_voucher"
-              | "ticket"
-              | "pdf"
-              | "qr_code"
-              | "barcode"
-              | "mobile"
-              | "other"
-            /** @enum {string} */
-            deliveryChannel?: "download" | "email" | "api" | "wallet" | "other"
-            /**
-             * @default issued
-             * @enum {string}
-             */
-            status?: "pending" | "issued" | "reissued" | "revoked" | "failed"
-            /** Format: uri */
-            artifactUrl?: string | null
-            payload?: {
-              [key: string]: unknown
-            } | null
-            /** Format: date-time */
-            issuedAt?: string | null
-            /** Format: date-time */
-            revokedAt?: string | null
-          }
-        }
-      }
-      responses: {
-        /** @description The updated fulfillment */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                bookingId: string
-                bookingItemId: string | null
-                travelerId: string | null
-                /** @enum {string} */
-                fulfillmentType:
-                  | "service_voucher"
-                  | "ticket"
-                  | "pdf"
-                  | "qr_code"
-                  | "barcode"
-                  | "mobile"
-                  | "other"
-                /** @enum {string} */
-                deliveryChannel: "download" | "email" | "api" | "wallet" | "other"
-                /** @enum {string} */
-                status: "pending" | "issued" | "reissued" | "revoked" | "failed"
-                artifactUrl: string | null
-                payload: {
-                  [key: string]: unknown
-                } | null
-                issuedAt: string | null
-                revokedAt: string | null
-                createdAt: string
-                updatedAt: string
-              }
-            }
-          }
-        }
-        /** @description invalid_request — request input failed validation */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-        /** @description Fulfillment, item, or traveler not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** PATCH /v1/admin/bookings/{id}/fulfillments/{fulfillmentId} */
+    patch: operations["patchAdminBookingsByIdFulfillmentsByFulfillmentId"]
     trace?: never
   }
   "/v1/admin/bookings/{id}/redemptions": {
@@ -4048,125 +683,11 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    get: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Booking redemption events */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                bookingId: string
-                bookingItemId: string | null
-                travelerId: string | null
-                redeemedAt: string
-                redeemedBy: string | null
-                location: string | null
-                /** @enum {string} */
-                method: "manual" | "scan" | "api" | "other"
-                metadata: {
-                  [key: string]: unknown
-                } | null
-                createdAt: string
-              }[]
-            }
-          }
-        }
-      }
-    }
+    /** GET /v1/admin/bookings/{id}/redemptions */
+    get: operations["getAdminBookingsByIdRedemptions"]
     put?: never
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      /** @description Redemption to record */
-      requestBody: {
-        content: {
-          "application/json": {
-            bookingItemId?: string | null
-            travelerId?: string | null
-            /** Format: date-time */
-            redeemedAt?: string | null
-            redeemedBy?: string | null
-            location?: string | null
-            /**
-             * @default manual
-             * @enum {string}
-             */
-            method?: "manual" | "scan" | "api" | "other"
-            metadata?: {
-              [key: string]: unknown
-            } | null
-          }
-        }
-      }
-      responses: {
-        /** @description The recorded redemption event */
-        201: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                bookingId: string
-                bookingItemId: string | null
-                travelerId: string | null
-                redeemedAt: string
-                redeemedBy: string | null
-                location: string | null
-                /** @enum {string} */
-                method: "manual" | "scan" | "api" | "other"
-                metadata: {
-                  [key: string]: unknown
-                } | null
-                createdAt: string
-              }
-            }
-          }
-        }
-        /** @description invalid_request — request input failed validation */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-        /** @description Booking, item, or traveler not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** POST /v1/admin/bookings/{id}/redemptions */
+    post: operations["postAdminBookingsByIdRedemptions"]
     delete?: never
     options?: never
     head?: never
@@ -4180,96 +701,11 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    get: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Booking notes */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                bookingId: string
-                authorId: string
-                content: string
-                createdAt: string
-              }[]
-            }
-          }
-        }
-      }
-    }
+    /** GET /v1/admin/bookings/{id}/notes */
+    get: operations["getAdminBookingsByIdNotes"]
     put?: never
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      /** @description Note to add */
-      requestBody: {
-        content: {
-          "application/json": {
-            content: string
-          }
-        }
-      }
-      responses: {
-        /** @description The created note */
-        201: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                bookingId: string
-                authorId: string
-                content: string
-                createdAt: string
-              }
-            }
-          }
-        }
-        /** @description invalid_request — request input failed validation */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-        /** @description Booking not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** POST /v1/admin/bookings/{id}/notes */
+    post: operations["postAdminBookingsByIdNotes"]
     delete?: never
     options?: never
     head?: never
@@ -4286,104 +722,12 @@ export interface paths {
     get?: never
     put?: never
     post?: never
-    delete: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-          noteId: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description The note was deleted */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              success: boolean
-            }
-          }
-        }
-        /** @description Note not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** DELETE /v1/admin/bookings/{id}/notes/{noteId} */
+    delete: operations["deleteAdminBookingsByIdNotesByNoteId"]
     options?: never
     head?: never
-    patch: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-          noteId: string
-        }
-        cookie?: never
-      }
-      /** @description Note edit */
-      requestBody: {
-        content: {
-          "application/json": {
-            content: string
-          }
-        }
-      }
-      responses: {
-        /** @description The updated note */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                bookingId: string
-                authorId: string
-                content: string
-                createdAt: string
-              }
-            }
-          }
-        }
-        /** @description invalid_request — request input failed validation */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-        /** @description Note not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** PATCH /v1/admin/bookings/{id}/notes/{noteId} */
+    patch: operations["patchAdminBookingsByIdNotesByNoteId"]
     trace?: never
   }
   "/v1/admin/bookings/{id}/documents": {
@@ -4393,152 +737,11 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    get: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Booking documents */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                bookingId: string
-                travelerId: string | null
-                /** @enum {string} */
-                type:
-                  | "visa"
-                  | "insurance"
-                  | "health"
-                  | "passport_copy"
-                  | "contract"
-                  | "invoice"
-                  | "proforma"
-                  | "credit_note"
-                  | "other"
-                fileName: string
-                fileUrl: string
-                issuedBy?: string | null
-                issuedSeries?: string | null
-                issuedNumber?: string | null
-                issuedAt?: string | null
-                expiresAt: string | null
-                notes: string | null
-                createdAt: string
-              }[]
-            }
-          }
-        }
-      }
-    }
+    /** GET /v1/admin/bookings/{id}/documents */
+    get: operations["getAdminBookingsByIdDocuments"]
     put?: never
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      /** @description Document to add */
-      requestBody: {
-        content: {
-          "application/json": {
-            travelerId?: string | null
-            /** @enum {string} */
-            type:
-              | "visa"
-              | "insurance"
-              | "health"
-              | "passport_copy"
-              | "contract"
-              | "invoice"
-              | "proforma"
-              | "credit_note"
-              | "other"
-            fileName: string
-            /** Format: uri */
-            fileUrl: string
-            issuedBy?: string | null
-            issuedSeries?: string | null
-            issuedNumber?: string | null
-            issuedAt?: string | null
-            expiresAt?: string | null
-            notes?: string | null
-          }
-        }
-      }
-      responses: {
-        /** @description The created document */
-        201: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                bookingId: string
-                travelerId: string | null
-                /** @enum {string} */
-                type:
-                  | "visa"
-                  | "insurance"
-                  | "health"
-                  | "passport_copy"
-                  | "contract"
-                  | "invoice"
-                  | "proforma"
-                  | "credit_note"
-                  | "other"
-                fileName: string
-                fileUrl: string
-                issuedBy?: string | null
-                issuedSeries?: string | null
-                issuedNumber?: string | null
-                issuedAt?: string | null
-                expiresAt: string | null
-                notes: string | null
-                createdAt: string
-              }
-            }
-          }
-        }
-        /** @description invalid_request — request input failed validation */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-        /** @description Booking not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** POST /v1/admin/bookings/{id}/documents */
+    post: operations["postAdminBookingsByIdDocuments"]
     delete?: never
     options?: never
     head?: never
@@ -4555,42 +758,8 @@ export interface paths {
     get?: never
     put?: never
     post?: never
-    delete: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-          documentId: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description The document was deleted */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              success: boolean
-            }
-          }
-        }
-        /** @description Document not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** DELETE /v1/admin/bookings/{id}/documents/{documentId} */
+    delete: operations["deleteAdminBookingsByIdDocumentsByDocumentId"]
     options?: never
     head?: never
     patch?: never
@@ -4603,126 +772,11 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    get: {
-      parameters: {
-        query?: {
-          kind?: "shared_room" | "cruise_party" | "other"
-          productId?: string
-          optionUnitId?: string
-          limit?: number
-          offset?: number | null
-        }
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Paginated booking groups */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                /** @enum {string} */
-                kind: "shared_room" | "cruise_party" | "other"
-                label: string
-                primaryBookingId: string | null
-                productId: string | null
-                optionUnitId: string | null
-                metadata: {
-                  [key: string]: unknown
-                } | null
-                createdAt: string
-                updatedAt: string
-              }[]
-              total: number
-              limit: number
-              offset: number
-            }
-          }
-        }
-        /** @description invalid_request — request input failed validation */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** GET /v1/admin/bookings/groups */
+    get: operations["getAdminBookingsGroups"]
     put?: never
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      /** @description Booking group */
-      requestBody: {
-        content: {
-          "application/json": {
-            /**
-             * @default shared_room
-             * @enum {string}
-             */
-            kind?: "shared_room" | "cruise_party" | "other"
-            label: string
-            primaryBookingId?: string | null
-            productId?: string | null
-            optionUnitId?: string | null
-            metadata?: {
-              [key: string]: unknown
-            } | null
-          }
-        }
-      }
-      responses: {
-        /** @description The created booking group */
-        201: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                /** @enum {string} */
-                kind: "shared_room" | "cruise_party" | "other"
-                label: string
-                primaryBookingId: string | null
-                productId: string | null
-                optionUnitId: string | null
-                metadata: {
-                  [key: string]: unknown
-                } | null
-                createdAt: string
-                updatedAt: string
-              }
-            }
-          }
-        }
-        /** @description invalid_request — request input failed validation */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** POST /v1/admin/bookings/groups */
+    post: operations["postAdminBookingsGroups"]
     delete?: never
     options?: never
     head?: never
@@ -4736,178 +790,16 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    get: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description A booking group with its members */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                /** @enum {string} */
-                kind: "shared_room" | "cruise_party" | "other"
-                label: string
-                primaryBookingId: string | null
-                productId: string | null
-                optionUnitId: string | null
-                metadata: {
-                  [key: string]: unknown
-                } | null
-                createdAt: string
-                updatedAt: string
-                members: {
-                  id: string
-                  groupId: string
-                  bookingId: string
-                  /** @enum {string} */
-                  role: "primary" | "shared"
-                  createdAt: string
-                }[]
-              }
-            }
-          }
-        }
-        /** @description Booking group not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** GET /v1/admin/bookings/groups/{id} */
+    get: operations["getAdminBookingsGroupsById"]
     put?: never
     post?: never
-    delete: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description The booking group was deleted */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              success: boolean
-            }
-          }
-        }
-        /** @description Booking group not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** DELETE /v1/admin/bookings/groups/{id} */
+    delete: operations["deleteAdminBookingsGroupsById"]
     options?: never
     head?: never
-    patch: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      /** @description Partial booking group update */
-      requestBody?: {
-        content: {
-          "application/json": {
-            /**
-             * @default shared_room
-             * @enum {string}
-             */
-            kind?: "shared_room" | "cruise_party" | "other"
-            label?: string
-            primaryBookingId?: string | null
-            productId?: string | null
-            optionUnitId?: string | null
-            metadata?: {
-              [key: string]: unknown
-            } | null
-          }
-        }
-      }
-      responses: {
-        /** @description The updated booking group */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                /** @enum {string} */
-                kind: "shared_room" | "cruise_party" | "other"
-                label: string
-                primaryBookingId: string | null
-                productId: string | null
-                optionUnitId: string | null
-                metadata: {
-                  [key: string]: unknown
-                } | null
-                createdAt: string
-                updatedAt: string
-              }
-            }
-          }
-        }
-        /** @description invalid_request — request input failed validation */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-        /** @description Booking group not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** PATCH /v1/admin/bookings/groups/{id} */
+    patch: operations["patchAdminBookingsGroupsById"]
     trace?: never
   }
   "/v1/admin/bookings/groups/{id}/members": {
@@ -4917,115 +809,11 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    get: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description The booking group members */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                groupId: string
-                bookingId: string
-                /** @enum {string} */
-                role: "primary" | "shared"
-                createdAt: string
-              }[]
-            }
-          }
-        }
-      }
-    }
+    /** GET /v1/admin/bookings/groups/{id}/members */
+    get: operations["getAdminBookingsGroupsByIdMembers"]
     put?: never
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      /** @description Booking group member to add */
-      requestBody: {
-        content: {
-          "application/json": {
-            bookingId: string
-            /**
-             * @default shared
-             * @enum {string}
-             */
-            role?: "primary" | "shared"
-          }
-        }
-      }
-      responses: {
-        /** @description The added booking group member */
-        201: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                groupId: string
-                bookingId: string
-                /** @enum {string} */
-                role: "primary" | "shared"
-                createdAt: string
-              }
-            }
-          }
-        }
-        /** @description invalid_request — request input failed validation */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-        /** @description Booking group or booking not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-        /** @description already_in_group — the booking already belongs to a group */
-        409: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-              currentGroupId: string
-            }
-          }
-        }
-      }
-    }
+    /** POST /v1/admin/bookings/groups/{id}/members */
+    post: operations["postAdminBookingsGroupsByIdMembers"]
     delete?: never
     options?: never
     head?: never
@@ -5042,42 +830,8 @@ export interface paths {
     get?: never
     put?: never
     post?: never
-    delete: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-          bookingId: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description The membership was removed */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              success: boolean
-            }
-          }
-        }
-        /** @description Membership not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** DELETE /v1/admin/bookings/groups/{id}/members/{bookingId} */
+    delete: operations["deleteAdminBookingsGroupsByIdMembersByBookingId"]
     options?: never
     head?: never
     patch?: never
@@ -5090,35 +844,8 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    get: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Travelers across the group's member bookings */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: ({
-                id: string
-                bookingId: string
-              } & {
-                [key: string]: unknown
-              })[]
-            }
-          }
-        }
-      }
-    }
+    /** GET /v1/admin/bookings/groups/{id}/travelers */
+    get: operations["getAdminBookingsGroupsByIdTravelers"]
     put?: never
     post?: never
     delete?: never
@@ -5134,131 +861,8 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    get: {
-      parameters: {
-        query?: {
-          status?: "confirmed" | "in_progress" | "completed" | "cancelled"
-          excludeStatuses?:
-            | ("confirmed" | "in_progress" | "completed" | "cancelled")
-            | ("confirmed" | "in_progress" | "completed" | "cancelled")[]
-          search?: string
-          productId?: string
-          optionId?: string
-          availabilitySlotId?: string
-          supplierId?: string
-          productCategoryId?: string
-          personId?: string
-          organizationId?: string
-          dateFrom?: string
-          dateTo?: string
-          paxMin?: number | null
-          paxMax?: number | null
-          sortBy?:
-            | "bookingNumber"
-            | "status"
-            | "sellAmount"
-            | "pax"
-            | "startDate"
-            | "endDate"
-            | "createdAt"
-          sortDir?: "asc" | "desc"
-          limit?: number
-          offset?: number | null
-        }
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Paginated bookings (PII redacted unless reveal-authorized) */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                bookingNumber: string
-                revision: number
-                /** @enum {string} */
-                status: "confirmed" | "in_progress" | "completed" | "cancelled"
-                personId: string | null
-                organizationId: string | null
-                /** @enum {string} */
-                sourceType:
-                  | "direct"
-                  | "manual"
-                  | "affiliate"
-                  | "ota"
-                  | "reseller"
-                  | "api_partner"
-                  | "internal"
-                externalBookingRef: string | null
-                communicationLanguage: string | null
-                contactFirstName: string | null
-                contactLastName: string | null
-                contactPartyType: string | null
-                contactTaxId: string | null
-                contactEmail: string | null
-                contactPhone: string | null
-                contactPreferredLanguage: string | null
-                contactCountry: string | null
-                contactRegion: string | null
-                contactCity: string | null
-                contactAddressLine1: string | null
-                contactAddressLine2: string | null
-                contactPostalCode: string | null
-                sellCurrency: string
-                baseCurrency: string | null
-                fxRateSetId: string | null
-                sellAmountCents: number | null
-                baseSellAmountCents: number | null
-                costAmountCents: number | null
-                baseCostAmountCents: number | null
-                marginPercent: number | null
-                startDate: string | null
-                endDate: string | null
-                pax: number | null
-                internalNotes: string | null
-                notificationsSuppressed: boolean
-                customerPaymentPolicy?: unknown
-                priceOverride: {
-                  [key: string]: unknown
-                } | null
-                customFields: {
-                  [key: string]: {
-                    [key: string]: unknown
-                  }
-                }
-                acceptedAt: string | null
-                confirmedAt: string | null
-                cancelledAt: string | null
-                completedAt: string | null
-                redeemedAt: string | null
-                createdAt: string
-                updatedAt: string
-              }[]
-              total: number
-              limit: number
-              offset: number
-            }
-          }
-        }
-        /** @description invalid_request — request input failed validation */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** GET /v1/admin/bookings */
+    get: operations["getAdminBookings"]
     put?: never
     post?: never
     delete?: never
@@ -5274,429 +878,16 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    get: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description A booking by id with its bookings-owned child collections (items, travelers, documents); PII redacted unless reveal-authorized */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                bookingNumber: string
-                revision: number
-                /** @enum {string} */
-                status: "confirmed" | "in_progress" | "completed" | "cancelled"
-                personId: string | null
-                organizationId: string | null
-                /** @enum {string} */
-                sourceType:
-                  | "direct"
-                  | "manual"
-                  | "affiliate"
-                  | "ota"
-                  | "reseller"
-                  | "api_partner"
-                  | "internal"
-                externalBookingRef: string | null
-                communicationLanguage: string | null
-                contactFirstName: string | null
-                contactLastName: string | null
-                contactPartyType: string | null
-                contactTaxId: string | null
-                contactEmail: string | null
-                contactPhone: string | null
-                contactPreferredLanguage: string | null
-                contactCountry: string | null
-                contactRegion: string | null
-                contactCity: string | null
-                contactAddressLine1: string | null
-                contactAddressLine2: string | null
-                contactPostalCode: string | null
-                sellCurrency: string
-                baseCurrency: string | null
-                fxRateSetId: string | null
-                sellAmountCents: number | null
-                baseSellAmountCents: number | null
-                costAmountCents: number | null
-                baseCostAmountCents: number | null
-                marginPercent: number | null
-                startDate: string | null
-                endDate: string | null
-                pax: number | null
-                internalNotes: string | null
-                notificationsSuppressed: boolean
-                customerPaymentPolicy?: unknown
-                priceOverride: {
-                  [key: string]: unknown
-                } | null
-                customFields: {
-                  [key: string]: {
-                    [key: string]: unknown
-                  }
-                }
-                acceptedAt: string | null
-                confirmedAt: string | null
-                cancelledAt: string | null
-                completedAt: string | null
-                redeemedAt: string | null
-                createdAt: string
-                updatedAt: string
-                items: {
-                  id: string
-                  bookingId: string
-                  title: string
-                  description: string | null
-                  /** @enum {string} */
-                  itemType:
-                    | "unit"
-                    | "extra"
-                    | "service"
-                    | "fee"
-                    | "tax"
-                    | "discount"
-                    | "adjustment"
-                    | "accommodation"
-                    | "transport"
-                    | "other"
-                  /** @enum {string} */
-                  status: "confirmed" | "cancelled" | "fulfilled"
-                  serviceDate: string | null
-                  startsAt: string | null
-                  endsAt: string | null
-                  quantity: number
-                  sellCurrency: string
-                  unitSellAmountCents: number | null
-                  totalSellAmountCents: number | null
-                  costCurrency: string | null
-                  unitCostAmountCents: number | null
-                  totalCostAmountCents: number | null
-                  notes: string | null
-                  productId: string | null
-                  optionId: string | null
-                  optionUnitId: string | null
-                  pricingCategoryId: string | null
-                  availabilitySlotId: string | null
-                  productNameSnapshot: string | null
-                  optionNameSnapshot: string | null
-                  unitNameSnapshot: string | null
-                  departureLabelSnapshot: string | null
-                  sourceSnapshotId: string | null
-                  sourceOfferId: string | null
-                  metadata: {
-                    [key: string]: unknown
-                  } | null
-                  createdAt: string
-                  updatedAt: string
-                }[]
-                travelers: {
-                  id: string
-                  bookingId: string
-                  /** @enum {string} */
-                  participantType: "traveler" | "occupant" | "other"
-                  /** @enum {string|null} */
-                  travelerCategory: "adult" | "child" | "infant" | "senior" | "other" | null
-                  firstName: string
-                  lastName: string
-                  email: string | null
-                  phone: string | null
-                  preferredLanguage: string | null
-                  specialRequests: string | null
-                  isPrimary: boolean
-                  notes: string | null
-                  createdAt: string
-                  updatedAt: string
-                }[]
-                documents: {
-                  id: string
-                  bookingId: string
-                  travelerId: string | null
-                  /** @enum {string} */
-                  type:
-                    | "visa"
-                    | "insurance"
-                    | "health"
-                    | "passport_copy"
-                    | "contract"
-                    | "invoice"
-                    | "proforma"
-                    | "credit_note"
-                    | "other"
-                  fileName: string
-                  fileUrl: string
-                  issuedBy?: string | null
-                  issuedSeries?: string | null
-                  issuedNumber?: string | null
-                  issuedAt?: string | null
-                  expiresAt: string | null
-                  notes: string | null
-                  createdAt: string
-                }[]
-              }
-            }
-          }
-        }
-        /** @description Booking not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** GET /v1/admin/bookings/{id} */
+    get: operations["getAdminBookingsById"]
     put?: never
     post?: never
-    delete: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description The booking was deleted */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              success: boolean
-            }
-          }
-        }
-        /** @description Booking not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** DELETE /v1/admin/bookings/{id} */
+    delete: operations["deleteAdminBookingsById"]
     options?: never
     head?: never
-    patch: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      /** @description Partial booking update */
-      requestBody?: {
-        content: {
-          "application/json": {
-            bookingNumber?: string
-            personId?: string | null
-            organizationId?: string | null
-            /**
-             * @default manual
-             * @enum {string}
-             */
-            sourceType?:
-              | "direct"
-              | "manual"
-              | "affiliate"
-              | "ota"
-              | "reseller"
-              | "api_partner"
-              | "internal"
-            externalBookingRef?: string | null
-            communicationLanguage?: string | null
-            contactFirstName?: string | null
-            contactLastName?: string | null
-            /** @enum {string|null} */
-            contactPartyType?: "individual" | "company" | null
-            contactTaxId?: string | null
-            /** Format: email */
-            contactEmail?: string | null
-            contactPhone?: string | null
-            contactPreferredLanguage?: string | null
-            contactCountry?: string | null
-            contactRegion?: string | null
-            contactCity?: string | null
-            contactAddressLine1?: string | null
-            contactAddressLine2?: string | null
-            contactPostalCode?: string | null
-            sellCurrency?: string
-            baseCurrency?: string | null
-            sellAmountCents?: number | null
-            baseSellAmountCents?: number | null
-            costAmountCents?: number | null
-            baseCostAmountCents?: number | null
-            marginPercent?: number | null
-            startDate?: string | null
-            endDate?: string | null
-            pax?: number | null
-            internalNotes?: string | null
-            /** @enum {boolean} */
-            notificationsSuppressed?: true
-            customerPaymentPolicy?: {
-              deposit: {
-                /** @enum {string} */
-                kind: "none" | "percent" | "fixed_cents"
-                percent?: number
-                amountCents?: number
-              }
-              minDaysBeforeDepartureForDeposit: number
-              balanceDueDaysBeforeDeparture: number
-              balanceDueMinDaysFromNow: number
-            } | null
-            priceOverride?: {
-              /** @enum {boolean} */
-              isManual: true
-              originalAmountCents: number | null
-              overriddenAmountCents: number
-              currency: string
-              reason: string
-              overriddenBy: string
-              /** Format: date-time */
-              overriddenAt: string
-            } | null
-            customFields?: {
-              [key: string]: {
-                [key: string]: unknown
-              }
-            }
-            /** Format: date-time */
-            redeemedAt?: string | null
-          }
-        }
-      }
-      responses: {
-        /** @description The updated booking */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                bookingNumber: string
-                revision: number
-                /** @enum {string} */
-                status: "confirmed" | "in_progress" | "completed" | "cancelled"
-                personId: string | null
-                organizationId: string | null
-                /** @enum {string} */
-                sourceType:
-                  | "direct"
-                  | "manual"
-                  | "affiliate"
-                  | "ota"
-                  | "reseller"
-                  | "api_partner"
-                  | "internal"
-                externalBookingRef: string | null
-                communicationLanguage: string | null
-                contactFirstName: string | null
-                contactLastName: string | null
-                contactPartyType: string | null
-                contactTaxId: string | null
-                contactEmail: string | null
-                contactPhone: string | null
-                contactPreferredLanguage: string | null
-                contactCountry: string | null
-                contactRegion: string | null
-                contactCity: string | null
-                contactAddressLine1: string | null
-                contactAddressLine2: string | null
-                contactPostalCode: string | null
-                sellCurrency: string
-                baseCurrency: string | null
-                fxRateSetId: string | null
-                sellAmountCents: number | null
-                baseSellAmountCents: number | null
-                costAmountCents: number | null
-                baseCostAmountCents: number | null
-                marginPercent: number | null
-                startDate: string | null
-                endDate: string | null
-                pax: number | null
-                internalNotes: string | null
-                notificationsSuppressed: boolean
-                customerPaymentPolicy?: unknown
-                priceOverride: {
-                  [key: string]: unknown
-                } | null
-                customFields: {
-                  [key: string]: {
-                    [key: string]: unknown
-                  }
-                }
-                acceptedAt: string | null
-                confirmedAt: string | null
-                cancelledAt: string | null
-                completedAt: string | null
-                redeemedAt: string | null
-                createdAt: string
-                updatedAt: string
-              }
-            }
-          }
-        }
-        /** @description invalid_request — request input failed validation */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-        /** @description Monthly booking plan limit reached */
-        402: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-        /** @description Booking not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** PATCH /v1/admin/bookings/{id} */
+    patch: operations["patchAdminBookingsById"]
     trace?: never
   }
 }
@@ -5928,4 +1119,5276 @@ export interface components {
   pathItems: never
 }
 export type $defs = Record<string, never>
-export type operations = Record<string, never>
+export interface operations {
+  postAdminBookingsByBookingIdAmendmentsTravelerCorrectionsPreview: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        bookingId: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          travelerId: string
+          expectedBookingRevision: number
+          reason: string
+          /** @description At least one traveler correction field must be provided. */
+          patch: {
+            firstName?: string
+            lastName?: string
+            /** Format: email */
+            email?: string | null
+            phone?: string | null
+            preferredLanguage?: string | null
+          }
+        }
+      }
+    }
+    responses: {
+      /** @description Idempotent or no-op preview */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": components["schemas"]["BookingAmendmentPreviewNoOpResponse"]
+        }
+      }
+      /** @description Traveler correction preview */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": components["schemas"]["BookingAmendmentOkResponse"]
+        }
+      }
+      /** @description Missing or invalid Idempotency-Key header */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+            currentBookingRevision?: number
+            bookingItemId?: string
+            reason?: string
+          }
+        }
+      }
+      /** @description Booking or traveler not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+            currentBookingRevision?: number
+            bookingItemId?: string
+            reason?: string
+          }
+        }
+      }
+      /** @description Revision or idempotency conflict */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+            currentBookingRevision?: number
+            bookingItemId?: string
+            reason?: string
+          }
+        }
+      }
+    }
+  }
+  postAdminBookingsByBookingIdAmendmentsTravelerRosterPreview: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        bookingId: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          expectedBookingRevision: number
+          reason: string
+          change:
+            | {
+                /** @enum {string} */
+                type: "traveler_add"
+                /** @description One or more distinct Booking Item ids; duplicate ids are rejected. */
+                bookingItemIds: string[]
+                traveler: {
+                  personId?: string | null
+                  /**
+                   * @default traveler
+                   * @enum {string}
+                   */
+                  participantType?: "traveler" | "occupant" | "other"
+                  /** @enum {string|null} */
+                  travelerCategory?: "adult" | "child" | "infant" | "senior" | "other" | null
+                  firstName: string
+                  lastName: string
+                  /** Format: email */
+                  email?: string | null
+                  phone?: string | null
+                  preferredLanguage?: string | null
+                }
+              }
+            | {
+                /** @enum {string} */
+                type: "traveler_drop"
+                /** @description One or more distinct Booking Item ids; duplicate ids are rejected. */
+                bookingItemIds: string[]
+                travelerId: string
+              }
+        }
+      }
+    }
+    responses: {
+      /** @description Idempotent or no-op preview */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": components["schemas"]["BookingAmendmentPreviewNoOpResponse"]
+        }
+      }
+      /** @description Traveler correction preview */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": components["schemas"]["BookingAmendmentOkResponse"]
+        }
+      }
+      /** @description Missing or invalid Idempotency-Key header */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+            currentBookingRevision?: number
+            bookingItemId?: string
+            reason?: string
+          }
+        }
+      }
+      /** @description Booking or traveler not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+            currentBookingRevision?: number
+            bookingItemId?: string
+            reason?: string
+          }
+        }
+      }
+      /** @description Revision or idempotency conflict */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+            currentBookingRevision?: number
+            bookingItemId?: string
+            reason?: string
+          }
+        }
+      }
+    }
+  }
+  postAdminBookingsByBookingIdAmendmentsItemsPreview: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        bookingId: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          expectedBookingRevision: number
+          reason: string
+          addition: {
+            /** @enum {string} */
+            type: "item_add"
+            productId: string
+            optionId?: string | null
+            optionUnitId?: string | null
+            availabilitySlotId?: string | null
+            /** @default 1 */
+            quantity?: number
+            title?: string
+          }
+        }
+      }
+    }
+    responses: {
+      /** @description Idempotent or no-op preview */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": components["schemas"]["BookingAmendmentPreviewNoOpResponse"]
+        }
+      }
+      /** @description Traveler correction preview */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": components["schemas"]["BookingAmendmentOkResponse"]
+        }
+      }
+      /** @description Missing or invalid Idempotency-Key header */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+            currentBookingRevision?: number
+            bookingItemId?: string
+            reason?: string
+          }
+        }
+      }
+      /** @description Booking or traveler not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+            currentBookingRevision?: number
+            bookingItemId?: string
+            reason?: string
+          }
+        }
+      }
+      /** @description Revision or idempotency conflict */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+            currentBookingRevision?: number
+            bookingItemId?: string
+            reason?: string
+          }
+        }
+      }
+    }
+  }
+  postAdminBookingsByBookingIdAmendmentsItemsMovePreview: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        bookingId: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          expectedBookingRevision: number
+          reason: string
+          move: {
+            /** @enum {string} */
+            type: "item_move"
+            bookingItemId: string
+            availabilitySlotId: string
+            /** @default 0 */
+            changeFeeCents?: number
+            /** @default 0 */
+            fareDiscountCents?: number
+            /**
+             * @default refund
+             * @enum {string}
+             */
+            refundHandling?: "refund" | "travel_credit" | "waive"
+          }
+        }
+      }
+    }
+    responses: {
+      /** @description Idempotent or no-op preview */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": components["schemas"]["BookingAmendmentPreviewNoOpResponse"]
+        }
+      }
+      /** @description Traveler correction preview */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": components["schemas"]["BookingAmendmentOkResponse"]
+        }
+      }
+      /** @description Missing or invalid Idempotency-Key header */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+            currentBookingRevision?: number
+            bookingItemId?: string
+            reason?: string
+          }
+        }
+      }
+      /** @description Booking or traveler not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+            currentBookingRevision?: number
+            bookingItemId?: string
+            reason?: string
+          }
+        }
+      }
+      /** @description Revision or idempotency conflict */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+            currentBookingRevision?: number
+            bookingItemId?: string
+            reason?: string
+          }
+        }
+      }
+    }
+  }
+  getAdminBookingsByBookingIdAmendments: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        bookingId: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Booking Amendment history */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: components["schemas"]["BookingAmendment"][]
+          }
+        }
+      }
+    }
+  }
+  getAdminBookingsByBookingIdAmendmentsByAmendmentId: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        bookingId: string
+        amendmentId: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Booking Amendment */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: components["schemas"]["BookingAmendment"]
+          }
+        }
+      }
+      /** @description Booking Amendment not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+            currentBookingRevision?: number
+            bookingItemId?: string
+            reason?: string
+          }
+        }
+      }
+    }
+  }
+  postAdminBookingsByBookingIdAmendmentsByAmendmentIdAccept: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        bookingId: string
+        amendmentId: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          proposedRevisionId: string
+        }
+      }
+    }
+    responses: {
+      /** @description Accepted Booking Amendment */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: components["schemas"]["BookingAmendment"]
+          }
+        }
+      }
+      /** @description Missing or invalid Idempotency-Key header */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+            currentBookingRevision?: number
+            bookingItemId?: string
+            reason?: string
+          }
+        }
+      }
+      /** @description Booking Amendment not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+            currentBookingRevision?: number
+            bookingItemId?: string
+            reason?: string
+          }
+        }
+      }
+      /** @description Acceptance conflict */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+            currentBookingRevision?: number
+            bookingItemId?: string
+            reason?: string
+          }
+        }
+      }
+    }
+  }
+  postAdminBookingsByBookingIdAmendmentsByAmendmentIdApply: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        bookingId: string
+        amendmentId: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          expectedBookingRevision: number
+          proposedRevisionId: string
+        }
+      }
+    }
+    responses: {
+      /** @description Applied Booking Amendment */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": components["schemas"]["BookingAmendmentOkResponse"]
+        }
+      }
+      /** @description Booking Amendment is waiting for supplier reconciliation */
+      202: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": components["schemas"]["BookingAmendmentApplyPendingResponse"]
+        }
+      }
+      /** @description Missing or invalid Idempotency-Key header */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+            currentBookingRevision?: number
+            bookingItemId?: string
+            reason?: string
+          }
+        }
+      }
+      /** @description Booking Amendment not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+            currentBookingRevision?: number
+            bookingItemId?: string
+            reason?: string
+          }
+        }
+      }
+      /** @description Apply conflict */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": components["schemas"]["BookingAmendmentApplyConflictResponse"]
+        }
+      }
+    }
+  }
+  postAdminBookingsByBookingIdAmendmentsByAmendmentIdReconcile: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        bookingId: string
+        amendmentId: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Applied Booking Amendment */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": components["schemas"]["BookingAmendmentOkResponse"]
+        }
+      }
+      /** @description Booking Amendment is waiting for supplier reconciliation */
+      202: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": components["schemas"]["BookingAmendmentApplyPendingResponse"]
+        }
+      }
+      /** @description Missing or invalid Idempotency-Key header */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+            currentBookingRevision?: number
+            bookingItemId?: string
+            reason?: string
+          }
+        }
+      }
+      /** @description Booking Amendment not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+            currentBookingRevision?: number
+            bookingItemId?: string
+            reason?: string
+          }
+        }
+      }
+      /** @description Apply conflict */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": components["schemas"]["BookingAmendmentApplyConflictResponse"]
+        }
+      }
+    }
+  }
+  getAdminBookingsInquiries: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Durable booking inquiries, newest first */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              channelId: string
+              productId: string
+              departureId: string | null
+              contact: {
+                firstName: string | null
+                lastName: string | null
+                email: string | null
+                phone: string | null
+              }
+              locale: string
+              message: string
+              /** @enum {string} */
+              status: "open" | "closed"
+              createdAt: string
+              updatedAt: string
+            }[]
+          }
+        }
+      }
+    }
+  }
+  getAdminBookingsInquiriesById: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description A durable booking inquiry */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              channelId: string
+              productId: string
+              departureId: string | null
+              contact: {
+                firstName: string | null
+                lastName: string | null
+                email: string | null
+                phone: string | null
+              }
+              locale: string
+              message: string
+              /** @enum {string} */
+              status: "open" | "closed"
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description Inquiry not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  postAdminBookingsPricingPreview: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** @description Pricing preview selection */
+    requestBody: {
+      content: {
+        "application/json": {
+          productId: string
+          optionId?: string | null
+          catalogId?: string | null
+        }
+      }
+    }
+    responses: {
+      /** @description A resolved pricing snapshot */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              [key: string]: unknown
+            }
+          }
+        }
+      }
+      /** @description invalid_request — request input failed validation */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Pricing unavailable for this selection */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getAdminBookingsAggregates: {
+    parameters: {
+      query?: {
+        from?: string
+        to?: string
+        upcomingLimit?: number | null
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Pre-aggregated dashboard metrics */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              total: number
+              totalPax: number
+              countsByStatus: {
+                /** @enum {string} */
+                status: "confirmed" | "in_progress" | "completed" | "cancelled"
+                count: number
+              }[]
+              monthlyCounts: {
+                yearMonth: string
+                count: number
+              }[]
+              monthlyRevenue: {
+                yearMonth: string
+                currency: string
+                sellAmountCents: number
+              }[]
+              upcomingDepartures: {
+                count: number
+                items: {
+                  id: string
+                  bookingNumber: string | null
+                  /** @enum {string} */
+                  status: "confirmed" | "in_progress" | "completed" | "cancelled"
+                  startDate: string | null
+                  endDate: string | null
+                  pax: number | null
+                  sellCurrency: string | null
+                  sellAmountCents: number | null
+                }[]
+              }
+            }
+          }
+        }
+      }
+      /** @description invalid_request — request input failed validation */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getAdminBookingsOverview: {
+    parameters: {
+      query?: {
+        bookingId?: string
+        bookingNumber?: string
+        bookingCode?: string
+        email?: string
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description An internal/admin booking overview */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              bookingId: string
+              bookingNumber: string
+              revision: number
+              /** @enum {string} */
+              status: "confirmed" | "in_progress" | "completed" | "cancelled"
+              sellCurrency: string
+              sellAmountCents: number | null
+              startDate: string | null
+              endDate: string | null
+              pax: number | null
+              confirmedAt: string | null
+              cancelledAt: string | null
+              completedAt: string | null
+              travelers: {
+                id: string
+                /** @enum {string} */
+                participantType: "traveler" | "occupant" | "other"
+                firstName: string
+                lastName: string
+                isPrimary: boolean
+              }[]
+              items: {
+                id: string
+                title: string
+                description: string | null
+                /** @enum {string} */
+                itemType:
+                  | "unit"
+                  | "extra"
+                  | "service"
+                  | "fee"
+                  | "tax"
+                  | "discount"
+                  | "adjustment"
+                  | "accommodation"
+                  | "transport"
+                  | "other"
+                /** @enum {string} */
+                status: "confirmed" | "cancelled" | "fulfilled"
+                serviceDate: string | null
+                startsAt: string | null
+                endsAt: string | null
+                quantity: number
+                sellCurrency: string
+                unitSellAmountCents: number | null
+                totalSellAmountCents: number | null
+                costCurrency: string | null
+                unitCostAmountCents: number | null
+                totalCostAmountCents: number | null
+                notes: string | null
+                productId: string | null
+                optionId: string | null
+                optionUnitId: string | null
+                pricingCategoryId: string | null
+                travelerLinks: {
+                  id: string
+                  travelerId: string
+                  /** @enum {string} */
+                  role: "traveler" | "occupant" | "beneficiary" | "other"
+                  isPrimary: boolean
+                }[]
+                details?: unknown
+              }[]
+              documents: {
+                id: string
+                travelerId: string | null
+                /** @enum {string} */
+                type:
+                  | "visa"
+                  | "insurance"
+                  | "health"
+                  | "passport_copy"
+                  | "contract"
+                  | "invoice"
+                  | "proforma"
+                  | "credit_note"
+                  | "other"
+                fileName: string
+                fileUrl: string
+              }[]
+              fulfillments: {
+                id: string
+                bookingItemId: string | null
+                travelerId: string | null
+                /** @enum {string} */
+                fulfillmentType:
+                  | "service_voucher"
+                  | "ticket"
+                  | "pdf"
+                  | "qr_code"
+                  | "barcode"
+                  | "mobile"
+                  | "other"
+                /** @enum {string} */
+                deliveryChannel: "download" | "email" | "api" | "wallet" | "other"
+                /** @enum {string} */
+                status: "pending" | "issued" | "reissued" | "revoked" | "failed"
+                artifactUrl: string | null
+              }[]
+            }
+          }
+        }
+      }
+      /** @description invalid_request — request input failed validation */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Booking overview not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getAdminBookingsSharingGroups: {
+    parameters: {
+      query: {
+        slotId: string
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Sharing groups for a slot */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              label: string
+              occupancy: number
+              roomTypeId: string | null
+              bookingIds: string[]
+            }[]
+          }
+        }
+      }
+      /** @description invalid_request — request input failed validation */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getAdminBookingsSharingGroupsByGroupIdTravelers: {
+    parameters: {
+      query: {
+        slotId: string
+      }
+      header?: never
+      path: {
+        groupId: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Travelers in a sharing group (PII redacted unless reveal-authorized) */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: ({
+              id: string
+              bookingId: string
+              bookingNumber: string
+            } & {
+              [key: string]: unknown
+            })[]
+          }
+        }
+      }
+      /** @description invalid_request — request input failed validation */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getAdminBookingsByIdAllocations: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Booking allocations */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              bookingId: string
+              bookingItemId: string
+              productId: string | null
+              optionId: string | null
+              optionUnitId: string | null
+              pricingCategoryId: string | null
+              availabilitySlotId: string | null
+              quantity: number
+              /** @enum {string} */
+              allocationType: "unit" | "pickup" | "resource"
+              /** @enum {string} */
+              status: "held" | "confirmed" | "released" | "expired" | "cancelled" | "fulfilled"
+              holdExpiresAt: string | null
+              confirmedAt: string | null
+              releasedAt: string | null
+              metadata: {
+                [key: string]: unknown
+              } | null
+              createdAt: string
+              updatedAt: string
+            }[]
+          }
+        }
+      }
+    }
+  }
+  getAdminBookingsByIdActivity: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Booking activity log */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              bookingId: string
+              actorId: string | null
+              /** @enum {string} */
+              activityType:
+                | "booking_created"
+                | "booking_reserved"
+                | "booking_converted"
+                | "booking_confirmed"
+                | "booking_started"
+                | "booking_completed"
+                | "hold_extended"
+                | "hold_expired"
+                | "status_change"
+                | "status_overridden"
+                | "item_update"
+                | "allocation_released"
+                | "fulfillment_issued"
+                | "fulfillment_updated"
+                | "redemption_recorded"
+                | "supplier_update"
+                | "traveler_update"
+                | "note_added"
+                | "system_action"
+              description: string
+              metadata: {
+                [key: string]: unknown
+              } | null
+              createdAt: string
+            }[]
+          }
+        }
+      }
+    }
+  }
+  getAdminBookingsByIdGroup: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Shared-room group membership for this booking (or null) */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data:
+              | ({
+                  id: string
+                  membership: {
+                    id: string
+                    groupId: string
+                    bookingId: string
+                  } & {
+                    [key: string]: unknown
+                  }
+                } & {
+                  [key: string]: unknown
+                })
+              | null
+          }
+        }
+      }
+    }
+  }
+  postAdminBookingsByIdCancel: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    /** @description Cancel options */
+    requestBody?: {
+      content: {
+        "application/json": {
+          note?: string | null
+          suppressNotifications?: boolean
+        }
+      }
+    }
+    responses: {
+      /** @description The cancelled booking */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              bookingNumber: string
+              revision: number
+              /** @enum {string} */
+              status: "confirmed" | "in_progress" | "completed" | "cancelled"
+              personId: string | null
+              organizationId: string | null
+              /** @enum {string} */
+              sourceType:
+                | "direct"
+                | "manual"
+                | "affiliate"
+                | "ota"
+                | "reseller"
+                | "api_partner"
+                | "internal"
+              externalBookingRef: string | null
+              communicationLanguage: string | null
+              contactFirstName: string | null
+              contactLastName: string | null
+              contactPartyType: string | null
+              contactTaxId: string | null
+              contactEmail: string | null
+              contactPhone: string | null
+              contactPreferredLanguage: string | null
+              contactCountry: string | null
+              contactRegion: string | null
+              contactCity: string | null
+              contactAddressLine1: string | null
+              contactAddressLine2: string | null
+              contactPostalCode: string | null
+              sellCurrency: string
+              baseCurrency: string | null
+              fxRateSetId: string | null
+              sellAmountCents: number | null
+              baseSellAmountCents: number | null
+              costAmountCents: number | null
+              baseCostAmountCents: number | null
+              marginPercent: number | null
+              startDate: string | null
+              endDate: string | null
+              pax: number | null
+              internalNotes: string | null
+              notificationsSuppressed: boolean
+              documentsSuppressed: boolean
+              customerPaymentPolicy?: unknown
+              priceOverride: {
+                [key: string]: unknown
+              } | null
+              customFields: {
+                [key: string]: {
+                  [key: string]: unknown
+                }
+              }
+              acceptedAt: string | null
+              confirmedAt: string | null
+              cancelledAt: string | null
+              completedAt: string | null
+              redeemedAt: string | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description approval_required — an action approval was requested */
+      202: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description invalid_request — request input failed validation */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Booking not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Invalid transition / approval idempotency conflict */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  postAdminBookingsByIdStart: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    /** @description Start options */
+    requestBody?: {
+      content: {
+        "application/json": {
+          note?: string | null
+        }
+      }
+    }
+    responses: {
+      /** @description The in-progress booking */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              bookingNumber: string
+              revision: number
+              /** @enum {string} */
+              status: "confirmed" | "in_progress" | "completed" | "cancelled"
+              personId: string | null
+              organizationId: string | null
+              /** @enum {string} */
+              sourceType:
+                | "direct"
+                | "manual"
+                | "affiliate"
+                | "ota"
+                | "reseller"
+                | "api_partner"
+                | "internal"
+              externalBookingRef: string | null
+              communicationLanguage: string | null
+              contactFirstName: string | null
+              contactLastName: string | null
+              contactPartyType: string | null
+              contactTaxId: string | null
+              contactEmail: string | null
+              contactPhone: string | null
+              contactPreferredLanguage: string | null
+              contactCountry: string | null
+              contactRegion: string | null
+              contactCity: string | null
+              contactAddressLine1: string | null
+              contactAddressLine2: string | null
+              contactPostalCode: string | null
+              sellCurrency: string
+              baseCurrency: string | null
+              fxRateSetId: string | null
+              sellAmountCents: number | null
+              baseSellAmountCents: number | null
+              costAmountCents: number | null
+              baseCostAmountCents: number | null
+              marginPercent: number | null
+              startDate: string | null
+              endDate: string | null
+              pax: number | null
+              internalNotes: string | null
+              notificationsSuppressed: boolean
+              documentsSuppressed: boolean
+              customerPaymentPolicy?: unknown
+              priceOverride: {
+                [key: string]: unknown
+              } | null
+              customFields: {
+                [key: string]: {
+                  [key: string]: unknown
+                }
+              }
+              acceptedAt: string | null
+              confirmedAt: string | null
+              cancelledAt: string | null
+              completedAt: string | null
+              redeemedAt: string | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description approval_required — an action approval was requested */
+      202: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description invalid_request — request input failed validation */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Booking not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Invalid transition / approval idempotency conflict */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  postAdminBookingsByIdComplete: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    /** @description Complete options */
+    requestBody?: {
+      content: {
+        "application/json": {
+          note?: string | null
+        }
+      }
+    }
+    responses: {
+      /** @description The completed booking */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              bookingNumber: string
+              revision: number
+              /** @enum {string} */
+              status: "confirmed" | "in_progress" | "completed" | "cancelled"
+              personId: string | null
+              organizationId: string | null
+              /** @enum {string} */
+              sourceType:
+                | "direct"
+                | "manual"
+                | "affiliate"
+                | "ota"
+                | "reseller"
+                | "api_partner"
+                | "internal"
+              externalBookingRef: string | null
+              communicationLanguage: string | null
+              contactFirstName: string | null
+              contactLastName: string | null
+              contactPartyType: string | null
+              contactTaxId: string | null
+              contactEmail: string | null
+              contactPhone: string | null
+              contactPreferredLanguage: string | null
+              contactCountry: string | null
+              contactRegion: string | null
+              contactCity: string | null
+              contactAddressLine1: string | null
+              contactAddressLine2: string | null
+              contactPostalCode: string | null
+              sellCurrency: string
+              baseCurrency: string | null
+              fxRateSetId: string | null
+              sellAmountCents: number | null
+              baseSellAmountCents: number | null
+              costAmountCents: number | null
+              baseCostAmountCents: number | null
+              marginPercent: number | null
+              startDate: string | null
+              endDate: string | null
+              pax: number | null
+              internalNotes: string | null
+              notificationsSuppressed: boolean
+              documentsSuppressed: boolean
+              customerPaymentPolicy?: unknown
+              priceOverride: {
+                [key: string]: unknown
+              } | null
+              customFields: {
+                [key: string]: {
+                  [key: string]: unknown
+                }
+              }
+              acceptedAt: string | null
+              confirmedAt: string | null
+              cancelledAt: string | null
+              completedAt: string | null
+              redeemedAt: string | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description approval_required — an action approval was requested */
+      202: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description invalid_request — request input failed validation */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Booking not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Invalid transition / approval idempotency conflict */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  postAdminBookingsByIdOverrideStatus: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    /** @description Status override input */
+    requestBody: {
+      content: {
+        "application/json": {
+          /** @enum {string} */
+          status: "confirmed" | "in_progress" | "completed" | "cancelled"
+          reason: string
+          note?: string | null
+          suppressNotifications?: boolean
+          suppressLifecycleEvents?: boolean
+        }
+      }
+    }
+    responses: {
+      /** @description The booking with overridden status */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              bookingNumber: string
+              revision: number
+              /** @enum {string} */
+              status: "confirmed" | "in_progress" | "completed" | "cancelled"
+              personId: string | null
+              organizationId: string | null
+              /** @enum {string} */
+              sourceType:
+                | "direct"
+                | "manual"
+                | "affiliate"
+                | "ota"
+                | "reseller"
+                | "api_partner"
+                | "internal"
+              externalBookingRef: string | null
+              communicationLanguage: string | null
+              contactFirstName: string | null
+              contactLastName: string | null
+              contactPartyType: string | null
+              contactTaxId: string | null
+              contactEmail: string | null
+              contactPhone: string | null
+              contactPreferredLanguage: string | null
+              contactCountry: string | null
+              contactRegion: string | null
+              contactCity: string | null
+              contactAddressLine1: string | null
+              contactAddressLine2: string | null
+              contactPostalCode: string | null
+              sellCurrency: string
+              baseCurrency: string | null
+              fxRateSetId: string | null
+              sellAmountCents: number | null
+              baseSellAmountCents: number | null
+              costAmountCents: number | null
+              baseCostAmountCents: number | null
+              marginPercent: number | null
+              startDate: string | null
+              endDate: string | null
+              pax: number | null
+              internalNotes: string | null
+              notificationsSuppressed: boolean
+              documentsSuppressed: boolean
+              customerPaymentPolicy?: unknown
+              priceOverride: {
+                [key: string]: unknown
+              } | null
+              customFields: {
+                [key: string]: {
+                  [key: string]: unknown
+                }
+              }
+              acceptedAt: string | null
+              confirmedAt: string | null
+              cancelledAt: string | null
+              completedAt: string | null
+              redeemedAt: string | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description approval_required — an action approval was requested */
+      202: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description invalid_request — request input failed validation */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Monthly booking plan limit reached */
+      402: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Booking not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Approval idempotency conflict */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getAdminBookingsByIdActionLedger: {
+    parameters: {
+      query?: {
+        cursorOccurredAt?: string
+        cursorId?: string
+        limit?: number
+      }
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Booking-scoped action timeline */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              [key: string]: unknown
+            }[]
+            travelers: {
+              id: string
+              firstName: string | null
+              lastName: string | null
+            }[]
+            pageInfo: {
+              nextCursor: {
+                occurredAt: string
+                id: string
+              } | null
+            }
+          }
+        }
+      }
+      /** @description invalid_request — request input failed validation */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Booking not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  postAdminBookingsByIdActionApprovalsByApprovalIdDecide: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+        approvalId: string
+      }
+      cookie?: never
+    }
+    /** @description Approval decision */
+    requestBody: {
+      content: {
+        "application/json": {
+          /** @enum {string} */
+          status: "approved" | "denied"
+        }
+      }
+    }
+    responses: {
+      /** @description The approval decision result */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              approval: {
+                [key: string]: unknown
+              }
+              decisionAction: {
+                [key: string]: unknown
+              }
+            }
+          }
+        }
+      }
+      /** @description invalid_request — request input failed validation */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Action approval not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Action approval is not a booking status approval / already decided */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Unhandled action approval validation failure */
+      500: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getAdminBookingsByIdTravelers: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Booking travelers (PII redacted unless reveal-authorized) */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              bookingId: string
+              /** @enum {string} */
+              participantType: "traveler" | "occupant" | "other"
+              /** @enum {string|null} */
+              travelerCategory: "adult" | "child" | "infant" | "senior" | "other" | null
+              firstName: string
+              lastName: string
+              email: string | null
+              phone: string | null
+              preferredLanguage: string | null
+              specialRequests: string | null
+              isPrimary: boolean
+              notes: string | null
+              createdAt: string
+              updatedAt: string
+            }[]
+          }
+        }
+      }
+    }
+  }
+  postAdminBookingsByIdTravelers: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    /** @description Traveler to create */
+    requestBody: {
+      content: {
+        "application/json": {
+          firstName: string
+          lastName: string
+          /** Format: email */
+          email?: string | null
+          phone?: string | null
+          preferredLanguage?: string | null
+          specialRequests?: string | null
+          /** @enum {string|null} */
+          travelerCategory?: "adult" | "child" | "infant" | "senior" | "other" | null
+          isPrimary?: boolean | null
+          notes?: string | null
+        }
+      }
+    }
+    responses: {
+      /** @description The created traveler */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              bookingId: string
+              /** @enum {string} */
+              participantType: "traveler" | "occupant" | "other"
+              /** @enum {string|null} */
+              travelerCategory: "adult" | "child" | "infant" | "senior" | "other" | null
+              firstName: string
+              lastName: string
+              email: string | null
+              phone: string | null
+              preferredLanguage: string | null
+              specialRequests: string | null
+              isPrimary: boolean
+              notes: string | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description invalid_request — request input failed validation */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Booking not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getAdminBookingsByIdTravelersByTravelerIdReveal: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+        travelerId: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description The traveler with decrypted travel details */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              bookingId: string
+              /** @enum {string} */
+              participantType: "traveler" | "occupant" | "other"
+              /** @enum {string|null} */
+              travelerCategory: "adult" | "child" | "infant" | "senior" | "other" | null
+              firstName: string
+              lastName: string
+              email: string | null
+              phone: string | null
+              preferredLanguage: string | null
+              specialRequests: string | null
+              isPrimary: boolean
+              notes: string | null
+              createdAt: string
+              updatedAt: string
+              travelDetails?: unknown
+            }
+          }
+        }
+      }
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Traveler not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Booking PII encryption is not configured */
+      500: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getAdminBookingsByIdTravelersByTravelerIdTravelDetails: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+        travelerId: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description The traveler's decrypted travel details */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data?: unknown
+          }
+        }
+      }
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Traveler or travel details not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Booking PII encryption is not configured */
+      500: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  deleteAdminBookingsByIdTravelersByTravelerIdTravelDetails: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+        travelerId: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description The travel details were deleted */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            success: boolean
+          }
+        }
+      }
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Traveler or travel details not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Booking PII encryption is not configured */
+      500: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  patchAdminBookingsByIdTravelersByTravelerIdTravelDetails: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+        travelerId: string
+      }
+      cookie?: never
+    }
+    /** @description Travel details to upsert */
+    requestBody: {
+      content: {
+        "application/json": {
+          nationality?: string | null
+          /** @enum {string|null} */
+          documentType?: "passport" | "id_card" | "driver_license" | "visa" | "other" | null
+          documentNumber?: string | null
+          documentExpiry?: string | null
+          documentIssuingCountry?: string | null
+          documentIssuingAuthority?: string | null
+          documentPersonDocumentId?: string | null
+          dateOfBirth?: string | null
+          dietaryRequirements?: string | null
+          accessibilityNeeds?: string | null
+          isLeadTraveler?: boolean | null
+          sharingGroupId?: string | null
+          roomTypeId?: string | null
+          /** @enum {string|null} */
+          bedPreference?: "single" | "twin" | "double" | "no-preference" | null
+          allocations?: {
+            [key: string]: string
+          }
+        }
+      }
+    }
+    responses: {
+      /** @description The upserted travel details */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data?: unknown
+          }
+        }
+      }
+      /** @description invalid_request — request input failed validation */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Traveler not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Booking PII encryption is not configured */
+      500: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  postAdminBookingsByIdTravelersWithTravelDetails: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    /** @description Traveler with encrypted travel details */
+    requestBody: {
+      content: {
+        "application/json": {
+          personId?: string | null
+          /**
+           * @default traveler
+           * @enum {string}
+           */
+          participantType?: "traveler" | "occupant" | "other"
+          /** @enum {string|null} */
+          travelerCategory?: "adult" | "child" | "infant" | "senior" | "other" | null
+          firstName: string
+          lastName: string
+          /** Format: email */
+          email?: string | null
+          phone?: string | null
+          preferredLanguage?: string | null
+          specialRequests?: string | null
+          /** @default false */
+          isPrimary?: boolean
+          notes?: string | null
+          nationality?: string | null
+          /** @enum {string|null} */
+          documentType?: "passport" | "id_card" | "driver_license" | "visa" | "other" | null
+          documentNumber?: string | null
+          documentExpiry?: string | null
+          documentIssuingCountry?: string | null
+          documentIssuingAuthority?: string | null
+          documentPersonDocumentId?: string | null
+          dateOfBirth?: string | null
+          dietaryRequirements?: string | null
+          accessibilityNeeds?: string | null
+          isLeadTraveler?: boolean | null
+          sharingGroupId?: string | null
+          roomTypeId?: string | null
+          /** @enum {string|null} */
+          bedPreference?: "single" | "twin" | "double" | "no-preference" | null
+          allocations?: {
+            [key: string]: string
+          }
+        }
+      }
+    }
+    responses: {
+      /** @description The created traveler with travel details */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data?: unknown
+          }
+        }
+      }
+      /** @description invalid_request — request input failed validation */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Booking not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Booking PII encryption is not configured */
+      500: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  patchAdminBookingsByIdTravelersByTravelerIdWithTravelDetails: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+        travelerId: string
+      }
+      cookie?: never
+    }
+    /** @description Traveler + travel details update */
+    requestBody?: {
+      content: {
+        "application/json": {
+          personId?: string | null
+          /** @enum {string} */
+          participantType?: "traveler" | "occupant" | "other"
+          /** @enum {string|null} */
+          travelerCategory?: "adult" | "child" | "infant" | "senior" | "other" | null
+          firstName?: string
+          lastName?: string
+          /** Format: email */
+          email?: string | null
+          phone?: string | null
+          preferredLanguage?: string | null
+          specialRequests?: string | null
+          isPrimary?: boolean
+          notes?: string | null
+          nationality?: string | null
+          /** @enum {string|null} */
+          documentType?: "passport" | "id_card" | "driver_license" | "visa" | "other" | null
+          documentNumber?: string | null
+          documentExpiry?: string | null
+          documentIssuingCountry?: string | null
+          documentIssuingAuthority?: string | null
+          documentPersonDocumentId?: string | null
+          dateOfBirth?: string | null
+          dietaryRequirements?: string | null
+          accessibilityNeeds?: string | null
+          isLeadTraveler?: boolean | null
+          sharingGroupId?: string | null
+          roomTypeId?: string | null
+          /** @enum {string|null} */
+          bedPreference?: "single" | "twin" | "double" | "no-preference" | null
+          allocations?: {
+            [key: string]: string
+          }
+        }
+      }
+    }
+    responses: {
+      /** @description The updated traveler with travel details */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data?: unknown
+          }
+        }
+      }
+      /** @description invalid_request — request input failed validation */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Traveler not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Booking PII encryption is not configured */
+      500: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  deleteAdminBookingsByIdTravelersByTravelerId: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+        travelerId: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description The traveler was deleted */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            success: boolean
+          }
+        }
+      }
+      /** @description Traveler not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  patchAdminBookingsByIdTravelersByTravelerId: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+        travelerId: string
+      }
+      cookie?: never
+    }
+    /** @description Partial traveler update */
+    requestBody?: {
+      content: {
+        "application/json": {
+          firstName?: string
+          lastName?: string
+          /** Format: email */
+          email?: string | null
+          phone?: string | null
+          preferredLanguage?: string | null
+          specialRequests?: string | null
+          /** @enum {string|null} */
+          travelerCategory?: "adult" | "child" | "infant" | "senior" | "other" | null
+          isPrimary?: boolean | null
+          notes?: string | null
+        }
+      }
+    }
+    responses: {
+      /** @description The updated traveler */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              bookingId: string
+              /** @enum {string} */
+              participantType: "traveler" | "occupant" | "other"
+              /** @enum {string|null} */
+              travelerCategory: "adult" | "child" | "infant" | "senior" | "other" | null
+              firstName: string
+              lastName: string
+              email: string | null
+              phone: string | null
+              preferredLanguage: string | null
+              specialRequests: string | null
+              isPrimary: boolean
+              notes: string | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description invalid_request — request input failed validation */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Traveler not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getAdminBookingsByIdItems: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Booking items */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              bookingId: string
+              title: string
+              description: string | null
+              /** @enum {string} */
+              itemType:
+                | "unit"
+                | "extra"
+                | "service"
+                | "fee"
+                | "tax"
+                | "discount"
+                | "adjustment"
+                | "accommodation"
+                | "transport"
+                | "other"
+              /** @enum {string} */
+              status: "confirmed" | "cancelled" | "fulfilled"
+              serviceDate: string | null
+              startsAt: string | null
+              endsAt: string | null
+              quantity: number
+              sellCurrency: string
+              unitSellAmountCents: number | null
+              totalSellAmountCents: number | null
+              costCurrency: string | null
+              unitCostAmountCents: number | null
+              totalCostAmountCents: number | null
+              notes: string | null
+              productId: string | null
+              optionId: string | null
+              optionUnitId: string | null
+              pricingCategoryId: string | null
+              availabilitySlotId: string | null
+              productNameSnapshot: string | null
+              optionNameSnapshot: string | null
+              unitNameSnapshot: string | null
+              departureLabelSnapshot: string | null
+              sourceSnapshotId: string | null
+              sourceOfferId: string | null
+              metadata: {
+                [key: string]: unknown
+              } | null
+              createdAt: string
+              updatedAt: string
+            }[]
+          }
+        }
+      }
+    }
+  }
+  postAdminBookingsByIdItems: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    /** @description Booking item to add */
+    requestBody: {
+      content: {
+        "application/json": {
+          title: string
+          description?: string | null
+          /**
+           * @default unit
+           * @enum {string}
+           */
+          itemType?:
+            | "unit"
+            | "extra"
+            | "service"
+            | "fee"
+            | "tax"
+            | "discount"
+            | "adjustment"
+            | "accommodation"
+            | "transport"
+            | "other"
+          serviceDate?: string | null
+          startsAt?: string | null
+          endsAt?: string | null
+          /** @default 1 */
+          quantity?: number
+          sellCurrency: string
+          unitSellAmountCents?: number | null
+          totalSellAmountCents?: number | null
+          costCurrency?: string | null
+          unitCostAmountCents?: number | null
+          totalCostAmountCents?: number | null
+          notes?: string | null
+          productId?: string | null
+          optionId?: string | null
+          optionUnitId?: string | null
+          pricingCategoryId?: string | null
+          availabilitySlotId?: string | null
+          productNameSnapshot?: string | null
+          optionNameSnapshot?: string | null
+          unitNameSnapshot?: string | null
+          departureLabelSnapshot?: string | null
+          sourceSnapshotId?: string | null
+          sourceOfferId?: string | null
+          metadata?: {
+            [key: string]: unknown
+          } | null
+        }
+      }
+    }
+    responses: {
+      /** @description The created booking item */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              bookingId: string
+              title: string
+              description: string | null
+              /** @enum {string} */
+              itemType:
+                | "unit"
+                | "extra"
+                | "service"
+                | "fee"
+                | "tax"
+                | "discount"
+                | "adjustment"
+                | "accommodation"
+                | "transport"
+                | "other"
+              /** @enum {string} */
+              status: "confirmed" | "cancelled" | "fulfilled"
+              serviceDate: string | null
+              startsAt: string | null
+              endsAt: string | null
+              quantity: number
+              sellCurrency: string
+              unitSellAmountCents: number | null
+              totalSellAmountCents: number | null
+              costCurrency: string | null
+              unitCostAmountCents: number | null
+              totalCostAmountCents: number | null
+              notes: string | null
+              productId: string | null
+              optionId: string | null
+              optionUnitId: string | null
+              pricingCategoryId: string | null
+              availabilitySlotId: string | null
+              productNameSnapshot: string | null
+              optionNameSnapshot: string | null
+              unitNameSnapshot: string | null
+              departureLabelSnapshot: string | null
+              sourceSnapshotId: string | null
+              sourceOfferId: string | null
+              metadata: {
+                [key: string]: unknown
+              } | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description invalid_request — request input failed validation */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Booking not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Booking item mutations are not allowed for this booking */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  deleteAdminBookingsByIdItemsByItemId: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+        itemId: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description The booking item was deleted */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            success: boolean
+          }
+        }
+      }
+      /** @description Booking item not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Booking item mutations are not allowed for this booking */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  patchAdminBookingsByIdItemsByItemId: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+        itemId: string
+      }
+      cookie?: never
+    }
+    /** @description Partial booking item update */
+    requestBody?: {
+      content: {
+        "application/json": {
+          title?: string
+          description?: string | null
+          /** @enum {string} */
+          itemType?:
+            | "unit"
+            | "extra"
+            | "service"
+            | "fee"
+            | "tax"
+            | "discount"
+            | "adjustment"
+            | "accommodation"
+            | "transport"
+            | "other"
+          serviceDate?: string | null
+          startsAt?: string | null
+          endsAt?: string | null
+          quantity?: number
+          sellCurrency?: string
+          unitSellAmountCents?: number | null
+          totalSellAmountCents?: number | null
+          costCurrency?: string | null
+          unitCostAmountCents?: number | null
+          totalCostAmountCents?: number | null
+          notes?: string | null
+          productId?: string | null
+          optionId?: string | null
+          optionUnitId?: string | null
+          pricingCategoryId?: string | null
+          availabilitySlotId?: string | null
+          productNameSnapshot?: string | null
+          optionNameSnapshot?: string | null
+          unitNameSnapshot?: string | null
+          departureLabelSnapshot?: string | null
+          sourceSnapshotId?: string | null
+          sourceOfferId?: string | null
+          metadata?: {
+            [key: string]: unknown
+          } | null
+        }
+      }
+    }
+    responses: {
+      /** @description The updated booking item */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              bookingId: string
+              title: string
+              description: string | null
+              /** @enum {string} */
+              itemType:
+                | "unit"
+                | "extra"
+                | "service"
+                | "fee"
+                | "tax"
+                | "discount"
+                | "adjustment"
+                | "accommodation"
+                | "transport"
+                | "other"
+              /** @enum {string} */
+              status: "confirmed" | "cancelled" | "fulfilled"
+              serviceDate: string | null
+              startsAt: string | null
+              endsAt: string | null
+              quantity: number
+              sellCurrency: string
+              unitSellAmountCents: number | null
+              totalSellAmountCents: number | null
+              costCurrency: string | null
+              unitCostAmountCents: number | null
+              totalCostAmountCents: number | null
+              notes: string | null
+              productId: string | null
+              optionId: string | null
+              optionUnitId: string | null
+              pricingCategoryId: string | null
+              availabilitySlotId: string | null
+              productNameSnapshot: string | null
+              optionNameSnapshot: string | null
+              unitNameSnapshot: string | null
+              departureLabelSnapshot: string | null
+              sourceSnapshotId: string | null
+              sourceOfferId: string | null
+              metadata: {
+                [key: string]: unknown
+              } | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description invalid_request — request input failed validation */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Booking item not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Booking item mutations are not allowed for this booking */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getAdminBookingsByIdItemsByItemIdTravelers: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+        itemId: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Booking item travelers */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              bookingItemId: string
+              travelerId: string
+              /** @enum {string} */
+              role: "traveler" | "occupant" | "beneficiary" | "other"
+              isPrimary: boolean
+              createdAt: string
+            }[]
+          }
+        }
+      }
+    }
+  }
+  postAdminBookingsByIdItemsByItemIdTravelers: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+        itemId: string
+      }
+      cookie?: never
+    }
+    /** @description Traveler to link to item */
+    requestBody: {
+      content: {
+        "application/json": {
+          travelerId?: string
+          /**
+           * @default traveler
+           * @enum {string}
+           */
+          role?: "traveler" | "occupant" | "beneficiary" | "other"
+          /** @default false */
+          isPrimary?: boolean
+        }
+      }
+    }
+    responses: {
+      /** @description The created item-traveler link */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              bookingItemId: string
+              travelerId: string
+              /** @enum {string} */
+              role: "traveler" | "occupant" | "beneficiary" | "other"
+              isPrimary: boolean
+              createdAt: string
+            }
+          }
+        }
+      }
+      /** @description invalid_request — request input failed validation */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Booking item or traveler not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Booking item mutations are not allowed for this booking */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  deleteAdminBookingsByIdItemsByItemIdTravelersByLinkId: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+        itemId: string
+        linkId: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description The item-traveler link was removed */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            success: boolean
+          }
+        }
+      }
+      /** @description Booking item or item-traveler link not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Booking item mutations are not allowed for this booking */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getAdminBookingsByIdSupplierStatuses: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Booking supplier statuses */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              bookingId: string
+              supplierServiceId: string | null
+              supplierId: string | null
+              serviceName: string
+              /** @enum {string} */
+              status: "pending" | "confirmed" | "rejected" | "cancelled"
+              supplierReference: string | null
+              costCurrency: string
+              costAmountCents: number
+              supplierInvoiceLineId: string | null
+              notes: string | null
+              confirmedAt: string | null
+              createdAt: string
+              updatedAt: string
+            }[]
+          }
+        }
+      }
+    }
+  }
+  postAdminBookingsByIdSupplierStatuses: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    /** @description Supplier status to create */
+    requestBody: {
+      content: {
+        "application/json": {
+          supplierServiceId?: string | null
+          serviceName: string
+          /**
+           * @default pending
+           * @enum {string}
+           */
+          status?: "pending" | "confirmed" | "rejected" | "cancelled"
+          supplierReference?: string | null
+          costCurrency: string
+          costAmountCents: number
+          notes?: string | null
+        }
+      }
+    }
+    responses: {
+      /** @description The created supplier status */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              bookingId: string
+              supplierServiceId: string | null
+              supplierId: string | null
+              serviceName: string
+              /** @enum {string} */
+              status: "pending" | "confirmed" | "rejected" | "cancelled"
+              supplierReference: string | null
+              costCurrency: string
+              costAmountCents: number
+              supplierInvoiceLineId: string | null
+              notes: string | null
+              confirmedAt: string | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description invalid_request — request input failed validation */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Booking not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  patchAdminBookingsByIdSupplierStatusesByStatusId: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+        statusId: string
+      }
+      cookie?: never
+    }
+    /** @description Partial supplier status update */
+    requestBody?: {
+      content: {
+        "application/json": {
+          supplierServiceId?: string | null
+          serviceName?: string
+          /** @enum {string} */
+          status?: "pending" | "confirmed" | "rejected" | "cancelled"
+          supplierReference?: string | null
+          costCurrency?: string
+          costAmountCents?: number
+          notes?: string | null
+          confirmedAt?: string | null
+        }
+      }
+    }
+    responses: {
+      /** @description The updated supplier status */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              bookingId: string
+              supplierServiceId: string | null
+              supplierId: string | null
+              serviceName: string
+              /** @enum {string} */
+              status: "pending" | "confirmed" | "rejected" | "cancelled"
+              supplierReference: string | null
+              costCurrency: string
+              costAmountCents: number
+              supplierInvoiceLineId: string | null
+              notes: string | null
+              confirmedAt: string | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description invalid_request — request input failed validation */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Supplier status not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getAdminBookingsByIdFulfillments: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Booking fulfillments */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              bookingId: string
+              bookingItemId: string | null
+              travelerId: string | null
+              /** @enum {string} */
+              fulfillmentType:
+                | "service_voucher"
+                | "ticket"
+                | "pdf"
+                | "qr_code"
+                | "barcode"
+                | "mobile"
+                | "other"
+              /** @enum {string} */
+              deliveryChannel: "download" | "email" | "api" | "wallet" | "other"
+              /** @enum {string} */
+              status: "pending" | "issued" | "reissued" | "revoked" | "failed"
+              artifactUrl: string | null
+              payload: {
+                [key: string]: unknown
+              } | null
+              issuedAt: string | null
+              revokedAt: string | null
+              createdAt: string
+              updatedAt: string
+            }[]
+          }
+        }
+      }
+    }
+  }
+  postAdminBookingsByIdFulfillments: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    /** @description Fulfillment to issue */
+    requestBody: {
+      content: {
+        "application/json": {
+          bookingItemId?: string | null
+          travelerId?: string | null
+          /** @enum {string} */
+          fulfillmentType:
+            | "service_voucher"
+            | "ticket"
+            | "pdf"
+            | "qr_code"
+            | "barcode"
+            | "mobile"
+            | "other"
+          /** @enum {string} */
+          deliveryChannel: "download" | "email" | "api" | "wallet" | "other"
+          /**
+           * @default issued
+           * @enum {string}
+           */
+          status?: "pending" | "issued" | "reissued" | "revoked" | "failed"
+          /** Format: uri */
+          artifactUrl?: string | null
+          payload?: {
+            [key: string]: unknown
+          } | null
+          /** Format: date-time */
+          issuedAt?: string | null
+          /** Format: date-time */
+          revokedAt?: string | null
+        }
+      }
+    }
+    responses: {
+      /** @description The issued fulfillment */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              bookingId: string
+              bookingItemId: string | null
+              travelerId: string | null
+              /** @enum {string} */
+              fulfillmentType:
+                | "service_voucher"
+                | "ticket"
+                | "pdf"
+                | "qr_code"
+                | "barcode"
+                | "mobile"
+                | "other"
+              /** @enum {string} */
+              deliveryChannel: "download" | "email" | "api" | "wallet" | "other"
+              /** @enum {string} */
+              status: "pending" | "issued" | "reissued" | "revoked" | "failed"
+              artifactUrl: string | null
+              payload: {
+                [key: string]: unknown
+              } | null
+              issuedAt: string | null
+              revokedAt: string | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description invalid_request — request input failed validation */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Booking, item, or traveler not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  patchAdminBookingsByIdFulfillmentsByFulfillmentId: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+        fulfillmentId: string
+      }
+      cookie?: never
+    }
+    /** @description Partial fulfillment update */
+    requestBody?: {
+      content: {
+        "application/json": {
+          bookingItemId?: string | null
+          travelerId?: string | null
+          /** @enum {string} */
+          fulfillmentType?:
+            | "service_voucher"
+            | "ticket"
+            | "pdf"
+            | "qr_code"
+            | "barcode"
+            | "mobile"
+            | "other"
+          /** @enum {string} */
+          deliveryChannel?: "download" | "email" | "api" | "wallet" | "other"
+          /** @enum {string} */
+          status?: "pending" | "issued" | "reissued" | "revoked" | "failed"
+          /** Format: uri */
+          artifactUrl?: string | null
+          payload?: {
+            [key: string]: unknown
+          } | null
+          /** Format: date-time */
+          issuedAt?: string | null
+          /** Format: date-time */
+          revokedAt?: string | null
+        }
+      }
+    }
+    responses: {
+      /** @description The updated fulfillment */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              bookingId: string
+              bookingItemId: string | null
+              travelerId: string | null
+              /** @enum {string} */
+              fulfillmentType:
+                | "service_voucher"
+                | "ticket"
+                | "pdf"
+                | "qr_code"
+                | "barcode"
+                | "mobile"
+                | "other"
+              /** @enum {string} */
+              deliveryChannel: "download" | "email" | "api" | "wallet" | "other"
+              /** @enum {string} */
+              status: "pending" | "issued" | "reissued" | "revoked" | "failed"
+              artifactUrl: string | null
+              payload: {
+                [key: string]: unknown
+              } | null
+              issuedAt: string | null
+              revokedAt: string | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description invalid_request — request input failed validation */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Fulfillment, item, or traveler not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getAdminBookingsByIdRedemptions: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Booking redemption events */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              bookingId: string
+              bookingItemId: string | null
+              travelerId: string | null
+              redeemedAt: string
+              redeemedBy: string | null
+              location: string | null
+              /** @enum {string} */
+              method: "manual" | "scan" | "api" | "other"
+              metadata: {
+                [key: string]: unknown
+              } | null
+              createdAt: string
+            }[]
+          }
+        }
+      }
+    }
+  }
+  postAdminBookingsByIdRedemptions: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    /** @description Redemption to record */
+    requestBody: {
+      content: {
+        "application/json": {
+          bookingItemId?: string | null
+          travelerId?: string | null
+          /** Format: date-time */
+          redeemedAt?: string | null
+          redeemedBy?: string | null
+          location?: string | null
+          /**
+           * @default manual
+           * @enum {string}
+           */
+          method?: "manual" | "scan" | "api" | "other"
+          metadata?: {
+            [key: string]: unknown
+          } | null
+        }
+      }
+    }
+    responses: {
+      /** @description The recorded redemption event */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              bookingId: string
+              bookingItemId: string | null
+              travelerId: string | null
+              redeemedAt: string
+              redeemedBy: string | null
+              location: string | null
+              /** @enum {string} */
+              method: "manual" | "scan" | "api" | "other"
+              metadata: {
+                [key: string]: unknown
+              } | null
+              createdAt: string
+            }
+          }
+        }
+      }
+      /** @description invalid_request — request input failed validation */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Booking, item, or traveler not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getAdminBookingsByIdNotes: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Booking notes */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              bookingId: string
+              authorId: string
+              content: string
+              createdAt: string
+            }[]
+          }
+        }
+      }
+    }
+  }
+  postAdminBookingsByIdNotes: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    /** @description Note to add */
+    requestBody: {
+      content: {
+        "application/json": {
+          content: string
+        }
+      }
+    }
+    responses: {
+      /** @description The created note */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              bookingId: string
+              authorId: string
+              content: string
+              createdAt: string
+            }
+          }
+        }
+      }
+      /** @description invalid_request — request input failed validation */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Booking not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  deleteAdminBookingsByIdNotesByNoteId: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+        noteId: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description The note was deleted */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            success: boolean
+          }
+        }
+      }
+      /** @description Note not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  patchAdminBookingsByIdNotesByNoteId: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+        noteId: string
+      }
+      cookie?: never
+    }
+    /** @description Note edit */
+    requestBody: {
+      content: {
+        "application/json": {
+          content: string
+        }
+      }
+    }
+    responses: {
+      /** @description The updated note */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              bookingId: string
+              authorId: string
+              content: string
+              createdAt: string
+            }
+          }
+        }
+      }
+      /** @description invalid_request — request input failed validation */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Note not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getAdminBookingsByIdDocuments: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Booking documents */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              bookingId: string
+              travelerId: string | null
+              /** @enum {string} */
+              type:
+                | "visa"
+                | "insurance"
+                | "health"
+                | "passport_copy"
+                | "contract"
+                | "invoice"
+                | "proforma"
+                | "credit_note"
+                | "other"
+              fileName: string
+              fileUrl: string
+              issuedBy: string | null
+              issuedSeries: string | null
+              issuedNumber: string | null
+              issuedAt: string | null
+              expiresAt: string | null
+              notes: string | null
+              createdAt: string
+            }[]
+          }
+        }
+      }
+    }
+  }
+  postAdminBookingsByIdDocuments: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    /** @description Document to add */
+    requestBody: {
+      content: {
+        "application/json": {
+          travelerId?: string | null
+          /** @enum {string} */
+          type:
+            | "visa"
+            | "insurance"
+            | "health"
+            | "passport_copy"
+            | "contract"
+            | "invoice"
+            | "proforma"
+            | "credit_note"
+            | "other"
+          fileName: string
+          /** Format: uri */
+          fileUrl: string
+          issuedBy?: string | null
+          issuedSeries?: string | null
+          issuedNumber?: string | null
+          issuedAt?: string | null
+          expiresAt?: string | null
+          notes?: string | null
+        }
+      }
+    }
+    responses: {
+      /** @description The created document */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              bookingId: string
+              travelerId: string | null
+              /** @enum {string} */
+              type:
+                | "visa"
+                | "insurance"
+                | "health"
+                | "passport_copy"
+                | "contract"
+                | "invoice"
+                | "proforma"
+                | "credit_note"
+                | "other"
+              fileName: string
+              fileUrl: string
+              issuedBy: string | null
+              issuedSeries: string | null
+              issuedNumber: string | null
+              issuedAt: string | null
+              expiresAt: string | null
+              notes: string | null
+              createdAt: string
+            }
+          }
+        }
+      }
+      /** @description invalid_request — request input failed validation */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Booking not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  deleteAdminBookingsByIdDocumentsByDocumentId: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+        documentId: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description The document was deleted */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            success: boolean
+          }
+        }
+      }
+      /** @description Document not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getAdminBookingsGroups: {
+    parameters: {
+      query?: {
+        kind?: "shared_room" | "cruise_party" | "other"
+        productId?: string
+        optionUnitId?: string
+        limit?: number
+        offset?: number | null
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Paginated booking groups */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              /** @enum {string} */
+              kind: "shared_room" | "cruise_party" | "other"
+              label: string
+              primaryBookingId: string | null
+              productId: string | null
+              optionUnitId: string | null
+              metadata: {
+                [key: string]: unknown
+              } | null
+              createdAt: string
+              updatedAt: string
+            }[]
+            total: number
+            limit: number
+            offset: number
+          }
+        }
+      }
+      /** @description invalid_request — request input failed validation */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  postAdminBookingsGroups: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** @description Booking group */
+    requestBody: {
+      content: {
+        "application/json": {
+          /**
+           * @default shared_room
+           * @enum {string}
+           */
+          kind?: "shared_room" | "cruise_party" | "other"
+          label: string
+          primaryBookingId?: string | null
+          productId?: string | null
+          optionUnitId?: string | null
+          metadata?: {
+            [key: string]: unknown
+          } | null
+        }
+      }
+    }
+    responses: {
+      /** @description The created booking group */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              /** @enum {string} */
+              kind: "shared_room" | "cruise_party" | "other"
+              label: string
+              primaryBookingId: string | null
+              productId: string | null
+              optionUnitId: string | null
+              metadata: {
+                [key: string]: unknown
+              } | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description invalid_request — request input failed validation */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getAdminBookingsGroupsById: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description A booking group with its members */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              /** @enum {string} */
+              kind: "shared_room" | "cruise_party" | "other"
+              label: string
+              primaryBookingId: string | null
+              productId: string | null
+              optionUnitId: string | null
+              metadata: {
+                [key: string]: unknown
+              } | null
+              createdAt: string
+              updatedAt: string
+              members: {
+                id: string
+                groupId: string
+                bookingId: string
+                /** @enum {string} */
+                role: "primary" | "shared"
+                createdAt: string
+              }[]
+            }
+          }
+        }
+      }
+      /** @description Booking group not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  deleteAdminBookingsGroupsById: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description The booking group was deleted */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            success: boolean
+          }
+        }
+      }
+      /** @description Booking group not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  patchAdminBookingsGroupsById: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    /** @description Partial booking group update */
+    requestBody?: {
+      content: {
+        "application/json": {
+          /** @enum {string} */
+          kind?: "shared_room" | "cruise_party" | "other"
+          label?: string
+          primaryBookingId?: string | null
+          productId?: string | null
+          optionUnitId?: string | null
+          metadata?: {
+            [key: string]: unknown
+          } | null
+        }
+      }
+    }
+    responses: {
+      /** @description The updated booking group */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              /** @enum {string} */
+              kind: "shared_room" | "cruise_party" | "other"
+              label: string
+              primaryBookingId: string | null
+              productId: string | null
+              optionUnitId: string | null
+              metadata: {
+                [key: string]: unknown
+              } | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description invalid_request — request input failed validation */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Booking group not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getAdminBookingsGroupsByIdMembers: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description The booking group members */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              groupId: string
+              bookingId: string
+              /** @enum {string} */
+              role: "primary" | "shared"
+              createdAt: string
+            }[]
+          }
+        }
+      }
+    }
+  }
+  postAdminBookingsGroupsByIdMembers: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    /** @description Booking group member to add */
+    requestBody: {
+      content: {
+        "application/json": {
+          bookingId: string
+          /**
+           * @default shared
+           * @enum {string}
+           */
+          role?: "primary" | "shared"
+        }
+      }
+    }
+    responses: {
+      /** @description The added booking group member */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              groupId: string
+              bookingId: string
+              /** @enum {string} */
+              role: "primary" | "shared"
+              createdAt: string
+            }
+          }
+        }
+      }
+      /** @description invalid_request — request input failed validation */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Booking group or booking not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description already_in_group — the booking already belongs to a group */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+            currentGroupId: string
+          }
+        }
+      }
+    }
+  }
+  deleteAdminBookingsGroupsByIdMembersByBookingId: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+        bookingId: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description The membership was removed */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            success: boolean
+          }
+        }
+      }
+      /** @description Membership not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getAdminBookingsGroupsByIdTravelers: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Travelers across the group's member bookings */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: ({
+              id: string
+              bookingId: string
+            } & {
+              [key: string]: unknown
+            })[]
+          }
+        }
+      }
+    }
+  }
+  getAdminBookings: {
+    parameters: {
+      query?: {
+        status?: "confirmed" | "in_progress" | "completed" | "cancelled"
+        excludeStatuses?:
+          | ("confirmed" | "in_progress" | "completed" | "cancelled")
+          | ("confirmed" | "in_progress" | "completed" | "cancelled")[]
+        search?: string
+        productId?: string
+        optionId?: string
+        availabilitySlotId?: string
+        supplierId?: string
+        productCategoryId?: string
+        personId?: string
+        organizationId?: string
+        dateFrom?: string
+        dateTo?: string
+        paxMin?: number | null
+        paxMax?: number | null
+        sortBy?:
+          | "bookingNumber"
+          | "status"
+          | "sellAmount"
+          | "pax"
+          | "startDate"
+          | "endDate"
+          | "createdAt"
+        sortDir?: "asc" | "desc"
+        limit?: number
+        offset?: number | null
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Paginated bookings (PII redacted unless reveal-authorized) */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              bookingNumber: string
+              revision: number
+              /** @enum {string} */
+              status: "confirmed" | "in_progress" | "completed" | "cancelled"
+              personId: string | null
+              organizationId: string | null
+              /** @enum {string} */
+              sourceType:
+                | "direct"
+                | "manual"
+                | "affiliate"
+                | "ota"
+                | "reseller"
+                | "api_partner"
+                | "internal"
+              externalBookingRef: string | null
+              communicationLanguage: string | null
+              contactFirstName: string | null
+              contactLastName: string | null
+              contactPartyType: string | null
+              contactTaxId: string | null
+              contactEmail: string | null
+              contactPhone: string | null
+              contactPreferredLanguage: string | null
+              contactCountry: string | null
+              contactRegion: string | null
+              contactCity: string | null
+              contactAddressLine1: string | null
+              contactAddressLine2: string | null
+              contactPostalCode: string | null
+              sellCurrency: string
+              baseCurrency: string | null
+              fxRateSetId: string | null
+              sellAmountCents: number | null
+              baseSellAmountCents: number | null
+              costAmountCents: number | null
+              baseCostAmountCents: number | null
+              marginPercent: number | null
+              startDate: string | null
+              endDate: string | null
+              pax: number | null
+              internalNotes: string | null
+              notificationsSuppressed: boolean
+              documentsSuppressed: boolean
+              customerPaymentPolicy?: unknown
+              priceOverride: {
+                [key: string]: unknown
+              } | null
+              customFields: {
+                [key: string]: {
+                  [key: string]: unknown
+                }
+              }
+              acceptedAt: string | null
+              confirmedAt: string | null
+              cancelledAt: string | null
+              completedAt: string | null
+              redeemedAt: string | null
+              createdAt: string
+              updatedAt: string
+            }[]
+            total: number
+            limit: number
+            offset: number
+          }
+        }
+      }
+      /** @description invalid_request — request input failed validation */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getAdminBookingsById: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description A booking by id with its bookings-owned child collections (items, travelers, documents); PII redacted unless reveal-authorized */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              bookingNumber: string
+              revision: number
+              /** @enum {string} */
+              status: "confirmed" | "in_progress" | "completed" | "cancelled"
+              personId: string | null
+              organizationId: string | null
+              /** @enum {string} */
+              sourceType:
+                | "direct"
+                | "manual"
+                | "affiliate"
+                | "ota"
+                | "reseller"
+                | "api_partner"
+                | "internal"
+              externalBookingRef: string | null
+              communicationLanguage: string | null
+              contactFirstName: string | null
+              contactLastName: string | null
+              contactPartyType: string | null
+              contactTaxId: string | null
+              contactEmail: string | null
+              contactPhone: string | null
+              contactPreferredLanguage: string | null
+              contactCountry: string | null
+              contactRegion: string | null
+              contactCity: string | null
+              contactAddressLine1: string | null
+              contactAddressLine2: string | null
+              contactPostalCode: string | null
+              sellCurrency: string
+              baseCurrency: string | null
+              fxRateSetId: string | null
+              sellAmountCents: number | null
+              baseSellAmountCents: number | null
+              costAmountCents: number | null
+              baseCostAmountCents: number | null
+              marginPercent: number | null
+              startDate: string | null
+              endDate: string | null
+              pax: number | null
+              internalNotes: string | null
+              notificationsSuppressed: boolean
+              documentsSuppressed: boolean
+              customerPaymentPolicy?: unknown
+              priceOverride: {
+                [key: string]: unknown
+              } | null
+              customFields: {
+                [key: string]: {
+                  [key: string]: unknown
+                }
+              }
+              acceptedAt: string | null
+              confirmedAt: string | null
+              cancelledAt: string | null
+              completedAt: string | null
+              redeemedAt: string | null
+              createdAt: string
+              updatedAt: string
+              items: {
+                id: string
+                bookingId: string
+                title: string
+                description: string | null
+                /** @enum {string} */
+                itemType:
+                  | "unit"
+                  | "extra"
+                  | "service"
+                  | "fee"
+                  | "tax"
+                  | "discount"
+                  | "adjustment"
+                  | "accommodation"
+                  | "transport"
+                  | "other"
+                /** @enum {string} */
+                status: "confirmed" | "cancelled" | "fulfilled"
+                serviceDate: string | null
+                startsAt: string | null
+                endsAt: string | null
+                quantity: number
+                sellCurrency: string
+                unitSellAmountCents: number | null
+                totalSellAmountCents: number | null
+                costCurrency: string | null
+                unitCostAmountCents: number | null
+                totalCostAmountCents: number | null
+                notes: string | null
+                productId: string | null
+                optionId: string | null
+                optionUnitId: string | null
+                pricingCategoryId: string | null
+                availabilitySlotId: string | null
+                productNameSnapshot: string | null
+                optionNameSnapshot: string | null
+                unitNameSnapshot: string | null
+                departureLabelSnapshot: string | null
+                sourceSnapshotId: string | null
+                sourceOfferId: string | null
+                metadata: {
+                  [key: string]: unknown
+                } | null
+                createdAt: string
+                updatedAt: string
+              }[]
+              travelers: {
+                id: string
+                bookingId: string
+                /** @enum {string} */
+                participantType: "traveler" | "occupant" | "other"
+                /** @enum {string|null} */
+                travelerCategory: "adult" | "child" | "infant" | "senior" | "other" | null
+                firstName: string
+                lastName: string
+                email: string | null
+                phone: string | null
+                preferredLanguage: string | null
+                specialRequests: string | null
+                isPrimary: boolean
+                notes: string | null
+                createdAt: string
+                updatedAt: string
+              }[]
+              documents: {
+                id: string
+                bookingId: string
+                travelerId: string | null
+                /** @enum {string} */
+                type:
+                  | "visa"
+                  | "insurance"
+                  | "health"
+                  | "passport_copy"
+                  | "contract"
+                  | "invoice"
+                  | "proforma"
+                  | "credit_note"
+                  | "other"
+                fileName: string
+                fileUrl: string
+                issuedBy: string | null
+                issuedSeries: string | null
+                issuedNumber: string | null
+                issuedAt: string | null
+                expiresAt: string | null
+                notes: string | null
+                createdAt: string
+              }[]
+            }
+          }
+        }
+      }
+      /** @description Booking not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  deleteAdminBookingsById: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description The booking was deleted */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            success: boolean
+          }
+        }
+      }
+      /** @description Booking not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  patchAdminBookingsById: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    /** @description Partial booking update */
+    requestBody?: {
+      content: {
+        "application/json": {
+          bookingNumber?: string
+          personId?: string | null
+          organizationId?: string | null
+          /** @enum {string} */
+          sourceType?:
+            | "direct"
+            | "manual"
+            | "affiliate"
+            | "ota"
+            | "reseller"
+            | "api_partner"
+            | "internal"
+          externalBookingRef?: string | null
+          communicationLanguage?: string | null
+          contactFirstName?: string | null
+          contactLastName?: string | null
+          /** @enum {string|null} */
+          contactPartyType?: "individual" | "company" | null
+          contactTaxId?: string | null
+          /** Format: email */
+          contactEmail?: string | null
+          contactPhone?: string | null
+          contactPreferredLanguage?: string | null
+          contactCountry?: string | null
+          contactRegion?: string | null
+          contactCity?: string | null
+          contactAddressLine1?: string | null
+          contactAddressLine2?: string | null
+          contactPostalCode?: string | null
+          sellCurrency?: string
+          baseCurrency?: string | null
+          sellAmountCents?: number | null
+          baseSellAmountCents?: number | null
+          costAmountCents?: number | null
+          baseCostAmountCents?: number | null
+          marginPercent?: number | null
+          startDate?: string | null
+          endDate?: string | null
+          pax?: number | null
+          internalNotes?: string | null
+          /** @enum {boolean} */
+          notificationsSuppressed?: true
+          /** @enum {boolean} */
+          documentsSuppressed?: true
+          customerPaymentPolicy?: {
+            deposit: {
+              /** @enum {string} */
+              kind: "none" | "percent" | "fixed_cents"
+              percent?: number
+              amountCents?: number
+            }
+            minDaysBeforeDepartureForDeposit: number
+            balanceDueDaysBeforeDeparture: number
+            balanceDueMinDaysFromNow: number
+          } | null
+          priceOverride?: {
+            /** @enum {boolean} */
+            isManual: true
+            originalAmountCents: number | null
+            overriddenAmountCents: number
+            currency: string
+            reason: string
+            overriddenBy: string
+            /** Format: date-time */
+            overriddenAt: string
+          } | null
+          customFields?: {
+            [key: string]: {
+              [key: string]: unknown
+            }
+          }
+          /** Format: date-time */
+          redeemedAt?: string | null
+        }
+      }
+    }
+    responses: {
+      /** @description The updated booking */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              bookingNumber: string
+              revision: number
+              /** @enum {string} */
+              status: "confirmed" | "in_progress" | "completed" | "cancelled"
+              personId: string | null
+              organizationId: string | null
+              /** @enum {string} */
+              sourceType:
+                | "direct"
+                | "manual"
+                | "affiliate"
+                | "ota"
+                | "reseller"
+                | "api_partner"
+                | "internal"
+              externalBookingRef: string | null
+              communicationLanguage: string | null
+              contactFirstName: string | null
+              contactLastName: string | null
+              contactPartyType: string | null
+              contactTaxId: string | null
+              contactEmail: string | null
+              contactPhone: string | null
+              contactPreferredLanguage: string | null
+              contactCountry: string | null
+              contactRegion: string | null
+              contactCity: string | null
+              contactAddressLine1: string | null
+              contactAddressLine2: string | null
+              contactPostalCode: string | null
+              sellCurrency: string
+              baseCurrency: string | null
+              fxRateSetId: string | null
+              sellAmountCents: number | null
+              baseSellAmountCents: number | null
+              costAmountCents: number | null
+              baseCostAmountCents: number | null
+              marginPercent: number | null
+              startDate: string | null
+              endDate: string | null
+              pax: number | null
+              internalNotes: string | null
+              notificationsSuppressed: boolean
+              documentsSuppressed: boolean
+              customerPaymentPolicy?: unknown
+              priceOverride: {
+                [key: string]: unknown
+              } | null
+              customFields: {
+                [key: string]: {
+                  [key: string]: unknown
+                }
+              }
+              acceptedAt: string | null
+              confirmedAt: string | null
+              cancelledAt: string | null
+              completedAt: string | null
+              redeemedAt: string | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description invalid_request — request input failed validation */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Monthly booking plan limit reached */
+      402: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Booking not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+}

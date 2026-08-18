@@ -91,12 +91,24 @@ const channelBaseSchema = z.object({
    * the only one today. Such a channel cannot be deleted or deactivated, and
    * the counterparty list leaves it out.
    */
-  systemKey: z.string().nullable(),
+  systemKey: z
+    .string()
+    .nullable()
+    .describe(
+      "Non-null on a channel the deployment provisions for itself. `direct` is the only one today: " +
+        "it cannot be deleted or deactivated, and the counterparty list leaves it out.",
+    ),
   /**
    * The catalog entry this channel was created from, for named networks only.
    * A stable identity a connector can bind to, unlike the display name.
    */
-  presetKey: z.string().nullable(),
+  presetKey: z
+    .string()
+    .nullable()
+    .describe(
+      "Catalog entry this channel was created from, for named networks only. A stable identity a " +
+        "connector can bind to, unlike the display name.",
+    ),
   rateLimitRps: z.number().int().nullable(),
   rateLimitBurst: z.number().int().nullable(),
   rateLimitPriorityGates: numberRecord.nullable(),

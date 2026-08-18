@@ -129,6 +129,7 @@
   "paths": {
     "/v1/public/markets": {
       "get": {
+        "x-voyant-api-id": "@voyant-travel/commerce#api.markets.public",
         "responses": {
           "200": {
             "description": "The supported markets, locales, and currencies for anonymous discovery",

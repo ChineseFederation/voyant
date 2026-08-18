@@ -11,182 +11,28 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    get: {
-      parameters: {
-        query?: {
-          limit?: number
-          offset?: number | null
-          kind?:
-            | "direct"
-            | "affiliate"
-            | "ota"
-            | "reseller"
-            | "marketplace"
-            | "api_partner"
-            | "connect"
-          status?: "active" | "inactive" | "pending" | "archived"
-          /** @description How to treat system-provisioned channels (today: Direct). Defaults to `include` — publication and product-mapping pickers must be able to target Direct. The counterparty list passes `exclude`. */
-          system?: "include" | "exclude" | "only"
-        }
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Paginated channels */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                name: string
-                description: string | null
-                /** @enum {string} */
-                kind:
-                  | "direct"
-                  | "affiliate"
-                  | "ota"
-                  | "reseller"
-                  | "marketplace"
-                  | "api_partner"
-                  | "connect"
-                /** @enum {string} */
-                status: "active" | "inactive" | "pending" | "archived"
-                metadata: {
-                  [key: string]: unknown
-                } | null
-                /** @description Non-null on a channel the deployment provisions for itself. `direct` is the only one today: it cannot be deleted or deactivated, and the counterparty list leaves it out. */
-                systemKey: string | null
-                /** @description Catalog entry this channel was created from, for named networks only. A stable identity a connector can bind to, unlike the display name. */
-                presetKey: string | null
-                rateLimitRps: number | null
-                rateLimitBurst: number | null
-                rateLimitPriorityGates: {
-                  [key: string]: number
-                } | null
-                createdAt: string
-                updatedAt: string
-                website: string | null
-                contactName: string | null
-                contactEmail: string | null
-              }[]
-              total: number
-              limit: number
-              offset: number
-            }
-          }
-        }
-      }
-    }
+    /** GET /v1/admin/distribution/channels */
+    get: operations["getAdminDistributionChannels"]
     put?: never
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          "application/json": {
-            name: string
-            description?: string | null
-            /** @enum {string} */
-            kind:
-              | "direct"
-              | "affiliate"
-              | "ota"
-              | "reseller"
-              | "marketplace"
-              | "api_partner"
-              | "connect"
-            /**
-             * @default active
-             * @enum {string}
-             */
-            status?: "active" | "inactive" | "pending" | "archived"
-            website?: (string | null) | "" | null
-            contactName?: string | null
-            /** Format: email */
-            contactEmail?: string | null
-            metadata?: {
-              [key: string]: unknown
-            } | null
-          }
-        }
-      }
-      responses: {
-        /** @description The created channel */
-        201: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                name: string
-                description: string | null
-                /** @enum {string} */
-                kind:
-                  | "direct"
-                  | "affiliate"
-                  | "ota"
-                  | "reseller"
-                  | "marketplace"
-                  | "api_partner"
-                  | "connect"
-                /** @enum {string} */
-                status: "active" | "inactive" | "pending" | "archived"
-                metadata: {
-                  [key: string]: unknown
-                } | null
-                /** @description Non-null on a channel the deployment provisions for itself. `direct` is the only one today: it cannot be deleted or deactivated, and the counterparty list leaves it out. */
-                systemKey: string | null
-                /** @description Catalog entry this channel was created from, for named networks only. A stable identity a connector can bind to, unlike the display name. */
-                presetKey: string | null
-                rateLimitRps: number | null
-                rateLimitBurst: number | null
-                rateLimitPriorityGates: {
-                  [key: string]: number
-                } | null
-                createdAt: string
-                updatedAt: string
-                website: string | null
-                contactName: string | null
-                contactEmail: string | null
-              }
-            }
-          }
-        }
-        /** @description invalid_request */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-        /** @description A channel for this preset network already exists */
-        409: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
+    /** POST /v1/admin/distribution/channels */
+    post: operations["postAdminDistributionChannels"]
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/admin/distribution/channels/presets": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
     }
+    /** GET /v1/admin/distribution/channels/presets */
+    get: operations["listChannelPresets"]
+    put?: never
+    post?: never
     delete?: never
     options?: never
     head?: never
@@ -202,108 +48,8 @@ export interface paths {
     }
     get?: never
     put?: never
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          "application/json": {
-            ids: string[]
-            patch: {
-              name?: string
-              description?: string | null
-              /** @enum {string} */
-              kind?:
-                | "direct"
-                | "affiliate"
-                | "ota"
-                | "reseller"
-                | "marketplace"
-                | "api_partner"
-                | "connect"
-              /**
-               * @default active
-               * @enum {string}
-               */
-              status?: "active" | "inactive" | "pending" | "archived"
-              website?: (string | null) | "" | null
-              contactName?: string | null
-              /** Format: email */
-              contactEmail?: string | null
-              metadata?: {
-                [key: string]: unknown
-              } | null
-            }
-          }
-        }
-      }
-      responses: {
-        /** @description Per-id batch-update results */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                name: string
-                description: string | null
-                /** @enum {string} */
-                kind:
-                  | "direct"
-                  | "affiliate"
-                  | "ota"
-                  | "reseller"
-                  | "marketplace"
-                  | "api_partner"
-                  | "connect"
-                /** @enum {string} */
-                status: "active" | "inactive" | "pending" | "archived"
-                metadata: {
-                  [key: string]: unknown
-                } | null
-                /** @description Non-null on a channel the deployment provisions for itself. `direct` is the only one today: it cannot be deleted or deactivated, and the counterparty list leaves it out. */
-                systemKey: string | null
-                /** @description Catalog entry this channel was created from, for named networks only. A stable identity a connector can bind to, unlike the display name. */
-                presetKey: string | null
-                rateLimitRps: number | null
-                rateLimitBurst: number | null
-                rateLimitPriorityGates: {
-                  [key: string]: number
-                } | null
-                createdAt: string
-                updatedAt: string
-                website: string | null
-                contactName: string | null
-                contactEmail: string | null
-              }[]
-              total: number
-              succeeded: number
-              failed: {
-                id: string
-                error: string
-              }[]
-            }
-          }
-        }
-        /** @description invalid_request */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** POST /v1/admin/distribution/channels/batch-update */
+    post: operations["postAdminDistributionChannelsBatchUpdate"]
     delete?: never
     options?: never
     head?: never
@@ -319,67 +65,8 @@ export interface paths {
     }
     get?: never
     put?: never
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          "application/json": {
-            ids: string[]
-          }
-        }
-      }
-      responses: {
-        /** @description Per-id batch-delete results */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              deletedIds: string[]
-              total: number
-              succeeded: number
-              failed: {
-                id: string
-                error: string
-              }[]
-            }
-          }
-        }
-        /** @description invalid_request */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  "/v1/admin/distribution/channels/presets": {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    get: operations["listChannelPresets"]
-    put?: never
-    post?: never
+    /** POST /v1/admin/distribution/channels/batch-delete */
+    post: operations["postAdminDistributionChannelsBatchDelete"]
     delete?: never
     options?: never
     head?: never
@@ -393,241 +80,16 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    get: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description A channel by id */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                name: string
-                description: string | null
-                /** @enum {string} */
-                kind:
-                  | "direct"
-                  | "affiliate"
-                  | "ota"
-                  | "reseller"
-                  | "marketplace"
-                  | "api_partner"
-                  | "connect"
-                /** @enum {string} */
-                status: "active" | "inactive" | "pending" | "archived"
-                metadata: {
-                  [key: string]: unknown
-                } | null
-                /** @description Non-null on a channel the deployment provisions for itself. `direct` is the only one today: it cannot be deleted or deactivated, and the counterparty list leaves it out. */
-                systemKey: string | null
-                /** @description Catalog entry this channel was created from, for named networks only. A stable identity a connector can bind to, unlike the display name. */
-                presetKey: string | null
-                rateLimitRps: number | null
-                rateLimitBurst: number | null
-                rateLimitPriorityGates: {
-                  [key: string]: number
-                } | null
-                createdAt: string
-                updatedAt: string
-                website: string | null
-                contactName: string | null
-                contactEmail: string | null
-              }
-            }
-          }
-        }
-        /** @description Channel not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** GET /v1/admin/distribution/channels/{id} */
+    get: operations["getAdminDistributionChannelsById"]
     put?: never
     post?: never
-    delete: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Channel deleted */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              /** @enum {boolean} */
-              success: true
-            }
-          }
-        }
-        /** @description Channel not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-        /** @description Channel is system-provisioned and cannot be deleted */
-        409: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** DELETE /v1/admin/distribution/channels/{id} */
+    delete: operations["deleteAdminDistributionChannelsById"]
     options?: never
     head?: never
-    patch: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          "application/json": {
-            name?: string
-            description?: string | null
-            /** @enum {string} */
-            kind?:
-              | "direct"
-              | "affiliate"
-              | "ota"
-              | "reseller"
-              | "marketplace"
-              | "api_partner"
-              | "connect"
-            /**
-             * @default active
-             * @enum {string}
-             */
-            status?: "active" | "inactive" | "pending" | "archived"
-            website?: (string | null) | "" | null
-            contactName?: string | null
-            /** Format: email */
-            contactEmail?: string | null
-            metadata?: {
-              [key: string]: unknown
-            } | null
-          }
-        }
-      }
-      responses: {
-        /** @description The updated channel */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                name: string
-                description: string | null
-                /** @enum {string} */
-                kind:
-                  | "direct"
-                  | "affiliate"
-                  | "ota"
-                  | "reseller"
-                  | "marketplace"
-                  | "api_partner"
-                  | "connect"
-                /** @enum {string} */
-                status: "active" | "inactive" | "pending" | "archived"
-                metadata: {
-                  [key: string]: unknown
-                } | null
-                /** @description Non-null on a channel the deployment provisions for itself. `direct` is the only one today: it cannot be deleted or deactivated, and the counterparty list leaves it out. */
-                systemKey: string | null
-                /** @description Catalog entry this channel was created from, for named networks only. A stable identity a connector can bind to, unlike the display name. */
-                presetKey: string | null
-                rateLimitRps: number | null
-                rateLimitBurst: number | null
-                rateLimitPriorityGates: {
-                  [key: string]: number
-                } | null
-                createdAt: string
-                updatedAt: string
-                website: string | null
-                contactName: string | null
-                contactEmail: string | null
-              }
-            }
-          }
-        }
-        /** @description invalid_request */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-        /** @description Channel not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-        /** @description Patch is not permitted on a system-provisioned channel */
-        409: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** PATCH /v1/admin/distribution/channels/{id} */
+    patch: operations["patchAdminDistributionChannelsById"]
     trace?: never
   }
   "/v1/admin/distribution/channels/{id}/contact-points": {
@@ -637,143 +99,11 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    get: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Contact points for a channel */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                entityType: string
-                entityId: string
-                kind: string
-                label: string | null
-                value: string
-                normalizedValue: string | null
-                isPrimary: boolean
-                notes: string | null
-                metadata: {
-                  [key: string]: unknown
-                } | null
-                createdAt: string
-                updatedAt: string
-              }[]
-            }
-          }
-        }
-        /** @description Channel not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** GET /v1/admin/distribution/channels/{id}/contact-points */
+    get: operations["getAdminDistributionChannelsByIdContactPoints"]
     put?: never
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          "application/json": {
-            /** @enum {string} */
-            kind:
-              | "email"
-              | "phone"
-              | "mobile"
-              | "whatsapp"
-              | "website"
-              | "sms"
-              | "fax"
-              | "social"
-              | "other"
-            label?: string | null
-            value: string
-            normalizedValue?: string | null
-            /** @default false */
-            isPrimary?: boolean
-            notes?: string | null
-            metadata?: {
-              [key: string]: unknown
-            } | null
-          }
-        }
-      }
-      responses: {
-        /** @description The created contact point */
-        201: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                entityType: string
-                entityId: string
-                kind: string
-                label: string | null
-                value: string
-                normalizedValue: string | null
-                isPrimary: boolean
-                notes: string | null
-                metadata: {
-                  [key: string]: unknown
-                } | null
-                createdAt: string
-                updatedAt: string
-              }
-            }
-          }
-        }
-        /** @description invalid_request */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-        /** @description Channel not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** POST /v1/admin/distribution/channels/{id}/contact-points */
+    post: operations["postAdminDistributionChannelsByIdContactPoints"]
     delete?: never
     options?: never
     head?: never
@@ -790,132 +120,12 @@ export interface paths {
     get?: never
     put?: never
     post?: never
-    delete: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          contactPointId: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Contact point deleted */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              /** @enum {boolean} */
-              success: true
-            }
-          }
-        }
-        /** @description Channel contact point not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** DELETE /v1/admin/distribution/channel-contact-points/{contactPointId} */
+    delete: operations["deleteAdminDistributionChannelContactPointsByContactPointId"]
     options?: never
     head?: never
-    patch: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          contactPointId: string
-        }
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          "application/json": {
-            entityType?: string
-            entityId?: string
-            /** @enum {string} */
-            kind?:
-              | "email"
-              | "phone"
-              | "mobile"
-              | "whatsapp"
-              | "website"
-              | "sms"
-              | "fax"
-              | "social"
-              | "other"
-            label?: string | null
-            value?: string
-            normalizedValue?: string | null
-            /** @default false */
-            isPrimary?: boolean
-            notes?: string | null
-            metadata?: {
-              [key: string]: unknown
-            } | null
-          }
-        }
-      }
-      responses: {
-        /** @description The updated contact point */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                entityType: string
-                entityId: string
-                kind: string
-                label: string | null
-                value: string
-                normalizedValue: string | null
-                isPrimary: boolean
-                notes: string | null
-                metadata: {
-                  [key: string]: unknown
-                } | null
-                createdAt: string
-                updatedAt: string
-              }
-            }
-          }
-        }
-        /** @description invalid_request */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-        /** @description Channel contact point not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** PATCH /v1/admin/distribution/channel-contact-points/{contactPointId} */
+    patch: operations["patchAdminDistributionChannelContactPointsByContactPointId"]
     trace?: never
   }
   "/v1/admin/distribution/channels/{id}/contacts": {
@@ -925,151 +135,11 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    get: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Named contacts for a channel */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                entityType: string
-                entityId: string
-                role: string
-                name: string
-                title: string | null
-                email: string | null
-                phone: string | null
-                isPrimary: boolean
-                notes: string | null
-                metadata: {
-                  [key: string]: unknown
-                } | null
-                createdAt: string
-                updatedAt: string
-              }[]
-            }
-          }
-        }
-        /** @description Channel not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** GET /v1/admin/distribution/channels/{id}/contacts */
+    get: operations["getAdminDistributionChannelsByIdContacts"]
     put?: never
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          "application/json": {
-            /**
-             * @default general
-             * @enum {string}
-             */
-            role?:
-              | "general"
-              | "primary"
-              | "reservations"
-              | "operations"
-              | "front_desk"
-              | "sales"
-              | "emergency"
-              | "accounting"
-              | "legal"
-              | "other"
-            name: string
-            title?: string | null
-            /** Format: email */
-            email?: string | null
-            phone?: string | null
-            /** @default false */
-            isPrimary?: boolean
-            notes?: string | null
-            metadata?: {
-              [key: string]: unknown
-            } | null
-          }
-        }
-      }
-      responses: {
-        /** @description The created named contact */
-        201: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                entityType: string
-                entityId: string
-                role: string
-                name: string
-                title: string | null
-                email: string | null
-                phone: string | null
-                isPrimary: boolean
-                notes: string | null
-                metadata: {
-                  [key: string]: unknown
-                } | null
-                createdAt: string
-                updatedAt: string
-              }
-            }
-          }
-        }
-        /** @description invalid_request */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-        /** @description Channel not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** POST /v1/admin/distribution/channels/{id}/contacts */
+    post: operations["postAdminDistributionChannelsByIdContacts"]
     delete?: never
     options?: never
     head?: never
@@ -1086,139 +156,12 @@ export interface paths {
     get?: never
     put?: never
     post?: never
-    delete: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          contactId: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Named contact deleted */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              /** @enum {boolean} */
-              success: true
-            }
-          }
-        }
-        /** @description Channel contact not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** DELETE /v1/admin/distribution/channel-contacts/{contactId} */
+    delete: operations["deleteAdminDistributionChannelContactsByContactId"]
     options?: never
     head?: never
-    patch: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          contactId: string
-        }
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          "application/json": {
-            entityType?: string
-            entityId?: string
-            /**
-             * @default general
-             * @enum {string}
-             */
-            role?:
-              | "general"
-              | "primary"
-              | "reservations"
-              | "operations"
-              | "front_desk"
-              | "sales"
-              | "emergency"
-              | "accounting"
-              | "legal"
-              | "other"
-            name?: string
-            title?: string | null
-            /** Format: email */
-            email?: string | null
-            phone?: string | null
-            /** @default false */
-            isPrimary?: boolean
-            notes?: string | null
-            metadata?: {
-              [key: string]: unknown
-            } | null
-          }
-        }
-      }
-      responses: {
-        /** @description The updated named contact */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                entityType: string
-                entityId: string
-                role: string
-                name: string
-                title: string | null
-                email: string | null
-                phone: string | null
-                isPrimary: boolean
-                notes: string | null
-                metadata: {
-                  [key: string]: unknown
-                } | null
-                createdAt: string
-                updatedAt: string
-              }
-            }
-          }
-        }
-        /** @description invalid_request */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-        /** @description Channel contact not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** PATCH /v1/admin/distribution/channel-contacts/{contactId} */
+    patch: operations["patchAdminDistributionChannelContactsByContactId"]
     trace?: never
   }
   "/v1/admin/distribution/contracts": {
@@ -1228,147 +171,11 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    get: {
-      parameters: {
-        query?: {
-          limit?: number
-          offset?: number | null
-          channelId?: string
-          supplierId?: string
-          status?: "draft" | "active" | "expired" | "terminated"
-        }
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Paginated channel contracts */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                channelId: string | null
-                supplierId: string | null
-                /** @enum {string} */
-                status: "draft" | "active" | "expired" | "terminated"
-                startsAt: string
-                endsAt: string | null
-                /** @enum {string} */
-                paymentOwner: "operator" | "channel" | "split"
-                /** @enum {string} */
-                cancellationOwner: "operator" | "channel" | "mixed"
-                settlementTerms: string | null
-                notes: string | null
-                rateLimitRps: number | null
-                rateLimitBurst: number | null
-                rateLimitPriorityGates: {
-                  [key: string]: number
-                } | null
-                policy: {
-                  [key: string]: unknown
-                } | null
-                createdAt: string
-                updatedAt: string
-              }[]
-              total: number
-              limit: number
-              offset: number
-            }
-          }
-        }
-      }
-    }
+    /** GET /v1/admin/distribution/contracts */
+    get: operations["getAdminDistributionContracts"]
     put?: never
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          "application/json": {
-            channelId: string
-            supplierId?: string | null
-            /**
-             * @default draft
-             * @enum {string}
-             */
-            status?: "draft" | "active" | "expired" | "terminated"
-            /** Format: date */
-            startsAt: string
-            /** Format: date */
-            endsAt?: string | null
-            /**
-             * @default operator
-             * @enum {string}
-             */
-            paymentOwner?: "operator" | "channel" | "split"
-            /**
-             * @default operator
-             * @enum {string}
-             */
-            cancellationOwner?: "operator" | "channel" | "mixed"
-            settlementTerms?: string | null
-            notes?: string | null
-          }
-        }
-      }
-      responses: {
-        /** @description The created contract */
-        201: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                channelId: string
-                supplierId: string | null
-                /** @enum {string} */
-                status: "draft" | "active" | "expired" | "terminated"
-                startsAt: string
-                endsAt: string | null
-                /** @enum {string} */
-                paymentOwner: "operator" | "channel" | "split"
-                /** @enum {string} */
-                cancellationOwner: "operator" | "channel" | "mixed"
-                settlementTerms: string | null
-                notes: string | null
-                rateLimitRps: number | null
-                rateLimitBurst: number | null
-                rateLimitPriorityGates: {
-                  [key: string]: number
-                } | null
-                policy: {
-                  [key: string]: unknown
-                } | null
-                createdAt: string
-                updatedAt: string
-              }
-            }
-          }
-        }
-        /** @description invalid_request */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** POST /v1/admin/distribution/contracts */
+    post: operations["postAdminDistributionContracts"]
     delete?: never
     options?: never
     head?: never
@@ -1384,100 +191,8 @@ export interface paths {
     }
     get?: never
     put?: never
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          "application/json": {
-            ids: string[]
-            patch: {
-              channelId?: string
-              supplierId?: string | null
-              /**
-               * @default draft
-               * @enum {string}
-               */
-              status?: "draft" | "active" | "expired" | "terminated"
-              /** Format: date */
-              startsAt?: string
-              /** Format: date */
-              endsAt?: string | null
-              /**
-               * @default operator
-               * @enum {string}
-               */
-              paymentOwner?: "operator" | "channel" | "split"
-              /**
-               * @default operator
-               * @enum {string}
-               */
-              cancellationOwner?: "operator" | "channel" | "mixed"
-              settlementTerms?: string | null
-              notes?: string | null
-            }
-          }
-        }
-      }
-      responses: {
-        /** @description Per-id batch-update results */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                channelId: string
-                supplierId: string | null
-                /** @enum {string} */
-                status: "draft" | "active" | "expired" | "terminated"
-                startsAt: string
-                endsAt: string | null
-                /** @enum {string} */
-                paymentOwner: "operator" | "channel" | "split"
-                /** @enum {string} */
-                cancellationOwner: "operator" | "channel" | "mixed"
-                settlementTerms: string | null
-                notes: string | null
-                rateLimitRps: number | null
-                rateLimitBurst: number | null
-                rateLimitPriorityGates: {
-                  [key: string]: number
-                } | null
-                policy: {
-                  [key: string]: unknown
-                } | null
-                createdAt: string
-                updatedAt: string
-              }[]
-              total: number
-              succeeded: number
-              failed: {
-                id: string
-                error: string
-              }[]
-            }
-          }
-        }
-        /** @description invalid_request */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** POST /v1/admin/distribution/contracts/batch-update */
+    post: operations["postAdminDistributionContractsBatchUpdate"]
     delete?: never
     options?: never
     head?: never
@@ -1493,51 +208,8 @@ export interface paths {
     }
     get?: never
     put?: never
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          "application/json": {
-            ids: string[]
-          }
-        }
-      }
-      responses: {
-        /** @description Per-id batch-delete results */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              deletedIds: string[]
-              total: number
-              succeeded: number
-              failed: {
-                id: string
-                error: string
-              }[]
-            }
-          }
-        }
-        /** @description invalid_request */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** POST /v1/admin/distribution/contracts/batch-delete */
+    post: operations["postAdminDistributionContractsBatchDelete"]
     delete?: never
     options?: never
     head?: never
@@ -1551,203 +223,16 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    get: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description A contract by id */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                channelId: string
-                supplierId: string | null
-                /** @enum {string} */
-                status: "draft" | "active" | "expired" | "terminated"
-                startsAt: string
-                endsAt: string | null
-                /** @enum {string} */
-                paymentOwner: "operator" | "channel" | "split"
-                /** @enum {string} */
-                cancellationOwner: "operator" | "channel" | "mixed"
-                settlementTerms: string | null
-                notes: string | null
-                rateLimitRps: number | null
-                rateLimitBurst: number | null
-                rateLimitPriorityGates: {
-                  [key: string]: number
-                } | null
-                policy: {
-                  [key: string]: unknown
-                } | null
-                createdAt: string
-                updatedAt: string
-              }
-            }
-          }
-        }
-        /** @description Channel contract not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** GET /v1/admin/distribution/contracts/{id} */
+    get: operations["getAdminDistributionContractsById"]
     put?: never
     post?: never
-    delete: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Contract deleted */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              /** @enum {boolean} */
-              success: true
-            }
-          }
-        }
-        /** @description Channel contract not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** DELETE /v1/admin/distribution/contracts/{id} */
+    delete: operations["deleteAdminDistributionContractsById"]
     options?: never
     head?: never
-    patch: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          "application/json": {
-            channelId?: string
-            supplierId?: string | null
-            /**
-             * @default draft
-             * @enum {string}
-             */
-            status?: "draft" | "active" | "expired" | "terminated"
-            /** Format: date */
-            startsAt?: string
-            /** Format: date */
-            endsAt?: string | null
-            /**
-             * @default operator
-             * @enum {string}
-             */
-            paymentOwner?: "operator" | "channel" | "split"
-            /**
-             * @default operator
-             * @enum {string}
-             */
-            cancellationOwner?: "operator" | "channel" | "mixed"
-            settlementTerms?: string | null
-            notes?: string | null
-          }
-        }
-      }
-      responses: {
-        /** @description The updated contract */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                channelId: string
-                supplierId: string | null
-                /** @enum {string} */
-                status: "draft" | "active" | "expired" | "terminated"
-                startsAt: string
-                endsAt: string | null
-                /** @enum {string} */
-                paymentOwner: "operator" | "channel" | "split"
-                /** @enum {string} */
-                cancellationOwner: "operator" | "channel" | "mixed"
-                settlementTerms: string | null
-                notes: string | null
-                rateLimitRps: number | null
-                rateLimitBurst: number | null
-                rateLimitPriorityGates: {
-                  [key: string]: number
-                } | null
-                policy: {
-                  [key: string]: unknown
-                } | null
-                createdAt: string
-                updatedAt: string
-              }
-            }
-          }
-        }
-        /** @description invalid_request */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-        /** @description Channel contract not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** PATCH /v1/admin/distribution/contracts/{id} */
+    patch: operations["patchAdminDistributionContractsById"]
     trace?: never
   }
   "/v1/admin/distribution/commission-rules": {
@@ -1757,122 +242,11 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    get: {
-      parameters: {
-        query?: {
-          limit?: number
-          offset?: number | null
-          contractId?: string
-          productId?: string
-          scope?: "booking" | "product" | "rate" | "category"
-        }
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Paginated commission rules */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                contractId: string
-                /** @enum {string} */
-                scope: "booking" | "product" | "rate" | "category"
-                productId: string | null
-                externalRateId: string | null
-                externalCategoryId: string | null
-                /** @enum {string} */
-                commissionType: "fixed" | "percentage"
-                amountCents: number | null
-                percentBasisPoints: number | null
-                validFrom: string | null
-                validTo: string | null
-                createdAt: string
-                updatedAt: string
-              }[]
-              total: number
-              limit: number
-              offset: number
-            }
-          }
-        }
-      }
-    }
+    /** GET /v1/admin/distribution/commission-rules */
+    get: operations["getAdminDistributionCommissionRules"]
     put?: never
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          "application/json": {
-            contractId: string
-            /** @enum {string} */
-            scope: "booking" | "product" | "rate" | "category"
-            productId?: string | null
-            externalRateId?: string | null
-            externalCategoryId?: string | null
-            /** @enum {string} */
-            commissionType: "fixed" | "percentage"
-            amountCents?: number | null
-            percentBasisPoints?: number | null
-            /** Format: date */
-            validFrom?: string | null
-            /** Format: date */
-            validTo?: string | null
-          }
-        }
-      }
-      responses: {
-        /** @description The created commission rule */
-        201: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                contractId: string
-                /** @enum {string} */
-                scope: "booking" | "product" | "rate" | "category"
-                productId: string | null
-                externalRateId: string | null
-                externalCategoryId: string | null
-                /** @enum {string} */
-                commissionType: "fixed" | "percentage"
-                amountCents: number | null
-                percentBasisPoints: number | null
-                validFrom: string | null
-                validTo: string | null
-                createdAt: string
-                updatedAt: string
-              }
-            }
-          }
-        }
-        /** @description invalid_request */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** POST /v1/admin/distribution/commission-rules */
+    post: operations["postAdminDistributionCommissionRules"]
     delete?: never
     options?: never
     head?: never
@@ -1888,83 +262,8 @@ export interface paths {
     }
     get?: never
     put?: never
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          "application/json": {
-            ids: string[]
-            patch: {
-              contractId?: string
-              /** @enum {string} */
-              scope?: "booking" | "product" | "rate" | "category"
-              productId?: string | null
-              externalRateId?: string | null
-              externalCategoryId?: string | null
-              /** @enum {string} */
-              commissionType?: "fixed" | "percentage"
-              amountCents?: number | null
-              percentBasisPoints?: number | null
-              /** Format: date */
-              validFrom?: string | null
-              /** Format: date */
-              validTo?: string | null
-            }
-          }
-        }
-      }
-      responses: {
-        /** @description Per-id batch-update results */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                contractId: string
-                /** @enum {string} */
-                scope: "booking" | "product" | "rate" | "category"
-                productId: string | null
-                externalRateId: string | null
-                externalCategoryId: string | null
-                /** @enum {string} */
-                commissionType: "fixed" | "percentage"
-                amountCents: number | null
-                percentBasisPoints: number | null
-                validFrom: string | null
-                validTo: string | null
-                createdAt: string
-                updatedAt: string
-              }[]
-              total: number
-              succeeded: number
-              failed: {
-                id: string
-                error: string
-              }[]
-            }
-          }
-        }
-        /** @description invalid_request */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** POST /v1/admin/distribution/commission-rules/batch-update */
+    post: operations["postAdminDistributionCommissionRulesBatchUpdate"]
     delete?: never
     options?: never
     head?: never
@@ -1980,51 +279,8 @@ export interface paths {
     }
     get?: never
     put?: never
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          "application/json": {
-            ids: string[]
-          }
-        }
-      }
-      responses: {
-        /** @description Per-id batch-delete results */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              deletedIds: string[]
-              total: number
-              succeeded: number
-              failed: {
-                id: string
-                error: string
-              }[]
-            }
-          }
-        }
-        /** @description invalid_request */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** POST /v1/admin/distribution/commission-rules/batch-delete */
+    post: operations["postAdminDistributionCommissionRulesBatchDelete"]
     delete?: never
     options?: never
     head?: never
@@ -2038,178 +294,16 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    get: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description A commission rule by id */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                contractId: string
-                /** @enum {string} */
-                scope: "booking" | "product" | "rate" | "category"
-                productId: string | null
-                externalRateId: string | null
-                externalCategoryId: string | null
-                /** @enum {string} */
-                commissionType: "fixed" | "percentage"
-                amountCents: number | null
-                percentBasisPoints: number | null
-                validFrom: string | null
-                validTo: string | null
-                createdAt: string
-                updatedAt: string
-              }
-            }
-          }
-        }
-        /** @description Channel commission rule not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** GET /v1/admin/distribution/commission-rules/{id} */
+    get: operations["getAdminDistributionCommissionRulesById"]
     put?: never
     post?: never
-    delete: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Commission rule deleted */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              /** @enum {boolean} */
-              success: true
-            }
-          }
-        }
-        /** @description Channel commission rule not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** DELETE /v1/admin/distribution/commission-rules/{id} */
+    delete: operations["deleteAdminDistributionCommissionRulesById"]
     options?: never
     head?: never
-    patch: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          "application/json": {
-            contractId?: string
-            /** @enum {string} */
-            scope?: "booking" | "product" | "rate" | "category"
-            productId?: string | null
-            externalRateId?: string | null
-            externalCategoryId?: string | null
-            /** @enum {string} */
-            commissionType?: "fixed" | "percentage"
-            amountCents?: number | null
-            percentBasisPoints?: number | null
-            /** Format: date */
-            validFrom?: string | null
-            /** Format: date */
-            validTo?: string | null
-          }
-        }
-      }
-      responses: {
-        /** @description The updated commission rule */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                contractId: string
-                /** @enum {string} */
-                scope: "booking" | "product" | "rate" | "category"
-                productId: string | null
-                externalRateId: string | null
-                externalCategoryId: string | null
-                /** @enum {string} */
-                commissionType: "fixed" | "percentage"
-                amountCents: number | null
-                percentBasisPoints: number | null
-                validFrom: string | null
-                validTo: string | null
-                createdAt: string
-                updatedAt: string
-              }
-            }
-          }
-        }
-        /** @description invalid_request */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-        /** @description Channel commission rule not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** PATCH /v1/admin/distribution/commission-rules/{id} */
+    patch: operations["patchAdminDistributionCommissionRulesById"]
     trace?: never
   }
   "/v1/admin/distribution/product-mappings": {
@@ -2219,134 +313,11 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    get: {
-      parameters: {
-        query?: {
-          limit?: number
-          offset?: number | null
-          channelId?: string
-          productId?: string
-          active?: "0" | "1" | "true" | "false"
-        }
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Paginated product mappings */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                channelId: string
-                productId: string
-                externalProductId: string | null
-                externalRateId: string | null
-                externalCategoryId: string | null
-                active: boolean
-                sourceKind: string | null
-                sourceConnectionId: string | null
-                pushBookings: boolean
-                pushAvailability: boolean
-                pushContent: boolean
-                policy: {
-                  [key: string]: unknown
-                } | null
-                lastPushedContentHash: string | null
-                lastPushedContentAt: string | null
-                createdAt: string
-                updatedAt: string
-              }[]
-              total: number
-              limit: number
-              offset: number
-            }
-          }
-        }
-      }
-    }
+    /** GET /v1/admin/distribution/product-mappings */
+    get: operations["getAdminDistributionProductMappings"]
     put?: never
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          "application/json": {
-            channelId: string
-            productId: string
-            externalProductId?: string | null
-            externalRateId?: string | null
-            externalCategoryId?: string | null
-            /** @default true */
-            active?: boolean
-            sourceKind?: string | null
-            sourceConnectionId?: string | null
-            /** @default true */
-            pushBookings?: boolean
-            /** @default true */
-            pushAvailability?: boolean
-            /** @default true */
-            pushContent?: boolean
-            policy?: {
-              [key: string]: unknown
-            } | null
-          }
-        }
-      }
-      responses: {
-        /** @description The created product mapping */
-        201: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                channelId: string
-                productId: string
-                externalProductId: string | null
-                externalRateId: string | null
-                externalCategoryId: string | null
-                active: boolean
-                sourceKind: string | null
-                sourceConnectionId: string | null
-                pushBookings: boolean
-                pushAvailability: boolean
-                pushContent: boolean
-                policy: {
-                  [key: string]: unknown
-                } | null
-                lastPushedContentHash: string | null
-                lastPushedContentAt: string | null
-                createdAt: string
-                updatedAt: string
-              }
-            }
-          }
-        }
-        /** @description invalid_request */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** POST /v1/admin/distribution/product-mappings */
+    post: operations["postAdminDistributionProductMappings"]
     delete?: never
     options?: never
     head?: never
@@ -2362,87 +333,8 @@ export interface paths {
     }
     get?: never
     put?: never
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          "application/json": {
-            ids: string[]
-            patch: {
-              channelId?: string
-              productId?: string
-              externalProductId?: string | null
-              externalRateId?: string | null
-              externalCategoryId?: string | null
-              active?: boolean
-              sourceKind?: string | null
-              sourceConnectionId?: string | null
-              pushBookings?: boolean
-              pushAvailability?: boolean
-              pushContent?: boolean
-              policy?: {
-                [key: string]: unknown
-              } | null
-            }
-          }
-        }
-      }
-      responses: {
-        /** @description Per-id batch-update results */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                channelId: string
-                productId: string
-                externalProductId: string | null
-                externalRateId: string | null
-                externalCategoryId: string | null
-                active: boolean
-                sourceKind: string | null
-                sourceConnectionId: string | null
-                pushBookings: boolean
-                pushAvailability: boolean
-                pushContent: boolean
-                policy: {
-                  [key: string]: unknown
-                } | null
-                lastPushedContentHash: string | null
-                lastPushedContentAt: string | null
-                createdAt: string
-                updatedAt: string
-              }[]
-              total: number
-              succeeded: number
-              failed: {
-                id: string
-                error: string
-              }[]
-            }
-          }
-        }
-        /** @description invalid_request */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** POST /v1/admin/distribution/product-mappings/batch-update */
+    post: operations["postAdminDistributionProductMappingsBatchUpdate"]
     delete?: never
     options?: never
     head?: never
@@ -2458,51 +350,8 @@ export interface paths {
     }
     get?: never
     put?: never
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          "application/json": {
-            ids: string[]
-          }
-        }
-      }
-      responses: {
-        /** @description Per-id batch-delete results */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              deletedIds: string[]
-              total: number
-              succeeded: number
-              failed: {
-                id: string
-                error: string
-              }[]
-            }
-          }
-        }
-        /** @description invalid_request */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** POST /v1/admin/distribution/product-mappings/batch-delete */
+    post: operations["postAdminDistributionProductMappingsBatchDelete"]
     delete?: never
     options?: never
     head?: never
@@ -2516,186 +365,16 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    get: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description A product mapping by id */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                channelId: string
-                productId: string
-                externalProductId: string | null
-                externalRateId: string | null
-                externalCategoryId: string | null
-                active: boolean
-                sourceKind: string | null
-                sourceConnectionId: string | null
-                pushBookings: boolean
-                pushAvailability: boolean
-                pushContent: boolean
-                policy: {
-                  [key: string]: unknown
-                } | null
-                lastPushedContentHash: string | null
-                lastPushedContentAt: string | null
-                createdAt: string
-                updatedAt: string
-              }
-            }
-          }
-        }
-        /** @description Channel product mapping not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** GET /v1/admin/distribution/product-mappings/{id} */
+    get: operations["getAdminDistributionProductMappingsById"]
     put?: never
     post?: never
-    delete: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Product mapping deleted */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              /** @enum {boolean} */
-              success: true
-            }
-          }
-        }
-        /** @description Channel product mapping not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** DELETE /v1/admin/distribution/product-mappings/{id} */
+    delete: operations["deleteAdminDistributionProductMappingsById"]
     options?: never
     head?: never
-    patch: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          "application/json": {
-            channelId?: string
-            productId?: string
-            externalProductId?: string | null
-            externalRateId?: string | null
-            externalCategoryId?: string | null
-            active?: boolean
-            sourceKind?: string | null
-            sourceConnectionId?: string | null
-            pushBookings?: boolean
-            pushAvailability?: boolean
-            pushContent?: boolean
-            policy?: {
-              [key: string]: unknown
-            } | null
-          }
-        }
-      }
-      responses: {
-        /** @description The updated product mapping */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                channelId: string
-                productId: string
-                externalProductId: string | null
-                externalRateId: string | null
-                externalCategoryId: string | null
-                active: boolean
-                sourceKind: string | null
-                sourceConnectionId: string | null
-                pushBookings: boolean
-                pushAvailability: boolean
-                pushContent: boolean
-                policy: {
-                  [key: string]: unknown
-                } | null
-                lastPushedContentHash: string | null
-                lastPushedContentAt: string | null
-                createdAt: string
-                updatedAt: string
-              }
-            }
-          }
-        }
-        /** @description invalid_request */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-        /** @description Channel product mapping not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** PATCH /v1/admin/distribution/product-mappings/{id} */
+    patch: operations["patchAdminDistributionProductMappingsById"]
     trace?: never
   }
   "/v1/admin/distribution/product-publications": {
@@ -2705,113 +384,10 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    get: {
-      parameters: {
-        query?: {
-          limit?: number
-          offset?: number | null
-          channelId?: string
-          productId?: string
-          decision?: "include" | "exclude"
-        }
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Paginated product publication rules */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                channelId: string
-                productId: string
-                /** @enum {string} */
-                decision: "include" | "exclude"
-                reason: string | null
-                createdBy: string | null
-                updatedBy: string | null
-                metadata: {
-                  [key: string]: unknown
-                } | null
-                createdAt: string
-                updatedAt: string
-              }[]
-              total: number
-              limit: number
-              offset: number
-            }
-          }
-        }
-      }
-    }
-    put: {
-      parameters: {
-        query?: never
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          "application/json": {
-            channelId: string
-            productId: string
-            /** @enum {string} */
-            decision: "include" | "exclude"
-            reason?: string | null
-            createdBy?: string | null
-            updatedBy?: string | null
-            metadata?: {
-              [key: string]: unknown
-            } | null
-          }
-        }
-      }
-      responses: {
-        /** @description The authored product publication rule */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                channelId: string
-                productId: string
-                /** @enum {string} */
-                decision: "include" | "exclude"
-                reason: string | null
-                createdBy: string | null
-                updatedBy: string | null
-                metadata: {
-                  [key: string]: unknown
-                } | null
-                createdAt: string
-                updatedAt: string
-              }
-            }
-          }
-        }
-        /** @description invalid_request */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** GET /v1/admin/distribution/product-publications */
+    get: operations["getAdminDistributionProductPublications"]
+    /** PUT /v1/admin/distribution/product-publications */
+    put: operations["putAdminDistributionProductPublications"]
     post?: never
     delete?: never
     options?: never
@@ -2826,167 +402,16 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    get: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description A product publication rule by id */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                channelId: string
-                productId: string
-                /** @enum {string} */
-                decision: "include" | "exclude"
-                reason: string | null
-                createdBy: string | null
-                updatedBy: string | null
-                metadata: {
-                  [key: string]: unknown
-                } | null
-                createdAt: string
-                updatedAt: string
-              }
-            }
-          }
-        }
-        /** @description Product publication not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** GET /v1/admin/distribution/product-publications/{id} */
+    get: operations["getAdminDistributionProductPublicationsById"]
     put?: never
     post?: never
-    delete: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Product publication deleted */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              /** @enum {boolean} */
-              success: true
-            }
-          }
-        }
-        /** @description Product publication not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** DELETE /v1/admin/distribution/product-publications/{id} */
+    delete: operations["deleteAdminDistributionProductPublicationsById"]
     options?: never
     head?: never
-    patch: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          "application/json": {
-            /** @enum {string} */
-            decision?: "include" | "exclude"
-            reason?: string | null
-            updatedBy?: string | null
-            metadata?: {
-              [key: string]: unknown
-            } | null
-          }
-        }
-      }
-      responses: {
-        /** @description The updated product publication rule */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                channelId: string
-                productId: string
-                /** @enum {string} */
-                decision: "include" | "exclude"
-                reason: string | null
-                createdBy: string | null
-                updatedBy: string | null
-                metadata: {
-                  [key: string]: unknown
-                } | null
-                createdAt: string
-                updatedAt: string
-              }
-            }
-          }
-        }
-        /** @description invalid_request */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-        /** @description Product publication not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** PATCH /v1/admin/distribution/product-publications/{id} */
+    patch: operations["patchAdminDistributionProductPublicationsById"]
     trace?: never
   }
   "/v1/admin/distribution/supplier-publications": {
@@ -2996,114 +421,10 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    get: {
-      parameters: {
-        query?: {
-          limit?: number
-          offset?: number | null
-          channelId?: string
-          supplierId?: string
-          decision?: "include" | "exclude"
-        }
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Paginated supplier publication rules */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                channelId: string
-                supplierId: string
-                /** @enum {string} */
-                decision: "include" | "exclude"
-                reason: string | null
-                createdBy: string | null
-                updatedBy: string | null
-                metadata: {
-                  [key: string]: unknown
-                } | null
-                createdAt: string
-                updatedAt: string
-              }[]
-              total: number
-              limit: number
-              offset: number
-            }
-          }
-        }
-      }
-    }
-    put: {
-      parameters: {
-        query?: never
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          "application/json": {
-            channelId: string
-            supplierId: string
-            /** @enum {string} */
-            decision: "include" | "exclude"
-            reason?: string | null
-            createdBy?: string | null
-            updatedBy?: string | null
-            metadata?: {
-              [key: string]: unknown
-            } | null
-          }
-        }
-      }
-      responses: {
-        /** @description The authored supplier publication rule with affected count */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                channelId: string
-                supplierId: string
-                /** @enum {string} */
-                decision: "include" | "exclude"
-                reason: string | null
-                createdBy: string | null
-                updatedBy: string | null
-                metadata: {
-                  [key: string]: unknown
-                } | null
-                createdAt: string
-                updatedAt: string
-              }
-              affectedProductCount: number
-            }
-          }
-        }
-        /** @description invalid_request */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** GET /v1/admin/distribution/supplier-publications */
+    get: operations["getAdminDistributionSupplierPublications"]
+    /** PUT /v1/admin/distribution/supplier-publications */
+    put: operations["putAdminDistributionSupplierPublications"]
     post?: never
     delete?: never
     options?: never
@@ -3120,62 +441,8 @@ export interface paths {
     }
     get?: never
     put?: never
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          "application/json": {
-            channelId: string
-            supplierId: string
-            /** @enum {string} */
-            decision: "include" | "exclude"
-            reason?: string | null
-            metadata?: {
-              [key: string]: unknown
-            } | null
-          }
-        }
-      }
-      responses: {
-        /** @description Dry-run supplier publication affected-product count */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                channelId: string
-                supplierId: string
-                /** @enum {string} */
-                decision: "include" | "exclude"
-                reason?: string | null
-                metadata?: {
-                  [key: string]: unknown
-                } | null
-              }
-              affectedProductCount: number
-            }
-          }
-        }
-        /** @description invalid_request */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** POST /v1/admin/distribution/supplier-publications/preview */
+    post: operations["postAdminDistributionSupplierPublicationsPreview"]
     delete?: never
     options?: never
     head?: never
@@ -3189,168 +456,104 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    get: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description A supplier publication rule by id */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                channelId: string
-                supplierId: string
-                /** @enum {string} */
-                decision: "include" | "exclude"
-                reason: string | null
-                createdBy: string | null
-                updatedBy: string | null
-                metadata: {
-                  [key: string]: unknown
-                } | null
-                createdAt: string
-                updatedAt: string
-              }
-            }
-          }
-        }
-        /** @description Supplier publication not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** GET /v1/admin/distribution/supplier-publications/{id} */
+    get: operations["getAdminDistributionSupplierPublicationsById"]
     put?: never
     post?: never
-    delete: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Supplier publication deleted */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              /** @enum {boolean} */
-              success: true
-            }
-          }
-        }
-        /** @description Supplier publication not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** DELETE /v1/admin/distribution/supplier-publications/{id} */
+    delete: operations["deleteAdminDistributionSupplierPublicationsById"]
     options?: never
     head?: never
-    patch: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          "application/json": {
-            /** @enum {string} */
-            decision?: "include" | "exclude"
-            reason?: string | null
-            updatedBy?: string | null
-            metadata?: {
-              [key: string]: unknown
-            } | null
-          }
-        }
-      }
-      responses: {
-        /** @description The updated supplier publication rule with affected count */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                channelId: string
-                supplierId: string
-                /** @enum {string} */
-                decision: "include" | "exclude"
-                reason: string | null
-                createdBy: string | null
-                updatedBy: string | null
-                metadata: {
-                  [key: string]: unknown
-                } | null
-                createdAt: string
-                updatedAt: string
-              }
-              affectedProductCount: number
-            }
-          }
-        }
-        /** @description invalid_request */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-        /** @description Supplier publication not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
+    /** PATCH /v1/admin/distribution/supplier-publications/{id} */
+    patch: operations["patchAdminDistributionSupplierPublicationsById"]
+    trace?: never
+  }
+  "/v1/admin/distribution/publication-sources": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
     }
+    /** GET /v1/admin/distribution/publication-sources */
+    get: operations["getAdminDistributionPublicationSources"]
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/admin/distribution/source-publications": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** GET /v1/admin/distribution/source-publications */
+    get: operations["getAdminDistributionSourcePublications"]
+    /** PUT /v1/admin/distribution/source-publications */
+    put: operations["putAdminDistributionSourcePublications"]
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/admin/distribution/source-publications/preview": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** POST /v1/admin/distribution/source-publications/preview */
+    post: operations["postAdminDistributionSourcePublicationsPreview"]
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/admin/distribution/source-publications/effective": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** POST /v1/admin/distribution/source-publications/effective */
+    post: operations["postAdminDistributionSourcePublicationsEffective"]
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/admin/distribution/source-publications/{id}": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** GET /v1/admin/distribution/source-publications/{id} */
+    get: operations["getAdminDistributionSourcePublicationsById"]
+    put?: never
+    post?: never
+    /** DELETE /v1/admin/distribution/source-publications/{id} */
+    delete: operations["deleteAdminDistributionSourcePublicationsById"]
+    options?: never
+    head?: never
+    /** PATCH /v1/admin/distribution/source-publications/{id} */
+    patch: operations["patchAdminDistributionSourcePublicationsById"]
     trace?: never
   }
   "/v1/admin/distribution/publications/effective": {
@@ -3362,56 +565,8 @@ export interface paths {
     }
     get?: never
     put?: never
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          "application/json": {
-            channelId: string
-            productId: string
-            canonicalSupplierId?: string | null
-          }
-        }
-      }
-      responses: {
-        /** @description Effective publication decision for a channel and product */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                channelId: string
-                productId: string
-                canonicalSupplierId: string | null
-                published: boolean
-                /** @enum {string|null} */
-                decision: "include" | "exclude" | null
-                /** @enum {string} */
-                reason:
-                  | "channel_missing"
-                  | "channel_inactive"
-                  | "product_decision"
-                  | "supplier_decision"
-                  | "default_deny"
-                  | "product_missing_supplier"
-                  | "product_eligibility"
-                /** @enum {string} */
-                source: "product" | "supplier" | "channel" | "default" | "eligibility"
-                ruleId: string | null
-                message: string
-              }
-            }
-          }
-        }
-      }
-    }
+    /** POST /v1/admin/distribution/publications/effective */
+    post: operations["postAdminDistributionPublicationsEffective"]
     delete?: never
     options?: never
     head?: never
@@ -3425,48 +580,8 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    get: {
-      parameters: {
-        query?: never
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Recent publication reindex intents */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                channelId: string
-                /** @enum {string} */
-                kind: "product" | "supplier" | "catalog"
-                productId: string | null
-                supplierId: string | null
-                cursor: string | null
-                /** @enum {string} */
-                status: "pending" | "processing" | "completed" | "failed"
-                attempts: number
-                requestedBy: string | null
-                lastError: string | null
-                metadata: {
-                  [key: string]: unknown
-                } | null
-                requestedAt: string
-                processingStartedAt: string | null
-                completedAt: string | null
-                updatedAt: string
-              }[]
-            }
-          }
-        }
-      }
-    }
+    /** GET /v1/admin/distribution/publication-reindex-intents */
+    get: operations["getAdminDistributionPublicationReindexIntents"]
     put?: never
     post?: never
     delete?: never
@@ -3482,136 +597,11 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    get: {
-      parameters: {
-        query?: {
-          limit?: number
-          offset?: number | null
-          channelId?: string
-          bookingId?: string
-          externalBookingId?: string
-        }
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Paginated booking links */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                channelId: string
-                bookingId: string
-                bookingItemId: string | null
-                externalBookingId: string | null
-                externalReference: string | null
-                externalStatus: string | null
-                bookedAtExternal: string | null
-                lastSyncedAt: string | null
-                sourceKind: string | null
-                sourceConnectionId: string | null
-                pushStatus: string
-                pushAttempts: number
-                lastPushAt: string | null
-                lastError: string | null
-                pushedPayloadHash: string | null
-                idempotencyKey: string | null
-                createdAt: string
-                updatedAt: string
-              }[]
-              total: number
-              limit: number
-              offset: number
-            }
-          }
-        }
-      }
-    }
+    /** GET /v1/admin/distribution/booking-links */
+    get: operations["getAdminDistributionBookingLinks"]
     put?: never
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          "application/json": {
-            channelId: string
-            bookingId: string
-            externalBookingId?: string | null
-            externalReference?: string | null
-            externalStatus?: string | null
-            /** Format: date-time */
-            bookedAtExternal?: string | null
-            /** Format: date-time */
-            lastSyncedAt?: string | null
-          }
-        }
-      }
-      responses: {
-        /** @description The created booking link */
-        201: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                channelId: string
-                bookingId: string
-                bookingItemId: string | null
-                externalBookingId: string | null
-                externalReference: string | null
-                externalStatus: string | null
-                bookedAtExternal: string | null
-                lastSyncedAt: string | null
-                sourceKind: string | null
-                sourceConnectionId: string | null
-                pushStatus: string
-                pushAttempts: number
-                lastPushAt: string | null
-                lastError: string | null
-                pushedPayloadHash: string | null
-                idempotencyKey: string | null
-                createdAt: string
-                updatedAt: string
-              }
-            }
-          }
-        }
-        /** @description invalid_request */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-        /** @description duplicate_channel_booking_link */
-        409: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** POST /v1/admin/distribution/booking-links */
+    post: operations["postAdminDistributionBookingLinks"]
     delete?: never
     options?: never
     head?: never
@@ -3627,82 +617,8 @@ export interface paths {
     }
     get?: never
     put?: never
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          "application/json": {
-            ids: string[]
-            patch: {
-              channelId?: string
-              bookingId?: string
-              externalBookingId?: string | null
-              externalReference?: string | null
-              externalStatus?: string | null
-              /** Format: date-time */
-              bookedAtExternal?: string | null
-              /** Format: date-time */
-              lastSyncedAt?: string | null
-            }
-          }
-        }
-      }
-      responses: {
-        /** @description Per-id batch-update results */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                channelId: string
-                bookingId: string
-                bookingItemId: string | null
-                externalBookingId: string | null
-                externalReference: string | null
-                externalStatus: string | null
-                bookedAtExternal: string | null
-                lastSyncedAt: string | null
-                sourceKind: string | null
-                sourceConnectionId: string | null
-                pushStatus: string
-                pushAttempts: number
-                lastPushAt: string | null
-                lastError: string | null
-                pushedPayloadHash: string | null
-                idempotencyKey: string | null
-                createdAt: string
-                updatedAt: string
-              }[]
-              total: number
-              succeeded: number
-              failed: {
-                id: string
-                error: string
-              }[]
-            }
-          }
-        }
-        /** @description invalid_request */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** POST /v1/admin/distribution/booking-links/batch-update */
+    post: operations["postAdminDistributionBookingLinksBatchUpdate"]
     delete?: never
     options?: never
     head?: never
@@ -3718,51 +634,8 @@ export interface paths {
     }
     get?: never
     put?: never
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          "application/json": {
-            ids: string[]
-          }
-        }
-      }
-      responses: {
-        /** @description Per-id batch-delete results */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              deletedIds: string[]
-              total: number
-              succeeded: number
-              failed: {
-                id: string
-                error: string
-              }[]
-            }
-          }
-        }
-        /** @description invalid_request */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** POST /v1/admin/distribution/booking-links/batch-delete */
+    post: operations["postAdminDistributionBookingLinksBatchDelete"]
     delete?: never
     options?: never
     head?: never
@@ -3776,181 +649,16 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    get: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description A booking link by id */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                channelId: string
-                bookingId: string
-                bookingItemId: string | null
-                externalBookingId: string | null
-                externalReference: string | null
-                externalStatus: string | null
-                bookedAtExternal: string | null
-                lastSyncedAt: string | null
-                sourceKind: string | null
-                sourceConnectionId: string | null
-                pushStatus: string
-                pushAttempts: number
-                lastPushAt: string | null
-                lastError: string | null
-                pushedPayloadHash: string | null
-                idempotencyKey: string | null
-                createdAt: string
-                updatedAt: string
-              }
-            }
-          }
-        }
-        /** @description Channel booking link not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** GET /v1/admin/distribution/booking-links/{id} */
+    get: operations["getAdminDistributionBookingLinksById"]
     put?: never
     post?: never
-    delete: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Booking link deleted */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              /** @enum {boolean} */
-              success: true
-            }
-          }
-        }
-        /** @description Channel booking link not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** DELETE /v1/admin/distribution/booking-links/{id} */
+    delete: operations["deleteAdminDistributionBookingLinksById"]
     options?: never
     head?: never
-    patch: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          "application/json": {
-            channelId?: string
-            bookingId?: string
-            externalBookingId?: string | null
-            externalReference?: string | null
-            externalStatus?: string | null
-            /** Format: date-time */
-            bookedAtExternal?: string | null
-            /** Format: date-time */
-            lastSyncedAt?: string | null
-          }
-        }
-      }
-      responses: {
-        /** @description The updated booking link */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                channelId: string
-                bookingId: string
-                bookingItemId: string | null
-                externalBookingId: string | null
-                externalReference: string | null
-                externalStatus: string | null
-                bookedAtExternal: string | null
-                lastSyncedAt: string | null
-                sourceKind: string | null
-                sourceConnectionId: string | null
-                pushStatus: string
-                pushAttempts: number
-                lastPushAt: string | null
-                lastError: string | null
-                pushedPayloadHash: string | null
-                idempotencyKey: string | null
-                createdAt: string
-                updatedAt: string
-              }
-            }
-          }
-        }
-        /** @description invalid_request */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-        /** @description Channel booking link not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** PATCH /v1/admin/distribution/booking-links/{id} */
+    patch: operations["patchAdminDistributionBookingLinksById"]
     trace?: never
   }
   "/v1/admin/distribution/webhook-events": {
@@ -3960,120 +668,11 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    get: {
-      parameters: {
-        query?: {
-          limit?: number
-          offset?: number | null
-          channelId?: string
-          status?: "pending" | "processed" | "failed" | "ignored"
-          eventType?: string
-        }
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Paginated webhook events */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                channelId: string
-                eventType: string
-                externalEventId: string | null
-                payload: {
-                  [key: string]: unknown
-                }
-                receivedAt: string
-                processedAt: string | null
-                /** @enum {string} */
-                status: "pending" | "processed" | "failed" | "ignored"
-                errorMessage: string | null
-                createdAt: string
-              }[]
-              total: number
-              limit: number
-              offset: number
-            }
-          }
-        }
-      }
-    }
+    /** GET /v1/admin/distribution/webhook-events */
+    get: operations["getAdminDistributionWebhookEvents"]
     put?: never
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          "application/json": {
-            channelId: string
-            eventType: string
-            externalEventId?: string | null
-            payload: {
-              [key: string]: unknown
-            }
-            /** Format: date-time */
-            receivedAt?: string | null
-            /** Format: date-time */
-            processedAt?: string | null
-            /**
-             * @default pending
-             * @enum {string}
-             */
-            status?: "pending" | "processed" | "failed" | "ignored"
-            errorMessage?: string | null
-          }
-        }
-      }
-      responses: {
-        /** @description The created webhook event */
-        201: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                channelId: string
-                eventType: string
-                externalEventId: string | null
-                payload: {
-                  [key: string]: unknown
-                }
-                receivedAt: string
-                processedAt: string | null
-                /** @enum {string} */
-                status: "pending" | "processed" | "failed" | "ignored"
-                errorMessage: string | null
-                createdAt: string
-              }
-            }
-          }
-        }
-        /** @description invalid_request */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** POST /v1/admin/distribution/webhook-events */
+    post: operations["postAdminDistributionWebhookEvents"]
     delete?: never
     options?: never
     head?: never
@@ -4089,83 +688,8 @@ export interface paths {
     }
     get?: never
     put?: never
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          "application/json": {
-            ids: string[]
-            patch: {
-              channelId?: string
-              eventType?: string
-              externalEventId?: string | null
-              payload?: {
-                [key: string]: unknown
-              }
-              /** Format: date-time */
-              receivedAt?: string | null
-              /** Format: date-time */
-              processedAt?: string | null
-              /**
-               * @default pending
-               * @enum {string}
-               */
-              status?: "pending" | "processed" | "failed" | "ignored"
-              errorMessage?: string | null
-            }
-          }
-        }
-      }
-      responses: {
-        /** @description Per-id batch-update results */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                channelId: string
-                eventType: string
-                externalEventId: string | null
-                payload: {
-                  [key: string]: unknown
-                }
-                receivedAt: string
-                processedAt: string | null
-                /** @enum {string} */
-                status: "pending" | "processed" | "failed" | "ignored"
-                errorMessage: string | null
-                createdAt: string
-              }[]
-              total: number
-              succeeded: number
-              failed: {
-                id: string
-                error: string
-              }[]
-            }
-          }
-        }
-        /** @description invalid_request */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** POST /v1/admin/distribution/webhook-events/batch-update */
+    post: operations["postAdminDistributionWebhookEventsBatchUpdate"]
     delete?: never
     options?: never
     head?: never
@@ -4181,51 +705,8 @@ export interface paths {
     }
     get?: never
     put?: never
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          "application/json": {
-            ids: string[]
-          }
-        }
-      }
-      responses: {
-        /** @description Per-id batch-delete results */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              deletedIds: string[]
-              total: number
-              succeeded: number
-              failed: {
-                id: string
-                error: string
-              }[]
-            }
-          }
-        }
-        /** @description invalid_request */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** POST /v1/admin/distribution/webhook-events/batch-delete */
+    post: operations["postAdminDistributionWebhookEventsBatchDelete"]
     delete?: never
     options?: never
     head?: never
@@ -4239,176 +720,16 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    get: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description A webhook event by id */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                channelId: string
-                eventType: string
-                externalEventId: string | null
-                payload: {
-                  [key: string]: unknown
-                }
-                receivedAt: string
-                processedAt: string | null
-                /** @enum {string} */
-                status: "pending" | "processed" | "failed" | "ignored"
-                errorMessage: string | null
-                createdAt: string
-              }
-            }
-          }
-        }
-        /** @description Channel webhook event not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** GET /v1/admin/distribution/webhook-events/{id} */
+    get: operations["getAdminDistributionWebhookEventsById"]
     put?: never
     post?: never
-    delete: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Webhook event deleted */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              /** @enum {boolean} */
-              success: true
-            }
-          }
-        }
-        /** @description Channel webhook event not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** DELETE /v1/admin/distribution/webhook-events/{id} */
+    delete: operations["deleteAdminDistributionWebhookEventsById"]
     options?: never
     head?: never
-    patch: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          "application/json": {
-            channelId?: string
-            eventType?: string
-            externalEventId?: string | null
-            payload?: {
-              [key: string]: unknown
-            }
-            /** Format: date-time */
-            receivedAt?: string | null
-            /** Format: date-time */
-            processedAt?: string | null
-            /**
-             * @default pending
-             * @enum {string}
-             */
-            status?: "pending" | "processed" | "failed" | "ignored"
-            errorMessage?: string | null
-          }
-        }
-      }
-      responses: {
-        /** @description The updated webhook event */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                channelId: string
-                eventType: string
-                externalEventId: string | null
-                payload: {
-                  [key: string]: unknown
-                }
-                receivedAt: string
-                processedAt: string | null
-                /** @enum {string} */
-                status: "pending" | "processed" | "failed" | "ignored"
-                errorMessage: string | null
-                createdAt: string
-              }
-            }
-          }
-        }
-        /** @description invalid_request */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-        /** @description Channel webhook event not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** PATCH /v1/admin/distribution/webhook-events/{id} */
+    patch: operations["patchAdminDistributionWebhookEventsById"]
     trace?: never
   }
   "/v1/admin/distribution/inventory-allotments": {
@@ -4418,123 +739,11 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    get: {
-      parameters: {
-        query?: {
-          limit?: number
-          offset?: number | null
-          channelId?: string
-          contractId?: string
-          productId?: string
-          optionId?: string
-          startTimeId?: string
-          active?: "0" | "1" | "true" | "false"
-        }
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Paginated inventory allotments */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                channelId: string
-                contractId: string | null
-                productId: string
-                optionId: string | null
-                startTimeId: string | null
-                validFrom: string | null
-                validTo: string | null
-                guaranteedCapacity: number | null
-                maxCapacity: number | null
-                active: boolean
-                notes: string | null
-                createdAt: string
-                updatedAt: string
-              }[]
-              total: number
-              limit: number
-              offset: number
-            }
-          }
-        }
-      }
-    }
+    /** GET /v1/admin/distribution/inventory-allotments */
+    get: operations["getAdminDistributionInventoryAllotments"]
     put?: never
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          "application/json": {
-            channelId: string
-            contractId?: string | null
-            productId: string
-            optionId?: string | null
-            startTimeId?: string | null
-            /** Format: date */
-            validFrom?: string | null
-            /** Format: date */
-            validTo?: string | null
-            guaranteedCapacity?: number | null
-            maxCapacity?: number | null
-            /** @default true */
-            active?: boolean
-            notes?: string | null
-          }
-        }
-      }
-      responses: {
-        /** @description The created inventory allotment */
-        201: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                channelId: string
-                contractId: string | null
-                productId: string
-                optionId: string | null
-                startTimeId: string | null
-                validFrom: string | null
-                validTo: string | null
-                guaranteedCapacity: number | null
-                maxCapacity: number | null
-                active: boolean
-                notes: string | null
-                createdAt: string
-                updatedAt: string
-              }
-            }
-          }
-        }
-        /** @description invalid_request */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** POST /v1/admin/distribution/inventory-allotments */
+    post: operations["postAdminDistributionInventoryAllotments"]
     delete?: never
     options?: never
     head?: never
@@ -4550,82 +759,8 @@ export interface paths {
     }
     get?: never
     put?: never
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          "application/json": {
-            ids: string[]
-            patch: {
-              channelId?: string
-              contractId?: string | null
-              productId?: string
-              optionId?: string | null
-              startTimeId?: string | null
-              /** Format: date */
-              validFrom?: string | null
-              /** Format: date */
-              validTo?: string | null
-              guaranteedCapacity?: number | null
-              maxCapacity?: number | null
-              /** @default true */
-              active?: boolean
-              notes?: string | null
-            }
-          }
-        }
-      }
-      responses: {
-        /** @description Per-id batch-update results */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                channelId: string
-                contractId: string | null
-                productId: string
-                optionId: string | null
-                startTimeId: string | null
-                validFrom: string | null
-                validTo: string | null
-                guaranteedCapacity: number | null
-                maxCapacity: number | null
-                active: boolean
-                notes: string | null
-                createdAt: string
-                updatedAt: string
-              }[]
-              total: number
-              succeeded: number
-              failed: {
-                id: string
-                error: string
-              }[]
-            }
-          }
-        }
-        /** @description invalid_request */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** POST /v1/admin/distribution/inventory-allotments/batch-update */
+    post: operations["postAdminDistributionInventoryAllotmentsBatchUpdate"]
     delete?: never
     options?: never
     head?: never
@@ -4641,51 +776,8 @@ export interface paths {
     }
     get?: never
     put?: never
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          "application/json": {
-            ids: string[]
-          }
-        }
-      }
-      responses: {
-        /** @description Per-id batch-delete results */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              deletedIds: string[]
-              total: number
-              succeeded: number
-              failed: {
-                id: string
-                error: string
-              }[]
-            }
-          }
-        }
-        /** @description invalid_request */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** POST /v1/admin/distribution/inventory-allotments/batch-delete */
+    post: operations["postAdminDistributionInventoryAllotmentsBatchDelete"]
     delete?: never
     options?: never
     head?: never
@@ -4699,176 +791,16 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    get: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description An inventory allotment by id */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                channelId: string
-                contractId: string | null
-                productId: string
-                optionId: string | null
-                startTimeId: string | null
-                validFrom: string | null
-                validTo: string | null
-                guaranteedCapacity: number | null
-                maxCapacity: number | null
-                active: boolean
-                notes: string | null
-                createdAt: string
-                updatedAt: string
-              }
-            }
-          }
-        }
-        /** @description Channel inventory allotment not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** GET /v1/admin/distribution/inventory-allotments/{id} */
+    get: operations["getAdminDistributionInventoryAllotmentsById"]
     put?: never
     post?: never
-    delete: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Inventory allotment deleted */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              /** @enum {boolean} */
-              success: true
-            }
-          }
-        }
-        /** @description Channel inventory allotment not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** DELETE /v1/admin/distribution/inventory-allotments/{id} */
+    delete: operations["deleteAdminDistributionInventoryAllotmentsById"]
     options?: never
     head?: never
-    patch: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          "application/json": {
-            channelId?: string
-            contractId?: string | null
-            productId?: string
-            optionId?: string | null
-            startTimeId?: string | null
-            /** Format: date */
-            validFrom?: string | null
-            /** Format: date */
-            validTo?: string | null
-            guaranteedCapacity?: number | null
-            maxCapacity?: number | null
-            /** @default true */
-            active?: boolean
-            notes?: string | null
-          }
-        }
-      }
-      responses: {
-        /** @description The updated inventory allotment */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                channelId: string
-                contractId: string | null
-                productId: string
-                optionId: string | null
-                startTimeId: string | null
-                validFrom: string | null
-                validTo: string | null
-                guaranteedCapacity: number | null
-                maxCapacity: number | null
-                active: boolean
-                notes: string | null
-                createdAt: string
-                updatedAt: string
-              }
-            }
-          }
-        }
-        /** @description invalid_request */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-        /** @description Channel inventory allotment not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** PATCH /v1/admin/distribution/inventory-allotments/{id} */
+    patch: operations["patchAdminDistributionInventoryAllotmentsById"]
     trace?: never
   }
   "/v1/admin/distribution/inventory-allotment-targets": {
@@ -4878,115 +810,11 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    get: {
-      parameters: {
-        query?: {
-          limit?: number
-          offset?: number | null
-          allotmentId?: string
-          slotId?: string
-          startTimeId?: string
-          dateLocal?: string
-          active?: "0" | "1" | "true" | "false"
-        }
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Paginated inventory allotment targets */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                allotmentId: string
-                slotId: string | null
-                startTimeId: string | null
-                dateLocal: string | null
-                guaranteedCapacity: number | null
-                maxCapacity: number | null
-                soldCapacity: number | null
-                remainingCapacity: number | null
-                active: boolean
-                createdAt: string
-                updatedAt: string
-              }[]
-              total: number
-              limit: number
-              offset: number
-            }
-          }
-        }
-      }
-    }
+    /** GET /v1/admin/distribution/inventory-allotment-targets */
+    get: operations["getAdminDistributionInventoryAllotmentTargets"]
     put?: never
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          "application/json": {
-            allotmentId: string
-            slotId?: string | null
-            startTimeId?: string | null
-            /** Format: date */
-            dateLocal?: string | null
-            guaranteedCapacity?: number | null
-            maxCapacity?: number | null
-            soldCapacity?: number | null
-            remainingCapacity?: number | null
-            /** @default true */
-            active?: boolean
-          }
-        }
-      }
-      responses: {
-        /** @description The created inventory allotment target */
-        201: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                allotmentId: string
-                slotId: string | null
-                startTimeId: string | null
-                dateLocal: string | null
-                guaranteedCapacity: number | null
-                maxCapacity: number | null
-                soldCapacity: number | null
-                remainingCapacity: number | null
-                active: boolean
-                createdAt: string
-                updatedAt: string
-              }
-            }
-          }
-        }
-        /** @description invalid_request */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** POST /v1/admin/distribution/inventory-allotment-targets */
+    post: operations["postAdminDistributionInventoryAllotmentTargets"]
     delete?: never
     options?: never
     head?: never
@@ -5002,77 +830,8 @@ export interface paths {
     }
     get?: never
     put?: never
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          "application/json": {
-            ids: string[]
-            patch: {
-              allotmentId?: string
-              slotId?: string | null
-              startTimeId?: string | null
-              /** Format: date */
-              dateLocal?: string | null
-              guaranteedCapacity?: number | null
-              maxCapacity?: number | null
-              soldCapacity?: number | null
-              remainingCapacity?: number | null
-              /** @default true */
-              active?: boolean
-            }
-          }
-        }
-      }
-      responses: {
-        /** @description Per-id batch-update results */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                allotmentId: string
-                slotId: string | null
-                startTimeId: string | null
-                dateLocal: string | null
-                guaranteedCapacity: number | null
-                maxCapacity: number | null
-                soldCapacity: number | null
-                remainingCapacity: number | null
-                active: boolean
-                createdAt: string
-                updatedAt: string
-              }[]
-              total: number
-              succeeded: number
-              failed: {
-                id: string
-                error: string
-              }[]
-            }
-          }
-        }
-        /** @description invalid_request */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** POST /v1/admin/distribution/inventory-allotment-targets/batch-update */
+    post: operations["postAdminDistributionInventoryAllotmentTargetsBatchUpdate"]
     delete?: never
     options?: never
     head?: never
@@ -5088,51 +847,8 @@ export interface paths {
     }
     get?: never
     put?: never
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          "application/json": {
-            ids: string[]
-          }
-        }
-      }
-      responses: {
-        /** @description Per-id batch-delete results */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              deletedIds: string[]
-              total: number
-              succeeded: number
-              failed: {
-                id: string
-                error: string
-              }[]
-            }
-          }
-        }
-        /** @description invalid_request */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** POST /v1/admin/distribution/inventory-allotment-targets/batch-delete */
+    post: operations["postAdminDistributionInventoryAllotmentTargetsBatchDelete"]
     delete?: never
     options?: never
     head?: never
@@ -5146,169 +862,16 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    get: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description An inventory allotment target by id */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                allotmentId: string
-                slotId: string | null
-                startTimeId: string | null
-                dateLocal: string | null
-                guaranteedCapacity: number | null
-                maxCapacity: number | null
-                soldCapacity: number | null
-                remainingCapacity: number | null
-                active: boolean
-                createdAt: string
-                updatedAt: string
-              }
-            }
-          }
-        }
-        /** @description Channel inventory allotment target not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** GET /v1/admin/distribution/inventory-allotment-targets/{id} */
+    get: operations["getAdminDistributionInventoryAllotmentTargetsById"]
     put?: never
     post?: never
-    delete: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Inventory allotment target deleted */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              /** @enum {boolean} */
-              success: true
-            }
-          }
-        }
-        /** @description Channel inventory allotment target not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** DELETE /v1/admin/distribution/inventory-allotment-targets/{id} */
+    delete: operations["deleteAdminDistributionInventoryAllotmentTargetsById"]
     options?: never
     head?: never
-    patch: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          "application/json": {
-            allotmentId?: string
-            slotId?: string | null
-            startTimeId?: string | null
-            /** Format: date */
-            dateLocal?: string | null
-            guaranteedCapacity?: number | null
-            maxCapacity?: number | null
-            soldCapacity?: number | null
-            remainingCapacity?: number | null
-            /** @default true */
-            active?: boolean
-          }
-        }
-      }
-      responses: {
-        /** @description The updated inventory allotment target */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                allotmentId: string
-                slotId: string | null
-                startTimeId: string | null
-                dateLocal: string | null
-                guaranteedCapacity: number | null
-                maxCapacity: number | null
-                soldCapacity: number | null
-                remainingCapacity: number | null
-                active: boolean
-                createdAt: string
-                updatedAt: string
-              }
-            }
-          }
-        }
-        /** @description invalid_request */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-        /** @description Channel inventory allotment target not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** PATCH /v1/admin/distribution/inventory-allotment-targets/{id} */
+    patch: operations["patchAdminDistributionInventoryAllotmentTargetsById"]
     trace?: never
   }
   "/v1/admin/distribution/inventory-release-rules": {
@@ -5318,113 +881,11 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    get: {
-      parameters: {
-        query?: {
-          limit?: number
-          offset?: number | null
-          allotmentId?: string
-          releaseMode?: "automatic" | "manual"
-        }
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Paginated inventory release rules */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                allotmentId: string
-                /** @enum {string} */
-                releaseMode: "automatic" | "manual"
-                releaseDaysBeforeStart: number | null
-                releaseHoursBeforeStart: number | null
-                /** @enum {string} */
-                unsoldAction: "release_to_general_pool" | "expire" | "retain"
-                notes: string | null
-                createdAt: string
-                updatedAt: string
-              }[]
-              total: number
-              limit: number
-              offset: number
-            }
-          }
-        }
-      }
-    }
+    /** GET /v1/admin/distribution/inventory-release-rules */
+    get: operations["getAdminDistributionInventoryReleaseRules"]
     put?: never
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          "application/json": {
-            allotmentId: string
-            /**
-             * @default automatic
-             * @enum {string}
-             */
-            releaseMode?: "automatic" | "manual"
-            releaseDaysBeforeStart?: number | null
-            releaseHoursBeforeStart?: number | null
-            /**
-             * @default release_to_general_pool
-             * @enum {string}
-             */
-            unsoldAction?: "release_to_general_pool" | "expire" | "retain"
-            notes?: string | null
-          }
-        }
-      }
-      responses: {
-        /** @description The created inventory release rule */
-        201: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                allotmentId: string
-                /** @enum {string} */
-                releaseMode: "automatic" | "manual"
-                releaseDaysBeforeStart: number | null
-                releaseHoursBeforeStart: number | null
-                /** @enum {string} */
-                unsoldAction: "release_to_general_pool" | "expire" | "retain"
-                notes: string | null
-                createdAt: string
-                updatedAt: string
-              }
-            }
-          }
-        }
-        /** @description invalid_request */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** POST /v1/admin/distribution/inventory-release-rules */
+    post: operations["postAdminDistributionInventoryReleaseRules"]
     delete?: never
     options?: never
     head?: never
@@ -5440,79 +901,8 @@ export interface paths {
     }
     get?: never
     put?: never
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          "application/json": {
-            ids: string[]
-            patch: {
-              allotmentId?: string
-              /**
-               * @default automatic
-               * @enum {string}
-               */
-              releaseMode?: "automatic" | "manual"
-              releaseDaysBeforeStart?: number | null
-              releaseHoursBeforeStart?: number | null
-              /**
-               * @default release_to_general_pool
-               * @enum {string}
-               */
-              unsoldAction?: "release_to_general_pool" | "expire" | "retain"
-              notes?: string | null
-            }
-          }
-        }
-      }
-      responses: {
-        /** @description Per-id batch-update results */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                allotmentId: string
-                /** @enum {string} */
-                releaseMode: "automatic" | "manual"
-                releaseDaysBeforeStart: number | null
-                releaseHoursBeforeStart: number | null
-                /** @enum {string} */
-                unsoldAction: "release_to_general_pool" | "expire" | "retain"
-                notes: string | null
-                createdAt: string
-                updatedAt: string
-              }[]
-              total: number
-              succeeded: number
-              failed: {
-                id: string
-                error: string
-              }[]
-            }
-          }
-        }
-        /** @description invalid_request */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** POST /v1/admin/distribution/inventory-release-rules/batch-update */
+    post: operations["postAdminDistributionInventoryReleaseRulesBatchUpdate"]
     delete?: never
     options?: never
     head?: never
@@ -5528,51 +918,8 @@ export interface paths {
     }
     get?: never
     put?: never
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          "application/json": {
-            ids: string[]
-          }
-        }
-      }
-      responses: {
-        /** @description Per-id batch-delete results */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              deletedIds: string[]
-              total: number
-              succeeded: number
-              failed: {
-                id: string
-                error: string
-              }[]
-            }
-          }
-        }
-        /** @description invalid_request */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** POST /v1/admin/distribution/inventory-release-rules/batch-delete */
+    post: operations["postAdminDistributionInventoryReleaseRulesBatchDelete"]
     delete?: never
     options?: never
     head?: never
@@ -5586,170 +933,16 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    get: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description An inventory release rule by id */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                allotmentId: string
-                /** @enum {string} */
-                releaseMode: "automatic" | "manual"
-                releaseDaysBeforeStart: number | null
-                releaseHoursBeforeStart: number | null
-                /** @enum {string} */
-                unsoldAction: "release_to_general_pool" | "expire" | "retain"
-                notes: string | null
-                createdAt: string
-                updatedAt: string
-              }
-            }
-          }
-        }
-        /** @description Channel inventory release rule not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** GET /v1/admin/distribution/inventory-release-rules/{id} */
+    get: operations["getAdminDistributionInventoryReleaseRulesById"]
     put?: never
     post?: never
-    delete: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Inventory release rule deleted */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              /** @enum {boolean} */
-              success: true
-            }
-          }
-        }
-        /** @description Channel inventory release rule not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** DELETE /v1/admin/distribution/inventory-release-rules/{id} */
+    delete: operations["deleteAdminDistributionInventoryReleaseRulesById"]
     options?: never
     head?: never
-    patch: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          "application/json": {
-            allotmentId?: string
-            /**
-             * @default automatic
-             * @enum {string}
-             */
-            releaseMode?: "automatic" | "manual"
-            releaseDaysBeforeStart?: number | null
-            releaseHoursBeforeStart?: number | null
-            /**
-             * @default release_to_general_pool
-             * @enum {string}
-             */
-            unsoldAction?: "release_to_general_pool" | "expire" | "retain"
-            notes?: string | null
-          }
-        }
-      }
-      responses: {
-        /** @description The updated inventory release rule */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                allotmentId: string
-                /** @enum {string} */
-                releaseMode: "automatic" | "manual"
-                releaseDaysBeforeStart: number | null
-                releaseHoursBeforeStart: number | null
-                /** @enum {string} */
-                unsoldAction: "release_to_general_pool" | "expire" | "retain"
-                notes: string | null
-                createdAt: string
-                updatedAt: string
-              }
-            }
-          }
-        }
-        /** @description invalid_request */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-        /** @description Channel inventory release rule not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** PATCH /v1/admin/distribution/inventory-release-rules/{id} */
+    patch: operations["patchAdminDistributionInventoryReleaseRulesById"]
     trace?: never
   }
   "/v1/admin/distribution/settlement-runs": {
@@ -5759,137 +952,11 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    get: {
-      parameters: {
-        query?: {
-          limit?: number
-          offset?: number | null
-          channelId?: string
-          contractId?: string
-          status?: "draft" | "open" | "posted" | "paid" | "void"
-        }
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Paginated settlement runs */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                channelId: string
-                contractId: string | null
-                /** @enum {string} */
-                status: "draft" | "open" | "posted" | "paid" | "void"
-                currencyCode: string | null
-                periodStart: string | null
-                periodEnd: string | null
-                statementReference: string | null
-                generatedAt: string | null
-                postedAt: string | null
-                paidAt: string | null
-                notes: string | null
-                metadata: {
-                  [key: string]: unknown
-                } | null
-                createdAt: string
-                updatedAt: string
-              }[]
-              total: number
-              limit: number
-              offset: number
-            }
-          }
-        }
-      }
-    }
+    /** GET /v1/admin/distribution/settlement-runs */
+    get: operations["getAdminDistributionSettlementRuns"]
     put?: never
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          "application/json": {
-            channelId: string
-            contractId?: string | null
-            /**
-             * @default draft
-             * @enum {string}
-             */
-            status?: "draft" | "open" | "posted" | "paid" | "void"
-            currencyCode?: string | null
-            /** Format: date */
-            periodStart?: string | null
-            /** Format: date */
-            periodEnd?: string | null
-            statementReference?: string | null
-            /** Format: date-time */
-            generatedAt?: string | null
-            /** Format: date-time */
-            postedAt?: string | null
-            /** Format: date-time */
-            paidAt?: string | null
-            notes?: string | null
-            metadata?: {
-              [key: string]: unknown
-            } | null
-          }
-        }
-      }
-      responses: {
-        /** @description The created settlement run */
-        201: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                channelId: string
-                contractId: string | null
-                /** @enum {string} */
-                status: "draft" | "open" | "posted" | "paid" | "void"
-                currencyCode: string | null
-                periodStart: string | null
-                periodEnd: string | null
-                statementReference: string | null
-                generatedAt: string | null
-                postedAt: string | null
-                paidAt: string | null
-                notes: string | null
-                metadata: {
-                  [key: string]: unknown
-                } | null
-                createdAt: string
-                updatedAt: string
-              }
-            }
-          }
-        }
-        /** @description invalid_request */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** POST /v1/admin/distribution/settlement-runs */
+    post: operations["postAdminDistributionSettlementRuns"]
     delete?: never
     options?: never
     head?: never
@@ -5903,193 +970,16 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    get: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description A settlement run by id */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                channelId: string
-                contractId: string | null
-                /** @enum {string} */
-                status: "draft" | "open" | "posted" | "paid" | "void"
-                currencyCode: string | null
-                periodStart: string | null
-                periodEnd: string | null
-                statementReference: string | null
-                generatedAt: string | null
-                postedAt: string | null
-                paidAt: string | null
-                notes: string | null
-                metadata: {
-                  [key: string]: unknown
-                } | null
-                createdAt: string
-                updatedAt: string
-              }
-            }
-          }
-        }
-        /** @description Channel settlement run not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** GET /v1/admin/distribution/settlement-runs/{id} */
+    get: operations["getAdminDistributionSettlementRunsById"]
     put?: never
     post?: never
-    delete: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Settlement run deleted */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              /** @enum {boolean} */
-              success: true
-            }
-          }
-        }
-        /** @description Channel settlement run not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** DELETE /v1/admin/distribution/settlement-runs/{id} */
+    delete: operations["deleteAdminDistributionSettlementRunsById"]
     options?: never
     head?: never
-    patch: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          "application/json": {
-            channelId?: string
-            contractId?: string | null
-            /**
-             * @default draft
-             * @enum {string}
-             */
-            status?: "draft" | "open" | "posted" | "paid" | "void"
-            currencyCode?: string | null
-            /** Format: date */
-            periodStart?: string | null
-            /** Format: date */
-            periodEnd?: string | null
-            statementReference?: string | null
-            /** Format: date-time */
-            generatedAt?: string | null
-            /** Format: date-time */
-            postedAt?: string | null
-            /** Format: date-time */
-            paidAt?: string | null
-            notes?: string | null
-            metadata?: {
-              [key: string]: unknown
-            } | null
-          }
-        }
-      }
-      responses: {
-        /** @description The updated settlement run */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                channelId: string
-                contractId: string | null
-                /** @enum {string} */
-                status: "draft" | "open" | "posted" | "paid" | "void"
-                currencyCode: string | null
-                periodStart: string | null
-                periodEnd: string | null
-                statementReference: string | null
-                generatedAt: string | null
-                postedAt: string | null
-                paidAt: string | null
-                notes: string | null
-                metadata: {
-                  [key: string]: unknown
-                } | null
-                createdAt: string
-                updatedAt: string
-              }
-            }
-          }
-        }
-        /** @description invalid_request */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-        /** @description Channel settlement run not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** PATCH /v1/admin/distribution/settlement-runs/{id} */
+    patch: operations["patchAdminDistributionSettlementRunsById"]
     trace?: never
   }
   "/v1/admin/distribution/settlement-items": {
@@ -6099,132 +989,11 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    get: {
-      parameters: {
-        query?: {
-          limit?: number
-          offset?: number | null
-          settlementRunId?: string
-          bookingLinkId?: string
-          bookingId?: string
-          status?: "pending" | "approved" | "disputed" | "paid" | "void"
-        }
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Paginated settlement items */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                settlementRunId: string
-                bookingLinkId: string | null
-                bookingId: string | null
-                commissionRuleId: string | null
-                /** @enum {string} */
-                status: "pending" | "approved" | "disputed" | "paid" | "void"
-                grossAmountCents: number
-                commissionAmountCents: number
-                netRemittanceAmountCents: number
-                currencyCode: string | null
-                remittanceDueAt: string | null
-                paidAt: string | null
-                notes: string | null
-                createdAt: string
-                updatedAt: string
-              }[]
-              total: number
-              limit: number
-              offset: number
-            }
-          }
-        }
-      }
-    }
+    /** GET /v1/admin/distribution/settlement-items */
+    get: operations["getAdminDistributionSettlementItems"]
     put?: never
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          "application/json": {
-            settlementRunId: string
-            bookingLinkId?: string | null
-            bookingId?: string | null
-            commissionRuleId?: string | null
-            /**
-             * @default pending
-             * @enum {string}
-             */
-            status?: "pending" | "approved" | "disputed" | "paid" | "void"
-            /** @default 0 */
-            grossAmountCents?: number
-            /** @default 0 */
-            commissionAmountCents?: number
-            /** @default 0 */
-            netRemittanceAmountCents?: number
-            currencyCode?: string | null
-            /** Format: date-time */
-            remittanceDueAt?: string | null
-            /** Format: date-time */
-            paidAt?: string | null
-            notes?: string | null
-          }
-        }
-      }
-      responses: {
-        /** @description The created settlement item */
-        201: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                settlementRunId: string
-                bookingLinkId: string | null
-                bookingId: string | null
-                commissionRuleId: string | null
-                /** @enum {string} */
-                status: "pending" | "approved" | "disputed" | "paid" | "void"
-                grossAmountCents: number
-                commissionAmountCents: number
-                netRemittanceAmountCents: number
-                currencyCode: string | null
-                remittanceDueAt: string | null
-                paidAt: string | null
-                notes: string | null
-                createdAt: string
-                updatedAt: string
-              }
-            }
-          }
-        }
-        /** @description invalid_request */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** POST /v1/admin/distribution/settlement-items */
+    post: operations["postAdminDistributionSettlementItems"]
     delete?: never
     options?: never
     head?: never
@@ -6238,187 +1007,16 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    get: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description A settlement item by id */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                settlementRunId: string
-                bookingLinkId: string | null
-                bookingId: string | null
-                commissionRuleId: string | null
-                /** @enum {string} */
-                status: "pending" | "approved" | "disputed" | "paid" | "void"
-                grossAmountCents: number
-                commissionAmountCents: number
-                netRemittanceAmountCents: number
-                currencyCode: string | null
-                remittanceDueAt: string | null
-                paidAt: string | null
-                notes: string | null
-                createdAt: string
-                updatedAt: string
-              }
-            }
-          }
-        }
-        /** @description Channel settlement item not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** GET /v1/admin/distribution/settlement-items/{id} */
+    get: operations["getAdminDistributionSettlementItemsById"]
     put?: never
     post?: never
-    delete: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Settlement item deleted */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              /** @enum {boolean} */
-              success: true
-            }
-          }
-        }
-        /** @description Channel settlement item not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** DELETE /v1/admin/distribution/settlement-items/{id} */
+    delete: operations["deleteAdminDistributionSettlementItemsById"]
     options?: never
     head?: never
-    patch: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          "application/json": {
-            settlementRunId?: string
-            bookingLinkId?: string | null
-            bookingId?: string | null
-            commissionRuleId?: string | null
-            /**
-             * @default pending
-             * @enum {string}
-             */
-            status?: "pending" | "approved" | "disputed" | "paid" | "void"
-            /** @default 0 */
-            grossAmountCents?: number
-            /** @default 0 */
-            commissionAmountCents?: number
-            /** @default 0 */
-            netRemittanceAmountCents?: number
-            currencyCode?: string | null
-            /** Format: date-time */
-            remittanceDueAt?: string | null
-            /** Format: date-time */
-            paidAt?: string | null
-            notes?: string | null
-          }
-        }
-      }
-      responses: {
-        /** @description The updated settlement item */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                settlementRunId: string
-                bookingLinkId: string | null
-                bookingId: string | null
-                commissionRuleId: string | null
-                /** @enum {string} */
-                status: "pending" | "approved" | "disputed" | "paid" | "void"
-                grossAmountCents: number
-                commissionAmountCents: number
-                netRemittanceAmountCents: number
-                currencyCode: string | null
-                remittanceDueAt: string | null
-                paidAt: string | null
-                notes: string | null
-                createdAt: string
-                updatedAt: string
-              }
-            }
-          }
-        }
-        /** @description invalid_request */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-        /** @description Channel settlement item not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** PATCH /v1/admin/distribution/settlement-items/{id} */
+    patch: operations["patchAdminDistributionSettlementItemsById"]
     trace?: never
   }
   "/v1/admin/distribution/reconciliation-runs": {
@@ -6428,130 +1026,11 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    get: {
-      parameters: {
-        query?: {
-          limit?: number
-          offset?: number | null
-          channelId?: string
-          contractId?: string
-          status?: "draft" | "running" | "completed" | "archived"
-        }
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Paginated reconciliation runs */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                channelId: string
-                contractId: string | null
-                /** @enum {string} */
-                status: "draft" | "running" | "completed" | "archived"
-                periodStart: string | null
-                periodEnd: string | null
-                externalReportReference: string | null
-                startedAt: string | null
-                completedAt: string | null
-                notes: string | null
-                metadata: {
-                  [key: string]: unknown
-                } | null
-                createdAt: string
-                updatedAt: string
-              }[]
-              total: number
-              limit: number
-              offset: number
-            }
-          }
-        }
-      }
-    }
+    /** GET /v1/admin/distribution/reconciliation-runs */
+    get: operations["getAdminDistributionReconciliationRuns"]
     put?: never
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          "application/json": {
-            channelId: string
-            contractId?: string | null
-            /**
-             * @default draft
-             * @enum {string}
-             */
-            status?: "draft" | "running" | "completed" | "archived"
-            /** Format: date */
-            periodStart?: string | null
-            /** Format: date */
-            periodEnd?: string | null
-            externalReportReference?: string | null
-            /** Format: date-time */
-            startedAt?: string | null
-            /** Format: date-time */
-            completedAt?: string | null
-            notes?: string | null
-            metadata?: {
-              [key: string]: unknown
-            } | null
-          }
-        }
-      }
-      responses: {
-        /** @description The created reconciliation run */
-        201: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                channelId: string
-                contractId: string | null
-                /** @enum {string} */
-                status: "draft" | "running" | "completed" | "archived"
-                periodStart: string | null
-                periodEnd: string | null
-                externalReportReference: string | null
-                startedAt: string | null
-                completedAt: string | null
-                notes: string | null
-                metadata: {
-                  [key: string]: unknown
-                } | null
-                createdAt: string
-                updatedAt: string
-              }
-            }
-          }
-        }
-        /** @description invalid_request */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** POST /v1/admin/distribution/reconciliation-runs */
+    post: operations["postAdminDistributionReconciliationRuns"]
     delete?: never
     options?: never
     head?: never
@@ -6565,186 +1044,16 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    get: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description A reconciliation run by id */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                channelId: string
-                contractId: string | null
-                /** @enum {string} */
-                status: "draft" | "running" | "completed" | "archived"
-                periodStart: string | null
-                periodEnd: string | null
-                externalReportReference: string | null
-                startedAt: string | null
-                completedAt: string | null
-                notes: string | null
-                metadata: {
-                  [key: string]: unknown
-                } | null
-                createdAt: string
-                updatedAt: string
-              }
-            }
-          }
-        }
-        /** @description Channel reconciliation run not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** GET /v1/admin/distribution/reconciliation-runs/{id} */
+    get: operations["getAdminDistributionReconciliationRunsById"]
     put?: never
     post?: never
-    delete: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Reconciliation run deleted */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              /** @enum {boolean} */
-              success: true
-            }
-          }
-        }
-        /** @description Channel reconciliation run not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** DELETE /v1/admin/distribution/reconciliation-runs/{id} */
+    delete: operations["deleteAdminDistributionReconciliationRunsById"]
     options?: never
     head?: never
-    patch: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          "application/json": {
-            channelId?: string
-            contractId?: string | null
-            /**
-             * @default draft
-             * @enum {string}
-             */
-            status?: "draft" | "running" | "completed" | "archived"
-            /** Format: date */
-            periodStart?: string | null
-            /** Format: date */
-            periodEnd?: string | null
-            externalReportReference?: string | null
-            /** Format: date-time */
-            startedAt?: string | null
-            /** Format: date-time */
-            completedAt?: string | null
-            notes?: string | null
-            metadata?: {
-              [key: string]: unknown
-            } | null
-          }
-        }
-      }
-      responses: {
-        /** @description The updated reconciliation run */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                channelId: string
-                contractId: string | null
-                /** @enum {string} */
-                status: "draft" | "running" | "completed" | "archived"
-                periodStart: string | null
-                periodEnd: string | null
-                externalReportReference: string | null
-                startedAt: string | null
-                completedAt: string | null
-                notes: string | null
-                metadata: {
-                  [key: string]: unknown
-                } | null
-                createdAt: string
-                updatedAt: string
-              }
-            }
-          }
-        }
-        /** @description invalid_request */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-        /** @description Channel reconciliation run not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** PATCH /v1/admin/distribution/reconciliation-runs/{id} */
+    patch: operations["patchAdminDistributionReconciliationRunsById"]
     trace?: never
   }
   "/v1/admin/distribution/reconciliation-items": {
@@ -6754,156 +1063,11 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    get: {
-      parameters: {
-        query?: {
-          limit?: number
-          offset?: number | null
-          reconciliationRunId?: string
-          bookingLinkId?: string
-          bookingId?: string
-          issueType?:
-            | "missing_booking"
-            | "status_mismatch"
-            | "amount_mismatch"
-            | "cancel_mismatch"
-            | "missing_payout"
-            | "other"
-          resolutionStatus?: "open" | "ignored" | "resolved"
-        }
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Paginated reconciliation items */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                reconciliationRunId: string
-                bookingLinkId: string | null
-                bookingId: string | null
-                externalBookingId: string | null
-                /** @enum {string} */
-                issueType:
-                  | "missing_booking"
-                  | "status_mismatch"
-                  | "amount_mismatch"
-                  | "cancel_mismatch"
-                  | "missing_payout"
-                  | "other"
-                /** @enum {string} */
-                severity: "info" | "warning" | "error"
-                /** @enum {string} */
-                resolutionStatus: "open" | "ignored" | "resolved"
-                notes: string | null
-                resolvedAt: string | null
-                createdAt: string
-                updatedAt: string
-              }[]
-              total: number
-              limit: number
-              offset: number
-            }
-          }
-        }
-      }
-    }
+    /** GET /v1/admin/distribution/reconciliation-items */
+    get: operations["getAdminDistributionReconciliationItems"]
     put?: never
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          "application/json": {
-            reconciliationRunId: string
-            bookingLinkId?: string | null
-            bookingId?: string | null
-            externalBookingId?: string | null
-            /**
-             * @default other
-             * @enum {string}
-             */
-            issueType?:
-              | "missing_booking"
-              | "status_mismatch"
-              | "amount_mismatch"
-              | "cancel_mismatch"
-              | "missing_payout"
-              | "other"
-            /**
-             * @default warning
-             * @enum {string}
-             */
-            severity?: "info" | "warning" | "error"
-            /**
-             * @default open
-             * @enum {string}
-             */
-            resolutionStatus?: "open" | "ignored" | "resolved"
-            notes?: string | null
-            /** Format: date-time */
-            resolvedAt?: string | null
-          }
-        }
-      }
-      responses: {
-        /** @description The created reconciliation item */
-        201: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                reconciliationRunId: string
-                bookingLinkId: string | null
-                bookingId: string | null
-                externalBookingId: string | null
-                /** @enum {string} */
-                issueType:
-                  | "missing_booking"
-                  | "status_mismatch"
-                  | "amount_mismatch"
-                  | "cancel_mismatch"
-                  | "missing_payout"
-                  | "other"
-                /** @enum {string} */
-                severity: "info" | "warning" | "error"
-                /** @enum {string} */
-                resolutionStatus: "open" | "ignored" | "resolved"
-                notes: string | null
-                resolvedAt: string | null
-                createdAt: string
-                updatedAt: string
-              }
-            }
-          }
-        }
-        /** @description invalid_request */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** POST /v1/admin/distribution/reconciliation-items */
+    post: operations["postAdminDistributionReconciliationItems"]
     delete?: never
     options?: never
     head?: never
@@ -6917,204 +1081,16 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    get: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description A reconciliation item by id */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                reconciliationRunId: string
-                bookingLinkId: string | null
-                bookingId: string | null
-                externalBookingId: string | null
-                /** @enum {string} */
-                issueType:
-                  | "missing_booking"
-                  | "status_mismatch"
-                  | "amount_mismatch"
-                  | "cancel_mismatch"
-                  | "missing_payout"
-                  | "other"
-                /** @enum {string} */
-                severity: "info" | "warning" | "error"
-                /** @enum {string} */
-                resolutionStatus: "open" | "ignored" | "resolved"
-                notes: string | null
-                resolvedAt: string | null
-                createdAt: string
-                updatedAt: string
-              }
-            }
-          }
-        }
-        /** @description Channel reconciliation item not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** GET /v1/admin/distribution/reconciliation-items/{id} */
+    get: operations["getAdminDistributionReconciliationItemsById"]
     put?: never
     post?: never
-    delete: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Reconciliation item deleted */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              /** @enum {boolean} */
-              success: true
-            }
-          }
-        }
-        /** @description Channel reconciliation item not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** DELETE /v1/admin/distribution/reconciliation-items/{id} */
+    delete: operations["deleteAdminDistributionReconciliationItemsById"]
     options?: never
     head?: never
-    patch: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          "application/json": {
-            reconciliationRunId?: string
-            bookingLinkId?: string | null
-            bookingId?: string | null
-            externalBookingId?: string | null
-            /**
-             * @default other
-             * @enum {string}
-             */
-            issueType?:
-              | "missing_booking"
-              | "status_mismatch"
-              | "amount_mismatch"
-              | "cancel_mismatch"
-              | "missing_payout"
-              | "other"
-            /**
-             * @default warning
-             * @enum {string}
-             */
-            severity?: "info" | "warning" | "error"
-            /**
-             * @default open
-             * @enum {string}
-             */
-            resolutionStatus?: "open" | "ignored" | "resolved"
-            notes?: string | null
-            /** Format: date-time */
-            resolvedAt?: string | null
-          }
-        }
-      }
-      responses: {
-        /** @description The updated reconciliation item */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                reconciliationRunId: string
-                bookingLinkId: string | null
-                bookingId: string | null
-                externalBookingId: string | null
-                /** @enum {string} */
-                issueType:
-                  | "missing_booking"
-                  | "status_mismatch"
-                  | "amount_mismatch"
-                  | "cancel_mismatch"
-                  | "missing_payout"
-                  | "other"
-                /** @enum {string} */
-                severity: "info" | "warning" | "error"
-                /** @enum {string} */
-                resolutionStatus: "open" | "ignored" | "resolved"
-                notes: string | null
-                resolvedAt: string | null
-                createdAt: string
-                updatedAt: string
-              }
-            }
-          }
-        }
-        /** @description invalid_request */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-        /** @description Channel reconciliation item not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** PATCH /v1/admin/distribution/reconciliation-items/{id} */
+    patch: operations["patchAdminDistributionReconciliationItemsById"]
     trace?: never
   }
   "/v1/admin/distribution/inventory-release-executions": {
@@ -7124,135 +1100,11 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    get: {
-      parameters: {
-        query?: {
-          limit?: number
-          offset?: number | null
-          allotmentId?: string
-          releaseRuleId?: string
-          targetId?: string
-          slotId?: string
-          status?: "pending" | "completed" | "skipped" | "failed"
-        }
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Paginated inventory release executions */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                allotmentId: string
-                releaseRuleId: string | null
-                targetId: string | null
-                slotId: string | null
-                /** @enum {string} */
-                actionTaken: "released" | "expired" | "retained" | "manual_override"
-                /** @enum {string} */
-                status: "pending" | "completed" | "skipped" | "failed"
-                releasedCapacity: number | null
-                executedAt: string | null
-                notes: string | null
-                metadata: {
-                  [key: string]: unknown
-                } | null
-                createdAt: string
-                updatedAt: string
-              }[]
-              total: number
-              limit: number
-              offset: number
-            }
-          }
-        }
-      }
-    }
+    /** GET /v1/admin/distribution/inventory-release-executions */
+    get: operations["getAdminDistributionInventoryReleaseExecutions"]
     put?: never
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          "application/json": {
-            allotmentId: string
-            releaseRuleId?: string | null
-            targetId?: string | null
-            slotId?: string | null
-            /**
-             * @default released
-             * @enum {string}
-             */
-            actionTaken?: "released" | "expired" | "retained" | "manual_override"
-            /**
-             * @default pending
-             * @enum {string}
-             */
-            status?: "pending" | "completed" | "skipped" | "failed"
-            releasedCapacity?: number | null
-            /** Format: date-time */
-            executedAt?: string | null
-            notes?: string | null
-            metadata?: {
-              [key: string]: unknown
-            } | null
-          }
-        }
-      }
-      responses: {
-        /** @description The created inventory release execution */
-        201: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                allotmentId: string
-                releaseRuleId: string | null
-                targetId: string | null
-                slotId: string | null
-                /** @enum {string} */
-                actionTaken: "released" | "expired" | "retained" | "manual_override"
-                /** @enum {string} */
-                status: "pending" | "completed" | "skipped" | "failed"
-                releasedCapacity: number | null
-                executedAt: string | null
-                notes: string | null
-                metadata: {
-                  [key: string]: unknown
-                } | null
-                createdAt: string
-                updatedAt: string
-              }
-            }
-          }
-        }
-        /** @description invalid_request */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** POST /v1/admin/distribution/inventory-release-executions */
+    post: operations["postAdminDistributionInventoryReleaseExecutions"]
     delete?: never
     options?: never
     head?: never
@@ -7266,189 +1118,16 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    get: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description An inventory release execution by id */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                allotmentId: string
-                releaseRuleId: string | null
-                targetId: string | null
-                slotId: string | null
-                /** @enum {string} */
-                actionTaken: "released" | "expired" | "retained" | "manual_override"
-                /** @enum {string} */
-                status: "pending" | "completed" | "skipped" | "failed"
-                releasedCapacity: number | null
-                executedAt: string | null
-                notes: string | null
-                metadata: {
-                  [key: string]: unknown
-                } | null
-                createdAt: string
-                updatedAt: string
-              }
-            }
-          }
-        }
-        /** @description Channel inventory release execution not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** GET /v1/admin/distribution/inventory-release-executions/{id} */
+    get: operations["getAdminDistributionInventoryReleaseExecutionsById"]
     put?: never
     post?: never
-    delete: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Inventory release execution deleted */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              /** @enum {boolean} */
-              success: true
-            }
-          }
-        }
-        /** @description Channel inventory release execution not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** DELETE /v1/admin/distribution/inventory-release-executions/{id} */
+    delete: operations["deleteAdminDistributionInventoryReleaseExecutionsById"]
     options?: never
     head?: never
-    patch: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          "application/json": {
-            allotmentId?: string
-            releaseRuleId?: string | null
-            targetId?: string | null
-            slotId?: string | null
-            /**
-             * @default released
-             * @enum {string}
-             */
-            actionTaken?: "released" | "expired" | "retained" | "manual_override"
-            /**
-             * @default pending
-             * @enum {string}
-             */
-            status?: "pending" | "completed" | "skipped" | "failed"
-            releasedCapacity?: number | null
-            /** Format: date-time */
-            executedAt?: string | null
-            notes?: string | null
-            metadata?: {
-              [key: string]: unknown
-            } | null
-          }
-        }
-      }
-      responses: {
-        /** @description The updated inventory release execution */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                allotmentId: string
-                releaseRuleId: string | null
-                targetId: string | null
-                slotId: string | null
-                /** @enum {string} */
-                actionTaken: "released" | "expired" | "retained" | "manual_override"
-                /** @enum {string} */
-                status: "pending" | "completed" | "skipped" | "failed"
-                releasedCapacity: number | null
-                executedAt: string | null
-                notes: string | null
-                metadata: {
-                  [key: string]: unknown
-                } | null
-                createdAt: string
-                updatedAt: string
-              }
-            }
-          }
-        }
-        /** @description invalid_request */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-        /** @description Channel inventory release execution not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** PATCH /v1/admin/distribution/inventory-release-executions/{id} */
+    patch: operations["patchAdminDistributionInventoryReleaseExecutionsById"]
     trace?: never
   }
   "/v1/admin/distribution/settlement-policies": {
@@ -7458,133 +1137,11 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    get: {
-      parameters: {
-        query?: {
-          limit?: number
-          offset?: number | null
-          channelId?: string
-          contractId?: string
-          frequency?: "manual" | "daily" | "weekly" | "monthly"
-          active?: "0" | "1" | "true" | "false"
-        }
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Paginated settlement policies */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                channelId: string
-                contractId: string | null
-                /** @enum {string} */
-                frequency: "manual" | "daily" | "weekly" | "monthly"
-                autoGenerate: boolean
-                approvalRequired: boolean
-                remittanceDaysAfterPeriodEnd: number | null
-                minimumPayoutAmountCents: number | null
-                currencyCode: string | null
-                active: boolean
-                notes: string | null
-                metadata: {
-                  [key: string]: unknown
-                } | null
-                createdAt: string
-                updatedAt: string
-              }[]
-              total: number
-              limit: number
-              offset: number
-            }
-          }
-        }
-      }
-    }
+    /** GET /v1/admin/distribution/settlement-policies */
+    get: operations["getAdminDistributionSettlementPolicies"]
     put?: never
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          "application/json": {
-            channelId: string
-            contractId?: string | null
-            /**
-             * @default manual
-             * @enum {string}
-             */
-            frequency?: "manual" | "daily" | "weekly" | "monthly"
-            /** @default false */
-            autoGenerate?: boolean
-            /** @default false */
-            approvalRequired?: boolean
-            remittanceDaysAfterPeriodEnd?: number | null
-            minimumPayoutAmountCents?: number | null
-            currencyCode?: string | null
-            /** @default true */
-            active?: boolean
-            notes?: string | null
-            metadata?: {
-              [key: string]: unknown
-            } | null
-          }
-        }
-      }
-      responses: {
-        /** @description The created settlement policy */
-        201: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                channelId: string
-                contractId: string | null
-                /** @enum {string} */
-                frequency: "manual" | "daily" | "weekly" | "monthly"
-                autoGenerate: boolean
-                approvalRequired: boolean
-                remittanceDaysAfterPeriodEnd: number | null
-                minimumPayoutAmountCents: number | null
-                currencyCode: string | null
-                active: boolean
-                notes: string | null
-                metadata: {
-                  [key: string]: unknown
-                } | null
-                createdAt: string
-                updatedAt: string
-              }
-            }
-          }
-        }
-        /** @description invalid_request */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** POST /v1/admin/distribution/settlement-policies */
+    post: operations["postAdminDistributionSettlementPolicies"]
     delete?: never
     options?: never
     head?: never
@@ -7598,188 +1155,16 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    get: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description A settlement policy by id */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                channelId: string
-                contractId: string | null
-                /** @enum {string} */
-                frequency: "manual" | "daily" | "weekly" | "monthly"
-                autoGenerate: boolean
-                approvalRequired: boolean
-                remittanceDaysAfterPeriodEnd: number | null
-                minimumPayoutAmountCents: number | null
-                currencyCode: string | null
-                active: boolean
-                notes: string | null
-                metadata: {
-                  [key: string]: unknown
-                } | null
-                createdAt: string
-                updatedAt: string
-              }
-            }
-          }
-        }
-        /** @description Channel settlement policy not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** GET /v1/admin/distribution/settlement-policies/{id} */
+    get: operations["getAdminDistributionSettlementPoliciesById"]
     put?: never
     post?: never
-    delete: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Settlement policy deleted */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              /** @enum {boolean} */
-              success: true
-            }
-          }
-        }
-        /** @description Channel settlement policy not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** DELETE /v1/admin/distribution/settlement-policies/{id} */
+    delete: operations["deleteAdminDistributionSettlementPoliciesById"]
     options?: never
     head?: never
-    patch: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          "application/json": {
-            channelId?: string
-            contractId?: string | null
-            /**
-             * @default manual
-             * @enum {string}
-             */
-            frequency?: "manual" | "daily" | "weekly" | "monthly"
-            /** @default false */
-            autoGenerate?: boolean
-            /** @default false */
-            approvalRequired?: boolean
-            remittanceDaysAfterPeriodEnd?: number | null
-            minimumPayoutAmountCents?: number | null
-            currencyCode?: string | null
-            /** @default true */
-            active?: boolean
-            notes?: string | null
-            metadata?: {
-              [key: string]: unknown
-            } | null
-          }
-        }
-      }
-      responses: {
-        /** @description The updated settlement policy */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                channelId: string
-                contractId: string | null
-                /** @enum {string} */
-                frequency: "manual" | "daily" | "weekly" | "monthly"
-                autoGenerate: boolean
-                approvalRequired: boolean
-                remittanceDaysAfterPeriodEnd: number | null
-                minimumPayoutAmountCents: number | null
-                currencyCode: string | null
-                active: boolean
-                notes: string | null
-                metadata: {
-                  [key: string]: unknown
-                } | null
-                createdAt: string
-                updatedAt: string
-              }
-            }
-          }
-        }
-        /** @description invalid_request */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-        /** @description Channel settlement policy not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** PATCH /v1/admin/distribution/settlement-policies/{id} */
+    patch: operations["patchAdminDistributionSettlementPoliciesById"]
     trace?: never
   }
   "/v1/admin/distribution/reconciliation-policies": {
@@ -7789,135 +1174,11 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    get: {
-      parameters: {
-        query?: {
-          limit?: number
-          offset?: number | null
-          channelId?: string
-          contractId?: string
-          frequency?: "manual" | "daily" | "weekly" | "monthly"
-          active?: "0" | "1" | "true" | "false"
-        }
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Paginated reconciliation policies */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                channelId: string
-                contractId: string | null
-                /** @enum {string} */
-                frequency: "manual" | "daily" | "weekly" | "monthly"
-                autoRun: boolean
-                compareGrossAmounts: boolean
-                compareStatuses: boolean
-                compareCancellations: boolean
-                amountToleranceCents: number | null
-                active: boolean
-                notes: string | null
-                metadata: {
-                  [key: string]: unknown
-                } | null
-                createdAt: string
-                updatedAt: string
-              }[]
-              total: number
-              limit: number
-              offset: number
-            }
-          }
-        }
-      }
-    }
+    /** GET /v1/admin/distribution/reconciliation-policies */
+    get: operations["getAdminDistributionReconciliationPolicies"]
     put?: never
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          "application/json": {
-            channelId: string
-            contractId?: string | null
-            /**
-             * @default manual
-             * @enum {string}
-             */
-            frequency?: "manual" | "daily" | "weekly" | "monthly"
-            /** @default false */
-            autoRun?: boolean
-            /** @default true */
-            compareGrossAmounts?: boolean
-            /** @default true */
-            compareStatuses?: boolean
-            /** @default true */
-            compareCancellations?: boolean
-            amountToleranceCents?: number | null
-            /** @default true */
-            active?: boolean
-            notes?: string | null
-            metadata?: {
-              [key: string]: unknown
-            } | null
-          }
-        }
-      }
-      responses: {
-        /** @description The created reconciliation policy */
-        201: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                channelId: string
-                contractId: string | null
-                /** @enum {string} */
-                frequency: "manual" | "daily" | "weekly" | "monthly"
-                autoRun: boolean
-                compareGrossAmounts: boolean
-                compareStatuses: boolean
-                compareCancellations: boolean
-                amountToleranceCents: number | null
-                active: boolean
-                notes: string | null
-                metadata: {
-                  [key: string]: unknown
-                } | null
-                createdAt: string
-                updatedAt: string
-              }
-            }
-          }
-        }
-        /** @description invalid_request */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** POST /v1/admin/distribution/reconciliation-policies */
+    post: operations["postAdminDistributionReconciliationPolicies"]
     delete?: never
     options?: never
     head?: never
@@ -7931,190 +1192,16 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    get: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description A reconciliation policy by id */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                channelId: string
-                contractId: string | null
-                /** @enum {string} */
-                frequency: "manual" | "daily" | "weekly" | "monthly"
-                autoRun: boolean
-                compareGrossAmounts: boolean
-                compareStatuses: boolean
-                compareCancellations: boolean
-                amountToleranceCents: number | null
-                active: boolean
-                notes: string | null
-                metadata: {
-                  [key: string]: unknown
-                } | null
-                createdAt: string
-                updatedAt: string
-              }
-            }
-          }
-        }
-        /** @description Channel reconciliation policy not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** GET /v1/admin/distribution/reconciliation-policies/{id} */
+    get: operations["getAdminDistributionReconciliationPoliciesById"]
     put?: never
     post?: never
-    delete: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Reconciliation policy deleted */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              /** @enum {boolean} */
-              success: true
-            }
-          }
-        }
-        /** @description Channel reconciliation policy not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** DELETE /v1/admin/distribution/reconciliation-policies/{id} */
+    delete: operations["deleteAdminDistributionReconciliationPoliciesById"]
     options?: never
     head?: never
-    patch: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          "application/json": {
-            channelId?: string
-            contractId?: string | null
-            /**
-             * @default manual
-             * @enum {string}
-             */
-            frequency?: "manual" | "daily" | "weekly" | "monthly"
-            /** @default false */
-            autoRun?: boolean
-            /** @default true */
-            compareGrossAmounts?: boolean
-            /** @default true */
-            compareStatuses?: boolean
-            /** @default true */
-            compareCancellations?: boolean
-            amountToleranceCents?: number | null
-            /** @default true */
-            active?: boolean
-            notes?: string | null
-            metadata?: {
-              [key: string]: unknown
-            } | null
-          }
-        }
-      }
-      responses: {
-        /** @description The updated reconciliation policy */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                channelId: string
-                contractId: string | null
-                /** @enum {string} */
-                frequency: "manual" | "daily" | "weekly" | "monthly"
-                autoRun: boolean
-                compareGrossAmounts: boolean
-                compareStatuses: boolean
-                compareCancellations: boolean
-                amountToleranceCents: number | null
-                active: boolean
-                notes: string | null
-                metadata: {
-                  [key: string]: unknown
-                } | null
-                createdAt: string
-                updatedAt: string
-              }
-            }
-          }
-        }
-        /** @description invalid_request */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-        /** @description Channel reconciliation policy not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** PATCH /v1/admin/distribution/reconciliation-policies/{id} */
+    patch: operations["patchAdminDistributionReconciliationPoliciesById"]
     trace?: never
   }
   "/v1/admin/distribution/release-schedules": {
@@ -8124,120 +1211,11 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    get: {
-      parameters: {
-        query?: {
-          limit?: number
-          offset?: number | null
-          releaseRuleId?: string
-          scheduleKind?: "manual" | "hourly" | "daily"
-          active?: "0" | "1" | "true" | "false"
-        }
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Paginated release schedules */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                releaseRuleId: string
-                /** @enum {string} */
-                scheduleKind: "manual" | "hourly" | "daily"
-                nextRunAt: string | null
-                lastRunAt: string | null
-                active: boolean
-                notes: string | null
-                metadata: {
-                  [key: string]: unknown
-                } | null
-                createdAt: string
-                updatedAt: string
-              }[]
-              total: number
-              limit: number
-              offset: number
-            }
-          }
-        }
-      }
-    }
+    /** GET /v1/admin/distribution/release-schedules */
+    get: operations["getAdminDistributionReleaseSchedules"]
     put?: never
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          "application/json": {
-            releaseRuleId: string
-            /**
-             * @default manual
-             * @enum {string}
-             */
-            scheduleKind?: "manual" | "hourly" | "daily"
-            /** Format: date-time */
-            nextRunAt?: string | null
-            /** Format: date-time */
-            lastRunAt?: string | null
-            /** @default true */
-            active?: boolean
-            notes?: string | null
-            metadata?: {
-              [key: string]: unknown
-            } | null
-          }
-        }
-      }
-      responses: {
-        /** @description The created release schedule */
-        201: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                releaseRuleId: string
-                /** @enum {string} */
-                scheduleKind: "manual" | "hourly" | "daily"
-                nextRunAt: string | null
-                lastRunAt: string | null
-                active: boolean
-                notes: string | null
-                metadata: {
-                  [key: string]: unknown
-                } | null
-                createdAt: string
-                updatedAt: string
-              }
-            }
-          }
-        }
-        /** @description invalid_request */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** POST /v1/admin/distribution/release-schedules */
+    post: operations["postAdminDistributionReleaseSchedules"]
     delete?: never
     options?: never
     head?: never
@@ -8251,176 +1229,16 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    get: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description A release schedule by id */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                releaseRuleId: string
-                /** @enum {string} */
-                scheduleKind: "manual" | "hourly" | "daily"
-                nextRunAt: string | null
-                lastRunAt: string | null
-                active: boolean
-                notes: string | null
-                metadata: {
-                  [key: string]: unknown
-                } | null
-                createdAt: string
-                updatedAt: string
-              }
-            }
-          }
-        }
-        /** @description Channel release schedule not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** GET /v1/admin/distribution/release-schedules/{id} */
+    get: operations["getAdminDistributionReleaseSchedulesById"]
     put?: never
     post?: never
-    delete: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Release schedule deleted */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              /** @enum {boolean} */
-              success: true
-            }
-          }
-        }
-        /** @description Channel release schedule not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** DELETE /v1/admin/distribution/release-schedules/{id} */
+    delete: operations["deleteAdminDistributionReleaseSchedulesById"]
     options?: never
     head?: never
-    patch: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          "application/json": {
-            releaseRuleId?: string
-            /**
-             * @default manual
-             * @enum {string}
-             */
-            scheduleKind?: "manual" | "hourly" | "daily"
-            /** Format: date-time */
-            nextRunAt?: string | null
-            /** Format: date-time */
-            lastRunAt?: string | null
-            /** @default true */
-            active?: boolean
-            notes?: string | null
-            metadata?: {
-              [key: string]: unknown
-            } | null
-          }
-        }
-      }
-      responses: {
-        /** @description The updated release schedule */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                releaseRuleId: string
-                /** @enum {string} */
-                scheduleKind: "manual" | "hourly" | "daily"
-                nextRunAt: string | null
-                lastRunAt: string | null
-                active: boolean
-                notes: string | null
-                metadata: {
-                  [key: string]: unknown
-                } | null
-                createdAt: string
-                updatedAt: string
-              }
-            }
-          }
-        }
-        /** @description invalid_request */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-        /** @description Channel release schedule not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** PATCH /v1/admin/distribution/release-schedules/{id} */
+    patch: operations["patchAdminDistributionReleaseSchedulesById"]
     trace?: never
   }
   "/v1/admin/distribution/remittance-exceptions": {
@@ -8430,135 +1248,11 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    get: {
-      parameters: {
-        query?: {
-          limit?: number
-          offset?: number | null
-          channelId?: string
-          settlementItemId?: string
-          reconciliationItemId?: string
-          status?: "open" | "investigating" | "resolved" | "ignored"
-        }
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Paginated remittance exceptions */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                channelId: string
-                settlementItemId: string | null
-                reconciliationItemId: string | null
-                exceptionType: string
-                /** @enum {string} */
-                severity: "info" | "warning" | "error"
-                /** @enum {string} */
-                status: "open" | "investigating" | "resolved" | "ignored"
-                openedAt: string
-                resolvedAt: string | null
-                notes: string | null
-                metadata: {
-                  [key: string]: unknown
-                } | null
-                createdAt: string
-                updatedAt: string
-              }[]
-              total: number
-              limit: number
-              offset: number
-            }
-          }
-        }
-      }
-    }
+    /** GET /v1/admin/distribution/remittance-exceptions */
+    get: operations["getAdminDistributionRemittanceExceptions"]
     put?: never
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          "application/json": {
-            channelId: string
-            settlementItemId?: string | null
-            reconciliationItemId?: string | null
-            exceptionType: string
-            /**
-             * @default warning
-             * @enum {string}
-             */
-            severity?: "info" | "warning" | "error"
-            /**
-             * @default open
-             * @enum {string}
-             */
-            status?: "open" | "investigating" | "resolved" | "ignored"
-            /** Format: date-time */
-            openedAt?: string | null
-            /** Format: date-time */
-            resolvedAt?: string | null
-            notes?: string | null
-            metadata?: {
-              [key: string]: unknown
-            } | null
-          }
-        }
-      }
-      responses: {
-        /** @description The created remittance exception */
-        201: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                channelId: string
-                settlementItemId: string | null
-                reconciliationItemId: string | null
-                exceptionType: string
-                /** @enum {string} */
-                severity: "info" | "warning" | "error"
-                /** @enum {string} */
-                status: "open" | "investigating" | "resolved" | "ignored"
-                openedAt: string
-                resolvedAt: string | null
-                notes: string | null
-                metadata: {
-                  [key: string]: unknown
-                } | null
-                createdAt: string
-                updatedAt: string
-              }
-            }
-          }
-        }
-        /** @description invalid_request */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** POST /v1/admin/distribution/remittance-exceptions */
+    post: operations["postAdminDistributionRemittanceExceptions"]
     delete?: never
     options?: never
     head?: never
@@ -8572,190 +1266,16 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    get: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description A remittance exception by id */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                channelId: string
-                settlementItemId: string | null
-                reconciliationItemId: string | null
-                exceptionType: string
-                /** @enum {string} */
-                severity: "info" | "warning" | "error"
-                /** @enum {string} */
-                status: "open" | "investigating" | "resolved" | "ignored"
-                openedAt: string
-                resolvedAt: string | null
-                notes: string | null
-                metadata: {
-                  [key: string]: unknown
-                } | null
-                createdAt: string
-                updatedAt: string
-              }
-            }
-          }
-        }
-        /** @description Channel remittance exception not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** GET /v1/admin/distribution/remittance-exceptions/{id} */
+    get: operations["getAdminDistributionRemittanceExceptionsById"]
     put?: never
     post?: never
-    delete: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Remittance exception deleted */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              /** @enum {boolean} */
-              success: true
-            }
-          }
-        }
-        /** @description Channel remittance exception not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** DELETE /v1/admin/distribution/remittance-exceptions/{id} */
+    delete: operations["deleteAdminDistributionRemittanceExceptionsById"]
     options?: never
     head?: never
-    patch: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          "application/json": {
-            channelId?: string
-            settlementItemId?: string | null
-            reconciliationItemId?: string | null
-            exceptionType?: string
-            /**
-             * @default warning
-             * @enum {string}
-             */
-            severity?: "info" | "warning" | "error"
-            /**
-             * @default open
-             * @enum {string}
-             */
-            status?: "open" | "investigating" | "resolved" | "ignored"
-            /** Format: date-time */
-            openedAt?: string | null
-            /** Format: date-time */
-            resolvedAt?: string | null
-            notes?: string | null
-            metadata?: {
-              [key: string]: unknown
-            } | null
-          }
-        }
-      }
-      responses: {
-        /** @description The updated remittance exception */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                channelId: string
-                settlementItemId: string | null
-                reconciliationItemId: string | null
-                exceptionType: string
-                /** @enum {string} */
-                severity: "info" | "warning" | "error"
-                /** @enum {string} */
-                status: "open" | "investigating" | "resolved" | "ignored"
-                openedAt: string
-                resolvedAt: string | null
-                notes: string | null
-                metadata: {
-                  [key: string]: unknown
-                } | null
-                createdAt: string
-                updatedAt: string
-              }
-            }
-          }
-        }
-        /** @description invalid_request */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-        /** @description Channel remittance exception not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** PATCH /v1/admin/distribution/remittance-exceptions/{id} */
+    patch: operations["patchAdminDistributionRemittanceExceptionsById"]
     trace?: never
   }
   "/v1/admin/distribution/settlement-approvals": {
@@ -8765,114 +1285,11 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    get: {
-      parameters: {
-        query?: {
-          limit?: number
-          offset?: number | null
-          settlementRunId?: string
-          status?: "pending" | "approved" | "rejected"
-        }
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Paginated settlement approvals */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                settlementRunId: string
-                approverUserId: string | null
-                /** @enum {string} */
-                status: "pending" | "approved" | "rejected"
-                decidedAt: string | null
-                notes: string | null
-                metadata: {
-                  [key: string]: unknown
-                } | null
-                createdAt: string
-                updatedAt: string
-              }[]
-              total: number
-              limit: number
-              offset: number
-            }
-          }
-        }
-      }
-    }
+    /** GET /v1/admin/distribution/settlement-approvals */
+    get: operations["getAdminDistributionSettlementApprovals"]
     put?: never
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          "application/json": {
-            settlementRunId: string
-            approverUserId?: string | null
-            /**
-             * @default pending
-             * @enum {string}
-             */
-            status?: "pending" | "approved" | "rejected"
-            /** Format: date-time */
-            decidedAt?: string | null
-            notes?: string | null
-            metadata?: {
-              [key: string]: unknown
-            } | null
-          }
-        }
-      }
-      responses: {
-        /** @description The created settlement approval */
-        201: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                settlementRunId: string
-                approverUserId: string | null
-                /** @enum {string} */
-                status: "pending" | "approved" | "rejected"
-                decidedAt: string | null
-                notes: string | null
-                metadata: {
-                  [key: string]: unknown
-                } | null
-                createdAt: string
-                updatedAt: string
-              }
-            }
-          }
-        }
-        /** @description invalid_request */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** POST /v1/admin/distribution/settlement-approvals */
+    post: operations["postAdminDistributionSettlementApprovals"]
     delete?: never
     options?: never
     head?: never
@@ -8886,171 +1303,16 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    get: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description A settlement approval by id */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                settlementRunId: string
-                approverUserId: string | null
-                /** @enum {string} */
-                status: "pending" | "approved" | "rejected"
-                decidedAt: string | null
-                notes: string | null
-                metadata: {
-                  [key: string]: unknown
-                } | null
-                createdAt: string
-                updatedAt: string
-              }
-            }
-          }
-        }
-        /** @description Channel settlement approval not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** GET /v1/admin/distribution/settlement-approvals/{id} */
+    get: operations["getAdminDistributionSettlementApprovalsById"]
     put?: never
     post?: never
-    delete: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Settlement approval deleted */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              /** @enum {boolean} */
-              success: true
-            }
-          }
-        }
-        /** @description Channel settlement approval not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** DELETE /v1/admin/distribution/settlement-approvals/{id} */
+    delete: operations["deleteAdminDistributionSettlementApprovalsById"]
     options?: never
     head?: never
-    patch: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          "application/json": {
-            settlementRunId?: string
-            approverUserId?: string | null
-            /**
-             * @default pending
-             * @enum {string}
-             */
-            status?: "pending" | "approved" | "rejected"
-            /** Format: date-time */
-            decidedAt?: string | null
-            notes?: string | null
-            metadata?: {
-              [key: string]: unknown
-            } | null
-          }
-        }
-      }
-      responses: {
-        /** @description The updated settlement approval */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                settlementRunId: string
-                approverUserId: string | null
-                /** @enum {string} */
-                status: "pending" | "approved" | "rejected"
-                decidedAt: string | null
-                notes: string | null
-                metadata: {
-                  [key: string]: unknown
-                } | null
-                createdAt: string
-                updatedAt: string
-              }
-            }
-          }
-        }
-        /** @description invalid_request */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-        /** @description Channel settlement approval not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** PATCH /v1/admin/distribution/settlement-approvals/{id} */
+    patch: operations["patchAdminDistributionSettlementApprovalsById"]
     trace?: never
   }
 }
@@ -9065,6 +1327,183 @@ export interface components {
 }
 export type $defs = Record<string, never>
 export interface operations {
+  getAdminDistributionChannels: {
+    parameters: {
+      query?: {
+        limit?: number
+        offset?: number | null
+        kind?:
+          | "direct"
+          | "affiliate"
+          | "ota"
+          | "reseller"
+          | "marketplace"
+          | "api_partner"
+          | "connect"
+        status?: "active" | "inactive" | "pending" | "archived"
+        /** @description How to treat system-provisioned channels (today: Direct). Defaults to `include` - publication and product-mapping pickers must be able to target Direct. The counterparty list passes `exclude`. */
+        system?: "include" | "exclude" | "only"
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Paginated channels */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              name: string
+              description: string | null
+              /** @enum {string} */
+              kind:
+                | "direct"
+                | "affiliate"
+                | "ota"
+                | "reseller"
+                | "marketplace"
+                | "api_partner"
+                | "connect"
+              /** @enum {string} */
+              status: "active" | "inactive" | "pending" | "archived"
+              metadata: {
+                [key: string]: unknown
+              } | null
+              /** @description Non-null on a channel the deployment provisions for itself. `direct` is the only one today: it cannot be deleted or deactivated, and the counterparty list leaves it out. */
+              systemKey: string | null
+              /** @description Catalog entry this channel was created from, for named networks only. A stable identity a connector can bind to, unlike the display name. */
+              presetKey: string | null
+              rateLimitRps: number | null
+              rateLimitBurst: number | null
+              rateLimitPriorityGates: {
+                [key: string]: number
+              } | null
+              createdAt: string
+              updatedAt: string
+              website: string | null
+              contactName: string | null
+              contactEmail: string | null
+            }[]
+            total: number
+            limit: number
+            offset: number
+          }
+        }
+      }
+    }
+  }
+  postAdminDistributionChannels: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          name: string
+          description?: string | null
+          /** @enum {string} */
+          kind:
+            | "direct"
+            | "affiliate"
+            | "ota"
+            | "reseller"
+            | "marketplace"
+            | "api_partner"
+            | "connect"
+          /**
+           * @default active
+           * @enum {string}
+           */
+          status?: "active" | "inactive" | "pending" | "archived"
+          website?: (string | null) | "" | null
+          contactName?: string | null
+          /** Format: email */
+          contactEmail?: string | null
+          metadata?: {
+            [key: string]: unknown
+          } | null
+          /** @description Catalog entry this channel is created from, recorded as a stable identity for connectors. One of: getyourguide, viator, tripadvisor, klook, civitatis, musement, airbnb-experiences, voyant-connect. Omit it for a channel you describe yourself. Partner-type presets (partner-affiliate, partner-reseller, partner-api) are rejected: they name a shape of relationship, not a counterparty, and an operator may have many channels of each. */
+          presetKey?: string | null
+        }
+      }
+    }
+    responses: {
+      /** @description The created channel */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              name: string
+              description: string | null
+              /** @enum {string} */
+              kind:
+                | "direct"
+                | "affiliate"
+                | "ota"
+                | "reseller"
+                | "marketplace"
+                | "api_partner"
+                | "connect"
+              /** @enum {string} */
+              status: "active" | "inactive" | "pending" | "archived"
+              metadata: {
+                [key: string]: unknown
+              } | null
+              /** @description Non-null on a channel the deployment provisions for itself. `direct` is the only one today: it cannot be deleted or deactivated, and the counterparty list leaves it out. */
+              systemKey: string | null
+              /** @description Catalog entry this channel was created from, for named networks only. A stable identity a connector can bind to, unlike the display name. */
+              presetKey: string | null
+              rateLimitRps: number | null
+              rateLimitBurst: number | null
+              rateLimitPriorityGates: {
+                [key: string]: number
+              } | null
+              createdAt: string
+              updatedAt: string
+              website: string | null
+              contactName: string | null
+              contactEmail: string | null
+            }
+          }
+        }
+      }
+      /** @description invalid_request */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description A channel for this preset network already exists */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
   listChannelPresets: {
     parameters: {
       query?: never
@@ -9098,6 +1537,8335 @@ export interface operations {
               website?: string
               description?: string
             }[]
+          }
+        }
+      }
+    }
+  }
+  postAdminDistributionChannelsBatchUpdate: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          ids: string[]
+          patch: {
+            name?: string
+            description?: string | null
+            /** @enum {string} */
+            kind?:
+              | "direct"
+              | "affiliate"
+              | "ota"
+              | "reseller"
+              | "marketplace"
+              | "api_partner"
+              | "connect"
+            /**
+             * @default active
+             * @enum {string}
+             */
+            status?: "active" | "inactive" | "pending" | "archived"
+            website?: (string | null) | "" | null
+            contactName?: string | null
+            /** Format: email */
+            contactEmail?: string | null
+            metadata?: {
+              [key: string]: unknown
+            } | null
+          }
+        }
+      }
+    }
+    responses: {
+      /** @description Per-id batch-update results */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              name: string
+              description: string | null
+              /** @enum {string} */
+              kind:
+                | "direct"
+                | "affiliate"
+                | "ota"
+                | "reseller"
+                | "marketplace"
+                | "api_partner"
+                | "connect"
+              /** @enum {string} */
+              status: "active" | "inactive" | "pending" | "archived"
+              metadata: {
+                [key: string]: unknown
+              } | null
+              /** @description Non-null on a channel the deployment provisions for itself. `direct` is the only one today: it cannot be deleted or deactivated, and the counterparty list leaves it out. */
+              systemKey: string | null
+              /** @description Catalog entry this channel was created from, for named networks only. A stable identity a connector can bind to, unlike the display name. */
+              presetKey: string | null
+              rateLimitRps: number | null
+              rateLimitBurst: number | null
+              rateLimitPriorityGates: {
+                [key: string]: number
+              } | null
+              createdAt: string
+              updatedAt: string
+              website: string | null
+              contactName: string | null
+              contactEmail: string | null
+            }[]
+            total: number
+            succeeded: number
+            failed: {
+              id: string
+              error: string
+            }[]
+          }
+        }
+      }
+      /** @description invalid_request */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  postAdminDistributionChannelsBatchDelete: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          ids: string[]
+        }
+      }
+    }
+    responses: {
+      /** @description Per-id batch-delete results */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            deletedIds: string[]
+            total: number
+            succeeded: number
+            failed: {
+              id: string
+              error: string
+            }[]
+          }
+        }
+      }
+      /** @description invalid_request */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getAdminDistributionChannelsById: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description A channel by id */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              name: string
+              description: string | null
+              /** @enum {string} */
+              kind:
+                | "direct"
+                | "affiliate"
+                | "ota"
+                | "reseller"
+                | "marketplace"
+                | "api_partner"
+                | "connect"
+              /** @enum {string} */
+              status: "active" | "inactive" | "pending" | "archived"
+              metadata: {
+                [key: string]: unknown
+              } | null
+              /** @description Non-null on a channel the deployment provisions for itself. `direct` is the only one today: it cannot be deleted or deactivated, and the counterparty list leaves it out. */
+              systemKey: string | null
+              /** @description Catalog entry this channel was created from, for named networks only. A stable identity a connector can bind to, unlike the display name. */
+              presetKey: string | null
+              rateLimitRps: number | null
+              rateLimitBurst: number | null
+              rateLimitPriorityGates: {
+                [key: string]: number
+              } | null
+              createdAt: string
+              updatedAt: string
+              website: string | null
+              contactName: string | null
+              contactEmail: string | null
+            }
+          }
+        }
+      }
+      /** @description Channel not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  deleteAdminDistributionChannelsById: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Channel deleted */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            /** @enum {boolean} */
+            success: true
+          }
+        }
+      }
+      /** @description Channel not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Channel is system-provisioned and cannot be deleted */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  patchAdminDistributionChannelsById: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          name?: string
+          description?: string | null
+          /** @enum {string} */
+          kind?:
+            | "direct"
+            | "affiliate"
+            | "ota"
+            | "reseller"
+            | "marketplace"
+            | "api_partner"
+            | "connect"
+          /**
+           * @default active
+           * @enum {string}
+           */
+          status?: "active" | "inactive" | "pending" | "archived"
+          website?: (string | null) | "" | null
+          contactName?: string | null
+          /** Format: email */
+          contactEmail?: string | null
+          metadata?: {
+            [key: string]: unknown
+          } | null
+        }
+      }
+    }
+    responses: {
+      /** @description The updated channel */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              name: string
+              description: string | null
+              /** @enum {string} */
+              kind:
+                | "direct"
+                | "affiliate"
+                | "ota"
+                | "reseller"
+                | "marketplace"
+                | "api_partner"
+                | "connect"
+              /** @enum {string} */
+              status: "active" | "inactive" | "pending" | "archived"
+              metadata: {
+                [key: string]: unknown
+              } | null
+              /** @description Non-null on a channel the deployment provisions for itself. `direct` is the only one today: it cannot be deleted or deactivated, and the counterparty list leaves it out. */
+              systemKey: string | null
+              /** @description Catalog entry this channel was created from, for named networks only. A stable identity a connector can bind to, unlike the display name. */
+              presetKey: string | null
+              rateLimitRps: number | null
+              rateLimitBurst: number | null
+              rateLimitPriorityGates: {
+                [key: string]: number
+              } | null
+              createdAt: string
+              updatedAt: string
+              website: string | null
+              contactName: string | null
+              contactEmail: string | null
+            }
+          }
+        }
+      }
+      /** @description invalid_request */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Channel not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Patch is not permitted on a system-provisioned channel */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getAdminDistributionChannelsByIdContactPoints: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Contact points for a channel */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              entityType: string
+              entityId: string
+              kind: string
+              label: string | null
+              value: string
+              normalizedValue: string | null
+              isPrimary: boolean
+              notes: string | null
+              metadata: {
+                [key: string]: unknown
+              } | null
+              createdAt: string
+              updatedAt: string
+            }[]
+          }
+        }
+      }
+      /** @description Channel not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  postAdminDistributionChannelsByIdContactPoints: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          /** @enum {string} */
+          kind:
+            | "email"
+            | "phone"
+            | "mobile"
+            | "whatsapp"
+            | "website"
+            | "sms"
+            | "fax"
+            | "social"
+            | "other"
+          label?: string | null
+          value: string
+          normalizedValue?: string | null
+          /** @default false */
+          isPrimary?: boolean
+          notes?: string | null
+          metadata?: {
+            [key: string]: unknown
+          } | null
+        }
+      }
+    }
+    responses: {
+      /** @description The created contact point */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              entityType: string
+              entityId: string
+              kind: string
+              label: string | null
+              value: string
+              normalizedValue: string | null
+              isPrimary: boolean
+              notes: string | null
+              metadata: {
+                [key: string]: unknown
+              } | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description invalid_request */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Channel not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  deleteAdminDistributionChannelContactPointsByContactPointId: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        contactPointId: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Contact point deleted */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            /** @enum {boolean} */
+            success: true
+          }
+        }
+      }
+      /** @description Channel contact point not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  patchAdminDistributionChannelContactPointsByContactPointId: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        contactPointId: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          entityType?: string
+          entityId?: string
+          /** @enum {string} */
+          kind?:
+            | "email"
+            | "phone"
+            | "mobile"
+            | "whatsapp"
+            | "website"
+            | "sms"
+            | "fax"
+            | "social"
+            | "other"
+          label?: string | null
+          value?: string
+          normalizedValue?: string | null
+          /** @default false */
+          isPrimary?: boolean
+          notes?: string | null
+          metadata?: {
+            [key: string]: unknown
+          } | null
+        }
+      }
+    }
+    responses: {
+      /** @description The updated contact point */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              entityType: string
+              entityId: string
+              kind: string
+              label: string | null
+              value: string
+              normalizedValue: string | null
+              isPrimary: boolean
+              notes: string | null
+              metadata: {
+                [key: string]: unknown
+              } | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description invalid_request */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Channel contact point not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getAdminDistributionChannelsByIdContacts: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Named contacts for a channel */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              entityType: string
+              entityId: string
+              role: string
+              name: string
+              title: string | null
+              email: string | null
+              phone: string | null
+              isPrimary: boolean
+              notes: string | null
+              metadata: {
+                [key: string]: unknown
+              } | null
+              createdAt: string
+              updatedAt: string
+            }[]
+          }
+        }
+      }
+      /** @description Channel not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  postAdminDistributionChannelsByIdContacts: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          /**
+           * @default general
+           * @enum {string}
+           */
+          role?:
+            | "general"
+            | "primary"
+            | "reservations"
+            | "operations"
+            | "front_desk"
+            | "sales"
+            | "emergency"
+            | "accounting"
+            | "legal"
+            | "other"
+          name: string
+          title?: string | null
+          /** Format: email */
+          email?: string | null
+          phone?: string | null
+          /** @default false */
+          isPrimary?: boolean
+          notes?: string | null
+          metadata?: {
+            [key: string]: unknown
+          } | null
+        }
+      }
+    }
+    responses: {
+      /** @description The created named contact */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              entityType: string
+              entityId: string
+              role: string
+              name: string
+              title: string | null
+              email: string | null
+              phone: string | null
+              isPrimary: boolean
+              notes: string | null
+              metadata: {
+                [key: string]: unknown
+              } | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description invalid_request */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Channel not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  deleteAdminDistributionChannelContactsByContactId: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        contactId: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Named contact deleted */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            /** @enum {boolean} */
+            success: true
+          }
+        }
+      }
+      /** @description Channel contact not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  patchAdminDistributionChannelContactsByContactId: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        contactId: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          entityType?: string
+          entityId?: string
+          /**
+           * @default general
+           * @enum {string}
+           */
+          role?:
+            | "general"
+            | "primary"
+            | "reservations"
+            | "operations"
+            | "front_desk"
+            | "sales"
+            | "emergency"
+            | "accounting"
+            | "legal"
+            | "other"
+          name?: string
+          title?: string | null
+          /** Format: email */
+          email?: string | null
+          phone?: string | null
+          /** @default false */
+          isPrimary?: boolean
+          notes?: string | null
+          metadata?: {
+            [key: string]: unknown
+          } | null
+        }
+      }
+    }
+    responses: {
+      /** @description The updated named contact */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              entityType: string
+              entityId: string
+              role: string
+              name: string
+              title: string | null
+              email: string | null
+              phone: string | null
+              isPrimary: boolean
+              notes: string | null
+              metadata: {
+                [key: string]: unknown
+              } | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description invalid_request */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Channel contact not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getAdminDistributionContracts: {
+    parameters: {
+      query?: {
+        limit?: number
+        offset?: number | null
+        channelId?: string
+        supplierId?: string
+        status?: "draft" | "active" | "expired" | "terminated"
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Paginated channel contracts */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              channelId: string
+              supplierId: string | null
+              /** @enum {string} */
+              status: "draft" | "active" | "expired" | "terminated"
+              startsAt: string
+              endsAt: string | null
+              /** @enum {string} */
+              paymentOwner: "operator" | "channel" | "split"
+              /** @enum {string} */
+              cancellationOwner: "operator" | "channel" | "mixed"
+              settlementTerms: string | null
+              notes: string | null
+              rateLimitRps: number | null
+              rateLimitBurst: number | null
+              rateLimitPriorityGates: {
+                [key: string]: number
+              } | null
+              policy: {
+                [key: string]: unknown
+              } | null
+              createdAt: string
+              updatedAt: string
+            }[]
+            total: number
+            limit: number
+            offset: number
+          }
+        }
+      }
+    }
+  }
+  postAdminDistributionContracts: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          channelId: string
+          supplierId?: string | null
+          /**
+           * @default draft
+           * @enum {string}
+           */
+          status?: "draft" | "active" | "expired" | "terminated"
+          /** Format: date */
+          startsAt: string
+          /** Format: date */
+          endsAt?: string | null
+          /**
+           * @default operator
+           * @enum {string}
+           */
+          paymentOwner?: "operator" | "channel" | "split"
+          /**
+           * @default operator
+           * @enum {string}
+           */
+          cancellationOwner?: "operator" | "channel" | "mixed"
+          settlementTerms?: string | null
+          notes?: string | null
+        }
+      }
+    }
+    responses: {
+      /** @description The created contract */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              channelId: string
+              supplierId: string | null
+              /** @enum {string} */
+              status: "draft" | "active" | "expired" | "terminated"
+              startsAt: string
+              endsAt: string | null
+              /** @enum {string} */
+              paymentOwner: "operator" | "channel" | "split"
+              /** @enum {string} */
+              cancellationOwner: "operator" | "channel" | "mixed"
+              settlementTerms: string | null
+              notes: string | null
+              rateLimitRps: number | null
+              rateLimitBurst: number | null
+              rateLimitPriorityGates: {
+                [key: string]: number
+              } | null
+              policy: {
+                [key: string]: unknown
+              } | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description invalid_request */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  postAdminDistributionContractsBatchUpdate: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          ids: string[]
+          patch: {
+            channelId?: string
+            supplierId?: string | null
+            /**
+             * @default draft
+             * @enum {string}
+             */
+            status?: "draft" | "active" | "expired" | "terminated"
+            /** Format: date */
+            startsAt?: string
+            /** Format: date */
+            endsAt?: string | null
+            /**
+             * @default operator
+             * @enum {string}
+             */
+            paymentOwner?: "operator" | "channel" | "split"
+            /**
+             * @default operator
+             * @enum {string}
+             */
+            cancellationOwner?: "operator" | "channel" | "mixed"
+            settlementTerms?: string | null
+            notes?: string | null
+          }
+        }
+      }
+    }
+    responses: {
+      /** @description Per-id batch-update results */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              channelId: string
+              supplierId: string | null
+              /** @enum {string} */
+              status: "draft" | "active" | "expired" | "terminated"
+              startsAt: string
+              endsAt: string | null
+              /** @enum {string} */
+              paymentOwner: "operator" | "channel" | "split"
+              /** @enum {string} */
+              cancellationOwner: "operator" | "channel" | "mixed"
+              settlementTerms: string | null
+              notes: string | null
+              rateLimitRps: number | null
+              rateLimitBurst: number | null
+              rateLimitPriorityGates: {
+                [key: string]: number
+              } | null
+              policy: {
+                [key: string]: unknown
+              } | null
+              createdAt: string
+              updatedAt: string
+            }[]
+            total: number
+            succeeded: number
+            failed: {
+              id: string
+              error: string
+            }[]
+          }
+        }
+      }
+      /** @description invalid_request */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  postAdminDistributionContractsBatchDelete: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          ids: string[]
+        }
+      }
+    }
+    responses: {
+      /** @description Per-id batch-delete results */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            deletedIds: string[]
+            total: number
+            succeeded: number
+            failed: {
+              id: string
+              error: string
+            }[]
+          }
+        }
+      }
+      /** @description invalid_request */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getAdminDistributionContractsById: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description A contract by id */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              channelId: string
+              supplierId: string | null
+              /** @enum {string} */
+              status: "draft" | "active" | "expired" | "terminated"
+              startsAt: string
+              endsAt: string | null
+              /** @enum {string} */
+              paymentOwner: "operator" | "channel" | "split"
+              /** @enum {string} */
+              cancellationOwner: "operator" | "channel" | "mixed"
+              settlementTerms: string | null
+              notes: string | null
+              rateLimitRps: number | null
+              rateLimitBurst: number | null
+              rateLimitPriorityGates: {
+                [key: string]: number
+              } | null
+              policy: {
+                [key: string]: unknown
+              } | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description Channel contract not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  deleteAdminDistributionContractsById: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Contract deleted */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            /** @enum {boolean} */
+            success: true
+          }
+        }
+      }
+      /** @description Channel contract not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  patchAdminDistributionContractsById: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          channelId?: string
+          supplierId?: string | null
+          /**
+           * @default draft
+           * @enum {string}
+           */
+          status?: "draft" | "active" | "expired" | "terminated"
+          /** Format: date */
+          startsAt?: string
+          /** Format: date */
+          endsAt?: string | null
+          /**
+           * @default operator
+           * @enum {string}
+           */
+          paymentOwner?: "operator" | "channel" | "split"
+          /**
+           * @default operator
+           * @enum {string}
+           */
+          cancellationOwner?: "operator" | "channel" | "mixed"
+          settlementTerms?: string | null
+          notes?: string | null
+        }
+      }
+    }
+    responses: {
+      /** @description The updated contract */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              channelId: string
+              supplierId: string | null
+              /** @enum {string} */
+              status: "draft" | "active" | "expired" | "terminated"
+              startsAt: string
+              endsAt: string | null
+              /** @enum {string} */
+              paymentOwner: "operator" | "channel" | "split"
+              /** @enum {string} */
+              cancellationOwner: "operator" | "channel" | "mixed"
+              settlementTerms: string | null
+              notes: string | null
+              rateLimitRps: number | null
+              rateLimitBurst: number | null
+              rateLimitPriorityGates: {
+                [key: string]: number
+              } | null
+              policy: {
+                [key: string]: unknown
+              } | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description invalid_request */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Channel contract not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getAdminDistributionCommissionRules: {
+    parameters: {
+      query?: {
+        limit?: number
+        offset?: number | null
+        contractId?: string
+        productId?: string
+        scope?: "booking" | "product" | "rate" | "category"
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Paginated commission rules */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              contractId: string
+              /** @enum {string} */
+              scope: "booking" | "product" | "rate" | "category"
+              productId: string | null
+              externalRateId: string | null
+              externalCategoryId: string | null
+              /** @enum {string} */
+              commissionType: "fixed" | "percentage"
+              amountCents: number | null
+              percentBasisPoints: number | null
+              validFrom: string | null
+              validTo: string | null
+              createdAt: string
+              updatedAt: string
+            }[]
+            total: number
+            limit: number
+            offset: number
+          }
+        }
+      }
+    }
+  }
+  postAdminDistributionCommissionRules: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          contractId: string
+          /** @enum {string} */
+          scope: "booking" | "product" | "rate" | "category"
+          productId?: string | null
+          externalRateId?: string | null
+          externalCategoryId?: string | null
+          /** @enum {string} */
+          commissionType: "fixed" | "percentage"
+          amountCents?: number | null
+          percentBasisPoints?: number | null
+          /** Format: date */
+          validFrom?: string | null
+          /** Format: date */
+          validTo?: string | null
+        }
+      }
+    }
+    responses: {
+      /** @description The created commission rule */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              contractId: string
+              /** @enum {string} */
+              scope: "booking" | "product" | "rate" | "category"
+              productId: string | null
+              externalRateId: string | null
+              externalCategoryId: string | null
+              /** @enum {string} */
+              commissionType: "fixed" | "percentage"
+              amountCents: number | null
+              percentBasisPoints: number | null
+              validFrom: string | null
+              validTo: string | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description invalid_request */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  postAdminDistributionCommissionRulesBatchUpdate: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          ids: string[]
+          patch: {
+            contractId?: string
+            /** @enum {string} */
+            scope?: "booking" | "product" | "rate" | "category"
+            productId?: string | null
+            externalRateId?: string | null
+            externalCategoryId?: string | null
+            /** @enum {string} */
+            commissionType?: "fixed" | "percentage"
+            amountCents?: number | null
+            percentBasisPoints?: number | null
+            /** Format: date */
+            validFrom?: string | null
+            /** Format: date */
+            validTo?: string | null
+          }
+        }
+      }
+    }
+    responses: {
+      /** @description Per-id batch-update results */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              contractId: string
+              /** @enum {string} */
+              scope: "booking" | "product" | "rate" | "category"
+              productId: string | null
+              externalRateId: string | null
+              externalCategoryId: string | null
+              /** @enum {string} */
+              commissionType: "fixed" | "percentage"
+              amountCents: number | null
+              percentBasisPoints: number | null
+              validFrom: string | null
+              validTo: string | null
+              createdAt: string
+              updatedAt: string
+            }[]
+            total: number
+            succeeded: number
+            failed: {
+              id: string
+              error: string
+            }[]
+          }
+        }
+      }
+      /** @description invalid_request */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  postAdminDistributionCommissionRulesBatchDelete: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          ids: string[]
+        }
+      }
+    }
+    responses: {
+      /** @description Per-id batch-delete results */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            deletedIds: string[]
+            total: number
+            succeeded: number
+            failed: {
+              id: string
+              error: string
+            }[]
+          }
+        }
+      }
+      /** @description invalid_request */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getAdminDistributionCommissionRulesById: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description A commission rule by id */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              contractId: string
+              /** @enum {string} */
+              scope: "booking" | "product" | "rate" | "category"
+              productId: string | null
+              externalRateId: string | null
+              externalCategoryId: string | null
+              /** @enum {string} */
+              commissionType: "fixed" | "percentage"
+              amountCents: number | null
+              percentBasisPoints: number | null
+              validFrom: string | null
+              validTo: string | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description Channel commission rule not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  deleteAdminDistributionCommissionRulesById: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Commission rule deleted */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            /** @enum {boolean} */
+            success: true
+          }
+        }
+      }
+      /** @description Channel commission rule not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  patchAdminDistributionCommissionRulesById: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          contractId?: string
+          /** @enum {string} */
+          scope?: "booking" | "product" | "rate" | "category"
+          productId?: string | null
+          externalRateId?: string | null
+          externalCategoryId?: string | null
+          /** @enum {string} */
+          commissionType?: "fixed" | "percentage"
+          amountCents?: number | null
+          percentBasisPoints?: number | null
+          /** Format: date */
+          validFrom?: string | null
+          /** Format: date */
+          validTo?: string | null
+        }
+      }
+    }
+    responses: {
+      /** @description The updated commission rule */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              contractId: string
+              /** @enum {string} */
+              scope: "booking" | "product" | "rate" | "category"
+              productId: string | null
+              externalRateId: string | null
+              externalCategoryId: string | null
+              /** @enum {string} */
+              commissionType: "fixed" | "percentage"
+              amountCents: number | null
+              percentBasisPoints: number | null
+              validFrom: string | null
+              validTo: string | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description invalid_request */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Channel commission rule not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getAdminDistributionProductMappings: {
+    parameters: {
+      query?: {
+        limit?: number
+        offset?: number | null
+        channelId?: string
+        productId?: string
+        active?: "0" | "1" | "true" | "false"
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Paginated product mappings */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              channelId: string
+              productId: string
+              externalProductId: string | null
+              externalRateId: string | null
+              externalCategoryId: string | null
+              active: boolean
+              sourceKind: string | null
+              sourceConnectionId: string | null
+              pushBookings: boolean
+              pushAvailability: boolean
+              pushContent: boolean
+              policy: {
+                [key: string]: unknown
+              } | null
+              lastPushedContentHash: string | null
+              lastPushedContentAt: string | null
+              createdAt: string
+              updatedAt: string
+            }[]
+            total: number
+            limit: number
+            offset: number
+          }
+        }
+      }
+    }
+  }
+  postAdminDistributionProductMappings: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          channelId: string
+          productId: string
+          externalProductId?: string | null
+          externalRateId?: string | null
+          externalCategoryId?: string | null
+          /** @default true */
+          active?: boolean
+          sourceKind?: string | null
+          sourceConnectionId?: string | null
+          /** @default true */
+          pushBookings?: boolean
+          /** @default true */
+          pushAvailability?: boolean
+          /** @default true */
+          pushContent?: boolean
+          policy?: {
+            [key: string]: unknown
+          } | null
+        }
+      }
+    }
+    responses: {
+      /** @description The created product mapping */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              channelId: string
+              productId: string
+              externalProductId: string | null
+              externalRateId: string | null
+              externalCategoryId: string | null
+              active: boolean
+              sourceKind: string | null
+              sourceConnectionId: string | null
+              pushBookings: boolean
+              pushAvailability: boolean
+              pushContent: boolean
+              policy: {
+                [key: string]: unknown
+              } | null
+              lastPushedContentHash: string | null
+              lastPushedContentAt: string | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description invalid_request */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  postAdminDistributionProductMappingsBatchUpdate: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          ids: string[]
+          patch: {
+            channelId?: string
+            productId?: string
+            externalProductId?: string | null
+            externalRateId?: string | null
+            externalCategoryId?: string | null
+            active?: boolean
+            sourceKind?: string | null
+            sourceConnectionId?: string | null
+            pushBookings?: boolean
+            pushAvailability?: boolean
+            pushContent?: boolean
+            policy?: {
+              [key: string]: unknown
+            } | null
+          }
+        }
+      }
+    }
+    responses: {
+      /** @description Per-id batch-update results */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              channelId: string
+              productId: string
+              externalProductId: string | null
+              externalRateId: string | null
+              externalCategoryId: string | null
+              active: boolean
+              sourceKind: string | null
+              sourceConnectionId: string | null
+              pushBookings: boolean
+              pushAvailability: boolean
+              pushContent: boolean
+              policy: {
+                [key: string]: unknown
+              } | null
+              lastPushedContentHash: string | null
+              lastPushedContentAt: string | null
+              createdAt: string
+              updatedAt: string
+            }[]
+            total: number
+            succeeded: number
+            failed: {
+              id: string
+              error: string
+            }[]
+          }
+        }
+      }
+      /** @description invalid_request */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  postAdminDistributionProductMappingsBatchDelete: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          ids: string[]
+        }
+      }
+    }
+    responses: {
+      /** @description Per-id batch-delete results */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            deletedIds: string[]
+            total: number
+            succeeded: number
+            failed: {
+              id: string
+              error: string
+            }[]
+          }
+        }
+      }
+      /** @description invalid_request */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getAdminDistributionProductMappingsById: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description A product mapping by id */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              channelId: string
+              productId: string
+              externalProductId: string | null
+              externalRateId: string | null
+              externalCategoryId: string | null
+              active: boolean
+              sourceKind: string | null
+              sourceConnectionId: string | null
+              pushBookings: boolean
+              pushAvailability: boolean
+              pushContent: boolean
+              policy: {
+                [key: string]: unknown
+              } | null
+              lastPushedContentHash: string | null
+              lastPushedContentAt: string | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description Channel product mapping not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  deleteAdminDistributionProductMappingsById: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Product mapping deleted */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            /** @enum {boolean} */
+            success: true
+          }
+        }
+      }
+      /** @description Channel product mapping not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  patchAdminDistributionProductMappingsById: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          channelId?: string
+          productId?: string
+          externalProductId?: string | null
+          externalRateId?: string | null
+          externalCategoryId?: string | null
+          active?: boolean
+          sourceKind?: string | null
+          sourceConnectionId?: string | null
+          pushBookings?: boolean
+          pushAvailability?: boolean
+          pushContent?: boolean
+          policy?: {
+            [key: string]: unknown
+          } | null
+        }
+      }
+    }
+    responses: {
+      /** @description The updated product mapping */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              channelId: string
+              productId: string
+              externalProductId: string | null
+              externalRateId: string | null
+              externalCategoryId: string | null
+              active: boolean
+              sourceKind: string | null
+              sourceConnectionId: string | null
+              pushBookings: boolean
+              pushAvailability: boolean
+              pushContent: boolean
+              policy: {
+                [key: string]: unknown
+              } | null
+              lastPushedContentHash: string | null
+              lastPushedContentAt: string | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description invalid_request */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Channel product mapping not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getAdminDistributionProductPublications: {
+    parameters: {
+      query?: {
+        limit?: number
+        offset?: number | null
+        channelId?: string
+        productId?: string
+        decision?: "include" | "exclude"
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Paginated product publication rules */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              channelId: string
+              productId: string
+              /** @enum {string} */
+              decision: "include" | "exclude"
+              reason: string | null
+              createdBy: string | null
+              updatedBy: string | null
+              metadata: {
+                [key: string]: unknown
+              } | null
+              createdAt: string
+              updatedAt: string
+            }[]
+            total: number
+            limit: number
+            offset: number
+          }
+        }
+      }
+    }
+  }
+  putAdminDistributionProductPublications: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          channelId: string
+          productId: string
+          /** @enum {string} */
+          decision: "include" | "exclude"
+          reason?: string | null
+          createdBy?: string | null
+          updatedBy?: string | null
+          metadata?: {
+            [key: string]: unknown
+          } | null
+        }
+      }
+    }
+    responses: {
+      /** @description The authored product publication rule */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              channelId: string
+              productId: string
+              /** @enum {string} */
+              decision: "include" | "exclude"
+              reason: string | null
+              createdBy: string | null
+              updatedBy: string | null
+              metadata: {
+                [key: string]: unknown
+              } | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description invalid_request */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getAdminDistributionProductPublicationsById: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description A product publication rule by id */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              channelId: string
+              productId: string
+              /** @enum {string} */
+              decision: "include" | "exclude"
+              reason: string | null
+              createdBy: string | null
+              updatedBy: string | null
+              metadata: {
+                [key: string]: unknown
+              } | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description Product publication not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  deleteAdminDistributionProductPublicationsById: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Product publication deleted */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            /** @enum {boolean} */
+            success: true
+          }
+        }
+      }
+      /** @description Product publication not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  patchAdminDistributionProductPublicationsById: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          /** @enum {string} */
+          decision?: "include" | "exclude"
+          reason?: string | null
+          updatedBy?: string | null
+          metadata?: {
+            [key: string]: unknown
+          } | null
+        }
+      }
+    }
+    responses: {
+      /** @description The updated product publication rule */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              channelId: string
+              productId: string
+              /** @enum {string} */
+              decision: "include" | "exclude"
+              reason: string | null
+              createdBy: string | null
+              updatedBy: string | null
+              metadata: {
+                [key: string]: unknown
+              } | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description invalid_request */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Product publication not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getAdminDistributionSupplierPublications: {
+    parameters: {
+      query?: {
+        limit?: number
+        offset?: number | null
+        channelId?: string
+        supplierId?: string
+        decision?: "include" | "exclude"
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Paginated supplier publication rules */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              channelId: string
+              supplierId: string
+              /** @enum {string} */
+              decision: "include" | "exclude"
+              reason: string | null
+              createdBy: string | null
+              updatedBy: string | null
+              metadata: {
+                [key: string]: unknown
+              } | null
+              createdAt: string
+              updatedAt: string
+            }[]
+            total: number
+            limit: number
+            offset: number
+          }
+        }
+      }
+    }
+  }
+  putAdminDistributionSupplierPublications: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          channelId: string
+          supplierId: string
+          /** @enum {string} */
+          decision: "include" | "exclude"
+          reason?: string | null
+          createdBy?: string | null
+          updatedBy?: string | null
+          metadata?: {
+            [key: string]: unknown
+          } | null
+        }
+      }
+    }
+    responses: {
+      /** @description The authored supplier publication rule with affected count */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              channelId: string
+              supplierId: string
+              /** @enum {string} */
+              decision: "include" | "exclude"
+              reason: string | null
+              createdBy: string | null
+              updatedBy: string | null
+              metadata: {
+                [key: string]: unknown
+              } | null
+              createdAt: string
+              updatedAt: string
+            }
+            affectedProductCount: number
+          }
+        }
+      }
+      /** @description invalid_request */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  postAdminDistributionSupplierPublicationsPreview: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          channelId: string
+          supplierId: string
+          /** @enum {string} */
+          decision: "include" | "exclude"
+          reason?: string | null
+          metadata?: {
+            [key: string]: unknown
+          } | null
+        }
+      }
+    }
+    responses: {
+      /** @description Dry-run supplier publication affected-product count */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              channelId: string
+              supplierId: string
+              /** @enum {string} */
+              decision: "include" | "exclude"
+              reason?: string | null
+              metadata?: {
+                [key: string]: unknown
+              } | null
+            }
+            affectedProductCount: number
+          }
+        }
+      }
+      /** @description invalid_request */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getAdminDistributionSupplierPublicationsById: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description A supplier publication rule by id */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              channelId: string
+              supplierId: string
+              /** @enum {string} */
+              decision: "include" | "exclude"
+              reason: string | null
+              createdBy: string | null
+              updatedBy: string | null
+              metadata: {
+                [key: string]: unknown
+              } | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description Supplier publication not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  deleteAdminDistributionSupplierPublicationsById: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Supplier publication deleted */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            /** @enum {boolean} */
+            success: true
+          }
+        }
+      }
+      /** @description Supplier publication not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  patchAdminDistributionSupplierPublicationsById: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          /** @enum {string} */
+          decision?: "include" | "exclude"
+          reason?: string | null
+          updatedBy?: string | null
+          metadata?: {
+            [key: string]: unknown
+          } | null
+        }
+      }
+    }
+    responses: {
+      /** @description The updated supplier publication rule with affected count */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              channelId: string
+              supplierId: string
+              /** @enum {string} */
+              decision: "include" | "exclude"
+              reason: string | null
+              createdBy: string | null
+              updatedBy: string | null
+              metadata: {
+                [key: string]: unknown
+              } | null
+              createdAt: string
+              updatedAt: string
+            }
+            affectedProductCount: number
+          }
+        }
+      }
+      /** @description invalid_request */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Supplier publication not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getAdminDistributionPublicationSources: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Supply sources discovery has found, with their entry counts */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              sourceKind: string
+              sourceConnectionId: string | null
+              entryCount: number
+            }[]
+          }
+        }
+      }
+    }
+  }
+  getAdminDistributionSourcePublications: {
+    parameters: {
+      query?: {
+        limit?: number
+        offset?: number | null
+        channelId?: string
+        sourceKind?: string
+        sourceConnectionId?: string
+        decision?: "include" | "exclude"
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Paginated supply source publication rules */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              channelId: string
+              sourceKind: string
+              sourceConnectionId: string | null
+              /** @enum {string} */
+              decision: "include" | "exclude"
+              reason: string | null
+              createdBy: string | null
+              updatedBy: string | null
+              metadata: {
+                [key: string]: unknown
+              } | null
+              createdAt: string
+              updatedAt: string
+            }[]
+            total: number
+            limit: number
+            offset: number
+          }
+        }
+      }
+    }
+  }
+  putAdminDistributionSourcePublications: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          channelId: string
+          sourceKind: string
+          sourceConnectionId?: string | null
+          /** @enum {string} */
+          decision: "include" | "exclude"
+          reason?: string | null
+          createdBy?: string | null
+          updatedBy?: string | null
+          metadata?: {
+            [key: string]: unknown
+          } | null
+        }
+      }
+    }
+    responses: {
+      /** @description The authored source publication rule with affected count */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              channelId: string
+              sourceKind: string
+              sourceConnectionId: string | null
+              /** @enum {string} */
+              decision: "include" | "exclude"
+              reason: string | null
+              createdBy: string | null
+              updatedBy: string | null
+              metadata: {
+                [key: string]: unknown
+              } | null
+              createdAt: string
+              updatedAt: string
+            }
+            affectedEntryCount: number
+          }
+        }
+      }
+      /** @description invalid_request */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  postAdminDistributionSourcePublicationsPreview: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          channelId: string
+          sourceKind: string
+          sourceConnectionId?: string | null
+          /** @enum {string} */
+          decision: "include" | "exclude"
+          reason?: string | null
+          metadata?: {
+            [key: string]: unknown
+          } | null
+        }
+      }
+    }
+    responses: {
+      /** @description Dry-run source publication affected-entry count */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              channelId: string
+              sourceKind: string
+              sourceConnectionId?: string | null
+              /** @enum {string} */
+              decision: "include" | "exclude"
+              reason?: string | null
+              metadata?: {
+                [key: string]: unknown
+              } | null
+            }
+            affectedEntryCount: number
+          }
+        }
+      }
+      /** @description invalid_request */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  postAdminDistributionSourcePublicationsEffective: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          channelId: string
+          sourceKind: string
+          sourceConnectionId?: string | null
+        }
+      }
+    }
+    responses: {
+      /** @description Effective publication decision for a channel and supply source */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              channelId: string
+              sourceKind: string
+              sourceConnectionId: string | null
+              published: boolean
+              /** @enum {string|null} */
+              decision: "include" | "exclude" | null
+              /** @enum {string} */
+              reason:
+                | "channel_missing"
+                | "channel_inactive"
+                | "connection_decision"
+                | "source_kind_decision"
+                | "default_deny"
+              /** @enum {string} */
+              source: "connection" | "source_kind" | "channel" | "default"
+              ruleId: string | null
+              message: string
+            }
+          }
+        }
+      }
+    }
+  }
+  getAdminDistributionSourcePublicationsById: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description A source publication rule by id */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              channelId: string
+              sourceKind: string
+              sourceConnectionId: string | null
+              /** @enum {string} */
+              decision: "include" | "exclude"
+              reason: string | null
+              createdBy: string | null
+              updatedBy: string | null
+              metadata: {
+                [key: string]: unknown
+              } | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description Source publication not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  deleteAdminDistributionSourcePublicationsById: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Source publication deleted */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            /** @enum {boolean} */
+            success: true
+          }
+        }
+      }
+      /** @description Source publication not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  patchAdminDistributionSourcePublicationsById: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          /** @enum {string} */
+          decision?: "include" | "exclude"
+          reason?: string | null
+          updatedBy?: string | null
+          metadata?: {
+            [key: string]: unknown
+          } | null
+        }
+      }
+    }
+    responses: {
+      /** @description The updated source publication rule with affected count */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              channelId: string
+              sourceKind: string
+              sourceConnectionId: string | null
+              /** @enum {string} */
+              decision: "include" | "exclude"
+              reason: string | null
+              createdBy: string | null
+              updatedBy: string | null
+              metadata: {
+                [key: string]: unknown
+              } | null
+              createdAt: string
+              updatedAt: string
+            }
+            affectedEntryCount: number
+          }
+        }
+      }
+      /** @description invalid_request */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Source publication not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  postAdminDistributionPublicationsEffective: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          channelId: string
+          productId: string
+          canonicalSupplierId?: string | null
+        }
+      }
+    }
+    responses: {
+      /** @description Effective publication decision for a channel and product */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              channelId: string
+              productId: string
+              canonicalSupplierId: string | null
+              published: boolean
+              /** @enum {string|null} */
+              decision: "include" | "exclude" | null
+              /** @enum {string} */
+              reason:
+                | "channel_missing"
+                | "channel_inactive"
+                | "product_decision"
+                | "supplier_decision"
+                | "default_deny"
+                | "product_missing_supplier"
+                | "product_eligibility"
+              /** @enum {string} */
+              source: "product" | "supplier" | "channel" | "default" | "eligibility"
+              ruleId: string | null
+              message: string
+            }
+          }
+        }
+      }
+    }
+  }
+  getAdminDistributionPublicationReindexIntents: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Recent publication reindex intents */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              channelId: string | null
+              /** @enum {string} */
+              kind: "product" | "supplier" | "source" | "catalog"
+              productId: string | null
+              supplierId: string | null
+              sourceKind: string | null
+              sourceConnectionId: string | null
+              cursor: string | null
+              /** @enum {string} */
+              status: "pending" | "processing" | "completed" | "failed"
+              attempts: number
+              nextAttemptAt: string
+              leaseOwner: string | null
+              leaseUntil: string | null
+              requestedBy: string | null
+              lastError: string | null
+              metadata: {
+                [key: string]: unknown
+              } | null
+              requestedAt: string
+              processingStartedAt: string | null
+              completedAt: string | null
+              updatedAt: string
+            }[]
+          }
+        }
+      }
+    }
+  }
+  getAdminDistributionBookingLinks: {
+    parameters: {
+      query?: {
+        limit?: number
+        offset?: number | null
+        channelId?: string
+        bookingId?: string
+        externalBookingId?: string
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Paginated booking links */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              channelId: string
+              bookingId: string
+              bookingItemId: string | null
+              externalBookingId: string | null
+              externalReference: string | null
+              externalStatus: string | null
+              bookedAtExternal: string | null
+              lastSyncedAt: string | null
+              sourceKind: string | null
+              sourceConnectionId: string | null
+              pushStatus: string
+              pushAttempts: number
+              lastPushAt: string | null
+              lastError: string | null
+              pushedPayloadHash: string | null
+              idempotencyKey: string | null
+              createdAt: string
+              updatedAt: string
+            }[]
+            total: number
+            limit: number
+            offset: number
+          }
+        }
+      }
+    }
+  }
+  postAdminDistributionBookingLinks: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          channelId: string
+          bookingId: string
+          externalBookingId?: string | null
+          externalReference?: string | null
+          externalStatus?: string | null
+          /** Format: date-time */
+          bookedAtExternal?: string | null
+          /** Format: date-time */
+          lastSyncedAt?: string | null
+        }
+      }
+    }
+    responses: {
+      /** @description The created booking link */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              channelId: string
+              bookingId: string
+              bookingItemId: string | null
+              externalBookingId: string | null
+              externalReference: string | null
+              externalStatus: string | null
+              bookedAtExternal: string | null
+              lastSyncedAt: string | null
+              sourceKind: string | null
+              sourceConnectionId: string | null
+              pushStatus: string
+              pushAttempts: number
+              lastPushAt: string | null
+              lastError: string | null
+              pushedPayloadHash: string | null
+              idempotencyKey: string | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description invalid_request */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description duplicate_channel_booking_link */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  postAdminDistributionBookingLinksBatchUpdate: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          ids: string[]
+          patch: {
+            channelId?: string
+            bookingId?: string
+            externalBookingId?: string | null
+            externalReference?: string | null
+            externalStatus?: string | null
+            /** Format: date-time */
+            bookedAtExternal?: string | null
+            /** Format: date-time */
+            lastSyncedAt?: string | null
+          }
+        }
+      }
+    }
+    responses: {
+      /** @description Per-id batch-update results */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              channelId: string
+              bookingId: string
+              bookingItemId: string | null
+              externalBookingId: string | null
+              externalReference: string | null
+              externalStatus: string | null
+              bookedAtExternal: string | null
+              lastSyncedAt: string | null
+              sourceKind: string | null
+              sourceConnectionId: string | null
+              pushStatus: string
+              pushAttempts: number
+              lastPushAt: string | null
+              lastError: string | null
+              pushedPayloadHash: string | null
+              idempotencyKey: string | null
+              createdAt: string
+              updatedAt: string
+            }[]
+            total: number
+            succeeded: number
+            failed: {
+              id: string
+              error: string
+            }[]
+          }
+        }
+      }
+      /** @description invalid_request */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  postAdminDistributionBookingLinksBatchDelete: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          ids: string[]
+        }
+      }
+    }
+    responses: {
+      /** @description Per-id batch-delete results */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            deletedIds: string[]
+            total: number
+            succeeded: number
+            failed: {
+              id: string
+              error: string
+            }[]
+          }
+        }
+      }
+      /** @description invalid_request */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getAdminDistributionBookingLinksById: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description A booking link by id */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              channelId: string
+              bookingId: string
+              bookingItemId: string | null
+              externalBookingId: string | null
+              externalReference: string | null
+              externalStatus: string | null
+              bookedAtExternal: string | null
+              lastSyncedAt: string | null
+              sourceKind: string | null
+              sourceConnectionId: string | null
+              pushStatus: string
+              pushAttempts: number
+              lastPushAt: string | null
+              lastError: string | null
+              pushedPayloadHash: string | null
+              idempotencyKey: string | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description Channel booking link not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  deleteAdminDistributionBookingLinksById: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Booking link deleted */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            /** @enum {boolean} */
+            success: true
+          }
+        }
+      }
+      /** @description Channel booking link not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  patchAdminDistributionBookingLinksById: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          channelId?: string
+          bookingId?: string
+          externalBookingId?: string | null
+          externalReference?: string | null
+          externalStatus?: string | null
+          /** Format: date-time */
+          bookedAtExternal?: string | null
+          /** Format: date-time */
+          lastSyncedAt?: string | null
+        }
+      }
+    }
+    responses: {
+      /** @description The updated booking link */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              channelId: string
+              bookingId: string
+              bookingItemId: string | null
+              externalBookingId: string | null
+              externalReference: string | null
+              externalStatus: string | null
+              bookedAtExternal: string | null
+              lastSyncedAt: string | null
+              sourceKind: string | null
+              sourceConnectionId: string | null
+              pushStatus: string
+              pushAttempts: number
+              lastPushAt: string | null
+              lastError: string | null
+              pushedPayloadHash: string | null
+              idempotencyKey: string | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description invalid_request */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Channel booking link not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getAdminDistributionWebhookEvents: {
+    parameters: {
+      query?: {
+        limit?: number
+        offset?: number | null
+        channelId?: string
+        status?: "pending" | "processed" | "failed" | "ignored"
+        eventType?: string
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Paginated webhook events */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              channelId: string
+              eventType: string
+              externalEventId: string | null
+              payload: {
+                [key: string]: unknown
+              }
+              receivedAt: string
+              processedAt: string | null
+              /** @enum {string} */
+              status: "pending" | "processed" | "failed" | "ignored"
+              errorMessage: string | null
+              createdAt: string
+            }[]
+            total: number
+            limit: number
+            offset: number
+          }
+        }
+      }
+    }
+  }
+  postAdminDistributionWebhookEvents: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          channelId: string
+          eventType: string
+          externalEventId?: string | null
+          payload: {
+            [key: string]: unknown
+          }
+          /** Format: date-time */
+          receivedAt?: string | null
+          /** Format: date-time */
+          processedAt?: string | null
+          /**
+           * @default pending
+           * @enum {string}
+           */
+          status?: "pending" | "processed" | "failed" | "ignored"
+          errorMessage?: string | null
+        }
+      }
+    }
+    responses: {
+      /** @description The created webhook event */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              channelId: string
+              eventType: string
+              externalEventId: string | null
+              payload: {
+                [key: string]: unknown
+              }
+              receivedAt: string
+              processedAt: string | null
+              /** @enum {string} */
+              status: "pending" | "processed" | "failed" | "ignored"
+              errorMessage: string | null
+              createdAt: string
+            }
+          }
+        }
+      }
+      /** @description invalid_request */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  postAdminDistributionWebhookEventsBatchUpdate: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          ids: string[]
+          patch: {
+            channelId?: string
+            eventType?: string
+            externalEventId?: string | null
+            payload?: {
+              [key: string]: unknown
+            }
+            /** Format: date-time */
+            receivedAt?: string | null
+            /** Format: date-time */
+            processedAt?: string | null
+            /**
+             * @default pending
+             * @enum {string}
+             */
+            status?: "pending" | "processed" | "failed" | "ignored"
+            errorMessage?: string | null
+          }
+        }
+      }
+    }
+    responses: {
+      /** @description Per-id batch-update results */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              channelId: string
+              eventType: string
+              externalEventId: string | null
+              payload: {
+                [key: string]: unknown
+              }
+              receivedAt: string
+              processedAt: string | null
+              /** @enum {string} */
+              status: "pending" | "processed" | "failed" | "ignored"
+              errorMessage: string | null
+              createdAt: string
+            }[]
+            total: number
+            succeeded: number
+            failed: {
+              id: string
+              error: string
+            }[]
+          }
+        }
+      }
+      /** @description invalid_request */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  postAdminDistributionWebhookEventsBatchDelete: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          ids: string[]
+        }
+      }
+    }
+    responses: {
+      /** @description Per-id batch-delete results */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            deletedIds: string[]
+            total: number
+            succeeded: number
+            failed: {
+              id: string
+              error: string
+            }[]
+          }
+        }
+      }
+      /** @description invalid_request */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getAdminDistributionWebhookEventsById: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description A webhook event by id */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              channelId: string
+              eventType: string
+              externalEventId: string | null
+              payload: {
+                [key: string]: unknown
+              }
+              receivedAt: string
+              processedAt: string | null
+              /** @enum {string} */
+              status: "pending" | "processed" | "failed" | "ignored"
+              errorMessage: string | null
+              createdAt: string
+            }
+          }
+        }
+      }
+      /** @description Channel webhook event not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  deleteAdminDistributionWebhookEventsById: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Webhook event deleted */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            /** @enum {boolean} */
+            success: true
+          }
+        }
+      }
+      /** @description Channel webhook event not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  patchAdminDistributionWebhookEventsById: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          channelId?: string
+          eventType?: string
+          externalEventId?: string | null
+          payload?: {
+            [key: string]: unknown
+          }
+          /** Format: date-time */
+          receivedAt?: string | null
+          /** Format: date-time */
+          processedAt?: string | null
+          /**
+           * @default pending
+           * @enum {string}
+           */
+          status?: "pending" | "processed" | "failed" | "ignored"
+          errorMessage?: string | null
+        }
+      }
+    }
+    responses: {
+      /** @description The updated webhook event */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              channelId: string
+              eventType: string
+              externalEventId: string | null
+              payload: {
+                [key: string]: unknown
+              }
+              receivedAt: string
+              processedAt: string | null
+              /** @enum {string} */
+              status: "pending" | "processed" | "failed" | "ignored"
+              errorMessage: string | null
+              createdAt: string
+            }
+          }
+        }
+      }
+      /** @description invalid_request */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Channel webhook event not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getAdminDistributionInventoryAllotments: {
+    parameters: {
+      query?: {
+        limit?: number
+        offset?: number | null
+        channelId?: string
+        contractId?: string
+        productId?: string
+        optionId?: string
+        startTimeId?: string
+        active?: "0" | "1" | "true" | "false"
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Paginated inventory allotments */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              channelId: string
+              contractId: string | null
+              productId: string
+              optionId: string | null
+              startTimeId: string | null
+              validFrom: string | null
+              validTo: string | null
+              guaranteedCapacity: number | null
+              maxCapacity: number | null
+              active: boolean
+              notes: string | null
+              createdAt: string
+              updatedAt: string
+            }[]
+            total: number
+            limit: number
+            offset: number
+          }
+        }
+      }
+    }
+  }
+  postAdminDistributionInventoryAllotments: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          channelId: string
+          contractId?: string | null
+          productId: string
+          optionId?: string | null
+          startTimeId?: string | null
+          /** Format: date */
+          validFrom?: string | null
+          /** Format: date */
+          validTo?: string | null
+          guaranteedCapacity?: number | null
+          maxCapacity?: number | null
+          /** @default true */
+          active?: boolean
+          notes?: string | null
+        }
+      }
+    }
+    responses: {
+      /** @description The created inventory allotment */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              channelId: string
+              contractId: string | null
+              productId: string
+              optionId: string | null
+              startTimeId: string | null
+              validFrom: string | null
+              validTo: string | null
+              guaranteedCapacity: number | null
+              maxCapacity: number | null
+              active: boolean
+              notes: string | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description invalid_request */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  postAdminDistributionInventoryAllotmentsBatchUpdate: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          ids: string[]
+          patch: {
+            channelId?: string
+            contractId?: string | null
+            productId?: string
+            optionId?: string | null
+            startTimeId?: string | null
+            /** Format: date */
+            validFrom?: string | null
+            /** Format: date */
+            validTo?: string | null
+            guaranteedCapacity?: number | null
+            maxCapacity?: number | null
+            /** @default true */
+            active?: boolean
+            notes?: string | null
+          }
+        }
+      }
+    }
+    responses: {
+      /** @description Per-id batch-update results */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              channelId: string
+              contractId: string | null
+              productId: string
+              optionId: string | null
+              startTimeId: string | null
+              validFrom: string | null
+              validTo: string | null
+              guaranteedCapacity: number | null
+              maxCapacity: number | null
+              active: boolean
+              notes: string | null
+              createdAt: string
+              updatedAt: string
+            }[]
+            total: number
+            succeeded: number
+            failed: {
+              id: string
+              error: string
+            }[]
+          }
+        }
+      }
+      /** @description invalid_request */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  postAdminDistributionInventoryAllotmentsBatchDelete: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          ids: string[]
+        }
+      }
+    }
+    responses: {
+      /** @description Per-id batch-delete results */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            deletedIds: string[]
+            total: number
+            succeeded: number
+            failed: {
+              id: string
+              error: string
+            }[]
+          }
+        }
+      }
+      /** @description invalid_request */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getAdminDistributionInventoryAllotmentsById: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description An inventory allotment by id */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              channelId: string
+              contractId: string | null
+              productId: string
+              optionId: string | null
+              startTimeId: string | null
+              validFrom: string | null
+              validTo: string | null
+              guaranteedCapacity: number | null
+              maxCapacity: number | null
+              active: boolean
+              notes: string | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description Channel inventory allotment not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  deleteAdminDistributionInventoryAllotmentsById: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Inventory allotment deleted */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            /** @enum {boolean} */
+            success: true
+          }
+        }
+      }
+      /** @description Channel inventory allotment not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  patchAdminDistributionInventoryAllotmentsById: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          channelId?: string
+          contractId?: string | null
+          productId?: string
+          optionId?: string | null
+          startTimeId?: string | null
+          /** Format: date */
+          validFrom?: string | null
+          /** Format: date */
+          validTo?: string | null
+          guaranteedCapacity?: number | null
+          maxCapacity?: number | null
+          /** @default true */
+          active?: boolean
+          notes?: string | null
+        }
+      }
+    }
+    responses: {
+      /** @description The updated inventory allotment */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              channelId: string
+              contractId: string | null
+              productId: string
+              optionId: string | null
+              startTimeId: string | null
+              validFrom: string | null
+              validTo: string | null
+              guaranteedCapacity: number | null
+              maxCapacity: number | null
+              active: boolean
+              notes: string | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description invalid_request */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Channel inventory allotment not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getAdminDistributionInventoryAllotmentTargets: {
+    parameters: {
+      query?: {
+        limit?: number
+        offset?: number | null
+        allotmentId?: string
+        slotId?: string
+        startTimeId?: string
+        dateLocal?: string
+        active?: "0" | "1" | "true" | "false"
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Paginated inventory allotment targets */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              allotmentId: string
+              slotId: string | null
+              startTimeId: string | null
+              dateLocal: string | null
+              guaranteedCapacity: number | null
+              maxCapacity: number | null
+              soldCapacity: number | null
+              remainingCapacity: number | null
+              active: boolean
+              createdAt: string
+              updatedAt: string
+            }[]
+            total: number
+            limit: number
+            offset: number
+          }
+        }
+      }
+    }
+  }
+  postAdminDistributionInventoryAllotmentTargets: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          allotmentId: string
+          slotId?: string | null
+          startTimeId?: string | null
+          /** Format: date */
+          dateLocal?: string | null
+          guaranteedCapacity?: number | null
+          maxCapacity?: number | null
+          soldCapacity?: number | null
+          remainingCapacity?: number | null
+          /** @default true */
+          active?: boolean
+        }
+      }
+    }
+    responses: {
+      /** @description The created inventory allotment target */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              allotmentId: string
+              slotId: string | null
+              startTimeId: string | null
+              dateLocal: string | null
+              guaranteedCapacity: number | null
+              maxCapacity: number | null
+              soldCapacity: number | null
+              remainingCapacity: number | null
+              active: boolean
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description invalid_request */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  postAdminDistributionInventoryAllotmentTargetsBatchUpdate: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          ids: string[]
+          patch: {
+            allotmentId?: string
+            slotId?: string | null
+            startTimeId?: string | null
+            /** Format: date */
+            dateLocal?: string | null
+            guaranteedCapacity?: number | null
+            maxCapacity?: number | null
+            soldCapacity?: number | null
+            remainingCapacity?: number | null
+            /** @default true */
+            active?: boolean
+          }
+        }
+      }
+    }
+    responses: {
+      /** @description Per-id batch-update results */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              allotmentId: string
+              slotId: string | null
+              startTimeId: string | null
+              dateLocal: string | null
+              guaranteedCapacity: number | null
+              maxCapacity: number | null
+              soldCapacity: number | null
+              remainingCapacity: number | null
+              active: boolean
+              createdAt: string
+              updatedAt: string
+            }[]
+            total: number
+            succeeded: number
+            failed: {
+              id: string
+              error: string
+            }[]
+          }
+        }
+      }
+      /** @description invalid_request */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  postAdminDistributionInventoryAllotmentTargetsBatchDelete: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          ids: string[]
+        }
+      }
+    }
+    responses: {
+      /** @description Per-id batch-delete results */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            deletedIds: string[]
+            total: number
+            succeeded: number
+            failed: {
+              id: string
+              error: string
+            }[]
+          }
+        }
+      }
+      /** @description invalid_request */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getAdminDistributionInventoryAllotmentTargetsById: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description An inventory allotment target by id */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              allotmentId: string
+              slotId: string | null
+              startTimeId: string | null
+              dateLocal: string | null
+              guaranteedCapacity: number | null
+              maxCapacity: number | null
+              soldCapacity: number | null
+              remainingCapacity: number | null
+              active: boolean
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description Channel inventory allotment target not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  deleteAdminDistributionInventoryAllotmentTargetsById: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Inventory allotment target deleted */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            /** @enum {boolean} */
+            success: true
+          }
+        }
+      }
+      /** @description Channel inventory allotment target not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  patchAdminDistributionInventoryAllotmentTargetsById: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          allotmentId?: string
+          slotId?: string | null
+          startTimeId?: string | null
+          /** Format: date */
+          dateLocal?: string | null
+          guaranteedCapacity?: number | null
+          maxCapacity?: number | null
+          soldCapacity?: number | null
+          remainingCapacity?: number | null
+          /** @default true */
+          active?: boolean
+        }
+      }
+    }
+    responses: {
+      /** @description The updated inventory allotment target */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              allotmentId: string
+              slotId: string | null
+              startTimeId: string | null
+              dateLocal: string | null
+              guaranteedCapacity: number | null
+              maxCapacity: number | null
+              soldCapacity: number | null
+              remainingCapacity: number | null
+              active: boolean
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description invalid_request */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Channel inventory allotment target not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getAdminDistributionInventoryReleaseRules: {
+    parameters: {
+      query?: {
+        limit?: number
+        offset?: number | null
+        allotmentId?: string
+        releaseMode?: "automatic" | "manual"
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Paginated inventory release rules */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              allotmentId: string
+              /** @enum {string} */
+              releaseMode: "automatic" | "manual"
+              releaseDaysBeforeStart: number | null
+              releaseHoursBeforeStart: number | null
+              /** @enum {string} */
+              unsoldAction: "release_to_general_pool" | "expire" | "retain"
+              notes: string | null
+              createdAt: string
+              updatedAt: string
+            }[]
+            total: number
+            limit: number
+            offset: number
+          }
+        }
+      }
+    }
+  }
+  postAdminDistributionInventoryReleaseRules: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          allotmentId: string
+          /**
+           * @default automatic
+           * @enum {string}
+           */
+          releaseMode?: "automatic" | "manual"
+          releaseDaysBeforeStart?: number | null
+          releaseHoursBeforeStart?: number | null
+          /**
+           * @default release_to_general_pool
+           * @enum {string}
+           */
+          unsoldAction?: "release_to_general_pool" | "expire" | "retain"
+          notes?: string | null
+        }
+      }
+    }
+    responses: {
+      /** @description The created inventory release rule */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              allotmentId: string
+              /** @enum {string} */
+              releaseMode: "automatic" | "manual"
+              releaseDaysBeforeStart: number | null
+              releaseHoursBeforeStart: number | null
+              /** @enum {string} */
+              unsoldAction: "release_to_general_pool" | "expire" | "retain"
+              notes: string | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description invalid_request */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  postAdminDistributionInventoryReleaseRulesBatchUpdate: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          ids: string[]
+          patch: {
+            allotmentId?: string
+            /**
+             * @default automatic
+             * @enum {string}
+             */
+            releaseMode?: "automatic" | "manual"
+            releaseDaysBeforeStart?: number | null
+            releaseHoursBeforeStart?: number | null
+            /**
+             * @default release_to_general_pool
+             * @enum {string}
+             */
+            unsoldAction?: "release_to_general_pool" | "expire" | "retain"
+            notes?: string | null
+          }
+        }
+      }
+    }
+    responses: {
+      /** @description Per-id batch-update results */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              allotmentId: string
+              /** @enum {string} */
+              releaseMode: "automatic" | "manual"
+              releaseDaysBeforeStart: number | null
+              releaseHoursBeforeStart: number | null
+              /** @enum {string} */
+              unsoldAction: "release_to_general_pool" | "expire" | "retain"
+              notes: string | null
+              createdAt: string
+              updatedAt: string
+            }[]
+            total: number
+            succeeded: number
+            failed: {
+              id: string
+              error: string
+            }[]
+          }
+        }
+      }
+      /** @description invalid_request */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  postAdminDistributionInventoryReleaseRulesBatchDelete: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          ids: string[]
+        }
+      }
+    }
+    responses: {
+      /** @description Per-id batch-delete results */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            deletedIds: string[]
+            total: number
+            succeeded: number
+            failed: {
+              id: string
+              error: string
+            }[]
+          }
+        }
+      }
+      /** @description invalid_request */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getAdminDistributionInventoryReleaseRulesById: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description An inventory release rule by id */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              allotmentId: string
+              /** @enum {string} */
+              releaseMode: "automatic" | "manual"
+              releaseDaysBeforeStart: number | null
+              releaseHoursBeforeStart: number | null
+              /** @enum {string} */
+              unsoldAction: "release_to_general_pool" | "expire" | "retain"
+              notes: string | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description Channel inventory release rule not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  deleteAdminDistributionInventoryReleaseRulesById: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Inventory release rule deleted */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            /** @enum {boolean} */
+            success: true
+          }
+        }
+      }
+      /** @description Channel inventory release rule not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  patchAdminDistributionInventoryReleaseRulesById: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          allotmentId?: string
+          /**
+           * @default automatic
+           * @enum {string}
+           */
+          releaseMode?: "automatic" | "manual"
+          releaseDaysBeforeStart?: number | null
+          releaseHoursBeforeStart?: number | null
+          /**
+           * @default release_to_general_pool
+           * @enum {string}
+           */
+          unsoldAction?: "release_to_general_pool" | "expire" | "retain"
+          notes?: string | null
+        }
+      }
+    }
+    responses: {
+      /** @description The updated inventory release rule */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              allotmentId: string
+              /** @enum {string} */
+              releaseMode: "automatic" | "manual"
+              releaseDaysBeforeStart: number | null
+              releaseHoursBeforeStart: number | null
+              /** @enum {string} */
+              unsoldAction: "release_to_general_pool" | "expire" | "retain"
+              notes: string | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description invalid_request */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Channel inventory release rule not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getAdminDistributionSettlementRuns: {
+    parameters: {
+      query?: {
+        limit?: number
+        offset?: number | null
+        channelId?: string
+        contractId?: string
+        status?: "draft" | "open" | "posted" | "paid" | "void"
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Paginated settlement runs */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              channelId: string
+              contractId: string | null
+              /** @enum {string} */
+              status: "draft" | "open" | "posted" | "paid" | "void"
+              currencyCode: string | null
+              periodStart: string | null
+              periodEnd: string | null
+              statementReference: string | null
+              generatedAt: string | null
+              postedAt: string | null
+              paidAt: string | null
+              notes: string | null
+              metadata: {
+                [key: string]: unknown
+              } | null
+              createdAt: string
+              updatedAt: string
+            }[]
+            total: number
+            limit: number
+            offset: number
+          }
+        }
+      }
+    }
+  }
+  postAdminDistributionSettlementRuns: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          channelId: string
+          contractId?: string | null
+          /**
+           * @default draft
+           * @enum {string}
+           */
+          status?: "draft" | "open" | "posted" | "paid" | "void"
+          currencyCode?: string | null
+          /** Format: date */
+          periodStart?: string | null
+          /** Format: date */
+          periodEnd?: string | null
+          statementReference?: string | null
+          /** Format: date-time */
+          generatedAt?: string | null
+          /** Format: date-time */
+          postedAt?: string | null
+          /** Format: date-time */
+          paidAt?: string | null
+          notes?: string | null
+          metadata?: {
+            [key: string]: unknown
+          } | null
+        }
+      }
+    }
+    responses: {
+      /** @description The created settlement run */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              channelId: string
+              contractId: string | null
+              /** @enum {string} */
+              status: "draft" | "open" | "posted" | "paid" | "void"
+              currencyCode: string | null
+              periodStart: string | null
+              periodEnd: string | null
+              statementReference: string | null
+              generatedAt: string | null
+              postedAt: string | null
+              paidAt: string | null
+              notes: string | null
+              metadata: {
+                [key: string]: unknown
+              } | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description invalid_request */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getAdminDistributionSettlementRunsById: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description A settlement run by id */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              channelId: string
+              contractId: string | null
+              /** @enum {string} */
+              status: "draft" | "open" | "posted" | "paid" | "void"
+              currencyCode: string | null
+              periodStart: string | null
+              periodEnd: string | null
+              statementReference: string | null
+              generatedAt: string | null
+              postedAt: string | null
+              paidAt: string | null
+              notes: string | null
+              metadata: {
+                [key: string]: unknown
+              } | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description Channel settlement run not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  deleteAdminDistributionSettlementRunsById: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Settlement run deleted */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            /** @enum {boolean} */
+            success: true
+          }
+        }
+      }
+      /** @description Channel settlement run not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  patchAdminDistributionSettlementRunsById: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          channelId?: string
+          contractId?: string | null
+          /**
+           * @default draft
+           * @enum {string}
+           */
+          status?: "draft" | "open" | "posted" | "paid" | "void"
+          currencyCode?: string | null
+          /** Format: date */
+          periodStart?: string | null
+          /** Format: date */
+          periodEnd?: string | null
+          statementReference?: string | null
+          /** Format: date-time */
+          generatedAt?: string | null
+          /** Format: date-time */
+          postedAt?: string | null
+          /** Format: date-time */
+          paidAt?: string | null
+          notes?: string | null
+          metadata?: {
+            [key: string]: unknown
+          } | null
+        }
+      }
+    }
+    responses: {
+      /** @description The updated settlement run */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              channelId: string
+              contractId: string | null
+              /** @enum {string} */
+              status: "draft" | "open" | "posted" | "paid" | "void"
+              currencyCode: string | null
+              periodStart: string | null
+              periodEnd: string | null
+              statementReference: string | null
+              generatedAt: string | null
+              postedAt: string | null
+              paidAt: string | null
+              notes: string | null
+              metadata: {
+                [key: string]: unknown
+              } | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description invalid_request */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Channel settlement run not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getAdminDistributionSettlementItems: {
+    parameters: {
+      query?: {
+        limit?: number
+        offset?: number | null
+        settlementRunId?: string
+        bookingLinkId?: string
+        bookingId?: string
+        status?: "pending" | "approved" | "disputed" | "paid" | "void"
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Paginated settlement items */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              settlementRunId: string
+              bookingLinkId: string | null
+              bookingId: string | null
+              commissionRuleId: string | null
+              /** @enum {string} */
+              status: "pending" | "approved" | "disputed" | "paid" | "void"
+              grossAmountCents: number
+              commissionAmountCents: number
+              netRemittanceAmountCents: number
+              currencyCode: string | null
+              remittanceDueAt: string | null
+              paidAt: string | null
+              notes: string | null
+              createdAt: string
+              updatedAt: string
+            }[]
+            total: number
+            limit: number
+            offset: number
+          }
+        }
+      }
+    }
+  }
+  postAdminDistributionSettlementItems: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          settlementRunId: string
+          bookingLinkId?: string | null
+          bookingId?: string | null
+          commissionRuleId?: string | null
+          /**
+           * @default pending
+           * @enum {string}
+           */
+          status?: "pending" | "approved" | "disputed" | "paid" | "void"
+          /** @default 0 */
+          grossAmountCents?: number
+          /** @default 0 */
+          commissionAmountCents?: number
+          /** @default 0 */
+          netRemittanceAmountCents?: number
+          currencyCode?: string | null
+          /** Format: date-time */
+          remittanceDueAt?: string | null
+          /** Format: date-time */
+          paidAt?: string | null
+          notes?: string | null
+        }
+      }
+    }
+    responses: {
+      /** @description The created settlement item */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              settlementRunId: string
+              bookingLinkId: string | null
+              bookingId: string | null
+              commissionRuleId: string | null
+              /** @enum {string} */
+              status: "pending" | "approved" | "disputed" | "paid" | "void"
+              grossAmountCents: number
+              commissionAmountCents: number
+              netRemittanceAmountCents: number
+              currencyCode: string | null
+              remittanceDueAt: string | null
+              paidAt: string | null
+              notes: string | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description invalid_request */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getAdminDistributionSettlementItemsById: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description A settlement item by id */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              settlementRunId: string
+              bookingLinkId: string | null
+              bookingId: string | null
+              commissionRuleId: string | null
+              /** @enum {string} */
+              status: "pending" | "approved" | "disputed" | "paid" | "void"
+              grossAmountCents: number
+              commissionAmountCents: number
+              netRemittanceAmountCents: number
+              currencyCode: string | null
+              remittanceDueAt: string | null
+              paidAt: string | null
+              notes: string | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description Channel settlement item not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  deleteAdminDistributionSettlementItemsById: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Settlement item deleted */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            /** @enum {boolean} */
+            success: true
+          }
+        }
+      }
+      /** @description Channel settlement item not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  patchAdminDistributionSettlementItemsById: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          settlementRunId?: string
+          bookingLinkId?: string | null
+          bookingId?: string | null
+          commissionRuleId?: string | null
+          /**
+           * @default pending
+           * @enum {string}
+           */
+          status?: "pending" | "approved" | "disputed" | "paid" | "void"
+          /** @default 0 */
+          grossAmountCents?: number
+          /** @default 0 */
+          commissionAmountCents?: number
+          /** @default 0 */
+          netRemittanceAmountCents?: number
+          currencyCode?: string | null
+          /** Format: date-time */
+          remittanceDueAt?: string | null
+          /** Format: date-time */
+          paidAt?: string | null
+          notes?: string | null
+        }
+      }
+    }
+    responses: {
+      /** @description The updated settlement item */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              settlementRunId: string
+              bookingLinkId: string | null
+              bookingId: string | null
+              commissionRuleId: string | null
+              /** @enum {string} */
+              status: "pending" | "approved" | "disputed" | "paid" | "void"
+              grossAmountCents: number
+              commissionAmountCents: number
+              netRemittanceAmountCents: number
+              currencyCode: string | null
+              remittanceDueAt: string | null
+              paidAt: string | null
+              notes: string | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description invalid_request */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Channel settlement item not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getAdminDistributionReconciliationRuns: {
+    parameters: {
+      query?: {
+        limit?: number
+        offset?: number | null
+        channelId?: string
+        contractId?: string
+        status?: "draft" | "running" | "completed" | "archived"
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Paginated reconciliation runs */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              channelId: string
+              contractId: string | null
+              /** @enum {string} */
+              status: "draft" | "running" | "completed" | "archived"
+              periodStart: string | null
+              periodEnd: string | null
+              externalReportReference: string | null
+              startedAt: string | null
+              completedAt: string | null
+              notes: string | null
+              metadata: {
+                [key: string]: unknown
+              } | null
+              createdAt: string
+              updatedAt: string
+            }[]
+            total: number
+            limit: number
+            offset: number
+          }
+        }
+      }
+    }
+  }
+  postAdminDistributionReconciliationRuns: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          channelId: string
+          contractId?: string | null
+          /**
+           * @default draft
+           * @enum {string}
+           */
+          status?: "draft" | "running" | "completed" | "archived"
+          /** Format: date */
+          periodStart?: string | null
+          /** Format: date */
+          periodEnd?: string | null
+          externalReportReference?: string | null
+          /** Format: date-time */
+          startedAt?: string | null
+          /** Format: date-time */
+          completedAt?: string | null
+          notes?: string | null
+          metadata?: {
+            [key: string]: unknown
+          } | null
+        }
+      }
+    }
+    responses: {
+      /** @description The created reconciliation run */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              channelId: string
+              contractId: string | null
+              /** @enum {string} */
+              status: "draft" | "running" | "completed" | "archived"
+              periodStart: string | null
+              periodEnd: string | null
+              externalReportReference: string | null
+              startedAt: string | null
+              completedAt: string | null
+              notes: string | null
+              metadata: {
+                [key: string]: unknown
+              } | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description invalid_request */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getAdminDistributionReconciliationRunsById: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description A reconciliation run by id */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              channelId: string
+              contractId: string | null
+              /** @enum {string} */
+              status: "draft" | "running" | "completed" | "archived"
+              periodStart: string | null
+              periodEnd: string | null
+              externalReportReference: string | null
+              startedAt: string | null
+              completedAt: string | null
+              notes: string | null
+              metadata: {
+                [key: string]: unknown
+              } | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description Channel reconciliation run not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  deleteAdminDistributionReconciliationRunsById: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Reconciliation run deleted */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            /** @enum {boolean} */
+            success: true
+          }
+        }
+      }
+      /** @description Channel reconciliation run not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  patchAdminDistributionReconciliationRunsById: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          channelId?: string
+          contractId?: string | null
+          /**
+           * @default draft
+           * @enum {string}
+           */
+          status?: "draft" | "running" | "completed" | "archived"
+          /** Format: date */
+          periodStart?: string | null
+          /** Format: date */
+          periodEnd?: string | null
+          externalReportReference?: string | null
+          /** Format: date-time */
+          startedAt?: string | null
+          /** Format: date-time */
+          completedAt?: string | null
+          notes?: string | null
+          metadata?: {
+            [key: string]: unknown
+          } | null
+        }
+      }
+    }
+    responses: {
+      /** @description The updated reconciliation run */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              channelId: string
+              contractId: string | null
+              /** @enum {string} */
+              status: "draft" | "running" | "completed" | "archived"
+              periodStart: string | null
+              periodEnd: string | null
+              externalReportReference: string | null
+              startedAt: string | null
+              completedAt: string | null
+              notes: string | null
+              metadata: {
+                [key: string]: unknown
+              } | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description invalid_request */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Channel reconciliation run not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getAdminDistributionReconciliationItems: {
+    parameters: {
+      query?: {
+        limit?: number
+        offset?: number | null
+        reconciliationRunId?: string
+        bookingLinkId?: string
+        bookingId?: string
+        issueType?:
+          | "missing_booking"
+          | "status_mismatch"
+          | "amount_mismatch"
+          | "cancel_mismatch"
+          | "missing_payout"
+          | "other"
+        resolutionStatus?: "open" | "ignored" | "resolved"
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Paginated reconciliation items */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              reconciliationRunId: string
+              bookingLinkId: string | null
+              bookingId: string | null
+              externalBookingId: string | null
+              /** @enum {string} */
+              issueType:
+                | "missing_booking"
+                | "status_mismatch"
+                | "amount_mismatch"
+                | "cancel_mismatch"
+                | "missing_payout"
+                | "other"
+              /** @enum {string} */
+              severity: "info" | "warning" | "error"
+              /** @enum {string} */
+              resolutionStatus: "open" | "ignored" | "resolved"
+              notes: string | null
+              resolvedAt: string | null
+              createdAt: string
+              updatedAt: string
+            }[]
+            total: number
+            limit: number
+            offset: number
+          }
+        }
+      }
+    }
+  }
+  postAdminDistributionReconciliationItems: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          reconciliationRunId: string
+          bookingLinkId?: string | null
+          bookingId?: string | null
+          externalBookingId?: string | null
+          /**
+           * @default other
+           * @enum {string}
+           */
+          issueType?:
+            | "missing_booking"
+            | "status_mismatch"
+            | "amount_mismatch"
+            | "cancel_mismatch"
+            | "missing_payout"
+            | "other"
+          /**
+           * @default warning
+           * @enum {string}
+           */
+          severity?: "info" | "warning" | "error"
+          /**
+           * @default open
+           * @enum {string}
+           */
+          resolutionStatus?: "open" | "ignored" | "resolved"
+          notes?: string | null
+          /** Format: date-time */
+          resolvedAt?: string | null
+        }
+      }
+    }
+    responses: {
+      /** @description The created reconciliation item */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              reconciliationRunId: string
+              bookingLinkId: string | null
+              bookingId: string | null
+              externalBookingId: string | null
+              /** @enum {string} */
+              issueType:
+                | "missing_booking"
+                | "status_mismatch"
+                | "amount_mismatch"
+                | "cancel_mismatch"
+                | "missing_payout"
+                | "other"
+              /** @enum {string} */
+              severity: "info" | "warning" | "error"
+              /** @enum {string} */
+              resolutionStatus: "open" | "ignored" | "resolved"
+              notes: string | null
+              resolvedAt: string | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description invalid_request */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getAdminDistributionReconciliationItemsById: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description A reconciliation item by id */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              reconciliationRunId: string
+              bookingLinkId: string | null
+              bookingId: string | null
+              externalBookingId: string | null
+              /** @enum {string} */
+              issueType:
+                | "missing_booking"
+                | "status_mismatch"
+                | "amount_mismatch"
+                | "cancel_mismatch"
+                | "missing_payout"
+                | "other"
+              /** @enum {string} */
+              severity: "info" | "warning" | "error"
+              /** @enum {string} */
+              resolutionStatus: "open" | "ignored" | "resolved"
+              notes: string | null
+              resolvedAt: string | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description Channel reconciliation item not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  deleteAdminDistributionReconciliationItemsById: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Reconciliation item deleted */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            /** @enum {boolean} */
+            success: true
+          }
+        }
+      }
+      /** @description Channel reconciliation item not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  patchAdminDistributionReconciliationItemsById: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          reconciliationRunId?: string
+          bookingLinkId?: string | null
+          bookingId?: string | null
+          externalBookingId?: string | null
+          /**
+           * @default other
+           * @enum {string}
+           */
+          issueType?:
+            | "missing_booking"
+            | "status_mismatch"
+            | "amount_mismatch"
+            | "cancel_mismatch"
+            | "missing_payout"
+            | "other"
+          /**
+           * @default warning
+           * @enum {string}
+           */
+          severity?: "info" | "warning" | "error"
+          /**
+           * @default open
+           * @enum {string}
+           */
+          resolutionStatus?: "open" | "ignored" | "resolved"
+          notes?: string | null
+          /** Format: date-time */
+          resolvedAt?: string | null
+        }
+      }
+    }
+    responses: {
+      /** @description The updated reconciliation item */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              reconciliationRunId: string
+              bookingLinkId: string | null
+              bookingId: string | null
+              externalBookingId: string | null
+              /** @enum {string} */
+              issueType:
+                | "missing_booking"
+                | "status_mismatch"
+                | "amount_mismatch"
+                | "cancel_mismatch"
+                | "missing_payout"
+                | "other"
+              /** @enum {string} */
+              severity: "info" | "warning" | "error"
+              /** @enum {string} */
+              resolutionStatus: "open" | "ignored" | "resolved"
+              notes: string | null
+              resolvedAt: string | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description invalid_request */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Channel reconciliation item not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getAdminDistributionInventoryReleaseExecutions: {
+    parameters: {
+      query?: {
+        limit?: number
+        offset?: number | null
+        allotmentId?: string
+        releaseRuleId?: string
+        targetId?: string
+        slotId?: string
+        status?: "pending" | "completed" | "skipped" | "failed"
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Paginated inventory release executions */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              allotmentId: string
+              releaseRuleId: string | null
+              targetId: string | null
+              slotId: string | null
+              /** @enum {string} */
+              actionTaken: "released" | "expired" | "retained" | "manual_override"
+              /** @enum {string} */
+              status: "pending" | "completed" | "skipped" | "failed"
+              releasedCapacity: number | null
+              executedAt: string | null
+              notes: string | null
+              metadata: {
+                [key: string]: unknown
+              } | null
+              createdAt: string
+              updatedAt: string
+            }[]
+            total: number
+            limit: number
+            offset: number
+          }
+        }
+      }
+    }
+  }
+  postAdminDistributionInventoryReleaseExecutions: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          allotmentId: string
+          releaseRuleId?: string | null
+          targetId?: string | null
+          slotId?: string | null
+          /**
+           * @default released
+           * @enum {string}
+           */
+          actionTaken?: "released" | "expired" | "retained" | "manual_override"
+          /**
+           * @default pending
+           * @enum {string}
+           */
+          status?: "pending" | "completed" | "skipped" | "failed"
+          releasedCapacity?: number | null
+          /** Format: date-time */
+          executedAt?: string | null
+          notes?: string | null
+          metadata?: {
+            [key: string]: unknown
+          } | null
+        }
+      }
+    }
+    responses: {
+      /** @description The created inventory release execution */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              allotmentId: string
+              releaseRuleId: string | null
+              targetId: string | null
+              slotId: string | null
+              /** @enum {string} */
+              actionTaken: "released" | "expired" | "retained" | "manual_override"
+              /** @enum {string} */
+              status: "pending" | "completed" | "skipped" | "failed"
+              releasedCapacity: number | null
+              executedAt: string | null
+              notes: string | null
+              metadata: {
+                [key: string]: unknown
+              } | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description invalid_request */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getAdminDistributionInventoryReleaseExecutionsById: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description An inventory release execution by id */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              allotmentId: string
+              releaseRuleId: string | null
+              targetId: string | null
+              slotId: string | null
+              /** @enum {string} */
+              actionTaken: "released" | "expired" | "retained" | "manual_override"
+              /** @enum {string} */
+              status: "pending" | "completed" | "skipped" | "failed"
+              releasedCapacity: number | null
+              executedAt: string | null
+              notes: string | null
+              metadata: {
+                [key: string]: unknown
+              } | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description Channel inventory release execution not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  deleteAdminDistributionInventoryReleaseExecutionsById: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Inventory release execution deleted */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            /** @enum {boolean} */
+            success: true
+          }
+        }
+      }
+      /** @description Channel inventory release execution not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  patchAdminDistributionInventoryReleaseExecutionsById: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          allotmentId?: string
+          releaseRuleId?: string | null
+          targetId?: string | null
+          slotId?: string | null
+          /**
+           * @default released
+           * @enum {string}
+           */
+          actionTaken?: "released" | "expired" | "retained" | "manual_override"
+          /**
+           * @default pending
+           * @enum {string}
+           */
+          status?: "pending" | "completed" | "skipped" | "failed"
+          releasedCapacity?: number | null
+          /** Format: date-time */
+          executedAt?: string | null
+          notes?: string | null
+          metadata?: {
+            [key: string]: unknown
+          } | null
+        }
+      }
+    }
+    responses: {
+      /** @description The updated inventory release execution */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              allotmentId: string
+              releaseRuleId: string | null
+              targetId: string | null
+              slotId: string | null
+              /** @enum {string} */
+              actionTaken: "released" | "expired" | "retained" | "manual_override"
+              /** @enum {string} */
+              status: "pending" | "completed" | "skipped" | "failed"
+              releasedCapacity: number | null
+              executedAt: string | null
+              notes: string | null
+              metadata: {
+                [key: string]: unknown
+              } | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description invalid_request */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Channel inventory release execution not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getAdminDistributionSettlementPolicies: {
+    parameters: {
+      query?: {
+        limit?: number
+        offset?: number | null
+        channelId?: string
+        contractId?: string
+        frequency?: "manual" | "daily" | "weekly" | "monthly"
+        active?: "0" | "1" | "true" | "false"
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Paginated settlement policies */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              channelId: string
+              contractId: string | null
+              /** @enum {string} */
+              frequency: "manual" | "daily" | "weekly" | "monthly"
+              autoGenerate: boolean
+              approvalRequired: boolean
+              remittanceDaysAfterPeriodEnd: number | null
+              minimumPayoutAmountCents: number | null
+              currencyCode: string | null
+              active: boolean
+              notes: string | null
+              metadata: {
+                [key: string]: unknown
+              } | null
+              createdAt: string
+              updatedAt: string
+            }[]
+            total: number
+            limit: number
+            offset: number
+          }
+        }
+      }
+    }
+  }
+  postAdminDistributionSettlementPolicies: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          channelId: string
+          contractId?: string | null
+          /**
+           * @default manual
+           * @enum {string}
+           */
+          frequency?: "manual" | "daily" | "weekly" | "monthly"
+          /** @default false */
+          autoGenerate?: boolean
+          /** @default false */
+          approvalRequired?: boolean
+          remittanceDaysAfterPeriodEnd?: number | null
+          minimumPayoutAmountCents?: number | null
+          currencyCode?: string | null
+          /** @default true */
+          active?: boolean
+          notes?: string | null
+          metadata?: {
+            [key: string]: unknown
+          } | null
+        }
+      }
+    }
+    responses: {
+      /** @description The created settlement policy */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              channelId: string
+              contractId: string | null
+              /** @enum {string} */
+              frequency: "manual" | "daily" | "weekly" | "monthly"
+              autoGenerate: boolean
+              approvalRequired: boolean
+              remittanceDaysAfterPeriodEnd: number | null
+              minimumPayoutAmountCents: number | null
+              currencyCode: string | null
+              active: boolean
+              notes: string | null
+              metadata: {
+                [key: string]: unknown
+              } | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description invalid_request */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getAdminDistributionSettlementPoliciesById: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description A settlement policy by id */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              channelId: string
+              contractId: string | null
+              /** @enum {string} */
+              frequency: "manual" | "daily" | "weekly" | "monthly"
+              autoGenerate: boolean
+              approvalRequired: boolean
+              remittanceDaysAfterPeriodEnd: number | null
+              minimumPayoutAmountCents: number | null
+              currencyCode: string | null
+              active: boolean
+              notes: string | null
+              metadata: {
+                [key: string]: unknown
+              } | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description Channel settlement policy not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  deleteAdminDistributionSettlementPoliciesById: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Settlement policy deleted */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            /** @enum {boolean} */
+            success: true
+          }
+        }
+      }
+      /** @description Channel settlement policy not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  patchAdminDistributionSettlementPoliciesById: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          channelId?: string
+          contractId?: string | null
+          /**
+           * @default manual
+           * @enum {string}
+           */
+          frequency?: "manual" | "daily" | "weekly" | "monthly"
+          /** @default false */
+          autoGenerate?: boolean
+          /** @default false */
+          approvalRequired?: boolean
+          remittanceDaysAfterPeriodEnd?: number | null
+          minimumPayoutAmountCents?: number | null
+          currencyCode?: string | null
+          /** @default true */
+          active?: boolean
+          notes?: string | null
+          metadata?: {
+            [key: string]: unknown
+          } | null
+        }
+      }
+    }
+    responses: {
+      /** @description The updated settlement policy */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              channelId: string
+              contractId: string | null
+              /** @enum {string} */
+              frequency: "manual" | "daily" | "weekly" | "monthly"
+              autoGenerate: boolean
+              approvalRequired: boolean
+              remittanceDaysAfterPeriodEnd: number | null
+              minimumPayoutAmountCents: number | null
+              currencyCode: string | null
+              active: boolean
+              notes: string | null
+              metadata: {
+                [key: string]: unknown
+              } | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description invalid_request */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Channel settlement policy not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getAdminDistributionReconciliationPolicies: {
+    parameters: {
+      query?: {
+        limit?: number
+        offset?: number | null
+        channelId?: string
+        contractId?: string
+        frequency?: "manual" | "daily" | "weekly" | "monthly"
+        active?: "0" | "1" | "true" | "false"
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Paginated reconciliation policies */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              channelId: string
+              contractId: string | null
+              /** @enum {string} */
+              frequency: "manual" | "daily" | "weekly" | "monthly"
+              autoRun: boolean
+              compareGrossAmounts: boolean
+              compareStatuses: boolean
+              compareCancellations: boolean
+              amountToleranceCents: number | null
+              active: boolean
+              notes: string | null
+              metadata: {
+                [key: string]: unknown
+              } | null
+              createdAt: string
+              updatedAt: string
+            }[]
+            total: number
+            limit: number
+            offset: number
+          }
+        }
+      }
+    }
+  }
+  postAdminDistributionReconciliationPolicies: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          channelId: string
+          contractId?: string | null
+          /**
+           * @default manual
+           * @enum {string}
+           */
+          frequency?: "manual" | "daily" | "weekly" | "monthly"
+          /** @default false */
+          autoRun?: boolean
+          /** @default true */
+          compareGrossAmounts?: boolean
+          /** @default true */
+          compareStatuses?: boolean
+          /** @default true */
+          compareCancellations?: boolean
+          amountToleranceCents?: number | null
+          /** @default true */
+          active?: boolean
+          notes?: string | null
+          metadata?: {
+            [key: string]: unknown
+          } | null
+        }
+      }
+    }
+    responses: {
+      /** @description The created reconciliation policy */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              channelId: string
+              contractId: string | null
+              /** @enum {string} */
+              frequency: "manual" | "daily" | "weekly" | "monthly"
+              autoRun: boolean
+              compareGrossAmounts: boolean
+              compareStatuses: boolean
+              compareCancellations: boolean
+              amountToleranceCents: number | null
+              active: boolean
+              notes: string | null
+              metadata: {
+                [key: string]: unknown
+              } | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description invalid_request */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getAdminDistributionReconciliationPoliciesById: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description A reconciliation policy by id */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              channelId: string
+              contractId: string | null
+              /** @enum {string} */
+              frequency: "manual" | "daily" | "weekly" | "monthly"
+              autoRun: boolean
+              compareGrossAmounts: boolean
+              compareStatuses: boolean
+              compareCancellations: boolean
+              amountToleranceCents: number | null
+              active: boolean
+              notes: string | null
+              metadata: {
+                [key: string]: unknown
+              } | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description Channel reconciliation policy not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  deleteAdminDistributionReconciliationPoliciesById: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Reconciliation policy deleted */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            /** @enum {boolean} */
+            success: true
+          }
+        }
+      }
+      /** @description Channel reconciliation policy not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  patchAdminDistributionReconciliationPoliciesById: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          channelId?: string
+          contractId?: string | null
+          /**
+           * @default manual
+           * @enum {string}
+           */
+          frequency?: "manual" | "daily" | "weekly" | "monthly"
+          /** @default false */
+          autoRun?: boolean
+          /** @default true */
+          compareGrossAmounts?: boolean
+          /** @default true */
+          compareStatuses?: boolean
+          /** @default true */
+          compareCancellations?: boolean
+          amountToleranceCents?: number | null
+          /** @default true */
+          active?: boolean
+          notes?: string | null
+          metadata?: {
+            [key: string]: unknown
+          } | null
+        }
+      }
+    }
+    responses: {
+      /** @description The updated reconciliation policy */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              channelId: string
+              contractId: string | null
+              /** @enum {string} */
+              frequency: "manual" | "daily" | "weekly" | "monthly"
+              autoRun: boolean
+              compareGrossAmounts: boolean
+              compareStatuses: boolean
+              compareCancellations: boolean
+              amountToleranceCents: number | null
+              active: boolean
+              notes: string | null
+              metadata: {
+                [key: string]: unknown
+              } | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description invalid_request */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Channel reconciliation policy not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getAdminDistributionReleaseSchedules: {
+    parameters: {
+      query?: {
+        limit?: number
+        offset?: number | null
+        releaseRuleId?: string
+        scheduleKind?: "manual" | "hourly" | "daily"
+        active?: "0" | "1" | "true" | "false"
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Paginated release schedules */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              releaseRuleId: string
+              /** @enum {string} */
+              scheduleKind: "manual" | "hourly" | "daily"
+              nextRunAt: string | null
+              lastRunAt: string | null
+              active: boolean
+              notes: string | null
+              metadata: {
+                [key: string]: unknown
+              } | null
+              createdAt: string
+              updatedAt: string
+            }[]
+            total: number
+            limit: number
+            offset: number
+          }
+        }
+      }
+    }
+  }
+  postAdminDistributionReleaseSchedules: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          releaseRuleId: string
+          /**
+           * @default manual
+           * @enum {string}
+           */
+          scheduleKind?: "manual" | "hourly" | "daily"
+          /** Format: date-time */
+          nextRunAt?: string | null
+          /** Format: date-time */
+          lastRunAt?: string | null
+          /** @default true */
+          active?: boolean
+          notes?: string | null
+          metadata?: {
+            [key: string]: unknown
+          } | null
+        }
+      }
+    }
+    responses: {
+      /** @description The created release schedule */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              releaseRuleId: string
+              /** @enum {string} */
+              scheduleKind: "manual" | "hourly" | "daily"
+              nextRunAt: string | null
+              lastRunAt: string | null
+              active: boolean
+              notes: string | null
+              metadata: {
+                [key: string]: unknown
+              } | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description invalid_request */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getAdminDistributionReleaseSchedulesById: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description A release schedule by id */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              releaseRuleId: string
+              /** @enum {string} */
+              scheduleKind: "manual" | "hourly" | "daily"
+              nextRunAt: string | null
+              lastRunAt: string | null
+              active: boolean
+              notes: string | null
+              metadata: {
+                [key: string]: unknown
+              } | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description Channel release schedule not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  deleteAdminDistributionReleaseSchedulesById: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Release schedule deleted */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            /** @enum {boolean} */
+            success: true
+          }
+        }
+      }
+      /** @description Channel release schedule not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  patchAdminDistributionReleaseSchedulesById: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          releaseRuleId?: string
+          /**
+           * @default manual
+           * @enum {string}
+           */
+          scheduleKind?: "manual" | "hourly" | "daily"
+          /** Format: date-time */
+          nextRunAt?: string | null
+          /** Format: date-time */
+          lastRunAt?: string | null
+          /** @default true */
+          active?: boolean
+          notes?: string | null
+          metadata?: {
+            [key: string]: unknown
+          } | null
+        }
+      }
+    }
+    responses: {
+      /** @description The updated release schedule */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              releaseRuleId: string
+              /** @enum {string} */
+              scheduleKind: "manual" | "hourly" | "daily"
+              nextRunAt: string | null
+              lastRunAt: string | null
+              active: boolean
+              notes: string | null
+              metadata: {
+                [key: string]: unknown
+              } | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description invalid_request */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Channel release schedule not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getAdminDistributionRemittanceExceptions: {
+    parameters: {
+      query?: {
+        limit?: number
+        offset?: number | null
+        channelId?: string
+        settlementItemId?: string
+        reconciliationItemId?: string
+        status?: "open" | "investigating" | "resolved" | "ignored"
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Paginated remittance exceptions */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              channelId: string
+              settlementItemId: string | null
+              reconciliationItemId: string | null
+              exceptionType: string
+              /** @enum {string} */
+              severity: "info" | "warning" | "error"
+              /** @enum {string} */
+              status: "open" | "investigating" | "resolved" | "ignored"
+              openedAt: string
+              resolvedAt: string | null
+              notes: string | null
+              metadata: {
+                [key: string]: unknown
+              } | null
+              createdAt: string
+              updatedAt: string
+            }[]
+            total: number
+            limit: number
+            offset: number
+          }
+        }
+      }
+    }
+  }
+  postAdminDistributionRemittanceExceptions: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          channelId: string
+          settlementItemId?: string | null
+          reconciliationItemId?: string | null
+          exceptionType: string
+          /**
+           * @default warning
+           * @enum {string}
+           */
+          severity?: "info" | "warning" | "error"
+          /**
+           * @default open
+           * @enum {string}
+           */
+          status?: "open" | "investigating" | "resolved" | "ignored"
+          /** Format: date-time */
+          openedAt?: string | null
+          /** Format: date-time */
+          resolvedAt?: string | null
+          notes?: string | null
+          metadata?: {
+            [key: string]: unknown
+          } | null
+        }
+      }
+    }
+    responses: {
+      /** @description The created remittance exception */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              channelId: string
+              settlementItemId: string | null
+              reconciliationItemId: string | null
+              exceptionType: string
+              /** @enum {string} */
+              severity: "info" | "warning" | "error"
+              /** @enum {string} */
+              status: "open" | "investigating" | "resolved" | "ignored"
+              openedAt: string
+              resolvedAt: string | null
+              notes: string | null
+              metadata: {
+                [key: string]: unknown
+              } | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description invalid_request */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getAdminDistributionRemittanceExceptionsById: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description A remittance exception by id */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              channelId: string
+              settlementItemId: string | null
+              reconciliationItemId: string | null
+              exceptionType: string
+              /** @enum {string} */
+              severity: "info" | "warning" | "error"
+              /** @enum {string} */
+              status: "open" | "investigating" | "resolved" | "ignored"
+              openedAt: string
+              resolvedAt: string | null
+              notes: string | null
+              metadata: {
+                [key: string]: unknown
+              } | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description Channel remittance exception not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  deleteAdminDistributionRemittanceExceptionsById: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Remittance exception deleted */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            /** @enum {boolean} */
+            success: true
+          }
+        }
+      }
+      /** @description Channel remittance exception not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  patchAdminDistributionRemittanceExceptionsById: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          channelId?: string
+          settlementItemId?: string | null
+          reconciliationItemId?: string | null
+          exceptionType?: string
+          /**
+           * @default warning
+           * @enum {string}
+           */
+          severity?: "info" | "warning" | "error"
+          /**
+           * @default open
+           * @enum {string}
+           */
+          status?: "open" | "investigating" | "resolved" | "ignored"
+          /** Format: date-time */
+          openedAt?: string | null
+          /** Format: date-time */
+          resolvedAt?: string | null
+          notes?: string | null
+          metadata?: {
+            [key: string]: unknown
+          } | null
+        }
+      }
+    }
+    responses: {
+      /** @description The updated remittance exception */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              channelId: string
+              settlementItemId: string | null
+              reconciliationItemId: string | null
+              exceptionType: string
+              /** @enum {string} */
+              severity: "info" | "warning" | "error"
+              /** @enum {string} */
+              status: "open" | "investigating" | "resolved" | "ignored"
+              openedAt: string
+              resolvedAt: string | null
+              notes: string | null
+              metadata: {
+                [key: string]: unknown
+              } | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description invalid_request */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Channel remittance exception not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getAdminDistributionSettlementApprovals: {
+    parameters: {
+      query?: {
+        limit?: number
+        offset?: number | null
+        settlementRunId?: string
+        status?: "pending" | "approved" | "rejected"
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Paginated settlement approvals */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              settlementRunId: string
+              approverUserId: string | null
+              /** @enum {string} */
+              status: "pending" | "approved" | "rejected"
+              decidedAt: string | null
+              notes: string | null
+              metadata: {
+                [key: string]: unknown
+              } | null
+              createdAt: string
+              updatedAt: string
+            }[]
+            total: number
+            limit: number
+            offset: number
+          }
+        }
+      }
+    }
+  }
+  postAdminDistributionSettlementApprovals: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          settlementRunId: string
+          approverUserId?: string | null
+          /**
+           * @default pending
+           * @enum {string}
+           */
+          status?: "pending" | "approved" | "rejected"
+          /** Format: date-time */
+          decidedAt?: string | null
+          notes?: string | null
+          metadata?: {
+            [key: string]: unknown
+          } | null
+        }
+      }
+    }
+    responses: {
+      /** @description The created settlement approval */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              settlementRunId: string
+              approverUserId: string | null
+              /** @enum {string} */
+              status: "pending" | "approved" | "rejected"
+              decidedAt: string | null
+              notes: string | null
+              metadata: {
+                [key: string]: unknown
+              } | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description invalid_request */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getAdminDistributionSettlementApprovalsById: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description A settlement approval by id */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              settlementRunId: string
+              approverUserId: string | null
+              /** @enum {string} */
+              status: "pending" | "approved" | "rejected"
+              decidedAt: string | null
+              notes: string | null
+              metadata: {
+                [key: string]: unknown
+              } | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description Channel settlement approval not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  deleteAdminDistributionSettlementApprovalsById: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Settlement approval deleted */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            /** @enum {boolean} */
+            success: true
+          }
+        }
+      }
+      /** @description Channel settlement approval not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  patchAdminDistributionSettlementApprovalsById: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          settlementRunId?: string
+          approverUserId?: string | null
+          /**
+           * @default pending
+           * @enum {string}
+           */
+          status?: "pending" | "approved" | "rejected"
+          /** Format: date-time */
+          decidedAt?: string | null
+          notes?: string | null
+          metadata?: {
+            [key: string]: unknown
+          } | null
+        }
+      }
+    }
+    responses: {
+      /** @description The updated settlement approval */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              settlementRunId: string
+              approverUserId: string | null
+              /** @enum {string} */
+              status: "pending" | "approved" | "rejected"
+              decidedAt: string | null
+              notes: string | null
+              metadata: {
+                [key: string]: unknown
+              } | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description invalid_request */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Channel settlement approval not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
           }
         }
       }

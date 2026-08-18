@@ -14,32 +14,7 @@ export interface paths {
     get?: never
     put?: never
     /** Preview tax for a booking item subtotal */
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          "application/json": {
-            productId: string
-            subtotalCents: number
-            currency: string
-          }
-        }
-      }
-      responses: {
-        /** @description The calculated tax preview */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content?: never
-        }
-      }
-    }
+    post: operations["postAdminBookingsTaxPreview"]
     delete?: never
     options?: never
     head?: never
@@ -57,4 +32,47 @@ export interface components {
   pathItems: never
 }
 export type $defs = Record<string, never>
-export type operations = Record<string, never>
+export interface operations {
+  postAdminBookingsTaxPreview: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          productId: string
+          subtotalCents: number
+          currency: string
+        }
+      }
+    }
+    responses: {
+      /** @description The calculated tax preview */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              subtotalCents: number
+              taxCents: number
+              totalCents: number
+              currency: string
+              taxRate: {
+                code: string
+                label: string
+                rateBasisPoints: number
+                /** @enum {string} */
+                priceMode: "inclusive" | "exclusive"
+              } | null
+            }
+          }
+        }
+      }
+    }
+  }
+}

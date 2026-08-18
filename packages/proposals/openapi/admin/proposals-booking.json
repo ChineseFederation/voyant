@@ -7,64 +7,43 @@
   "paths": {
     "/v1/admin/bookings/{bookingId}/proposal-details": {
       "get": {
-        "summary": "Get Proposal details for a booking",
-        "parameters": [
-          {
-            "name": "bookingId",
-            "in": "path",
-            "required": true,
-            "schema": { "type": "string" }
-          }
-        ],
+        "x-voyant-api-id": "@voyant-travel/proposals#booking-extension.api",
         "responses": {
-          "200": { "description": "The booking's Proposal details, or null when none exist." }
+          "200": {
+            "description": "Proposal booking detail response."
+          }
         },
-        "x-voyant-api-id": "@voyant-travel/proposals#booking-extension.api"
+        "operationId": "getAdminBookingsByBookingIdProposalDetails",
+        "summary": "Get Proposal details for a booking",
+        "tags": ["bookings"],
+        "x-voyant-module": "bookings",
+        "x-voyant-surface": "admin"
       },
       "put": {
-        "summary": "Create or update Proposal details for a booking",
-        "parameters": [
-          {
-            "name": "bookingId",
-            "in": "path",
-            "required": true,
-            "schema": { "type": "string" }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "proposalId": { "type": ["string", "null"] },
-                  "proposalVersionId": { "type": ["string", "null"] }
-                }
-              }
-            }
-          }
-        },
+        "x-voyant-api-id": "@voyant-travel/proposals#booking-extension.api",
         "responses": {
-          "200": { "description": "The saved booking Proposal details." }
+          "200": {
+            "description": "Proposal booking detail response."
+          }
         },
-        "x-voyant-api-id": "@voyant-travel/proposals#booking-extension.api"
+        "operationId": "putAdminBookingsByBookingIdProposalDetails",
+        "summary": "Create or update Proposal details for a booking",
+        "tags": ["bookings"],
+        "x-voyant-module": "bookings",
+        "x-voyant-surface": "admin"
       },
       "delete": {
-        "summary": "Remove Proposal details from a booking",
-        "parameters": [
-          {
-            "name": "bookingId",
-            "in": "path",
-            "required": true,
-            "schema": { "type": "string" }
-          }
-        ],
+        "x-voyant-api-id": "@voyant-travel/proposals#booking-extension.api",
         "responses": {
-          "200": { "description": "The Proposal details were removed." },
-          "404": { "description": "No Proposal details exist for the booking." }
+          "200": {
+            "description": "Proposal booking detail response."
+          }
         },
-        "x-voyant-api-id": "@voyant-travel/proposals#booking-extension.api"
+        "operationId": "deleteAdminBookingsByBookingIdProposalDetails",
+        "summary": "Remove Proposal details from a booking",
+        "tags": ["bookings"],
+        "x-voyant-module": "bookings",
+        "x-voyant-surface": "admin"
       }
     }
   }

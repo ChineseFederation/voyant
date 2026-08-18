@@ -344,6 +344,7 @@ export interface operations {
             pricingCategoryId?: string | null
             quantity: number
           }[]
+          travelerCount?: number
           /** @default 25 */
           limit?: number
         }
@@ -405,6 +406,7 @@ export interface operations {
               pricingCategoryId?: string | null
               quantity: number
             }[]
+            travelerCount?: number
             /** @default 25 */
             limit?: number
           }

@@ -156,7 +156,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getAdminCruises",
+        "summary": "GET /v1/admin/cruises",
+        "tags": ["cruises"],
+        "x-voyant-module": "cruises",
+        "x-voyant-surface": "admin"
       },
       "post": {
         "x-voyant-api-id": "@voyant-travel/cruises#api.admin",
@@ -525,7 +530,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "postAdminCruises",
+        "summary": "POST /v1/admin/cruises",
+        "tags": ["cruises"],
+        "x-voyant-module": "cruises",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/cruises/voyage-groups": {
@@ -743,7 +753,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getAdminCruisesVoyageGroups",
+        "summary": "GET /v1/admin/cruises/voyage-groups",
+        "tags": ["cruises"],
+        "x-voyant-module": "cruises",
+        "x-voyant-surface": "admin"
       },
       "post": {
         "x-voyant-api-id": "@voyant-travel/cruises#api.admin",
@@ -1011,7 +1026,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "postAdminCruisesVoyageGroups",
+        "summary": "POST /v1/admin/cruises/voyage-groups",
+        "tags": ["cruises"],
+        "x-voyant-module": "cruises",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/cruises/voyage-groups/{id}": {
@@ -1291,7 +1311,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getAdminCruisesVoyageGroupsById",
+        "summary": "GET /v1/admin/cruises/voyage-groups/{id}",
+        "tags": ["cruises"],
+        "x-voyant-module": "cruises",
+        "x-voyant-surface": "admin"
       },
       "put": {
         "x-voyant-api-id": "@voyant-travel/cruises#api.admin",
@@ -1585,7 +1610,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "putAdminCruisesVoyageGroupsById",
+        "summary": "PUT /v1/admin/cruises/voyage-groups/{id}",
+        "tags": ["cruises"],
+        "x-voyant-module": "cruises",
+        "x-voyant-surface": "admin"
       },
       "delete": {
         "x-voyant-api-id": "@voyant-travel/cruises#api.admin",
@@ -1751,7 +1781,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "deleteAdminCruisesVoyageGroupsById",
+        "summary": "DELETE /v1/admin/cruises/voyage-groups/{id}",
+        "tags": ["cruises"],
+        "x-voyant-module": "cruises",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/cruises/voyage-groups/{id}/segments": {
@@ -1957,7 +1992,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getAdminCruisesVoyageGroupsByIdSegments",
+        "summary": "GET /v1/admin/cruises/voyage-groups/{id}/segments",
+        "tags": ["cruises"],
+        "x-voyant-module": "cruises",
+        "x-voyant-surface": "admin"
       },
       "post": {
         "x-voyant-api-id": "@voyant-travel/cruises#api.admin",
@@ -2190,7 +2230,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "postAdminCruisesVoyageGroupsByIdSegments",
+        "summary": "POST /v1/admin/cruises/voyage-groups/{id}/segments",
+        "tags": ["cruises"],
+        "x-voyant-module": "cruises",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/cruises/voyage-group-segments/{segmentId}": {
@@ -2441,7 +2486,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "putAdminCruisesVoyageGroupSegmentsBySegmentId",
+        "summary": "PUT /v1/admin/cruises/voyage-group-segments/{segmentId}",
+        "tags": ["cruises"],
+        "x-voyant-module": "cruises",
+        "x-voyant-surface": "admin"
       },
       "delete": {
         "x-voyant-api-id": "@voyant-travel/cruises#api.admin",
@@ -2476,7 +2526,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "deleteAdminCruisesVoyageGroupSegmentsBySegmentId",
+        "summary": "DELETE /v1/admin/cruises/voyage-group-segments/{segmentId}",
+        "tags": ["cruises"],
+        "x-voyant-module": "cruises",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/cruises/enrichment/{programId}": {
@@ -2641,7 +2696,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "putAdminCruisesEnrichmentByProgramId",
+        "summary": "PUT /v1/admin/cruises/enrichment/{programId}",
+        "tags": ["cruises"],
+        "x-voyant-module": "cruises",
+        "x-voyant-surface": "admin"
       },
       "delete": {
         "x-voyant-api-id": "@voyant-travel/cruises#api.admin",
@@ -2676,7 +2736,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "deleteAdminCruisesEnrichmentByProgramId",
+        "summary": "DELETE /v1/admin/cruises/enrichment/{programId}",
+        "tags": ["cruises"],
+        "x-voyant-module": "cruises",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/cruises/sailings": {
@@ -2864,7 +2929,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getAdminCruisesSailings",
+        "summary": "GET /v1/admin/cruises/sailings",
+        "tags": ["cruises"],
+        "x-voyant-module": "cruises",
+        "x-voyant-surface": "admin"
       },
       "post": {
         "x-voyant-api-id": "@voyant-travel/cruises#api.admin",
@@ -3042,7 +3112,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "postAdminCruisesSailings",
+        "summary": "POST /v1/admin/cruises/sailings",
+        "tags": ["cruises"],
+        "x-voyant-module": "cruises",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/cruises/sailings/{key}": {
@@ -3123,7 +3198,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getAdminCruisesSailingsByKey",
+        "summary": "GET /v1/admin/cruises/sailings/{key}",
+        "tags": ["cruises"],
+        "x-voyant-module": "cruises",
+        "x-voyant-surface": "admin"
       },
       "put": {
         "x-voyant-api-id": "@voyant-travel/cruises#api.admin",
@@ -3344,7 +3424,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "putAdminCruisesSailingsByKey",
+        "summary": "PUT /v1/admin/cruises/sailings/{key}",
+        "tags": ["cruises"],
+        "x-voyant-module": "cruises",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/cruises/sailings/{key}/itinerary": {
@@ -3412,7 +3497,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getAdminCruisesSailingsByKeyItinerary",
+        "summary": "GET /v1/admin/cruises/sailings/{key}/itinerary",
+        "tags": ["cruises"],
+        "x-voyant-module": "cruises",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/cruises/sailings/{key}/days/bulk": {
@@ -3633,7 +3723,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "putAdminCruisesSailingsByKeyDaysBulk",
+        "summary": "PUT /v1/admin/cruises/sailings/{key}/days/bulk",
+        "tags": ["cruises"],
+        "x-voyant-module": "cruises",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/cruises/sailings/{key}/pricing": {
@@ -3710,7 +3805,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getAdminCruisesSailingsByKeyPricing",
+        "summary": "GET /v1/admin/cruises/sailings/{key}/pricing",
+        "tags": ["cruises"],
+        "x-voyant-module": "cruises",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/cruises/sailings/{key}/pricing/bulk": {
@@ -4051,7 +4151,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "putAdminCruisesSailingsByKeyPricingBulk",
+        "summary": "PUT /v1/admin/cruises/sailings/{key}/pricing/bulk",
+        "tags": ["cruises"],
+        "x-voyant-module": "cruises",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/cruises/sailings/{key}/quote": {
@@ -4200,7 +4305,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "postAdminCruisesSailingsByKeyQuote",
+        "summary": "POST /v1/admin/cruises/sailings/{key}/quote",
+        "tags": ["cruises"],
+        "x-voyant-module": "cruises",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/cruises/prices": {
@@ -4431,7 +4541,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getAdminCruisesPrices",
+        "summary": "GET /v1/admin/cruises/prices",
+        "tags": ["cruises"],
+        "x-voyant-module": "cruises",
+        "x-voyant-surface": "admin"
       },
       "post": {
         "x-voyant-api-id": "@voyant-travel/cruises#api.admin",
@@ -4688,7 +4803,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "postAdminCruisesPrices",
+        "summary": "POST /v1/admin/cruises/prices",
+        "tags": ["cruises"],
+        "x-voyant-module": "cruises",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/cruises/prices/{priceId}": {
@@ -4967,7 +5087,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "putAdminCruisesPricesByPriceId",
+        "summary": "PUT /v1/admin/cruises/prices/{priceId}",
+        "tags": ["cruises"],
+        "x-voyant-module": "cruises",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/cruises/ships": {
@@ -5158,7 +5283,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getAdminCruisesShips",
+        "summary": "GET /v1/admin/cruises/ships",
+        "tags": ["cruises"],
+        "x-voyant-module": "cruises",
+        "x-voyant-surface": "admin"
       },
       "post": {
         "x-voyant-api-id": "@voyant-travel/cruises#api.admin",
@@ -5388,7 +5518,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "postAdminCruisesShips",
+        "summary": "POST /v1/admin/cruises/ships",
+        "tags": ["cruises"],
+        "x-voyant-module": "cruises",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/cruises/ships/{key}": {
@@ -5598,7 +5733,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getAdminCruisesShipsByKey",
+        "summary": "GET /v1/admin/cruises/ships/{key}",
+        "tags": ["cruises"],
+        "x-voyant-module": "cruises",
+        "x-voyant-surface": "admin"
       },
       "put": {
         "x-voyant-api-id": "@voyant-travel/cruises#api.admin",
@@ -5871,7 +6011,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "putAdminCruisesShipsByKey",
+        "summary": "PUT /v1/admin/cruises/ships/{key}",
+        "tags": ["cruises"],
+        "x-voyant-module": "cruises",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/cruises/ships/{key}/effective": {
@@ -5982,7 +6127,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getAdminCruisesShipsByKeyEffective",
+        "summary": "GET /v1/admin/cruises/ships/{key}/effective",
+        "tags": ["cruises"],
+        "x-voyant-module": "cruises",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/cruises/ships/{key}/editorial-overlays": {
@@ -6093,7 +6243,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getAdminCruisesShipsByKeyEditorialOverlays",
+        "summary": "GET /v1/admin/cruises/ships/{key}/editorial-overlays",
+        "tags": ["cruises"],
+        "x-voyant-module": "cruises",
+        "x-voyant-surface": "admin"
       },
       "put": {
         "x-voyant-api-id": "@voyant-travel/cruises#api.admin",
@@ -6228,7 +6383,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "putAdminCruisesShipsByKeyEditorialOverlays",
+        "summary": "PUT /v1/admin/cruises/ships/{key}/editorial-overlays",
+        "tags": ["cruises"],
+        "x-voyant-module": "cruises",
+        "x-voyant-surface": "admin"
       },
       "delete": {
         "x-voyant-api-id": "@voyant-travel/cruises#api.admin",
@@ -6371,7 +6531,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "deleteAdminCruisesShipsByKeyEditorialOverlays",
+        "summary": "DELETE /v1/admin/cruises/ships/{key}/editorial-overlays",
+        "tags": ["cruises"],
+        "x-voyant-module": "cruises",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/cruises/ships/{key}/editorial-overlays/history": {
@@ -6503,7 +6668,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getAdminCruisesShipsByKeyEditorialOverlaysHistory",
+        "summary": "GET /v1/admin/cruises/ships/{key}/editorial-overlays/history",
+        "tags": ["cruises"],
+        "x-voyant-module": "cruises",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/cruises/ships/{key}/decks": {
@@ -6571,7 +6741,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getAdminCruisesShipsByKeyDecks",
+        "summary": "GET /v1/admin/cruises/ships/{key}/decks",
+        "tags": ["cruises"],
+        "x-voyant-module": "cruises",
+        "x-voyant-surface": "admin"
       },
       "post": {
         "x-voyant-api-id": "@voyant-travel/cruises#api.admin",
@@ -6693,7 +6868,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "postAdminCruisesShipsByKeyDecks",
+        "summary": "POST /v1/admin/cruises/ships/{key}/decks",
+        "tags": ["cruises"],
+        "x-voyant-module": "cruises",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/cruises/decks/{deckId}": {
@@ -6802,7 +6982,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "putAdminCruisesDecksByDeckId",
+        "summary": "PUT /v1/admin/cruises/decks/{deckId}",
+        "tags": ["cruises"],
+        "x-voyant-module": "cruises",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/cruises/ships/{key}/categories": {
@@ -6870,7 +7055,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getAdminCruisesShipsByKeyCategories",
+        "summary": "GET /v1/admin/cruises/ships/{key}/categories",
+        "tags": ["cruises"],
+        "x-voyant-module": "cruises",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/cruises/ships/{key}/categories/bulk": {
@@ -7214,7 +7404,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "putAdminCruisesShipsByKeyCategoriesBulk",
+        "summary": "PUT /v1/admin/cruises/ships/{key}/categories/bulk",
+        "tags": ["cruises"],
+        "x-voyant-module": "cruises",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/cruises/categories/{categoryId}": {
@@ -7521,7 +7716,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "putAdminCruisesCategoriesByCategoryId",
+        "summary": "PUT /v1/admin/cruises/categories/{categoryId}",
+        "tags": ["cruises"],
+        "x-voyant-module": "cruises",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/cruises/categories/{categoryId}/cabins": {
@@ -7601,7 +7801,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getAdminCruisesCategoriesByCategoryIdCabins",
+        "summary": "GET /v1/admin/cruises/categories/{categoryId}/cabins",
+        "tags": ["cruises"],
+        "x-voyant-module": "cruises",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/cruises/categories/{categoryId}/cabins/bulk": {
@@ -7724,7 +7929,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "putAdminCruisesCategoriesByCategoryIdCabinsBulk",
+        "summary": "PUT /v1/admin/cruises/categories/{categoryId}/cabins/bulk",
+        "tags": ["cruises"],
+        "x-voyant-module": "cruises",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/cruises/cabins/{cabinId}": {
@@ -7854,7 +8064,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "putAdminCruisesCabinsByCabinId",
+        "summary": "PUT /v1/admin/cruises/cabins/{cabinId}",
+        "tags": ["cruises"],
+        "x-voyant-module": "cruises",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/cruises/search-index/bulk": {
@@ -8085,7 +8300,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "putAdminCruisesSearchIndexBulk",
+        "summary": "PUT /v1/admin/cruises/search-index/bulk",
+        "tags": ["cruises"],
+        "x-voyant-module": "cruises",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/cruises/search-index/{crsiId}": {
@@ -8122,7 +8342,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "deleteAdminCruisesSearchIndexByCrsiId",
+        "summary": "DELETE /v1/admin/cruises/search-index/{crsiId}",
+        "tags": ["cruises"],
+        "x-voyant-module": "cruises",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/cruises/search-index/rebuild": {
@@ -8177,7 +8402,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "postAdminCruisesSearchIndexRebuild",
+        "summary": "POST /v1/admin/cruises/search-index/rebuild",
+        "tags": ["cruises"],
+        "x-voyant-module": "cruises",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/cruises/{key}": {
@@ -8258,7 +8488,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getAdminCruisesByKey",
+        "summary": "GET /v1/admin/cruises/{key}",
+        "tags": ["cruises"],
+        "x-voyant-module": "cruises",
+        "x-voyant-surface": "admin"
       },
       "put": {
         "x-voyant-api-id": "@voyant-travel/cruises#api.admin",
@@ -8671,7 +8906,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "putAdminCruisesByKey",
+        "summary": "PUT /v1/admin/cruises/{key}",
+        "tags": ["cruises"],
+        "x-voyant-module": "cruises",
+        "x-voyant-surface": "admin"
       },
       "delete": {
         "x-voyant-api-id": "@voyant-travel/cruises#api.admin",
@@ -8933,7 +9173,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "deleteAdminCruisesByKey",
+        "summary": "DELETE /v1/admin/cruises/{key}",
+        "tags": ["cruises"],
+        "x-voyant-module": "cruises",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/cruises/{key}/aggregates/recompute": {
@@ -9197,7 +9442,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "postAdminCruisesByKeyAggregatesRecompute",
+        "summary": "POST /v1/admin/cruises/{key}/aggregates/recompute",
+        "tags": ["cruises"],
+        "x-voyant-module": "cruises",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/cruises/{key}/sailings": {
@@ -9274,7 +9524,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getAdminCruisesByKeySailings",
+        "summary": "GET /v1/admin/cruises/{key}/sailings",
+        "tags": ["cruises"],
+        "x-voyant-module": "cruises",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/cruises/{key}/days/bulk": {
@@ -9491,7 +9746,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "putAdminCruisesByKeyDaysBulk",
+        "summary": "PUT /v1/admin/cruises/{key}/days/bulk",
+        "tags": ["cruises"],
+        "x-voyant-module": "cruises",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/cruises/{key}/refresh": {
@@ -9572,7 +9832,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "postAdminCruisesByKeyRefresh",
+        "summary": "POST /v1/admin/cruises/{key}/refresh",
+        "tags": ["cruises"],
+        "x-voyant-module": "cruises",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/cruises/{key}/detach": {
@@ -9819,7 +10084,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "postAdminCruisesByKeyDetach",
+        "summary": "POST /v1/admin/cruises/{key}/detach",
+        "tags": ["cruises"],
+        "x-voyant-module": "cruises",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/cruises/{key}/enrichment": {
@@ -9941,7 +10211,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getAdminCruisesByKeyEnrichment",
+        "summary": "GET /v1/admin/cruises/{key}/enrichment",
+        "tags": ["cruises"],
+        "x-voyant-module": "cruises",
+        "x-voyant-surface": "admin"
       },
       "post": {
         "x-voyant-api-id": "@voyant-travel/cruises#api.admin",
@@ -10102,7 +10377,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "postAdminCruisesByKeyEnrichment",
+        "summary": "POST /v1/admin/cruises/{key}/enrichment",
+        "tags": ["cruises"],
+        "x-voyant-module": "cruises",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/cruises/{key}/enrichment/bulk": {
@@ -10277,7 +10557,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "putAdminCruisesByKeyEnrichmentBulk",
+        "summary": "PUT /v1/admin/cruises/{key}/enrichment/bulk",
+        "tags": ["cruises"],
+        "x-voyant-module": "cruises",
+        "x-voyant-surface": "admin"
       }
     }
   },

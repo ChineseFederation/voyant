@@ -44,13 +44,14 @@
     "./guest-booking-guard": "./src/guest-booking-guard.ts"
   },
   "scripts": {
-    "typecheck": "tsc -p tsconfig.typecheck.json",
-    "lint": "biome check src/",
-    "test": "vitest run",
     "build": "tsc -p tsconfig.build.json",
     "clean": "rm -rf dist tsconfig.tsbuildinfo",
+    "db:generate": "drizzle-kit generate --config=drizzle.migrations.config.ts --name=bookings_baseline && node ../../scripts/migrations/guard-create-type.mjs ./migrations && node ../../scripts/migrations/ensure-extensions.mjs ./migrations",
+    "generate:openapi": "node --import tsx scripts/generate-admin-openapi.ts && node --import tsx scripts/generate-extras-openapi.ts && node --import tsx scripts/generate-requirements-openapi.ts && node --import tsx scripts/generate-requirements-public-openapi.ts && biome format --write --files-max-size=8388608 openapi/admin/bookings.json openapi/admin/booking-extras.json openapi/admin/booking-requirements.json openapi/public-api/booking-requirements.json",
+    "lint": "biome check src/",
     "prepack": "pnpm run build",
-    "db:generate": "drizzle-kit generate --config=drizzle.migrations.config.ts --name=bookings_baseline && node ../../scripts/migrations/guard-create-type.mjs ./migrations && node ../../scripts/migrations/ensure-extensions.mjs ./migrations"
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.typecheck.json"
   },
   "dependencies": {
     "@hono/zod-openapi": "catalog:",

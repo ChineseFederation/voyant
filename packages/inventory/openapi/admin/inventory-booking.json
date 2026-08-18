@@ -6,68 +6,195 @@
   },
   "paths": {
     "/v1/admin/bookings/{bookingId}/product-details": {
-      "parameters": [
-        { "name": "bookingId", "in": "path", "required": true, "schema": { "type": "string" } }
-      ],
       "get": {
         "summary": "Get product details attached to a booking",
         "x-voyant-api-id": "@voyant-travel/inventory#booking-extension.api",
-        "responses": { "200": { "description": "Booking product details, or null when absent" } }
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "bookingId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Booking product details, or null when absent"
+          }
+        },
+        "operationId": "getAdminBookingsByBookingIdProductDetails",
+        "tags": ["bookings"],
+        "x-voyant-module": "bookings",
+        "x-voyant-surface": "admin"
       },
       "put": {
         "summary": "Create or replace product details on a booking",
         "x-voyant-api-id": "@voyant-travel/inventory#booking-extension.api",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "bookingId",
+            "in": "path"
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/BookingProductDetailsInput" }
+              "schema": {
+                "$ref": "#/components/schemas/BookingProductDetailsInput"
+              }
             }
           }
         },
-        "responses": { "200": { "description": "Booking product details were stored" } }
+        "responses": {
+          "200": {
+            "description": "Booking product details were stored"
+          }
+        },
+        "operationId": "putAdminBookingsByBookingIdProductDetails",
+        "tags": ["bookings"],
+        "x-voyant-module": "bookings",
+        "x-voyant-surface": "admin"
       },
       "delete": {
         "summary": "Remove product details from a booking",
         "x-voyant-api-id": "@voyant-travel/inventory#booking-extension.api",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "bookingId",
+            "in": "path"
+          }
+        ],
         "responses": {
-          "200": { "description": "Booking product details were removed" },
-          "404": { "description": "No product details exist for the booking" }
-        }
+          "200": {
+            "description": "Booking product details were removed"
+          },
+          "404": {
+            "description": "No product details exist for the booking"
+          }
+        },
+        "operationId": "deleteAdminBookingsByBookingIdProductDetails",
+        "tags": ["bookings"],
+        "x-voyant-module": "bookings",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/bookings/{bookingId}/items/{itemId}/product-details": {
-      "parameters": [
-        { "name": "bookingId", "in": "path", "required": true, "schema": { "type": "string" } },
-        { "name": "itemId", "in": "path", "required": true, "schema": { "type": "string" } }
-      ],
       "get": {
         "summary": "Get product details attached to a booking item",
         "x-voyant-api-id": "@voyant-travel/inventory#booking-extension.api",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "bookingId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "itemId",
+            "in": "path"
+          }
+        ],
         "responses": {
-          "200": { "description": "Booking item product details, or null when absent" }
-        }
+          "200": {
+            "description": "Booking item product details, or null when absent"
+          }
+        },
+        "operationId": "getAdminBookingsByBookingIdItemsByItemIdProductDetails",
+        "tags": ["bookings"],
+        "x-voyant-module": "bookings",
+        "x-voyant-surface": "admin"
       },
       "put": {
         "summary": "Create or replace product details on a booking item",
         "x-voyant-api-id": "@voyant-travel/inventory#booking-extension.api",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "bookingId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "itemId",
+            "in": "path"
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/BookingItemProductDetailsInput" }
+              "schema": {
+                "$ref": "#/components/schemas/BookingItemProductDetailsInput"
+              }
             }
           }
         },
-        "responses": { "200": { "description": "Booking item product details were stored" } }
+        "responses": {
+          "200": {
+            "description": "Booking item product details were stored"
+          }
+        },
+        "operationId": "putAdminBookingsByBookingIdItemsByItemIdProductDetails",
+        "tags": ["bookings"],
+        "x-voyant-module": "bookings",
+        "x-voyant-surface": "admin"
       },
       "delete": {
         "summary": "Remove product details from a booking item",
         "x-voyant-api-id": "@voyant-travel/inventory#booking-extension.api",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "bookingId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "itemId",
+            "in": "path"
+          }
+        ],
         "responses": {
-          "200": { "description": "Booking item product details were removed" },
-          "404": { "description": "No product details exist for the booking item" }
-        }
+          "200": {
+            "description": "Booking item product details were removed"
+          },
+          "404": {
+            "description": "No product details exist for the booking item"
+          }
+        },
+        "operationId": "deleteAdminBookingsByBookingIdItemsByItemIdProductDetails",
+        "tags": ["bookings"],
+        "x-voyant-module": "bookings",
+        "x-voyant-surface": "admin"
       }
     }
   },
@@ -76,17 +203,29 @@
       "BookingProductDetailsInput": {
         "type": "object",
         "properties": {
-          "productId": { "type": ["string", "null"] },
-          "optionId": { "type": ["string", "null"] }
+          "productId": {
+            "type": ["string", "null"]
+          },
+          "optionId": {
+            "type": ["string", "null"]
+          }
         }
       },
       "BookingItemProductDetailsInput": {
         "type": "object",
         "properties": {
-          "productId": { "type": ["string", "null"] },
-          "optionId": { "type": ["string", "null"] },
-          "unitId": { "type": ["string", "null"] },
-          "supplierServiceId": { "type": ["string", "null"] }
+          "productId": {
+            "type": ["string", "null"]
+          },
+          "optionId": {
+            "type": ["string", "null"]
+          },
+          "unitId": {
+            "type": ["string", "null"]
+          },
+          "supplierServiceId": {
+            "type": ["string", "null"]
+          }
         }
       }
     }

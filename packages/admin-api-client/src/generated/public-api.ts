@@ -100,6 +100,10 @@ export interface operations {
                 /** Format: uri */
                 cancellationUrl: string | null
                 defaultContractTemplateId: string | null
+                storedInstrumentMandate: {
+                  enabled: boolean
+                  revision: string
+                } | null
               }
               localization: {
                 defaultLocale: string | null
@@ -235,6 +239,10 @@ export interface operations {
             /** Format: uri */
             cancellationUrl?: string | null
             defaultContractTemplateId?: string | null
+            storedInstrumentMandate?: {
+              enabled: boolean
+              revision: string
+            } | null
           }
           localization?: {
             defaultLocale?: string | null
@@ -373,6 +381,10 @@ export interface operations {
                 /** Format: uri */
                 cancellationUrl: string | null
                 defaultContractTemplateId: string | null
+                storedInstrumentMandate: {
+                  enabled: boolean
+                  revision: string
+                } | null
               }
               localization: {
                 defaultLocale: string | null

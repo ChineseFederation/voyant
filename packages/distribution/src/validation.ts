@@ -141,7 +141,13 @@ export const channelListQuerySchema = paginationSchema.extend({
    * must be able to target Direct. The counterparty list passes `exclude`,
    * because Direct is the deployment itself and not a party it trades with.
    */
-  system: z.enum(["include", "exclude", "only"]).optional(),
+  system: z
+    .enum(["include", "exclude", "only"])
+    .optional()
+    .describe(
+      "How to treat system-provisioned channels (today: Direct). Defaults to `include` - publication " +
+        "and product-mapping pickers must be able to target Direct. The counterparty list passes `exclude`.",
+    ),
 })
 
 export const channelContractCoreSchema = z.object({
