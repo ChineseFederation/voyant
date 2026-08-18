@@ -46,11 +46,13 @@ describe("staff alert resolvers", () => {
     const context = await staffAlertContextResolvers["staff.inquiry.assigned"]?.resolve({
       db,
       payload: { id: "inq_1", actorId: "usr_2", ownerId: "usr_event" },
+      resolveAdminDestination: (destination, params) =>
+        destination === "inquiry.detail" ? `/solicitari/${params.inquiryId}` : "/",
     })
 
     expect(context).toMatchObject({
       inquiryId: "inq_1",
-      adminPath: "/inquiries/inq_1",
+      adminPath: "/solicitari/inq_1",
       assigneeUserId: "usr_event",
       actorUserId: "usr_2",
       contact: { name: "ana@example.com", email: "ana@example.com" },

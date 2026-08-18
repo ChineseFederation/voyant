@@ -385,7 +385,20 @@ function createStaffAlertSubscriberRuntimeFor(
     dispatcher: createNotificationService(runtime.providers),
     resolvers: staffAlertContextResolvers,
     resolveBrand: createStaffAlertBrandResolver({ adminBaseUrl }),
+    resolveAdminDestination: (destination, params) =>
+      provider.resolveAdminDestination?.(bindings, destination, params) ??
+      defaultAdminDestination(destination, params),
   }
+}
+
+function defaultAdminDestination(
+  destination: string,
+  params: Readonly<Record<string, string>>,
+): string {
+  if (destination === "inquiry.detail" && params.inquiryId) {
+    return `/inquiries/${encodeURIComponent(params.inquiryId)}`
+  }
+  throw new Error(`No admin destination resolver is configured for ${JSON.stringify(destination)}.`)
 }
 
 function resolveAdminBaseUrl(bindings: Record<string, unknown>): string {

@@ -13,6 +13,10 @@ import {
   type RelationshipsRouteRuntime,
 } from "../route-runtime.js"
 import { InquiryServiceError, relationshipsService } from "../service/index.js"
+import {
+  RELATIONSHIPS_ROUTE_RUNTIME_CONTAINER_KEY,
+  type RelationshipsRouteRuntime,
+} from "../route-runtime.js"
 import { errorResponseSchema } from "./rest-openapi-schemas.js"
 
 type Env = {
@@ -79,6 +83,7 @@ publicInquiryRoutes.openapi(intakeRoute, async (c) => {
       channelId,
       relationshipPersonId: c.get("relationshipPersonId"),
       targetValidation: runtime?.inquiryTargetValidation,
+      slaPolicy: runtime?.inquiryFirstResponseSlaPolicy,
     })
     const body = {
       data: {

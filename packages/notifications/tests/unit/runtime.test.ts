@@ -41,6 +41,19 @@ describe("createNotificationsRuntime", () => {
     expect(runtime.resolvePublicCustomerPortalBaseUrl?.({})).toBeNull()
     expect(runtime.resolvePublicCheckoutBaseUrl?.({})).toBeNull()
   })
+
+  it("resolves semantic admin destinations through deployment-selected mounts", () => {
+    const host = primitives({})
+    vi.mocked(host.config.read).mockReturnValue({
+      "inquiry.detail": ({ inquiryId }: { inquiryId: string }) => `/solicitari/${inquiryId}`,
+    })
+    const runtime = createNotificationsRuntime(host)
+
+    expect(runtime.resolveAdminDestination?.({}, "inquiry.detail", { inquiryId: "inq_1" })).toBe(
+      "/solicitari/inq_1",
+    )
+    expect(host.config.read).toHaveBeenCalledWith({}, "adminDestinations")
+  })
 })
 
 describe("createNotificationsRuntime payment-link template", () => {

@@ -25,6 +25,7 @@ import { getStaffAlertSetting, listStaffAlertOptOutUserIds } from "./service-sta
 import {
   getStaffAlertDefinition,
   type StaffAlertContextMap,
+  type StaffAlertAdminDestinationResolver,
   type StaffAlertContextResolverRegistry,
   type StaffAlertEventKey,
 } from "./staff-alert-registry.js"
@@ -37,6 +38,7 @@ export interface StaffAlertRuntime {
   resolvers: StaffAlertContextResolverRegistry
   /** Operator identity for the email shell. Resolved once per dispatch. */
   resolveBrand(db: PostgresJsDatabase): Promise<StaffAlertBrand>
+  resolveAdminDestination: StaffAlertAdminDestinationResolver
 }
 
 export const STAFF_ALERT_RUNTIME_KEY = "notifications.staffAlertRuntime"
@@ -174,7 +176,11 @@ export async function dispatchStaffAlert(
   const resolver = runtime.resolvers[eventKey]
   if (!resolver) return { skipped: "no-resolver", enqueued: 0 }
 
-  const context = await resolver.resolve({ db, payload: input.payload })
+  const context = await resolver.resolve({
+    db,
+    payload: input.payload,
+    resolveAdminDestination: runtime.resolveAdminDestination,
+  })
   if (!context) return { skipped: "no-context", enqueued: 0 }
 
   const optedOutUserIds = await listStaffAlertOptOutUserIds(db, eventKey)

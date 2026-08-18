@@ -6,7 +6,9 @@ describe("inquiry first-response overdue scan", () => {
   it("emits deterministic outbox events and reports only newly inserted rows", async () => {
     const lockedRows = [{ id: "inq_1", firstResponseDueAt: new Date("2026-08-18T08:00:00.000Z") }]
     const lock = vi.fn(async () => lockedRows)
-    const where = vi.fn(() => ({ for: lock }))
+    const limit = vi.fn(() => ({ for: lock }))
+    const orderBy = vi.fn(() => ({ limit }))
+    const where = vi.fn(() => ({ orderBy }))
     const tx = {
       select: vi.fn(() => ({ from: vi.fn(() => ({ where })) })),
       insert: vi.fn(() => ({
@@ -44,6 +46,7 @@ describe("inquiry first-response overdue scan", () => {
       },
     ])
     expect(lock).toHaveBeenCalledWith("update", { skipLocked: true })
+    expect(limit).toHaveBeenCalledWith(100)
   })
 
   it("does not enqueue when another scan already claimed the overdue window", async () => {
@@ -51,9 +54,13 @@ describe("inquiry first-response overdue scan", () => {
       select: vi.fn(() => ({
         from: vi.fn(() => ({
           where: vi.fn(() => ({
-            for: vi.fn(async () => [
-              { id: "inq_1", firstResponseDueAt: new Date("2026-08-18T08:00:00.000Z") },
-            ]),
+            orderBy: vi.fn(() => ({
+              limit: vi.fn(() => ({
+                for: vi.fn(async () => [
+                  { id: "inq_1", firstResponseDueAt: new Date("2026-08-18T08:00:00.000Z") },
+                ]),
+              })),
+            })),
           })),
         })),
       })),
@@ -80,7 +87,11 @@ describe("inquiry first-response overdue scan", () => {
     const lock = vi.fn(async () => [])
     const tx = {
       select: vi.fn(() => ({
-        from: vi.fn(() => ({ where: vi.fn(() => ({ for: lock })) })),
+        from: vi.fn(() => ({
+          where: vi.fn(() => ({
+            orderBy: vi.fn(() => ({ limit: vi.fn(() => ({ for: lock })) })),
+          })),
+        })),
       })),
       insert: vi.fn(),
     }
@@ -102,7 +113,11 @@ describe("inquiry first-response overdue scan", () => {
       select: vi.fn(() => ({
         from: vi.fn(() => ({
           where: vi.fn(() => ({
-            for: vi.fn(async () => [{ id: "inq_1", firstResponseDueAt: dueAt }]),
+            orderBy: vi.fn(() => ({
+              limit: vi.fn(() => ({
+                for: vi.fn(async () => [{ id: "inq_1", firstResponseDueAt: dueAt }]),
+              })),
+            })),
           })),
         })),
       })),

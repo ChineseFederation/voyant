@@ -37,6 +37,7 @@ import {
 import { sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import { relationshipsInquiryOverdueJobRuntimePort } from "./inquiry-overdue-job-runtime-port.js"
+import type { InquiryFirstResponseSlaConfiguration } from "./inquiry-sla-policy.js"
 import { createPublicApiIntakePersistence } from "./public-api-intake-runtime.js"
 import type { RelationshipsRouteRuntimeOptions } from "./route-runtime.js"
 import {
@@ -259,6 +260,12 @@ export function createRelationshipsRuntimePortContribution(
     [customFieldValueLifecycleRuntimePort.id]: relationshipCustomFieldValues,
     [customFieldValueOperationsRuntimePort.id]: relationshipCustomFieldValueOperations,
     [relationshipsRouteRuntimePort.id]: {
+      resolveInquiryFirstResponseSla: (bindings) => {
+        const configured = host.primitives.config.read(bindings, "inquiryFirstResponseSla")
+        return configured && typeof configured === "object"
+          ? (configured as InquiryFirstResponseSlaConfiguration)
+          : undefined
+      },
       customFields: async (db) =>
         (await customFieldsRuntime).resolveRegistry(db as PostgresJsDatabase),
       customFieldsForWrite: async (db, entity) =>

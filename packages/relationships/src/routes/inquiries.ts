@@ -270,10 +270,14 @@ inquiryRoutes.openapi(listRoute, async (c) => {
 inquiryRoutes.openapi(createRouteDefinition, async (c) => {
   const actorId = requireUserId(c)
   try {
+    const runtime = c.get("container")?.resolve(RELATIONSHIPS_ROUTE_RUNTIME_CONTAINER_KEY) as
+      | RelationshipsRouteRuntime
+      | undefined
     const result = await relationshipsService.createInquiry(
       c.get("db"),
       await parseJsonBody(c, createInquirySchema),
       actorId,
+      { slaPolicy: runtime?.inquiryFirstResponseSlaPolicy },
     )
     const body = {
       data: await withTargets(c.get("db"), requireLink(c), result.inquiry),

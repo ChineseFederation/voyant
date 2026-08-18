@@ -1,6 +1,6 @@
 import type { VoyantGraphRuntimeFactoryContext } from "@voyant-travel/core/project"
 import { insertOutboxEvents } from "@voyant-travel/db/outbox"
-import { and, isNull, lt, notInArray } from "drizzle-orm"
+import { and, asc, isNull, lt, notInArray } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 
 import { INQUIRY_FIRST_RESPONSE_OVERDUE_EVENT } from "./events.js"
@@ -10,6 +10,7 @@ import { inquiries, inquirySlaEvents } from "./schema.js"
 export { relationshipsInquiryOverdueJobRuntimePort } from "./inquiry-overdue-job-runtime-port.js"
 
 type InsertEvents = typeof insertOutboxEvents
+const OVERDUE_SCAN_BATCH_SIZE = 100
 
 export async function emitFirstResponseOverdueEvents(
   db: PostgresJsDatabase,
@@ -27,6 +28,8 @@ export async function emitFirstResponseOverdueEvents(
           notInArray(inquiries.status, ["converted", "closed"]),
         ),
       )
+      .orderBy(asc(inquiries.firstResponseDueAt), asc(inquiries.id))
+      .limit(OVERDUE_SCAN_BATCH_SIZE)
       // Serialize against the record-first-response command, which locks the
       // same Inquiry before stamping it. Concurrent scans skip one another.
       .for("update", { skipLocked: true })

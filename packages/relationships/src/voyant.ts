@@ -154,6 +154,17 @@ const inquiryTargetChangedPayloadSchema = {
   additionalProperties: false,
 } as const
 
+const inquiryFirstResponseRecordedPayloadSchema = {
+  type: "object",
+  required: ["id", "actorId", "firstRespondedAt"],
+  properties: {
+    id: { type: "string" },
+    actorId: { type: "string" },
+    firstRespondedAt: { type: "string", format: "date-time" },
+  },
+  additionalProperties: false,
+} as const
+
 /** Import-cheap deployment declaration owned by the relationships package. */
 export const relationshipsVoyantModule = defineModule({
   id: "@voyant-travel/relationships",
@@ -321,6 +332,14 @@ export const relationshipsVoyantModule = defineModule({
         },
         additionalProperties: false,
       },
+      visibility: "internal",
+      audit: { sourceModule: "relationships", category: "domain" },
+    },
+    {
+      id: "@voyant-travel/relationships#event.inquiry.first-response-recorded",
+      eventType: "inquiry.first_response_recorded",
+      version: "1.0.0",
+      payloadSchema: inquiryFirstResponseRecordedPayloadSchema,
       visibility: "internal",
       audit: { sourceModule: "relationships", category: "domain" },
     },

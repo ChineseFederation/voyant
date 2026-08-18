@@ -5,6 +5,7 @@ export const INQUIRY_UPDATED_EVENT = "inquiry.updated" as const
 export const INQUIRY_ASSIGNED_EVENT = "inquiry.assigned" as const
 export const INQUIRY_STATUS_CHANGED_EVENT = "inquiry.status_changed" as const
 export const INQUIRY_FIRST_RESPONSE_OVERDUE_EVENT = "inquiry.first_response_overdue" as const
+export const INQUIRY_FIRST_RESPONSE_RECORDED_EVENT = "inquiry.first_response_recorded" as const
 export const INQUIRY_CLOSED_EVENT = "inquiry.closed" as const
 export const INQUIRY_REOPENED_EVENT = "inquiry.reopened" as const
 export const INQUIRY_CONVERTED_EVENT = "inquiry.converted" as const
@@ -33,6 +34,10 @@ export interface InquiryClosedEvent extends InquiryEvent {
 export interface InquiryFirstResponseOverdueEvent {
   id: string
   firstResponseDueAt: string
+}
+
+export interface InquiryFirstResponseRecordedEvent extends InquiryEvent {
+  firstRespondedAt: string
 }
 
 export interface InquiryConvertedEvent extends InquiryEvent {

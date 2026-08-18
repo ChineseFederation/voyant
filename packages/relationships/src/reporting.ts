@@ -39,7 +39,7 @@ const expressions: Record<FieldId, SQL> = {
   overdueCount: sql`CASE WHEN ${inquiries.nextActionAt} < now() AND ${inquiries.status} NOT IN ('converted', 'closed') THEN 1 ELSE 0 END`,
   firstResponseMinutes: sql`EXTRACT(EPOCH FROM (${inquiries.firstRespondedAt} - ${inquiries.createdAt})) / 60.0`,
   firstResponseSlaMetCount: sql`CASE WHEN ${inquiries.firstRespondedAt} IS NOT NULL AND ${inquiries.firstResponseDueAt} IS NOT NULL AND ${inquiries.firstRespondedAt} <= ${inquiries.firstResponseDueAt} THEN 1 ELSE 0 END`,
-  firstResponseSlaEligibleCount: sql`CASE WHEN ${inquiries.firstRespondedAt} IS NOT NULL AND ${inquiries.firstResponseDueAt} IS NOT NULL THEN 1 ELSE 0 END`,
+  firstResponseSlaEligibleCount: sql`CASE WHEN ${inquiries.firstResponseDueAt} IS NOT NULL AND (${inquiries.firstRespondedAt} IS NOT NULL OR ${inquiries.firstResponseDueAt} <= now()) THEN 1 ELSE 0 END`,
   qualificationCount: sql`CASE WHEN ${inquiries.qualifiedAt} IS NOT NULL THEN 1 ELSE 0 END`,
   ageDays: sql`EXTRACT(EPOCH FROM (COALESCE(${inquiries.closedAt}, ${inquiries.convertedAt}, now()) - ${inquiries.createdAt})) / 86400.0`,
 }
@@ -212,18 +212,20 @@ function aggregateExpression(
 ): SQL {
   if (!selection.field) {
     if (selection.operation !== "count") throw new Error(`${selection.operation} requires a field.`)
-    return sql`COUNT(*)::double precision`
+    return sql`COUNT(*)::integer`
   }
   const field = requireField(selection.field)
   if (!field.definition.aggregations.includes(selection.operation as never))
     throw new Error(`${selection.field} does not support ${selection.operation}.`)
   switch (selection.operation) {
     case "count":
-      return sql`COUNT(${field.expression})::double precision`
+      return sql`COUNT(${field.expression})::integer`
     case "countDistinct":
-      return sql`COUNT(DISTINCT ${field.expression})::double precision`
+      return sql`COUNT(DISTINCT ${field.expression})::integer`
     case "sum":
-      return sql`SUM(${field.expression})::double precision`
+      return field.definition.valueType === "integer"
+        ? sql`SUM(${field.expression})::integer`
+        : sql`SUM(${field.expression})::double precision`
     case "average":
       return sql`AVG(${field.expression})::double precision`
     case "minimum":
@@ -239,7 +241,6 @@ function aggregateValueType(
 ): ReportDatasetField["valueType"] {
   if (selection.operation === "count" || selection.operation === "countDistinct") return "integer"
   if (selection.operation === "average") return "number"
-  if (selection.operation === "sum" && definition?.valueType !== "currency") return "number"
   return definition?.valueType ?? "integer"
 }
 
@@ -268,6 +269,7 @@ function compileFilter(filter: ReportQuery["filters"][number], parameters: Repor
   }
   if (filter.operator === "between") {
     if (!Array.isArray(value) || value.length !== 2) throw new Error("between requires two values.")
+    requireOrderedField(field.definition, filter.operator)
     return sql`${field.expression} BETWEEN ${scalar(field.definition, value[0]!)} AND ${scalar(field.definition, value[1]!)}`
   }
   if (Array.isArray(value)) throw new Error(`${filter.operator} requires a scalar.`)

@@ -1,10 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import {
-  INQUIRIES_ADMIN_PATH,
-  INQUIRY_DETAIL_DESTINATION,
-  inquiryDetailAdminPath,
-} from "./inquiry-navigation.js"
+import { INQUIRY_DETAIL_DESTINATION } from "./inquiry-navigation.js"
 import {
   assignInquirySchema,
   closeInquirySchema,
@@ -28,16 +24,19 @@ describe("Inquiry contracts", () => {
 
   it("owns the import-cheap semantic detail destination", () => {
     expect(INQUIRY_DETAIL_DESTINATION).toBe("inquiry.detail")
-    expect(INQUIRIES_ADMIN_PATH).toBe("/inquiries")
-    expect(inquiryDetailAdminPath("inq/one")).toBe("/inquiries/inq%2Fone")
   })
 
   it("applies safe defaults to admin capture", () => {
-    expect(createInquirySchema.parse(base)).toMatchObject({
+    const parsed = createInquirySchema.parse({
+      ...base,
+      firstResponseDueAt: "2099-01-01T00:00:00.000Z",
+    })
+    expect(parsed).toMatchObject({
       priority: "normal",
       tags: [],
       customFields: {},
     })
+    expect(parsed).not.toHaveProperty("firstResponseDueAt")
   })
 
   it("requires at least one submitted contact detail", () => {

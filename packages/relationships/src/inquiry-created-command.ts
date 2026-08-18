@@ -5,6 +5,7 @@ import {
 import type { CreateInquiryInput } from "@voyant-travel/relationships-contracts"
 import type { ToolHandlerActionPolicyContext } from "@voyant-travel/tools"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
+import type { InquiryFirstResponseSlaPolicy } from "./inquiry-sla-policy.js"
 
 import { RELATIONSHIPS_INQUIRY_CREATED_TARGET_POLICY as POLICY } from "./created-target-policy.js"
 import { relationshipsService } from "./service/index.js"
@@ -20,6 +21,7 @@ export async function executeInquiryCreateCommand(input: {
   commandInput: InquiryCreateCommandInput
   admitted: ToolHandlerActionPolicyContext
   idempotencyKey: string
+  slaPolicy?: InquiryFirstResponseSlaPolicy
 }) {
   return executeAdmittedCreatedTargetCommand(
     {
@@ -43,6 +45,7 @@ export async function executeInquiryCreateCommand(input: {
             sourceRef: `tool:${input.idempotencyKey}`,
           },
           input.commandInput.actorId,
+          { slaPolicy: input.slaPolicy },
         )
         return {
           value: { id: result.inquiry.id },

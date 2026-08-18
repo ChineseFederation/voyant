@@ -116,7 +116,6 @@ export const createInquirySchema = z.object({
   teamId: z.string().min(1).nullable().optional(),
   unassignedReason: z.string().trim().min(1).max(500).nullable().optional(),
   nextActionAt: z.string().datetime().nullable().optional(),
-  firstResponseDueAt: z.string().datetime().nullable().optional(),
   travelBrief: inquiryTravelBriefV1Schema.nullable().optional(),
   customerMessage: z.string().max(20_000).nullable().optional(),
   internalSummary: z.string().max(10_000).nullable().optional(),
@@ -379,6 +378,7 @@ export type AddInquiryTargetInput = z.infer<typeof addInquiryTargetSchema>
 export type InquiryTargetRecord = z.infer<typeof inquiryTargetRecordSchema>
 export type InquiryStatus = z.infer<typeof inquiryStatusSchema>
 export type InquiryPriority = z.infer<typeof inquiryPrioritySchema>
+export type InquirySource = z.infer<typeof inquirySourceSchema>
 export type InquiryCloseOutcome = z.infer<typeof inquiryCloseOutcomeSchema>
 export type InquiryTravelBriefV1 = z.infer<typeof inquiryTravelBriefV1Schema>
 export type CreateInquiryInput = z.infer<typeof createInquirySchema>

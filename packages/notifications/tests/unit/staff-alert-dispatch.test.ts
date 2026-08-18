@@ -68,6 +68,7 @@ function runtime(): StaffAlertRuntime {
     dispatcher: {} as StaffAlertRuntime["dispatcher"],
     resolvers: { "staff.booking.confirmed": resolver },
     resolveBrand: async () => brand,
+    resolveAdminDestination: () => "/",
   }
 }
 

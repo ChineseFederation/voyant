@@ -20,7 +20,7 @@ import { bookingInquiriesService, bookingsService } from "@voyant-travel/booking
 import { financeInvoiceCoreService } from "@voyant-travel/finance/service-invoice-core"
 import { getOperatorProfile } from "@voyant-travel/operator-settings/service"
 import { relationshipsService } from "@voyant-travel/relationships"
-import { inquiryDetailAdminPath } from "@voyant-travel/relationships-contracts"
+import { INQUIRY_DETAIL_DESTINATION } from "@voyant-travel/relationships-contracts"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 
 import {
@@ -296,9 +296,12 @@ function inquiryResolver<
 ): StaffAlertContextResolver<K> {
   return {
     eventKey,
-    async resolve({ db, payload }) {
+    async resolve({ db, payload, resolveAdminDestination }) {
       const inquiryId = asString(payload.id)
       if (!inquiryId) return null
+      if (!resolveAdminDestination) {
+        throw new Error("Inquiry staff alerts require an admin destination resolver.")
+      }
       const inquiry = await relationshipsService.getInquiry(db as PostgresJsDatabase, inquiryId)
       if (!inquiry) return null
       const assignedOwnerId = payload.ownerId === null ? null : asString(payload.ownerId)
@@ -307,7 +310,7 @@ function inquiryResolver<
       const name = asString(snapshot.name) ?? asString(snapshot.email) ?? asString(snapshot.phone)
 
       return {
-        adminPath: inquiryDetailAdminPath(inquiryId),
+        adminPath: resolveAdminDestination(INQUIRY_DETAIL_DESTINATION, { inquiryId }),
         assigneeUserId: eventKey === "staff.inquiry.assigned" ? assignedOwnerId : inquiry.ownerId,
         actorUserId: asString(payload.actorId),
         inquiryId,

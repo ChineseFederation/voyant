@@ -56,11 +56,10 @@ export const voyantToolContextContribution = defineToolContextContribution({
       targets: await relationshipsService.listInquiryTargets(db, inquiryTargetLinks, inquiry.id),
     })
     const eventBus = c.get("eventBus")
-    const proposalInquiryConversion = (
-      c.get("container")?.resolve(RELATIONSHIPS_ROUTE_RUNTIME_CONTAINER_KEY) as
-        | RelationshipsRouteRuntime
-        | undefined
-    )?.proposalInquiryConversion
+    const relationshipsRuntime = c
+      .get("container")
+      ?.resolve(RELATIONSHIPS_ROUTE_RUNTIME_CONTAINER_KEY) as RelationshipsRouteRuntime | undefined
+    const proposalInquiryConversion = relationshipsRuntime?.proposalInquiryConversion
     const requestContext = relationshipsActionLedgerContext(c)
     const authorId = () => {
       const id = c.get("userId") ?? c.get("apiTokenId") ?? c.get("apiKeyId")
@@ -289,6 +288,7 @@ export const voyantToolContextContribution = defineToolContextContribution({
             commandInput: { inquiry: input, actorId },
             admitted: withServerResolvedIdempotencyKey(admitted, idempotencyKey),
             idempotencyKey,
+            slaPolicy: relationshipsRuntime?.inquiryFirstResponseSlaPolicy,
           })
           const inquiry = await relationshipsService.getInquiry(db, result.value.id)
           if (!inquiry) {

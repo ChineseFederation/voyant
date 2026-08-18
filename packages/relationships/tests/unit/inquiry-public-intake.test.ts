@@ -50,6 +50,7 @@ describe("public Inquiry intake", () => {
         customFields: { relationships: { sourceChannelId: "channel-1" } },
       }),
       "storefront:channel-1",
+      { slaPolicy: undefined },
     )
     expect(addTarget).toHaveBeenCalledWith(
       tx,
@@ -121,6 +122,7 @@ describe("public Inquiry intake", () => {
       expect.anything(),
       expect.objectContaining({ personId: "per_canonical" }),
       "customer:user-1",
+      { slaPolicy: undefined },
     )
   })
 })

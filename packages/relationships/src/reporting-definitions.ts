@@ -179,8 +179,8 @@ export const INQUIRY_ACTIVITY_FIELDS = [
   },
   {
     id: "firstResponseSlaEligibleCount",
-    label: "Completed first-response SLAs",
-    description: "Responses with both a frozen due time and a recorded response.",
+    label: "Elapsed first-response SLAs",
+    description: "Frozen deadlines with a recorded response or an elapsed unanswered deadline.",
     role: "measure",
     valueType: "integer",
     sensitivity: "internal",

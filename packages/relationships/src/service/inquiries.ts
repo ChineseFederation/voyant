@@ -35,12 +35,17 @@ import {
   INQUIRY_ASSIGNED_EVENT,
   INQUIRY_CLOSED_EVENT,
   INQUIRY_CREATED_EVENT,
+  INQUIRY_FIRST_RESPONSE_RECORDED_EVENT,
   INQUIRY_REOPENED_EVENT,
   INQUIRY_STATUS_CHANGED_EVENT,
   INQUIRY_TARGET_ADDED_EVENT,
   INQUIRY_TARGET_REMOVED_EVENT,
   INQUIRY_UPDATED_EVENT,
 } from "../events.js"
+import {
+  firstResponseDueAtForInquiry,
+  type InquiryFirstResponseSlaPolicy,
+} from "../inquiry-sla-policy.js"
 import {
   type Inquiry,
   inquiries,
@@ -138,6 +143,8 @@ async function lockedInquiry(db: PostgresJsDatabase, id: string) {
 type InquiryMutationTestHooks = {
   /** Test-only rollback seam between the domain write and its outbox write. */
   beforeOutbox?: (tx: PostgresJsDatabase) => Promise<void>
+  /** Deployment-resolved source × priority SLA policy. */
+  slaPolicy?: InquiryFirstResponseSlaPolicy
 }
 
 type InquiryTargetMutationTestHooks = {
@@ -205,6 +212,7 @@ export const inquiriesService = {
       channelId: string
       relationshipPersonId?: string | null
       targetValidation?: InquiryTargetValidationRuntime
+      slaPolicy?: InquiryFirstResponseSlaPolicy
     },
   ) {
     for (const target of input.targets) targetLinkFor(target.kind)
@@ -226,6 +234,7 @@ export const inquiriesService = {
           },
         },
         context.actorId,
+        { slaPolicy: context.slaPolicy },
       )
       if (!result.replayed) {
         for (const target of targets) {
@@ -521,12 +530,21 @@ export const inquiriesService = {
     requireActor(actorId)
     return db.transaction(async (tx) => {
       await assertRelatedRecords(tx, input)
-      const { firstResponseDueAt, nextActionAt, ...values } = input
+      const { nextActionAt, ...values } = input
+      const createdAt = new Date()
+      const firstResponseDueAt = firstResponseDueAtForInquiry({
+        source: input.source,
+        priority: input.priority,
+        createdAt,
+        policy: testHooks?.slaPolicy,
+      })
       const [created] = await tx
         .insert(inquiries)
         .values({
           ...values,
-          ...updateDates({ firstResponseDueAt, nextActionAt }),
+          ...updateDates({ nextActionAt }),
+          createdAt,
+          firstResponseDueAt,
           personId: input.personId ?? null,
           organizationId: input.organizationId ?? null,
           ownerId: input.ownerId ?? null,
@@ -630,7 +648,11 @@ export const inquiriesService = {
         throw new InquiryServiceError("INQUIRY_NOT_FOUND", "Inquiry not found")
       }
       await testHooks?.beforeOutbox?.(tx)
-      await writeInquiryEvent(tx, INQUIRY_UPDATED_EVENT, { id, actorId })
+      await writeInquiryEvent(tx, INQUIRY_FIRST_RESPONSE_RECORDED_EVENT, {
+        id,
+        actorId,
+        firstRespondedAt: now.toISOString(),
+      })
       return row
     })
   },

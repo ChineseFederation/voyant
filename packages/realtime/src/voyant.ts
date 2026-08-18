@@ -130,6 +130,10 @@ export const realtimeVoyantModule = defineModule({
     ["inquiry.assigned", "realtimeInquiryAssignedInvalidationSubscriber"],
     ["inquiry.status_changed", "realtimeInquiryStatusChangedInvalidationSubscriber"],
     ["inquiry.first_response_overdue", "realtimeInquiryFirstResponseOverdueInvalidationSubscriber"],
+    [
+      "inquiry.first_response_recorded",
+      "realtimeInquiryFirstResponseRecordedInvalidationSubscriber",
+    ],
     ["inquiry.converted", "realtimeInquiryConvertedInvalidationSubscriber"],
     ["inquiry.closed", "realtimeInquiryClosedInvalidationSubscriber"],
     ["inquiry.reopened", "realtimeInquiryReopenedInvalidationSubscriber"],

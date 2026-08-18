@@ -371,8 +371,15 @@ export interface StaffAlertContextResolver<K extends StaffAlertEventKey = StaffA
   resolve(input: {
     db: unknown
     payload: Record<string, unknown>
+    resolveAdminDestination?: StaffAlertAdminDestinationResolver
   }): Promise<StaffAlertContextMap[K] | null>
 }
+
+/** Deployment-owned semantic admin navigation resolver. */
+export type StaffAlertAdminDestinationResolver = (
+  destination: string,
+  params: Readonly<Record<string, string>>,
+) => string
 
 export type StaffAlertContextResolverRegistry = {
   readonly [K in StaffAlertEventKey]?: StaffAlertContextResolver<K>

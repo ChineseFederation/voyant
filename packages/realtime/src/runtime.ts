@@ -34,6 +34,7 @@ export const realtimeInvalidationRoutes = {
   "inquiry.assigned": (event) => adminHint("inquiry", firstId(event, "id")),
   "inquiry.status_changed": (event) => adminHint("inquiry", firstId(event, "id")),
   "inquiry.first_response_overdue": (event) => adminHint("inquiry", firstId(event, "id")),
+  "inquiry.first_response_recorded": (event) => adminHint("inquiry", firstId(event, "id")),
   "inquiry.converted": (event) => adminHint("inquiry", firstId(event, "id")),
   "inquiry.closed": (event) => adminHint("inquiry", firstId(event, "id")),
   "inquiry.reopened": (event) => adminHint("inquiry", firstId(event, "id")),
@@ -103,6 +104,9 @@ export const realtimeInquiryStatusChangedInvalidationSubscriber =
   invalidationSubscriber("inquiry.status_changed")
 export const realtimeInquiryFirstResponseOverdueInvalidationSubscriber = invalidationSubscriber(
   "inquiry.first_response_overdue",
+)
+export const realtimeInquiryFirstResponseRecordedInvalidationSubscriber = invalidationSubscriber(
+  "inquiry.first_response_recorded",
 )
 export const realtimeInquiryConvertedInvalidationSubscriber =
   invalidationSubscriber("inquiry.converted")

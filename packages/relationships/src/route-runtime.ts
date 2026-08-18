@@ -5,6 +5,11 @@ import type { InquiryMaterializedTargetKind } from "@voyant-travel/relationships
 import { createKmsProviderFromEnv, type KmsProvider } from "@voyant-travel/utils"
 
 import type { RelationshipsPersonNotificationsRuntime } from "./runtime-port.js"
+import {
+  createInquiryFirstResponseSlaPolicy,
+  type InquiryFirstResponseSlaConfiguration,
+  type InquiryFirstResponseSlaPolicy,
+} from "./inquiry-sla-policy.js"
 
 export const RELATIONSHIPS_ROUTE_RUNTIME_CONTAINER_KEY = "runtime.relationships.routes"
 
@@ -48,6 +53,7 @@ export interface RelationshipsRouteRuntime {
   proposalInquiryConversion?: ProposalInquiryConversionRuntime
   inquiryTargetValidation?: InquiryTargetValidationRuntime
   inquiryBookingSession?: CatalogInquiryBookingSessionRuntime
+  inquiryFirstResponseSlaPolicy: InquiryFirstResponseSlaPolicy
 }
 
 export interface RelationshipsRouteRuntimeOptions {
@@ -58,6 +64,9 @@ export interface RelationshipsRouteRuntimeOptions {
   proposalInquiryConversion?: ProposalInquiryConversionRuntime
   inquiryTargetValidation?: InquiryTargetValidationRuntime
   inquiryBookingSession?: CatalogInquiryBookingSessionRuntime
+  resolveInquiryFirstResponseSla?: (
+    bindings: Record<string, unknown>,
+  ) => InquiryFirstResponseSlaConfiguration | undefined
 }
 
 function buildRuntimeEnv(bindings: Record<string, unknown>): Record<string, string | undefined> {
@@ -100,5 +109,8 @@ export function buildRelationshipsRouteRuntime(
     proposalInquiryConversion: options.proposalInquiryConversion,
     inquiryTargetValidation: options.inquiryTargetValidation,
     inquiryBookingSession: options.inquiryBookingSession,
+    inquiryFirstResponseSlaPolicy: createInquiryFirstResponseSlaPolicy(
+      options.resolveInquiryFirstResponseSla?.(bindings),
+    ),
   }
 }

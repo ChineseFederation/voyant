@@ -222,15 +222,59 @@ describe.skipIf(!DB_AVAILABLE)("inquiriesService", () => {
       "user_1",
     )
     const first = await inquiriesService.recordFirstResponse(db, inquiry.id, "user_2")
+    expect(inquiry.firstResponseDueAt?.getTime() - inquiry.createdAt.getTime()).toBe(
+      8 * 60 * 60 * 1_000,
+    )
     const replay = await inquiriesService.recordFirstResponse(db, inquiry.id, "user_3")
     expect(first.firstRespondedAt).toBeInstanceOf(Date)
     expect(replay.firstRespondedAt).toEqual(first.firstRespondedAt)
     const events = (await db.select().from(eventOutboxTable)).filter(
       ({ name, payload }: { name: string; payload: { id?: string } }) =>
-        name === "inquiry.updated" && payload.id === inquiry.id,
+        name === "inquiry.first_response_recorded" && payload.id === inquiry.id,
     )
     expect(events).toHaveLength(1)
-    expect(events[0]?.payload).toEqual({ id: inquiry.id, actorId: "user_2" })
+    expect(events[0]?.payload).toEqual({
+      id: inquiry.id,
+      actorId: "user_2",
+      firstRespondedAt: first.firstRespondedAt?.toISOString(),
+    })
+  })
+
+  it("freezes default public and deployment-configured admin SLA deadlines", async () => {
+    const publicResult = await inquiriesService.createPublicInquiry(
+      db,
+      {
+        sourceRef: "public-sla",
+        subject: "Public SLA",
+        kind: "general",
+        contactSnapshot: { email: "public-sla@example.com" },
+        targets: [],
+        tags: [],
+        customFields: {},
+      },
+      { actorId: "storefront:channel-1", channelId: "channel-1" },
+    )
+    expect(
+      publicResult.inquiry.firstResponseDueAt!.getTime() - publicResult.inquiry.createdAt.getTime(),
+    ).toBe(24 * 60 * 60 * 1_000)
+
+    const adminResult = await inquiriesService.createInquiry(
+      db,
+      {
+        subject: "Configured SLA",
+        kind: "general",
+        priority: "normal",
+        contactSnapshot: { email: "configured-sla@example.com" },
+        source: "admin",
+        tags: [],
+        customFields: {},
+      },
+      "user_1",
+      { slaPolicy: () => 45 },
+    )
+    expect(
+      adminResult.inquiry.firstResponseDueAt!.getTime() - adminResult.inquiry.createdAt.getTime(),
+    ).toBe(45 * 60 * 1_000)
   })
 
   it("enforces triage, follow-up, and qualification invariants", async () => {

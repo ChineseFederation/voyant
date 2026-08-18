@@ -7,10 +7,7 @@ import {
   type SelectedAdminExtensionFactoryContext,
   withAdminRouteMessagesProvider,
 } from "@voyant-travel/admin"
-import {
-  INQUIRIES_ADMIN_PATH,
-  INQUIRY_DETAIL_DESTINATION,
-} from "@voyant-travel/relationships-contracts"
+import { INQUIRY_DETAIL_DESTINATION } from "@voyant-travel/relationships-contracts"
 import { Building, ClipboardList, Users } from "lucide-react"
 
 // Lean statics only: the client module (fetcher) and the skeletons. Query
@@ -119,7 +116,7 @@ export function createRelationshipsAdminExtension(
   const {
     peopleBasePath = "/people",
     organizationsBasePath = "/organizations",
-    inquiriesBasePath = INQUIRIES_ADMIN_PATH,
+    inquiriesBasePath = "/inquiries",
     labels = {},
   } = options
   const { people = "People", organizations = "Organizations", inquiries = "Inquiries" } = labels

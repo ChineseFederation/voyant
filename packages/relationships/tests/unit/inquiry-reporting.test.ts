@@ -88,7 +88,7 @@ describe("inquiry activity reporting", () => {
     )
     expect(result.columns).toEqual([
       { id: "averageResponseMinutes", label: "averageResponseMinutes", valueType: "number" },
-      { id: "overdue", label: "overdue", valueType: "number" },
+      { id: "overdue", label: "overdue", valueType: "integer" },
     ])
     expect(result.rows).toEqual([{ averageResponseMinutes: 12.5, overdue: 1 }])
     const compiled = new PgDialect().sqlToQuery(statement!)
@@ -118,6 +118,65 @@ describe("inquiry activity reporting", () => {
     await expect(
       inquiryActivityDataset.execute({ db: { execute }, grantedScopes: ["crm:read"] }, input),
     ).rejects.toThrow("greaterThan is not supported for string fields")
+    expect(execute).not.toHaveBeenCalled()
+  })
+
+  it("counts elapsed unanswered deadlines in the SLA denominator", async () => {
+    let statement: SQL | undefined
+    const execute = vi.fn(async (query: SQL) => {
+      statement = query
+      return [{ report_column_0: "1" }]
+    })
+    await inquiryActivityDataset.execute(
+      { db: { execute }, grantedScopes: ["crm:read"] },
+      {
+        query: {
+          dataset: { id: INQUIRY_ACTIVITY_DATASET_ID },
+          select: [
+            {
+              kind: "aggregate",
+              operation: "sum",
+              field: "firstResponseSlaEligibleCount",
+              as: "eligible",
+            },
+          ],
+          filters: [],
+          groupBy: [],
+          orderBy: [],
+        },
+        parameters: {},
+        maximumRows: 1,
+      },
+    )
+    expect(new PgDialect().sqlToQuery(statement!).sql).toContain(
+      '"inquiries"."first_response_due_at" <= now()',
+    )
+  })
+
+  it("rejects between on unordered fields before querying", async () => {
+    const execute = vi.fn()
+    await expect(
+      inquiryActivityDataset.execute(
+        { db: { execute }, grantedScopes: ["crm:read"] },
+        {
+          query: {
+            dataset: { id: INQUIRY_ACTIVITY_DATASET_ID },
+            select: [{ kind: "field", field: "status" }],
+            filters: [
+              {
+                field: "status",
+                operator: "between",
+                value: { kind: "literal", value: ["new", "triaged"] },
+              },
+            ],
+            groupBy: [],
+            orderBy: [],
+          },
+          parameters: {},
+          maximumRows: 1,
+        },
+      ),
+    ).rejects.toThrow("between is not supported for string fields")
     expect(execute).not.toHaveBeenCalled()
   })
 })
