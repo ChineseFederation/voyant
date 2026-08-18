@@ -974,7 +974,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "postPublicBookingsInquiries",
+        "summary": "POST /v1/public/bookings/inquiries",
+        "tags": ["bookings"],
+        "x-voyant-module": "bookings",
+        "x-voyant-surface": "public-api"
       }
     },
     "/v1/public/bookings/overview": {
@@ -1402,7 +1407,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getPublicBookingsOverview",
+        "summary": "GET /v1/public/bookings/overview",
+        "tags": ["bookings"],
+        "x-voyant-module": "bookings",
+        "x-voyant-surface": "public-api"
       }
     },
     "/v1/public/bookings/guest-lookup": {
@@ -1829,7 +1839,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "postPublicBookingsGuestLookup",
+        "summary": "POST /v1/public/bookings/guest-lookup",
+        "tags": ["bookings"],
+        "x-voyant-module": "bookings",
+        "x-voyant-surface": "public-api"
       }
     },
     "/v1/public/bookings/{bookingId}/amendments/traveler-corrections/preview": {
@@ -2025,7 +2040,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "postPublicBookingsByBookingIdAmendmentsTravelerCorrectionsPreview",
+        "summary": "POST /v1/public/bookings/{bookingId}/amendments/traveler-corrections/preview",
+        "tags": ["bookings"],
+        "x-voyant-module": "bookings",
+        "x-voyant-surface": "public-api"
       }
     },
     "/v1/public/bookings/{bookingId}/amendments/traveler-roster/preview": {
@@ -2275,7 +2295,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "postPublicBookingsByBookingIdAmendmentsTravelerRosterPreview",
+        "summary": "POST /v1/public/bookings/{bookingId}/amendments/traveler-roster/preview",
+        "tags": ["bookings"],
+        "x-voyant-module": "bookings",
+        "x-voyant-surface": "public-api"
       }
     },
     "/v1/public/bookings/{bookingId}/amendments": {
@@ -2337,7 +2362,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getPublicBookingsByBookingIdAmendments",
+        "summary": "GET /v1/public/bookings/{bookingId}/amendments",
+        "tags": ["bookings"],
+        "x-voyant-module": "bookings",
+        "x-voyant-surface": "public-api"
       }
     },
     "/v1/public/bookings/{bookingId}/amendments/{amendmentId}": {
@@ -2430,7 +2460,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getPublicBookingsByBookingIdAmendmentsByAmendmentId",
+        "summary": "GET /v1/public/bookings/{bookingId}/amendments/{amendmentId}",
+        "tags": ["bookings"],
+        "x-voyant-module": "bookings",
+        "x-voyant-surface": "public-api"
       }
     },
     "/v1/public/bookings/{bookingId}/amendments/{amendmentId}/accept": {
@@ -2592,7 +2627,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "postPublicBookingsByBookingIdAmendmentsByAmendmentIdAccept",
+        "summary": "POST /v1/public/bookings/{bookingId}/amendments/{amendmentId}/accept",
+        "tags": ["bookings"],
+        "x-voyant-module": "bookings",
+        "x-voyant-surface": "public-api"
       }
     },
     "/v1/public/bookings/{bookingId}/amendments/{amendmentId}/apply": {
@@ -2746,7 +2786,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "postPublicBookingsByBookingIdAmendmentsByAmendmentIdApply",
+        "summary": "POST /v1/public/bookings/{bookingId}/amendments/{amendmentId}/apply",
+        "tags": ["bookings"],
+        "x-voyant-module": "bookings",
+        "x-voyant-surface": "public-api"
       }
     },
     "/v1/public/bookings/{bookingId}/amendments/{amendmentId}/reconcile": {
@@ -2879,7 +2924,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "postPublicBookingsByBookingIdAmendmentsByAmendmentIdReconcile",
+        "summary": "POST /v1/public/bookings/{bookingId}/amendments/{amendmentId}/reconcile",
+        "tags": ["bookings"],
+        "x-voyant-module": "bookings",
+        "x-voyant-surface": "public-api"
       }
     },
     "/v1/public/bookings/{bookingId}/actions": {
@@ -3008,7 +3058,10 @@
           "501": {
             "description": "Booking action projection is not selected"
           }
-        }
+        },
+        "operationId": "getPublicBookingsByBookingIdActions",
+        "x-voyant-module": "bookings",
+        "x-voyant-surface": "public-api"
       }
     }
   },

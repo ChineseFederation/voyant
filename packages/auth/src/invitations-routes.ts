@@ -33,7 +33,11 @@ const createInviteSchema = z.object({
 
 const redeemInviteSchema = z.object({
   name: z.string().min(1).max(200),
-  password: z.string().min(8).max(128),
+  // `writeOnly` is not decoration: it tells every consumer of this contract that
+  // the field is accepted and never returned. The published document carried it
+  // and the schema did not, so generating from the schema would have dropped a
+  // security-relevant statement about a password field.
+  password: z.string().min(8).max(128).openapi({ writeOnly: true }),
 })
 
 const invitationAdminApiId = "@voyant-travel/auth#invitations.api.admin"

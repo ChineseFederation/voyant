@@ -4,23 +4,6 @@
  */
 
 export interface paths {
-  "/v1/admin/catalog/search": {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    get?: never
-    put?: never
-    /** POST /v1/admin/catalog/search */
-    post: operations["postAdminCatalogSearch"]
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
   "/v1/admin/catalog/package-offers": {
     parameters: {
       query?: never
@@ -123,6 +106,23 @@ export interface paths {
     patch?: never
     trace?: never
   }
+  "/v1/admin/catalog/search": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** POST /v1/admin/catalog/search */
+    post: operations["postAdminCatalogSearch"]
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
 }
 export type webhooks = Record<string, never>
 export interface components {
@@ -166,175 +166,6 @@ export interface components {
 }
 export type $defs = Record<string, never>
 export interface operations {
-  postAdminCatalogSearch: {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    requestBody: {
-      content: {
-        "application/json": {
-          vertical?: string
-          query?: string
-          /** @enum {string} */
-          mode?: "keyword" | "semantic" | "hybrid"
-          /** @enum {string} */
-          sort?: "relevance" | "price-asc" | "price-desc" | "departure-asc" | "newest"
-          /** @enum {string} */
-          projection?: "raw" | "storefront-card"
-          filters?: components["schemas"]["CatalogSearchFilter"][]
-          facets?: {
-            field: string
-            limit?: number
-          }[]
-          pagination?: {
-            limit?: number
-            cursor?: string
-          }
-          alpha?: number
-          distance_threshold?: number
-          query_embedding?: number[]
-          market?: string
-          locale?: string
-          channel?: string
-        }
-      }
-    }
-    responses: {
-      /** @description Search results for the requested vertical slice */
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          "application/json": {
-            vertical: string
-            /** @enum {string} */
-            mode: "keyword" | "semantic" | "hybrid"
-            total: number
-            /** @enum {string} */
-            totalRelation?: "eq" | "gte"
-            next_cursor?: string
-            hits: {
-              id: string
-              score: number
-              document: {
-                id: string
-                fields: {
-                  [key: string]: unknown
-                }
-                embeddings?: {
-                  [key: string]: number[]
-                }
-                embedding_model_id?: string
-              }
-            }[]
-            cards?: {
-              id: string
-              name: string | null
-              slug: string | null
-              primaryCategory: {
-                id: string | null
-                name: string | null
-                slug: string | null
-              } | null
-              media: {
-                thumbnailUrl: string | null
-                coverMediaUrl: string | null
-              }
-              priceFrom: {
-                amountCents: number
-                currency: string | null
-                originalAmountCents: number | null
-              } | null
-              offerBadges: {
-                id: string | null
-                name: string | null
-                discountKind: string | null
-                discountPercent: number | null
-                discountAmountCents: number | null
-                minPax?: number | null
-              }[]
-              departures: {
-                upcomingCount: number | null
-                nextDepartureAt: string | null
-                nextDepartureDate: string | null
-                nextDepartureEndsAt: string | null
-                nextDepartureEndDate: string | null
-                timezone: string | null
-                months: string[]
-                dates: string[]
-              }
-              destinations: {
-                regions: string[]
-                countries: string[]
-                cities: string[]
-                ids: string[]
-                slugs: string[]
-              }
-              coordinates: {
-                latitude: number
-                longitude: number
-              } | null
-            }[]
-            facets: {
-              [key: string]: {
-                value: string | number
-                count: number
-              }[]
-            }
-          }
-        }
-      }
-      /** @description invalid_request — body failed validation, `vertical` is missing, or `vertical` names a product-owned vertical that is never independently sellable */
-      400: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          "application/json": {
-            error: string
-            /** @constant */
-            reason?: "not_independently_sellable"
-            vertical?: string
-            ownedBy?: string
-          }
-        }
-      }
-      /** @description Search execution failed */
-      500: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          "application/json": {
-            error: string
-            /** @constant */
-            reason?: "not_independently_sellable"
-            vertical?: string
-            ownedBy?: string
-          }
-        }
-      }
-      /** @description Search indexer is not configured for this deployment */
-      503: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          "application/json": {
-            error: string
-            /** @constant */
-            reason?: "not_independently_sellable"
-            vertical?: string
-            ownedBy?: string
-          }
-        }
-      }
-    }
-  }
   postAdminCatalogPackageOffers: {
     parameters: {
       query?: never
@@ -574,6 +405,190 @@ export interface operations {
           "application/json": {
             error: string
             details?: unknown
+          }
+        }
+      }
+    }
+  }
+  postAdminCatalogSearch: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          vertical?: string
+          query?: string
+          /** @enum {string} */
+          mode?: "keyword" | "semantic" | "hybrid"
+          /** @enum {string} */
+          sort?: "relevance" | "price-asc" | "price-desc" | "departure-asc" | "newest"
+          /** @enum {string} */
+          projection?: "raw" | "storefront-card"
+          filters?: components["schemas"]["CatalogSearchFilter"][]
+          facets?: {
+            field: string
+            limit?: number
+          }[]
+          pagination?: {
+            limit?: number
+            cursor?: string
+          }
+          alpha?: number
+          distance_threshold?: number
+          query_embedding?: number[]
+          market?: string
+          locale?: string
+          channel?: string
+        }
+      }
+    }
+    responses: {
+      /** @description Search results for the requested vertical slice */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            vertical: string
+            /** @enum {string} */
+            mode: "keyword" | "semantic" | "hybrid"
+            total: number
+            /** @enum {string} */
+            totalRelation?: "eq" | "gte"
+            next_cursor?: string
+            hits: {
+              id: string
+              score: number
+              document: {
+                id: string
+                fields: {
+                  [key: string]: unknown
+                }
+                embeddings?: {
+                  [key: string]: number[]
+                }
+                embedding_model_id?: string
+              }
+            }[]
+            cards?: {
+              id: string
+              name: string | null
+              slug: string | null
+              primaryCategory: {
+                id: string | null
+                name: string | null
+                slug: string | null
+              } | null
+              media: {
+                thumbnailUrl: string | null
+                coverMediaUrl: string | null
+              }
+              priceFrom: {
+                amountCents: number
+                currency: string | null
+                originalAmountCents: number | null
+              } | null
+              offerBadges: {
+                id: string | null
+                name: string | null
+                discountKind: string | null
+                discountPercent: number | null
+                discountAmountCents: number | null
+                minPax?: number | null
+              }[]
+              departures: {
+                upcomingCount: number | null
+                nextDepartureAt: string | null
+                nextDepartureDate: string | null
+                nextDepartureEndsAt: string | null
+                nextDepartureEndDate: string | null
+                timezone: string | null
+                months: string[]
+                dates: string[]
+              }
+              destinations: {
+                regions: string[]
+                countries: string[]
+                cities: string[]
+                ids: string[]
+                slugs: string[]
+              }
+              coordinates: {
+                latitude: number
+                longitude: number
+              } | null
+            }[]
+            facets: {
+              [key: string]: {
+                value: string | number
+                count: number
+              }[]
+            }
+          }
+        }
+      }
+      /** @description invalid_request — body failed validation, `vertical` is missing, or `vertical` names a product-owned vertical that is never independently sellable */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+            /** @enum {string} */
+            reason?: "not_independently_sellable"
+            vertical?: string
+            ownedBy?: string
+          }
+        }
+      }
+      /** @description Public storefront channel context is missing or inactive */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+            /** @enum {string} */
+            reason?: "not_independently_sellable"
+            vertical?: string
+            ownedBy?: string
+          }
+        }
+      }
+      /** @description Search execution failed */
+      500: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+            /** @enum {string} */
+            reason?: "not_independently_sellable"
+            vertical?: string
+            ownedBy?: string
+          }
+        }
+      }
+      /** @description Search indexer is not configured for this deployment */
+      503: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+            /** @enum {string} */
+            reason?: "not_independently_sellable"
+            vertical?: string
+            ownedBy?: string
           }
         }
       }

@@ -111,7 +111,12 @@ jobs:
   architecture:
     name: architecture
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    # `verify:architecture` has grown from 62 chain links to 102, and two of them
+    # drive the real OpenAPI generators. At 10 minutes the job started being
+    # CANCELLED rather than failing, which the `checks` and `db-checks`
+    # aggregates then render as a red X with no failing step under it — main
+    # itself went red that way and read as a flake for two runs.
+    timeout-minutes: 25
     env:
       HUSKY: 0
       NODE_OPTIONS: --conditions=development --max-old-space-size=12288

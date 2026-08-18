@@ -9,35 +9,264 @@
       "get": {
         "operationId": "getCustomerBusinessAccountCapabilities",
         "x-voyant-api-id": "@voyant-travel/auth#customer-business-accounts.api.admin",
-        "responses": { "200": { "description": "HTTP 200" } }
+        "responses": {
+          "200": {
+            "description": "HTTP 200"
+          },
+          "401": {
+            "description": "HTTP 401"
+          },
+          "403": {
+            "description": "HTTP 403"
+          }
+        },
+        "summary": "GET /v1/admin/customer-business-accounts/capabilities",
+        "tags": ["customer-business-accounts"],
+        "x-voyant-module": "customer-business-accounts",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/customer-business-accounts/requests": {
       "get": {
         "operationId": "listCustomerBusinessAccountRequests",
         "x-voyant-api-id": "@voyant-travel/auth#customer-business-accounts.api.admin",
-        "responses": { "200": { "description": "HTTP 200" } }
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": ["pending", "approved", "rejected", "canceled"]
+            },
+            "required": false,
+            "name": "status",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "HTTP 200"
+          },
+          "401": {
+            "description": "HTTP 401"
+          },
+          "403": {
+            "description": "HTTP 403"
+          }
+        },
+        "summary": "GET /v1/admin/customer-business-accounts/requests",
+        "tags": ["customer-business-accounts"],
+        "x-voyant-module": "customer-business-accounts",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/customer-business-accounts/requests/{requestId}/approve": {
       "post": {
         "operationId": "approveCustomerBusinessAccountRequest",
         "x-voyant-api-id": "@voyant-travel/auth#customer-business-accounts.api.admin",
-        "responses": { "200": { "description": "HTTP 200" } }
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "required": true,
+            "name": "requestId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "type": ["string", "null"],
+                    "minLength": 1,
+                    "maxLength": 2000
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "HTTP 200"
+          },
+          "400": {
+            "description": "HTTP 400"
+          },
+          "401": {
+            "description": "HTTP 401"
+          },
+          "403": {
+            "description": "HTTP 403"
+          },
+          "404": {
+            "description": "HTTP 404"
+          },
+          "409": {
+            "description": "HTTP 409"
+          }
+        },
+        "summary": "POST /v1/admin/customer-business-accounts/requests/{requestId}/approve",
+        "tags": ["customer-business-accounts"],
+        "x-voyant-module": "customer-business-accounts",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/customer-business-accounts/requests/{requestId}/reject": {
       "post": {
         "operationId": "rejectCustomerBusinessAccountRequest",
         "x-voyant-api-id": "@voyant-travel/auth#customer-business-accounts.api.admin",
-        "responses": { "200": { "description": "HTTP 200" } }
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "required": true,
+            "name": "requestId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "type": ["string", "null"],
+                    "minLength": 1,
+                    "maxLength": 2000
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "HTTP 200"
+          },
+          "400": {
+            "description": "HTTP 400"
+          },
+          "401": {
+            "description": "HTTP 401"
+          },
+          "403": {
+            "description": "HTTP 403"
+          },
+          "404": {
+            "description": "HTTP 404"
+          },
+          "409": {
+            "description": "HTTP 409"
+          }
+        },
+        "summary": "POST /v1/admin/customer-business-accounts/requests/{requestId}/reject",
+        "tags": ["customer-business-accounts"],
+        "x-voyant-module": "customer-business-accounts",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/customer-business-accounts/accounts": {
       "post": {
         "operationId": "provisionCustomerBusinessAccount",
         "x-voyant-api-id": "@voyant-travel/auth#customer-business-accounts.api.admin",
-        "responses": { "201": { "description": "HTTP 201" } }
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "idempotencyKey": {
+                    "type": "string",
+                    "minLength": 8,
+                    "maxLength": 200
+                  },
+                  "publicApiOrigin": {
+                    "type": "string",
+                    "format": "uri"
+                  },
+                  "owner": {
+                    "type": "object",
+                    "properties": {
+                      "userId": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "email": {
+                        "type": "string",
+                        "format": "email"
+                      }
+                    },
+                    "additionalProperties": false
+                  },
+                  "relationshipOrganizationId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "profile": {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200
+                      },
+                      "legalName": {
+                        "type": ["string", "null"]
+                      },
+                      "taxId": {
+                        "type": ["string", "null"]
+                      },
+                      "website": {
+                        "type": ["string", "null"],
+                        "format": "uri"
+                      }
+                    },
+                    "required": ["name"],
+                    "additionalProperties": false
+                  }
+                },
+                "required": ["idempotencyKey", "publicApiOrigin", "owner"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "HTTP 201"
+          },
+          "400": {
+            "description": "HTTP 400"
+          },
+          "401": {
+            "description": "HTTP 401"
+          },
+          "403": {
+            "description": "HTTP 403"
+          },
+          "404": {
+            "description": "HTTP 404"
+          },
+          "409": {
+            "description": "HTTP 409"
+          }
+        },
+        "summary": "POST /v1/admin/customer-business-accounts/accounts",
+        "tags": ["customer-business-accounts"],
+        "x-voyant-module": "customer-business-accounts",
+        "x-voyant-surface": "admin"
       }
     }
   }

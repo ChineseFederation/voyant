@@ -24,7 +24,7 @@
     "build": "tsc -p tsconfig.build.json",
     "clean": "rm -rf dist tsconfig.tsbuildinfo",
     "db:generate": "drizzle-kit generate --config=drizzle.migrations.config.ts --name=proposals_baseline && node ../../scripts/migrations/guard-create-type.mjs ./migrations && node ../../scripts/migrations/ensure-extensions.mjs ./migrations",
-    "generate:openapi": "node --import tsx scripts/generate-openapi.ts && node --import tsx scripts/generate-booking-openapi.ts && biome format --write openapi/admin/proposals.json openapi/admin/proposals-booking.json",
+    "generate:openapi": "node --import tsx scripts/generate-openapi.ts && node --import tsx scripts/generate-booking-openapi.ts && node --import tsx scripts/generate-public-openapi.ts && node --import tsx scripts/generate-snapshot-openapi.ts && biome format --write openapi/admin/proposals.json openapi/admin/proposals-booking.json openapi/public-api/proposals-public.json openapi/admin/proposal-version-snapshot.json",
     "lint": "biome check src/",
     "prepack": "pnpm run build",
     "test": "vitest run",

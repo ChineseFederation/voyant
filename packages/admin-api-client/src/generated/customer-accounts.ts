@@ -11,6 +11,7 @@ export interface paths {
       path?: never
       cookie?: never
     }
+    /** GET /v1/admin/customer-accounts/capabilities */
     get: operations["getCustomerAccountCapabilities"]
     put?: never
     post?: never
@@ -27,6 +28,7 @@ export interface paths {
       path?: never
       cookie?: never
     }
+    /** GET /v1/admin/customer-accounts/settings */
     get: operations["getCustomerAccountSettings"]
     put?: never
     post?: never
@@ -44,6 +46,7 @@ export interface paths {
       cookie?: never
     }
     get?: never
+    /** PUT /v1/admin/customer-accounts/settings/methods */
     put: operations["updateCustomerAuthMethods"]
     post?: never
     delete?: never
@@ -60,6 +63,7 @@ export interface paths {
       cookie?: never
     }
     get?: never
+    /** PUT /v1/admin/customer-accounts/settings/account-policy */
     put: operations["updateCustomerAccountPolicy"]
     post?: never
     delete?: never
@@ -75,6 +79,7 @@ export interface paths {
       path?: never
       cookie?: never
     }
+    /** GET /v1/admin/customer-accounts/provider-credentials */
     get: operations["listCustomerProviderCredentials"]
     put?: never
     post?: never
@@ -92,8 +97,10 @@ export interface paths {
       cookie?: never
     }
     get?: never
+    /** PUT /v1/admin/customer-accounts/provider-credentials/{provider} */
     put: operations["putCustomerProviderCredential"]
     post?: never
+    /** DELETE /v1/admin/customer-accounts/provider-credentials/{provider} */
     delete: operations["deleteCustomerProviderCredential"]
     options?: never
     head?: never
@@ -121,8 +128,22 @@ export interface operations {
     }
     requestBody?: never
     responses: {
-      /** @description Customer-account capabilities for this deployment. */
+      /** @description HTTP 200 */
       200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description HTTP 401 */
+      401: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description HTTP 403 */
+      403: {
         headers: {
           [name: string]: unknown
         }
@@ -139,8 +160,22 @@ export interface operations {
     }
     requestBody?: never
     responses: {
-      /** @description Deployment customer-account settings. */
+      /** @description HTTP 200 */
       200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description HTTP 401 */
+      401: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description HTTP 403 */
+      403: {
         headers: {
           [name: string]: unknown
         }
@@ -155,10 +190,43 @@ export interface operations {
       path?: never
       cookie?: never
     }
-    requestBody?: never
+    requestBody: {
+      content: {
+        "application/json": {
+          methods: {
+            emailCode: boolean
+            emailPassword: boolean
+            google: boolean
+            facebook: boolean
+            apple: boolean
+          }
+        }
+      }
+    }
     responses: {
-      /** @description Updated sign-in methods. */
+      /** @description HTTP 200 */
       200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description HTTP 400 */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description HTTP 401 */
+      401: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description HTTP 403 */
+      403: {
         headers: {
           [name: string]: unknown
         }
@@ -173,10 +241,43 @@ export interface operations {
       path?: never
       cookie?: never
     }
-    requestBody?: never
+    requestBody: {
+      content: {
+        "application/json": {
+          accountPolicy: {
+            allowedKinds: ("personal" | "business")[]
+            /** @enum {string} */
+            personalSignup: "open" | "disabled"
+            /** @enum {string} */
+            businessOnboarding: "disabled" | "open" | "request" | "invite-only"
+          }
+        }
+      }
+    }
     responses: {
-      /** @description Updated buyer-account policy. */
+      /** @description HTTP 200 */
       200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description HTTP 400 */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description HTTP 401 */
+      401: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description HTTP 403 */
+      403: {
         headers: {
           [name: string]: unknown
         }
@@ -193,8 +294,22 @@ export interface operations {
     }
     requestBody?: never
     responses: {
-      /** @description Provider credential status, never the secrets. */
+      /** @description HTTP 200 */
       200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description HTTP 401 */
+      401: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description HTTP 403 */
+      403: {
         headers: {
           [name: string]: unknown
         }
@@ -206,13 +321,44 @@ export interface operations {
     parameters: {
       query?: never
       header?: never
-      path?: never
+      path: {
+        provider: "google" | "facebook" | "apple"
+      }
       cookie?: never
     }
-    requestBody?: never
+    requestBody: {
+      content: {
+        "application/json": {
+          credentials: {
+            [key: string]: unknown
+          }
+        }
+      }
+    }
     responses: {
-      /** @description Credential stored. */
+      /** @description HTTP 204 */
       204: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description HTTP 400 */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description HTTP 401 */
+      401: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description HTTP 403 */
+      403: {
         headers: {
           [name: string]: unknown
         }
@@ -224,13 +370,36 @@ export interface operations {
     parameters: {
       query?: never
       header?: never
-      path?: never
+      path: {
+        provider: "google" | "facebook" | "apple"
+      }
       cookie?: never
     }
     requestBody?: never
     responses: {
-      /** @description Credential removed. */
+      /** @description HTTP 204 */
       204: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description HTTP 400 */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description HTTP 401 */
+      401: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description HTTP 403 */
+      403: {
         headers: {
           [name: string]: unknown
         }

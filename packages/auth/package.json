@@ -291,10 +291,11 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "clean": "rm -rf dist tsconfig.tsbuildinfo",
+    "generate:openapi": "node --import tsx scripts/generate-team-openapi.ts && node --import tsx scripts/generate-business-accounts-openapi.ts && node --import tsx scripts/generate-invitations-openapi.ts && node --import tsx scripts/generate-invitations-public-openapi.ts && node --import tsx scripts/generate-public-api-keys-openapi.ts && node --import tsx scripts/generate-customer-accounts-openapi.ts && biome format --write openapi/admin/team.json openapi/admin/customer-business-accounts.json openapi/admin/invitations.json openapi/public-api/invitations.json openapi/admin/public-api-keys.json openapi/admin/customer-accounts.json",
     "lint": "biome check src/",
-    "typecheck": "tsc -p tsconfig.typecheck.json",
+    "prepack": "pnpm run build",
     "test": "vitest run",
-    "prepack": "pnpm run build"
+    "typecheck": "tsc -p tsconfig.typecheck.json"
   },
   "dependencies": {
     "@better-auth/api-key": "1.6.23",

@@ -400,11 +400,24 @@ export function createProposalVersionSnapshotRoutes(
   app.post("/:envelopeId/proposal-versions/:proposalVersionId/snapshot", (c) =>
     handleFreezeProposalVersionSnapshot(c, options),
   )
+  // The path parameters and the 404/409 the handler can return were described in
+  // the published document and not here, so generating the document from this
+  // registration would have dropped them. The registration is the source now.
   app.openAPIRegistry.registerPath({
     method: "post",
     path: "/{envelopeId}/proposal-versions/{proposalVersionId}/snapshot",
     summary: "Freeze a Trip snapshot into a Proposal Version",
-    responses: { 200: { description: "The updated Proposal Version and frozen Trip snapshot." } },
+    request: {
+      params: z.object({
+        envelopeId: z.string(),
+        proposalVersionId: z.string(),
+      }),
+    },
+    responses: {
+      200: { description: "The updated Proposal Version and frozen Trip snapshot." },
+      404: { description: "The Trip or Proposal Version was not found." },
+      409: { description: "The Trip or Proposal Version cannot be snapshotted." },
+    },
     "x-voyant-api-id": PROPOSAL_VERSION_SNAPSHOT_OPENAPI_API_ID,
   })
   return app

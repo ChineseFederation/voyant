@@ -75,7 +75,7 @@ const getManifestRoute = createRoute({
   path: "/manifest",
   operationId: "getMcpManifest",
   "x-voyant-api-id": mcpAdminApiId,
-  responses: { 200: { description: "The authorized MCP tool manifest" } },
+  responses: { 200: { description: "The contract-versioned tools visible to the caller." } },
 })
 const callMcpRoute = createRoute({
   method: "post",

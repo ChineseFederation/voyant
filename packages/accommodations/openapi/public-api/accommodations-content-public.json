@@ -18,7 +18,6 @@
   "paths": {
     "/v1/public/accommodations/properties/{id}/effective": {
       "get": {
-        "x-voyant-api-id": "@voyant-travel/accommodations#content-extension.api.public",
         "parameters": [
           {
             "schema": {
@@ -126,7 +125,8 @@
                               "type": ["string", "null"]
                             },
                             "hero_image_url": {
-                              "type": ["string", "null"]
+                              "type": ["string", "null"],
+                              "format": "uri"
                             },
                             "gallery": {
                               "type": "array",
@@ -216,13 +216,18 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getPublicAccommodationsPropertiesByIdEffective",
+        "summary": "GET /v1/public/accommodations/properties/{id}/effective",
+        "tags": ["accommodations"],
+        "x-voyant-module": "accommodations",
+        "x-voyant-surface": "public-api",
+        "x-voyant-api-id": "@voyant-travel/accommodations#content-extension.api.public"
       }
     },
     "/v1/public/accommodations/{id}/content": {
       "get": {
         "summary": "Get accommodation content",
-        "x-voyant-api-id": "@voyant-travel/accommodations#content-extension.api.public",
         "responses": {
           "200": {
             "description": "Localized accommodation content and provenance."
@@ -230,7 +235,12 @@
           "404": {
             "description": "Accommodation content was not found."
           }
-        }
+        },
+        "operationId": "getPublicAccommodationsByIdContent",
+        "tags": ["accommodations"],
+        "x-voyant-module": "accommodations",
+        "x-voyant-surface": "public-api",
+        "x-voyant-api-id": "@voyant-travel/accommodations#content-extension.api.public"
       }
     }
   },

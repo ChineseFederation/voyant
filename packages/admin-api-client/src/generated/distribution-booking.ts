@@ -8,90 +8,16 @@ export interface paths {
     parameters: {
       query?: never
       header?: never
-      path: {
-        bookingId: string
-      }
+      path?: never
       cookie?: never
     }
     /** Get distribution details for a booking */
-    get: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          bookingId: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Distribution details, or null when none are recorded */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: components["schemas"]["BookingDistributionDetails"]
-            }
-          }
-        }
-      }
-    }
+    get: operations["getAdminBookingsByBookingIdDistributionDetails"]
     /** Create or replace distribution details for a booking */
-    put: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          bookingId: string
-        }
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          "application/json": components["schemas"]["BookingDistributionDetailsInput"]
-        }
-      }
-      responses: {
-        /** @description Distribution details were stored */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content?: never
-        }
-      }
-    }
+    put: operations["putAdminBookingsByBookingIdDistributionDetails"]
     post?: never
     /** Remove distribution details from a booking */
-    delete: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          bookingId: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Distribution details were removed */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content?: never
-        }
-        /** @description No distribution details exist for the booking */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content?: never
-        }
-      }
-    }
+    delete: operations["deleteAdminBookingsByBookingIdDistributionDetails"]
     options?: never
     head?: never
     patch?: never
@@ -128,4 +54,120 @@ export interface components {
   pathItems: never
 }
 export type $defs = Record<string, never>
-export type operations = Record<string, never>
+export interface operations {
+  getAdminBookingsByBookingIdDistributionDetails: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        bookingId: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Booking distribution details */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              bookingId: string
+              marketId: string | null
+              sourceChannelId: string | null
+              fxRateSetId: string | null
+              /** @enum {string} */
+              paymentOwner: "operator" | "channel" | "split"
+              createdAt: string
+              updatedAt: string
+            } | null
+          }
+        }
+      }
+    }
+  }
+  putAdminBookingsByBookingIdDistributionDetails: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        bookingId: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          marketId?: string | null
+          sourceChannelId?: string | null
+          fxRateSetId?: string | null
+          /**
+           * @default operator
+           * @enum {string}
+           */
+          paymentOwner?: "operator" | "channel" | "split"
+        }
+      }
+    }
+    responses: {
+      /** @description Updated booking distribution details */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              bookingId: string
+              marketId: string | null
+              sourceChannelId: string | null
+              fxRateSetId: string | null
+              /** @enum {string} */
+              paymentOwner: "operator" | "channel" | "split"
+              createdAt: string
+              updatedAt: string
+            } | null
+          }
+        }
+      }
+    }
+  }
+  deleteAdminBookingsByBookingIdDistributionDetails: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        bookingId: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Booking distribution details deleted */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            /** @enum {boolean} */
+            success: true
+          }
+        }
+      }
+      /** @description Booking distribution details not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+}

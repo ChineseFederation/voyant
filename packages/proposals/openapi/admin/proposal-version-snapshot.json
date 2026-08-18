@@ -8,26 +8,40 @@
     "/v1/admin/trips/{envelopeId}/proposal-versions/{proposalVersionId}/snapshot": {
       "post": {
         "summary": "Freeze a Trip snapshot into a Proposal Version",
+        "x-voyant-api-id": "@voyant-travel/proposals#proposal-version-snapshot-extension.api",
         "parameters": [
           {
-            "name": "envelopeId",
-            "in": "path",
+            "schema": {
+              "type": "string"
+            },
             "required": true,
-            "schema": { "type": "string" }
+            "name": "envelopeId",
+            "in": "path"
           },
           {
-            "name": "proposalVersionId",
-            "in": "path",
+            "schema": {
+              "type": "string"
+            },
             "required": true,
-            "schema": { "type": "string" }
+            "name": "proposalVersionId",
+            "in": "path"
           }
         ],
         "responses": {
-          "200": { "description": "The updated Proposal Version and frozen Trip snapshot." },
-          "404": { "description": "The Trip or Proposal Version was not found." },
-          "409": { "description": "The Trip or Proposal Version cannot be snapshotted." }
+          "200": {
+            "description": "The updated Proposal Version and frozen Trip snapshot."
+          },
+          "404": {
+            "description": "The Trip or Proposal Version was not found."
+          },
+          "409": {
+            "description": "The Trip or Proposal Version cannot be snapshotted."
+          }
         },
-        "x-voyant-api-id": "@voyant-travel/proposals#proposal-version-snapshot-extension.api"
+        "operationId": "postAdminTripsByEnvelopeIdProposalVersionsByProposalVersionIdSnapshot",
+        "tags": ["trips"],
+        "x-voyant-module": "trips",
+        "x-voyant-surface": "admin"
       }
     }
   }
