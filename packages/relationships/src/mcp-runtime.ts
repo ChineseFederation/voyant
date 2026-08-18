@@ -24,6 +24,7 @@ import { convertInquiryToBookingTarget } from "./service/inquiry-booking-convers
 import { convertInquiryToProposal } from "./service/inquiry-conversions.js"
 import { inquiryOptionUnitLink, inquiryProductLink } from "./standard-links.js"
 import {
+  addInquiryTargetSchema,
   assignInquirySchema,
   closeInquirySchema,
   convertInquiryToBookingSessionSchema,
@@ -355,6 +356,37 @@ export const voyantToolContextContribution = defineToolContextContribution({
               authorId(),
             ),
           )
+        },
+        async manageInquiryTarget(input: {
+          id: string
+          operation: "add" | "remove"
+          [key: string]: unknown
+        }) {
+          if (input.operation === "add") {
+            const { id, operation: _operation, ...targetInput } = input
+            const targetValidation = relationshipsRuntime?.inquiryTargetValidation
+            if (!targetValidation) {
+              throw new ToolError(
+                "Inquiry target validation is unavailable in this deployment.",
+                "PROVIDER_UNAVAILABLE",
+              )
+            }
+            const target = await relationshipsService.addInquiryTarget(
+              db,
+              id,
+              addInquiryTargetSchema.parse(targetInput),
+              authorId(),
+              targetValidation,
+            )
+            return { operation: "add" as const, target }
+          }
+          await relationshipsService.deleteInquiryTarget(
+            db,
+            input.id,
+            String(input.targetLinkId),
+            authorId(),
+          )
+          return { operation: "remove" as const, removedLinkId: String(input.targetLinkId) }
         },
         async startBookingFromInquiry({ id, ...input }: { id: string; [key: string]: unknown }) {
           const sessionRuntime = relationshipsRuntime?.inquiryBookingSession

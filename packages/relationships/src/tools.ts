@@ -33,6 +33,7 @@ import {
   personSchema,
 } from "./routes/accounts-openapi-schemas.js"
 import {
+  addInquiryTargetSchema,
   assignInquirySchema,
   closeInquirySchema,
   convertInquiryToBookingSessionSchema,
@@ -43,6 +44,7 @@ import {
   inquiryListResponseSchema,
   inquiryProposalConversionResultSchema,
   inquiryRecordSchema,
+  inquiryTargetRecordSchema,
   insertOrganizationSchema,
   insertPersonNoteSchema,
   insertPersonSchema,
@@ -243,6 +245,17 @@ const updateInquiryToolInputSchema = inquiryIdSchema.and(
 )
 const recordInquiryActivityToolInputSchema = inquiryIdSchema.and(recordInquiryActivitySchema)
 const qualifyInquiryToolInputSchema = inquiryIdSchema
+const manageInquiryTargetToolInputSchema = z.discriminatedUnion("operation", [
+  inquiryIdSchema.extend({ operation: z.literal("add"), ...addInquiryTargetSchema.shape }),
+  inquiryIdSchema.extend({
+    operation: z.literal("remove"),
+    targetLinkId: z.string().min(1),
+  }),
+])
+const manageInquiryTargetOutputSchema = z.discriminatedUnion("operation", [
+  z.object({ operation: z.literal("add"), target: inquiryTargetRecordSchema }),
+  z.object({ operation: z.literal("remove"), removedLinkId: z.string() }),
+])
 const createInquiryOutputSchema = z.object({
   data: inquiryRecordSchema,
   replayed: z.boolean(),
@@ -277,6 +290,7 @@ type TransitionInquiryToolInput = z.infer<typeof transitionInquiryToolInputSchem
 type UpdateInquiryToolInput = z.infer<typeof updateInquiryToolInputSchema>
 type RecordInquiryActivityToolInput = z.infer<typeof recordInquiryActivityToolInputSchema>
 type QualifyInquiryToolInput = z.infer<typeof qualifyInquiryToolInputSchema>
+type ManageInquiryTargetToolInput = z.infer<typeof manageInquiryTargetToolInputSchema>
 
 /** Request-scoped Relationships operations used by CRM tools. */
 export interface RelationshipsToolServices {
@@ -309,6 +323,7 @@ export interface RelationshipsToolServices {
   updateInquiry(input: UpdateInquiryToolInput): Promise<unknown>
   recordInquiryActivity(input: RecordInquiryActivityToolInput): Promise<unknown>
   qualifyInquiry(input: QualifyInquiryToolInput): Promise<unknown>
+  manageInquiryTarget(input: ManageInquiryTargetToolInput): Promise<unknown>
   assignInquiry(input: AssignInquiryToolInput): Promise<unknown>
   closeInquiry(input: CloseInquiryToolInput): Promise<unknown>
   convertInquiry(input: ConvertInquiryToolInput): Promise<unknown>
@@ -816,6 +831,26 @@ export const qualifyInquiryTool = defineTool<
   },
 })
 
+export const manageInquiryTargetTool = defineTool<
+  ManageInquiryTargetToolInput,
+  z.infer<typeof manageInquiryTargetOutputSchema>,
+  RelationshipsToolContext
+>({
+  ...sensitiveWriteMetadata,
+  capabilityId: `${OWNER}#tool.manage-inquiry-target`,
+  name: "manage_inquiry_target",
+  description:
+    "Add a validated product or option-unit target to an Inquiry, or remove one by its Inquiry target link id.",
+  inputSchema: manageInquiryTargetToolInputSchema,
+  outputSchema: manageInquiryTargetOutputSchema,
+  async handler(input, ctx) {
+    return parseJsonResult(
+      manageInquiryTargetOutputSchema,
+      await crm(ctx).manageInquiryTarget(input),
+    )
+  },
+})
+
 export const assignInquiryTool = defineTool<
   AssignInquiryToolInput,
   z.infer<typeof inquiryRecordSchema>,
@@ -949,6 +984,7 @@ export const relationshipsTools = [
   updateInquiryTool,
   recordInquiryActivityTool,
   qualifyInquiryTool,
+  manageInquiryTargetTool,
   assignInquiryTool,
   closeInquiryTool,
   convertInquiryTool,

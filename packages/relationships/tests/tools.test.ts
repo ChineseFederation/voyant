@@ -52,6 +52,7 @@ function ctx(
       updateInquiry: unavailable,
       recordInquiryActivity: unavailable,
       qualifyInquiry: unavailable,
+      manageInquiryTarget: unavailable,
       assignInquiry: unavailable,
       closeInquiry: unavailable,
       convertInquiry: unavailable,
@@ -300,6 +301,7 @@ describe("relationships (crm) tools", () => {
       "list_relationship_addresses",
       "list_relationship_contact_methods",
       "list_relationship_notes",
+      "manage_inquiry_target",
       "qualify_inquiry",
       "record_inquiry_activity",
       "reopen_inquiry",
@@ -436,6 +438,31 @@ describe("relationships (crm) tools", () => {
       ctx({ qualifyInquiry: async (input) => inquiry({ id: input.id, status: "qualified" }) }),
     )
     expect(qualified).toMatchObject({ id: "inq_1", status: "qualified" })
+
+    const managed = await registry().dispatch(
+      "manage_inquiry_target",
+      {
+        id: "inq_1",
+        operation: "add",
+        kind: "product",
+        targetId: "prd_1",
+        snapshot: { label: "Japan private tour" },
+      },
+      ctx({
+        manageInquiryTarget: async (input) => ({
+          operation: "add",
+          target: {
+            linkId: "lnk_1",
+            inquiryId: input.id,
+            kind: "product",
+            targetId: "prd_1",
+            snapshot: { label: "Japan private tour" },
+            createdAt: "2026-08-18T13:00:00.000Z",
+          },
+        }),
+      }),
+    )
+    expect(managed).toMatchObject({ operation: "add", target: { linkId: "lnk_1" } })
 
     const booking = await registry().dispatch(
       "start_booking_from_inquiry",
