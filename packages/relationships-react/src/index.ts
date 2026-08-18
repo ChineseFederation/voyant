@@ -1,4 +1,35 @@
 export {
+  type AssignInquiryInput,
+  assignInquirySchema,
+  type CloseInquiryInput,
+  type CreateInquiryInput,
+  closeInquirySchema,
+  createInquirySchema,
+  type InquiryCloseOutcome,
+  type InquiryKind,
+  type InquiryListQueryInput,
+  type InquiryPriority,
+  type InquiryRecord,
+  type InquiryStatus,
+  inquiryCloseOutcomeSchema,
+  inquiryCreateResponseSchema,
+  inquiryKindSchema,
+  inquiryListQuerySchema,
+  inquiryListResponseSchema,
+  inquiryPrioritySchema,
+  inquiryRecordSchema,
+  inquiryResponseSchema,
+  inquirySourceSchema,
+  inquiryStatusSchema,
+  inquiryTravelBriefV1Schema,
+  type ReopenInquiryInput,
+  reopenInquirySchema,
+  type TransitionInquiryInput,
+  transitionInquirySchema,
+  type UpdateInquiryInput,
+  updateInquirySchema,
+} from "@voyant-travel/relationships-contracts"
+export {
   defaultFetcher,
   fetchWithValidation,
   VoyantApiError,
@@ -35,6 +66,9 @@ export {
   useCustomerSignals,
   useCustomerSignalsForPerson,
 } from "./hooks/use-customer-signals.js"
+export { type UseInquiriesOptions, useInquiries } from "./hooks/use-inquiries.js"
+export { useInquiry } from "./hooks/use-inquiry.js"
+export { useInquiryMutation } from "./hooks/use-inquiry-mutation.js"
 export {
   type UseOrganizationOptions,
   useOrganization,
@@ -112,6 +146,7 @@ export {
 export {
   type ActivitiesListFilters,
   type CustomerSignalsListFilters,
+  type InquiriesListFilters,
   type OrganizationsListFilters,
   type OrganizationsListSortDir,
   type OrganizationsListSortField,
@@ -124,7 +159,10 @@ export {
   relationshipsQueryKeys,
 } from "./query-keys.js"
 export {
+  buildInquiriesQueryString,
   getActivitiesQueryOptions,
+  getInquiriesQueryOptions,
+  getInquiryQueryOptions,
   getOrganizationQueryOptions,
   getOrganizationsQueryOptions,
   getPeopleQueryOptions,

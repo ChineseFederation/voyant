@@ -51,6 +51,88 @@ export type CrmUiMessages = {
       yearsAgo: string
     }
   }
+  inquiryQueue: {
+    title: string
+    description: string
+    searchPlaceholder: string
+    empty: string
+    loadFailed: string
+    loading: string
+    savedViewsLabel: string
+    searchLabel: string
+    statusFilterLabel: string
+    priorityFilterLabel: string
+    kindFilterLabel: string
+    views: Record<
+      "new" | "mine" | "unassigned" | "overdue" | "waiting" | "qualified" | "converted" | "closed",
+      string
+    >
+    filters: { allStatuses: string; allPriorities: string; allKinds: string }
+    columns: {
+      inquiry: string
+      contact: string
+      status: string
+      priority: string
+      owner: string
+      nextAction: string
+    }
+  }
+  inquiryLabels: {
+    kinds: Record<"product" | "custom_trip" | "general", string>
+    statuses: Record<
+      | "new"
+      | "triaged"
+      | "in_progress"
+      | "waiting_on_customer"
+      | "qualified"
+      | "converted"
+      | "closed",
+      string
+    >
+    priorities: Record<"low" | "normal" | "high" | "urgent", string>
+    closeOutcomes: Record<
+      | "lost"
+      | "not_serviceable"
+      | "no_response"
+      | "duplicate"
+      | "spam"
+      | "customer_withdrew"
+      | "other",
+      string
+    >
+    sources: Record<"storefront" | "phone" | "email" | "admin" | "import" | "api", string>
+  }
+  inquiryDetail: {
+    back: string
+    customerRequest: string
+    context: string
+    operations: string
+    nextAction: string
+    firstResponseDue: string
+    source: string
+    save: string
+    assign: string
+    qualify: string
+    startWork: string
+    triage: string
+    returnToWork: string
+    waitForCustomer: string
+    noFollowUpExpected: string
+    followUpRequired: string
+    customerRequired: string
+    ownerRequired: string
+    unassignedReason: string
+    close: string
+    reopen: string
+    internalSummary: string
+    ownerPlaceholder: string
+    closeOutcome: string
+    duplicateInquiryId: string
+    closeNote: string
+    contact: string
+    personLinked: string
+    loadFailed: string
+  }
   organizationForm: {
     fields: {
       name: string

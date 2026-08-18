@@ -55,6 +55,7 @@
   "dependencies": {
     "@voyant-travel/i18n": "workspace:^",
     "@voyant-travel/react": "workspace:^",
+    "@voyant-travel/relationships-contracts": "workspace:^",
     "@voyant-travel/types": "workspace:^",
     "@voyant-travel/utils": "workspace:^"
   },

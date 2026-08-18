@@ -1,6 +1,16 @@
 export { ActivitiesPage } from "./components/activities-page.js"
 export { CreateActivityDialog } from "./components/create-activity-dialog.js"
 export {
+  InquiryQueue,
+  type InquiryQueueFilters,
+  type InquiryQueueProps,
+  type InquirySavedView,
+} from "./components/inquiry-queue.js"
+export {
+  InquiryWorkspace,
+  type InquiryWorkspaceProps,
+} from "./components/inquiry-workspace.js"
+export {
   OrganizationMergeDialog,
   type OrganizationMergeDialogProps,
   PersonMergeDialog,
