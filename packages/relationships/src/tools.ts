@@ -229,7 +229,18 @@ const startBookingFromInquiryToolInputSchema = inquiryIdSchema.and(
 )
 const reopenInquiryToolInputSchema = inquiryIdSchema.and(reopenInquirySchema)
 const transitionInquiryToolInputSchema = inquiryIdSchema.and(transitionInquirySchema)
-const updateInquiryToolInputSchema = inquiryIdSchema.and(updateInquirySchema)
+const updateInquiryToolInputSchema = inquiryIdSchema.and(
+  updateInquirySchema.omit({ contactSnapshot: true }).extend({
+    contactSnapshot: z
+      .object({
+        name: z.string().trim().min(1).max(200).optional(),
+        email: z.string().trim().max(320).optional(),
+        phone: z.string().trim().min(1).max(80).optional(),
+      })
+      .optional()
+      .describe("Email syntax is validated by the Inquiry owner command."),
+  }),
+)
 const recordInquiryActivityToolInputSchema = inquiryIdSchema.and(recordInquiryActivitySchema)
 const qualifyInquiryToolInputSchema = inquiryIdSchema
 const createInquiryOutputSchema = z.object({
