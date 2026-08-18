@@ -6,12 +6,19 @@ import {
   type CloseInquiryInput,
   type CreateInquiryInput,
   inquiryCreateResponseSchema,
+  inquiryProposalConversionResultSchema,
   inquiryResponseSchema,
   type ReopenInquiryInput,
   type TransitionInquiryInput,
   type UpdateInquiryInput,
 } from "@voyant-travel/relationships-contracts"
+import { useMemo } from "react"
 import { fetchWithValidation } from "../client.js"
+import {
+  createInquiryProposalConversionAttempt,
+  type InquiryProposalConversionOptions,
+  inquiryProposalConversionPath,
+} from "../inquiry-proposal-conversion.js"
 import { useVoyantContext } from "../provider.js"
 import { relationshipsQueryKeys } from "../query-keys.js"
 
@@ -19,6 +26,21 @@ export function useInquiryMutation() {
   const client = useVoyantContext()
   const queryClient = useQueryClient()
   const basePath = "/v1/admin/relationships/inquiries"
+  const proposalConversion = useMemo(
+    () =>
+      createInquiryProposalConversionAttempt({
+        execute: async (inquiryId, command) => {
+          const { data } = await fetchWithValidation(
+            inquiryProposalConversionPath(inquiryId),
+            inquiryProposalConversionResultSchema,
+            client,
+            { method: "POST", body: JSON.stringify(command) },
+          )
+          return data
+        },
+      }),
+    [client],
+  )
 
   const commit = async (id: string, suffix: string, body?: unknown, method = "POST") => {
     const { data } = await fetchWithValidation(
@@ -69,6 +91,15 @@ export function useInquiryMutation() {
       commit(id, "/reopen", input),
     onSuccess: settle,
   })
+  const convertToProposal = useMutation({
+    mutationFn: ({ id, input }: { id: string; input: InquiryProposalConversionOptions }) =>
+      proposalConversion.run(id, input),
+    onSuccess: (outcome, variables) => {
+      if (outcome.kind !== "converted") return
+      void queryClient.invalidateQueries({ queryKey: relationshipsQueryKeys.inquiries() })
+      void queryClient.invalidateQueries({ queryKey: relationshipsQueryKeys.inquiry(variables.id) })
+    },
+  })
 
-  return { create, update, transition, assign, close, reopen }
+  return { create, update, transition, assign, close, reopen, convertToProposal }
 }
