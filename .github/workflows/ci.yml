@@ -316,7 +316,7 @@ jobs:
     # against a hang rather than a budget the lane is already spending.
     #
     # Raised again to 30 for the same reason, with the arithmetic spelled out so
-    # the next person does not have to rediscover it: the lane now names 57
+    # the next person does not have to rediscover it: the lane now names 58
     # files, each paying its own process start and database setup, and the
     # insurance work (voyant#4750, voyant#4756) added four. At 20 it was being
     # cancelled mid-suite with every test passing — a budget, not a backstop.
@@ -387,6 +387,8 @@ jobs:
                 tests/integration/fx-rate-capture.test.ts
               pnpm --filter @voyant-travel/commerce exec vitest run \
                 tests/integration/ancillary-checkout-fulfilment.test.ts
+              pnpm --filter @voyant-travel/commerce exec vitest run \
+                tests/integration/checkout-finalization-store.test.ts
               pnpm --filter @voyant-travel/cruises exec vitest run \
                 tests/integration/created-target-tools.test.ts
               pnpm --filter @voyant-travel/auth exec vitest run \
