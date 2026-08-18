@@ -35,28 +35,28 @@ export function createBookingSessionServiceRuntimes<ContextValue>(
   context: ContextValue,
 ): Pick<ProductionBookingSessionModuleDeps, "relationships" | "financeRuntime"> {
   return {
-    // Runtime ports may still be promises when Catalog contributes its ports,
-    // so keep Relationships lazy until a Session actually needs it. Preserve
-    // the absent dependency when the optional port is not installed: the
-    // production module uses that absence to return a typed incomplete_draft.
+    // Runtime ports may still be promises (or not yet contributed) when
+    // Catalog contributes its ports, so keep Relationships lazy until a
+    // Session actually needs it. A resolver that still finds no optional port
+    // answers null through this facade, preserving the typed incomplete_draft.
     ...(options.resolveBookingsRelationshipsRuntime
       ? {
           relationships: {
             async loadPersonTravelSnapshot(...args) {
-              const runtime = await requireRelationshipsRuntime(options)
-              return runtime.loadPersonTravelSnapshot(...args)
+              const runtime = await options.resolveBookingsRelationshipsRuntime?.()
+              return runtime?.loadPersonTravelSnapshot(...args) ?? null
             },
             async upsertPersonFromContact(...args) {
-              const runtime = await requireRelationshipsRuntime(options)
-              return runtime.upsertPersonFromContact(...args)
+              const runtime = await options.resolveBookingsRelationshipsRuntime?.()
+              return runtime?.upsertPersonFromContact(...args) ?? null
             },
             async getPersonById(...args) {
-              const runtime = await requireRelationshipsRuntime(options)
-              return runtime.getPersonById(...args)
+              const runtime = await options.resolveBookingsRelationshipsRuntime?.()
+              return runtime?.getPersonById(...args) ?? null
             },
             async getOrganizationById(...args) {
-              const runtime = await requireRelationshipsRuntime(options)
-              return runtime.getOrganizationById(...args)
+              const runtime = await options.resolveBookingsRelationshipsRuntime?.()
+              return runtime?.getOrganizationById(...args) ?? null
             },
           },
         }
@@ -158,14 +158,4 @@ function bookingSessionStaffScope(c: Context): string {
     return "catalog:booking-session-retention"
   }
   return c.req.method === "GET" ? "catalog:booking-session-read" : "catalog:booking-session-write"
-}
-
-async function requireRelationshipsRuntime(options: {
-  resolveBookingsRelationshipsRuntime?: () => Promise<BookingsRelationshipsRuntime | null>
-}): Promise<BookingsRelationshipsRuntime> {
-  const runtime = await options.resolveBookingsRelationshipsRuntime?.()
-  if (!runtime) {
-    throw new Error("booking_session_relationships_runtime_required")
-  }
-  return runtime
 }

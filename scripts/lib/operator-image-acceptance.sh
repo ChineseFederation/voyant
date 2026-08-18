@@ -7,6 +7,33 @@
 # the boot assertions live here once. A binding added for one stage and not the
 # other is exactly how an acceptance lane stops resembling a deployment.
 
+operator_image_is_docker_desktop() {
+  [[ "$(docker info --format '{{.OperatingSystem}}' 2>/dev/null)" == "Docker Desktop" ]]
+}
+
+operator_image_database_host() {
+  if operator_image_is_docker_desktop; then
+    printf '%s\n' "host.docker.internal"
+    return
+  fi
+  printf '%s\n' "localhost"
+}
+
+# Linux CI can share the host network directly. Docker Desktop keeps that
+# capability opt-in, so local acceptance publishes only the tested port rather
+# than requiring developers to widen the VM's network access.
+operator_image_prepare_network_args() {
+  local port="${1:-}"
+  if operator_image_is_docker_desktop; then
+    OPERATOR_IMAGE_NETWORK_ARGS=(--network bridge)
+    if [[ -n "$port" ]]; then
+      OPERATOR_IMAGE_NETWORK_ARGS=(--publish "127.0.0.1:$port:$port")
+    fi
+    return
+  fi
+  OPERATOR_IMAGE_NETWORK_ARGS=(--network host)
+}
+
 operator_image_pull() {
   local image_ref="$1"
   if docker image inspect "$image_ref" >/dev/null 2>&1; then
@@ -70,14 +97,15 @@ operator_image_configure() {
 operator_image_migrate() {
   local image_ref="$1"
   local log_path="${2:-}"
+  operator_image_prepare_network_args
 
   if [[ -z "$log_path" ]]; then
-    docker run --rm --network host "${OPERATOR_IMAGE_ENV_ARGS[@]}" "$image_ref" \
+    docker run --rm "${OPERATOR_IMAGE_NETWORK_ARGS[@]}" "${OPERATOR_IMAGE_ENV_ARGS[@]}" "$image_ref" \
       node run-generated-migrations.mjs
     return
   fi
 
-  docker run --rm --network host "${OPERATOR_IMAGE_ENV_ARGS[@]}" "$image_ref" \
+  docker run --rm "${OPERATOR_IMAGE_NETWORK_ARGS[@]}" "${OPERATOR_IMAGE_ENV_ARGS[@]}" "$image_ref" \
     node run-generated-migrations.mjs 2>&1 | tee "$log_path"
 }
 
@@ -85,8 +113,9 @@ operator_image_boot_and_assert() {
   local image_ref="$1"
   local container="$2"
   local port="$3"
+  operator_image_prepare_network_args "$port"
 
-  docker run --detach --name "$container" --network host \
+  docker run --detach --name "$container" "${OPERATOR_IMAGE_NETWORK_ARGS[@]}" \
     "${OPERATOR_IMAGE_ENV_ARGS[@]}" "$image_ref" >/dev/null
 
   local _
@@ -118,8 +147,9 @@ operator_image_boot_api_only_and_assert() {
   local image_ref="$1"
   local container="$2"
   local port="$3"
+  operator_image_prepare_network_args "$port"
 
-  docker run --detach --name "$container" --network host \
+  docker run --detach --name "$container" "${OPERATOR_IMAGE_NETWORK_ARGS[@]}" \
     "${OPERATOR_IMAGE_ENV_ARGS[@]}" "$image_ref" node start-api-only.mjs >/dev/null
 
   local _
