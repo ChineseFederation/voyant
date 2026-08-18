@@ -116,5 +116,22 @@ export const crmUiEnInquiryMessages = {
       open_stage_not_found: "The proposal pipeline has no open stage.",
       source_conflict: "This inquiry conflicts with an existing proposal source.",
     },
+    bookingSessionConversion: "Start booking journey",
+    bookingSessionTarget: "Product",
+    bookingSessionTargetPlaceholder: "Select a product",
+    bookingSessionRequiresProduct:
+      "A qualified inquiry with a linked customer and Product target is required.",
+    createBookingSession: "Create booking session",
+    bookingSessionCreated: "Booking session created",
+    bookingSessionUnavailable: "Booking Session conversion is temporarily unavailable. Try again.",
+    bookingSessionFailed: "The Booking Session could not be created. Try again.",
+    bookingSessionRefusals: {
+      booking_session_required: "This booking must begin with a Booking Session.",
+      target_not_found: "The selected Inquiry target no longer exists.",
+      unsupported_target: "The selected target cannot start a Booking Session.",
+      idempotency_conflict: "This conversion key was already used with different details.",
+      invalid_selection: "The supplied Product selection is invalid.",
+      target_unavailable: "The selected Product is not currently bookable.",
+    },
   },
 }

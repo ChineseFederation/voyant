@@ -28,6 +28,10 @@ export function InquiryDetailHost({ id }: { id: string }) {
       onClose={(input) => mutations.close.mutateAsync({ id, input })}
       onReopen={() => mutations.reopen.mutateAsync({ id })}
       isConverting={mutations.convertToProposal.isPending}
+      isCreatingBookingSession={mutations.convertToBookingSession.isPending}
+      onConvertToBookingSession={(input) =>
+        mutations.convertToBookingSession.mutateAsync({ id, input })
+      }
       onConvertToProposal={async (input) => {
         const outcome = await mutations.convertToProposal.mutateAsync({ id, input })
         const destination = proposalDestinationForConversion(outcome)

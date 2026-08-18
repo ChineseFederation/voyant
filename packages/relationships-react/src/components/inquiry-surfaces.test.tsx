@@ -39,6 +39,16 @@ const inquiry: InquiryRecord = inquiryRecordSchema.parse({
   consentSnapshot: null,
   tags: ["family"],
   customFields: {},
+  targets: [
+    {
+      linkId: "link_product_01",
+      inquiryId: "inq_01",
+      kind: "product",
+      targetId: "prod_01",
+      snapshot: { title: "Quiet Greece" },
+      createdAt: "2026-08-18T10:00:00.000Z",
+    },
+  ],
   createdAt: "2026-08-18T10:00:00.000Z",
   updatedAt: "2026-08-18T10:00:00.000Z",
   lastActivityAt: null,
@@ -50,6 +60,8 @@ const inquiry: InquiryRecord = inquiryRecordSchema.parse({
 describe("Inquiry operator surfaces", () => {
   const refusedConversion = async () =>
     ({ kind: "refused", error: "refused", reason: "stage_closed" }) as const
+  const refusedBookingSession = async () =>
+    ({ kind: "refused", error: "refused", reason: "unsupported_target" }) as const
 
   it("renders an actionable work queue", () => {
     const html = renderToStaticMarkup(
@@ -127,6 +139,7 @@ describe("Inquiry operator surfaces", () => {
         onClose={noOp}
         onReopen={noOp}
         onConvertToProposal={refusedConversion}
+        onConvertToBookingSession={refusedBookingSession}
       />,
     )
     expect(html).toContain("Customer request")
@@ -135,6 +148,9 @@ describe("Inquiry operator surfaces", () => {
     expect(html).toContain('for="inquiry-proposal-stage"')
     expect(html).toContain('for="keep-inquiry-open"')
     expect(html).toContain("Create proposal")
+    expect(html).toContain("Start booking journey")
+    expect(html).toContain("Quiet Greece")
+    expect(html).toMatch(/<button[^>]*>Create booking session<\/button>/)
   })
 
   it("localizes the Proposal action and disables it for terminal inquiries", () => {
@@ -155,6 +171,7 @@ describe("Inquiry operator surfaces", () => {
           onClose={noOp}
           onReopen={noOp}
           onConvertToProposal={refusedConversion}
+          onConvertToBookingSession={refusedBookingSession}
         />
       </CrmUiMessagesProvider>,
     )
@@ -163,5 +180,6 @@ describe("Inquiry operator surfaces", () => {
     expect(html).toContain("Păstrează solicitarea deschisă după conversie")
     expect(html).toContain("Este necesară o solicitare calificată cu un client asociat.")
     expect(html).toMatch(/<button[^>]*disabled=""[^>]*>Creează propunere<\/button>/)
+    expect(html).toMatch(/<button[^>]*disabled=""[^>]*>Creează sesiune de rezervare<\/button>/)
   })
 })

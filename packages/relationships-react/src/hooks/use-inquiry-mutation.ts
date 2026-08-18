@@ -5,6 +5,7 @@ import {
   type AssignInquiryInput,
   type CloseInquiryInput,
   type CreateInquiryInput,
+  inquiryBookingConversionResultSchema,
   inquiryCreateResponseSchema,
   inquiryProposalConversionResultSchema,
   inquiryResponseSchema,
@@ -14,6 +15,11 @@ import {
 } from "@voyant-travel/relationships-contracts"
 import { useMemo } from "react"
 import { fetchWithValidation } from "../client.js"
+import {
+  createInquiryBookingSessionConversionAttempt,
+  type InquiryBookingSessionConversionOptions,
+  inquiryBookingSessionConversionPath,
+} from "../inquiry-booking-session-conversion.js"
 import {
   createInquiryProposalConversionAttempt,
   type InquiryProposalConversionOptions,
@@ -33,6 +39,21 @@ export function useInquiryMutation() {
           const { data } = await fetchWithValidation(
             inquiryProposalConversionPath(inquiryId),
             inquiryProposalConversionResultSchema,
+            client,
+            { method: "POST", body: JSON.stringify(command) },
+          )
+          return data
+        },
+      }),
+    [client],
+  )
+  const bookingSessionConversion = useMemo(
+    () =>
+      createInquiryBookingSessionConversionAttempt({
+        execute: async (inquiryId, command) => {
+          const { data } = await fetchWithValidation(
+            inquiryBookingSessionConversionPath(inquiryId),
+            inquiryBookingConversionResultSchema,
             client,
             { method: "POST", body: JSON.stringify(command) },
           )
@@ -100,6 +121,24 @@ export function useInquiryMutation() {
       void queryClient.invalidateQueries({ queryKey: relationshipsQueryKeys.inquiry(variables.id) })
     },
   })
+  const convertToBookingSession = useMutation({
+    mutationFn: ({ id, input }: { id: string; input: InquiryBookingSessionConversionOptions }) =>
+      bookingSessionConversion.run(id, input),
+    onSuccess: (outcome, variables) => {
+      if (outcome.kind !== "converted") return
+      void queryClient.invalidateQueries({ queryKey: relationshipsQueryKeys.inquiries() })
+      void queryClient.invalidateQueries({ queryKey: relationshipsQueryKeys.inquiry(variables.id) })
+    },
+  })
 
-  return { create, update, transition, assign, close, reopen, convertToProposal }
+  return {
+    create,
+    update,
+    transition,
+    assign,
+    close,
+    reopen,
+    convertToProposal,
+    convertToBookingSession,
+  }
 }

@@ -138,6 +138,13 @@ export {
   useRevealPersonDocument,
 } from "./hooks/use-reveal-person-document.js"
 export {
+  createInquiryBookingSessionConversionAttempt,
+  type InquiryBookingSessionConversionOptions,
+  type InquiryBookingSessionConversionOutcome,
+  inquiryBookingSessionConversionFailureKind,
+  inquiryBookingSessionConversionPath,
+} from "./inquiry-booking-session-conversion.js"
+export {
   createInquiryProposalConversionAttempt,
   type InquiryProposalConversionOptions,
   type InquiryProposalConversionOutcome,

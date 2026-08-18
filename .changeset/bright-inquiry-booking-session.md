@@ -3,6 +3,7 @@
 "@voyant-travel/hono": minor
 "@voyant-travel/relationships": minor
 "@voyant-travel/relationships-contracts": minor
+"@voyant-travel/relationships-react": minor
 ---
 
 Add the Catalog-owned Booking Session command port and the idempotent Inquiry

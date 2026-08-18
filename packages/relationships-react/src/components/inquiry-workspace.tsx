@@ -26,6 +26,11 @@ import { ArrowLeft, CalendarClock, UserRound } from "lucide-react"
 import { useState } from "react"
 import { useCrmUiI18nOrDefault } from "../i18n/index.js"
 import type {
+  InquiryBookingSessionConversionOptions,
+  InquiryBookingSessionConversionOutcome,
+} from "../inquiry-booking-session-conversion.js"
+import { inquiryBookingSessionConversionFailureKind } from "../inquiry-booking-session-conversion.js"
+import type {
   InquiryProposalConversionOptions,
   InquiryProposalConversionOutcome,
 } from "../inquiry-proposal-conversion.js"
@@ -48,6 +53,10 @@ export interface InquiryWorkspaceProps {
     input: InquiryProposalConversionOptions,
   ) => Promise<InquiryProposalConversionOutcome>
   isConverting?: boolean
+  onConvertToBookingSession: (
+    input: InquiryBookingSessionConversionOptions,
+  ) => Promise<InquiryBookingSessionConversionOutcome>
+  isCreatingBookingSession?: boolean
 }
 
 const closeOutcomes: InquiryCloseOutcome[] = [
@@ -77,6 +86,10 @@ export function InquiryWorkspace(props: InquiryWorkspaceProps) {
   const [proposalStageId, setProposalStageId] = useState("")
   const [keepInquiryOpen, setKeepInquiryOpen] = useState(false)
   const [conversionError, setConversionError] = useState<string | null>(null)
+  const productTargets = inquiry.targets.filter((target) => target.kind === "product")
+  const [bookingTargetLinkId, setBookingTargetLinkId] = useState(productTargets[0]?.linkId ?? "")
+  const [bookingConversionError, setBookingConversionError] = useState<string | null>(null)
+  const [createdBookingSessionId, setCreatedBookingSessionId] = useState<string | null>(null)
   const followUp = nextActionAt
     ? { nextActionAt: new Date(nextActionAt).toISOString() }
     : { noFollowUpExpected }
@@ -108,6 +121,27 @@ export function InquiryWorkspace(props: InquiryWorkspaceProps) {
         inquiryProposalConversionFailureKind(error) === "unavailable"
           ? messages.proposalUnavailable
           : messages.proposalFailed,
+      )
+    }
+  }
+  const convertToBookingSession = async () => {
+    setBookingConversionError(null)
+    setCreatedBookingSessionId(null)
+    try {
+      const outcome = await props.onConvertToBookingSession({
+        targetLinkId: bookingTargetLinkId,
+        keepInquiryOpen,
+      })
+      if (outcome.kind === "refused") {
+        setBookingConversionError(messages.bookingSessionRefusals[outcome.reason])
+      } else {
+        setCreatedBookingSessionId(outcome.result.target.id)
+      }
+    } catch (error) {
+      setBookingConversionError(
+        inquiryBookingSessionConversionFailureKind(error) === "unavailable"
+          ? messages.bookingSessionUnavailable
+          : messages.bookingSessionFailed,
       )
     }
   }
@@ -194,6 +228,50 @@ export function InquiryWorkspace(props: InquiryWorkspaceProps) {
             </CardHeader>
             <CardContent>
               <p className="whitespace-pre-wrap text-sm">{inquiry.customerMessage || "—"}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle>{messages.bookingSessionConversion}</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <label className="text-sm font-medium" htmlFor="inquiry-booking-target">
+                {messages.bookingSessionTarget}
+              </label>
+              <Select value={bookingTargetLinkId} onValueChange={setBookingTargetLinkId}>
+                <SelectTrigger id="inquiry-booking-target">
+                  <SelectValue placeholder={messages.bookingSessionTargetPlaceholder} />
+                </SelectTrigger>
+                <SelectContent>
+                  {productTargets.map((target) => (
+                    <SelectItem key={target.linkId} value={target.linkId}>
+                      {target.snapshot.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {!canConvert || !bookingTargetLinkId ? (
+                <p className="text-xs text-muted-foreground">
+                  {messages.bookingSessionRequiresProduct}
+                </p>
+              ) : null}
+              {bookingConversionError ? (
+                <p className="text-sm text-destructive" role="alert">
+                  {bookingConversionError}
+                </p>
+              ) : null}
+              {createdBookingSessionId ? (
+                <p className="text-sm" role="status">
+                  {messages.bookingSessionCreated}: {createdBookingSessionId}
+                </p>
+              ) : null}
+              <Button
+                className="w-full"
+                disabled={!canConvert || !bookingTargetLinkId || props.isCreatingBookingSession}
+                onClick={() => void convertToBookingSession()}
+              >
+                {messages.createBookingSession}
+              </Button>
             </CardContent>
           </Card>
           <Card>

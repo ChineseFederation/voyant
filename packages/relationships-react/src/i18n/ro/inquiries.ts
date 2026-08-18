@@ -117,5 +117,23 @@ export const crmUiRoInquiryMessages = {
       open_stage_not_found: "Fluxul de propuneri nu are nicio etapă deschisă.",
       source_conflict: "Solicitarea intră în conflict cu sursa unei propuneri existente.",
     },
+    bookingSessionConversion: "Începe procesul de rezervare",
+    bookingSessionTarget: "Produs",
+    bookingSessionTargetPlaceholder: "Selectează un produs",
+    bookingSessionRequiresProduct:
+      "Este necesară o solicitare calificată cu un client și un produs asociat.",
+    createBookingSession: "Creează sesiune de rezervare",
+    bookingSessionCreated: "Sesiune de rezervare creată",
+    bookingSessionUnavailable:
+      "Conversia în sesiune de rezervare este temporar indisponibilă. Încearcă din nou.",
+    bookingSessionFailed: "Sesiunea de rezervare nu a putut fi creată. Încearcă din nou.",
+    bookingSessionRefusals: {
+      booking_session_required: "Această rezervare trebuie să înceapă cu o sesiune de rezervare.",
+      target_not_found: "Elementul selectat nu mai există în solicitare.",
+      unsupported_target: "Elementul selectat nu poate iniția o sesiune de rezervare.",
+      idempotency_conflict: "Cheia conversiei a fost folosită cu alte detalii.",
+      invalid_selection: "Selecția produsului nu este validă.",
+      target_unavailable: "Produsul selectat nu poate fi rezervat în acest moment.",
+    },
   },
 }

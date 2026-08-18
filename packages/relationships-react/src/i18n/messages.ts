@@ -152,6 +152,23 @@ export type CrmUiMessages = {
       | "source_conflict",
       string
     >
+    bookingSessionConversion: string
+    bookingSessionTarget: string
+    bookingSessionTargetPlaceholder: string
+    bookingSessionRequiresProduct: string
+    createBookingSession: string
+    bookingSessionCreated: string
+    bookingSessionUnavailable: string
+    bookingSessionFailed: string
+    bookingSessionRefusals: Record<
+      | "booking_session_required"
+      | "target_not_found"
+      | "unsupported_target"
+      | "idempotency_conflict"
+      | "invalid_selection"
+      | "target_unavailable",
+      string
+    >
   }
   organizationForm: {
     fields: {
