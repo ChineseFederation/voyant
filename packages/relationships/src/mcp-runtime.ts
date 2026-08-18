@@ -26,8 +26,11 @@ import {
   assignInquirySchema,
   closeInquirySchema,
   convertInquiryToProposalSchema,
+  inquiryListQuerySchema,
+  recordInquiryActivitySchema,
   reopenInquirySchema,
   transitionInquirySchema,
+  updateInquirySchema,
   updateOrganizationSchema,
   updatePersonSchema,
 } from "./validation.js"
@@ -295,6 +298,57 @@ export const voyantToolContextContribution = defineToolContextContribution({
             throw new ToolError("Created Inquiry could not be resolved.", "PROVIDER_ERROR")
           }
           return { data: await withInquiryTargets(inquiry), replayed: result.replayed }
+        },
+        async listInquiries(input: unknown) {
+          const query = inquiryListQuerySchema.parse(input)
+          const result = await relationshipsService.listInquiries(db, query, c.get("userId"))
+          const targets = await relationshipsService.listInquiryTargetsForInquiries(
+            db,
+            inquiryTargetLinks,
+            result.data.map((inquiry) => inquiry.id),
+          )
+          return {
+            ...result,
+            data: result.data.map((inquiry) => ({
+              ...inquiry,
+              targets: targets.get(inquiry.id) ?? [],
+            })),
+          }
+        },
+        async getInquiry(id: string) {
+          const inquiry = await relationshipsService.getInquiry(db, id)
+          return inquiry ? withInquiryTargets(inquiry) : null
+        },
+        async updateInquiry({ id, ...input }: { id: string; [key: string]: unknown }) {
+          return withInquiryTargets(
+            await relationshipsService.updateInquiry(
+              db,
+              id,
+              updateInquirySchema.parse(input),
+              authorId(),
+            ),
+          )
+        },
+        async recordInquiryActivity({ id, ...input }: { id: string; [key: string]: unknown }) {
+          await relationshipsService.recordInquiryActivity(
+            db,
+            id,
+            recordInquiryActivitySchema.parse(input),
+            authorId(),
+          )
+          const inquiry = await relationshipsService.getInquiry(db, id)
+          if (!inquiry) throw new ToolError("Inquiry could not be resolved.", "PROVIDER_ERROR")
+          return withInquiryTargets(inquiry)
+        },
+        async qualifyInquiry({ id }: { id: string }) {
+          return withInquiryTargets(
+            await relationshipsService.transitionInquiry(
+              db,
+              id,
+              { status: "qualified" },
+              authorId(),
+            ),
+          )
         },
         async assignInquiry({ id, ...input }: { id: string; [key: string]: unknown }) {
           return withInquiryTargets(

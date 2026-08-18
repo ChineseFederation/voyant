@@ -4,6 +4,7 @@ import { useAdminNavigate } from "@voyant-travel/admin"
 import { Card } from "@voyant-travel/ui/components"
 import { InquiryWorkspace } from "../components/inquiry-workspace.js"
 import { useInquiry } from "../hooks/use-inquiry.js"
+import { useInquiryActivities } from "../hooks/use-inquiry-activities.js"
 import { useInquiryMutation } from "../hooks/use-inquiry-mutation.js"
 import { useCrmUiMessagesOrDefault } from "../i18n/index.js"
 import { proposalDestinationForConversion } from "../inquiry-proposal-conversion.js"
@@ -12,6 +13,7 @@ export function InquiryDetailHost({ id }: { id: string }) {
   const navigate = useAdminNavigate()
   const navigateOptional = navigate as (destination: string, params: unknown) => void
   const query = useInquiry(id)
+  const activities = useInquiryActivities(id)
   const mutations = useInquiryMutation()
   const messages = useCrmUiMessagesOrDefault().inquiryDetail
   if (query.isPending) return <Card className="h-72 animate-pulse" />
@@ -20,6 +22,7 @@ export function InquiryDetailHost({ id }: { id: string }) {
   return (
     <InquiryWorkspace
       inquiry={query.data}
+      activities={activities.data?.data ?? []}
       isSaving={mutations.update.isPending}
       onBack={() => navigate("inquiry.list", {})}
       onUpdate={(input) => mutations.update.mutateAsync({ id, input })}
@@ -40,6 +43,8 @@ export function InquiryDetailHost({ id }: { id: string }) {
         if (destination) navigateOptional(destination.destination, destination.params)
         return outcome
       }}
+      onRecordActivity={(input) => mutations.recordActivity.mutateAsync({ id, input })}
+      isRecordingActivity={mutations.recordActivity.isPending}
     />
   )
 }

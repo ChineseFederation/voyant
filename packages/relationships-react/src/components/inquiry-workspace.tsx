@@ -2,9 +2,11 @@
 
 import type {
   CloseInquiryInput,
+  InquiryActivityRecord,
   InquiryCloseOutcome,
   InquiryPriority,
   InquiryRecord,
+  RecordInquiryActivityInput,
   TransitionInquiryInput,
 } from "@voyant-travel/relationships-contracts"
 import {
@@ -59,6 +61,9 @@ export interface InquiryWorkspaceProps {
     input: InquiryBookingSessionConversionOptions,
   ) => Promise<InquiryBookingSessionConversionOutcome>
   isCreatingBookingSession?: boolean
+  activities?: InquiryActivityRecord[]
+  onRecordActivity?: (input: RecordInquiryActivityInput) => Promise<unknown>
+  isRecordingActivity?: boolean
 }
 
 const closeOutcomes: InquiryCloseOutcome[] = [
@@ -71,6 +76,16 @@ const closeOutcomes: InquiryCloseOutcome[] = [
   "other",
 ]
 const dateTimeValue = (value: string | null) => (value ? value.slice(0, 16) : "")
+const activityTypes = ["call", "email", "meeting", "task", "follow_up", "note"] as const
+
+function inquiryActivityDirection(activity: InquiryActivityRecord) {
+  const relationships = activity.customFields.relationships
+  const communication = relationships?.inquiryCommunication
+  if (!communication || typeof communication !== "object") return null
+  const direction = (communication as { direction?: unknown }).direction
+  return direction === "inbound" || direction === "outbound" ? direction : null
+}
+
 export function InquiryWorkspace(props: InquiryWorkspaceProps) {
   const { inquiry } = props
   const i18n = useCrmUiI18nOrDefault()
@@ -92,6 +107,12 @@ export function InquiryWorkspace(props: InquiryWorkspaceProps) {
   const [bookingTargetLinkId, setBookingTargetLinkId] = useState(productTargets[0]?.linkId ?? "")
   const [bookingConversionError, setBookingConversionError] = useState<string | null>(null)
   const [createdBookingSessionId, setCreatedBookingSessionId] = useState<string | null>(null)
+  const [activitySubject, setActivitySubject] = useState("")
+  const [activityDescription, setActivityDescription] = useState("")
+  const [activityType, setActivityType] = useState<(typeof activityTypes)[number]>("note")
+  const [activityDirection, setActivityDirection] = useState<"internal" | "inbound" | "outbound">(
+    "internal",
+  )
   const followUp = nextActionAt
     ? { nextActionAt: new Date(nextActionAt).toISOString() }
     : { noFollowUpExpected }
@@ -294,6 +315,119 @@ export function InquiryWorkspace(props: InquiryWorkspaceProps) {
                   {JSON.stringify(inquiry.travelBrief, null, 2)}
                 </pre>
               ) : null}
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle>{messages.activityTimeline}</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {props.onRecordActivity ? (
+                <div className="grid gap-3 rounded-md border p-3">
+                  <Input
+                    aria-label={messages.activitySubject}
+                    placeholder={messages.activitySubject}
+                    value={activitySubject}
+                    onChange={(event) => setActivitySubject(event.target.value)}
+                  />
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <Select
+                      value={activityType}
+                      onValueChange={(value) => setActivityType(value as typeof activityType)}
+                    >
+                      <SelectTrigger aria-label={messages.activityType}>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {activityTypes.map((type) => (
+                          <SelectItem key={type} value={type}>
+                            {type.replaceAll("_", " ")}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Select
+                      value={activityDirection}
+                      onValueChange={(value) =>
+                        setActivityDirection(value as typeof activityDirection)
+                      }
+                      disabled={!(["call", "email", "meeting"] as string[]).includes(activityType)}
+                    >
+                      <SelectTrigger aria-label={messages.activityAudience}>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="internal">{messages.activityInternal}</SelectItem>
+                        <SelectItem value="inbound">{messages.activityInbound}</SelectItem>
+                        <SelectItem value="outbound">{messages.activityOutbound}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Textarea
+                    aria-label={messages.activityDescription}
+                    placeholder={messages.activityDescription}
+                    value={activityDescription}
+                    onChange={(event) => setActivityDescription(event.target.value)}
+                  />
+                  <Button
+                    disabled={!activitySubject.trim() || props.isRecordingActivity}
+                    onClick={() => {
+                      const communicationDirection = ["call", "email", "meeting"].includes(
+                        activityType,
+                      )
+                        ? activityDirection === "internal"
+                          ? null
+                          : activityDirection
+                        : null
+                      void props
+                        .onRecordActivity?.({
+                          subject: activitySubject.trim(),
+                          type: activityType,
+                          description: activityDescription.trim() || null,
+                          communicationDirection,
+                        })
+                        .then(() => {
+                          setActivitySubject("")
+                          setActivityDescription("")
+                        })
+                    }}
+                  >
+                    {messages.recordActivity}
+                  </Button>
+                </div>
+              ) : null}
+              {(props.activities ?? []).length === 0 ? (
+                <p className="text-sm text-muted-foreground">{messages.noActivities}</p>
+              ) : (
+                <ol className="space-y-3">
+                  {(props.activities ?? []).map((activity) => {
+                    const direction = inquiryActivityDirection(activity)
+                    return (
+                      <li key={activity.id} className="rounded-md border p-3 text-sm">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <strong>{activity.subject}</strong>
+                          <span className="text-xs text-muted-foreground">
+                            {i18n.formatDateTime(activity.completedAt ?? activity.createdAt)}
+                          </span>
+                        </div>
+                        <div className="mt-1 flex gap-2">
+                          <Badge variant="outline">{activity.type.replaceAll("_", " ")}</Badge>
+                          <Badge variant="secondary">
+                            {direction === "inbound"
+                              ? messages.activityInbound
+                              : direction === "outbound"
+                                ? messages.activityOutbound
+                                : messages.activityInternal}
+                          </Badge>
+                        </div>
+                        {activity.description ? (
+                          <p className="mt-2 whitespace-pre-wrap">{activity.description}</p>
+                        ) : null}
+                      </li>
+                    )
+                  })}
+                </ol>
+              )}
             </CardContent>
           </Card>
           <Card>

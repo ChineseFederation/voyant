@@ -47,6 +47,11 @@ function ctx(
       addAddress: unavailable,
       updateAddress: unavailable,
       createInquiry: unavailable,
+      listInquiries: unavailable,
+      getInquiry: unavailable,
+      updateInquiry: unavailable,
+      recordInquiryActivity: unavailable,
+      qualifyInquiry: unavailable,
       assignInquiry: unavailable,
       closeInquiry: unavailable,
       convertInquiry: unavailable,
@@ -270,7 +275,7 @@ function inquiry(overrides: Record<string, unknown> = {}) {
 }
 
 describe("relationships (crm) tools", () => {
-  it("registers 26 stable staff-only lifecycle capabilities with typed output schemas", () => {
+  it("registers stable staff-only lifecycle capabilities with typed output schemas", () => {
     const manifest = registry().list()
     expect(manifest.map((tool) => tool.name).sort()).toEqual([
       "add_organization_address",
@@ -285,15 +290,20 @@ describe("relationships (crm) tools", () => {
       "create_inquiry",
       "create_organization",
       "create_person",
+      "get_inquiry",
       "get_organization",
       "get_person",
+      "list_inquiries",
       "list_organizations",
       "list_people",
       "list_relationship_addresses",
       "list_relationship_contact_methods",
       "list_relationship_notes",
+      "qualify_inquiry",
+      "record_inquiry_activity",
       "reopen_inquiry",
       "transition_inquiry",
+      "update_inquiry",
       "update_organization",
       "update_person",
       "update_relationship_address",
@@ -381,6 +391,49 @@ describe("relationships (crm) tools", () => {
       }),
     )
     expect(converted).toMatchObject({ conversionId: "icv_1", target: { id: "prp_1" } })
+
+    const listed = await registry().dispatch(
+      "list_inquiries",
+      { view: "mine" },
+      ctx({
+        async listInquiries(input) {
+          expect(input).toMatchObject({ view: "mine", limit: 50, offset: 0 })
+          return { data: [inquiry()], total: 1, limit: 50, offset: 0 }
+        },
+      }),
+    )
+    expect(listed).toMatchObject({ data: [{ id: "inq_1", targets: [] }], total: 1 })
+
+    const read = await registry().dispatch(
+      "get_inquiry",
+      { id: "inq_1" },
+      ctx({ getInquiry: async (id) => inquiry({ id }) }),
+    )
+    expect(read).toMatchObject({ id: "inq_1", status: "qualified" })
+
+    const updated = await registry().dispatch(
+      "update_inquiry",
+      { id: "inq_1", priority: "urgent" },
+      ctx({ updateInquiry: async (input) => inquiry({ priority: input.priority }) }),
+    )
+    expect(updated).toMatchObject({ id: "inq_1", priority: "urgent" })
+
+    const recorded = await registry().dispatch(
+      "record_inquiry_activity",
+      { id: "inq_1", subject: "Sent options", type: "email", communicationDirection: "outbound" },
+      ctx({
+        recordInquiryActivity: async (input) =>
+          inquiry({ id: input.id, lastActivityAt: "2026-08-18T13:00:00.000Z" }),
+      }),
+    )
+    expect(recorded).toMatchObject({ id: "inq_1", lastActivityAt: "2026-08-18T13:00:00.000Z" })
+
+    const qualified = await registry().dispatch(
+      "qualify_inquiry",
+      { id: "inq_1" },
+      ctx({ qualifyInquiry: async (input) => inquiry({ id: input.id, status: "qualified" }) }),
+    )
+    expect(qualified).toMatchObject({ id: "inq_1", status: "qualified" })
   })
 
   it("normalizes typed person reads and strips encrypted profile envelopes", async () => {

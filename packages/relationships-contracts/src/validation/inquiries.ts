@@ -225,6 +225,63 @@ export const reopenInquirySchema = z.object({
 /** Explicit command body: the server owns the timestamp and stamps it once. */
 export const recordInquiryFirstResponseSchema = z.object({}).strict()
 
+/**
+ * One auditable item in an Inquiry timeline. Customer direction is explicit so
+ * the owner command, rather than a UI heuristic, decides whether this is the
+ * first meaningful response.
+ */
+export const recordInquiryActivitySchema = z
+  .object({
+    subject: z.string().trim().min(1).max(500),
+    type: z.enum(["call", "email", "meeting", "task", "follow_up", "note"]),
+    description: z.string().trim().max(20_000).nullable().optional(),
+    communicationDirection: z.enum(["inbound", "outbound"]).nullable().optional(),
+    occurredAt: z.string().datetime({ offset: true }).optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.communicationDirection && !["call", "email", "meeting"].includes(value.type)) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["communicationDirection"],
+        message: "Only calls, emails, and meetings are customer communications",
+      })
+    }
+  })
+
+export const inquiryActivityRecordSchema = z.object({
+  id: z.string(),
+  subject: z.string(),
+  type: z.enum(["call", "email", "meeting", "task", "follow_up", "note"]),
+  ownerId: z.string().nullable(),
+  status: z.enum(["planned", "done", "cancelled"]),
+  dueAt: z.string().nullable(),
+  completedAt: z.string().nullable(),
+  location: z.string().nullable(),
+  description: z.string().nullable(),
+  customFields: z.record(z.string(), z.record(z.string(), z.unknown())),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+})
+
+export const inquiryActivityListResponseSchema = z.object({
+  data: z.array(inquiryActivityRecordSchema),
+  total: z.number().int(),
+  limit: z.number().int(),
+  offset: z.number().int(),
+})
+
+export const inquiryActivityListQuerySchema = paginationSchema
+
+export const recordInquiryActivityResultSchema = z.object({
+  data: inquiryActivityRecordSchema,
+  inquiry: z.object({
+    id: z.string(),
+    firstRespondedAt: z.string().nullable(),
+    lastActivityAt: z.string().nullable(),
+  }),
+  firstResponseStamped: z.boolean(),
+})
+
 export const convertInquiryToProposalSchema = z.object({
   kind: z.literal("proposal"),
   idempotencyKey: z.string().trim().min(1).max(255),
@@ -389,6 +446,8 @@ export type AssignInquiryInput = z.infer<typeof assignInquirySchema>
 export type CloseInquiryInput = z.infer<typeof closeInquirySchema>
 export type ReopenInquiryInput = z.infer<typeof reopenInquirySchema>
 export type RecordInquiryFirstResponseInput = z.infer<typeof recordInquiryFirstResponseSchema>
+export type RecordInquiryActivityInput = z.infer<typeof recordInquiryActivitySchema>
+export type InquiryActivityRecord = z.infer<typeof inquiryActivityRecordSchema>
 export type ConvertInquiryToProposalCommand = z.infer<typeof convertInquiryToProposalSchema>
 export type ConvertInquiryToBookingSessionCommand = z.infer<
   typeof convertInquiryToBookingSessionSchema

@@ -11,6 +11,7 @@ import {
 describe("@voyant-travel/relationships-contracts validation", () => {
   it("accepts valid enum vocabulary values", () => {
     expect(entityTypeSchema.parse("person")).toBe("person")
+    expect(entityTypeSchema.parse("inquiry")).toBe("inquiry")
     expect(personRelationshipKindSchema.parse("travel_companion")).toBe("travel_companion")
     expect(activityTypeSchema.parse("follow_up")).toBe("follow_up")
   })

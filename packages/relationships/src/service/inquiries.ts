@@ -11,6 +11,7 @@ import type {
   InquiryListQueryInput,
   InquiryStatus,
   InquiryTargetRecord,
+  RecordInquiryActivityInput,
   ReopenInquiryInput,
   TransitionInquiryInput,
   UpdateInquiryInput,
@@ -42,11 +43,14 @@ import {
   INQUIRY_TARGET_REMOVED_EVENT,
   INQUIRY_UPDATED_EVENT,
 } from "../events.js"
+import type { InquiryTargetValidationRuntime } from "../route-runtime.js"
 import {
   firstResponseDueAtForInquiry,
   type InquiryFirstResponseSlaPolicy,
 } from "../inquiry-sla-policy.js"
 import {
+  activities,
+  activityLinks,
   type Inquiry,
   inquiries,
   inquiryTargetSnapshots,
@@ -54,7 +58,6 @@ import {
   people,
 } from "../schema.js"
 import { inquiryOptionUnitLink, inquiryProductLink } from "../standard-links.js"
-import type { InquiryTargetValidationRuntime } from "../route-runtime.js"
 import { paginate } from "./helpers.js"
 
 export type InquiryServiceErrorCode =
@@ -519,6 +522,75 @@ export const inquiriesService = {
   async getInquiry(db: PostgresJsDatabase, id: string) {
     const [row] = await db.select().from(inquiries).where(eq(inquiries.id, id)).limit(1)
     return row ?? null
+  },
+
+  async recordInquiryActivity(
+    db: PostgresJsDatabase,
+    id: string,
+    input: RecordInquiryActivityInput,
+    actorId: string,
+  ) {
+    requireActor(actorId)
+    return db.transaction(async (tx) => {
+      const inquiry = await lockedInquiry(tx, id)
+      const occurredAt = input.occurredAt ? new Date(input.occurredAt) : new Date()
+      const meaningfulOutbound = input.communicationDirection === "outbound"
+      const customFields = input.communicationDirection
+        ? {
+            relationships: {
+              inquiryCommunication: { direction: input.communicationDirection },
+            },
+          }
+        : { relationships: { inquiryActivity: { visibility: "internal" } } }
+      const [activity] = await tx
+        .insert(activities)
+        .values({
+          subject: input.subject,
+          type: input.type,
+          ownerId: actorId,
+          status: "done",
+          completedAt: occurredAt,
+          description: input.description ?? null,
+          customFields,
+          createdAt: occurredAt,
+          updatedAt: occurredAt,
+        })
+        .returning()
+      if (!activity) throw new Error("Inquiry activity could not be created")
+      await tx.insert(activityLinks).values({
+        activityId: activity.id,
+        entityType: "inquiry",
+        entityId: id,
+        role: "primary",
+      })
+      const firstResponseStamped = meaningfulOutbound && inquiry.firstRespondedAt === null
+      if (meaningfulOutbound) {
+        // This owner command writes the dedicated event and server-owned
+        // timestamp. Because `tx` is passed through, its nested transaction is
+        // a savepoint inside the Activity/link transaction rather than a
+        // separate commit.
+        await this.recordFirstResponse(tx, id, actorId)
+      }
+      const [updatedInquiry] = await tx
+        .update(inquiries)
+        .set({
+          lastActivityAt: sql`greatest(coalesce(${inquiries.lastActivityAt}, ${occurredAt}), ${occurredAt})`,
+          updatedAt: new Date(),
+        })
+        .where(eq(inquiries.id, id))
+        .returning({
+          id: inquiries.id,
+          firstRespondedAt: inquiries.firstRespondedAt,
+          lastActivityAt: inquiries.lastActivityAt,
+        })
+      if (!updatedInquiry) throw new InquiryServiceError("INQUIRY_NOT_FOUND", "Inquiry not found")
+      await writeInquiryEvent(tx, INQUIRY_UPDATED_EVENT, {
+        id,
+        actorId,
+        activityId: activity.id,
+      })
+      return { data: activity, inquiry: updatedInquiry, firstResponseStamped }
+    })
   },
 
   async createInquiry(

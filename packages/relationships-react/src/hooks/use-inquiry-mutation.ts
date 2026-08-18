@@ -9,7 +9,9 @@ import {
   inquiryCreateResponseSchema,
   inquiryProposalConversionResultSchema,
   inquiryResponseSchema,
+  type RecordInquiryActivityInput,
   type ReopenInquiryInput,
+  recordInquiryActivityResultSchema,
   type TransitionInquiryInput,
   type UpdateInquiryInput,
 } from "@voyant-travel/relationships-contracts"
@@ -135,6 +137,23 @@ export function useInquiryMutation() {
     },
   })
 
+  const recordActivity = useMutation({
+    mutationFn: ({ id, input }: { id: string; input: RecordInquiryActivityInput }) =>
+      fetchWithValidation(
+        `${basePath}/${id}/activities`,
+        recordInquiryActivityResultSchema,
+        client,
+        { method: "POST", body: JSON.stringify(input) },
+      ),
+    onSuccess: (_result, variables) => {
+      void queryClient.invalidateQueries({
+        queryKey: relationshipsQueryKeys.inquiryActivities(variables.id),
+      })
+      void queryClient.invalidateQueries({ queryKey: relationshipsQueryKeys.inquiry(variables.id) })
+      void queryClient.invalidateQueries({ queryKey: relationshipsQueryKeys.inquiries() })
+    },
+  })
+
   return {
     create,
     update,
@@ -145,5 +164,6 @@ export function useInquiryMutation() {
     recordFirstResponse,
     convertToProposal,
     convertToBookingSession,
+    recordActivity,
   }
 }

@@ -12,6 +12,7 @@ import {
   inquiryTargetRecordSchema,
   inquiryTravelBriefV1Schema,
   publicInquiryReceiptSchema,
+  recordInquiryActivitySchema,
 } from "./validation.js"
 
 describe("Inquiry contracts", () => {
@@ -78,6 +79,23 @@ describe("Inquiry contracts", () => {
     })
     expect(
       convertInquiryToProposalSchema.safeParse({ kind: "proposal", idempotencyKey: " " }).success,
+    ).toBe(false)
+  })
+
+  it("distinguishes internal activity from meaningful customer communication", () => {
+    expect(
+      recordInquiryActivitySchema.parse({
+        subject: "Sent itinerary",
+        type: "email",
+        communicationDirection: "outbound",
+      }),
+    ).toMatchObject({ type: "email", communicationDirection: "outbound" })
+    expect(
+      recordInquiryActivitySchema.safeParse({
+        subject: "Internal follow-up",
+        type: "task",
+        communicationDirection: "outbound",
+      }).success,
     ).toBe(false)
   })
 

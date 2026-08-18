@@ -132,6 +132,25 @@ describe("Inquiry operator surfaces", () => {
     const html = renderToStaticMarkup(
       <InquiryWorkspace
         inquiry={inquiry}
+        activities={[
+          {
+            id: "act_01",
+            subject: "Sent island options",
+            type: "email",
+            ownerId: "usr_sales",
+            status: "done",
+            dueAt: null,
+            completedAt: "2026-08-18T13:00:00.000Z",
+            location: null,
+            description: "Three quieter islands",
+            customFields: {
+              relationships: { inquiryCommunication: { direction: "outbound" } },
+            },
+            createdAt: "2026-08-18T13:00:00.000Z",
+            updatedAt: "2026-08-18T13:00:00.000Z",
+          },
+        ]}
+        onRecordActivity={noOp}
         onBack={noOp}
         onUpdate={noOp}
         onAssign={noOp}
@@ -153,6 +172,10 @@ describe("Inquiry operator surfaces", () => {
     expect(html).toContain("Start booking journey")
     expect(html).toContain("Quiet Greece")
     expect(html).toMatch(/<button[^>]*>Create booking session<\/button>/)
+    expect(html).toContain("Activity timeline")
+    expect(html).toContain("Sent island options")
+    expect(html).toContain("Customer outbound")
+    expect(html).toContain("Record activity")
   })
 
   it("localizes the Proposal action and disables it for terminal inquiries", () => {

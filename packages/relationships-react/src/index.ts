@@ -68,6 +68,7 @@ export {
 } from "./hooks/use-customer-signals.js"
 export { type UseInquiriesOptions, useInquiries } from "./hooks/use-inquiries.js"
 export { useInquiry } from "./hooks/use-inquiry.js"
+export { useInquiryActivities } from "./hooks/use-inquiry-activities.js"
 export { useInquiryMutation } from "./hooks/use-inquiry-mutation.js"
 export {
   type UseOrganizationOptions,

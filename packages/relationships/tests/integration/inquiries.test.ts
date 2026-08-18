@@ -5,7 +5,13 @@ import { inquiryListQuerySchema } from "@voyant-travel/relationships-contracts"
 import { eq, sql } from "drizzle-orm"
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest"
 
-import { inquiries, inquiryTargetSnapshots, people } from "../../src/schema.js"
+import {
+  activities,
+  activityLinks,
+  inquiries,
+  inquiryTargetSnapshots,
+  people,
+} from "../../src/schema.js"
 import { type InquiryServiceError, inquiriesService } from "../../src/service/inquiries.js"
 import { inquiryOptionUnitLink, inquiryProductLink } from "../../src/standard-links.js"
 
@@ -70,6 +76,63 @@ describe.skipIf(!DB_AVAILABLE)("inquiriesService", () => {
     expect(created.status).toBe("new")
     expect((await inquiriesService.getInquiry(db, created.id))?.subject).toBe(
       "Custom Japan itinerary",
+    )
+  })
+
+  it("records an owned chronological activity and advances last activity atomically", async () => {
+    const { inquiry } = await inquiriesService.createInquiry(
+      db,
+      {
+        subject: "Activity owner",
+        kind: "general",
+        contactSnapshot: { email: "activity@example.com" },
+        source: "admin",
+        tags: [],
+        customFields: {},
+      },
+      "user_1",
+    )
+    const first = await inquiriesService.recordInquiryActivity(
+      db,
+      inquiry.id,
+      {
+        subject: "Internal qualification note",
+        type: "note",
+        description: "Needs a private transfer",
+        occurredAt: "2026-08-18T09:00:00.000Z",
+      },
+      "user_1",
+    )
+    expect(first.data).toMatchObject({
+      subject: "Internal qualification note",
+      status: "done",
+      ownerId: "user_1",
+    })
+    expect(first.inquiry.lastActivityAt).toEqual(new Date("2026-08-18T09:00:00.000Z"))
+    expect(first.inquiry.firstRespondedAt).toBeNull()
+    expect(first.firstResponseStamped).toBe(false)
+    expect(await db.select().from(activities)).toHaveLength(1)
+    expect(await db.select().from(activityLinks)).toEqual([
+      expect.objectContaining({
+        activityId: first.data.id,
+        entityType: "inquiry",
+        entityId: inquiry.id,
+        role: "primary",
+      }),
+    ])
+
+    await inquiriesService.recordInquiryActivity(
+      db,
+      inquiry.id,
+      {
+        subject: "Older imported note",
+        type: "note",
+        occurredAt: "2026-08-17T09:00:00.000Z",
+      },
+      "user_1",
+    )
+    expect((await inquiriesService.getInquiry(db, inquiry.id))?.lastActivityAt).toEqual(
+      new Date("2026-08-18T09:00:00.000Z"),
     )
   })
 

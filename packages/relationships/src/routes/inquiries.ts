@@ -13,12 +13,16 @@ import {
   type InquiryProposalConversionResult,
   inquiryBookingConversionRefusalSchema,
   inquiryBookingConversionResultSchema,
+  inquiryActivityListQuerySchema,
+  inquiryActivityListResponseSchema,
   inquiryCreateResponseSchema,
   inquiryListResponseSchema,
   inquiryProposalConversionRefusalSchema,
   inquiryProposalConversionResultSchema,
   inquiryResponseSchema,
   inquiryTargetResponseSchema,
+  recordInquiryActivityResultSchema,
+  recordInquiryActivitySchema,
 } from "@voyant-travel/relationships-contracts"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import type { Context } from "hono"
@@ -75,6 +79,8 @@ const documentedCloseSchema: z.ZodObject = closeInquirySchema
 const documentedReopenSchema: z.ZodObject = reopenInquirySchema
 const documentedRecordFirstResponseSchema: z.ZodObject = recordInquiryFirstResponseSchema
 const documentedConvertSchema: z.ZodTypeAny = convertInquirySchema
+const documentedActivityListQuerySchema: z.ZodObject = inquiryActivityListQuerySchema
+const documentedRecordActivitySchema: z.ZodObject = recordInquiryActivitySchema
 const documentedInquiryResponseSchema: z.ZodObject = inquiryResponseSchema
 const documentedInquiryCreateResponseSchema: z.ZodObject = inquiryCreateResponseSchema
 const documentedInquiryListResponseSchema: z.ZodObject = inquiryListResponseSchema
@@ -84,6 +90,8 @@ const inquiryConversionResponse = jsonContent(
   inquiryProposalConversionResultSchema.or(inquiryBookingConversionResultSchema),
 )
 const inquiryTargetResponse = jsonContent(inquiryTargetResponseSchema)
+const inquiryActivityListResponse = jsonContent(inquiryActivityListResponseSchema)
+const recordInquiryActivityResponse = jsonContent(recordInquiryActivityResultSchema)
 
 function requireLink(c: Context<Env>): LinkService {
   const link = c.get("link")
@@ -184,6 +192,25 @@ const deleteTargetRoute = createRoute({
     204: { description: "Inquiry target removed" },
     404: { description: "Inquiry or target not found", ...jsonContent(errorResponseSchema) },
     409: { description: "Inquiry target conflict", ...jsonContent(errorResponseSchema) },
+  },
+})
+const listActivitiesRoute = createRoute({
+  method: "get",
+  path: "/inquiries/{id}/activities",
+  request: { params: idParamSchema, query: documentedActivityListQuerySchema },
+  responses: {
+    200: { description: "Chronological Inquiry activity timeline", ...inquiryActivityListResponse },
+    404: { description: "Inquiry not found", ...jsonContent(errorResponseSchema) },
+  },
+})
+const recordActivityRoute = createRoute({
+  method: "post",
+  path: "/inquiries/{id}/activities",
+  request: { params: idParamSchema, ...requiredJsonBody(documentedRecordActivitySchema) },
+  responses: {
+    201: { description: "Recorded Inquiry activity", ...recordInquiryActivityResponse },
+    404: { description: "Inquiry not found", ...jsonContent(errorResponseSchema) },
+    409: { description: "Inquiry activity conflict", ...jsonContent(errorResponseSchema) },
   },
 })
 
@@ -293,6 +320,32 @@ inquiryRoutes.openapi(getRoute, async (c) => {
   return row
     ? c.json({ data: await withTargets(c.get("db"), requireLink(c), row) }, 200)
     : c.json({ error: "Inquiry not found" }, 404)
+})
+inquiryRoutes.openapi(listActivitiesRoute, async (c) => {
+  const id = c.req.valid("param").id
+  const inquiry = await relationshipsService.getInquiry(c.get("db"), id)
+  if (!inquiry) return c.json({ error: "Inquiry not found" }, 404)
+  return c.json(
+    await relationshipsService.listActivities(c.get("db"), {
+      ...parseQuery(c, inquiryActivityListQuerySchema),
+      entityType: "inquiry",
+      entityId: id,
+    }),
+    200,
+  )
+})
+inquiryRoutes.openapi(recordActivityRoute, async (c) => {
+  try {
+    const result = await relationshipsService.recordInquiryActivity(
+      c.get("db"),
+      c.req.valid("param").id,
+      await parseJsonBody(c, recordInquiryActivitySchema),
+      requireUserId(c),
+    )
+    return c.json(result, 201)
+  } catch (error) {
+    return serviceErrorResponse(c, error)
+  }
 })
 inquiryRoutes.openapi(updateRoute, async (c) => {
   const actorId = requireUserId(c)

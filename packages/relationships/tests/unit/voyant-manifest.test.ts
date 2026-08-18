@@ -100,11 +100,11 @@ describe("relationships deployment manifest", () => {
         }),
       ]),
     )
-    expect(relationshipsVoyantModule.tools).toHaveLength(26)
+    expect(relationshipsVoyantModule.tools).toHaveLength(31)
     const toolActions = (relationshipsVoyantModule.actions ?? []).filter(
       (action) => action.from?.tools?.length,
     )
-    expect(toolActions).toHaveLength(26)
+    expect(toolActions).toHaveLength(31)
     for (const tool of relationshipsVoyantModule.tools ?? []) {
       const action = toolActions.find((candidate) => candidate.from?.tools?.includes(tool.id))
       expect(action).toBeDefined()

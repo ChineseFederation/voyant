@@ -118,6 +118,7 @@ export const relationshipsQueryKeys = {
   inquiriesList: (filters: InquiriesListFilters) =>
     [...relationshipsQueryKeys.inquiries(), "list", filters] as const,
   inquiry: (id: string) => [...relationshipsQueryKeys.inquiries(), "detail", id] as const,
+  inquiryActivities: (id: string) => [...relationshipsQueryKeys.inquiry(id), "activities"] as const,
 
   organizations: () => [...relationshipsQueryKeys.all, "organizations"] as const,
   organizationsList: (filters: OrganizationsListFilters) =>

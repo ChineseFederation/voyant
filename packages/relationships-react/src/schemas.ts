@@ -107,6 +107,7 @@ export const activityRecordSchema = z.object({
   completedAt: z.string().nullable(),
   location: z.string().nullable(),
   description: z.string().nullable(),
+  customFields: z.record(z.string(), z.record(z.string(), z.unknown())),
   createdAt: z.string(),
   updatedAt: z.string(),
 })

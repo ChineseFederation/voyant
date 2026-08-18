@@ -37,6 +37,8 @@ import {
   closeInquirySchema,
   convertInquiryToProposalSchema,
   createInquirySchema,
+  inquiryListQuerySchema,
+  inquiryListResponseSchema,
   inquiryProposalConversionResultSchema,
   inquiryRecordSchema,
   insertOrganizationSchema,
@@ -46,10 +48,12 @@ import {
   organizationListSortDirSchema,
   organizationListSortFieldSchema,
   personListQuerySchema,
+  recordInquiryActivitySchema,
   recordStatusSchema,
   relationTypeSchema,
   reopenInquirySchema,
   transitionInquirySchema,
+  updateInquirySchema,
   updateOrganizationSchema,
   updatePersonNoteSchema,
   updatePersonSchema,
@@ -220,6 +224,9 @@ const closeInquiryToolInputSchema = inquiryIdSchema.and(closeInquirySchema)
 const convertInquiryToolInputSchema = inquiryIdSchema.and(convertInquiryToProposalSchema)
 const reopenInquiryToolInputSchema = inquiryIdSchema.and(reopenInquirySchema)
 const transitionInquiryToolInputSchema = inquiryIdSchema.and(transitionInquirySchema)
+const updateInquiryToolInputSchema = inquiryIdSchema.and(updateInquirySchema)
+const recordInquiryActivityToolInputSchema = inquiryIdSchema.and(recordInquiryActivitySchema)
+const qualifyInquiryToolInputSchema = inquiryIdSchema
 const createInquiryOutputSchema = z.object({
   data: inquiryRecordSchema,
   replayed: z.boolean(),
@@ -249,6 +256,9 @@ type CloseInquiryToolInput = z.infer<typeof closeInquiryToolInputSchema>
 type ConvertInquiryToolInput = z.infer<typeof convertInquiryToolInputSchema>
 type ReopenInquiryToolInput = z.infer<typeof reopenInquiryToolInputSchema>
 type TransitionInquiryToolInput = z.infer<typeof transitionInquiryToolInputSchema>
+type UpdateInquiryToolInput = z.infer<typeof updateInquiryToolInputSchema>
+type RecordInquiryActivityToolInput = z.infer<typeof recordInquiryActivityToolInputSchema>
+type QualifyInquiryToolInput = z.infer<typeof qualifyInquiryToolInputSchema>
 
 /** Request-scoped Relationships operations used by CRM tools. */
 export interface RelationshipsToolServices {
@@ -276,6 +286,11 @@ export interface RelationshipsToolServices {
     input: CreateInquiryToolInput,
     admitted: ToolHandlerActionPolicyContext,
   ): Promise<unknown>
+  listInquiries(input: z.infer<typeof inquiryListQuerySchema>): Promise<unknown>
+  getInquiry(id: string): Promise<unknown>
+  updateInquiry(input: UpdateInquiryToolInput): Promise<unknown>
+  recordInquiryActivity(input: RecordInquiryActivityToolInput): Promise<unknown>
+  qualifyInquiry(input: QualifyInquiryToolInput): Promise<unknown>
   assignInquiry(input: AssignInquiryToolInput): Promise<unknown>
   closeInquiry(input: CloseInquiryToolInput): Promise<unknown>
   convertInquiry(input: ConvertInquiryToolInput): Promise<unknown>
@@ -700,6 +715,88 @@ export const createInquiryTool = defineTool<
   },
 })
 
+export const listInquiriesTool = defineTool<
+  z.infer<typeof inquiryListQuerySchema>,
+  z.infer<typeof inquiryListResponseSchema>,
+  RelationshipsToolContext
+>({
+  ...sensitiveReadMetadata,
+  capabilityId: `${OWNER}#tool.list-inquiries`,
+  name: "list_inquiries",
+  description: "List and search the agency Inquiry work queue with live target projections.",
+  inputSchema: inquiryListQuerySchema,
+  outputSchema: inquiryListResponseSchema,
+  async handler(input, ctx) {
+    return parseJsonResult(inquiryListResponseSchema, await crm(ctx).listInquiries(input))
+  },
+})
+
+export const getInquiryTool = defineTool<
+  z.infer<typeof inquiryIdSchema>,
+  z.infer<typeof inquiryRecordSchema> | null,
+  RelationshipsToolContext
+>({
+  ...sensitiveReadMetadata,
+  capabilityId: `${OWNER}#tool.get-inquiry`,
+  name: "get_inquiry",
+  description: "Read one Inquiry, including its current owner, next action, and targets.",
+  inputSchema: inquiryIdSchema,
+  outputSchema: inquiryRecordSchema.nullable(),
+  async handler({ id }, ctx) {
+    return parseJsonResult(inquiryRecordSchema.nullable(), await crm(ctx).getInquiry(id))
+  },
+})
+
+export const updateInquiryTool = defineTool<
+  UpdateInquiryToolInput,
+  z.infer<typeof inquiryRecordSchema>,
+  RelationshipsToolContext
+>({
+  ...sensitiveWriteMetadata,
+  capabilityId: `${OWNER}#tool.update-inquiry`,
+  name: "update_inquiry",
+  description: "Update editable Inquiry request, contact, priority, next-action, and brief fields.",
+  inputSchema: updateInquiryToolInputSchema,
+  outputSchema: inquiryRecordSchema,
+  annotations: { idempotentHint: true },
+  async handler(input, ctx) {
+    return parseJsonResult(inquiryRecordSchema, await crm(ctx).updateInquiry(input))
+  },
+})
+
+export const recordInquiryActivityTool = defineTool<
+  RecordInquiryActivityToolInput,
+  z.infer<typeof inquiryRecordSchema>,
+  RelationshipsToolContext
+>({
+  ...sensitiveWriteMetadata,
+  capabilityId: `${OWNER}#tool.record-inquiry-activity`,
+  name: "record_inquiry_activity",
+  description:
+    "Record an internal activity or inbound/outbound customer communication on an Inquiry timeline.",
+  inputSchema: recordInquiryActivityToolInputSchema,
+  outputSchema: inquiryRecordSchema,
+  async handler(input, ctx) {
+    return parseJsonResult(inquiryRecordSchema, await crm(ctx).recordInquiryActivity(input))
+  },
+})
+
+export const qualifyInquiryTool = defineTool<
+  QualifyInquiryToolInput,
+  z.infer<typeof inquiryRecordSchema>,
+  RelationshipsToolContext
+>({
+  ...routineWriteMetadata,
+  capabilityId: `${OWNER}#tool.qualify-inquiry`,
+  name: "qualify_inquiry",
+  description: "Qualify an eligible Inquiry through the canonical lifecycle command.",
+  inputSchema: qualifyInquiryToolInputSchema,
+  outputSchema: inquiryRecordSchema,
+  async handler(input, ctx) {
+    return parseJsonResult(inquiryRecordSchema, await crm(ctx).qualifyInquiry(input))
+  },
+})
+
 export const assignInquiryTool = defineTool<
   AssignInquiryToolInput,
   z.infer<typeof inquiryRecordSchema>,
@@ -806,6 +903,11 @@ export const relationshipsTools = [
   addOrganizationAddressTool,
   updateRelationshipAddressTool,
   createInquiryTool,
+  listInquiriesTool,
+  getInquiryTool,
+  updateInquiryTool,
+  recordInquiryActivityTool,
+  qualifyInquiryTool,
   assignInquiryTool,
   closeInquiryTool,
   convertInquiryTool,
