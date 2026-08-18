@@ -303,7 +303,11 @@ export const voyantToolContextContribution = defineToolContextContribution({
         },
         async listInquiries(input: unknown) {
           const query = inquiryListQuerySchema.parse(input)
-          const result = await relationshipsService.listInquiries(db, query, c.get("userId"))
+          const result = await relationshipsService.listInquiries(
+            db,
+            query,
+            c.get("userId") ?? undefined,
+          )
           const targets = await relationshipsService.listInquiryTargetsForInquiries(
             db,
             inquiryTargetLinks,
@@ -369,7 +373,7 @@ export const voyantToolContextContribution = defineToolContextContribution({
             command,
             authorId(),
           )
-          return result.data
+          return result
         },
         async assignInquiry({ id, ...input }: { id: string; [key: string]: unknown }) {
           return withInquiryTargets(

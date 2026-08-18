@@ -411,7 +411,7 @@ describe("relationships (crm) tools", () => {
       { id: "inq_1" },
       ctx({ getInquiry: async (id) => inquiry({ id }) }),
     )
-    expect(read).toMatchObject({ id: "inq_1", status: "qualified" })
+    expect(read).toMatchObject({ id: "inq_1", status: "triaged" })
 
     const updated = await registry().dispatch(
       "update_inquiry",

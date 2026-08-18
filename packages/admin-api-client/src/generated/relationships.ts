@@ -698,6 +698,24 @@ export interface paths {
     patch: operations["patchAdminRelationshipsInquiriesById"]
     trace?: never
   }
+  "/v1/admin/relationships/inquiries/{id}/activities": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** GET /v1/admin/relationships/inquiries/{id}/activities */
+    get: operations["getAdminRelationshipsInquiriesByIdActivities"]
+    put?: never
+    /** POST /v1/admin/relationships/inquiries/{id}/activities */
+    post: operations["postAdminRelationshipsInquiriesByIdActivities"]
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
   "/v1/admin/relationships/inquiries/{id}/transition": {
     parameters: {
       query?: never
@@ -5851,6 +5869,17 @@ export interface operations {
           }
         }
       }
+      /** @description Target owner authority unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
     }
   }
   getAdminRelationshipsInquiriesById: {
@@ -6229,6 +6258,172 @@ export interface operations {
           }
         }
       }
+      /** @description Target owner authority unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getAdminRelationshipsInquiriesByIdActivities: {
+    parameters: {
+      query?: {
+        limit?: number
+        offset?: number | null
+      }
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Chronological Inquiry activity timeline */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              subject: string
+              /** @enum {string} */
+              type: "call" | "email" | "meeting" | "task" | "follow_up" | "note"
+              ownerId: string | null
+              /** @enum {string} */
+              status: "planned" | "done" | "cancelled"
+              dueAt: string | null
+              completedAt: string | null
+              location: string | null
+              description: string | null
+              customFields: {
+                [key: string]: {
+                  [key: string]: unknown
+                }
+              }
+              createdAt: string
+              updatedAt: string
+            }[]
+            total: number
+            limit: number
+            offset: number
+          }
+        }
+      }
+      /** @description Inquiry not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  postAdminRelationshipsInquiriesByIdActivities: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          subject: string
+          /** @enum {string} */
+          type: "call" | "email" | "meeting" | "task" | "follow_up" | "note"
+          description?: string | null
+          /** @enum {string|null} */
+          communicationDirection?: "inbound" | "outbound" | null
+          /** Format: date-time */
+          occurredAt?: string
+        }
+      }
+    }
+    responses: {
+      /** @description Recorded Inquiry activity */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              subject: string
+              /** @enum {string} */
+              type: "call" | "email" | "meeting" | "task" | "follow_up" | "note"
+              ownerId: string | null
+              /** @enum {string} */
+              status: "planned" | "done" | "cancelled"
+              dueAt: string | null
+              completedAt: string | null
+              location: string | null
+              description: string | null
+              customFields: {
+                [key: string]: {
+                  [key: string]: unknown
+                }
+              }
+              createdAt: string
+              updatedAt: string
+            }
+            inquiry: {
+              id: string
+              firstRespondedAt: string | null
+              lastActivityAt: string | null
+            }
+            firstResponseStamped: boolean
+          }
+        }
+      }
+      /** @description Inquiry not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Inquiry activity conflict */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Inquiry activity owner unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
     }
   }
   postAdminRelationshipsInquiriesByIdTransition: {
@@ -6401,6 +6596,17 @@ export interface operations {
           }
         }
       }
+      /** @description Inquiry owner authority unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
     }
   }
   postAdminRelationshipsInquiriesByIdAssign: {
@@ -6561,6 +6767,17 @@ export interface operations {
       }
       /** @description Inquiry lifecycle conflict */
       409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Inquiry owner authority unavailable */
+      503: {
         headers: {
           [name: string]: unknown
         }
@@ -6747,6 +6964,17 @@ export interface operations {
           }
         }
       }
+      /** @description Inquiry owner authority unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
     }
   }
   postAdminRelationshipsInquiriesByIdReopen: {
@@ -6907,6 +7135,17 @@ export interface operations {
       }
       /** @description Inquiry lifecycle conflict */
       409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Inquiry owner authority unavailable */
+      503: {
         headers: {
           [name: string]: unknown
         }
@@ -7218,6 +7457,17 @@ export interface operations {
           }
         }
       }
+      /** @description Inquiry owner authority unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
     }
   }
   postAdminRelationshipsInquiriesByIdConvert: {
@@ -7413,7 +7663,7 @@ export interface operations {
         ownerId?: string
         status?: "planned" | "done" | "cancelled"
         type?: "call" | "email" | "meeting" | "task" | "follow_up" | "note"
-        entityType?: "organization" | "person" | "proposal" | "activity" | "booking"
+        entityType?: "organization" | "person" | "proposal" | "activity" | "booking" | "inquiry"
         entityId?: string
         search?: string
       }
@@ -7727,7 +7977,13 @@ export interface operations {
               id: string
               activityId: string
               /** @enum {string} */
-              entityType: "organization" | "person" | "proposal" | "activity" | "booking"
+              entityType:
+                | "organization"
+                | "person"
+                | "proposal"
+                | "activity"
+                | "booking"
+                | "inquiry"
               entityId: string
               /** @enum {string} */
               role: "primary" | "related"
@@ -7751,7 +8007,7 @@ export interface operations {
       content: {
         "application/json": {
           /** @enum {string} */
-          entityType: "organization" | "person" | "proposal" | "activity" | "booking"
+          entityType: "organization" | "person" | "proposal" | "activity" | "booking" | "inquiry"
           entityId: string
           /**
            * @default related
@@ -7773,7 +8029,13 @@ export interface operations {
               id: string
               activityId: string
               /** @enum {string} */
-              entityType: "organization" | "person" | "proposal" | "activity" | "booking"
+              entityType:
+                | "organization"
+                | "person"
+                | "proposal"
+                | "activity"
+                | "booking"
+                | "inquiry"
               entityId: string
               /** @enum {string} */
               role: "primary" | "related"

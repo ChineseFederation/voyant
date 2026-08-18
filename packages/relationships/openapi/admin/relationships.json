@@ -11115,6 +11115,22 @@
                 }
               }
             }
+          },
+          "503": {
+            "description": "Target owner authority unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
           }
         },
         "operationId": "postAdminRelationshipsInquiries",
@@ -12179,10 +12195,369 @@
                 }
               }
             }
+          },
+          "503": {
+            "description": "Target owner authority unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
           }
         },
         "operationId": "patchAdminRelationshipsInquiriesById",
         "summary": "PATCH /v1/admin/relationships/inquiries/{id}",
+        "tags": ["relationships"],
+        "x-voyant-module": "relationships",
+        "x-voyant-surface": "admin",
+        "x-voyant-api-id": "@voyant-travel/relationships#api.admin",
+        "x-voyant-unit-id": "@voyant-travel/relationships",
+        "x-voyant-package-name": "@voyant-travel/relationships"
+      }
+    },
+    "/v1/admin/relationships/inquiries/{id}/activities": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 50
+            },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": ["integer", "null"],
+              "minimum": 0,
+              "default": 0
+            },
+            "required": false,
+            "name": "offset",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Chronological Inquiry activity timeline",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "subject": {
+                            "type": "string"
+                          },
+                          "type": {
+                            "type": "string",
+                            "enum": ["call", "email", "meeting", "task", "follow_up", "note"]
+                          },
+                          "ownerId": {
+                            "type": ["string", "null"]
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": ["planned", "done", "cancelled"]
+                          },
+                          "dueAt": {
+                            "type": ["string", "null"]
+                          },
+                          "completedAt": {
+                            "type": ["string", "null"]
+                          },
+                          "location": {
+                            "type": ["string", "null"]
+                          },
+                          "description": {
+                            "type": ["string", "null"]
+                          },
+                          "customFields": {
+                            "type": "object",
+                            "additionalProperties": {
+                              "type": "object",
+                              "additionalProperties": {}
+                            }
+                          },
+                          "createdAt": {
+                            "type": "string"
+                          },
+                          "updatedAt": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "subject",
+                          "type",
+                          "ownerId",
+                          "status",
+                          "dueAt",
+                          "completedAt",
+                          "location",
+                          "description",
+                          "customFields",
+                          "createdAt",
+                          "updatedAt"
+                        ]
+                      }
+                    },
+                    "total": {
+                      "type": "integer"
+                    },
+                    "limit": {
+                      "type": "integer"
+                    },
+                    "offset": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": ["data", "total", "limit", "offset"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Inquiry not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "getAdminRelationshipsInquiriesByIdActivities",
+        "summary": "GET /v1/admin/relationships/inquiries/{id}/activities",
+        "tags": ["relationships"],
+        "x-voyant-module": "relationships",
+        "x-voyant-surface": "admin",
+        "x-voyant-api-id": "@voyant-travel/relationships#api.admin",
+        "x-voyant-unit-id": "@voyant-travel/relationships",
+        "x-voyant-package-name": "@voyant-travel/relationships"
+      },
+      "post": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "subject": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 500
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": ["call", "email", "meeting", "task", "follow_up", "note"]
+                  },
+                  "description": {
+                    "type": ["string", "null"],
+                    "maxLength": 20000
+                  },
+                  "communicationDirection": {
+                    "type": ["string", "null"],
+                    "enum": ["inbound", "outbound", null]
+                  },
+                  "occurredAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  }
+                },
+                "required": ["subject", "type"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Recorded Inquiry activity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "subject": {
+                          "type": "string"
+                        },
+                        "type": {
+                          "type": "string",
+                          "enum": ["call", "email", "meeting", "task", "follow_up", "note"]
+                        },
+                        "ownerId": {
+                          "type": ["string", "null"]
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": ["planned", "done", "cancelled"]
+                        },
+                        "dueAt": {
+                          "type": ["string", "null"]
+                        },
+                        "completedAt": {
+                          "type": ["string", "null"]
+                        },
+                        "location": {
+                          "type": ["string", "null"]
+                        },
+                        "description": {
+                          "type": ["string", "null"]
+                        },
+                        "customFields": {
+                          "type": "object",
+                          "additionalProperties": {
+                            "type": "object",
+                            "additionalProperties": {}
+                          }
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        },
+                        "updatedAt": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "subject",
+                        "type",
+                        "ownerId",
+                        "status",
+                        "dueAt",
+                        "completedAt",
+                        "location",
+                        "description",
+                        "customFields",
+                        "createdAt",
+                        "updatedAt"
+                      ]
+                    },
+                    "inquiry": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "firstRespondedAt": {
+                          "type": ["string", "null"]
+                        },
+                        "lastActivityAt": {
+                          "type": ["string", "null"]
+                        }
+                      },
+                      "required": ["id", "firstRespondedAt", "lastActivityAt"]
+                    },
+                    "firstResponseStamped": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": ["data", "inquiry", "firstResponseStamped"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Inquiry not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Inquiry activity conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Inquiry activity owner unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "postAdminRelationshipsInquiriesByIdActivities",
+        "summary": "POST /v1/admin/relationships/inquiries/{id}/activities",
         "tags": ["relationships"],
         "x-voyant-module": "relationships",
         "x-voyant-surface": "admin",
@@ -12634,6 +13009,22 @@
           },
           "409": {
             "description": "Inquiry lifecycle conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Inquiry owner authority unavailable",
             "content": {
               "application/json": {
                 "schema": {
@@ -13099,6 +13490,22 @@
           },
           "409": {
             "description": "Inquiry lifecycle conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Inquiry owner authority unavailable",
             "content": {
               "application/json": {
                 "schema": {
@@ -13585,6 +13992,22 @@
                 }
               }
             }
+          },
+          "503": {
+            "description": "Inquiry owner authority unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
           }
         },
         "operationId": "postAdminRelationshipsInquiriesByIdClose",
@@ -14032,6 +14455,22 @@
           },
           "409": {
             "description": "Inquiry lifecycle conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Inquiry owner authority unavailable",
             "content": {
               "application/json": {
                 "schema": {
@@ -14770,6 +15209,22 @@
                 }
               }
             }
+          },
+          "503": {
+            "description": "Inquiry owner authority unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
           }
         },
         "operationId": "postAdminRelationshipsInquiriesByIdRecordFirstResponse",
@@ -15255,7 +15710,7 @@
           {
             "schema": {
               "type": "string",
-              "enum": ["organization", "person", "proposal", "activity", "booking"]
+              "enum": ["organization", "person", "proposal", "activity", "booking", "inquiry"]
             },
             "required": false,
             "name": "entityType",
@@ -15893,7 +16348,14 @@
                           },
                           "entityType": {
                             "type": "string",
-                            "enum": ["organization", "person", "proposal", "activity", "booking"]
+                            "enum": [
+                              "organization",
+                              "person",
+                              "proposal",
+                              "activity",
+                              "booking",
+                              "inquiry"
+                            ]
                           },
                           "entityId": {
                             "type": "string"
@@ -15952,7 +16414,7 @@
                 "properties": {
                   "entityType": {
                     "type": "string",
-                    "enum": ["organization", "person", "proposal", "activity", "booking"]
+                    "enum": ["organization", "person", "proposal", "activity", "booking", "inquiry"]
                   },
                   "entityId": {
                     "type": "string"
@@ -15987,7 +16449,14 @@
                         },
                         "entityType": {
                           "type": "string",
-                          "enum": ["organization", "person", "proposal", "activity", "booking"]
+                          "enum": [
+                            "organization",
+                            "person",
+                            "proposal",
+                            "activity",
+                            "booking",
+                            "inquiry"
+                          ]
                         },
                         "entityId": {
                           "type": "string"

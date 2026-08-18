@@ -259,6 +259,7 @@ export const inquiriesService = {
         tx,
         {
           ...inquiryInput,
+          priority: "normal",
           source: "storefront",
           sourceRef: `${context.channelId}:${input.sourceRef}`,
           personId: context.relationshipPersonId ?? null,
@@ -396,7 +397,7 @@ export const inquiriesService = {
         .values({
           linkId: linked.id,
           inquiryId,
-          kind: input.kind,
+          kind: materializedKind,
           targetId: input.targetId,
           snapshot: input.snapshot,
         })

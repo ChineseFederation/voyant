@@ -9,12 +9,10 @@ import {
 } from "@voyant-travel/hono"
 import {
   addInquiryTargetSchema,
-  type InquiryBookingConversionResult,
-  type InquiryProposalConversionResult,
-  inquiryBookingConversionRefusalSchema,
-  inquiryBookingConversionResultSchema,
   inquiryActivityListQuerySchema,
   inquiryActivityListResponseSchema,
+  inquiryBookingConversionRefusalSchema,
+  inquiryBookingConversionResultSchema,
   inquiryCreateResponseSchema,
   inquiryListResponseSchema,
   inquiryProposalConversionRefusalSchema,
@@ -149,6 +147,7 @@ const createRouteDefinition = createRoute({
     201: { description: "Created inquiry", ...inquiryCreateResponse },
     404: { description: "Related record not found", ...jsonContent(errorResponseSchema) },
     409: { description: "Inquiry conflict", ...jsonContent(errorResponseSchema) },
+    503: { description: "Target owner authority unavailable", ...jsonContent(errorResponseSchema) },
   },
 })
 const getRoute = createRoute({
@@ -171,6 +170,7 @@ const updateRoute = createRoute({
       ...jsonContent(errorResponseSchema),
     },
     409: { description: "Inquiry conflict", ...jsonContent(errorResponseSchema) },
+    503: { description: "Target owner authority unavailable", ...jsonContent(errorResponseSchema) },
   },
 })
 const addTargetRoute = createRoute({
@@ -211,6 +211,7 @@ const recordActivityRoute = createRoute({
     201: { description: "Recorded Inquiry activity", ...recordInquiryActivityResponse },
     404: { description: "Inquiry not found", ...jsonContent(errorResponseSchema) },
     409: { description: "Inquiry activity conflict", ...jsonContent(errorResponseSchema) },
+    503: { description: "Inquiry activity owner unavailable", ...jsonContent(errorResponseSchema) },
   },
 })
 
@@ -218,6 +219,7 @@ const commandResponses = {
   200: { description: "Updated inquiry", ...inquiryResponse },
   404: { description: "Inquiry not found", ...jsonContent(errorResponseSchema) },
   409: { description: "Inquiry lifecycle conflict", ...jsonContent(errorResponseSchema) },
+  503: { description: "Inquiry owner authority unavailable", ...jsonContent(errorResponseSchema) },
 } as const
 const transitionRoute = createRoute({
   method: "post",
@@ -469,25 +471,26 @@ inquiryRoutes.openapi(convertRoute, async (c) => {
     | undefined
   try {
     const inquiryId = c.req.valid("param").id
-    let result: InquiryProposalConversionResult | InquiryBookingConversionResult
     if (command.kind === "proposal") {
       if (!runtime?.proposalInquiryConversion) {
         return c.json({ error: "Proposal conversion is unavailable" }, 503)
       }
-      result = await convertInquiryToProposal(
+      const result = await convertInquiryToProposal(
         c.get("db"),
         runtime.proposalInquiryConversion,
         inquiryId,
         command,
         actorId,
       )
+      const body = { data: result }
+      return result.kind === "created" ? c.json(body, 201) : c.json(body, 200)
     } else if (command.kind === "booking") {
       throw new InquiryBookingConversionRefusedError("booking_session_required")
     } else {
       if (!runtime?.inquiryBookingSession) {
         return c.json({ error: "Booking Session conversion is unavailable" }, 503)
       }
-      result = await convertInquiryToBookingTarget(
+      const result = await convertInquiryToBookingTarget(
         c.get("db"),
         runtime.inquiryBookingSession,
         requireLink(c),
@@ -495,9 +498,9 @@ inquiryRoutes.openapi(convertRoute, async (c) => {
         command,
         actorId,
       )
+      const body = { data: result }
+      return result.kind === "created" ? c.json(body, 201) : c.json(body, 200)
     }
-    const body = { data: result }
-    return result.kind === "created" ? c.json(body, 201) : c.json(body, 200)
   } catch (error) {
     if (error instanceof InquiryProposalConversionRefusedError) {
       return c.json({ error: error.message, reason: error.reason }, 409)

@@ -14,6 +14,7 @@ export const relationshipsService = {
   ...inquiriesService,
 }
 
+export type { InquiryBookingConversionRefusalReason } from "@voyant-travel/relationships-contracts"
 export type {
   CreateCustomerSignalInput,
   CustomerSignalListQuery,
@@ -22,7 +23,6 @@ export type {
 export { customerSignalsService } from "./customer-signals.js"
 export type { InquiryServiceErrorCode } from "./inquiries.js"
 export { InquiryServiceError, inquiriesService } from "./inquiries.js"
-export type { InquiryBookingConversionRefusalReason } from "./inquiry-booking-conversions.js"
 export {
   convertInquiryToBookingTarget,
   InquiryBookingConversionRefusedError,

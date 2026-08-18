@@ -1,5 +1,7 @@
 "use client"
 
+// agent-quality: file-size exception -- owner: relationships-react; existing inquiry detail workflow stays co-located while this PR only fixes branch-local select typing.
+
 import type {
   CloseInquiryInput,
   InquiryActivityRecord,
@@ -264,7 +266,10 @@ export function InquiryWorkspace(props: InquiryWorkspaceProps) {
               <label className="text-sm font-medium" htmlFor="inquiry-booking-target">
                 {messages.bookingSessionTarget}
               </label>
-              <Select value={bookingTargetLinkId} onValueChange={setBookingTargetLinkId}>
+              <Select
+                value={bookingTargetLinkId}
+                onValueChange={(value) => setBookingTargetLinkId(value ?? "")}
+              >
                 <SelectTrigger id="inquiry-booking-target">
                   <SelectValue placeholder={messages.bookingSessionTargetPlaceholder} />
                 </SelectTrigger>

@@ -44,10 +44,17 @@ const expressions: Record<FieldId, SQL> = {
   ageDays: sql`EXTRACT(EPOCH FROM (COALESCE(${inquiries.closedAt}, ${inquiries.convertedAt}, now()) - ${inquiries.createdAt})) / 86400.0`,
 }
 
-const fields = new Map(
+const fields = new Map<FieldId, { definition: ReportDatasetField; expression: SQL }>(
   INQUIRY_ACTIVITY_FIELDS.map((definition) => [
     definition.id,
-    { definition, expression: expressions[definition.id] },
+    {
+      definition: {
+        ...definition,
+        requiredScopes: [...definition.requiredScopes],
+        aggregations: [...definition.aggregations],
+      },
+      expression: expressions[definition.id],
+    },
   ]),
 )
 

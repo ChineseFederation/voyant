@@ -114,6 +114,16 @@ export type CrmUiMessages = {
     customerRequest: string
     context: string
     operations: string
+    activityTimeline: string
+    activitySubject: string
+    activityType: string
+    activityAudience: string
+    activityDescription: string
+    activityInternal: string
+    activityInbound: string
+    activityOutbound: string
+    recordActivity: string
+    noActivities: string
     nextAction: string
     firstResponseDue: string
     firstResponded: string
