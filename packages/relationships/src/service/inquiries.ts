@@ -494,7 +494,7 @@ export const inquiriesService = {
       }
       const definition = targetLinkFor(snapshot.kind)
       const transactionLink = createLinkService(() => tx, Object.values(targetLinks))
-      await transactionLink.delete(definition.tableName, inquiryId, snapshot.targetId)
+      await transactionLink.dismiss(definition.tableName, inquiryId, snapshot.targetId)
       const occurredAt = new Date()
       await tx
         .update(inquiryTargetSnapshots)

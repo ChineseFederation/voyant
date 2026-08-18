@@ -278,6 +278,50 @@ describe.skipIf(!DB_AVAILABLE)("inquiriesService", () => {
       removedByActorId: "user_2",
     })
     expect(tombstone?.removedAt).toBeInstanceOf(Date)
+
+    const restored = await inquiriesService.addInquiryTarget(
+      db,
+      inquiry.id,
+      { ...input, snapshot: { title: "Changed product title" } },
+      "user_3",
+      validTargetValidation,
+    )
+    expect(restored).toEqual(added)
+    expect(await link.list(inquiryProductLink.tableName, { leftId: inquiry.id })).toMatchObject([
+      { id: added.linkId },
+    ])
+    expect(await inquiriesService.listInquiryTargets(db, link, inquiry.id)).toEqual([added])
+    const [restoredSnapshot] = await db
+      .select()
+      .from(inquiryTargetSnapshots)
+      .where(eq(inquiryTargetSnapshots.linkId, added.linkId))
+    expect(restoredSnapshot).toMatchObject({
+      linkId: added.linkId,
+      snapshot: { title: "Atomic product" },
+      removedAt: null,
+      removedByActorId: null,
+    })
+    const targetLifecycleEvents = (await db.select().from(eventOutboxTable)).filter((event) =>
+      event.name.startsWith("inquiry.target_"),
+    )
+    const addedEvents = targetLifecycleEvents.filter(
+      (event) => event.name === "inquiry.target_added",
+    )
+    const removedEvents = targetLifecycleEvents.filter(
+      (event) => event.name === "inquiry.target_removed",
+    )
+    expect(addedEvents).toHaveLength(2)
+    expect(removedEvents).toHaveLength(1)
+    expect(addedEvents.map((event) => event.payload)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ actorId: "user_1", linkId: added.linkId }),
+        expect.objectContaining({ actorId: "user_3", linkId: added.linkId }),
+      ]),
+    )
+    expect(removedEvents[0]?.payload).toMatchObject({
+      actorId: "user_2",
+      linkId: added.linkId,
+    })
   })
 
   it("refuses target removal after conversion provenance references its immutable snapshot", async () => {
