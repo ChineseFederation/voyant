@@ -1803,6 +1803,12 @@
       "@voyant-travel/proposals-contracts/checkout-inquiry": [
         "../proposals-contracts/dist/checkout-inquiry.d.ts"
       ],
+      "@voyant-travel/proposals-contracts/inquiry-conversion": [
+        "../proposals-contracts/dist/inquiry-conversion.d.ts"
+      ],
+      "@voyant-travel/proposals-contracts/inquiry-conversion/runtime-port": [
+        "../proposals-contracts/dist/inquiry-conversion/runtime-port.d.ts"
+      ],
       "@voyant-travel/proposals-contracts/runtime-port": [
         "../proposals-contracts/dist/checkout-inquiry.d.ts"
       ],
