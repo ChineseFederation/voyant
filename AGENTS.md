@@ -40,7 +40,7 @@ checker when a rule is mechanical enough to enforce.
 
 ## Architecture Checkers
 
-`verify:architecture` runs a chain of checks. Nine are declarative and take new
+`verify:architecture` runs a chain of checks. Ten are declarative and take new
 rules as data rather than code:
 
 | Check | Enforces | Where rules live |
@@ -54,6 +54,33 @@ rules as data rather than code:
 | `verify:route-conformance` | a mounted route array matches the doc that describes it | `scripts/checks/routes/route-sets.json` |
 | `verify:openapi-drift` | a generated OpenAPI document matches the routes it came from | `scripts/checks/openapi/generated-specs.json` |
 | `verify:openapi-key-kind` | every public route states which public API key kind may call it, and every published operation is stamped with it | `scripts/checks/openapi/secret-only-public-bundles.json` |
+| `verify:openapi-document-closure` | every tracked OpenAPI document is generated from its routes, or recorded as not-generatable with a reason | `scripts/checks/openapi/not-generatable.json` |
+
+### A registry only checks what is in it, and absence is silent
+
+`verify:openapi-drift` regenerates and diffs the documents named in
+`generated-specs.json`; `verify:openapi-path-ownership` proves a generator
+produces their paths. Both were green for months while **56 of 82 documents were
+in neither**. Not one check was failing, because a checker driven by a registry
+cannot see what the registry omits — and nothing anywhere said the registry was
+supposed to be complete.
+
+That is the general shape: a rule file makes a checker's coverage a *decision*,
+and a decision nobody records decays into whatever was convenient. The fix is a
+second checker whose subject is the complement — everything the first one does not
+name. `verify:openapi-document-closure` requires each tracked document to be in
+exactly one of two registries, and the second registry
+(`not-generatable.json`) must give a **reason**, because the reason is what a later
+reader needs in order to decide whether the exemption still holds.
+
+Its exemption list ratchets on an explicit `limit` that fails in both directions.
+Unlike the `nullable` baseline there is nothing derived to compare the entries
+against — the entries *are* the declaration — so the second number is what makes
+**adding** one a deliberate, reviewable act rather than a way to legitimise a
+hand-written artifact.
+
+Ask this of any registry-driven checker: *what happens to something that is simply
+not listed?* If the answer is "nothing", the registry is a suggestion.
 
 `verify:symbol-policy` takes rules in two polarities. `absentFrom` is
 default-allow — it names the files a symbol may not appear in, and every new
