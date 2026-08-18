@@ -1,5 +1,5 @@
 import type { ActionLedgerRequestContextValues } from "@voyant-travel/action-ledger"
-import type { EventBus } from "@voyant-travel/core"
+import type { EventBus, ModuleContainer } from "@voyant-travel/core"
 import {
   defineToolContextContribution,
   deriveCommandIdempotencyKey,
@@ -11,10 +11,24 @@ import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import type { Context } from "hono"
 
 import { emitOrganizationChanged, emitPersonChanged } from "./events.js"
+import { executeInquiryCreateCommand } from "./inquiry-created-command.js"
 import { executeOrganizationCreateCommand } from "./organization-created-command.js"
 import { executePersonCreateCommand } from "./person-created-command.js"
+import {
+  RELATIONSHIPS_ROUTE_RUNTIME_CONTAINER_KEY,
+  type RelationshipsRouteRuntime,
+} from "./route-runtime.js"
 import { relationshipsService } from "./service/index.js"
-import { updateOrganizationSchema, updatePersonSchema } from "./validation.js"
+import { convertInquiryToProposal } from "./service/inquiry-conversions.js"
+import {
+  assignInquirySchema,
+  closeInquirySchema,
+  convertInquiryToProposalSchema,
+  reopenInquirySchema,
+  transitionInquirySchema,
+  updateOrganizationSchema,
+  updatePersonSchema,
+} from "./validation.js"
 
 export * from "./tools.js"
 
@@ -22,6 +36,7 @@ type RelationshipsMcpEnv = {
   Variables: ActionLedgerRequestContextValues & {
     apiKeyId?: string
     eventBus?: EventBus
+    container?: ModuleContainer
   }
 }
 
@@ -31,12 +46,17 @@ export const voyantToolContextContribution = defineToolContextContribution({
     const c = request as Context<RelationshipsMcpEnv>
     const db = context.db as PostgresJsDatabase
     const eventBus = c.get("eventBus")
+    const proposalInquiryConversion = (
+      c.get("container")?.resolve(RELATIONSHIPS_ROUTE_RUNTIME_CONTAINER_KEY) as
+        | RelationshipsRouteRuntime
+        | undefined
+    )?.proposalInquiryConversion
     const requestContext = relationshipsActionLedgerContext(c)
     const authorId = () => {
       const id = c.get("userId") ?? c.get("apiTokenId") ?? c.get("apiKeyId")
       if (!id) {
         throw new ToolError(
-          "CRM note writes require an authenticated user or API credential id for authorship.",
+          "CRM writes require an authenticated user or API credential id for authorship.",
           "AUTHORIZATION_DENIED",
         )
       }
@@ -246,6 +266,53 @@ export const voyantToolContextContribution = defineToolContextContribution({
             db,
             id,
             data as Parameters<typeof relationshipsService.updateAddress>[2],
+          ),
+        async createInquiry(
+          input: Parameters<typeof executeInquiryCreateCommand>[0]["commandInput"]["inquiry"],
+          admitted: ToolHandlerActionPolicyContext,
+        ) {
+          const actorId = authorId()
+          const idempotencyKey = await deriveCommandIdempotencyKey("create-inquiry", input)
+          const result = await executeInquiryCreateCommand({
+            db,
+            context: requestContext,
+            commandInput: { inquiry: input, actorId },
+            admitted: withServerResolvedIdempotencyKey(admitted, idempotencyKey),
+            idempotencyKey,
+          })
+          const inquiry = await relationshipsService.getInquiry(db, result.value.id)
+          if (!inquiry) {
+            throw new ToolError("Created Inquiry could not be resolved.", "PROVIDER_ERROR")
+          }
+          return { data: inquiry, replayed: result.replayed }
+        },
+        assignInquiry: ({ id, ...input }: { id: string; [key: string]: unknown }) =>
+          relationshipsService.assignInquiry(db, id, assignInquirySchema.parse(input), authorId()),
+        closeInquiry: ({ id, ...input }: { id: string; [key: string]: unknown }) =>
+          relationshipsService.closeInquiry(db, id, closeInquirySchema.parse(input), authorId()),
+        async convertInquiry({ id, ...input }: { id: string; [key: string]: unknown }) {
+          if (!proposalInquiryConversion) {
+            throw new ToolError(
+              "Proposal conversion is unavailable in this deployment.",
+              "PROVIDER_UNAVAILABLE",
+            )
+          }
+          return convertInquiryToProposal(
+            db,
+            proposalInquiryConversion,
+            id,
+            convertInquiryToProposalSchema.parse(input),
+            authorId(),
+          )
+        },
+        reopenInquiry: ({ id, ...input }: { id: string; [key: string]: unknown }) =>
+          relationshipsService.reopenInquiry(db, id, reopenInquirySchema.parse(input), authorId()),
+        transitionInquiry: ({ id, ...input }: { id: string; [key: string]: unknown }) =>
+          relationshipsService.transitionInquiry(
+            db,
+            id,
+            transitionInquirySchema.parse(input),
+            authorId(),
           ),
       },
     }

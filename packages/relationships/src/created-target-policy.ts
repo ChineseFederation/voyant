@@ -69,3 +69,38 @@ export const RELATIONSHIPS_ORGANIZATION_HANDLER_ACTION_POLICY = {
     allowedActorTypes: ["staff"],
   },
 } as const satisfies HandlerActionPolicyExpectation
+
+export const RELATIONSHIPS_INQUIRY_CREATED_TARGET_POLICY = {
+  actionName: "@voyant-travel/relationships#action.create-inquiry",
+  actionVersion: "v1",
+  toolName: "create_inquiry",
+  toolCapabilityId: "@voyant-travel/relationships#tool.create-inquiry",
+  commandTargetType: "inquiry_create_command",
+  canonicalTargetType: "inquiry",
+  resultReferenceType: "inquiry",
+  evaluatedRisk: "medium",
+} as const
+
+export const RELATIONSHIPS_INQUIRY_HANDLER_ACTION_POLICY = {
+  capabilityId: RELATIONSHIPS_INQUIRY_CREATED_TARGET_POLICY.toolCapabilityId,
+  capabilityVersion: RELATIONSHIPS_INQUIRY_CREATED_TARGET_POLICY.actionVersion,
+  canonicalName: RELATIONSHIPS_INQUIRY_CREATED_TARGET_POLICY.toolName,
+  actionPolicy: {
+    id: RELATIONSHIPS_INQUIRY_CREATED_TARGET_POLICY.actionName,
+    capabilityId: RELATIONSHIPS_INQUIRY_CREATED_TARGET_POLICY.actionName,
+    version: RELATIONSHIPS_INQUIRY_CREATED_TARGET_POLICY.actionVersion,
+    kind: "execute",
+    targetType: RELATIONSHIPS_INQUIRY_CREATED_TARGET_POLICY.canonicalTargetType,
+    targetLifecycle: "created",
+    createdTarget: {
+      commandTargetType: RELATIONSHIPS_INQUIRY_CREATED_TARGET_POLICY.commandTargetType,
+      resultReferenceType: RELATIONSHIPS_INQUIRY_CREATED_TARGET_POLICY.resultReferenceType,
+      durability: "handler-command-claim-v1",
+    },
+    risk: RELATIONSHIPS_INQUIRY_CREATED_TARGET_POLICY.evaluatedRisk,
+    ledger: "required",
+    approval: "never",
+    reversible: false,
+    allowedActorTypes: ["staff"],
+  },
+} as const satisfies HandlerActionPolicyExpectation

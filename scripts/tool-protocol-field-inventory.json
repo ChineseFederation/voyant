@@ -136,6 +136,11 @@
       "id": "@voyant-travel/mice:create_mice_program:input.idempotencyKey",
       "ownership": "caller-owned-command-identity",
       "rationale": "Retained because the caller chooses the stable identity of this retryable business command."
+    },
+    {
+      "id": "@voyant-travel/relationships:convert_inquiry:input.idempotencyKey",
+      "ownership": "caller-owned-command-identity",
+      "rationale": "Retained because one Inquiry may produce multiple legitimate Proposal conversions; the caller chooses which exact conversion operation a retry identifies."
     }
   ]
 }

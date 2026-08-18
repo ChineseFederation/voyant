@@ -1,10 +1,12 @@
 import { createToolRegistry, type ToolContext } from "@voyant-travel/tools"
 import { describe, expect, it } from "vitest"
 import {
+  RELATIONSHIPS_INQUIRY_HANDLER_ACTION_POLICY,
   RELATIONSHIPS_ORGANIZATION_HANDLER_ACTION_POLICY,
   RELATIONSHIPS_PERSON_HANDLER_ACTION_POLICY,
 } from "../src/created-target-policy.js"
 import {
+  createInquiryTool,
   createOrganizationTool,
   createPersonTool,
   type RelationshipsToolServices,
@@ -43,6 +45,12 @@ function ctx(
       listAddresses: unavailable,
       addAddress: unavailable,
       updateAddress: unavailable,
+      createInquiry: unavailable,
+      assignInquiry: unavailable,
+      closeInquiry: unavailable,
+      convertInquiry: unavailable,
+      reopenInquiry: unavailable,
+      transitionInquiry: unavailable,
       ...overrides,
     },
   }
@@ -59,6 +67,10 @@ function registry() {
       registry.register(tool, {
         actionPolicy: RELATIONSHIPS_ORGANIZATION_HANDLER_ACTION_POLICY.actionPolicy,
       })
+    } else if (tool === createInquiryTool) {
+      registry.register(tool, {
+        actionPolicy: RELATIONSHIPS_INQUIRY_HANDLER_ACTION_POLICY.actionPolicy,
+      })
     } else {
       registry.register(tool)
     }
@@ -71,6 +83,23 @@ function personHandlerActionPolicy(idempotencyKey: string) {
     ...RELATIONSHIPS_PERSON_HANDLER_ACTION_POLICY,
     actionPolicy: {
       ...RELATIONSHIPS_PERSON_HANDLER_ACTION_POLICY.actionPolicy,
+      enforcement: "handler" as const,
+      invocation: {
+        controlField: "_voyant" as const,
+        requiredFields: ["idempotencyKey"],
+        optionalFields: ["reasonCode", "approvalId", "idempotencyFingerprint"],
+        fingerprintAlgorithm: "action-ledger-command-v1" as const,
+      },
+    },
+    invocation: { idempotencyKey },
+  } satisfies NonNullable<ToolContext["handlerActionPolicy"]>
+}
+
+function inquiryHandlerActionPolicy(idempotencyKey: string) {
+  return {
+    ...RELATIONSHIPS_INQUIRY_HANDLER_ACTION_POLICY,
+    actionPolicy: {
+      ...RELATIONSHIPS_INQUIRY_HANDLER_ACTION_POLICY.actionPolicy,
       enforcement: "handler" as const,
       invocation: {
         controlField: "_voyant" as const,
@@ -199,8 +228,47 @@ function address(overrides: Record<string, unknown> = {}) {
   }
 }
 
+function inquiry(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "inq_1",
+    subject: "Custom Romania journey",
+    kind: "custom_trip",
+    status: "triaged",
+    closeOutcome: null,
+    closeNote: null,
+    duplicateOfInquiryId: null,
+    priority: "normal",
+    personId: "pers_1",
+    organizationId: null,
+    contactSnapshot: { email: "ana@example.com" },
+    ownerId: "staff_1",
+    teamId: null,
+    unassignedReason: null,
+    nextActionAt: null,
+    firstResponseDueAt: null,
+    firstRespondedAt: null,
+    travelBrief: null,
+    customerMessage: null,
+    internalSummary: null,
+    source: "admin",
+    sourceRef: "tool:key",
+    sourceUrl: null,
+    locale: "en-GB",
+    consentSnapshot: null,
+    tags: [],
+    customFields: {},
+    lastActivityAt: null,
+    qualifiedAt: null,
+    convertedAt: null,
+    closedAt: null,
+    createdAt: timestamp,
+    updatedAt: timestamp,
+    ...overrides,
+  }
+}
+
 describe("relationships (crm) tools", () => {
-  it("registers 20 stable staff-only lifecycle capabilities with typed output schemas", () => {
+  it("registers 26 stable staff-only lifecycle capabilities with typed output schemas", () => {
     const manifest = registry().list()
     expect(manifest.map((tool) => tool.name).sort()).toEqual([
       "add_organization_address",
@@ -209,6 +277,10 @@ describe("relationships (crm) tools", () => {
       "add_person_address",
       "add_person_contact_method",
       "add_person_note",
+      "assign_inquiry",
+      "close_inquiry",
+      "convert_inquiry",
+      "create_inquiry",
       "create_organization",
       "create_person",
       "get_organization",
@@ -218,6 +290,8 @@ describe("relationships (crm) tools", () => {
       "list_relationship_addresses",
       "list_relationship_contact_methods",
       "list_relationship_notes",
+      "reopen_inquiry",
+      "transition_inquiry",
       "update_organization",
       "update_person",
       "update_relationship_address",
@@ -253,6 +327,58 @@ describe("relationships (crm) tools", () => {
     expect(toolsModule).not.toHaveProperty("addRelationshipContactMethodTool")
     expect(toolsModule).not.toHaveProperty("addRelationshipAddressTool")
     expect(relationshipsTools.some((tool) => tool.name.startsWith("add_relationship_"))).toBe(false)
+  })
+
+  it("dispatches Inquiry creation and lifecycle commands through their package service", async () => {
+    const created = await registry().dispatch(
+      "create_inquiry",
+      {
+        subject: "Custom Romania journey",
+        kind: "custom_trip",
+        contactSnapshot: { email: "ana@example.com" },
+      },
+      ctx(
+        {
+          async createInquiry(input, admitted) {
+            expect(input).not.toHaveProperty("source")
+            expect(admitted.invocation.idempotencyKey).toBe("inquiry-create-1")
+            return { data: inquiry(), replayed: false }
+          },
+        },
+        { handlerActionPolicy: inquiryHandlerActionPolicy("inquiry-create-1") },
+      ),
+    )
+    expect(created).toMatchObject({ data: { id: "inq_1" }, replayed: false })
+
+    const assigned = await registry().dispatch(
+      "assign_inquiry",
+      { id: "inq_1", ownerId: "staff_2" },
+      ctx({ assignInquiry: async (input) => inquiry({ ownerId: input.ownerId }) }),
+    )
+    expect(assigned.ownerId).toBe("staff_2")
+
+    const converted = await registry().dispatch(
+      "convert_inquiry",
+      { id: "inq_1", kind: "proposal", idempotencyKey: "proposal-1" },
+      ctx({
+        async convertInquiry(input) {
+          expect(input.idempotencyKey).toBe("proposal-1")
+          return {
+            kind: "created",
+            conversionId: "icv_1",
+            inquiryId: input.id,
+            inquiryStatus: "converted",
+            target: {
+              kind: "proposal",
+              id: "prp_1",
+              pipelineId: "pip_1",
+              stageId: "stg_1",
+            },
+          }
+        },
+      }),
+    )
+    expect(converted).toMatchObject({ conversionId: "icv_1", target: { id: "prp_1" } })
   })
 
   it("normalizes typed person reads and strips encrypted profile envelopes", async () => {

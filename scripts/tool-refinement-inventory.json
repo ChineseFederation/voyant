@@ -171,6 +171,16 @@
       "id": "@voyant-travel/trips:revise_trip:addComponents[]",
       "documented": true,
       "note": "Documented. Same two rules as create_trip, stated on the `addComponents` field description and pinned by the same test."
+    },
+    {
+      "id": "@voyant-travel/relationships:assign_inquiry:<root>",
+      "documented": true,
+      "note": "Documented. The Tool description states that clearing ownerId requires unassignedReason."
+    },
+    {
+      "id": "@voyant-travel/relationships:close_inquiry:<root>",
+      "documented": true,
+      "note": "Documented. The Tool description states the required duplicate Inquiry id and other-outcome note conditions."
     }
   ]
 }

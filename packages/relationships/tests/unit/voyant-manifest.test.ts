@@ -83,11 +83,11 @@ describe("relationships deployment manifest", () => {
         }),
       ]),
     )
-    expect(relationshipsVoyantModule.tools).toHaveLength(20)
+    expect(relationshipsVoyantModule.tools).toHaveLength(26)
     const toolActions = (relationshipsVoyantModule.actions ?? []).filter(
       (action) => action.from?.tools?.length,
     )
-    expect(toolActions).toHaveLength(20)
+    expect(toolActions).toHaveLength(26)
     for (const tool of relationshipsVoyantModule.tools ?? []) {
       const action = toolActions.find((candidate) => candidate.from?.tools?.includes(tool.id))
       expect(action).toBeDefined()
@@ -96,7 +96,10 @@ describe("relationships deployment manifest", () => {
           kind: "execute",
           ledger: "required",
           approval: "never",
-          reversible: action?.targetLifecycle !== "created",
+          reversible:
+            action?.id === "@voyant-travel/relationships#action.convert-inquiry"
+              ? false
+              : action?.targetLifecycle !== "created",
         })
       }
       if (tool.risk === "high" && tool.requiredScopes.includes("crm:read")) {

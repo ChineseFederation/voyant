@@ -408,6 +408,29 @@ export const relationshipsVoyantModule = defineModule({
       risk: "medium",
     },
     {
+      id: "@voyant-travel/relationships#tool.create-inquiry",
+      name: "create_inquiry",
+      runtime: { entry: "@voyant-travel/relationships/tools", export: "createInquiryTool" },
+      requiredScopes: ["crm:write"],
+      context: ["relationships"],
+      risk: "medium",
+      adminWrites: ["relationship/inquiry"],
+    },
+    ...(["assign", "close", "convert", "reopen", "transition"] as const).map((operation) => ({
+      id: `@voyant-travel/relationships#tool.${operation}-inquiry`,
+      name: `${operation}_inquiry`,
+      runtime: {
+        entry: "@voyant-travel/relationships/tools",
+        export: `${operation}InquiryTool`,
+      },
+      requiredScopes: ["crm:write"],
+      context: ["relationships"],
+      risk: (operation === "close" || operation === "convert" ? "high" : "medium") as
+        | "medium"
+        | "high",
+      adminWrites: [`relationship/inquiry/${operation}`],
+    })),
+    {
       id: "@voyant-travel/relationships#tool.list-relationship-notes",
       name: "list_relationship_notes",
       runtime: {
@@ -634,6 +657,54 @@ export const relationshipsVoyantModule = defineModule({
       targetLifecycle: "existing",
       from: { tools: ["@voyant-travel/relationships#tool.update-organization"] },
     },
+    {
+      id: "@voyant-travel/relationships#action.create-inquiry",
+      version: "v1",
+      kind: "execute",
+      targetType: "inquiry",
+      requiredScopes: ["crm:write"],
+      risk: "medium",
+      ledger: "required",
+      approval: "never",
+      reversible: false,
+      allowedActorTypes: ["staff"],
+      availability: { status: "available" },
+      effectBoundary: "local",
+      targetLifecycle: "created",
+      createdTarget: {
+        commandTargetType: "inquiry_create_command",
+        resultReferenceType: "inquiry",
+        durability: "handler-command-claim-v1",
+      },
+      from: { tools: ["@voyant-travel/relationships#tool.create-inquiry"] },
+    },
+    ...(["assign", "close", "convert", "reopen", "transition"] as const).map((operation) => ({
+      id: `@voyant-travel/relationships#action.${operation}-inquiry`,
+      version: "v1",
+      kind: "execute" as const,
+      targetType: "inquiry",
+      commandTargetField: "id",
+      targetLifecycle: "existing" as const,
+      requiredScopes: ["crm:write"],
+      risk: (operation === "close" || operation === "convert" ? "high" : "medium") as
+        | "medium"
+        | "high",
+      ledger: "required" as const,
+      approval: "never" as const,
+      reversible: operation !== "convert",
+      allowedActorTypes: ["staff"] as const,
+      availability: { status: "available" as const },
+      effectBoundary: (operation === "convert" ? "multistage" : "local") as "local" | "multistage",
+      ...(operation === "convert"
+        ? {
+            durability: {
+              strategy: "outbox" as const,
+              testReference: "packages/relationships/tests/integration/inquiry-conversions.test.ts",
+            },
+          }
+        : {}),
+      from: { tools: [`@voyant-travel/relationships#tool.${operation}-inquiry`] },
+    })),
     {
       id: "@voyant-travel/relationships#action.list-relationship-notes",
       version: "v1",
