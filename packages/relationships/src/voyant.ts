@@ -562,6 +562,18 @@ export const relationshipsVoyantModule = defineModule({
       risk,
       ...(scope === "crm:write" ? { adminWrites: [`relationship/inquiry/${id}`] } : {}),
     })),
+    {
+      id: "@voyant-travel/relationships#tool.start-booking-from-inquiry",
+      name: "start_booking_from_inquiry",
+      runtime: {
+        entry: "@voyant-travel/relationships/tools",
+        export: "startBookingFromInquiryTool",
+      },
+      requiredScopes: ["crm:write", "catalog:booking-session-write"],
+      context: ["relationships"],
+      risk: "high",
+      adminWrites: ["relationship/inquiry/start-booking"],
+    },
     ...(["assign", "close", "convert", "reopen", "transition"] as const).map((operation) => ({
       id: `@voyant-travel/relationships#tool.${operation}-inquiry`,
       name: `${operation}_inquiry`,
@@ -856,6 +868,28 @@ export const relationshipsVoyantModule = defineModule({
         from: { tools: [`@voyant-travel/relationships#tool.${operation}`] },
       }),
     ),
+    {
+      id: "@voyant-travel/relationships#action.start-booking-from-inquiry",
+      version: "v1",
+      kind: "execute",
+      targetType: "inquiry",
+      commandTargetField: "id",
+      targetLifecycle: "existing",
+      requiredScopes: ["crm:write", "catalog:booking-session-write"],
+      risk: "high",
+      ledger: "required",
+      approval: "never",
+      reversible: false,
+      allowedActorTypes: ["staff"],
+      availability: { status: "available" },
+      effectBoundary: "multistage",
+      durability: {
+        strategy: "outbox",
+        testReference:
+          "packages/relationships/tests/integration/inquiry-booking-conversions.test.ts",
+      },
+      from: { tools: ["@voyant-travel/relationships#tool.start-booking-from-inquiry"] },
+    },
     ...(["assign", "close", "convert", "reopen", "transition"] as const).map((operation) => ({
       id: `@voyant-travel/relationships#action.${operation}-inquiry`,
       version: "v1",

@@ -55,6 +55,7 @@ function ctx(
       assignInquiry: unavailable,
       closeInquiry: unavailable,
       convertInquiry: unavailable,
+      startBookingFromInquiry: unavailable,
       reopenInquiry: unavailable,
       transitionInquiry: unavailable,
       ...overrides,
@@ -302,6 +303,7 @@ describe("relationships (crm) tools", () => {
       "qualify_inquiry",
       "record_inquiry_activity",
       "reopen_inquiry",
+      "start_booking_from_inquiry",
       "transition_inquiry",
       "update_inquiry",
       "update_organization",
@@ -434,6 +436,39 @@ describe("relationships (crm) tools", () => {
       ctx({ qualifyInquiry: async (input) => inquiry({ id: input.id, status: "qualified" }) }),
     )
     expect(qualified).toMatchObject({ id: "inq_1", status: "qualified" })
+
+    const booking = await registry().dispatch(
+      "start_booking_from_inquiry",
+      {
+        id: "inq_1",
+        kind: "booking_session",
+        idempotencyKey: "agent-turn-42",
+        targetLinkId: "lnk_product_1",
+        keepInquiryOpen: true,
+        nextActionAt: "2026-08-20T09:00:00.000Z",
+      },
+      ctx({
+        startBookingFromInquiry: async (input) => {
+          expect(input).toMatchObject({
+            idempotencyKey: "agent-turn-42",
+            targetLinkId: "lnk_product_1",
+            keepInquiryOpen: true,
+          })
+          return {
+            kind: "created",
+            conversionId: "icv_booking_1",
+            inquiryId: input.id,
+            inquiryStatus: "in_progress",
+            target: { kind: "booking_session", id: "bks_1" },
+          }
+        },
+      }),
+    )
+    expect(booking).toMatchObject({
+      inquiryId: "inq_1",
+      inquiryStatus: "in_progress",
+      target: { kind: "booking_session", id: "bks_1" },
+    })
   })
 
   it("normalizes typed person reads and strips encrypted profile envelopes", async () => {

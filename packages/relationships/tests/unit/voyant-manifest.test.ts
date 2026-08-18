@@ -100,11 +100,11 @@ describe("relationships deployment manifest", () => {
         }),
       ]),
     )
-    expect(relationshipsVoyantModule.tools).toHaveLength(31)
+    expect(relationshipsVoyantModule.tools).toHaveLength(32)
     const toolActions = (relationshipsVoyantModule.actions ?? []).filter(
       (action) => action.from?.tools?.length,
     )
-    expect(toolActions).toHaveLength(31)
+    expect(toolActions).toHaveLength(32)
     for (const tool of relationshipsVoyantModule.tools ?? []) {
       const action = toolActions.find((candidate) => candidate.from?.tools?.includes(tool.id))
       expect(action).toBeDefined()
@@ -114,7 +114,8 @@ describe("relationships deployment manifest", () => {
           ledger: "required",
           approval: "never",
           reversible:
-            action?.id === "@voyant-travel/relationships#action.convert-inquiry"
+            action?.id === "@voyant-travel/relationships#action.convert-inquiry" ||
+            action?.id === "@voyant-travel/relationships#action.start-booking-from-inquiry"
               ? false
               : action?.targetLifecycle !== "created",
         })
@@ -127,6 +128,12 @@ describe("relationships deployment manifest", () => {
         })
       }
     }
+    expect(
+      relationshipsVoyantModule.tools?.find(({ name }) => name === "start_booking_from_inquiry"),
+    ).toMatchObject({
+      requiredScopes: ["crm:write", "catalog:booking-session-write"],
+      risk: "high",
+    })
     expect(
       relationshipsVoyantModule.actions?.find(
         ({ id }) => id === "@voyant-travel/relationships#action.create-person",

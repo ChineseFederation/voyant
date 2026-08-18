@@ -43,11 +43,11 @@ import {
   INQUIRY_TARGET_REMOVED_EVENT,
   INQUIRY_UPDATED_EVENT,
 } from "../events.js"
-import type { InquiryTargetValidationRuntime } from "../route-runtime.js"
 import {
   firstResponseDueAtForInquiry,
   type InquiryFirstResponseSlaPolicy,
 } from "../inquiry-sla-policy.js"
+import type { InquiryTargetValidationRuntime } from "../route-runtime.js"
 import {
   activities,
   activityLinks,
@@ -204,6 +204,40 @@ async function writeInquiryEvent(
       metadata: { category: "domain", source: "service", eventId },
     },
   ])
+}
+
+async function recordFirstResponseInTransaction(
+  tx: PostgresJsDatabase,
+  id: string,
+  actorId: string,
+  testHooks?: InquiryMutationTestHooks,
+) {
+  const current = await lockedInquiry(tx, id)
+  if (current.firstRespondedAt) return current
+  if (current.status === "closed" || current.status === "converted") {
+    throw new InquiryServiceError(
+      "INQUIRY_ALREADY_RESOLVED",
+      "A resolved inquiry cannot record its first response",
+    )
+  }
+  const now = new Date()
+  const [row] = await tx
+    .update(inquiries)
+    .set({ firstRespondedAt: now, lastActivityAt: now, updatedAt: now })
+    .where(and(eq(inquiries.id, id), isNull(inquiries.firstRespondedAt)))
+    .returning()
+  if (!row) {
+    const replayed = await lockedInquiry(tx, id)
+    if (replayed.firstRespondedAt) return replayed
+    throw new InquiryServiceError("INQUIRY_NOT_FOUND", "Inquiry not found")
+  }
+  await testHooks?.beforeOutbox?.(tx)
+  await writeInquiryEvent(tx, INQUIRY_FIRST_RESPONSE_RECORDED_EVENT, {
+    id,
+    actorId,
+    firstRespondedAt: now.toISOString(),
+  })
+  return row
 }
 
 export const inquiriesService = {
@@ -564,13 +598,7 @@ export const inquiriesService = {
         role: "primary",
       })
       const firstResponseStamped = meaningfulOutbound && inquiry.firstRespondedAt === null
-      if (meaningfulOutbound) {
-        // This owner command writes the dedicated event and server-owned
-        // timestamp. Because `tx` is passed through, its nested transaction is
-        // a savepoint inside the Activity/link transaction rather than a
-        // separate commit.
-        await this.recordFirstResponse(tx, id, actorId)
-      }
+      if (meaningfulOutbound) await recordFirstResponseInTransaction(tx, id, actorId)
       const [updatedInquiry] = await tx
         .update(inquiries)
         .set({
@@ -697,36 +725,7 @@ export const inquiriesService = {
     testHooks?: InquiryMutationTestHooks,
   ) {
     requireActor(actorId)
-    return db.transaction(async (tx) => {
-      const current = await lockedInquiry(tx, id)
-      if (current.firstRespondedAt) return current
-      if (current.status === "closed" || current.status === "converted") {
-        throw new InquiryServiceError(
-          "INQUIRY_ALREADY_RESOLVED",
-          "A resolved inquiry cannot record its first response",
-        )
-      }
-      const now = new Date()
-      const [row] = await tx
-        .update(inquiries)
-        .set({ firstRespondedAt: now, lastActivityAt: now, updatedAt: now })
-        .where(and(eq(inquiries.id, id), isNull(inquiries.firstRespondedAt)))
-        .returning()
-      if (!row) {
-        // The row lock makes this defensive, but preserves idempotency if a
-        // database adapter implements locking more weakly.
-        const replayed = await lockedInquiry(tx, id)
-        if (replayed.firstRespondedAt) return replayed
-        throw new InquiryServiceError("INQUIRY_NOT_FOUND", "Inquiry not found")
-      }
-      await testHooks?.beforeOutbox?.(tx)
-      await writeInquiryEvent(tx, INQUIRY_FIRST_RESPONSE_RECORDED_EVENT, {
-        id,
-        actorId,
-        firstRespondedAt: now.toISOString(),
-      })
-      return row
-    })
+    return db.transaction((tx) => recordFirstResponseInTransaction(tx, id, actorId, testHooks))
   },
 
   async transitionInquiry(

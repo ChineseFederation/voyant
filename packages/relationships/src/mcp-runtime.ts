@@ -20,11 +20,13 @@ import {
   type RelationshipsRouteRuntime,
 } from "./route-runtime.js"
 import { relationshipsService } from "./service/index.js"
+import { convertInquiryToBookingTarget } from "./service/inquiry-booking-conversions.js"
 import { convertInquiryToProposal } from "./service/inquiry-conversions.js"
 import { inquiryOptionUnitLink, inquiryProductLink } from "./standard-links.js"
 import {
   assignInquirySchema,
   closeInquirySchema,
+  convertInquiryToBookingSessionSchema,
   convertInquiryToProposalSchema,
   inquiryListQuerySchema,
   recordInquiryActivitySchema,
@@ -349,6 +351,25 @@ export const voyantToolContextContribution = defineToolContextContribution({
               authorId(),
             ),
           )
+        },
+        async startBookingFromInquiry({ id, ...input }: { id: string; [key: string]: unknown }) {
+          const sessionRuntime = relationshipsRuntime?.inquiryBookingSession
+          if (!sessionRuntime) {
+            throw new ToolError(
+              "Booking Session conversion is unavailable in this deployment.",
+              "PROVIDER_UNAVAILABLE",
+            )
+          }
+          const command = convertInquiryToBookingSessionSchema.parse(input)
+          const result = await convertInquiryToBookingTarget(
+            db,
+            sessionRuntime,
+            inquiryTargetLinks,
+            id,
+            command,
+            authorId(),
+          )
+          return result.data
         },
         async assignInquiry({ id, ...input }: { id: string; [key: string]: unknown }) {
           return withInquiryTargets(

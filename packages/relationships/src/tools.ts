@@ -35,8 +35,10 @@ import {
 import {
   assignInquirySchema,
   closeInquirySchema,
+  convertInquiryToBookingSessionSchema,
   convertInquiryToProposalSchema,
   createInquirySchema,
+  inquiryBookingConversionResultSchema,
   inquiryListQuerySchema,
   inquiryListResponseSchema,
   inquiryProposalConversionResultSchema,
@@ -222,6 +224,9 @@ const inquiryIdSchema = z.object({ id: z.string().min(1) })
 const assignInquiryToolInputSchema = inquiryIdSchema.and(assignInquirySchema)
 const closeInquiryToolInputSchema = inquiryIdSchema.and(closeInquirySchema)
 const convertInquiryToolInputSchema = inquiryIdSchema.and(convertInquiryToProposalSchema)
+const startBookingFromInquiryToolInputSchema = inquiryIdSchema.and(
+  convertInquiryToBookingSessionSchema,
+)
 const reopenInquiryToolInputSchema = inquiryIdSchema.and(reopenInquirySchema)
 const transitionInquiryToolInputSchema = inquiryIdSchema.and(transitionInquirySchema)
 const updateInquiryToolInputSchema = inquiryIdSchema.and(updateInquirySchema)
@@ -232,6 +237,7 @@ const createInquiryOutputSchema = z.object({
   replayed: z.boolean(),
 })
 const inquiryConversionOutputSchema = inquiryProposalConversionResultSchema.shape.data
+const inquiryBookingConversionOutputSchema = inquiryBookingConversionResultSchema.shape.data
 
 type PersonListQuery = z.infer<typeof personListQuerySchema>
 type OrganizationListQuery = z.infer<typeof organizationListQuerySchema>
@@ -254,6 +260,7 @@ type CreateInquiryToolInput = z.infer<typeof createInquiryToolInputSchema>
 type AssignInquiryToolInput = z.infer<typeof assignInquiryToolInputSchema>
 type CloseInquiryToolInput = z.infer<typeof closeInquiryToolInputSchema>
 type ConvertInquiryToolInput = z.infer<typeof convertInquiryToolInputSchema>
+type StartBookingFromInquiryToolInput = z.infer<typeof startBookingFromInquiryToolInputSchema>
 type ReopenInquiryToolInput = z.infer<typeof reopenInquiryToolInputSchema>
 type TransitionInquiryToolInput = z.infer<typeof transitionInquiryToolInputSchema>
 type UpdateInquiryToolInput = z.infer<typeof updateInquiryToolInputSchema>
@@ -294,6 +301,7 @@ export interface RelationshipsToolServices {
   assignInquiry(input: AssignInquiryToolInput): Promise<unknown>
   closeInquiry(input: CloseInquiryToolInput): Promise<unknown>
   convertInquiry(input: ConvertInquiryToolInput): Promise<unknown>
+  startBookingFromInquiry(input: StartBookingFromInquiryToolInput): Promise<unknown>
   reopenInquiry(input: ReopenInquiryToolInput): Promise<unknown>
   transitionInquiry(input: TransitionInquiryToolInput): Promise<unknown>
 }
@@ -849,6 +857,28 @@ export const convertInquiryTool = defineTool<
   },
 })
 
+export const startBookingFromInquiryTool = defineTool<
+  StartBookingFromInquiryToolInput,
+  z.infer<typeof inquiryBookingConversionOutputSchema>,
+  RelationshipsToolContext
+>({
+  ...sensitiveWriteMetadata,
+  capabilityId: `${OWNER}#tool.start-booking-from-inquiry`,
+  name: "start_booking_from_inquiry",
+  description:
+    "Start a Booking Session from a qualified Inquiry target using caller-supplied idempotency and next-action semantics.",
+  inputSchema: startBookingFromInquiryToolInputSchema,
+  outputSchema: inquiryBookingConversionOutputSchema,
+  requiredScopes: ["crm:write", "catalog:booking-session-write"],
+  annotations: { idempotentHint: true },
+  async handler(input, ctx) {
+    return parseJsonResult(
+      inquiryBookingConversionOutputSchema,
+      await crm(ctx).startBookingFromInquiry(input),
+    )
+  },
+})
+
 export const reopenInquiryTool = defineTool<
   ReopenInquiryToolInput,
   z.infer<typeof inquiryRecordSchema>,
@@ -911,6 +941,7 @@ export const relationshipsTools = [
   assignInquiryTool,
   closeInquiryTool,
   convertInquiryTool,
+  startBookingFromInquiryTool,
   reopenInquiryTool,
   transitionInquiryTool,
 ] as const

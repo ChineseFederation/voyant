@@ -136,6 +136,43 @@ describe.skipIf(!DB_AVAILABLE)("inquiriesService", () => {
     )
   })
 
+  it("stamps only the first outbound activity through the dedicated response event", async () => {
+    const { inquiry } = await inquiriesService.createInquiry(
+      db,
+      {
+        subject: "Outbound response",
+        kind: "general",
+        contactSnapshot: { email: "outbound@example.com" },
+        source: "admin",
+        tags: [],
+        customFields: {},
+      },
+      "user_1",
+    )
+    const first = await inquiriesService.recordInquiryActivity(
+      db,
+      inquiry.id,
+      { subject: "Sent itinerary", type: "email", communicationDirection: "outbound" },
+      "user_2",
+    )
+    const replay = await inquiriesService.recordInquiryActivity(
+      db,
+      inquiry.id,
+      { subject: "Sent follow-up", type: "email", communicationDirection: "outbound" },
+      "user_3",
+    )
+    expect(first.firstResponseStamped).toBe(true)
+    expect(first.inquiry.firstRespondedAt).toBeInstanceOf(Date)
+    expect(replay.firstResponseStamped).toBe(false)
+    expect(replay.inquiry.firstRespondedAt).toEqual(first.inquiry.firstRespondedAt)
+    const events = (await db.select().from(eventOutboxTable)).filter(
+      ({ name, payload }: { name: string; payload: { id?: string } }) =>
+        name === "inquiry.first_response_recorded" && payload.id === inquiry.id,
+    )
+    expect(events).toHaveLength(1)
+    expect(events[0]?.payload).toMatchObject({ id: inquiry.id, actorId: "user_2" })
+  })
+
   it("rolls back neutral target links with snapshot and outbox failures", async () => {
     const { inquiry } = await inquiriesService.createInquiry(
       db,
