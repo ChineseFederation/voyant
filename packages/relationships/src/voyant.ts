@@ -158,7 +158,9 @@ export const relationshipsVoyantModule = defineModule({
     requirePort(customFieldsRuntimePort),
     requirePort(relationshipsRouteRuntimePort),
     requirePort(relationshipsBookingEnrichmentDatabaseRuntimePort),
-    requirePort(proposalInquiryConversionRuntimePort),
+    // Optional so Relationships remains deployable without Proposals. The
+    // conversion endpoint stays mounted and answers 503 when no provider is selected.
+    requirePort(proposalInquiryConversionRuntimePort, { optional: true }),
     // Optional so a deployment that selects CRM without Bookings still boots;
     // the enrichment subscriber simply has nothing to read.
     requirePort(bookingsCrmSnapshotRuntimePort, { optional: true }),

@@ -3,6 +3,8 @@ import type { ProposalInquiryConversionRuntime } from "@voyant-travel/proposals-
 import { eq } from "drizzle-orm"
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest"
 
+import { createProposalInquiryConversionRuntime } from "../../../proposals/src/inquiry-conversion-runtime.js"
+import { pipelines, proposals, stages } from "../../../proposals/src/schema.js"
 import { inquiries, inquiryConversions, people } from "../../src/schema.js"
 import {
   convertInquiryToProposal,
@@ -93,6 +95,52 @@ describe.skipIf(!DB_AVAILABLE)("Inquiry Proposal conversion coordinator", () => 
       (await db.select().from(eventOutboxTable)).filter(
         ({ name }: { name: string }) => name === "inquiry.converted",
       ),
+    ).toHaveLength(1)
+  })
+
+  it("atomically emits both owner events through the real nested Proposal provider", async () => {
+    const inquiryId = await qualifiedInquiry("Real provider transaction")
+    const [pipeline] = await db
+      .insert(pipelines)
+      .values({ entityType: "proposal", name: "Inquiry proposals", isDefault: true })
+      .returning()
+    const [stage] = await db
+      .insert(stages)
+      .values({ pipelineId: pipeline.id, name: "Draft", isClosed: false })
+      .returning()
+    const command = {
+      kind: "proposal" as const,
+      idempotencyKey: "real-provider",
+      keepInquiryOpen: false,
+    }
+
+    const created = await convertInquiryToProposal(
+      db,
+      createProposalInquiryConversionRuntime(),
+      inquiryId,
+      command,
+      "user_1",
+    )
+    const replayed = await convertInquiryToProposal(
+      db,
+      createProposalInquiryConversionRuntime(),
+      inquiryId,
+      command,
+      "user_1",
+    )
+
+    expect(created).toMatchObject({
+      kind: "created",
+      target: { kind: "proposal", pipelineId: pipeline.id, stageId: stage.id },
+    })
+    expect(replayed).toEqual({ ...created, kind: "replayed" })
+    expect(await db.select().from(proposals)).toHaveLength(1)
+    const events = await db.select().from(eventOutboxTable)
+    expect(events.filter(({ name }: { name: string }) => name === "proposal.created")).toHaveLength(
+      1,
+    )
+    expect(
+      events.filter(({ name }: { name: string }) => name === "inquiry.converted"),
     ).toHaveLength(1)
   })
 

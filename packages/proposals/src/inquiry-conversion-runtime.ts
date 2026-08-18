@@ -1,3 +1,4 @@
+import { insertOutboxEvents } from "@voyant-travel/db/outbox"
 import type {
   ProposalInquiryConversionOutcome,
   ProposalInquiryConversionRuntime,
@@ -164,6 +165,20 @@ const drizzleProposalInquiryConversionStore: ProposalInquiryConversionStore = {
         })),
       )
     }
+    await insertOutboxEvents(db, [
+      {
+        name: "proposal.created",
+        data: { id: proposal.id },
+        metadata: {
+          category: "domain",
+          source: "service",
+          // The Proposal is the durable identity of this source operation.
+          // An exact conversion replay finds the row above and never emits;
+          // a retried insert is also deduplicated by this event identity.
+          eventId: `evt_proposals_proposal_created_${proposal.id}`,
+        },
+      },
+    ])
     return proposal
   },
 }

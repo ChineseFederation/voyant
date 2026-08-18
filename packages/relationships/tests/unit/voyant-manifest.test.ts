@@ -13,6 +13,7 @@ import { describe, expect, it, vi } from "vitest"
 import { createRelationshipsVoyantRuntime, relationshipsRouteRuntimePort } from "../../src/index.js"
 import { RELATIONSHIPS_ROUTE_RUNTIME_CONTAINER_KEY } from "../../src/route-runtime.js"
 import { relationshipsRoutes } from "../../src/routes/index.js"
+import { createRelationshipsRuntimePortContribution } from "../../src/runtime-contributor.js"
 import { relationshipsMiceRuntimePort } from "../../src/runtime-port.js"
 import { relationshipsVoyantModule } from "../../src/voyant.js"
 
@@ -39,7 +40,7 @@ describe("relationships deployment manifest", () => {
         { id: customFieldsRuntimePort.id },
         { id: "relationships.route-runtime" },
         { id: "relationships.booking-enrichment-database" },
-        { id: proposalInquiryConversionRuntimePort.id },
+        { id: proposalInquiryConversionRuntimePort.id, optional: true },
         // Optional: a deployment can select CRM without Bookings, and then
         // nothing emits `booking.confirmed` for the enrichment subscriber.
         { id: "bookings.crm-snapshot.runtime", optional: true },
@@ -233,6 +234,21 @@ describe("relationships deployment manifest", () => {
       customFieldsForWrite,
       proposalInquiryConversion: { convertInquiry: expect.any(Function) },
     })
+  })
+
+  it("omits Proposal conversion from the route runtime when its optional port is absent", () => {
+    const contribution = createRelationshipsRuntimePortContribution({
+      primitives: {} as never,
+      hasRuntimePort: (port) => port.id !== proposalInquiryConversionRuntimePort.id,
+      getRuntimePort: vi.fn(async () => ({
+        resolveRegistry: vi.fn(async () => ({ all: () => [] })),
+        resolveRegistryForWrite: vi.fn(async () => ({ all: () => [] })),
+      })) as never,
+    })
+
+    expect(contribution[relationshipsRouteRuntimePort.id]).not.toHaveProperty(
+      "proposalInquiryConversion",
+    )
   })
 
   it("declares the packaged relationships admin routes and person-detail slot", () => {

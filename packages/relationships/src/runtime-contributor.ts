@@ -191,9 +191,14 @@ export function createRelationshipsRuntimePortContribution(
     host.getRuntimePort<CustomFieldsRuntime>(customFieldsRuntimePort),
   )
   const personNotifications = resolvePersonNotifications(host)
-  const proposalInquiryConversion = Promise.resolve(
-    host.getRuntimePort<ProposalInquiryConversionRuntime>(proposalInquiryConversionRuntimePort),
-  )
+  const proposalInquiryConversion =
+    host.hasRuntimePort?.(proposalInquiryConversionRuntimePort) === true
+      ? Promise.resolve(
+          host.getRuntimePort<ProposalInquiryConversionRuntime>(
+            proposalInquiryConversionRuntimePort,
+          ),
+        )
+      : undefined
   const customFields: CustomFieldValueReaderRuntime = {
     async resolveVisibleValues(db, entity, entityId, channel) {
       const database = db as PostgresJsDatabase
@@ -241,10 +246,15 @@ export function createRelationshipsRuntimePortContribution(
         listPersonDeliveries: async (db, personId, query) =>
           (await personNotifications)?.listPersonDeliveries(db, personId, query) ?? [],
       },
-      proposalInquiryConversion: {
-        convertInquiry: async (...args) =>
-          (await proposalInquiryConversion).convertInquiry(...args),
-      },
+      ...(proposalInquiryConversion
+        ? {
+            proposalInquiryConversion: {
+              convertInquiry: async (
+                ...args: Parameters<ProposalInquiryConversionRuntime["convertInquiry"]>
+              ) => (await proposalInquiryConversion).convertInquiry(...args),
+            },
+          }
+        : {}),
     } satisfies RelationshipsRouteRuntimeOptions,
     [relationshipsMiceRuntimePort.id]: {
       personExists: async (db, personId) =>
