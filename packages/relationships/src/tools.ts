@@ -792,7 +792,6 @@ export const updateInquiryTool = defineTool<
   description: "Update editable Inquiry request, contact, priority, next-action, and brief fields.",
   inputSchema: updateInquiryToolInputSchema,
   outputSchema: inquiryRecordSchema,
-  annotations: { idempotentHint: true },
   async handler(input, ctx) {
     return parseJsonResult(inquiryRecordSchema, await crm(ctx).updateInquiry(input))
   },

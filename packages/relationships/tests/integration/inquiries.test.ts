@@ -9,6 +9,7 @@ import {
   activities,
   activityLinks,
   inquiries,
+  inquiryConversions,
   inquiryTargetSnapshots,
   people,
 } from "../../src/schema.js"
@@ -171,6 +172,14 @@ describe.skipIf(!DB_AVAILABLE)("inquiriesService", () => {
     )
     expect(events).toHaveLength(1)
     expect(events[0]?.payload).toMatchObject({ id: inquiry.id, actorId: "user_2" })
+    const updatedEvents = (await db.select().from(eventOutboxTable)).filter(
+      ({ name, payload }: { name: string; payload: { id?: string } }) =>
+        name === "inquiry.updated" && payload.id === inquiry.id,
+    )
+    expect(updatedEvents.map(({ payload }: { payload: unknown }) => payload)).toEqual([
+      { id: inquiry.id, actorId: "user_2" },
+      { id: inquiry.id, actorId: "user_3" },
+    ])
   })
 
   it("rolls back neutral target links with snapshot and outbox failures", async () => {
@@ -255,6 +264,69 @@ describe.skipIf(!DB_AVAILABLE)("inquiriesService", () => {
         .from(eventOutboxTable)
         .where(eq(eventOutboxTable.name, "inquiry.target_added")),
     ).toHaveLength(1)
+
+    await inquiriesService.deleteInquiryTarget(db, inquiry.id, added.linkId, "user_2")
+    expect(await link.list(inquiryProductLink.tableName, { leftId: inquiry.id })).toEqual([])
+    expect(await inquiriesService.listInquiryTargets(db, link, inquiry.id)).toEqual([])
+    const [tombstone] = await db
+      .select()
+      .from(inquiryTargetSnapshots)
+      .where(eq(inquiryTargetSnapshots.linkId, added.linkId))
+    expect(tombstone).toMatchObject({
+      linkId: added.linkId,
+      snapshot: { title: "Atomic product" },
+      removedByActorId: "user_2",
+    })
+    expect(tombstone?.removedAt).toBeInstanceOf(Date)
+  })
+
+  it("refuses target removal after conversion provenance references its immutable snapshot", async () => {
+    const { inquiry } = await inquiriesService.createInquiry(
+      db,
+      {
+        subject: "Converted target provenance",
+        kind: "product",
+        contactSnapshot: { email: "provenance@example.com" },
+        source: "admin",
+        tags: [],
+        customFields: {},
+      },
+      "user_1",
+    )
+    const link = createLinkService(() => db, [inquiryProductLink, inquiryOptionUnitLink])
+    const target = await inquiriesService.addInquiryTarget(
+      db,
+      inquiry.id,
+      {
+        kind: "product",
+        targetId: "prod_provenance",
+        snapshot: { title: "Immutable product title" },
+      },
+      "user_1",
+      validTargetValidation,
+    )
+    await db.insert(inquiryConversions).values({
+      inquiryId: inquiry.id,
+      kind: "booking_session",
+      targetId: "bks_provenance",
+      targetSnapshot: {
+        kind: "booking_session",
+        targetLinkId: target.linkId,
+        commandFingerprint: "fingerprint",
+      },
+      idempotencyKey: "provenance-test",
+      mode: "created",
+      actorId: "user_1",
+      inquiryStatus: "converted",
+    })
+
+    await expect(
+      inquiriesService.deleteInquiryTarget(db, inquiry.id, target.linkId, "user_2"),
+    ).rejects.toMatchObject({ code: "INQUIRY_TARGET_IN_USE" })
+    expect(await link.list(inquiryProductLink.tableName, { leftId: inquiry.id })).toHaveLength(1)
+    expect(
+      await inquiriesService.resolveInquiryTarget(db, link, inquiry.id, target.linkId),
+    ).toEqual(target)
   })
 
   it("fails closed when the selected target owner cannot validate the target", async () => {

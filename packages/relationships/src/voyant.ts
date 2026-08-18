@@ -135,7 +135,7 @@ const inquiryConvertedPayloadSchema = {
     conversionId: { type: "string" },
     kind: { type: "string", enum: ["proposal", "booking_session"] },
     targetId: { type: "string" },
-    inquiryStatus: { type: "string", enum: ["qualified", "converted"] },
+    inquiryStatus: { type: "string", enum: ["qualified", "in_progress", "converted"] },
   },
   additionalProperties: false,
 } as const

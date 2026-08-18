@@ -136,6 +136,8 @@ export const inquiryTargetSnapshots = pgTable(
     targetId: text("target_id").notNull(),
     snapshot: jsonb("snapshot").$type<InquiryTargetSnapshotValue>().notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    removedAt: timestamp("removed_at", { withTimezone: true }),
+    removedByActorId: text("removed_by_actor_id"),
   },
   (table) => [
     uniqueIndex("uq_inquiry_target_snapshots_target").on(

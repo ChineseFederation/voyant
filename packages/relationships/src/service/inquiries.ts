@@ -53,6 +53,7 @@ import {
   activityLinks,
   type Inquiry,
   inquiries,
+  inquiryConversions,
   inquiryTargetSnapshots,
   organizations,
   people,
@@ -72,6 +73,7 @@ export type InquiryServiceErrorCode =
   | "INQUIRY_CONVERSION_REFUSED"
   | "INVALID_DUPLICATE_INQUIRY"
   | "INQUIRY_TARGET_NOT_FOUND"
+  | "INQUIRY_TARGET_IN_USE"
   | "INQUIRY_TARGET_UNSUPPORTED"
   | "INQUIRY_TARGET_VALIDATION_UNAVAILABLE"
 
@@ -313,7 +315,12 @@ export const inquiriesService = {
     const rows = await db
       .select()
       .from(inquiryTargetSnapshots)
-      .where(inArray(inquiryTargetSnapshots.inquiryId, inquiryIds))
+      .where(
+        and(
+          inArray(inquiryTargetSnapshots.inquiryId, inquiryIds),
+          isNull(inquiryTargetSnapshots.removedAt),
+        ),
+      )
       .orderBy(asc(inquiryTargetSnapshots.createdAt), asc(inquiryTargetSnapshots.linkId))
     const activeIds = new Set<string>()
     for (const definition of Object.values(targetLinks)) {
@@ -339,6 +346,7 @@ export const inquiriesService = {
         and(
           eq(inquiryTargetSnapshots.inquiryId, inquiryId),
           eq(inquiryTargetSnapshots.linkId, targetLinkId),
+          isNull(inquiryTargetSnapshots.removedAt),
         ),
       )
       .limit(1)
@@ -413,9 +421,19 @@ export const inquiriesService = {
             .limit(1)
         )[0]
       if (!row) throw new Error("Inquiry target snapshot could not be persisted")
-      if (!stored) return serializeTarget(row)
+      if (!stored && !row.removedAt) return serializeTarget(row)
+      const activeRow = row.removedAt
+        ? (
+            await tx
+              .update(inquiryTargetSnapshots)
+              .set({ removedAt: null, removedByActorId: null })
+              .where(eq(inquiryTargetSnapshots.linkId, row.linkId))
+              .returning()
+          )[0]
+        : row
+      if (!activeRow) throw new Error("Inquiry target snapshot could not be reactivated")
       await testHooks?.beforeOutbox?.(tx)
-      const occurredAt = row.createdAt.toISOString()
+      const occurredAt = new Date().toISOString()
       await writeInquiryEvent(tx, INQUIRY_TARGET_ADDED_EVENT, {
         id: inquiryId,
         actorId,
@@ -424,7 +442,7 @@ export const inquiriesService = {
         targetId: row.targetId,
         occurredAt,
       })
-      return serializeTarget(row)
+      return serializeTarget(activeRow)
     })
   },
 
@@ -451,25 +469,45 @@ export const inquiriesService = {
           and(
             eq(inquiryTargetSnapshots.inquiryId, inquiryId),
             eq(inquiryTargetSnapshots.linkId, targetLinkId),
+            isNull(inquiryTargetSnapshots.removedAt),
           ),
         )
         .limit(1)
       if (!snapshot) {
         throw new InquiryServiceError("INQUIRY_TARGET_NOT_FOUND", "Inquiry target not found")
       }
+      const [conversion] = await tx
+        .select({ id: inquiryConversions.id })
+        .from(inquiryConversions)
+        .where(
+          and(
+            eq(inquiryConversions.inquiryId, inquiryId),
+            sql`${inquiryConversions.targetSnapshot}->>'targetLinkId' = ${targetLinkId}`,
+          ),
+        )
+        .limit(1)
+      if (conversion) {
+        throw new InquiryServiceError(
+          "INQUIRY_TARGET_IN_USE",
+          "An Inquiry target used by a conversion cannot be removed",
+        )
+      }
       const definition = targetLinkFor(snapshot.kind)
       const transactionLink = createLinkService(() => tx, Object.values(targetLinks))
       await transactionLink.delete(definition.tableName, inquiryId, snapshot.targetId)
-      await tx.delete(inquiryTargetSnapshots).where(eq(inquiryTargetSnapshots.linkId, targetLinkId))
+      const occurredAt = new Date()
+      await tx
+        .update(inquiryTargetSnapshots)
+        .set({ removedAt: occurredAt, removedByActorId: actorId })
+        .where(eq(inquiryTargetSnapshots.linkId, targetLinkId))
       await testHooks?.beforeOutbox?.(tx)
-      const occurredAt = new Date().toISOString()
       await writeInquiryEvent(tx, INQUIRY_TARGET_REMOVED_EVENT, {
         id: inquiryId,
         actorId,
         linkId: snapshot.linkId,
         kind: snapshot.kind,
         targetId: snapshot.targetId,
-        occurredAt,
+        occurredAt: occurredAt.toISOString(),
       })
     })
   },
@@ -613,11 +651,7 @@ export const inquiriesService = {
           lastActivityAt: inquiries.lastActivityAt,
         })
       if (!updatedInquiry) throw new InquiryServiceError("INQUIRY_NOT_FOUND", "Inquiry not found")
-      await writeInquiryEvent(tx, INQUIRY_UPDATED_EVENT, {
-        id,
-        actorId,
-        activityId: activity.id,
-      })
+      await writeInquiryEvent(tx, INQUIRY_UPDATED_EVENT, { id, actorId })
       return { data: activity, inquiry: updatedInquiry, firstResponseStamped }
     })
   },

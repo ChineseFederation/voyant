@@ -98,6 +98,11 @@ describe("relationships deployment manifest", () => {
       expect.arrayContaining([
         expect.objectContaining({
           eventType: "inquiry.converted",
+          payloadSchema: expect.objectContaining({
+            properties: expect.objectContaining({
+              inquiryStatus: { type: "string", enum: ["qualified", "in_progress", "converted"] },
+            }),
+          }),
           audit: { sourceModule: "relationships", category: "domain" },
         }),
       ]),
