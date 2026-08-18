@@ -669,7 +669,7 @@ export const inquiriesService = {
       const createdAt = new Date()
       const firstResponseDueAt = firstResponseDueAtForInquiry({
         source: input.source,
-        priority: input.priority,
+        priority: input.priority ?? "normal",
         createdAt,
         policy: testHooks?.slaPolicy,
       })
