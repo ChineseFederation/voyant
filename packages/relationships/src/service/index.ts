@@ -22,6 +22,10 @@ export type {
 export { customerSignalsService } from "./customer-signals.js"
 export type { InquiryServiceErrorCode } from "./inquiries.js"
 export { InquiryServiceError, inquiriesService } from "./inquiries.js"
+export {
+  convertInquiryToProposal,
+  InquiryProposalConversionRefusedError,
+} from "./inquiry-conversions.js"
 export type {
   CreatePersonDocumentInput,
   PersonDocumentListQuery,

@@ -1,4 +1,5 @@
 import type { CustomFieldRegistryResolver } from "@voyant-travel/core/custom-fields"
+import type { ProposalInquiryConversionRuntime } from "@voyant-travel/proposals-contracts/inquiry-conversion"
 import { createKmsProviderFromEnv, type KmsProvider } from "@voyant-travel/utils"
 
 import type { RelationshipsPersonNotificationsRuntime } from "./runtime-port.js"
@@ -32,6 +33,7 @@ export interface RelationshipsRouteRuntime {
    * what staff recorded, which is what it did before.
    */
   personNotifications?: RelationshipsPersonNotificationsRuntime
+  proposalInquiryConversion?: ProposalInquiryConversionRuntime
 }
 
 export interface RelationshipsRouteRuntimeOptions {
@@ -39,6 +41,7 @@ export interface RelationshipsRouteRuntimeOptions {
   customFields?: CustomFieldRegistryResolver
   customFieldsForWrite?: (db: unknown, entity: string) => ReturnType<CustomFieldRegistryResolver>
   personNotifications?: RelationshipsPersonNotificationsRuntime
+  proposalInquiryConversion?: ProposalInquiryConversionRuntime
 }
 
 function buildRuntimeEnv(bindings: Record<string, unknown>): Record<string, string | undefined> {
@@ -78,5 +81,6 @@ export function buildRelationshipsRouteRuntime(
     customFields: options.customFields,
     customFieldsForWrite: options.customFieldsForWrite,
     personNotifications: options.personNotifications,
+    proposalInquiryConversion: options.proposalInquiryConversion,
   }
 }

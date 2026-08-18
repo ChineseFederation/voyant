@@ -196,6 +196,45 @@ export const reopenInquirySchema = z.object({
   unassignedReason: z.string().trim().min(1).max(500).nullable().optional(),
 })
 
+export const convertInquiryToProposalSchema = z.object({
+  kind: z.literal("proposal"),
+  idempotencyKey: z.string().trim().min(1).max(255),
+  pipelineId: z.string().min(1).nullable().optional(),
+  stageId: z.string().min(1).nullable().optional(),
+  keepInquiryOpen: z.boolean().default(false),
+})
+
+export const inquiryProposalConversionRefusalReasonSchema = z.enum([
+  "invalid_input",
+  "pipeline_not_found",
+  "default_pipeline_not_found",
+  "stage_not_found",
+  "stage_pipeline_mismatch",
+  "stage_closed",
+  "open_stage_not_found",
+  "source_conflict",
+])
+
+export const inquiryProposalConversionResultSchema = z.object({
+  data: z.object({
+    kind: z.enum(["created", "replayed"]),
+    conversionId: z.string(),
+    inquiryId: z.string(),
+    inquiryStatus: z.enum(["qualified", "converted"]),
+    target: z.object({
+      kind: z.literal("proposal"),
+      id: z.string(),
+      pipelineId: z.string(),
+      stageId: z.string(),
+    }),
+  }),
+})
+
+export const inquiryProposalConversionRefusalSchema = z.object({
+  error: z.string(),
+  reason: inquiryProposalConversionRefusalReasonSchema,
+})
+
 const isoTimestampSchema = z.string()
 
 /** Canonical serialized Inquiry row shared by admin clients and future intake surfaces. */
@@ -259,5 +298,12 @@ export type TransitionInquiryInput = z.infer<typeof transitionInquirySchema>
 export type AssignInquiryInput = z.infer<typeof assignInquirySchema>
 export type CloseInquiryInput = z.infer<typeof closeInquirySchema>
 export type ReopenInquiryInput = z.infer<typeof reopenInquirySchema>
+export type ConvertInquiryToProposalCommand = z.infer<typeof convertInquiryToProposalSchema>
+export type InquiryProposalConversionResult = z.infer<
+  typeof inquiryProposalConversionResultSchema
+>["data"]
+export type InquiryProposalConversionRefusalReason = z.infer<
+  typeof inquiryProposalConversionRefusalReasonSchema
+>
 export type InquiryRecord = z.infer<typeof inquiryRecordSchema>
 export type InquiryCreateResponse = z.infer<typeof inquiryCreateResponseSchema>

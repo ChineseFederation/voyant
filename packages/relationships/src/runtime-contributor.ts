@@ -22,6 +22,10 @@ import {
   type FinanceStoredInstrumentRuntime,
   financeStoredInstrumentRuntimePort,
 } from "@voyant-travel/finance/runtime-port"
+import {
+  type ProposalInquiryConversionRuntime,
+  proposalInquiryConversionRuntimePort,
+} from "@voyant-travel/proposals-contracts/inquiry-conversion"
 import { sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import { createPublicApiIntakePersistence } from "./public-api-intake-runtime.js"
@@ -187,6 +191,14 @@ export function createRelationshipsRuntimePortContribution(
     host.getRuntimePort<CustomFieldsRuntime>(customFieldsRuntimePort),
   )
   const personNotifications = resolvePersonNotifications(host)
+  const proposalInquiryConversion =
+    host.hasRuntimePort?.(proposalInquiryConversionRuntimePort) === true
+      ? Promise.resolve(
+          host.getRuntimePort<ProposalInquiryConversionRuntime>(
+            proposalInquiryConversionRuntimePort,
+          ),
+        )
+      : undefined
   const customFields: CustomFieldValueReaderRuntime = {
     async resolveVisibleValues(db, entity, entityId, channel) {
       const database = db as PostgresJsDatabase
@@ -234,6 +246,15 @@ export function createRelationshipsRuntimePortContribution(
         listPersonDeliveries: async (db, personId, query) =>
           (await personNotifications)?.listPersonDeliveries(db, personId, query) ?? [],
       },
+      ...(proposalInquiryConversion
+        ? {
+            proposalInquiryConversion: {
+              convertInquiry: async (
+                ...args: Parameters<ProposalInquiryConversionRuntime["convertInquiry"]>
+              ) => (await proposalInquiryConversion).convertInquiry(...args),
+            },
+          }
+        : {}),
     } satisfies RelationshipsRouteRuntimeOptions,
     [relationshipsMiceRuntimePort.id]: {
       personExists: async (db, personId) =>

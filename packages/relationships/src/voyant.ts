@@ -11,6 +11,7 @@ import {
   customFieldValueReaderRuntimePort,
 } from "@voyant-travel/core/runtime-port"
 import { financeStoredInstrumentRuntimePort } from "@voyant-travel/finance/runtime-port"
+import { proposalInquiryConversionRuntimePort } from "@voyant-travel/proposals-contracts/inquiry-conversion"
 import {
   relationshipsBookingEnrichmentDatabaseRuntimePort,
   relationshipsMiceRuntimePort,
@@ -121,6 +122,20 @@ const inquiryClosedPayloadSchema = {
   additionalProperties: false,
 } as const
 
+const inquiryConvertedPayloadSchema = {
+  type: "object",
+  required: ["id", "actorId", "conversionId", "kind", "targetId", "inquiryStatus"],
+  properties: {
+    id: { type: "string" },
+    actorId: { type: "string" },
+    conversionId: { type: "string" },
+    kind: { type: "string", enum: ["proposal"] },
+    targetId: { type: "string" },
+    inquiryStatus: { type: "string", enum: ["qualified", "converted"] },
+  },
+  additionalProperties: false,
+} as const
+
 /** Import-cheap deployment declaration owned by the relationships package. */
 export const relationshipsVoyantModule = defineModule({
   id: "@voyant-travel/relationships",
@@ -143,6 +158,9 @@ export const relationshipsVoyantModule = defineModule({
     requirePort(customFieldsRuntimePort),
     requirePort(relationshipsRouteRuntimePort),
     requirePort(relationshipsBookingEnrichmentDatabaseRuntimePort),
+    // Optional so Relationships remains deployable without Proposals. The
+    // conversion endpoint stays mounted and answers 503 when no provider is selected.
+    requirePort(proposalInquiryConversionRuntimePort, { optional: true }),
     // Optional so a deployment that selects CRM without Bookings still boots;
     // the enrichment subscriber simply has nothing to read.
     requirePort(bookingsCrmSnapshotRuntimePort, { optional: true }),
@@ -223,6 +241,14 @@ export const relationshipsVoyantModule = defineModule({
       eventType: "inquiry.closed",
       version: "1.0.0",
       payloadSchema: inquiryClosedPayloadSchema,
+      visibility: "internal",
+      audit: { sourceModule: "relationships", category: "domain" },
+    },
+    {
+      id: "@voyant-travel/relationships#event.inquiry.converted",
+      eventType: "inquiry.converted",
+      version: "1.0.0",
+      payloadSchema: inquiryConvertedPayloadSchema,
       visibility: "internal",
       audit: { sourceModule: "relationships", category: "domain" },
     },

@@ -13440,6 +13440,242 @@
         "x-voyant-package-name": "@voyant-travel/relationships"
       }
     },
+    "/v1/admin/relationships/inquiries/{id}/convert": {
+      "post": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": ["proposal"]
+                  },
+                  "idempotencyKey": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 255
+                  },
+                  "pipelineId": {
+                    "type": ["string", "null"],
+                    "minLength": 1
+                  },
+                  "stageId": {
+                    "type": ["string", "null"],
+                    "minLength": 1
+                  },
+                  "keepInquiryOpen": {
+                    "type": "boolean",
+                    "default": false
+                  }
+                },
+                "required": ["kind", "idempotencyKey"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Replayed Inquiry conversion",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string",
+                          "enum": ["created", "replayed"]
+                        },
+                        "conversionId": {
+                          "type": "string"
+                        },
+                        "inquiryId": {
+                          "type": "string"
+                        },
+                        "inquiryStatus": {
+                          "type": "string",
+                          "enum": ["qualified", "converted"]
+                        },
+                        "target": {
+                          "type": "object",
+                          "properties": {
+                            "kind": {
+                              "type": "string",
+                              "enum": ["proposal"]
+                            },
+                            "id": {
+                              "type": "string"
+                            },
+                            "pipelineId": {
+                              "type": "string"
+                            },
+                            "stageId": {
+                              "type": "string"
+                            }
+                          },
+                          "required": ["kind", "id", "pipelineId", "stageId"]
+                        }
+                      },
+                      "required": ["kind", "conversionId", "inquiryId", "inquiryStatus", "target"]
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Created Inquiry conversion",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string",
+                          "enum": ["created", "replayed"]
+                        },
+                        "conversionId": {
+                          "type": "string"
+                        },
+                        "inquiryId": {
+                          "type": "string"
+                        },
+                        "inquiryStatus": {
+                          "type": "string",
+                          "enum": ["qualified", "converted"]
+                        },
+                        "target": {
+                          "type": "object",
+                          "properties": {
+                            "kind": {
+                              "type": "string",
+                              "enum": ["proposal"]
+                            },
+                            "id": {
+                              "type": "string"
+                            },
+                            "pipelineId": {
+                              "type": "string"
+                            },
+                            "stageId": {
+                              "type": "string"
+                            }
+                          },
+                          "required": ["kind", "id", "pipelineId", "stageId"]
+                        }
+                      },
+                      "required": ["kind", "conversionId", "inquiryId", "inquiryStatus", "target"]
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Inquiry not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Inquiry lifecycle conflict or Proposal refusal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "error": {
+                          "type": "string"
+                        },
+                        "reason": {
+                          "type": "string",
+                          "enum": [
+                            "invalid_input",
+                            "pipeline_not_found",
+                            "default_pipeline_not_found",
+                            "stage_not_found",
+                            "stage_pipeline_mismatch",
+                            "stage_closed",
+                            "open_stage_not_found",
+                            "source_conflict"
+                          ]
+                        }
+                      },
+                      "required": ["error", "reason"]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "error": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["error"]
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Proposal conversion unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "postAdminRelationshipsInquiriesByIdConvert",
+        "summary": "POST /v1/admin/relationships/inquiries/{id}/convert",
+        "tags": ["relationships"],
+        "x-voyant-module": "relationships",
+        "x-voyant-surface": "admin",
+        "x-voyant-api-id": "@voyant-travel/relationships#api.admin",
+        "x-voyant-unit-id": "@voyant-travel/relationships",
+        "x-voyant-package-name": "@voyant-travel/relationships"
+      }
+    },
     "/v1/admin/relationships/activities": {
       "get": {
         "parameters": [
