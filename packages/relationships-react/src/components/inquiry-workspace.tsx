@@ -1,5 +1,12 @@
 "use client"
 
+import type {
+  CloseInquiryInput,
+  InquiryCloseOutcome,
+  InquiryPriority,
+  InquiryRecord,
+  TransitionInquiryInput,
+} from "@voyant-travel/relationships-contracts"
 import {
   Badge,
   Button,
@@ -18,14 +25,7 @@ import {
 import { ArrowLeft, CalendarClock, UserRound } from "lucide-react"
 import { useState } from "react"
 import { useCrmUiMessagesOrDefault } from "../i18n/index.js"
-import type { InquiryCloseOutcome, InquiryRecord } from "../inquiry-schemas.js"
-import {
-  buildCloseInput,
-  buildTransitionInput,
-  type CloseInquiryInput,
-  findBookingSessionTarget,
-  type TransitionInquiryInput,
-} from "../inquiry-ui-model.js"
+import { buildCloseInput, buildTransitionInput } from "../inquiry-ui-model.js"
 
 export interface InquiryWorkspaceProps {
   inquiry: InquiryRecord
@@ -39,8 +39,6 @@ export interface InquiryWorkspaceProps {
   onTransition: (input: TransitionInquiryInput) => Promise<unknown>
   onClose: (input: CloseInquiryInput) => Promise<unknown>
   onReopen: () => Promise<unknown>
-  onConvertToProposal: () => Promise<unknown>
-  onConvertToBookingSession: (targetLinkId: string) => Promise<unknown>
 }
 
 const closeOutcomes: InquiryCloseOutcome[] = [
@@ -72,7 +70,6 @@ export function InquiryWorkspace(props: InquiryWorkspaceProps) {
   const [duplicateOfInquiryId, setDuplicateOfInquiryId] = useState("")
   const [closeNote, setCloseNote] = useState("")
   const [noFollowUpExpected, setNoFollowUpExpected] = useState(false)
-  const bookingTarget = findBookingSessionTarget(inquiry.targets)
   const followUp = nextActionAt
     ? { nextActionAt: new Date(nextActionAt).toISOString() }
     : { noFollowUpExpected }
@@ -106,7 +103,7 @@ export function InquiryWorkspace(props: InquiryWorkspaceProps) {
                 variant={inquiry.priority === "urgent" ? "destructive" : "secondary"}
                 className="capitalize"
               >
-                {labels.priorities[inquiry.priority]}
+                {labels.priorities[inquiry.priority as InquiryPriority] ?? inquiry.priority}
               </Badge>
               <Badge variant="outline" className="capitalize">
                 {labels.kinds[inquiry.kind]}
@@ -177,19 +174,6 @@ export function InquiryWorkspace(props: InquiryWorkspaceProps) {
               <CardTitle>{messages.context}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              {inquiry.targets.length === 0 ? (
-                <p className="text-sm text-muted-foreground">{messages.noTargets}</p>
-              ) : (
-                inquiry.targets.map((target) => (
-                  <div key={target.id} className="rounded-md border p-3">
-                    <div className="font-medium">{target.label ?? target.targetId}</div>
-                    <div className="text-xs capitalize text-muted-foreground">
-                      {labels.targetKinds[target.kind as keyof typeof labels.targetKinds] ??
-                        target.kind}
-                    </div>
-                  </div>
-                ))
-              )}
               {inquiry.travelBrief ? (
                 <pre className="overflow-auto rounded-md bg-muted p-3 text-xs">
                   {JSON.stringify(inquiry.travelBrief, null, 2)}
@@ -339,31 +323,6 @@ export function InquiryWorkspace(props: InquiryWorkspaceProps) {
                   onChange={(event) => setCloseNote(event.target.value)}
                 />
               ) : null}
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle>{messages.conversion}</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <p className="text-xs text-muted-foreground">{messages.conversionHint}</p>
-              <Button
-                className="w-full"
-                disabled={inquiry.status !== "qualified"}
-                onClick={() => void props.onConvertToProposal()}
-              >
-                {messages.convertProposal}
-              </Button>
-              <Button
-                className="w-full"
-                variant="outline"
-                disabled={inquiry.status !== "qualified" || !bookingTarget}
-                onClick={() =>
-                  bookingTarget && void props.onConvertToBookingSession(bookingTarget.id)
-                }
-              >
-                {messages.convertBookingSession}
-              </Button>
             </CardContent>
           </Card>
         </div>

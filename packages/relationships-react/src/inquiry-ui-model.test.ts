@@ -1,11 +1,9 @@
-import { describe, expect, it, vi } from "vitest"
-import { type InquiryRecord, inquiryRecordSchema } from "./inquiry-schemas.js"
+import { type InquiryRecord, inquiryRecordSchema } from "@voyant-travel/relationships-contracts"
+import { describe, expect, it } from "vitest"
 import {
   buildCloseInput,
   buildTransitionInput,
-  createConversionRetryKeyStore,
   filterInquiryQueue,
-  findBookingSessionTarget,
   inquiryPageState,
 } from "./inquiry-ui-model.js"
 import { buildInquiriesQueryString } from "./query-options.js"
@@ -39,7 +37,6 @@ function record(overrides: Partial<InquiryRecord> = {}): InquiryRecord {
     consentSnapshot: null,
     tags: [],
     customFields: {},
-    targets: [],
     createdAt: "2026-08-18T10:00:00.000Z",
     updatedAt: "2026-08-18T10:00:00.000Z",
     lastActivityAt: null,
@@ -92,20 +89,7 @@ describe("inquiry UI command model", () => {
     })
   })
 
-  it("reuses a conversion key after failure and rotates it after definitive success", async () => {
-    const generate = vi.fn().mockReturnValueOnce("key-1").mockReturnValueOnce("key-2")
-    const store = createConversionRetryKeyStore(generate)
-    const failed = vi.fn().mockRejectedValueOnce(new Error("temporary"))
-    await expect(store.run("proposal", failed)).rejects.toThrow("temporary")
-    const success = vi.fn().mockResolvedValue("done")
-    await expect(store.run("proposal", success)).resolves.toBe("done")
-    expect(failed).toHaveBeenCalledWith("key-1")
-    expect(success).toHaveBeenCalledWith("key-1")
-    await store.run("proposal", success)
-    expect(success).toHaveBeenLastCalledWith("key-2")
-  })
-
-  it("keeps terminal records out of the actionable view and selects eligible booking targets", () => {
+  it("keeps terminal records out of the actionable view", () => {
     const active = record({ id: "inq_active", status: "triaged", ownerId: "usr_1" })
     const converted = record({
       id: "inq_done",
@@ -115,25 +99,6 @@ describe("inquiry UI command model", () => {
     expect(filterInquiryQueue([active, converted], "actionable")).toEqual([active])
     expect(filterInquiryQueue([active, converted], "converted")).toEqual([converted])
     expect(filterInquiryQueue([active, converted], undefined, "converted")).toEqual([converted])
-    const target = findBookingSessionTarget([
-      {
-        id: "link_trip",
-        kind: "trip",
-        targetId: "trip_1",
-        label: null,
-        snapshot: null,
-        createdAt: active.createdAt,
-      },
-      {
-        id: "link_product",
-        kind: "product",
-        targetId: "prd_1",
-        label: null,
-        snapshot: null,
-        createdAt: active.createdAt,
-      },
-    ])
-    expect(target?.id).toBe("link_product")
   })
 
   it("serializes the actionable view and core-supported filters", () => {

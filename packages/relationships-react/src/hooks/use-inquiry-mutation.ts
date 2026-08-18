@@ -1,67 +1,19 @@
 "use client"
 
 import { useMutation, useQueryClient } from "@tanstack/react-query"
-import { fetchWithValidation } from "../client.js"
 import {
-  type InquiryKind,
-  type InquiryPriority,
-  inquiryConversionCommandResponse,
-  inquirySingleResponse,
-} from "../inquiry-schemas.js"
-import type { CloseInquiryInput, TransitionInquiryInput } from "../inquiry-ui-model.js"
+  type AssignInquiryInput,
+  type CloseInquiryInput,
+  type CreateInquiryInput,
+  inquiryCreateResponseSchema,
+  inquiryResponseSchema,
+  type ReopenInquiryInput,
+  type TransitionInquiryInput,
+  type UpdateInquiryInput,
+} from "@voyant-travel/relationships-contracts"
+import { fetchWithValidation } from "../client.js"
 import { useVoyantContext } from "../provider.js"
 import { relationshipsQueryKeys } from "../query-keys.js"
-
-export interface CreateInquiryInput {
-  subject: string
-  kind: InquiryKind
-  priority?: InquiryPriority
-  customerMessage?: string | null
-  internalSummary?: string | null
-  personId?: string | null
-  organizationId?: string | null
-  contactSnapshot?: { name?: string | null; email?: string | null; phone?: string | null }
-  ownerId?: string | null
-  nextActionAt?: string | null
-  travelBrief?: Record<string, unknown> | null
-  tags?: string[]
-  source?: string
-  sourceRef?: string | null
-}
-
-export interface UpdateInquiryInput {
-  subject?: string
-  priority?: InquiryPriority
-  internalSummary?: string | null
-  personId?: string | null
-  organizationId?: string | null
-  nextActionAt?: string | null
-  travelBrief?: Record<string, unknown> | null
-  tags?: string[]
-}
-
-export type ConvertInquiryInput =
-  | {
-      kind: "proposal"
-      idempotencyKey: string
-      pipelineId?: string
-      stageId?: string
-      keepInquiryOpen?: boolean
-    }
-  | {
-      kind: "booking_session"
-      idempotencyKey: string
-      targetLinkId: string
-      channelId?: string
-      keepInquiryOpen?: boolean
-    }
-  | { kind: "booking"; idempotencyKey: string; bookingInput: Record<string, unknown> }
-  | {
-      kind: "attach_existing"
-      idempotencyKey: string
-      targetKind: "proposal" | "booking_session" | "booking"
-      targetId: string
-    }
 
 export function useInquiryMutation() {
   const client = useVoyantContext()
@@ -71,7 +23,7 @@ export function useInquiryMutation() {
   const commit = async (id: string, suffix: string, body?: unknown, method = "POST") => {
     const { data } = await fetchWithValidation(
       `${basePath}/${id}${suffix}`,
-      inquirySingleResponse,
+      inquiryResponseSchema,
       client,
       { method, body: body === undefined ? undefined : JSON.stringify(body) },
     )
@@ -84,7 +36,7 @@ export function useInquiryMutation() {
 
   const create = useMutation({
     mutationFn: async (input: CreateInquiryInput) => {
-      const { data } = await fetchWithValidation(basePath, inquirySingleResponse, client, {
+      const { data } = await fetchWithValidation(basePath, inquiryCreateResponseSchema, client, {
         method: "POST",
         body: JSON.stringify(input),
       })
@@ -103,17 +55,8 @@ export function useInquiryMutation() {
     onSuccess: settle,
   })
   const assign = useMutation({
-    mutationFn: ({
-      id,
-      ownerId,
-      teamId,
-      unassignedReason,
-    }: {
-      id: string
-      ownerId: string | null
-      teamId?: string | null
-      unassignedReason?: string | null
-    }) => commit(id, "/assign", { ownerId, teamId, unassignedReason }),
+    mutationFn: ({ id, input }: { id: string; input: AssignInquiryInput }) =>
+      commit(id, "/assign", input),
     onSuccess: settle,
   })
   const close = useMutation({
@@ -122,29 +65,10 @@ export function useInquiryMutation() {
     onSuccess: settle,
   })
   const reopen = useMutation({
-    mutationFn: ({
-      id,
-      input = {},
-    }: {
-      id: string
-      input?: { nextActionAt?: string | null; unassignedReason?: string | null }
-    }) => commit(id, "/reopen", input),
+    mutationFn: ({ id, input = {} }: { id: string; input?: ReopenInquiryInput }) =>
+      commit(id, "/reopen", input),
     onSuccess: settle,
   })
-  const convert = useMutation({
-    mutationFn: ({ id, input }: { id: string; input: ConvertInquiryInput }) =>
-      fetchWithValidation(`${basePath}/${id}/convert`, inquiryConversionCommandResponse, client, {
-        method: "POST",
-        body: JSON.stringify(input),
-      }),
-    onSuccess: (_result, { id }) => {
-      void queryClient.invalidateQueries({ queryKey: relationshipsQueryKeys.inquiry(id) })
-      void queryClient.invalidateQueries({
-        queryKey: relationshipsQueryKeys.inquiryConversions(id),
-      })
-      void queryClient.invalidateQueries({ queryKey: relationshipsQueryKeys.inquiries() })
-    },
-  })
 
-  return { create, update, transition, assign, close, reopen, convert }
+  return { create, update, transition, assign, close, reopen }
 }

@@ -1,22 +1,11 @@
 import type {
+  CloseInquiryInput,
   InquiryCloseOutcome,
+  InquiryListQueryInput,
   InquiryRecord,
   InquiryStatus,
-  InquiryTargetRecord,
-} from "./inquiry-schemas.js"
-
-export interface TransitionInquiryInput {
-  status: "triaged" | "in_progress" | "waiting_on_customer" | "qualified"
-  nextActionAt?: string | null
-  noFollowUpExpected?: boolean
-  unassignedReason?: string | null
-}
-
-export interface CloseInquiryInput {
-  outcome: InquiryCloseOutcome
-  duplicateOfInquiryId?: string | null
-  note?: string | null
-}
+  TransitionInquiryInput,
+} from "@voyant-travel/relationships-contracts"
 
 export function buildTransitionInput(
   inquiry: InquiryRecord,
@@ -72,15 +61,9 @@ export function buildCloseInput(
   }
 }
 
-const bookingTargetKinds = new Set(["product", "option_unit", "departure"])
-
-export function findBookingSessionTarget(targets: InquiryTargetRecord[]) {
-  return targets.find((target) => bookingTargetKinds.has(target.kind))
-}
-
 export function filterInquiryQueue(
   inquiries: InquiryRecord[],
-  view?: string,
+  view?: InquiryListQueryInput["view"],
   status?: InquiryStatus,
 ) {
   if (status) return inquiries.filter((inquiry) => inquiry.status === status)
@@ -101,19 +84,6 @@ export function filterInquiryQueue(
   return inquiries.filter(
     (inquiry) => inquiry.status !== "converted" && inquiry.status !== "closed",
   )
-}
-
-export function createConversionRetryKeyStore(generate: () => string = () => crypto.randomUUID()) {
-  const keys = new Map<string, string>()
-  return {
-    async run<T>(operation: string, execute: (idempotencyKey: string) => Promise<T>): Promise<T> {
-      const key = keys.get(operation) ?? generate()
-      keys.set(operation, key)
-      const result = await execute(key)
-      keys.delete(operation)
-      return result
-    },
-  }
 }
 
 export function allowedInquiryTransitions(inquiry: InquiryRecord): InquiryStatus[] {

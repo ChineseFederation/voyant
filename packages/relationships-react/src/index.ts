@@ -1,4 +1,35 @@
 export {
+  type AssignInquiryInput,
+  assignInquirySchema,
+  type CloseInquiryInput,
+  type CreateInquiryInput,
+  closeInquirySchema,
+  createInquirySchema,
+  type InquiryCloseOutcome,
+  type InquiryKind,
+  type InquiryListQueryInput,
+  type InquiryPriority,
+  type InquiryRecord,
+  type InquiryStatus,
+  inquiryCloseOutcomeSchema,
+  inquiryCreateResponseSchema,
+  inquiryKindSchema,
+  inquiryListQuerySchema,
+  inquiryListResponseSchema,
+  inquiryPrioritySchema,
+  inquiryRecordSchema,
+  inquiryResponseSchema,
+  inquirySourceSchema,
+  inquiryStatusSchema,
+  inquiryTravelBriefV1Schema,
+  type ReopenInquiryInput,
+  reopenInquirySchema,
+  type TransitionInquiryInput,
+  transitionInquirySchema,
+  type UpdateInquiryInput,
+  updateInquirySchema,
+} from "@voyant-travel/relationships-contracts"
+export {
   defaultFetcher,
   fetchWithValidation,
   VoyantApiError,
@@ -37,12 +68,7 @@ export {
 } from "./hooks/use-customer-signals.js"
 export { type UseInquiriesOptions, useInquiries } from "./hooks/use-inquiries.js"
 export { useInquiry } from "./hooks/use-inquiry.js"
-export {
-  type ConvertInquiryInput,
-  type CreateInquiryInput,
-  type UpdateInquiryInput,
-  useInquiryMutation,
-} from "./hooks/use-inquiry-mutation.js"
+export { useInquiryMutation } from "./hooks/use-inquiry-mutation.js"
 export {
   type UseOrganizationOptions,
   useOrganization,
@@ -111,23 +137,6 @@ export {
   type UseRevealPersonDocumentOptions,
   useRevealPersonDocument,
 } from "./hooks/use-reveal-person-document.js"
-export {
-  type InquiryCloseOutcome,
-  type InquiryConversionRecord,
-  type InquiryKind,
-  type InquiryPriority,
-  type InquiryRecord,
-  type InquiryStatus,
-  type InquiryTargetRecord,
-  inquiryCloseOutcomeSchema,
-  inquiryConversionSchema,
-  inquiryKindSchema,
-  inquiryPrioritySchema,
-  inquiryRecordSchema,
-  inquiryStatusSchema,
-  inquiryTargetSchema,
-  inquiryTravelBriefSchema,
-} from "./inquiry-schemas.js"
 export {
   useVoyantContext,
   type VoyantContextValue,

@@ -1,6 +1,6 @@
+import { type InquiryRecord, inquiryRecordSchema } from "@voyant-travel/relationships-contracts"
 import { renderToStaticMarkup } from "react-dom/server"
 import { describe, expect, it, vi } from "vitest"
-import { type InquiryRecord, inquiryRecordSchema } from "../inquiry-schemas.js"
 import { InquiryQueue } from "./inquiry-queue.js"
 import { InquiryWorkspace } from "./inquiry-workspace.js"
 
@@ -15,7 +15,7 @@ const inquiry: InquiryRecord = inquiryRecordSchema.parse({
   priority: "high",
   personId: "per_01",
   organizationId: null,
-  contactSnapshot: { name: "Ana Pop", email: "ana@example.test", phone: null },
+  contactSnapshot: { name: "Ana Pop", email: "ana@example.test" },
   ownerId: "usr_sales",
   teamId: null,
   unassignedReason: null,
@@ -37,7 +37,6 @@ const inquiry: InquiryRecord = inquiryRecordSchema.parse({
   consentSnapshot: null,
   tags: ["family"],
   customFields: {},
-  targets: [],
   createdAt: "2026-08-18T10:00:00.000Z",
   updatedAt: "2026-08-18T10:00:00.000Z",
   lastActivityAt: null,
@@ -68,7 +67,7 @@ describe("Inquiry operator surfaces", () => {
     expect(html).toContain("Showing 1 of 1")
   })
 
-  it("renders request, operational, and conversion context in the detail workspace", () => {
+  it("renders request and operational context in the detail workspace", () => {
     const noOp = vi.fn().mockResolvedValue(undefined)
     const html = renderToStaticMarkup(
       <InquiryWorkspace
@@ -79,13 +78,9 @@ describe("Inquiry operator surfaces", () => {
         onTransition={noOp}
         onClose={noOp}
         onReopen={noOp}
-        onConvertToProposal={noOp}
-        onConvertToBookingSession={noOp}
       />,
     )
     expect(html).toContain("Customer request")
     expect(html).toContain("We would like a quiet island.")
-    expect(html).toContain("Create proposal")
-    expect(html).toContain("Start booking session")
   })
 })

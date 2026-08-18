@@ -1,5 +1,12 @@
 "use client"
 
+import type {
+  InquiryKind,
+  InquiryListQueryInput,
+  InquiryPriority,
+  InquiryRecord,
+  InquiryStatus,
+} from "@voyant-travel/relationships-contracts"
 import {
   Badge,
   Card,
@@ -17,24 +24,9 @@ import {
   TableRow,
 } from "@voyant-travel/ui/components"
 import { useCrmUiMessagesOrDefault } from "../i18n/index.js"
-import type {
-  InquiryKind,
-  InquiryPriority,
-  InquiryRecord,
-  InquiryStatus,
-} from "../inquiry-schemas.js"
 import { filterInquiryQueue, inquiryPageState } from "../inquiry-ui-model.js"
 
-export type InquirySavedView =
-  | "actionable"
-  | "new"
-  | "mine"
-  | "unassigned"
-  | "overdue"
-  | "waiting"
-  | "qualified"
-  | "converted"
-  | "closed"
+export type InquirySavedView = InquiryListQueryInput["view"]
 
 export interface InquiryQueueFilters {
   view?: InquirySavedView
@@ -234,7 +226,7 @@ export function InquiryQueue({
                         variant={inquiry.priority === "urgent" ? "destructive" : "secondary"}
                         className="capitalize"
                       >
-                        {labels.priorities[inquiry.priority]}
+                        {labels.priorities[inquiry.priority as InquiryPriority] ?? inquiry.priority}
                       </Badge>
                     </TableCell>
                     <TableCell>{inquiry.ownerId ?? "—"}</TableCell>

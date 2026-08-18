@@ -1,12 +1,15 @@
 "use client"
 
 import { queryOptions } from "@tanstack/react-query"
+import {
+  inquiryListResponseSchema,
+  inquiryResponseSchema,
+} from "@voyant-travel/relationships-contracts"
 
 import { type FetchWithValidationOptions, fetchWithValidation } from "./client.js"
 import type { UseActivitiesOptions } from "./hooks/use-activities.js"
 import type { UseOrganizationsOptions } from "./hooks/use-organizations.js"
 import type { UsePeopleOptions } from "./hooks/use-people.js"
-import { inquiryListResponse, inquirySingleResponse } from "./inquiry-schemas.js"
 import type { InquiriesListFilters } from "./query-keys.js"
 import { relationshipsQueryKeys } from "./query-keys.js"
 import {
@@ -38,7 +41,7 @@ export function getInquiriesQueryOptions(
       const query = buildInquiriesQueryString(filters)
       return fetchWithValidation(
         `${basePath}/inquiries${query ? `?${query}` : ""}`,
-        inquiryListResponse,
+        inquiryListResponseSchema,
         client,
       )
     },
@@ -51,7 +54,7 @@ export function getInquiryQueryOptions(client: FetchWithValidationOptions, id: s
     queryFn: async () => {
       const { data } = await fetchWithValidation(
         `${basePath}/inquiries/${id}`,
-        inquirySingleResponse,
+        inquiryResponseSchema,
         client,
       )
       return data

@@ -101,16 +101,12 @@ export type CrmUiMessages = {
       string
     >
     sources: Record<"storefront" | "phone" | "email" | "admin" | "import" | "api", string>
-    targetKinds: Record<"product" | "option_unit" | "departure", string>
   }
   inquiryDetail: {
     back: string
     customerRequest: string
     context: string
     operations: string
-    conversion: string
-    noTargets: string
-    unassigned: string
     nextAction: string
     firstResponseDue: string
     source: string
@@ -128,8 +124,6 @@ export type CrmUiMessages = {
     unassignedReason: string
     close: string
     reopen: string
-    convertProposal: string
-    convertBookingSession: string
     internalSummary: string
     ownerPlaceholder: string
     closeOutcome: string
@@ -137,7 +131,6 @@ export type CrmUiMessages = {
     closeNote: string
     contact: string
     personLinked: string
-    conversionHint: string
     loadFailed: string
   }
   organizationForm: {

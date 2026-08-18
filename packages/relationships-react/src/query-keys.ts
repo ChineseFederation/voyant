@@ -1,3 +1,5 @@
+import type { InquiryListQueryInput } from "@voyant-travel/relationships-contracts"
+
 export type PeopleListSortField = "name" | "relation" | "status" | "createdAt" | "updatedAt"
 export type PeopleListSortDir = "asc" | "desc"
 
@@ -56,30 +58,7 @@ export interface CustomerSignalsListFilters {
   offset?: number | undefined
 }
 
-export interface InquiriesListFilters {
-  view?:
-    | "actionable"
-    | "new"
-    | "mine"
-    | "unassigned"
-    | "overdue"
-    | "waiting"
-    | "qualified"
-    | "converted"
-    | "closed"
-  search?: string
-  status?: string
-  ownerId?: string
-  teamId?: string
-  priority?: string
-  source?: string
-  kind?: string
-  personId?: string
-  organizationId?: string
-  overdue?: boolean
-  limit?: number
-  offset?: number
-}
+export type InquiriesListFilters = Partial<InquiryListQueryInput>
 
 export interface PersonRelationshipsListFilters {
   kind?: string | undefined
@@ -139,8 +118,6 @@ export const relationshipsQueryKeys = {
   inquiriesList: (filters: InquiriesListFilters) =>
     [...relationshipsQueryKeys.inquiries(), "list", filters] as const,
   inquiry: (id: string) => [...relationshipsQueryKeys.inquiries(), "detail", id] as const,
-  inquiryConversions: (id: string) =>
-    [...relationshipsQueryKeys.inquiry(id), "conversions"] as const,
 
   organizations: () => [...relationshipsQueryKeys.all, "organizations"] as const,
   organizationsList: (filters: OrganizationsListFilters) =>

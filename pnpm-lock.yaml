@@ -5520,6 +5520,9 @@ importers:
       '@voyant-travel/react':
         specifier: workspace:^
         version: link:../react
+      '@voyant-travel/relationships-contracts':
+        specifier: workspace:^
+        version: link:../relationships-contracts
       '@voyant-travel/types':
         specifier: workspace:^
         version: link:../types
