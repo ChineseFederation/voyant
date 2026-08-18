@@ -71,6 +71,14 @@ export const relationshipsRouteRuntimePort = definePort<RelationshipsRouteRuntim
         "relationships.route-runtime proposalInquiryConversion must implement convertInquiry().",
       )
     }
+    if (
+      provider.inquiryTargetValidation &&
+      typeof provider.inquiryTargetValidation.validateTarget !== "function"
+    ) {
+      throw new Error(
+        "relationships.route-runtime inquiryTargetValidation must implement validateTarget().",
+      )
+    }
   },
 })
 

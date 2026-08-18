@@ -12,6 +12,7 @@ import {
 } from "@voyant-travel/core/runtime-port"
 import { financeStoredInstrumentRuntimePort } from "@voyant-travel/finance/runtime-port"
 import { proposalInquiryConversionRuntimePort } from "@voyant-travel/proposals-contracts/inquiry-conversion/runtime-port"
+import { inquiryTargetAuthorityRuntimePort } from "@voyant-travel/relationships-contracts/inquiry-target-authority/runtime-port"
 import {
   relationshipsBookingEnrichmentDatabaseRuntimePort,
   relationshipsMiceRuntimePort,
@@ -175,6 +176,7 @@ export const relationshipsVoyantModule = defineModule({
     // Optional so Relationships remains deployable without Proposals. The
     // conversion endpoint stays mounted and answers 503 when no provider is selected.
     requirePort(proposalInquiryConversionRuntimePort, { optional: true }),
+    requirePort(inquiryTargetAuthorityRuntimePort, { optional: true, cardinality: "many" }),
     // Optional so a deployment that selects CRM without Bookings still boots;
     // the enrichment subscriber simply has nothing to read.
     requirePort(bookingsCrmSnapshotRuntimePort, { optional: true }),

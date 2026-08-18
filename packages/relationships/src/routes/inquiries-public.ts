@@ -1,4 +1,5 @@
 import { createRoute, OpenAPIHono, type z } from "@hono/zod-openapi"
+import type { ModuleContainer } from "@voyant-travel/core"
 import { openApiValidationHook, parseJsonBody } from "@voyant-travel/hono"
 import {
   createPublicInquirySchema,
@@ -7,6 +8,10 @@ import {
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import type { Context, Next } from "hono"
 
+import {
+  RELATIONSHIPS_ROUTE_RUNTIME_CONTAINER_KEY,
+  type RelationshipsRouteRuntime,
+} from "../route-runtime.js"
 import { InquiryServiceError, relationshipsService } from "../service/index.js"
 import { errorResponseSchema } from "./rest-openapi-schemas.js"
 
@@ -16,6 +21,7 @@ type Env = {
     userId?: string
     relationshipPersonId?: string | null
     publicChannel?: { channelId: string; channelStatus?: string | null }
+    container?: ModuleContainer
   }
 }
 
@@ -43,6 +49,7 @@ const intakeRoute = createRoute({
     404: { description: "Known Person or target not found", ...jsonContent(errorResponseSchema) },
     409: { description: "Inquiry intake conflict", ...jsonContent(errorResponseSchema) },
     429: { description: "Guarded intake rate limit exceeded", ...jsonContent(errorResponseSchema) },
+    503: { description: "Target owner authority unavailable", ...jsonContent(errorResponseSchema) },
   },
 })
 
@@ -63,11 +70,15 @@ publicInquiryRoutes.openapi(intakeRoute, async (c) => {
   const channelId = c.get("publicChannel")?.channelId
   if (!channelId) return c.json({ error: "Active channel context is required." }, 403)
   const customerUserId = c.get("userId")
+  const runtime = c.get("container")?.resolve(RELATIONSHIPS_ROUTE_RUNTIME_CONTAINER_KEY) as
+    | RelationshipsRouteRuntime
+    | undefined
   try {
     const result = await relationshipsService.createPublicInquiry(c.get("db"), input, {
       actorId: customerUserId ? `customer:${customerUserId}` : `storefront:${channelId}`,
       channelId,
       relationshipPersonId: c.get("relationshipPersonId"),
+      targetValidation: runtime?.inquiryTargetValidation,
     })
     const body = {
       data: {
@@ -86,6 +97,9 @@ publicInquiryRoutes.openapi(intakeRoute, async (c) => {
       error.code === "INQUIRY_TARGET_NOT_FOUND"
     ) {
       return c.json({ error: error.message }, 404)
+    }
+    if (error.code === "INQUIRY_TARGET_VALIDATION_UNAVAILABLE") {
+      return c.json({ error: error.message }, 503)
     }
     return c.json({ error: error.message }, 409)
   }

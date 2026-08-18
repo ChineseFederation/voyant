@@ -1,10 +1,21 @@
 import type { CustomFieldRegistryResolver } from "@voyant-travel/core/custom-fields"
 import type { ProposalInquiryConversionRuntime } from "@voyant-travel/proposals-contracts/inquiry-conversion"
+import type { InquiryMaterializedTargetKind } from "@voyant-travel/relationships-contracts/inquiry-target-authority/runtime-port"
 import { createKmsProviderFromEnv, type KmsProvider } from "@voyant-travel/utils"
 
 import type { RelationshipsPersonNotificationsRuntime } from "./runtime-port.js"
 
 export const RELATIONSHIPS_ROUTE_RUNTIME_CONTAINER_KEY = "runtime.relationships.routes"
+
+export type InquiryTargetValidationResult = "valid" | "not_found" | "unavailable"
+
+export interface InquiryTargetValidationRuntime {
+  validateTarget(
+    db: unknown,
+    kind: InquiryMaterializedTargetKind,
+    targetId: string,
+  ): Promise<InquiryTargetValidationResult>
+}
 
 /**
  * Hook for apps that source KMS keys from somewhere other than env
@@ -34,6 +45,7 @@ export interface RelationshipsRouteRuntime {
    */
   personNotifications?: RelationshipsPersonNotificationsRuntime
   proposalInquiryConversion?: ProposalInquiryConversionRuntime
+  inquiryTargetValidation?: InquiryTargetValidationRuntime
 }
 
 export interface RelationshipsRouteRuntimeOptions {
@@ -42,6 +54,7 @@ export interface RelationshipsRouteRuntimeOptions {
   customFieldsForWrite?: (db: unknown, entity: string) => ReturnType<CustomFieldRegistryResolver>
   personNotifications?: RelationshipsPersonNotificationsRuntime
   proposalInquiryConversion?: ProposalInquiryConversionRuntime
+  inquiryTargetValidation?: InquiryTargetValidationRuntime
 }
 
 function buildRuntimeEnv(bindings: Record<string, unknown>): Record<string, string | undefined> {
@@ -82,5 +95,6 @@ export function buildRelationshipsRouteRuntime(
     customFieldsForWrite: options.customFieldsForWrite,
     personNotifications: options.personNotifications,
     proposalInquiryConversion: options.proposalInquiryConversion,
+    inquiryTargetValidation: options.inquiryTargetValidation,
   }
 }

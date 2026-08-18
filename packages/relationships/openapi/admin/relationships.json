@@ -14239,6 +14239,22 @@
                 }
               }
             }
+          },
+          "503": {
+            "description": "Target owner authority unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
           }
         },
         "operationId": "postAdminRelationshipsInquiriesByIdTargets",

@@ -157,11 +157,12 @@ describe("Inquiry contracts", () => {
         {
           kind: "product",
           targetId: "prod_1",
-          snapshot: { title: "Kyoto discovery" },
+          snapshot: { title: "Kyoto discovery", sourceChannel: "spoofed-channel" },
         },
       ],
     })
     expect(intake.targets).toHaveLength(1)
+    expect(intake.targets[0]?.snapshot).not.toHaveProperty("sourceChannel")
     expect("source" in intake).toBe(false)
     expect("personId" in intake).toBe(false)
     expect(
@@ -200,6 +201,23 @@ describe("Inquiry contracts", () => {
         kind: "general",
         contactSnapshot: { email: "traveler@example.com" },
         targets: [{ kind: "trip", targetId: "trpe_1", snapshot: { title: "Draft" } }],
+      }).success,
+    ).toBe(false)
+  })
+
+  it("rejects duplicate public target references", () => {
+    const target = {
+      kind: "product" as const,
+      targetId: "prod_1",
+      snapshot: { title: "Kyoto discovery" },
+    }
+    expect(
+      createPublicInquirySchema.safeParse({
+        sourceRef: "duplicate-targets-1",
+        subject: "Duplicate targets",
+        kind: "product",
+        contactSnapshot: { email: "traveler@example.com" },
+        targets: [target, target],
       }).success,
     ).toBe(false)
   })

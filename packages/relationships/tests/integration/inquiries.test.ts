@@ -9,6 +9,10 @@ import { inquiries, inquiryTargetSnapshots, people } from "../../src/schema.js"
 import { type InquiryServiceError, inquiriesService } from "../../src/service/inquiries.js"
 import { inquiryOptionUnitLink, inquiryProductLink } from "../../src/standard-links.js"
 
+const validTargetValidation = {
+  validateTarget: async () => "valid" as const,
+}
+
 const DB_AVAILABLE = Boolean(process.env.TEST_DATABASE_URL)
 
 describe.skipIf(!DB_AVAILABLE)("inquiriesService", () => {
@@ -90,7 +94,7 @@ describe.skipIf(!DB_AVAILABLE)("inquiriesService", () => {
     }
 
     await expect(
-      inquiriesService.addInquiryTarget(db, inquiry.id, input, "user_1", {
+      inquiriesService.addInquiryTarget(db, inquiry.id, input, "user_1", validTargetValidation, {
         beforeOutbox: async () => {
           throw new Error("rollback target")
         },
@@ -104,7 +108,13 @@ describe.skipIf(!DB_AVAILABLE)("inquiriesService", () => {
         .where(eq(inquiryTargetSnapshots.inquiryId, inquiry.id)),
     ).toEqual([])
 
-    const added = await inquiriesService.addInquiryTarget(db, inquiry.id, input, "user_1")
+    const added = await inquiriesService.addInquiryTarget(
+      db,
+      inquiry.id,
+      input,
+      "user_1",
+      validTargetValidation,
+    )
     await expect(
       inquiriesService.deleteInquiryTarget(db, inquiry.id, added.linkId, "user_1", {
         beforeOutbox: async () => {
@@ -131,6 +141,70 @@ describe.skipIf(!DB_AVAILABLE)("inquiriesService", () => {
       targetId: "prod_atomic",
       occurredAt: expect.stringMatching(/^2026-|^20\d\d-/),
     })
+    const replayed = await inquiriesService.addInquiryTarget(
+      db,
+      inquiry.id,
+      input,
+      "user_2",
+      validTargetValidation,
+    )
+    expect(replayed).toEqual(added)
+    expect(
+      await db
+        .select()
+        .from(eventOutboxTable)
+        .where(eq(eventOutboxTable.name, "inquiry.target_added")),
+    ).toHaveLength(1)
+  })
+
+  it("fails closed when the selected target owner cannot validate the target", async () => {
+    const { inquiry } = await inquiriesService.createInquiry(
+      db,
+      {
+        subject: "Target validation",
+        kind: "product",
+        contactSnapshot: { email: "validation@example.com" },
+        source: "admin",
+        tags: [],
+        customFields: {},
+      },
+      "user_1",
+    )
+
+    await expect(
+      inquiriesService.addInquiryTarget(
+        db,
+        inquiry.id,
+        {
+          kind: "product",
+          targetId: "prod_missing_owner",
+          snapshot: { title: "Missing owner" },
+        },
+        "user_1",
+      ),
+    ).rejects.toMatchObject({ code: "INQUIRY_TARGET_VALIDATION_UNAVAILABLE" })
+    await expect(
+      inquiriesService.addInquiryTarget(
+        db,
+        inquiry.id,
+        {
+          kind: "product",
+          targetId: "prod_not_found",
+          snapshot: { title: "Not found" },
+        },
+        "user_1",
+        { validateTarget: async () => "not_found" },
+      ),
+    ).rejects.toMatchObject({ code: "INQUIRY_TARGET_NOT_FOUND" })
+
+    const link = createLinkService(() => db, [inquiryProductLink, inquiryOptionUnitLink])
+    expect(await link.list(inquiryProductLink.tableName, { leftId: inquiry.id })).toEqual([])
+    expect(
+      await db
+        .select()
+        .from(inquiryTargetSnapshots)
+        .where(eq(inquiryTargetSnapshots.inquiryId, inquiry.id)),
+    ).toEqual([])
   })
 
   it("enforces triage, follow-up, and qualification invariants", async () => {

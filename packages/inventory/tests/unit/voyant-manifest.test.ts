@@ -4,6 +4,7 @@ import { catalogInventoryRuntimeExtensionPort } from "@voyant-travel/catalog/run
 import { commerceInventoryRuntimePort } from "@voyant-travel/commerce/runtime-port"
 import { isGraphRuntimeFactory } from "@voyant-travel/core/project"
 import { financeInventoryPaymentPolicyRuntimePort } from "@voyant-travel/finance/runtime-port"
+import { inquiryTargetAuthorityRuntimePort } from "@voyant-travel/relationships-contracts/inquiry-target-authority/runtime-port"
 import { describe, expect, it } from "vitest"
 import {
   createInventoryBrochureVoyantRuntime,
@@ -35,6 +36,7 @@ describe("inventory deployment manifests", () => {
           { id: actionLedgerInventoryDriftRuntimePort.id },
           { id: bookingsInventoryRuntimePort.id },
           { id: financeInventoryPaymentPolicyRuntimePort.id },
+          { id: inquiryTargetAuthorityRuntimePort.id },
           { id: "inventory.runtime" },
         ],
       },

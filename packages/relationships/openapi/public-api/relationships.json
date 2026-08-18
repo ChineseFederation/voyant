@@ -218,11 +218,6 @@
                               "type": ["string", "null"],
                               "maxLength": 2000,
                               "format": "uri"
-                            },
-                            "sourceChannel": {
-                              "type": ["string", "null"],
-                              "minLength": 1,
-                              "maxLength": 200
                             }
                           },
                           "required": ["title"]
@@ -402,6 +397,22 @@
           },
           "429": {
             "description": "Guarded intake rate limit exceeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Target owner authority unavailable",
             "content": {
               "application/json": {
                 "schema": {

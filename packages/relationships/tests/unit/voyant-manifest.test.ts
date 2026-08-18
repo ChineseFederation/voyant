@@ -9,6 +9,7 @@ import { assertPortConforms } from "@voyant-travel/core/project"
 import { customFieldValueOperationsRuntimePort } from "@voyant-travel/core/runtime-port"
 import { financeStoredInstrumentRuntimePort } from "@voyant-travel/finance/runtime-port"
 import { proposalInquiryConversionRuntimePort } from "@voyant-travel/proposals-contracts/inquiry-conversion"
+import { inquiryTargetAuthorityRuntimePort } from "@voyant-travel/relationships-contracts/inquiry-target-authority/runtime-port"
 import { describe, expect, it, vi } from "vitest"
 import { createRelationshipsVoyantRuntime, relationshipsRouteRuntimePort } from "../../src/index.js"
 import { RELATIONSHIPS_ROUTE_RUNTIME_CONTAINER_KEY } from "../../src/route-runtime.js"
@@ -41,6 +42,7 @@ describe("relationships deployment manifest", () => {
         { id: "relationships.route-runtime" },
         { id: "relationships.booking-enrichment-database" },
         { id: proposalInquiryConversionRuntimePort.id, optional: true },
+        { id: inquiryTargetAuthorityRuntimePort.id, optional: true, cardinality: "many" },
         // Optional: a deployment can select CRM without Bookings, and then
         // nothing emits `booking.confirmed` for the enrichment subscriber.
         { id: "bookings.crm-snapshot.runtime", optional: true },
@@ -265,6 +267,36 @@ describe("relationships deployment manifest", () => {
     expect(contribution[relationshipsRouteRuntimePort.id]).not.toHaveProperty(
       "proposalInquiryConversion",
     )
+  })
+
+  it("routes Inquiry target validation to exactly one selected owner authority", async () => {
+    const targetExists = vi.fn(async (_db: unknown, id: string) => id === "prod_found")
+    const contribution = createRelationshipsRuntimePortContribution({
+      primitives: {} as never,
+      hasRuntimePort: () => false,
+      getRuntimePort: vi.fn(async () => ({
+        resolveRegistry: vi.fn(async () => ({ all: () => [] })),
+        resolveRegistryForWrite: vi.fn(async () => ({ all: () => [] })),
+      })) as never,
+      getRuntimePorts: vi.fn(async (port) =>
+        port.id === inquiryTargetAuthorityRuntimePort.id ? [{ kind: "product", targetExists }] : [],
+      ) as never,
+    })
+    const runtime = contribution[relationshipsRouteRuntimePort.id] as {
+      inquiryTargetValidation: {
+        validateTarget(db: unknown, kind: "product" | "option_unit", id: string): Promise<string>
+      }
+    }
+
+    await expect(
+      runtime.inquiryTargetValidation.validateTarget({}, "product", "prod_found"),
+    ).resolves.toBe("valid")
+    await expect(
+      runtime.inquiryTargetValidation.validateTarget({}, "product", "prod_missing"),
+    ).resolves.toBe("not_found")
+    await expect(
+      runtime.inquiryTargetValidation.validateTarget({}, "option_unit", "avsl_missing"),
+    ).resolves.toBe("unavailable")
   })
 
   it("declares the packaged relationships admin routes and person-detail slot", () => {

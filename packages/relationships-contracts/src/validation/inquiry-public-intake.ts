@@ -9,10 +9,14 @@ import {
   inquiryTravelBriefV1Schema,
 } from "./inquiries.js"
 
+export const publicInquiryTargetSnapshotSchema = inquiryTargetSnapshotSchema.omit({
+  sourceChannel: true,
+})
+
 export const publicInquiryTargetSchema = z.object({
   kind: z.enum(["product", "option_unit"]),
   targetId: z.string().trim().min(1).max(500),
-  snapshot: inquiryTargetSnapshotSchema,
+  snapshot: publicInquiryTargetSnapshotSchema,
 })
 
 /** Guarded storefront intake. Source is fixed by the route, never trusted from the body. */
@@ -39,6 +43,18 @@ export const createPublicInquirySchema = z
         message: "A product Inquiry requires a Product target",
       })
     }
+    const seen = new Set<string>()
+    input.targets.forEach((target, index) => {
+      const key = `${target.kind}:${target.targetId}`
+      if (seen.has(key)) {
+        context.addIssue({
+          code: "custom",
+          path: ["targets", index],
+          message: "An Inquiry target may appear only once",
+        })
+      }
+      seen.add(key)
+    })
   })
 
 export const publicInquiryReceiptSchema = z.object({

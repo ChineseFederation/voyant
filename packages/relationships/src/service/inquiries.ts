@@ -15,6 +15,7 @@ import type {
   TransitionInquiryInput,
   UpdateInquiryInput,
 } from "@voyant-travel/relationships-contracts"
+import type { InquiryMaterializedTargetKind } from "@voyant-travel/relationships-contracts/inquiry-target-authority/runtime-port"
 import {
   and,
   asc,
@@ -48,6 +49,7 @@ import {
   people,
 } from "../schema.js"
 import { inquiryOptionUnitLink, inquiryProductLink } from "../standard-links.js"
+import type { InquiryTargetValidationRuntime } from "../route-runtime.js"
 import { paginate } from "./helpers.js"
 
 export type InquiryServiceErrorCode =
@@ -63,6 +65,7 @@ export type InquiryServiceErrorCode =
   | "INVALID_DUPLICATE_INQUIRY"
   | "INQUIRY_TARGET_NOT_FOUND"
   | "INQUIRY_TARGET_UNSUPPORTED"
+  | "INQUIRY_TARGET_VALIDATION_UNAVAILABLE"
 
 export class InquiryServiceError extends Error {
   constructor(
@@ -201,6 +204,7 @@ export const inquiriesService = {
       actorId: string
       channelId: string
       relationshipPersonId?: string | null
+      targetValidation?: InquiryTargetValidationRuntime
     },
   ) {
     for (const target of input.targets) targetLinkFor(target.kind)
@@ -232,10 +236,11 @@ export const inquiriesService = {
               ...target,
               snapshot: {
                 ...target.snapshot,
-                sourceChannel: target.snapshot.sourceChannel ?? context.channelId,
+                sourceChannel: context.channelId,
               },
             },
             context.actorId,
+            context.targetValidation,
           )
         }
       }
@@ -301,10 +306,12 @@ export const inquiriesService = {
     inquiryId: string,
     input: AddInquiryTargetInput,
     actorId: string,
+    targetValidation?: InquiryTargetValidationRuntime,
     testHooks?: InquiryTargetMutationTestHooks,
   ): Promise<InquiryTargetRecord> {
     requireActor(actorId)
     const definition = targetLinkFor(input.kind)
+    const materializedKind = input.kind as InquiryMaterializedTargetKind
     const expectedPrefix = definition.right.linkable.idPrefix
     if (expectedPrefix && !input.targetId.startsWith(`${expectedPrefix}_`)) {
       throw new InquiryServiceError(
@@ -319,6 +326,22 @@ export const inquiriesService = {
           "INQUIRY_ALREADY_RESOLVED",
           "A resolved inquiry cannot gain targets",
         )
+      }
+      if (!targetValidation) {
+        throw new InquiryServiceError(
+          "INQUIRY_TARGET_VALIDATION_UNAVAILABLE",
+          `No owner authority is available to validate ${input.kind} targets`,
+        )
+      }
+      const validation = await targetValidation.validateTarget(tx, materializedKind, input.targetId)
+      if (validation === "unavailable") {
+        throw new InquiryServiceError(
+          "INQUIRY_TARGET_VALIDATION_UNAVAILABLE",
+          `No owner authority is available to validate ${input.kind} targets`,
+        )
+      }
+      if (validation === "not_found") {
+        throw new InquiryServiceError("INQUIRY_TARGET_NOT_FOUND", `${input.kind} target not found`)
       }
       const transactionLink = createLinkService(() => tx, Object.values(targetLinks))
       const linked = await transactionLink.create(definition.tableName, inquiryId, input.targetId)
@@ -343,6 +366,7 @@ export const inquiriesService = {
             .limit(1)
         )[0]
       if (!row) throw new Error("Inquiry target snapshot could not be persisted")
+      if (!stored) return serializeTarget(row)
       await testHooks?.beforeOutbox?.(tx)
       const occurredAt = row.createdAt.toISOString()
       await writeInquiryEvent(tx, INQUIRY_TARGET_ADDED_EVENT, {

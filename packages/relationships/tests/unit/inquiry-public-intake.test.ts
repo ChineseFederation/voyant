@@ -17,6 +17,7 @@ describe("public Inquiry intake", () => {
       .mockResolvedValue({ linkId: "link_1" } as never)
     const tx = {}
     const db = { transaction: async (run: (value: unknown) => unknown) => run(tx) }
+    const targetValidation = { validateTarget: vi.fn(async () => "valid" as const) }
 
     const result = await inquiriesService.createPublicInquiry(
       db as never,
@@ -29,13 +30,13 @@ describe("public Inquiry intake", () => {
           {
             kind: "product",
             targetId: "prod_1",
-            snapshot: { title: "Kyoto discovery" },
+            snapshot: { title: "Kyoto discovery", sourceChannel: "spoofed-channel" } as never,
           },
         ],
         tags: [],
         customFields: {},
       },
-      { actorId: "storefront:channel-1", channelId: "channel-1" },
+      { actorId: "storefront:channel-1", channelId: "channel-1", targetValidation },
     )
 
     expect(result.replayed).toBe(false)
@@ -58,6 +59,7 @@ describe("public Inquiry intake", () => {
         snapshot: { title: "Kyoto discovery", sourceChannel: "channel-1" },
       }),
       "storefront:channel-1",
+      targetValidation,
     )
     create.mockRestore()
     addTarget.mockRestore()

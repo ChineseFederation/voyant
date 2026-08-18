@@ -80,6 +80,13 @@ function requireLink(c: Context<Env>): LinkService {
   return link
 }
 
+function inquiryTargetValidation(c: Context<Env>) {
+  const runtime = c.get("container")?.resolve(RELATIONSHIPS_ROUTE_RUNTIME_CONTAINER_KEY) as
+    | RelationshipsRouteRuntime
+    | undefined
+  return runtime?.inquiryTargetValidation
+}
+
 async function withTargets(
   db: PostgresJsDatabase,
   link: LinkService,
@@ -96,6 +103,10 @@ function serviceErrorResponse(c: Context<Env>, error: unknown) {
   if (error.code === "INQUIRY_NOT_FOUND") return c.json({ error: error.message }, 404)
   if (error.code === "INQUIRY_RELATED_RECORD_NOT_FOUND") {
     return c.json({ error: error.message }, 404)
+  }
+  if (error.code === "INQUIRY_TARGET_NOT_FOUND") return c.json({ error: error.message }, 404)
+  if (error.code === "INQUIRY_TARGET_VALIDATION_UNAVAILABLE") {
+    return c.json({ error: error.message }, 503)
   }
   return c.json({ error: error.message }, 409)
 }
@@ -152,6 +163,7 @@ const addTargetRoute = createRoute({
     201: { description: "Linked Inquiry target", ...inquiryTargetResponse },
     404: { description: "Inquiry or target not found", ...jsonContent(errorResponseSchema) },
     409: { description: "Inquiry target conflict", ...jsonContent(errorResponseSchema) },
+    503: { description: "Target owner authority unavailable", ...jsonContent(errorResponseSchema) },
   },
 })
 const deleteTargetRoute = createRoute({
@@ -336,6 +348,7 @@ inquiryRoutes.openapi(addTargetRoute, async (c) => {
       c.req.valid("param").id,
       await parseJsonBody(c, addInquiryTargetSchema),
       requireUserId(c),
+      inquiryTargetValidation(c),
     )
     return c.json({ data }, 201)
   } catch (error) {

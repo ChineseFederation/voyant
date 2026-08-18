@@ -18,6 +18,10 @@ import {
   type FinanceInventoryPaymentPolicyRuntime,
   financeInventoryPaymentPolicyRuntimePort,
 } from "@voyant-travel/finance/runtime-port"
+import {
+  type InquiryTargetAuthorityRuntime,
+  inquiryTargetAuthorityRuntimePort,
+} from "@voyant-travel/relationships-contracts/inquiry-target-authority/runtime-port"
 import { and, eq } from "drizzle-orm"
 import { checkProductActionLedgerDrift } from "./action-ledger-drift.js"
 import {
@@ -65,6 +69,11 @@ export function createInventoryRuntimePortContribution(
   const inventory = createInventoryRuntime(host.primitives)
   const brochure = createInventoryBrochureRuntime(host.primitives, renderer)
   return {
+    [inquiryTargetAuthorityRuntimePort.id]: {
+      kind: "product",
+      targetExists: async (db, targetId) =>
+        (await productsService.getProductById(db as PostgresJsDatabase, targetId)) != null,
+    } satisfies InquiryTargetAuthorityRuntime,
     [catalogInventoryRuntimeExtensionPort.id]: catalogInventoryRuntimeExtension,
     [commerceInventoryRuntimePort.id]: {
       async getOwnedProductName(db, entityModule, entityId) {

@@ -26,6 +26,10 @@ import {
   type ProposalInquiryConversionRuntime,
   proposalInquiryConversionRuntimePort,
 } from "@voyant-travel/proposals-contracts/inquiry-conversion"
+import {
+  type InquiryTargetAuthorityRuntime,
+  inquiryTargetAuthorityRuntimePort,
+} from "@voyant-travel/relationships-contracts/inquiry-target-authority/runtime-port"
 import { sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import { createPublicApiIntakePersistence } from "./public-api-intake-runtime.js"
@@ -163,6 +167,7 @@ interface RelationshipsRuntimeContributorHost {
   primitives: VoyantRuntimeHostPrimitives
   hasRuntimePort?(port: Pick<VoyantPort<unknown>, "id">): boolean
   getRuntimePort<T>(port: Pick<VoyantPort<T>, "id">): T | Promise<T>
+  getRuntimePorts?<T>(port: Pick<VoyantPort<T>, "id">): readonly T[] | Promise<readonly T[]>
 }
 
 /**
@@ -199,6 +204,9 @@ export function createRelationshipsRuntimePortContribution(
           ),
         )
       : undefined
+  const inquiryTargetAuthorities = Promise.resolve(
+    host.getRuntimePorts?.<InquiryTargetAuthorityRuntime>(inquiryTargetAuthorityRuntimePort) ?? [],
+  )
   const customFields: CustomFieldValueReaderRuntime = {
     async resolveVisibleValues(db, entity, entityId, channel) {
       const database = db as PostgresJsDatabase
@@ -255,6 +263,16 @@ export function createRelationshipsRuntimePortContribution(
             },
           }
         : {}),
+      inquiryTargetValidation: {
+        async validateTarget(db, kind, targetId) {
+          const matching = (await inquiryTargetAuthorities).filter(
+            (authority) => authority.kind === kind,
+          )
+          const [authority] = matching
+          if (matching.length !== 1 || !authority) return "unavailable"
+          return (await authority.targetExists(db, targetId)) ? "valid" : "not_found"
+        },
+      },
     } satisfies RelationshipsRouteRuntimeOptions,
     [relationshipsMiceRuntimePort.id]: {
       personExists: async (db, personId) =>

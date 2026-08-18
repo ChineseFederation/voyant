@@ -3480,6 +3480,9 @@ importers:
       '@voyant-travel/relationships':
         specifier: workspace:^
         version: link:../relationships
+      '@voyant-travel/relationships-contracts':
+        specifier: workspace:^
+        version: link:../relationships-contracts
       '@voyant-travel/storage':
         specifier: workspace:^
         version: link:../storage
@@ -4370,6 +4373,9 @@ importers:
       '@voyant-travel/products-contracts':
         specifier: workspace:^
         version: link:../products-contracts
+      '@voyant-travel/relationships-contracts':
+        specifier: workspace:^
+        version: link:../relationships-contracts
       '@voyant-travel/tools':
         specifier: workspace:^
         version: link:../tools

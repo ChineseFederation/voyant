@@ -65,19 +65,39 @@ describe("public Inquiry route", () => {
     }).request("/v1/public/relationships/inquiries", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ ...body, personId: "per_body_override" }),
+      body: JSON.stringify({
+        ...body,
+        kind: "product",
+        personId: "per_body_override",
+        targets: [
+          {
+            kind: "product",
+            targetId: "prod_1",
+            snapshot: { title: "Kyoto discovery", sourceChannel: "spoofed-channel" },
+          },
+        ],
+      }),
     })
 
     expect(response.status).toBe(201)
     expect(create).toHaveBeenCalledWith(
       expect.anything(),
-      expect.not.objectContaining({ personId: "per_body_override" }),
+      expect.objectContaining({
+        targets: [
+          {
+            kind: "product",
+            targetId: "prod_1",
+            snapshot: { title: "Kyoto discovery" },
+          },
+        ],
+      }),
       {
         actorId: "customer:customer-user-1",
         channelId: "channel-1",
         relationshipPersonId: "per_canonical",
       },
     )
+    expect(create.mock.calls[0]?.[1]).not.toHaveProperty("personId")
     expect(await response.json()).toEqual({
       data: {
         inquiryId: "inq_1",
