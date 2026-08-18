@@ -18,6 +18,7 @@ import {
   travelCreditRedemptions,
   travelCredits,
 } from "../../src/schema.js"
+import { publicPaymentSessionSchema } from "../../src/validation-public.js"
 
 const DB_AVAILABLE = !!process.env.TEST_DATABASE_URL
 const ORIGINAL_TEST_DATABASE_URL = process.env.TEST_DATABASE_URL
@@ -720,6 +721,95 @@ describe.skipIf(!DB_AVAILABLE)("Public finance routes", () => {
       .from(paymentSessions)
       .where(eq(paymentSessions.id, created.id))
     expect(sessionRow?.bookingId).toBe(booking.id)
+  })
+
+  it("reads a booking-linked payment session without channel context", async () => {
+    const booking = await seedBooking()
+    const [session] = await db
+      .insert(paymentSessions)
+      .values({
+        bookingId: booking.id,
+        amountCents: 5310,
+        currency: "EUR",
+        status: "paid",
+        provider: "stripe",
+      })
+      .returning()
+    if (!session) throw new Error("Payment session seed failed")
+
+    const bearerApp = new Hono()
+    bearerApp.onError(handleApiError)
+    bearerApp.use("*", async (c, next) => {
+      c.set("db" as never, db)
+      await next()
+    })
+    bearerApp.route("/", publicFinanceRoutes)
+
+    const response = await bearerApp.request(`/payment-sessions/${session.id}`)
+
+    expect(response.status).toBe(200)
+    expect(publicPaymentSessionSchema.safeParse((await response.json()).data).success).toBe(true)
+  })
+
+  it("reads a booking-linked payment session from a different active channel", async () => {
+    const booking = await seedBooking()
+    const [session] = await db
+      .insert(paymentSessions)
+      .values({
+        bookingId: booking.id,
+        amountCents: 5310,
+        currency: "EUR",
+        status: "paid",
+        provider: "stripe",
+      })
+      .returning()
+    if (!session) throw new Error("Payment session seed failed")
+
+    const bearerApp = new Hono()
+    bearerApp.onError(handleApiError)
+    bearerApp.use("*", async (c, next) => {
+      c.set("db" as never, db)
+      c.set("publicChannel" as never, {
+        channelId: "chan_different_payment_return",
+        channelStatus: "active",
+      })
+      await next()
+    })
+    bearerApp.route("/", publicFinanceRoutes)
+
+    const response = await bearerApp.request(`/payment-sessions/${session.id}`)
+
+    expect(response.status).toBe(200)
+    expect(publicPaymentSessionSchema.safeParse((await response.json()).data).success).toBe(true)
+  })
+
+  it("reads an invoice-linked payment session without channel context", async () => {
+    const booking = await seedBooking()
+    const invoice = await seedInvoice(booking.id)
+    const [session] = await db
+      .insert(paymentSessions)
+      .values({
+        invoiceId: invoice.id,
+        amountCents: 5310,
+        currency: "EUR",
+        status: "paid",
+        provider: "stripe",
+      })
+      .returning()
+    if (!session) throw new Error("Payment session seed failed")
+
+    const bearerApp = new Hono()
+    bearerApp.onError(handleApiError)
+    bearerApp.use("*", async (c, next) => {
+      c.set("db" as never, db)
+      await next()
+    })
+    bearerApp.route("/", publicFinanceRoutes)
+
+    const response = await bearerApp.request(`/payment-sessions/${session.id}`)
+
+    expect(response.status).toBe(200)
+    expect(publicPaymentSessionSchema.safeParse((await response.json()).data).success).toBe(true)
   })
 
   it("refreshes provider status before returning a public payment session", async () => {
