@@ -7,6 +7,7 @@
     ".": "./src/index.ts",
     "./checkout-inquiry": "./src/checkout-inquiry.ts",
     "./inquiry-conversion": "./src/inquiry-conversion.ts",
+    "./inquiry-conversion/runtime-port": "./src/inquiry-conversion/runtime-port.ts",
     "./runtime-port": "./src/checkout-inquiry.ts",
     "./validation": "./src/validation.ts"
   },
@@ -38,6 +39,11 @@
         "types": "./dist/inquiry-conversion.d.ts",
         "import": "./dist/inquiry-conversion.js",
         "default": "./dist/inquiry-conversion.js"
+      },
+      "./inquiry-conversion/runtime-port": {
+        "types": "./dist/inquiry-conversion/runtime-port.d.ts",
+        "import": "./dist/inquiry-conversion/runtime-port.js",
+        "default": "./dist/inquiry-conversion/runtime-port.js"
       },
       "./runtime-port": {
         "types": "./dist/checkout-inquiry.d.ts",

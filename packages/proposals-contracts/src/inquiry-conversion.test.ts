@@ -1,12 +1,18 @@
 import { describe, expect, it, vi } from "vitest"
-
+import { proposalInquiryConversionRuntimePort } from "./inquiry-conversion/runtime-port.js"
 import {
   formatProposalInquirySourceRef,
   parseProposalInquirySourceRef,
-  proposalInquiryConversionRuntimePort,
+  proposalInquiryConversionRuntimePort as reexportedProposalInquiryConversionRuntimePort,
 } from "./inquiry-conversion.js"
 
 describe("Proposal Inquiry conversion contract", () => {
+  it("re-exports the single manifest-safe port authority", () => {
+    expect(reexportedProposalInquiryConversionRuntimePort).toBe(
+      proposalInquiryConversionRuntimePort,
+    )
+  })
+
   it("accepts the one-method conversion provider", () => {
     const provider = { convertInquiry: vi.fn() }
     expect(() => proposalInquiryConversionRuntimePort.test(provider)).not.toThrow()

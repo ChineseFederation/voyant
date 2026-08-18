@@ -124,17 +124,4 @@ function isValidSourceRefPart(value: unknown, maxLength: number): value is strin
   return true
 }
 
-/** Import-cheap port consumed by the Relationships conversion coordinator. */
-export const proposalInquiryConversionRuntimePort = Object.freeze({
-  id: "proposals.inquiry-conversion.runtime",
-  test(provider: ProposalInquiryConversionRuntime) {
-    if (provider === null || typeof provider !== "object") {
-      throw new Error("proposals.inquiry-conversion.runtime provider must be an object.")
-    }
-    if (typeof Reflect.get(provider, "convertInquiry") !== "function") {
-      throw new Error(
-        "proposals.inquiry-conversion.runtime provider must implement convertInquiry().",
-      )
-    }
-  },
-})
+export { proposalInquiryConversionRuntimePort } from "./inquiry-conversion/runtime-port.js"
