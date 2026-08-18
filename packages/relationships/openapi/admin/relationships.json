@@ -14407,6 +14407,10 @@
                       "keepInquiryOpen": {
                         "type": "boolean",
                         "default": false
+                      },
+                      "nextActionAt": {
+                        "type": ["string", "null"],
+                        "format": "date-time"
                       }
                     },
                     "required": ["kind", "idempotencyKey", "targetLinkId"]
@@ -14507,7 +14511,7 @@
                             },
                             "inquiryStatus": {
                               "type": "string",
-                              "enum": ["qualified", "converted"]
+                              "enum": ["in_progress", "converted"]
                             },
                             "target": {
                               "type": "object",
@@ -14614,7 +14618,7 @@
                             },
                             "inquiryStatus": {
                               "type": "string",
-                              "enum": ["qualified", "converted"]
+                              "enum": ["in_progress", "converted"]
                             },
                             "target": {
                               "type": "object",

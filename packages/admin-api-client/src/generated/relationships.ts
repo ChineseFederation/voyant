@@ -7072,6 +7072,8 @@ export interface operations {
               }
               /** @default false */
               keepInquiryOpen?: boolean
+              /** Format: date-time */
+              nextActionAt?: string | null
             }
           | {
               /** @enum {string} */
@@ -7112,7 +7114,7 @@ export interface operations {
                   conversionId: string
                   inquiryId: string
                   /** @enum {string} */
-                  inquiryStatus: "qualified" | "converted"
+                  inquiryStatus: "in_progress" | "converted"
                   target: {
                     /** @enum {string} */
                     kind: "booking_session"
@@ -7153,7 +7155,7 @@ export interface operations {
                   conversionId: string
                   inquiryId: string
                   /** @enum {string} */
-                  inquiryStatus: "qualified" | "converted"
+                  inquiryStatus: "in_progress" | "converted"
                   target: {
                     /** @enum {string} */
                     kind: "booking_session"

@@ -45,6 +45,7 @@ import {
   type FinanceOperatorSettingsRuntime,
   financeOperatorSettingsRuntimePort,
 } from "@voyant-travel/finance/runtime-port"
+import { sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import { catalogBookingActionSource } from "./booking-action-source.js"
 import { createCatalogBookingAmendmentRuntime } from "./booking-engine/amendment-runtime.js"

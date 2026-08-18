@@ -62,7 +62,7 @@ export function createCatalogInquiryBookingSessionRuntime(
               data: createdSignal,
               metadata: {
                 category: "domain",
-                source: "catalog",
+                source: "service",
                 eventId: `evt_catalog_booking_session_created_${outcome.session.id}`,
               },
             },

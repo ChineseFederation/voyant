@@ -56,7 +56,7 @@ describe("Catalog Inquiry Booking Session runtime", () => {
       expect.objectContaining({
         eventId: "evt_catalog_booking_session_created_bks_1",
         name: "catalog.booking-session.created",
-        metadata: expect.objectContaining({ source: "catalog" }),
+        metadata: expect.objectContaining({ category: "domain", source: "service" }),
       }),
     ])
     expect(createSession).toHaveBeenCalledWith(
