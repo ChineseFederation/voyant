@@ -43,6 +43,7 @@ export const crmUiEnBaseMessages = {
       organization: "Organization",
       proposal: "Proposal",
       activity: "Activity",
+      inquiry: "Inquiry",
     },
     proposalStatusLabels: {
       open: "Open",

@@ -43,6 +43,7 @@ export const crmUiRoBaseMessages = {
       organization: "Organizatie",
       proposal: "Oferta",
       activity: "Activitate",
+      inquiry: "Solicitare",
     },
     proposalStatusLabels: {
       open: "Deschisa",
