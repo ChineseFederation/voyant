@@ -25,6 +25,11 @@ import {
 import { ArrowLeft, CalendarClock, UserRound } from "lucide-react"
 import { useState } from "react"
 import { useCrmUiMessagesOrDefault } from "../i18n/index.js"
+import type {
+  InquiryProposalConversionOptions,
+  InquiryProposalConversionOutcome,
+} from "../inquiry-proposal-conversion.js"
+import { inquiryProposalConversionFailureKind } from "../inquiry-proposal-conversion.js"
 import { buildCloseInput, buildTransitionInput } from "../inquiry-ui-model.js"
 
 export interface InquiryWorkspaceProps {
@@ -39,6 +44,10 @@ export interface InquiryWorkspaceProps {
   onTransition: (input: TransitionInquiryInput) => Promise<unknown>
   onClose: (input: CloseInquiryInput) => Promise<unknown>
   onReopen: () => Promise<unknown>
+  onConvertToProposal: (
+    input: InquiryProposalConversionOptions,
+  ) => Promise<InquiryProposalConversionOutcome>
+  isConverting?: boolean
 }
 
 const closeOutcomes: InquiryCloseOutcome[] = [
@@ -70,6 +79,10 @@ export function InquiryWorkspace(props: InquiryWorkspaceProps) {
   const [duplicateOfInquiryId, setDuplicateOfInquiryId] = useState("")
   const [closeNote, setCloseNote] = useState("")
   const [noFollowUpExpected, setNoFollowUpExpected] = useState(false)
+  const [proposalPipelineId, setProposalPipelineId] = useState("")
+  const [proposalStageId, setProposalStageId] = useState("")
+  const [keepInquiryOpen, setKeepInquiryOpen] = useState(false)
+  const [conversionError, setConversionError] = useState<string | null>(null)
   const followUp = nextActionAt
     ? { nextActionAt: new Date(nextActionAt).toISOString() }
     : { noFollowUpExpected }
@@ -84,6 +97,26 @@ export function InquiryWorkspace(props: InquiryWorkspaceProps) {
   const hasCustomer = Boolean(inquiry.personId || inquiry.organizationId)
   const canTriage = Boolean(inquiry.ownerId || inquiry.unassignedReason || unassignedReason.trim())
   const closeInput = buildCloseInput(closeOutcome, { duplicateOfInquiryId, note: closeNote })
+  const canConvert = inquiry.status === "qualified" && hasCustomer
+  const convertToProposal = async () => {
+    setConversionError(null)
+    try {
+      const outcome = await props.onConvertToProposal({
+        pipelineId: proposalPipelineId.trim() || undefined,
+        stageId: proposalStageId.trim() || undefined,
+        keepInquiryOpen,
+      })
+      if (outcome.kind === "refused") {
+        setConversionError(messages.proposalRefusals[outcome.reason])
+      }
+    } catch (error) {
+      setConversionError(
+        inquiryProposalConversionFailureKind(error) === "unavailable"
+          ? messages.proposalUnavailable
+          : messages.proposalFailed,
+      )
+    }
+  }
 
   return (
     <div className="flex flex-col gap-5">
@@ -223,6 +256,61 @@ export function InquiryWorkspace(props: InquiryWorkspaceProps) {
                 }
               >
                 {messages.save}
+              </Button>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle>{messages.proposalConversion}</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div>
+                <label className="text-sm font-medium" htmlFor="inquiry-proposal-pipeline">
+                  {messages.proposalPipeline}
+                </label>
+                <Input
+                  id="inquiry-proposal-pipeline"
+                  value={proposalPipelineId}
+                  placeholder={messages.proposalOptional}
+                  onChange={(event) => setProposalPipelineId(event.target.value)}
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium" htmlFor="inquiry-proposal-stage">
+                  {messages.proposalStage}
+                </label>
+                <Input
+                  id="inquiry-proposal-stage"
+                  value={proposalStageId}
+                  placeholder={messages.proposalOptional}
+                  onChange={(event) => setProposalStageId(event.target.value)}
+                />
+              </div>
+              <label className="flex items-center gap-2 text-sm" htmlFor="keep-inquiry-open">
+                <input
+                  id="keep-inquiry-open"
+                  type="checkbox"
+                  checked={keepInquiryOpen}
+                  onChange={(event) => setKeepInquiryOpen(event.target.checked)}
+                />
+                {messages.keepInquiryOpen}
+              </label>
+              {!canConvert ? (
+                <p className="text-xs text-muted-foreground">
+                  {messages.proposalRequiresQualified}
+                </p>
+              ) : null}
+              {conversionError ? (
+                <p className="text-sm text-destructive" role="alert">
+                  {conversionError}
+                </p>
+              ) : null}
+              <Button
+                className="w-full"
+                disabled={!canConvert || props.isConverting}
+                onClick={() => void convertToProposal()}
+              >
+                {messages.convertToProposal}
               </Button>
             </CardContent>
           </Card>

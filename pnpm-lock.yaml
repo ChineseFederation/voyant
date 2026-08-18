@@ -5545,6 +5545,9 @@ importers:
       '@voyant-travel/admin':
         specifier: workspace:^
         version: link:../admin
+      '@voyant-travel/admin-api-client':
+        specifier: workspace:^
+        version: link:../admin-api-client
       '@voyant-travel/identity-react':
         specifier: workspace:^
         version: link:../identity-react

@@ -132,6 +132,26 @@ export type CrmUiMessages = {
     contact: string
     personLinked: string
     loadFailed: string
+    proposalConversion: string
+    proposalPipeline: string
+    proposalStage: string
+    proposalOptional: string
+    keepInquiryOpen: string
+    convertToProposal: string
+    proposalRequiresQualified: string
+    proposalUnavailable: string
+    proposalFailed: string
+    proposalRefusals: Record<
+      | "invalid_input"
+      | "pipeline_not_found"
+      | "default_pipeline_not_found"
+      | "stage_not_found"
+      | "stage_pipeline_mismatch"
+      | "stage_closed"
+      | "open_stage_not_found"
+      | "source_conflict",
+      string
+    >
   }
   organizationForm: {
     fields: {

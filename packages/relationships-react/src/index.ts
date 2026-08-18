@@ -138,6 +138,14 @@ export {
   useRevealPersonDocument,
 } from "./hooks/use-reveal-person-document.js"
 export {
+  createInquiryProposalConversionAttempt,
+  type InquiryProposalConversionOptions,
+  type InquiryProposalConversionOutcome,
+  inquiryProposalConversionFailureKind,
+  inquiryProposalConversionPath,
+  proposalDestinationForConversion,
+} from "./inquiry-proposal-conversion.js"
+export {
   useVoyantContext,
   type VoyantContextValue,
   VoyantProvider,

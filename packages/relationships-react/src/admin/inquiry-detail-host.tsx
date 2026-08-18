@@ -6,9 +6,11 @@ import { InquiryWorkspace } from "../components/inquiry-workspace.js"
 import { useInquiry } from "../hooks/use-inquiry.js"
 import { useInquiryMutation } from "../hooks/use-inquiry-mutation.js"
 import { useCrmUiMessagesOrDefault } from "../i18n/index.js"
+import { proposalDestinationForConversion } from "../inquiry-proposal-conversion.js"
 
 export function InquiryDetailHost({ id }: { id: string }) {
   const navigate = useAdminNavigate()
+  const navigateOptional = navigate as (destination: string, params: unknown) => void
   const query = useInquiry(id)
   const mutations = useInquiryMutation()
   const messages = useCrmUiMessagesOrDefault().inquiryDetail
@@ -25,6 +27,13 @@ export function InquiryDetailHost({ id }: { id: string }) {
       onTransition={(input) => mutations.transition.mutateAsync({ id, input })}
       onClose={(input) => mutations.close.mutateAsync({ id, input })}
       onReopen={() => mutations.reopen.mutateAsync({ id })}
+      isConverting={mutations.convertToProposal.isPending}
+      onConvertToProposal={async (input) => {
+        const outcome = await mutations.convertToProposal.mutateAsync({ id, input })
+        const destination = proposalDestinationForConversion(outcome)
+        if (destination) navigateOptional(destination.destination, destination.params)
+        return outcome
+      }}
     />
   )
 }

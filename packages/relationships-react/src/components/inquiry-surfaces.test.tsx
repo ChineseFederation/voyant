@@ -1,6 +1,7 @@
 import { type InquiryRecord, inquiryRecordSchema } from "@voyant-travel/relationships-contracts"
 import { renderToStaticMarkup } from "react-dom/server"
 import { describe, expect, it, vi } from "vitest"
+import { CrmUiMessagesProvider } from "../i18n/index.js"
 import { buildInquiriesQueryString } from "../query-options.js"
 import { InquiryQueue, withInquiryStatus } from "./inquiry-queue.js"
 import { InquiryWorkspace } from "./inquiry-workspace.js"
@@ -47,6 +48,9 @@ const inquiry: InquiryRecord = inquiryRecordSchema.parse({
 })
 
 describe("Inquiry operator surfaces", () => {
+  const refusedConversion = async () =>
+    ({ kind: "refused", error: "refused", reason: "stage_closed" }) as const
+
   it("renders an actionable work queue", () => {
     const html = renderToStaticMarkup(
       <InquiryQueue
@@ -122,9 +126,42 @@ describe("Inquiry operator surfaces", () => {
         onTransition={noOp}
         onClose={noOp}
         onReopen={noOp}
+        onConvertToProposal={refusedConversion}
       />,
     )
     expect(html).toContain("Customer request")
     expect(html).toContain("We would like a quiet island.")
+    expect(html).toContain('for="inquiry-proposal-pipeline"')
+    expect(html).toContain('for="inquiry-proposal-stage"')
+    expect(html).toContain('for="keep-inquiry-open"')
+    expect(html).toContain("Create proposal")
+  })
+
+  it("localizes the Proposal action and disables it for terminal inquiries", () => {
+    const terminalInquiry = inquiryRecordSchema.parse({
+      ...inquiry,
+      status: "converted",
+      convertedAt: "2026-08-18T13:00:00.000Z",
+    })
+    const noOp = vi.fn().mockResolvedValue(undefined)
+    const html = renderToStaticMarkup(
+      <CrmUiMessagesProvider locale="ro-RO">
+        <InquiryWorkspace
+          inquiry={terminalInquiry}
+          onBack={noOp}
+          onUpdate={noOp}
+          onAssign={noOp}
+          onTransition={noOp}
+          onClose={noOp}
+          onReopen={noOp}
+          onConvertToProposal={refusedConversion}
+        />
+      </CrmUiMessagesProvider>,
+    )
+
+    expect(html).toContain("Fluxul propunerii")
+    expect(html).toContain("Păstrează solicitarea deschisă după conversie")
+    expect(html).toContain("Este necesară o solicitare calificată cu un client asociat.")
+    expect(html).toMatch(/<button[^>]*disabled=""[^>]*>Creează propunere<\/button>/)
   })
 })
