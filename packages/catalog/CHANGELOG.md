@@ -1,5 +1,15 @@
 # @voyant-travel/catalog
 
+## 0.262.4
+
+### Patch Changes
+
+- bfa2b2d: Resolve the Relationships runtime lazily when managed Booking Session payments settle.
+- Updated dependencies [38fdd37]
+- Updated dependencies [d3288fb]
+  - @voyant-travel/finance@0.262.2
+  - @voyant-travel/core@0.144.1
+
 ## 0.262.3
 
 ### Patch Changes

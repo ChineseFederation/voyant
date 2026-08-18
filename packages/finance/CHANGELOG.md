@@ -1,5 +1,14 @@
 # @voyant-travel/finance
 
+## 0.262.2
+
+### Patch Changes
+
+- 38fdd37: Keep the redacted payment-session bearer endpoint readable after settlement attaches a booking, so processor returns can observe the completed payment and booking without requiring the original storefront channel context.
+- Updated dependencies [d3288fb]
+  - @voyant-travel/core@0.144.1
+  - @voyant-travel/payments@0.13.3
+
 ## 0.262.1
 
 ### Patch Changes

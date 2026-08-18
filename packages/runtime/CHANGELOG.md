@@ -1,5 +1,13 @@
 # @voyant-travel/runtime
 
+## 0.25.12
+
+### Patch Changes
+
+- Updated dependencies [d3288fb]
+  - @voyant-travel/core@0.144.1
+  - @voyant-travel/admin-host@0.162.0
+
 ## 0.25.11
 
 ### Patch Changes

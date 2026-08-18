@@ -1,5 +1,17 @@
 # @voyant-travel/commerce
 
+## 0.56.2
+
+### Patch Changes
+
+- 2d5cf3a: Run paid-checkout finalization on the primary database without a saga-wide transaction so each durable finance and legal step can read its committed checkpoint and release locks before the next step.
+- Updated dependencies [38fdd37]
+- Updated dependencies [d3288fb]
+- Updated dependencies [bfa2b2d]
+  - @voyant-travel/finance@0.262.2
+  - @voyant-travel/core@0.144.1
+  - @voyant-travel/catalog@0.262.4
+
 ## 0.56.1
 
 ### Patch Changes
