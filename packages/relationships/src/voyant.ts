@@ -560,7 +560,14 @@ export const relationshipsVoyantModule = defineModule({
       requiredScopes: [scope],
       context: ["relationships"],
       risk,
-      ...(scope === "crm:write" ? { adminWrites: [`relationship/inquiry/${id}`] } : {}),
+      ...(scope === "crm:write"
+        ? {
+            adminWrites:
+              id === "record-inquiry-activity"
+                ? ["relationship/inquiry/activity", "relationship/inquiry/record-first-response"]
+                : ["relationship/inquiry"],
+          }
+        : {}),
     })),
     {
       id: "@voyant-travel/relationships#tool.start-booking-from-inquiry",
@@ -572,7 +579,7 @@ export const relationshipsVoyantModule = defineModule({
       requiredScopes: ["crm:write", "catalog:booking-session-write"],
       context: ["relationships"],
       risk: "high",
-      adminWrites: ["relationship/inquiry/start-booking"],
+      adminWrites: ["relationship/inquiry"],
     },
     ...(["assign", "close", "convert", "reopen", "transition"] as const).map((operation) => ({
       id: `@voyant-travel/relationships#tool.${operation}-inquiry`,
