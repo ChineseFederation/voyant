@@ -112,6 +112,10 @@ export function useInquiryMutation() {
       commit(id, "/reopen", input),
     onSuccess: settle,
   })
+  const recordFirstResponse = useMutation({
+    mutationFn: ({ id }: { id: string }) => commit(id, "/record-first-response", {}),
+    onSuccess: settle,
+  })
   const convertToProposal = useMutation({
     mutationFn: ({ id, input }: { id: string; input: InquiryProposalConversionOptions }) =>
       proposalConversion.run(id, input),
@@ -138,6 +142,7 @@ export function useInquiryMutation() {
     assign,
     close,
     reopen,
+    recordFirstResponse,
     convertToProposal,
     convertToBookingSession,
   }

@@ -20,6 +20,7 @@ import { bookingInquiriesService, bookingsService } from "@voyant-travel/booking
 import { financeInvoiceCoreService } from "@voyant-travel/finance/service-invoice-core"
 import { getOperatorProfile } from "@voyant-travel/operator-settings/service"
 import { relationshipsService } from "@voyant-travel/relationships"
+import { inquiryDetailAdminPath } from "@voyant-travel/relationships-contracts"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 
 import {
@@ -306,8 +307,7 @@ function inquiryResolver<
       const name = asString(snapshot.name) ?? asString(snapshot.email) ?? asString(snapshot.phone)
 
       return {
-        // This is the registered `inquiry.detail` destination's path shape.
-        adminPath: `/inquiries/${inquiryId}`,
+        adminPath: inquiryDetailAdminPath(inquiryId),
         assigneeUserId: eventKey === "staff.inquiry.assigned" ? assignedOwnerId : inquiry.ownerId,
         actorUserId: asString(payload.actorId),
         inquiryId,

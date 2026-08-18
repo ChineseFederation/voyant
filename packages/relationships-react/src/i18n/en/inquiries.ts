@@ -73,6 +73,8 @@ export const crmUiEnInquiryMessages = {
     operations: "Work details",
     nextAction: "Next action",
     firstResponseDue: "First response due",
+    firstResponded: "First response recorded",
+    recordFirstResponse: "Record first response",
     source: "Source",
     save: "Save details",
     assign: "Assign",

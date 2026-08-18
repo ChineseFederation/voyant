@@ -207,6 +207,32 @@ describe.skipIf(!DB_AVAILABLE)("inquiriesService", () => {
     ).toEqual([])
   })
 
+  it("records the first response once with a durable actor event", async () => {
+    const { inquiry } = await inquiriesService.createInquiry(
+      db,
+      {
+        subject: "Response marker",
+        kind: "general",
+        priority: "normal",
+        contactSnapshot: { email: "response@example.com" },
+        source: "admin",
+        tags: [],
+        customFields: {},
+      },
+      "user_1",
+    )
+    const first = await inquiriesService.recordFirstResponse(db, inquiry.id, "user_2")
+    const replay = await inquiriesService.recordFirstResponse(db, inquiry.id, "user_3")
+    expect(first.firstRespondedAt).toBeInstanceOf(Date)
+    expect(replay.firstRespondedAt).toEqual(first.firstRespondedAt)
+    const events = (await db.select().from(eventOutboxTable)).filter(
+      ({ name, payload }: { name: string; payload: { id?: string } }) =>
+        name === "inquiry.updated" && payload.id === inquiry.id,
+    )
+    expect(events).toHaveLength(1)
+    expect(events[0]?.payload).toEqual({ id: inquiry.id, actorId: "user_2" })
+  })
+
   it("enforces triage, follow-up, and qualification invariants", async () => {
     const person = await seedPerson()
     const { inquiry: created } = await inquiriesService.createInquiry(

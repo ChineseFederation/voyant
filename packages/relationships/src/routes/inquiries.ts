@@ -40,6 +40,7 @@ import {
   convertInquirySchema,
   createInquirySchema,
   inquiryListQuerySchema,
+  recordInquiryFirstResponseSchema,
   reopenInquirySchema,
   transitionInquirySchema,
   updateInquirySchema,
@@ -72,6 +73,7 @@ const documentedTransitionSchema: z.ZodObject = transitionInquirySchema
 const documentedAssignSchema: z.ZodObject = assignInquirySchema
 const documentedCloseSchema: z.ZodObject = closeInquirySchema
 const documentedReopenSchema: z.ZodObject = reopenInquirySchema
+const documentedRecordFirstResponseSchema: z.ZodObject = recordInquiryFirstResponseSchema
 const documentedConvertSchema: z.ZodTypeAny = convertInquirySchema
 const documentedInquiryResponseSchema: z.ZodObject = inquiryResponseSchema
 const documentedInquiryCreateResponseSchema: z.ZodObject = inquiryCreateResponseSchema
@@ -212,6 +214,15 @@ const reopenRoute = createRoute({
   method: "post",
   path: "/inquiries/{id}/reopen",
   request: { params: idParamSchema, ...requiredJsonBody(documentedReopenSchema) },
+  responses: commandResponses,
+})
+const recordFirstResponseRoute = createRoute({
+  method: "post",
+  path: "/inquiries/{id}/record-first-response",
+  request: {
+    params: idParamSchema,
+    ...requiredJsonBody(documentedRecordFirstResponseSchema),
+  },
   responses: commandResponses,
 })
 const convertRoute = createRoute({
@@ -372,6 +383,17 @@ inquiryRoutes.openapi(deleteTargetRoute, async (c) => {
     const { id, linkId } = c.req.valid("param")
     await relationshipsService.deleteInquiryTarget(c.get("db"), id, linkId, requireUserId(c))
     return c.body(null, 204)
+  } catch (error) {
+    return serviceErrorResponse(c, error)
+  }
+})
+inquiryRoutes.openapi(recordFirstResponseRoute, async (c) => {
+  const actorId = requireUserId(c)
+  const id = c.req.valid("param").id
+  try {
+    await parseJsonBody(c, recordInquiryFirstResponseSchema)
+    const row = await relationshipsService.recordFirstResponse(c.get("db"), id, actorId)
+    return c.json({ data: row }, 200)
   } catch (error) {
     return serviceErrorResponse(c, error)
   }

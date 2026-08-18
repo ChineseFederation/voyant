@@ -73,6 +73,8 @@ export const crmUiRoInquiryMessages = {
     operations: "Detalii de lucru",
     nextAction: "Acțiunea următoare",
     firstResponseDue: "Primul răspuns până la",
+    firstResponded: "Primul răspuns înregistrat",
+    recordFirstResponse: "Înregistrează primul răspuns",
     source: "Sursă",
     save: "Salvează detaliile",
     assign: "Alocă",

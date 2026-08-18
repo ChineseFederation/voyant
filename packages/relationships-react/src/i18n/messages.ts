@@ -109,6 +109,8 @@ export type CrmUiMessages = {
     operations: string
     nextAction: string
     firstResponseDue: string
+    firstResponded: string
+    recordFirstResponse: string
     source: string
     save: string
     assign: string

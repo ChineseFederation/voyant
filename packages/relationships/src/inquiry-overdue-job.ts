@@ -27,6 +27,9 @@ export async function emitFirstResponseOverdueEvents(
           notInArray(inquiries.status, ["converted", "closed"]),
         ),
       )
+      // Serialize against the record-first-response command, which locks the
+      // same Inquiry before stamping it. Concurrent scans skip one another.
+      .for("update", { skipLocked: true })
 
     const candidates = rows.filter(
       (row): row is { id: string; firstResponseDueAt: Date } =>

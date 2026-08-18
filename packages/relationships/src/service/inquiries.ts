@@ -599,6 +599,42 @@ export const inquiriesService = {
     })
   },
 
+  /** Record the first meaningful outbound response exactly once using server time. */
+  async recordFirstResponse(
+    db: PostgresJsDatabase,
+    id: string,
+    actorId: string,
+    testHooks?: InquiryMutationTestHooks,
+  ) {
+    requireActor(actorId)
+    return db.transaction(async (tx) => {
+      const current = await lockedInquiry(tx, id)
+      if (current.firstRespondedAt) return current
+      if (current.status === "closed" || current.status === "converted") {
+        throw new InquiryServiceError(
+          "INQUIRY_ALREADY_RESOLVED",
+          "A resolved inquiry cannot record its first response",
+        )
+      }
+      const now = new Date()
+      const [row] = await tx
+        .update(inquiries)
+        .set({ firstRespondedAt: now, lastActivityAt: now, updatedAt: now })
+        .where(and(eq(inquiries.id, id), isNull(inquiries.firstRespondedAt)))
+        .returning()
+      if (!row) {
+        // The row lock makes this defensive, but preserves idempotency if a
+        // database adapter implements locking more weakly.
+        const replayed = await lockedInquiry(tx, id)
+        if (replayed.firstRespondedAt) return replayed
+        throw new InquiryServiceError("INQUIRY_NOT_FOUND", "Inquiry not found")
+      }
+      await testHooks?.beforeOutbox?.(tx)
+      await writeInquiryEvent(tx, INQUIRY_UPDATED_EVENT, { id, actorId })
+      return row
+    })
+  },
+
   async transitionInquiry(
     db: PostgresJsDatabase,
     id: string,

@@ -4,9 +4,9 @@ import { emitFirstResponseOverdueEvents } from "../../src/inquiry-overdue-job.js
 
 describe("inquiry first-response overdue scan", () => {
   it("emits deterministic outbox events and reports only newly inserted rows", async () => {
-    const where = vi.fn(async () => [
-      { id: "inq_1", firstResponseDueAt: new Date("2026-08-18T08:00:00.000Z") },
-    ])
+    const lockedRows = [{ id: "inq_1", firstResponseDueAt: new Date("2026-08-18T08:00:00.000Z") }]
+    const lock = vi.fn(async () => lockedRows)
+    const where = vi.fn(() => ({ for: lock }))
     const tx = {
       select: vi.fn(() => ({ from: vi.fn(() => ({ where })) })),
       insert: vi.fn(() => ({
@@ -43,15 +43,18 @@ describe("inquiry first-response overdue scan", () => {
         },
       },
     ])
+    expect(lock).toHaveBeenCalledWith("update", { skipLocked: true })
   })
 
   it("does not enqueue when another scan already claimed the overdue window", async () => {
     const tx = {
       select: vi.fn(() => ({
         from: vi.fn(() => ({
-          where: vi.fn(async () => [
-            { id: "inq_1", firstResponseDueAt: new Date("2026-08-18T08:00:00.000Z") },
-          ]),
+          where: vi.fn(() => ({
+            for: vi.fn(async () => [
+              { id: "inq_1", firstResponseDueAt: new Date("2026-08-18T08:00:00.000Z") },
+            ]),
+          })),
         })),
       })),
       insert: vi.fn(() => ({
@@ -73,13 +76,34 @@ describe("inquiry first-response overdue scan", () => {
     expect(insertEvents).not.toHaveBeenCalled()
   })
 
+  it("skips an inquiry locked by a concurrent response command", async () => {
+    const lock = vi.fn(async () => [])
+    const tx = {
+      select: vi.fn(() => ({
+        from: vi.fn(() => ({ where: vi.fn(() => ({ for: lock })) })),
+      })),
+      insert: vi.fn(),
+    }
+    const db = {
+      transaction: vi.fn(async (operation: (database: typeof tx) => Promise<number>) =>
+        operation(tx),
+      ),
+    }
+
+    await expect(emitFirstResponseOverdueEvents(db as never, new Date())).resolves.toBe(0)
+    expect(lock).toHaveBeenCalledWith("update", { skipLocked: true })
+    expect(tx.insert).not.toHaveBeenCalled()
+  })
+
   it("rolls back a claim when the outbox insert fails so the next scan retries it", async () => {
     let claimed = false
     const dueAt = new Date("2026-08-18T08:00:00.000Z")
     const tx = {
       select: vi.fn(() => ({
         from: vi.fn(() => ({
-          where: vi.fn(async () => [{ id: "inq_1", firstResponseDueAt: dueAt }]),
+          where: vi.fn(() => ({
+            for: vi.fn(async () => [{ id: "inq_1", firstResponseDueAt: dueAt }]),
+          })),
         })),
       })),
       insert: vi.fn(() => ({

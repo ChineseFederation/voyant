@@ -223,6 +223,9 @@ export const reopenInquirySchema = z.object({
   unassignedReason: z.string().trim().min(1).max(500).nullable().optional(),
 })
 
+/** Explicit command body: the server owns the timestamp and stamps it once. */
+export const recordInquiryFirstResponseSchema = z.object({}).strict()
+
 export const convertInquiryToProposalSchema = z.object({
   kind: z.literal("proposal"),
   idempotencyKey: z.string().trim().min(1).max(255),
@@ -385,6 +388,7 @@ export type TransitionInquiryInput = z.infer<typeof transitionInquirySchema>
 export type AssignInquiryInput = z.infer<typeof assignInquirySchema>
 export type CloseInquiryInput = z.infer<typeof closeInquirySchema>
 export type ReopenInquiryInput = z.infer<typeof reopenInquirySchema>
+export type RecordInquiryFirstResponseInput = z.infer<typeof recordInquiryFirstResponseSchema>
 export type ConvertInquiryToProposalCommand = z.infer<typeof convertInquiryToProposalSchema>
 export type ConvertInquiryToBookingSessionCommand = z.infer<
   typeof convertInquiryToBookingSessionSchema

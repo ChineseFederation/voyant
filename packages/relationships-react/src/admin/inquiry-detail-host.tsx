@@ -27,6 +27,8 @@ export function InquiryDetailHost({ id }: { id: string }) {
       onTransition={(input) => mutations.transition.mutateAsync({ id, input })}
       onClose={(input) => mutations.close.mutateAsync({ id, input })}
       onReopen={() => mutations.reopen.mutateAsync({ id })}
+      onRecordFirstResponse={() => mutations.recordFirstResponse.mutateAsync({ id })}
+      isRecordingFirstResponse={mutations.recordFirstResponse.isPending}
       isConverting={mutations.convertToProposal.isPending}
       isCreatingBookingSession={mutations.convertToBookingSession.isPending}
       onConvertToBookingSession={(input) =>

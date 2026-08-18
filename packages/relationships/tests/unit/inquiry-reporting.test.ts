@@ -57,4 +57,67 @@ describe("inquiry activity reporting", () => {
       ),
     ).rejects.toThrow("crm:read")
   })
+
+  it("exposes bounded operational SLA and workload measures", async () => {
+    let statement: SQL | undefined
+    const execute = vi.fn(async (query: SQL) => {
+      statement = query
+      return [{ report_column_0: "12.5", report_column_1: "1" }]
+    })
+    const result = await inquiryActivityDataset.execute(
+      { db: { execute }, grantedScopes: ["crm:read"] },
+      {
+        query: {
+          dataset: { id: INQUIRY_ACTIVITY_DATASET_ID },
+          select: [
+            {
+              kind: "aggregate",
+              operation: "average",
+              field: "firstResponseMinutes",
+              as: "averageResponseMinutes",
+            },
+            { kind: "aggregate", operation: "sum", field: "overdueCount", as: "overdue" },
+          ],
+          filters: [],
+          groupBy: [],
+          orderBy: [],
+        },
+        parameters: {},
+        maximumRows: 1,
+      },
+    )
+    expect(result.columns).toEqual([
+      { id: "averageResponseMinutes", label: "averageResponseMinutes", valueType: "number" },
+      { id: "overdue", label: "overdue", valueType: "number" },
+    ])
+    expect(result.rows).toEqual([{ averageResponseMinutes: 12.5, overdue: 1 }])
+    const compiled = new PgDialect().sqlToQuery(statement!)
+    expect(compiled.sql).toContain('"inquiries"."first_responded_at"')
+    expect(compiled.sql).toContain('"inquiries"."next_action_at"')
+  })
+
+  it("rejects invalid filter types and operators before querying Postgres", async () => {
+    const execute = vi.fn()
+    const input = {
+      query: {
+        dataset: { id: INQUIRY_ACTIVITY_DATASET_ID },
+        select: [{ kind: "field" as const, field: "status" }],
+        filters: [
+          {
+            field: "status",
+            operator: "greaterThan" as const,
+            value: { kind: "literal" as const, value: "new" },
+          },
+        ],
+        groupBy: [],
+        orderBy: [],
+      },
+      parameters: {},
+      maximumRows: 10,
+    }
+    await expect(
+      inquiryActivityDataset.execute({ db: { execute }, grantedScopes: ["crm:read"] }, input),
+    ).rejects.toThrow("greaterThan is not supported for string fields")
+    expect(execute).not.toHaveBeenCalled()
+  })
 })

@@ -49,6 +49,8 @@ export interface InquiryWorkspaceProps {
   onTransition: (input: TransitionInquiryInput) => Promise<unknown>
   onClose: (input: CloseInquiryInput) => Promise<unknown>
   onReopen: () => Promise<unknown>
+  onRecordFirstResponse: () => Promise<unknown>
+  isRecordingFirstResponse?: boolean
   onConvertToProposal: (
     input: InquiryProposalConversionOptions,
   ) => Promise<InquiryProposalConversionOutcome>
@@ -406,6 +408,20 @@ export function InquiryWorkspace(props: InquiryWorkspaceProps) {
                 <UserRound className="size-4" />
                 {inquiry.contactSnapshot.name ?? "—"}
               </div>
+              {inquiry.firstRespondedAt ? (
+                <div>
+                  <span className="text-muted-foreground">{messages.firstResponded}: </span>
+                  {i18n.formatDateTime(inquiry.firstRespondedAt)}
+                </div>
+              ) : inquiry.status !== "closed" && inquiry.status !== "converted" ? (
+                <Button
+                  variant="outline"
+                  disabled={props.isRecordingFirstResponse}
+                  onClick={() => void props.onRecordFirstResponse()}
+                >
+                  {messages.recordFirstResponse}
+                </Button>
+              ) : null}
               <div>{inquiry.contactSnapshot.email ?? "—"}</div>
               <div>{inquiry.contactSnapshot.phone ?? "—"}</div>
               {inquiry.personId ? <Badge variant="secondary">{messages.personLinked}</Badge> : null}

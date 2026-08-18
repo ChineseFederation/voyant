@@ -1,3 +1,4 @@
+export * from "./inquiry-navigation.js"
 export * from "./validation.js"
 export {
   type InquiryMaterializedTargetKind,

@@ -311,7 +311,9 @@ export const STAFF_ALERT_DEFINITIONS = [
     group: "sales",
     defaultEnabled: false,
     supportsAssigneeRouting: false,
-    defaultRoles: ["owner", "admin", "member"],
+    // There is no deployment-level sales-role selector yet. Do not broaden a
+    // newly enabled alert to every member; owners/admins are the safe fallback.
+    defaultRoles: ["owner", "admin"],
     templateSlug: "staff.inquiry.created",
   },
   {

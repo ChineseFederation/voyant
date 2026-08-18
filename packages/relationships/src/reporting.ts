@@ -35,6 +35,13 @@ const expressions: Record<FieldId, SQL> = {
   closedAt: sql`${inquiries.closedAt}`,
   closeOutcome: sql`${inquiries.closeOutcome}`,
   conversionCount: sql`COALESCE(conversion_totals.conversion_count, 0)`,
+  unassignedCount: sql`CASE WHEN ${inquiries.ownerId} IS NULL THEN 1 ELSE 0 END`,
+  overdueCount: sql`CASE WHEN ${inquiries.nextActionAt} < now() AND ${inquiries.status} NOT IN ('converted', 'closed') THEN 1 ELSE 0 END`,
+  firstResponseMinutes: sql`EXTRACT(EPOCH FROM (${inquiries.firstRespondedAt} - ${inquiries.createdAt})) / 60.0`,
+  firstResponseSlaMetCount: sql`CASE WHEN ${inquiries.firstRespondedAt} IS NOT NULL AND ${inquiries.firstResponseDueAt} IS NOT NULL AND ${inquiries.firstRespondedAt} <= ${inquiries.firstResponseDueAt} THEN 1 ELSE 0 END`,
+  firstResponseSlaEligibleCount: sql`CASE WHEN ${inquiries.firstRespondedAt} IS NOT NULL AND ${inquiries.firstResponseDueAt} IS NOT NULL THEN 1 ELSE 0 END`,
+  qualificationCount: sql`CASE WHEN ${inquiries.qualifiedAt} IS NOT NULL THEN 1 ELSE 0 END`,
+  ageDays: sql`EXTRACT(EPOCH FROM (COALESCE(${inquiries.closedAt}, ${inquiries.convertedAt}, now()) - ${inquiries.createdAt})) / 86400.0`,
 }
 
 const fields = new Map(
@@ -106,6 +113,7 @@ function compile(query: ReportQuery, parameters: ReportParameters, maximumRows: 
     throw new Error("maximumRows must be a positive integer.")
   const limit = Math.min(maximumRows, query.limit ?? DEFAULT_LIMIT, MAXIMUM_LIMIT)
   const groups = new Map(query.groupBy.map((group) => [group.field, group]))
+  if (groups.size !== query.groupBy.length) throw new Error("A field may only be grouped once.")
   const aggregateContext = groups.size > 0 || query.select.some((item) => item.kind === "aggregate")
   const outputs: string[] = []
   const numeric = new Set<string>()
@@ -129,17 +137,23 @@ function compile(query: ReportQuery, parameters: ReportParameters, maximumRows: 
         : aggregateExpression(selection)
     aliases.set(output, expression)
     if (selection.kind === "field") aliases.set(selection.field, expression)
-    if (selection.kind === "aggregate") numeric.add(output)
     const definition =
       selection.kind === "field"
         ? requireField(selection.field).definition
         : selection.field
           ? requireField(selection.field).definition
           : undefined
+    const valueType =
+      selection.kind === "aggregate"
+        ? aggregateValueType(selection, definition)
+        : groups.get(selection.field)?.timeGrain
+          ? "date"
+          : definition!.valueType
+    if (["integer", "number", "currency"].includes(valueType)) numeric.add(output)
     columns.push({
       id: output,
       label: selection.kind === "field" ? definition!.label : output,
-      valueType: selection.kind === "aggregate" ? "integer" : definition!.valueType,
+      valueType,
     })
     return sql`${expression} AS ${sql.raw(`"report_column_${index}"`)}`
   })
@@ -219,6 +233,16 @@ function aggregateExpression(
   }
 }
 
+function aggregateValueType(
+  selection: Extract<ReportQuery["select"][number], { kind: "aggregate" }>,
+  definition: ReportDatasetField | undefined,
+): ReportDatasetField["valueType"] {
+  if (selection.operation === "count" || selection.operation === "countDistinct") return "integer"
+  if (selection.operation === "average") return "number"
+  if (selection.operation === "sum" && definition?.valueType !== "currency") return "number"
+  return definition?.valueType ?? "integer"
+}
+
 function compileFilter(filter: ReportQuery["filters"][number], parameters: ReportParameters): SQL {
   const field = requireField(filter.field)
   if (filter.operator === "isNull") return sql`${field.expression} IS NULL`
@@ -254,15 +278,21 @@ function compileFilter(filter: ReportQuery["filters"][number], parameters: Repor
     case "notEqual":
       return sql`${field.expression} <> ${valid}`
     case "greaterThan":
+      requireOrderedField(field.definition, filter.operator)
       return sql`${field.expression} > ${valid}`
     case "greaterThanOrEqual":
+      requireOrderedField(field.definition, filter.operator)
       return sql`${field.expression} >= ${valid}`
     case "lessThan":
+      requireOrderedField(field.definition, filter.operator)
       return sql`${field.expression} < ${valid}`
     case "lessThanOrEqual":
+      requireOrderedField(field.definition, filter.operator)
       return sql`${field.expression} <= ${valid}`
     case "contains":
-      return sql`${field.expression} ILIKE ${`%${String(valid)}%`}`
+      if (field.definition.valueType !== "string" || typeof valid !== "string")
+        throw new Error("contains is only supported for string fields.")
+      return sql`${field.expression} ILIKE ${`%${valid}%`}`
   }
 }
 
@@ -273,7 +303,31 @@ function parameter(parameters: ReportParameters, name: string) {
 }
 function scalar(definition: ReportDatasetField, value: ReportScalar): Exclude<ReportScalar, null> {
   if (value === null) throw new Error(`Use isNull for ${definition.id}.`)
+  const valid = (() => {
+    switch (definition.valueType) {
+      case "string":
+        return typeof value === "string"
+      case "integer":
+        return typeof value === "number" && Number.isInteger(value)
+      case "number":
+      case "currency":
+        return typeof value === "number" && Number.isFinite(value)
+      case "boolean":
+        return typeof value === "boolean"
+      case "date":
+        return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)
+      case "datetime":
+        return typeof value === "string" && Number.isFinite(Date.parse(value))
+      case "json":
+        return false
+    }
+  })()
+  if (!valid) throw new Error(`Filter value for ${definition.id} must be ${definition.valueType}.`)
   return value
+}
+function requireOrderedField(definition: ReportDatasetField, operator: string) {
+  if (!["integer", "number", "currency", "date", "datetime"].includes(definition.valueType))
+    throw new Error(`${operator} is not supported for ${definition.valueType} fields.`)
 }
 function normalize(value: unknown, numeric: boolean) {
   if (value instanceof Date) return value.toISOString()
