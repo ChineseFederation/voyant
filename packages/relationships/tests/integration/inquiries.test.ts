@@ -243,7 +243,7 @@ describe.skipIf(!DB_AVAILABLE)("inquiriesService", () => {
       .from(eventOutboxTable)
       .where(eq(eventOutboxTable.name, "inquiry.target_added"))
     expect(targetEvents).toHaveLength(1)
-    expect(targetEvents[0]?.data).toMatchObject({
+    expect(targetEvents[0]?.payload).toMatchObject({
       actorId: "user_1",
       linkId: added.linkId,
       kind: "product",

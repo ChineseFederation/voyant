@@ -638,10 +638,11 @@ export const inquiriesService = {
       })
       const firstResponseStamped = meaningfulOutbound && inquiry.firstRespondedAt === null
       if (meaningfulOutbound) await recordFirstResponseInTransaction(tx, id, actorId)
+      const occurredAtIso = occurredAt.toISOString()
       const [updatedInquiry] = await tx
         .update(inquiries)
         .set({
-          lastActivityAt: sql`greatest(coalesce(${inquiries.lastActivityAt}, ${occurredAt}), ${occurredAt})`,
+          lastActivityAt: sql`greatest(coalesce(${inquiries.lastActivityAt}, ${occurredAtIso}::timestamptz), ${occurredAtIso}::timestamptz)`,
           updatedAt: new Date(),
         })
         .where(eq(inquiries.id, id))
