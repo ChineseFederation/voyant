@@ -105,6 +105,20 @@ export interface StaffAlertEmailMessages {
     /** Rendered when the alert reached someone because they own the record. */
     assignedToYou: string
   }
+  inquiry: {
+    eyebrow: (kind: "created" | "assigned" | "first_response_overdue" | "converted") => string
+    subject: (
+      kind: "created" | "assigned" | "first_response_overdue" | "converted",
+      subject: string,
+    ) => string
+    preview: (subject: string) => string
+    headline: (subject: string) => string
+    lead: (kind: "created" | "assigned" | "first_response_overdue" | "converted") => string
+    source: string
+    status: string
+    responseDue: string
+    assignedToYou: string
+  }
 }
 
 export type StaffAlertEmailLocale = "en" | "ro"

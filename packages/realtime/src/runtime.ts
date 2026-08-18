@@ -29,6 +29,14 @@ export const realtimeInvalidationRoutes = {
   "person.changed": (event) => adminHint("person", firstId(event, "id")),
   "organization.changed": (event) => adminHint("organization", firstId(event, "id")),
   "customer.signal.created": (event) => adminHint("signal", firstId(event, "id")),
+  "inquiry.created": (event) => adminHint("inquiry", firstId(event, "id")),
+  "inquiry.updated": (event) => adminHint("inquiry", firstId(event, "id")),
+  "inquiry.assigned": (event) => adminHint("inquiry", firstId(event, "id")),
+  "inquiry.status_changed": (event) => adminHint("inquiry", firstId(event, "id")),
+  "inquiry.first_response_overdue": (event) => adminHint("inquiry", firstId(event, "id")),
+  "inquiry.converted": (event) => adminHint("inquiry", firstId(event, "id")),
+  "inquiry.closed": (event) => adminHint("inquiry", firstId(event, "id")),
+  "inquiry.reopened": (event) => adminHint("inquiry", firstId(event, "id")),
   "supplier.created": (event) => adminHint("supplier", firstId(event, "id")),
   "supplier.updated": (event) => adminHint("supplier", firstId(event, "id")),
   "supplier.deleted": (event) => adminHint("supplier", firstId(event, "id")),
@@ -85,6 +93,22 @@ export const realtimeOrganizationChangedInvalidationSubscriber =
   invalidationSubscriber("organization.changed")
 export const realtimeCustomerSignalCreatedInvalidationSubscriber =
   invalidationSubscriber("customer.signal.created")
+export const realtimeInquiryCreatedInvalidationSubscriber =
+  invalidationSubscriber("inquiry.created")
+export const realtimeInquiryUpdatedInvalidationSubscriber =
+  invalidationSubscriber("inquiry.updated")
+export const realtimeInquiryAssignedInvalidationSubscriber =
+  invalidationSubscriber("inquiry.assigned")
+export const realtimeInquiryStatusChangedInvalidationSubscriber =
+  invalidationSubscriber("inquiry.status_changed")
+export const realtimeInquiryFirstResponseOverdueInvalidationSubscriber = invalidationSubscriber(
+  "inquiry.first_response_overdue",
+)
+export const realtimeInquiryConvertedInvalidationSubscriber =
+  invalidationSubscriber("inquiry.converted")
+export const realtimeInquiryClosedInvalidationSubscriber = invalidationSubscriber("inquiry.closed")
+export const realtimeInquiryReopenedInvalidationSubscriber =
+  invalidationSubscriber("inquiry.reopened")
 export const realtimeSupplierCreatedInvalidationSubscriber =
   invalidationSubscriber("supplier.created")
 export const realtimeSupplierUpdatedInvalidationSubscriber =

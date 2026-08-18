@@ -101,6 +101,25 @@ const SAMPLES: { [K in StaffAlertEventKey]: StaffAlertContextMap[K] } = {
     productTitle: "Kilimanjaro Trek — 8 days",
     notes: "Looking for a March departure for two people.",
   },
+  "staff.inquiry.created": inquirySample("created"),
+  "staff.inquiry.assigned": inquirySample("assigned"),
+  "staff.inquiry.first-response-overdue": inquirySample("first_response_overdue"),
+  "staff.inquiry.converted": inquirySample("converted"),
+}
+
+function inquirySample(alertKind: import("../staff-alert-registry.js").StaffInquiryAlertKind) {
+  return {
+    adminPath: "/inquiries/inq_sample",
+    assigneeUserId: "usr_sample",
+    actorUserId: null,
+    inquiryId: "inq_sample",
+    alertKind,
+    subject: "Private tour of Transylvania",
+    contact: { name: "Ana Popescu", email: "ana@example.com" },
+    source: "storefront",
+    status: alertKind === "converted" ? "converted" : "triaged",
+    firstResponseDueAt: "2026-08-18T10:00:00.000Z",
+  }
 }
 
 export function sampleStaffAlertContext<K extends StaffAlertEventKey>(

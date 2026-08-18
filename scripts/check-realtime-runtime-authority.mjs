@@ -77,14 +77,14 @@ if (runtime.includes("bridgeRoutes:")) {
   failures.push("Realtime runtime must use selected subscriber descriptors, not bridgeRoutes")
 }
 
-const routeEvents = [...runtime.matchAll(/^\s{2}"([a-z][a-z0-9.-]+)":\s*(?:\(|\{)/gm)].map(
+const routeEvents = [...runtime.matchAll(/^\s{2}"([a-z][a-z0-9._-]+)":\s*(?:\(|\{)/gm)].map(
   (match) => match[1],
 )
 const descriptorEvents = [
-  ...runtime.matchAll(/invalidationSubscriber\(\s*"([a-z][a-z0-9.-]+)"\s*,?\s*\)/g),
+  ...runtime.matchAll(/invalidationSubscriber\(\s*"([a-z][a-z0-9._-]+)"\s*,?\s*\)/g),
 ].map((match) => match[1])
 const manifestEntries = [
-  ...manifest.matchAll(/\["([a-z][a-z0-9.-]+)",\s*"(realtime[A-Za-z]+InvalidationSubscriber)"\]/g),
+  ...manifest.matchAll(/\["([a-z][a-z0-9._-]+)",\s*"(realtime[A-Za-z]+InvalidationSubscriber)"\]/g),
 ].map((match) => ({ eventType: match[1], exportName: match[2] }))
 
 const duplicates = (values) => values.filter((value, index) => values.indexOf(value) !== index)
@@ -105,7 +105,7 @@ if (sorted(routeEvents) !== sorted(manifestEntries.map(({ eventType }) => eventT
 
 const observedRoutePolicy = {}
 for (const match of runtime.matchAll(
-  /"([a-z][a-z0-9.-]+)":\s*\(event\)\s*=>\s*adminHint\(\s*"([a-z-]+)",\s*firstId\(event,\s*([^)]*)\)\s*,?\s*\)/g,
+  /"([a-z][a-z0-9._-]+)":\s*\(event\)\s*=>\s*adminHint\(\s*"([a-z-]+)",\s*firstId\(event,\s*([^)]*)\)\s*,?\s*\)/g,
 )) {
   observedRoutePolicy[match[1]] = {
     entity: match[2],
@@ -114,7 +114,7 @@ for (const match of runtime.matchAll(
   }
 }
 for (const match of runtime.matchAll(
-  /"([a-z][a-z0-9.-]+)":\s*\(event\)\s*=>\s*bookingHint\(event,\s*"(booking|payment)"\)/g,
+  /"([a-z][a-z0-9._-]+)":\s*\(event\)\s*=>\s*bookingHint\(event,\s*"(booking|payment)"\)/g,
 )) {
   observedRoutePolicy[match[1]] = { entity: match[2], kind: "booking" }
 }

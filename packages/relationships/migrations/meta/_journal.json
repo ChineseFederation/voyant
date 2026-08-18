@@ -71,6 +71,13 @@
       "when": 1787030145790,
       "tag": "20260818080000_inquiry_target_snapshots",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1787040600000,
+      "tag": "20260818081000_inquiry_sla_event_ledger",
+      "breakpoints": true
     }
   ]
 }

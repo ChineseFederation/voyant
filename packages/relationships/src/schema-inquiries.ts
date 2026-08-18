@@ -11,6 +11,7 @@ import {
   jsonb,
   pgEnum,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   uniqueIndex,
@@ -147,6 +148,23 @@ export const inquiryTargetSnapshots = pgTable(
 )
 
 export type InquiryTargetSnapshot = typeof inquiryTargetSnapshots.$inferSelect
+
+/** Append-only SLA edges. Overdue remains derived from Inquiry timestamps. */
+export const inquirySlaEvents = pgTable(
+  "inquiry_sla_events",
+  {
+    inquiryId: typeIdRef("inquiry_id")
+      .notNull()
+      .references(() => inquiries.id, { onDelete: "cascade" }),
+    eventType: text("event_type").notNull(),
+    dueAt: timestamp("due_at", { withTimezone: true }).notNull(),
+    occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.inquiryId, table.eventType, table.dueAt] }),
+    index("idx_inquiry_sla_events_occurred").on(table.occurredAt),
+  ],
+)
 
 export interface InquiryProposalTargetSnapshot {
   kind: "proposal"

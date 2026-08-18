@@ -97,4 +97,33 @@ export const staffAlertEmailMessagesEn: StaffAlertEmailMessages = {
     notes: "Notes",
     assignedToYou: "This enquiry is assigned to you.",
   },
+  inquiry: {
+    eyebrow: (kind) =>
+      ({
+        created: "New inquiry",
+        assigned: "Inquiry assigned",
+        first_response_overdue: "First response overdue",
+        converted: "Inquiry converted",
+      })[kind],
+    subject: (kind, subject) =>
+      ({
+        created: `New inquiry — ${subject}`,
+        assigned: `Inquiry assigned — ${subject}`,
+        first_response_overdue: `Response overdue — ${subject}`,
+        converted: `Inquiry converted — ${subject}`,
+      })[kind],
+    preview: (subject) => `Inquiry update: ${subject}`,
+    headline: (subject) => subject,
+    lead: (kind) =>
+      ({
+        created: "A new inquiry is waiting to be triaged.",
+        assigned: "An inquiry has been assigned and is ready to work.",
+        first_response_overdue: "The first-response deadline passed without a recorded response.",
+        converted: "The inquiry was converted using its durable conversion record.",
+      })[kind],
+    source: "Source",
+    status: "Status",
+    responseDue: "First response due",
+    assignedToYou: "This inquiry is assigned to you.",
+  },
 }

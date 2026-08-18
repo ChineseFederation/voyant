@@ -104,13 +104,16 @@ describe("realtime deployment manifest", () => {
     expect(realtimeVoyantModule.provides?.ports).toContainEqual({
       id: "realtime.admin-invalidation-publication",
     })
-    expect(realtimeVoyantModule.subscribers).toHaveLength(30)
+    expect(realtimeVoyantModule.subscribers).toHaveLength(38)
     expect(realtimeVoyantModule.subscribers?.map(({ eventType }) => eventType)).toEqual(
       expect.arrayContaining([
         "product.created",
         "booking.confirmed",
         "payment.completed",
         "availability.slot.changed",
+        "inquiry.created",
+        "inquiry.first_response_overdue",
+        "inquiry.converted",
       ]),
     )
     expect(realtimeVoyantModule.subscribers?.every(({ runtime }) => runtime != null)).toBe(true)

@@ -284,6 +284,50 @@ const customerSignalCreatedResolver: StaffAlertContextResolver<"staff.customer-s
   },
 }
 
+function inquiryResolver<
+  K extends Extract<
+    import("./staff-alert-registry.js").StaffAlertEventKey,
+    `staff.inquiry.${string}`
+  >,
+>(
+  eventKey: K,
+  alertKind: import("./staff-alert-registry.js").StaffInquiryAlertKind,
+): StaffAlertContextResolver<K> {
+  return {
+    eventKey,
+    async resolve({ db, payload }) {
+      const inquiryId = asString(payload.id)
+      if (!inquiryId) return null
+      const inquiry = await relationshipsService.getInquiry(db as PostgresJsDatabase, inquiryId)
+      if (!inquiry) return null
+      const snapshot = inquiry.contactSnapshot as Record<string, unknown>
+      const name = asString(snapshot.name) ?? asString(snapshot.email) ?? asString(snapshot.phone)
+
+      return {
+        // This is the registered `inquiry.detail` destination's path shape.
+        adminPath: `/inquiries/${inquiryId}`,
+        assigneeUserId: inquiry.ownerId,
+        actorUserId: asString(payload.actorId),
+        inquiryId,
+        alertKind,
+        subject: inquiry.subject,
+        contact: name ? { name, email: asString(snapshot.email) } : null,
+        source: inquiry.source,
+        status: inquiry.status,
+        firstResponseDueAt: inquiry.firstResponseDueAt?.toISOString() ?? null,
+      } as Awaited<ReturnType<StaffAlertContextResolver<K>["resolve"]>>
+    },
+  }
+}
+
+const inquiryCreatedResolver = inquiryResolver("staff.inquiry.created", "created")
+const inquiryAssignedResolver = inquiryResolver("staff.inquiry.assigned", "assigned")
+const inquiryFirstResponseOverdueResolver = inquiryResolver(
+  "staff.inquiry.first-response-overdue",
+  "first_response_overdue",
+)
+const inquiryConvertedResolver = inquiryResolver("staff.inquiry.converted", "converted")
+
 /**
  * Turn a dead-lettered delivery into a stranded-payment alert, or decline.
  *
@@ -338,6 +382,10 @@ export const staffAlertContextResolvers: StaffAlertContextResolverRegistry = {
   "staff.invoice.settled": invoiceSettledResolver,
   "staff.contract.signed": contractSignedResolver,
   "staff.customer-signal.created": customerSignalCreatedResolver,
+  "staff.inquiry.created": inquiryCreatedResolver,
+  "staff.inquiry.assigned": inquiryAssignedResolver,
+  "staff.inquiry.first-response-overdue": inquiryFirstResponseOverdueResolver,
+  "staff.inquiry.converted": inquiryConvertedResolver,
 }
 
 /**

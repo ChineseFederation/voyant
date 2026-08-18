@@ -112,6 +112,14 @@ export const notificationsStaffContractSignedAlertSubscriber =
   createStaffAlertSubscriberRuntime("staff.contract.signed")
 export const notificationsStaffCustomerSignalCreatedAlertSubscriber =
   createStaffAlertSubscriberRuntime("staff.customer-signal.created")
+export const notificationsStaffInquiryCreatedAlertSubscriber =
+  createStaffAlertSubscriberRuntime("staff.inquiry.created")
+export const notificationsStaffInquiryAssignedAlertSubscriber =
+  createStaffAlertSubscriberRuntime("staff.inquiry.assigned")
+export const notificationsStaffInquiryFirstResponseOverdueAlertSubscriber =
+  createStaffAlertSubscriberRuntime("staff.inquiry.first-response-overdue")
+export const notificationsStaffInquiryConvertedAlertSubscriber =
+  createStaffAlertSubscriberRuntime("staff.inquiry.converted")
 
 export const staffAlertSubscriberRuntimeDescriptors = [
   notificationsStaffBookingConfirmedAlertSubscriber,
@@ -122,4 +130,8 @@ export const staffAlertSubscriberRuntimeDescriptors = [
   notificationsStaffInvoiceSettledAlertSubscriber,
   notificationsStaffContractSignedAlertSubscriber,
   notificationsStaffCustomerSignalCreatedAlertSubscriber,
+  notificationsStaffInquiryCreatedAlertSubscriber,
+  notificationsStaffInquiryAssignedAlertSubscriber,
+  notificationsStaffInquiryFirstResponseOverdueAlertSubscriber,
+  notificationsStaffInquiryConvertedAlertSubscriber,
 ] as const

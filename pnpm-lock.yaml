@@ -5485,6 +5485,9 @@ importers:
       '@voyant-travel/relationships-contracts':
         specifier: workspace:^
         version: link:../relationships-contracts
+      '@voyant-travel/reporting-contracts':
+        specifier: workspace:^
+        version: link:../reporting-contracts
       '@voyant-travel/tools':
         specifier: workspace:^
         version: link:../tools

@@ -441,6 +441,22 @@ export const notificationsUiRo: NotificationsUiMessages = {
         title: "Cerere nouă",
         description: "Cineva a întrebat despre o călătorie și așteaptă un prim răspuns.",
       },
+      "staff.inquiry.created": {
+        title: "Solicitare nouă",
+        description: "O solicitare nouă așteaptă evaluarea.",
+      },
+      "staff.inquiry.assigned": {
+        title: "Solicitare alocată",
+        description: "O solicitare a fost alocată unui responsabil.",
+      },
+      "staff.inquiry.first-response-overdue": {
+        title: "Primul răspuns este întârziat",
+        description: "O solicitare a depășit termenul pentru primul răspuns.",
+      },
+      "staff.inquiry.converted": {
+        title: "Solicitare convertită",
+        description: "O solicitare a fost convertită într-o ofertă.",
+      },
     },
     columns: {
       alert: "Alertă",

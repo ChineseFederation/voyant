@@ -14,7 +14,7 @@ vi.mock("../../src/use-live-queries.js", () => ({
   useLiveQueries: mocks.useLiveQueries,
 }))
 
-import { hasAdminRealtimeSession } from "../../src/admin.js"
+import { adminInvalidationKeys, hasAdminRealtimeSession } from "../../src/admin.js"
 import { AdminWorkspaceRealtimeProvider } from "../../src/admin-workspace.js"
 
 class TestRealtimeChannel {
@@ -59,6 +59,14 @@ describe("hasAdminRealtimeSession", () => {
   it("accepts authenticated session shapes", () => {
     expect(hasAdminRealtimeSession({ user: { id: "usr_1" }, session: null })).toBe(true)
     expect(hasAdminRealtimeSession({ user: null, session: { userId: "usr_1" } })).toBe(true)
+  })
+})
+
+describe("adminInvalidationKeys", () => {
+  it("invalidates the canonical Inquiry list/detail prefix", () => {
+    expect(adminInvalidationKeys({ entity: "inquiry", id: "inq_1" })).toEqual([
+      ["voyant", "relationships", "inquiries"],
+    ])
   })
 })
 

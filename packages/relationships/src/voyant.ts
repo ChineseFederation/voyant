@@ -14,6 +14,8 @@ import {
 import { financeStoredInstrumentRuntimePort } from "@voyant-travel/finance/runtime-port"
 import { proposalInquiryConversionRuntimePort } from "@voyant-travel/proposals-contracts/inquiry-conversion/runtime-port"
 import { inquiryTargetAuthorityRuntimePort } from "@voyant-travel/relationships-contracts/inquiry-target-authority/runtime-port"
+import { relationshipsInquiryOverdueJobRuntimePort } from "./inquiry-overdue-job-runtime-port.js"
+import { relationshipsReportingDeclaration } from "./reporting-definitions.js"
 import {
   relationshipsBookingEnrichmentDatabaseRuntimePort,
   relationshipsMiceRuntimePort,
@@ -168,12 +170,14 @@ export const relationshipsVoyantModule = defineModule({
       providePort(customFieldValueLifecycleRuntimePort),
       providePort(customFieldValueOperationsRuntimePort),
       providePort(relationshipsBookingEnrichmentDatabaseRuntimePort),
+      providePort(relationshipsInquiryOverdueJobRuntimePort),
     ],
   },
   runtimePorts: [
     requirePort(customFieldsRuntimePort),
     requirePort(relationshipsRouteRuntimePort),
     requirePort(relationshipsBookingEnrichmentDatabaseRuntimePort),
+    requirePort(relationshipsInquiryOverdueJobRuntimePort),
     // Optional so Relationships remains deployable without Proposals. The
     // conversion endpoint stays mounted and answers 503 when no provider is selected.
     requirePort(proposalInquiryConversionRuntimePort, { optional: true }),
@@ -182,6 +186,25 @@ export const relationshipsVoyantModule = defineModule({
     // Optional so a deployment that selects CRM without Bookings still boots;
     // the enrichment subscriber simply has nothing to read.
     requirePort(bookingsCrmSnapshotRuntimePort, { optional: true }),
+  ],
+  reporting: relationshipsReportingDeclaration,
+  jobs: [
+    {
+      id: "relationships.scan-inquiry-first-response-overdue",
+      schedule: { cron: "*/5 * * * *", overlap: "skip" },
+      scheduling: {
+        required: true,
+        profiles: {
+          eager: { cron: "* * * * *", overlap: "skip" },
+          economical: { cron: "*/15 * * * *", overlap: "skip" },
+          "scale-to-zero": { cron: "*/15 * * * *", overlap: "skip" },
+        },
+      },
+      runtime: {
+        entry: "@voyant-travel/relationships/inquiry-overdue-job",
+        export: "runRelationshipsInquiryOverdueJob",
+      },
+    },
   ],
   api: [
     {
@@ -282,6 +305,22 @@ export const relationshipsVoyantModule = defineModule({
       eventType: "inquiry.status_changed",
       version: "1.0.0",
       payloadSchema: inquiryStatusChangedPayloadSchema,
+      visibility: "internal",
+      audit: { sourceModule: "relationships", category: "domain" },
+    },
+    {
+      id: "@voyant-travel/relationships#event.inquiry.first-response-overdue",
+      eventType: "inquiry.first_response_overdue",
+      version: "1.0.0",
+      payloadSchema: {
+        type: "object",
+        required: ["id", "firstResponseDueAt"],
+        properties: {
+          id: { type: "string" },
+          firstResponseDueAt: { type: "string", format: "date-time" },
+        },
+        additionalProperties: false,
+      },
       visibility: "internal",
       audit: { sourceModule: "relationships", category: "domain" },
     },

@@ -35,6 +35,10 @@ export const STAFF_ALERT_EVENT_KEYS = [
   "staff.invoice.settled",
   "staff.contract.signed",
   "staff.customer-signal.created",
+  "staff.inquiry.created",
+  "staff.inquiry.assigned",
+  "staff.inquiry.first-response-overdue",
+  "staff.inquiry.converted",
 ] as const
 
 export type StaffAlertEventKey = (typeof STAFF_ALERT_EVENT_KEYS)[number]
@@ -162,6 +166,18 @@ export interface StaffCustomerSignalCreatedContext extends StaffAlertContextBase
   notes: string | null
 }
 
+export type StaffInquiryAlertKind = "created" | "assigned" | "first_response_overdue" | "converted"
+
+export interface StaffInquiryContext extends StaffAlertContextBase {
+  inquiryId: string
+  alertKind: StaffInquiryAlertKind
+  subject: string
+  contact: StaffAlertParty | null
+  source: string
+  status: string
+  firstResponseDueAt: string | null
+}
+
 /** Context payload keyed by alert. The template for a key receives exactly this. */
 export interface StaffAlertContextMap {
   "staff.booking.confirmed": StaffBookingConfirmedContext
@@ -172,6 +188,10 @@ export interface StaffAlertContextMap {
   "staff.invoice.settled": StaffInvoiceSettledContext
   "staff.contract.signed": StaffContractSignedContext
   "staff.customer-signal.created": StaffCustomerSignalCreatedContext
+  "staff.inquiry.created": StaffInquiryContext
+  "staff.inquiry.assigned": StaffInquiryContext
+  "staff.inquiry.first-response-overdue": StaffInquiryContext
+  "staff.inquiry.converted": StaffInquiryContext
 }
 
 export type StaffAlertContext = StaffAlertContextMap[StaffAlertEventKey]
@@ -284,6 +304,42 @@ export const STAFF_ALERT_DEFINITIONS = [
     supportsAssigneeRouting: true,
     defaultRoles: ["owner", "admin", "member"],
     templateSlug: "staff.customer-signal.created",
+  },
+  {
+    key: "staff.inquiry.created",
+    eventType: "inquiry.created",
+    group: "sales",
+    defaultEnabled: false,
+    supportsAssigneeRouting: false,
+    defaultRoles: ["owner", "admin", "member"],
+    templateSlug: "staff.inquiry.created",
+  },
+  {
+    key: "staff.inquiry.assigned",
+    eventType: "inquiry.assigned",
+    group: "sales",
+    defaultEnabled: false,
+    supportsAssigneeRouting: true,
+    defaultRoles: ["owner", "admin", "member"],
+    templateSlug: "staff.inquiry.assigned",
+  },
+  {
+    key: "staff.inquiry.first-response-overdue",
+    eventType: "inquiry.first_response_overdue",
+    group: "sales",
+    defaultEnabled: false,
+    supportsAssigneeRouting: true,
+    defaultRoles: ["owner", "admin", "member"],
+    templateSlug: "staff.inquiry.first-response-overdue",
+  },
+  {
+    key: "staff.inquiry.converted",
+    eventType: "inquiry.converted",
+    group: "sales",
+    defaultEnabled: false,
+    supportsAssigneeRouting: true,
+    defaultRoles: ["owner", "admin", "member"],
+    templateSlug: "staff.inquiry.converted",
   },
 ] as const satisfies ReadonlyArray<StaffAlertDefinition>
 

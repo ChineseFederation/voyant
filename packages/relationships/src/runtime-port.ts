@@ -3,6 +3,11 @@ import type { AnyDrizzleDb } from "@voyant-travel/db"
 
 import type { RelationshipsRouteRuntimeOptions } from "./route-runtime.js"
 
+export {
+  type RelationshipsInquiryOverdueJobRuntime,
+  relationshipsInquiryOverdueJobRuntimePort,
+} from "./inquiry-overdue-job-runtime-port.js"
+
 export interface RelationshipsMiceRuntime {
   personExists(db: unknown, personId: string): Promise<boolean>
 }

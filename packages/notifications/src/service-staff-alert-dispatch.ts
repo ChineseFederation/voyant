@@ -145,6 +145,13 @@ function targetFor(
       // in `target_id` where the ledger can still be filtered on it.
       return { ...empty, targetType: "other", targetId: typed.signalId }
     }
+    case "staff.inquiry.created":
+    case "staff.inquiry.assigned":
+    case "staff.inquiry.first-response-overdue":
+    case "staff.inquiry.converted": {
+      const typed = context as StaffAlertContextMap["staff.inquiry.created"]
+      return { ...empty, targetType: "other", targetId: typed.inquiryId }
+    }
     default: {
       const exhaustive: never = eventKey
       throw new Error(`No delivery target mapping for "${String(exhaustive)}".`)
