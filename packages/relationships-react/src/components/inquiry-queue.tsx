@@ -23,7 +23,7 @@ import {
   TableHeader,
   TableRow,
 } from "@voyant-travel/ui/components"
-import { useCrmUiMessagesOrDefault } from "../i18n/index.js"
+import { useCrmUiI18nOrDefault } from "../i18n/index.js"
 import { inquiryPageState } from "../inquiry-ui-model.js"
 
 export type InquirySavedView = InquiryListQueryInput["view"]
@@ -83,9 +83,6 @@ const statuses: InquiryStatus[] = [
 const priorities: InquiryPriority[] = ["low", "normal", "high", "urgent"]
 const kinds: InquiryKind[] = ["product", "custom_trip", "general"]
 
-const formatDate = (value: string | null) =>
-  value ? new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(new Date(value)) : "—"
-
 export function InquiryQueue({
   inquiries,
   filters,
@@ -99,9 +96,9 @@ export function InquiryQueue({
   isPending,
   error,
 }: InquiryQueueProps) {
-  const i18n = useCrmUiMessagesOrDefault()
-  const messages = i18n.inquiryQueue
-  const labels = i18n.inquiryLabels
+  const i18n = useCrmUiI18nOrDefault()
+  const messages = i18n.messages.inquiryQueue
+  const labels = i18n.messages.inquiryLabels
   const patch = (next: Partial<InquiryQueueFilters>) => onFiltersChange({ ...filters, ...next })
   const page = inquiryPageState(total, limit, offset)
 
@@ -247,7 +244,9 @@ export function InquiryQueue({
                           : ""
                       }
                     >
-                      {formatDate(inquiry.nextActionAt)}
+                      {inquiry.nextActionAt
+                        ? i18n.formatDate(inquiry.nextActionAt, { dateStyle: "medium" })
+                        : "—"}
                     </TableCell>
                   </TableRow>
                 ))
@@ -258,7 +257,7 @@ export function InquiryQueue({
       )}
       <div className="flex items-center justify-between gap-3">
         <span className="text-sm text-muted-foreground">
-          {i18n.common.pageSummary
+          {i18n.messages.common.pageSummary
             .replace("{shown}", String(Math.min(offset + inquiries.length, total)))
             .replace("{total}", String(total))}
         </span>
@@ -269,7 +268,7 @@ export function InquiryQueue({
             disabled={!page.hasPrevious || isPending}
             onClick={() => onPageChange(page.previousOffset)}
           >
-            {i18n.common.previous}
+            {i18n.messages.common.previous}
           </button>
           <button
             type="button"
@@ -277,7 +276,7 @@ export function InquiryQueue({
             disabled={!page.hasNext || isPending}
             onClick={() => onPageChange(page.nextOffset)}
           >
-            {i18n.common.next}
+            {i18n.messages.common.next}
           </button>
         </div>
       </div>

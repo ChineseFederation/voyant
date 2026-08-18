@@ -24,7 +24,7 @@ import {
 } from "@voyant-travel/ui/components"
 import { ArrowLeft, CalendarClock, UserRound } from "lucide-react"
 import { useState } from "react"
-import { useCrmUiMessagesOrDefault } from "../i18n/index.js"
+import { useCrmUiI18nOrDefault } from "../i18n/index.js"
 import type {
   InquiryProposalConversionOptions,
   InquiryProposalConversionOutcome,
@@ -60,17 +60,11 @@ const closeOutcomes: InquiryCloseOutcome[] = [
   "other",
 ]
 const dateTimeValue = (value: string | null) => (value ? value.slice(0, 16) : "")
-const formatDateTime = (value: string | null) =>
-  value
-    ? new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(
-        new Date(value),
-      )
-    : "—"
-
 export function InquiryWorkspace(props: InquiryWorkspaceProps) {
   const { inquiry } = props
-  const messages = useCrmUiMessagesOrDefault().inquiryDetail
-  const labels = useCrmUiMessagesOrDefault().inquiryLabels
+  const i18n = useCrmUiI18nOrDefault()
+  const messages = i18n.messages.inquiryDetail
+  const labels = i18n.messages.inquiryLabels
   const [summary, setSummary] = useState(inquiry.internalSummary ?? "")
   const [nextActionAt, setNextActionAt] = useState(dateTimeValue(inquiry.nextActionAt))
   const [ownerId, setOwnerId] = useState(inquiry.ownerId ?? "")
@@ -343,7 +337,10 @@ export function InquiryWorkspace(props: InquiryWorkspaceProps) {
               <div className="flex items-center gap-2">
                 <CalendarClock className="size-4" />
                 <span>
-                  {messages.firstResponseDue}: {formatDateTime(inquiry.firstResponseDueAt)}
+                  {messages.firstResponseDue}:{" "}
+                  {inquiry.firstResponseDueAt
+                    ? i18n.formatDateTime(inquiry.firstResponseDueAt)
+                    : "—"}
                 </span>
               </div>
               <div className="flex gap-2">
