@@ -7051,15 +7051,33 @@ export interface operations {
     }
     requestBody: {
       content: {
-        "application/json": {
-          /** @enum {string} */
-          kind: "proposal"
-          idempotencyKey: string
-          pipelineId?: string | null
-          stageId?: string | null
-          /** @default false */
-          keepInquiryOpen?: boolean
-        }
+        "application/json":
+          | {
+              /** @enum {string} */
+              kind: "proposal"
+              idempotencyKey: string
+              pipelineId?: string | null
+              stageId?: string | null
+              /** @default false */
+              keepInquiryOpen?: boolean
+            }
+          | {
+              /** @enum {string} */
+              kind: "booking_session"
+              idempotencyKey: string
+              targetLinkId: string
+              channelId?: string | null
+              selection?: {
+                [key: string]: unknown
+              }
+              /** @default false */
+              keepInquiryOpen?: boolean
+            }
+          | {
+              /** @enum {string} */
+              kind: "booking"
+              idempotencyKey: string
+            }
       }
     }
     responses: {
@@ -7069,23 +7087,39 @@ export interface operations {
           [name: string]: unknown
         }
         content: {
-          "application/json": {
-            data: {
-              /** @enum {string} */
-              kind: "created" | "replayed"
-              conversionId: string
-              inquiryId: string
-              /** @enum {string} */
-              inquiryStatus: "qualified" | "converted"
-              target: {
-                /** @enum {string} */
-                kind: "proposal"
-                id: string
-                pipelineId: string
-                stageId: string
+          "application/json":
+            | {
+                data: {
+                  /** @enum {string} */
+                  kind: "created" | "replayed"
+                  conversionId: string
+                  inquiryId: string
+                  /** @enum {string} */
+                  inquiryStatus: "qualified" | "converted"
+                  target: {
+                    /** @enum {string} */
+                    kind: "proposal"
+                    id: string
+                    pipelineId: string
+                    stageId: string
+                  }
+                }
               }
-            }
-          }
+            | {
+                data: {
+                  /** @enum {string} */
+                  kind: "created" | "replayed"
+                  conversionId: string
+                  inquiryId: string
+                  /** @enum {string} */
+                  inquiryStatus: "qualified" | "converted"
+                  target: {
+                    /** @enum {string} */
+                    kind: "booking_session"
+                    id: string
+                  }
+                }
+              }
         }
       }
       /** @description Created Inquiry conversion */
@@ -7094,23 +7128,39 @@ export interface operations {
           [name: string]: unknown
         }
         content: {
-          "application/json": {
-            data: {
-              /** @enum {string} */
-              kind: "created" | "replayed"
-              conversionId: string
-              inquiryId: string
-              /** @enum {string} */
-              inquiryStatus: "qualified" | "converted"
-              target: {
-                /** @enum {string} */
-                kind: "proposal"
-                id: string
-                pipelineId: string
-                stageId: string
+          "application/json":
+            | {
+                data: {
+                  /** @enum {string} */
+                  kind: "created" | "replayed"
+                  conversionId: string
+                  inquiryId: string
+                  /** @enum {string} */
+                  inquiryStatus: "qualified" | "converted"
+                  target: {
+                    /** @enum {string} */
+                    kind: "proposal"
+                    id: string
+                    pipelineId: string
+                    stageId: string
+                  }
+                }
               }
-            }
-          }
+            | {
+                data: {
+                  /** @enum {string} */
+                  kind: "created" | "replayed"
+                  conversionId: string
+                  inquiryId: string
+                  /** @enum {string} */
+                  inquiryStatus: "qualified" | "converted"
+                  target: {
+                    /** @enum {string} */
+                    kind: "booking_session"
+                    id: string
+                  }
+                }
+              }
         }
       }
       /** @description Inquiry not found */
@@ -7124,7 +7174,7 @@ export interface operations {
           }
         }
       }
-      /** @description Inquiry lifecycle conflict or Proposal refusal */
+      /** @description Inquiry lifecycle conflict or target-owner refusal */
       409: {
         headers: {
           [name: string]: unknown
@@ -7146,10 +7196,21 @@ export interface operations {
               }
             | {
                 error: string
+                /** @enum {string} */
+                reason:
+                  | "booking_session_required"
+                  | "target_not_found"
+                  | "unsupported_target"
+                  | "idempotency_conflict"
+                  | "invalid_selection"
+                  | "target_unavailable"
+              }
+            | {
+                error: string
               }
         }
       }
-      /** @description Proposal conversion unavailable */
+      /** @description Conversion owner unavailable */
       503: {
         headers: {
           [name: string]: unknown

@@ -14352,31 +14352,81 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "properties": {
-                  "kind": {
-                    "type": "string",
-                    "enum": ["proposal"]
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": ["proposal"]
+                      },
+                      "idempotencyKey": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 255
+                      },
+                      "pipelineId": {
+                        "type": ["string", "null"],
+                        "minLength": 1
+                      },
+                      "stageId": {
+                        "type": ["string", "null"],
+                        "minLength": 1
+                      },
+                      "keepInquiryOpen": {
+                        "type": "boolean",
+                        "default": false
+                      }
+                    },
+                    "required": ["kind", "idempotencyKey"]
                   },
-                  "idempotencyKey": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 255
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": ["booking_session"]
+                      },
+                      "idempotencyKey": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 255
+                      },
+                      "targetLinkId": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "channelId": {
+                        "type": ["string", "null"],
+                        "minLength": 1
+                      },
+                      "selection": {
+                        "type": "object",
+                        "additionalProperties": {}
+                      },
+                      "keepInquiryOpen": {
+                        "type": "boolean",
+                        "default": false
+                      }
+                    },
+                    "required": ["kind", "idempotencyKey", "targetLinkId"]
                   },
-                  "pipelineId": {
-                    "type": ["string", "null"],
-                    "minLength": 1
-                  },
-                  "stageId": {
-                    "type": ["string", "null"],
-                    "minLength": 1
-                  },
-                  "keepInquiryOpen": {
-                    "type": "boolean",
-                    "default": false
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": ["booking"]
+                      },
+                      "idempotencyKey": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 255
+                      }
+                    },
+                    "required": ["kind", "idempotencyKey"]
                   }
-                },
-                "required": ["kind", "idempotencyKey"]
+                ]
               }
             }
           }
@@ -14387,49 +14437,104 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "data": {
+                  "anyOf": [
+                    {
                       "type": "object",
                       "properties": {
-                        "kind": {
-                          "type": "string",
-                          "enum": ["created", "replayed"]
-                        },
-                        "conversionId": {
-                          "type": "string"
-                        },
-                        "inquiryId": {
-                          "type": "string"
-                        },
-                        "inquiryStatus": {
-                          "type": "string",
-                          "enum": ["qualified", "converted"]
-                        },
-                        "target": {
+                        "data": {
                           "type": "object",
                           "properties": {
                             "kind": {
                               "type": "string",
-                              "enum": ["proposal"]
+                              "enum": ["created", "replayed"]
                             },
-                            "id": {
+                            "conversionId": {
                               "type": "string"
                             },
-                            "pipelineId": {
+                            "inquiryId": {
                               "type": "string"
                             },
-                            "stageId": {
-                              "type": "string"
+                            "inquiryStatus": {
+                              "type": "string",
+                              "enum": ["qualified", "converted"]
+                            },
+                            "target": {
+                              "type": "object",
+                              "properties": {
+                                "kind": {
+                                  "type": "string",
+                                  "enum": ["proposal"]
+                                },
+                                "id": {
+                                  "type": "string"
+                                },
+                                "pipelineId": {
+                                  "type": "string"
+                                },
+                                "stageId": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": ["kind", "id", "pipelineId", "stageId"]
                             }
                           },
-                          "required": ["kind", "id", "pipelineId", "stageId"]
+                          "required": [
+                            "kind",
+                            "conversionId",
+                            "inquiryId",
+                            "inquiryStatus",
+                            "target"
+                          ]
                         }
                       },
-                      "required": ["kind", "conversionId", "inquiryId", "inquiryStatus", "target"]
+                      "required": ["data"]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "kind": {
+                              "type": "string",
+                              "enum": ["created", "replayed"]
+                            },
+                            "conversionId": {
+                              "type": "string"
+                            },
+                            "inquiryId": {
+                              "type": "string"
+                            },
+                            "inquiryStatus": {
+                              "type": "string",
+                              "enum": ["qualified", "converted"]
+                            },
+                            "target": {
+                              "type": "object",
+                              "properties": {
+                                "kind": {
+                                  "type": "string",
+                                  "enum": ["booking_session"]
+                                },
+                                "id": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": ["kind", "id"]
+                            }
+                          },
+                          "required": [
+                            "kind",
+                            "conversionId",
+                            "inquiryId",
+                            "inquiryStatus",
+                            "target"
+                          ]
+                        }
+                      },
+                      "required": ["data"]
                     }
-                  },
-                  "required": ["data"]
+                  ]
                 }
               }
             }
@@ -14439,49 +14544,104 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "data": {
+                  "anyOf": [
+                    {
                       "type": "object",
                       "properties": {
-                        "kind": {
-                          "type": "string",
-                          "enum": ["created", "replayed"]
-                        },
-                        "conversionId": {
-                          "type": "string"
-                        },
-                        "inquiryId": {
-                          "type": "string"
-                        },
-                        "inquiryStatus": {
-                          "type": "string",
-                          "enum": ["qualified", "converted"]
-                        },
-                        "target": {
+                        "data": {
                           "type": "object",
                           "properties": {
                             "kind": {
                               "type": "string",
-                              "enum": ["proposal"]
+                              "enum": ["created", "replayed"]
                             },
-                            "id": {
+                            "conversionId": {
                               "type": "string"
                             },
-                            "pipelineId": {
+                            "inquiryId": {
                               "type": "string"
                             },
-                            "stageId": {
-                              "type": "string"
+                            "inquiryStatus": {
+                              "type": "string",
+                              "enum": ["qualified", "converted"]
+                            },
+                            "target": {
+                              "type": "object",
+                              "properties": {
+                                "kind": {
+                                  "type": "string",
+                                  "enum": ["proposal"]
+                                },
+                                "id": {
+                                  "type": "string"
+                                },
+                                "pipelineId": {
+                                  "type": "string"
+                                },
+                                "stageId": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": ["kind", "id", "pipelineId", "stageId"]
                             }
                           },
-                          "required": ["kind", "id", "pipelineId", "stageId"]
+                          "required": [
+                            "kind",
+                            "conversionId",
+                            "inquiryId",
+                            "inquiryStatus",
+                            "target"
+                          ]
                         }
                       },
-                      "required": ["kind", "conversionId", "inquiryId", "inquiryStatus", "target"]
+                      "required": ["data"]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "kind": {
+                              "type": "string",
+                              "enum": ["created", "replayed"]
+                            },
+                            "conversionId": {
+                              "type": "string"
+                            },
+                            "inquiryId": {
+                              "type": "string"
+                            },
+                            "inquiryStatus": {
+                              "type": "string",
+                              "enum": ["qualified", "converted"]
+                            },
+                            "target": {
+                              "type": "object",
+                              "properties": {
+                                "kind": {
+                                  "type": "string",
+                                  "enum": ["booking_session"]
+                                },
+                                "id": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": ["kind", "id"]
+                            }
+                          },
+                          "required": [
+                            "kind",
+                            "conversionId",
+                            "inquiryId",
+                            "inquiryStatus",
+                            "target"
+                          ]
+                        }
+                      },
+                      "required": ["data"]
                     }
-                  },
-                  "required": ["data"]
+                  ]
                 }
               }
             }
@@ -14503,7 +14663,7 @@
             }
           },
           "409": {
-            "description": "Inquiry lifecycle conflict or Proposal refusal",
+            "description": "Inquiry lifecycle conflict or target-owner refusal",
             "content": {
               "application/json": {
                 "schema": {
@@ -14535,6 +14695,26 @@
                       "properties": {
                         "error": {
                           "type": "string"
+                        },
+                        "reason": {
+                          "type": "string",
+                          "enum": [
+                            "booking_session_required",
+                            "target_not_found",
+                            "unsupported_target",
+                            "idempotency_conflict",
+                            "invalid_selection",
+                            "target_unavailable"
+                          ]
+                        }
+                      },
+                      "required": ["error", "reason"]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "error": {
+                          "type": "string"
                         }
                       },
                       "required": ["error"]
@@ -14545,7 +14725,7 @@
             }
           },
           "503": {
-            "description": "Proposal conversion unavailable",
+            "description": "Conversion owner unavailable",
             "content": {
               "application/json": {
                 "schema": {
