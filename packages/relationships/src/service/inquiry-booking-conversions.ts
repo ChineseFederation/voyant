@@ -36,11 +36,18 @@ export async function convertInquiryToBookingTarget(
   if (command.kind === "booking") {
     throw new InquiryBookingConversionRefusedError("booking_session_required")
   }
+  if (command.keepInquiryOpen && !command.nextActionAt) {
+    throw new InquiryServiceError(
+      "INQUIRY_NEXT_ACTION_REQUIRED",
+      "An assisted Booking Session conversion requires a next action",
+    )
+  }
   const commandFingerprint = await sha256({
     targetLinkId: command.targetLinkId,
     channelId: command.channelId ?? null,
     selection: command.selection ?? null,
     keepInquiryOpen: command.keepInquiryOpen,
+    nextActionAt: command.nextActionAt ?? null,
   })
 
   return db.transaction(async (tx) => {
@@ -116,7 +123,7 @@ export async function convertInquiryToBookingTarget(
       throw new InquiryBookingConversionRefusedError(outcome.reason)
     }
 
-    const inquiryStatus = command.keepInquiryOpen ? "qualified" : "converted"
+    const inquiryStatus = command.keepInquiryOpen ? "in_progress" : "converted"
     const [conversion] = await tx
       .insert(inquiryConversions)
       .values({
@@ -141,7 +148,7 @@ export async function convertInquiryToBookingTarget(
       .set({
         status: inquiryStatus,
         convertedAt: command.keepInquiryOpen ? inquiry.convertedAt : now,
-        nextActionAt: command.keepInquiryOpen ? inquiry.nextActionAt : null,
+        nextActionAt: command.keepInquiryOpen ? new Date(command.nextActionAt!) : null,
         updatedAt: now,
       })
       .where(eq(inquiries.id, inquiryId))
@@ -184,7 +191,7 @@ function conversionResult(
     kind,
     conversionId: conversion.id,
     inquiryId: conversion.inquiryId,
-    inquiryStatus: conversion.inquiryStatus as "qualified" | "converted",
+    inquiryStatus: conversion.inquiryStatus as "in_progress" | "converted",
     target: { kind: "booking_session" as const, id: conversion.targetId },
   }
 }

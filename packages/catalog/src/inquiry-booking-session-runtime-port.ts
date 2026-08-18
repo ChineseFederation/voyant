@@ -11,6 +11,8 @@ export type InquiryBookingSessionCreateOutcome =
   | { kind: "created" | "replayed"; bookingSessionId: string }
   | { kind: "refused"; reason: InquiryBookingSessionRefusalReason }
 
+export const CATALOG_BOOKING_SESSION_CREATED_EVENT = "catalog.booking-session.created"
+
 /** Catalog-owned, import-cheap owner command used by Inquiry conversion adapters. */
 export interface CatalogInquiryBookingSessionRuntime {
   createForInquiry(input: {

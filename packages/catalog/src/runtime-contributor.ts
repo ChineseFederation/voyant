@@ -259,7 +259,10 @@ export function createCatalogRuntimePortContribution(
       return services.ensureSourceRegistry(host.primitives.env(bindings))
     },
   }
-  const resolveBookingSessionModule = async (dbOverride?: AnyDrizzleDb) => {
+  const resolveBookingSessionModule = async (
+    dbOverride?: AnyDrizzleDb,
+    options: { emitAnalytics?: boolean } = {},
+  ) => {
     const db = (dbOverride ?? host.primitives.database.resolve(undefined)) as PostgresJsDatabase
     const runtime = await contribution
     const services = await runtime.services
@@ -267,7 +270,7 @@ export function createCatalogRuntimePortContribution(
     return createProductionBookingSessionModule({
       db,
       ...createBookingSessionServiceRuntimes(bookingSessionServiceRuntimes, undefined),
-      ...(analytics ? { analytics } : {}),
+      ...(analytics && options.emitAnalytics !== false ? { analytics } : {}),
       resolvePromotionEvaluator: (sessionDb) => commerce.createPromotionEvaluator?.(sessionDb),
       ...(commerce.resolveAncillaryOffers
         ? { resolveAncillaryOffers: commerce.resolveAncillaryOffers }
@@ -350,8 +353,11 @@ export function createCatalogRuntimePortContribution(
         )
       },
     } satisfies CatalogCompositeBookingSessionRuntime,
-    [catalogInquiryBookingSessionRuntimePort.id]: createCatalogInquiryBookingSessionRuntime(
-      resolveBookingSessionModule,
+    [catalogInquiryBookingSessionRuntimePort.id]: createCatalogInquiryBookingSessionRuntime((db) =>
+      // The coordinating Relationships transaction persists a Catalog-owned
+      // creation signal to the outbox. The immediate analytics decorator is
+      // disabled here so a later rollback cannot publish a phantom Session.
+      resolveBookingSessionModule(db, { emitAnalytics: false }),
     ) satisfies CatalogInquiryBookingSessionRuntime,
     [catalogRuntimeServicesPort.id]: contribution.then((runtime) => runtime.services),
     [bookingsSupplierAmendmentRuntimePort.id]: createCatalogBookingAmendmentRuntime({

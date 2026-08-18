@@ -20,14 +20,15 @@ import {
   catalogOffersRuntimePort,
   catalogSearchRuntimePort,
 } from "./api-runtime-ports.js"
+import { catalogBookingSessionCreatedAnalyticsSubscriberDeclaration } from "./booking-session-created-analytics-subscriber.js"
 import { catalogBookingSessionMaintenanceJobRuntimePort } from "./booking-session-maintenance-job-runtime-port.js"
 import { catalogBookingSessionSettlementRuntimePort } from "./booking-session-settlement-runtime-port.js"
 import { catalogBookingSnapshotSubscriberDeclaration } from "./booking-snapshot-subscriber-declaration.js"
 import { catalogCompositeBookingSessionRuntimePort } from "./composite-booking-session-runtime-port.js"
-import { catalogInquiryBookingSessionRuntimePort } from "./inquiry-booking-session-runtime-port.js"
 import { catalogContentRuntimePort } from "./content-runtime-port.js"
 import { catalogIndexSubscriberDeclarations } from "./index-subscriber-declarations.js"
 import { catalogIndexerProviderPort } from "./indexer/provider.js"
+import { catalogInquiryBookingSessionRuntimePort } from "./inquiry-booking-session-runtime-port.js"
 import { catalogReindexJobRuntimePort } from "./reindex-job-runtime-port.js"
 import {
   catalogAccommodationsRuntimeExtensionPort,
@@ -266,6 +267,13 @@ export const catalogVoyantModule = defineModule({
     },
   ],
   subscribers: [
+    {
+      ...catalogBookingSessionCreatedAnalyticsSubscriberDeclaration,
+      runtime: {
+        entry: "@voyant-travel/catalog/booking-session-created-analytics-subscriber",
+        export: "createCatalogBookingSessionCreatedAnalyticsSubscriberGraphRuntime",
+      },
+    },
     ...catalogIndexSubscriberDeclarations.map((subscriber) => ({
       ...subscriber,
       runtime: {

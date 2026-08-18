@@ -1,9 +1,13 @@
 import type { BookingSessionModule } from "@voyant-travel/catalog/booking-engine"
 import { bookingSessionsTable } from "@voyant-travel/catalog/booking-engine/sessions-schema"
+import { insertOutboxEvents } from "@voyant-travel/db/outbox"
 import { eq, sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
-
-import type { CatalogInquiryBookingSessionRuntime } from "./inquiry-booking-session-runtime-port.js"
+import { bookingSessionCreateIdempotencyKey } from "./booking-engine/sessions-service.js"
+import {
+  CATALOG_BOOKING_SESSION_CREATED_EVENT,
+  type CatalogInquiryBookingSessionRuntime,
+} from "./inquiry-booking-session-runtime-port.js"
 
 type ResolveBookingSessionModule = (db: PostgresJsDatabase) => Promise<BookingSessionModule>
 
@@ -15,13 +19,25 @@ export function createCatalogInquiryBookingSessionRuntime(
     async createForInquiry(input) {
       const db = input.db as PostgresJsDatabase
       return db.transaction(async (tx) => {
+        const access = {
+          actorKind: "staff" as const,
+          principalId: input.actorId,
+          organizationId: input.organizationId ?? undefined,
+          ...(input.channelId ? { storefront: { channelId: input.channelId } } : {}),
+          staffAuthority: { admitted: true as const, reason: "inquiry_conversion" },
+        }
+        const persistedIdempotencyKey = await bookingSessionCreateIdempotencyKey(
+          input.idempotencyKey,
+          access,
+          undefined,
+        )
         await tx.execute(
           sql`SELECT pg_advisory_xact_lock(hashtextextended(${`catalog:inquiry-booking-session:${input.idempotencyKey}`}, 0))`,
         )
         const [existing] = await tx
           .select({ id: bookingSessionsTable.id })
           .from(bookingSessionsTable)
-          .where(eq(bookingSessionsTable.createIdempotencyKey, input.idempotencyKey))
+          .where(eq(bookingSessionsTable.createIdempotencyKey, persistedIdempotencyKey))
           .limit(1)
         const module = await resolveBookingSessionModule(tx)
         const outcome = await module.createSession(
@@ -30,17 +46,29 @@ export function createCatalogInquiryBookingSessionRuntime(
             target: input.target,
             selection: input.selection,
           },
-          {
-            actorKind: "staff",
-            principalId: input.actorId,
-            organizationId: input.organizationId ?? undefined,
-            ...(input.channelId ? { storefront: { channelId: input.channelId } } : {}),
-            staffAuthority: { admitted: true, reason: "inquiry_conversion" },
-          },
+          access,
         )
         if (outcome.kind === "session_created") {
+          if (existing) return { kind: "replayed", bookingSessionId: outcome.session.id }
+          const createdSignal = {
+            bookingSessionId: outcome.session.id,
+            scope: outcome.session.scope.locale,
+            market: outcome.session.scope.market,
+            channel: "operator" as const,
+          }
+          await insertOutboxEvents(tx, [
+            {
+              name: CATALOG_BOOKING_SESSION_CREATED_EVENT,
+              data: createdSignal,
+              metadata: {
+                category: "domain",
+                source: "catalog",
+                eventId: `evt_catalog_booking_session_created_${outcome.session.id}`,
+              },
+            },
+          ])
           return {
-            kind: existing ? "replayed" : "created",
+            kind: "created",
             bookingSessionId: outcome.session.id,
           }
         }

@@ -131,6 +131,9 @@ export function InquiryWorkspace(props: InquiryWorkspaceProps) {
       const outcome = await props.onConvertToBookingSession({
         targetLinkId: bookingTargetLinkId,
         keepInquiryOpen,
+        ...(keepInquiryOpen && nextActionAt
+          ? { nextActionAt: new Date(nextActionAt).toISOString() }
+          : {}),
       })
       if (outcome.kind === "refused") {
         setBookingConversionError(messages.bookingSessionRefusals[outcome.reason])
@@ -267,7 +270,12 @@ export function InquiryWorkspace(props: InquiryWorkspaceProps) {
               ) : null}
               <Button
                 className="w-full"
-                disabled={!canConvert || !bookingTargetLinkId || props.isCreatingBookingSession}
+                disabled={
+                  !canConvert ||
+                  !bookingTargetLinkId ||
+                  (keepInquiryOpen && !nextActionAt) ||
+                  props.isCreatingBookingSession
+                }
                 onClick={() => void convertToBookingSession()}
               >
                 {messages.createBookingSession}

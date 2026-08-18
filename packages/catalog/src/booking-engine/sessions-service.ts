@@ -938,7 +938,7 @@ export function createBookingSessionModule(
     const scope = resolveSessionScope(input.scope)
     const createIdempotencyKey = origin
       ? `accepted-proposal-version:${origin.proposalVersionId}`
-      : await scopedCreateIdempotencyKey(input.idempotencyKey, access, capabilityHash)
+      : await bookingSessionCreateIdempotencyKey(input.idempotencyKey, access, capabilityHash)
     const createRequestFingerprint = await stableFingerprint({
       actorKind: access.actorKind,
       principalId: access.actorKind === "anonymous" ? undefined : access.principalId,
@@ -3443,7 +3443,8 @@ async function hashCapability(capability: string): Promise<string> {
   return sha256Hex(capability)
 }
 
-async function scopedCreateIdempotencyKey(
+/** Exact owner authority for the idempotency key persisted on a Booking Session. */
+export async function bookingSessionCreateIdempotencyKey(
   idempotencyKey: string,
   access: BookingSessionAccessContext,
   capabilityHash: string | undefined,

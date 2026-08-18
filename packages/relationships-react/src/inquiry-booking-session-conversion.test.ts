@@ -54,6 +54,24 @@ describe("Inquiry Booking Session conversion attempt", () => {
     })
   })
 
+  it("refuses changed retry inputs instead of silently resubmitting the stale target", async () => {
+    const execute = vi.fn(async () => {
+      throw new Error("network")
+    })
+    const attempt = createInquiryBookingSessionConversionAttempt({
+      execute,
+      createIdempotencyKey: () => "stable-key",
+    })
+    await expect(
+      attempt.run("inq_1", { targetLinkId: "link_old", keepInquiryOpen: false }),
+    ).rejects.toThrow("network")
+
+    await expect(
+      attempt.run("inq_1", { targetLinkId: "link_new", keepInquiryOpen: false }),
+    ).resolves.toMatchObject({ kind: "refused", reason: "idempotency_conflict" })
+    expect(execute).toHaveBeenCalledOnce()
+  })
+
   it("encodes paths and distinguishes an unavailable provider", () => {
     expect(inquiryBookingSessionConversionPath("inquiry/one")).toBe(
       "/v1/admin/relationships/inquiries/inquiry%2Fone/convert",

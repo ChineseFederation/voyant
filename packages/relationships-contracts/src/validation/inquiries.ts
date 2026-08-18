@@ -231,14 +231,25 @@ export const convertInquiryToProposalSchema = z.object({
   keepInquiryOpen: z.boolean().default(false),
 })
 
-export const convertInquiryToBookingSessionSchema = z.object({
-  kind: z.literal("booking_session"),
-  idempotencyKey: z.string().trim().min(1).max(255),
-  targetLinkId: z.string().min(1),
-  channelId: z.string().min(1).nullable().optional(),
-  selection: z.record(z.string(), z.unknown()).optional(),
-  keepInquiryOpen: z.boolean().default(false),
-})
+export const convertInquiryToBookingSessionSchema = z
+  .object({
+    kind: z.literal("booking_session"),
+    idempotencyKey: z.string().trim().min(1).max(255),
+    targetLinkId: z.string().min(1),
+    channelId: z.string().min(1).nullable().optional(),
+    selection: z.record(z.string(), z.unknown()).optional(),
+    keepInquiryOpen: z.boolean().default(false),
+    nextActionAt: z.string().datetime().nullable().optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.keepInquiryOpen && !value.nextActionAt) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["nextActionAt"],
+        message: "An assisted Booking Session conversion requires a next action",
+      })
+    }
+  })
 
 export const convertInquiryToBookingSchema = z.object({
   kind: z.literal("booking"),
@@ -265,7 +276,7 @@ export const inquiryBookingConversionResultSchema = z.object({
     kind: z.enum(["created", "replayed"]),
     conversionId: z.string(),
     inquiryId: z.string(),
-    inquiryStatus: z.enum(["qualified", "converted"]),
+    inquiryStatus: z.enum(["in_progress", "converted"]),
     target: z.object({ kind: z.literal("booking_session"), id: z.string() }),
   }),
 })

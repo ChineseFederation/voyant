@@ -4,6 +4,7 @@ import { eventOutboxTable } from "@voyant-travel/db/schema"
 import type { ProposalInquiryConversionRuntime } from "@voyant-travel/proposals-contracts/inquiry-conversion"
 import { eq } from "drizzle-orm"
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest"
+import { createCatalogInquiryBookingSessionRuntime } from "../../../catalog/src/inquiry-booking-session-runtime.js"
 
 import { createProposalInquiryConversionRuntime } from "../../../proposals/src/inquiry-conversion-runtime.js"
 import { pipelines, proposals, stages } from "../../../proposals/src/schema.js"
@@ -250,11 +251,13 @@ describe.skipIf(!DB_AVAILABLE)("Inquiry Proposal conversion coordinator", () => 
   it("persists and replays one Booking Session conversion without recalling Catalog", async () => {
     const inquiryId = await qualifiedInquiry("Product booking")
     const { link, targetLinkId } = await productTarget(inquiryId)
-    const createForInquiry = vi.fn(async () => ({
-      kind: "created" as const,
-      bookingSessionId: "bks_kyoto",
+    const createSession = vi.fn(async () => ({
+      kind: "session_created" as const,
+      session: { id: "bks_kyoto", scope: { locale: "en", market: "default" } },
     }))
-    const runtime: CatalogInquiryBookingSessionRuntime = { createForInquiry }
+    const runtime = createCatalogInquiryBookingSessionRuntime(
+      async () => ({ createSession }) as never,
+    )
     const command = {
       kind: "booking_session" as const,
       idempotencyKey: "primary-session",
@@ -286,13 +289,14 @@ describe.skipIf(!DB_AVAILABLE)("Inquiry Proposal conversion coordinator", () => 
       target: { kind: "booking_session", id: "bks_kyoto" },
     })
     expect(replayed).toEqual({ ...created, kind: "replayed" })
-    expect(createForInquiry).toHaveBeenCalledOnce()
+    expect(createSession).toHaveBeenCalledOnce()
     expect(await db.select().from(inquiryConversions)).toHaveLength(1)
     expect(
       (await db.select().from(eventOutboxTable)).filter(
-        ({ name }: { name: string }) => name === "inquiry.converted",
+        ({ name }: { name: string }) =>
+          name === "inquiry.converted" || name === "catalog.booking-session.created",
       ),
-    ).toHaveLength(1)
+    ).toHaveLength(2)
   })
 
   it("rejects an idempotency key replayed with a different Booking Session payload", async () => {
@@ -310,8 +314,21 @@ describe.skipIf(!DB_AVAILABLE)("Inquiry Proposal conversion coordinator", () => 
       targetLinkId,
       selection: { partySize: 2 },
       keepInquiryOpen: true,
+      nextActionAt: "2030-01-02T10:00:00.000Z",
     }
-    await convertInquiryToBookingTarget(db, runtime, link, inquiryId, command, "user_1")
+    const assisted = await convertInquiryToBookingTarget(
+      db,
+      runtime,
+      link,
+      inquiryId,
+      command,
+      "user_1",
+    )
+    expect(assisted.inquiryStatus).toBe("in_progress")
+    await expect(relationshipsService.getInquiry(db, inquiryId)).resolves.toMatchObject({
+      status: "in_progress",
+      nextActionAt: new Date("2030-01-02T10:00:00.000Z"),
+    })
 
     await expect(
       convertInquiryToBookingTarget(
@@ -325,15 +342,46 @@ describe.skipIf(!DB_AVAILABLE)("Inquiry Proposal conversion coordinator", () => 
     ).rejects.toMatchObject({ reason: "idempotency_conflict" })
   })
 
-  it("rolls back Booking Session provenance, status, and outbox as one transaction", async () => {
-    const inquiryId = await qualifiedInquiry("Atomic booking session")
+  it("requires a next action for an assisted Booking Session conversion", async () => {
+    const inquiryId = await qualifiedInquiry("Assisted booking")
     const { link, targetLinkId } = await productTarget(inquiryId)
     const runtime: CatalogInquiryBookingSessionRuntime = {
       createForInquiry: vi.fn(async () => ({
         kind: "created" as const,
-        bookingSessionId: "bks_atomic",
+        bookingSessionId: "bks_assisted",
       })),
     }
+
+    await expect(
+      convertInquiryToBookingTarget(
+        db,
+        runtime,
+        link,
+        inquiryId,
+        {
+          kind: "booking_session",
+          idempotencyKey: "assisted-session",
+          targetLinkId,
+          keepInquiryOpen: true,
+        },
+        "user_1",
+      ),
+    ).rejects.toMatchObject({ code: "INQUIRY_NEXT_ACTION_REQUIRED" })
+    expect(runtime.createForInquiry).not.toHaveBeenCalled()
+  })
+
+  it("rolls back Booking Session provenance, status, and outbox as one transaction", async () => {
+    const inquiryId = await qualifiedInquiry("Atomic booking session")
+    const { link, targetLinkId } = await productTarget(inquiryId)
+    const runtime = createCatalogInquiryBookingSessionRuntime(
+      async () =>
+        ({
+          createSession: vi.fn(async () => ({
+            kind: "session_created" as const,
+            session: { id: "bks_atomic", scope: { locale: "en", market: "default" } },
+          })),
+        }) as never,
+    )
 
     await expect(
       convertInquiryToBookingTarget(
@@ -354,5 +402,11 @@ describe.skipIf(!DB_AVAILABLE)("Inquiry Proposal conversion coordinator", () => 
 
     expect(await db.select().from(inquiryConversions)).toHaveLength(0)
     expect((await relationshipsService.getInquiry(db, inquiryId))?.status).toBe("qualified")
+    expect(
+      (await db.select().from(eventOutboxTable)).filter(
+        ({ name }: { name: string }) =>
+          name === "inquiry.converted" || name === "catalog.booking-session.created",
+      ),
+    ).toHaveLength(0)
   })
 })

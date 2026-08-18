@@ -38,13 +38,20 @@ export function createInquiryBookingSessionConversionAttempt({
       inquiryId: string,
       options: InquiryBookingSessionConversionOptions,
     ): Promise<InquiryBookingSessionConversionOutcome> {
-      const command =
-        pendingCommands.get(inquiryId) ??
-        convertInquiryToBookingSessionSchema.parse({
-          ...options,
-          kind: "booking_session",
-          idempotencyKey: createIdempotencyKey(),
-        })
+      const pending = pendingCommands.get(inquiryId)
+      const candidate = convertInquiryToBookingSessionSchema.parse({
+        ...options,
+        kind: "booking_session",
+        idempotencyKey: pending?.idempotencyKey ?? createIdempotencyKey(),
+      })
+      if (pending && JSON.stringify(pending) !== JSON.stringify(candidate)) {
+        return {
+          kind: "refused",
+          error: "A retry is pending with different Booking Session inputs",
+          reason: "idempotency_conflict",
+        }
+      }
+      const command = pending ?? candidate
       pendingCommands.set(inquiryId, command)
       const generatedCommand: GeneratedBookingSessionConversionCommand = command
       void generatedCommand

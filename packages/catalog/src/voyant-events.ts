@@ -20,6 +20,18 @@ const catalogSourceEventPayloadSchema = {
   additionalProperties: false,
 } as const
 
+export const catalogBookingSessionCreatedPayloadSchema = {
+  type: "object",
+  required: ["bookingSessionId", "scope", "market", "channel"],
+  properties: {
+    bookingSessionId: { type: "string" },
+    scope: { type: "string" },
+    market: { type: "string" },
+    channel: { const: "operator" },
+  },
+  additionalProperties: false,
+} as const
+
 export const catalogOverlayChangedPayloadSchema = {
   type: "object",
   required: [
@@ -69,6 +81,14 @@ const catalogDriftDetectedPayloadSchema = {
 } as const
 
 export const catalogEventDeclarations = [
+  {
+    id: "@voyant-travel/catalog#event.booking-session-created",
+    eventType: "catalog.booking-session.created",
+    version: "1.0.0",
+    visibility: "internal",
+    audit: { sourceModule: "catalog", category: "domain" },
+    payloadSchema: catalogBookingSessionCreatedPayloadSchema,
+  },
   {
     id: "@voyant-travel/catalog#event.entity.created",
     eventType: "catalog.entity.created",
