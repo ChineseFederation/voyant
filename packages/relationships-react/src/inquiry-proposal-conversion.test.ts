@@ -124,6 +124,43 @@ describe("Inquiry Proposal conversion attempt", () => {
     })
   })
 
+  it.each([
+    [404, "Inquiry not found"],
+    [409, "Only a qualified inquiry can start a new conversion"],
+  ])("clears the command after a definitive generic %s response", async (status, message) => {
+    const commands: ConvertInquiryToProposalCommand[] = []
+    const execute = vi.fn(async (_inquiryId: string, command: ConvertInquiryToProposalCommand) => {
+      commands.push(command)
+      if (commands.length === 1) {
+        throw new VoyantApiError(message, status, { error: message })
+      }
+      return result("created", `proposal-${status}`)
+    })
+    const keys = [`first-${status}`, `second-${status}`]
+    const attempt = createInquiryProposalConversionAttempt({
+      execute,
+      createIdempotencyKey: () => keys.shift() ?? "unexpected-key",
+    })
+
+    await expect(attempt.run("inquiry-1", { keepInquiryOpen: false })).rejects.toMatchObject({
+      status,
+    })
+    await attempt.run("inquiry-1", { keepInquiryOpen: true })
+
+    expect(commands).toEqual([
+      {
+        kind: "proposal",
+        idempotencyKey: `first-${status}`,
+        keepInquiryOpen: false,
+      },
+      {
+        kind: "proposal",
+        idempotencyKey: `second-${status}`,
+        keepInquiryOpen: true,
+      },
+    ])
+  })
+
   it("classifies unavailable and unexpected failures for localized UI copy", () => {
     expect(inquiryProposalConversionFailureKind(new VoyantApiError("x", 503, {}))).toBe(
       "unavailable",

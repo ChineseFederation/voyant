@@ -63,12 +63,16 @@ export function createInquiryProposalConversionAttempt({
         pendingCommands.delete(inquiryId)
         return { kind: "converted", result }
       } catch (error) {
-        if (errorStatus(error) === 409) {
+        const status = errorStatus(error)
+        if (status === 409) {
           const refusal = inquiryProposalConversionRefusalSchema.safeParse(errorBody(error))
           if (refusal.success) {
             pendingCommands.delete(inquiryId)
             return { kind: "refused", ...refusal.data }
           }
+        }
+        if (typeof status === "number" && status >= 400 && status < 500) {
+          pendingCommands.delete(inquiryId)
         }
         throw error
       }
