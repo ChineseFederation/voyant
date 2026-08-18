@@ -20,15 +20,40 @@
  * Usage: node scripts/generate-api-client.mjs [--check]
  */
 import { execFile } from "node:child_process"
-import { mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
+import { createHash } from "node:crypto"
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
 import { promisify } from "node:util"
-
+import { clientDocuments } from "./lib/api-client-documents.mjs"
 import { keyKindForPath, readApiBundles } from "./lib/openapi-key-kind.mjs"
-import { trackedFilesIn } from "./lib/tracked-files.mjs"
 
 const execFileAsync = promisify(execFile)
+
+/**
+ * The workspace's own binary, never `npx`.
+ *
+ * `npx <tool>` prefers a local install but silently DOWNLOADS the latest
+ * published version when it cannot find one, so the generator's output depends
+ * on whichever resolution happens to win on that machine. That is not a
+ * theoretical risk for this script: `openapi-typescript` builds on the
+ * TypeScript compiler API, ADR-0023 records that a major version of it breaks
+ * outright, and the generated client is byte-compared by `verify:openapi-drift`
+ * — so a different version is a red check with no local reproduction.
+ *
+ * Resolving through `node_modules/.bin` fails loudly instead: a missing tool is
+ * a missing dependency, which is a fixable statement, unlike a silent upgrade.
+ */
+function workspaceBin(name) {
+  const binary = path.join(root, "node_modules", ".bin", name)
+  if (!existsSync(binary)) {
+    throw new Error(
+      `generate:api-client: ${name} is not installed in the workspace. ` +
+        `Run \`pnpm install\` — this script deliberately does not fall back to npx.`,
+    )
+  }
+  return binary
+}
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
 const GRAPH = "apps/operator/.voyant/deployment-graph.generated.json"
 
@@ -108,38 +133,58 @@ export type { components, operations, paths, webhooks } from "./paths.js"
 `
 }
 
-/**
- * The documents a client is generated from: one named outright, or every
- * document on a surface.
- *
- * Read from the TRACKED listing rather than the filesystem, so a git worktree
- * parked in the repository root cannot contribute another checkout's documents
- * to this one's client — the false green that `trackedFilesIn` exists to
- * prevent.
- */
-function resolveDocuments(client) {
-  if (client.document) return [client.document]
-  const tracked = trackedFilesIn(root) ?? []
-  const pattern = new RegExp(`^packages/[^/]+/openapi/${client.surface}/[^/]+\\.json$`)
-  return tracked.filter((file) => pattern.test(file)).sort()
-}
-
 /** `packages/finance/openapi/admin/finance.json` -> `finance`. */
 const moduleNameOf = (document) => path.basename(document, ".json")
 
 async function generateModule(document, outDir, client, bundles) {
-  const documentPath = path.join(root, document)
-  const name = client.document ? "paths" : moduleNameOf(document)
+  const composed = typeof document === "object"
+  const name = composed || client.document ? "paths" : moduleNameOf(document)
 
-  await execFileAsync(
-    "npx",
-    ["openapi-typescript", documentPath, "-o", path.join(outDir, `${name}.ts`)],
-    { cwd: root, maxBuffer: 256 * 1024 * 1024 },
-  )
+  // `openapi-typescript` reads a path, so a composed surface is staged next to
+  // the output and removed afterwards. Under the output directory rather than a
+  // temp dir so a killed run leaves the stray file somewhere `git status` shows
+  // it, instead of somewhere nobody looks.
+  const staged = path.join(outDir, ".composed-surface.json")
+  const documentPath = composed ? staged : path.join(root, document)
+  if (composed) {
+    const serialised = JSON.stringify(document, null, 2)
+    writeFileSync(staged, serialised)
+    // Printed on every run, not only on failure. The generated client is
+    // byte-compared across machines, so when it disagrees the first question is
+    // always whether the INPUT differed or the tool did — and answering that
+    // from the output alone is impossible.
+    const sha = (value) =>
+      createHash("sha256").update(JSON.stringify(value)).digest("hex").slice(0, 12)
+    const digest = createHash("sha256").update(serialised).digest("hex").slice(0, 12)
+    console.log(
+      `  composed surface: ${Object.keys(document.paths ?? {}).length} paths, sha ${digest}`,
+    )
+    // Per section, then per path. When the composed bytes differ between two
+    // machines while every input file matches HEAD, the only way to find out
+    // WHICH operation moved is to hash them individually — comparing 900 KiB of
+    // generated TypeScript by eye is not a diagnosis.
+    console.log(
+      `  sections: info ${sha(document.info)} servers ${sha(document.servers)} ` +
+        `components ${sha(document.components)} paths ${sha(document.paths)}`,
+    )
+    for (const [route, item] of Object.entries(document.paths ?? {})) {
+      console.log(`  path ${sha(item)} ${route}`)
+    }
+  }
+
+  try {
+    await execFileAsync(
+      workspaceBin("openapi-typescript"),
+      [documentPath, "-o", path.join(outDir, `${name}.ts`)],
+      { cwd: root, maxBuffer: 256 * 1024 * 1024 },
+    )
+  } finally {
+    if (composed) rmSync(staged, { force: true })
+  }
 
   if (!client.keyKinds) return { routes: 0, total: 0, files: [`${name}.ts`] }
 
-  const parsed = JSON.parse(readFileSync(documentPath, "utf8"))
+  const parsed = composed ? document : JSON.parse(readFileSync(documentPath, "utf8"))
   const routes = publishablePaths(bundles, parsed)
   writeFileSync(path.join(outDir, "key-kind.ts"), keyKindModule(routes))
   writeFileSync(path.join(outDir, "index.ts"), barrelModule())
@@ -154,8 +199,8 @@ async function generate(client, bundles) {
   const outDir = path.join(root, client.outDir)
   mkdirSync(outDir, { recursive: true })
 
-  const documents = resolveDocuments(client)
-  if (documents.length === 0) {
+  const { parts, documents } = clientDocuments(client)
+  if (parts.length === 0) {
     throw new Error(
       `generate:api-client: ${client.outDir} matched no tracked documents. A client that ` +
         `silently generates nothing looks identical to one that is up to date.`,
@@ -239,9 +284,8 @@ assertRegistered(clients, producedByOutDir)
 // from the formatter failing the generator, instead of leaving unformatted
 // output behind that the drift check then reports as a diff.
 await execFileAsync(
-  "npx",
+  workspaceBin("biome"),
   [
-    "biome",
     "format",
     "--write",
     "--files-max-size=8388608",

@@ -4,12 +4,6 @@ import { randomBytesHex, sha256Hex } from "@voyant-travel/hono"
 import {
   type PublicApiResolvedScope,
   type PublicApiShoppingContext,
-  type PublicApiTripBooking,
-  type PublicApiTripBookingCreate,
-  type PublicApiTripSelection,
-  type PublicApiTripSelectionCreate,
-  type PublicApiTripSelectionsRuntime,
-  type PublicApiTripSelectionUpdate,
   publicApiResolvedScopeSchema,
 } from "@voyant-travel/public-api/shopping"
 import { and, eq, isNull } from "drizzle-orm"
@@ -20,6 +14,14 @@ import {
   resolvePublicApiTripAccess,
 } from "./public-api-access.js"
 import type { PublicApiTripOfferResolver } from "./public-api-trip-offer-resolver-port.js"
+import type { PublicApiTripSelectionsRuntime } from "./public-api-trip-selections-gateway.js"
+import type {
+  PublicApiTripBooking,
+  PublicApiTripBookingCreate,
+  PublicApiTripSelection,
+  PublicApiTripSelectionCreate,
+  PublicApiTripSelectionUpdate,
+} from "./public-api-trip-selections-schemas.js"
 import type { TripComponent, TripPublicAccess } from "./schema.js"
 import {
   type TripPublicApiBookingOperation,

@@ -1,6 +1,7 @@
 {
   "name": "@voyant-travel/public-api-client",
   "version": "0.295.0",
+  "description": "Typed client for the Voyant Public API. Generated from the published OpenAPI surface; a publishable key cannot see secret-only operations.",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
@@ -11,13 +12,8 @@
   "sideEffects": false,
   "exports": {
     ".": "./src/index.ts",
-    "./booking-amendments": "./src/booking-amendments.ts",
-    "./booking-session-v1": "./src/booking-session-v1.ts",
-    "./client": "./src/client.ts",
-    "./errors": "./src/errors.ts",
-    "./operations": "./src/operations.ts",
-    "./schemas": "./src/schemas.ts",
-    "./generated": "./src/generated/index.ts"
+    "./generated": "./src/generated/index.ts",
+    "./typed-client": "./src/typed-client.ts"
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
@@ -28,19 +24,9 @@
     "test": "vitest run --passWithNoTests"
   },
   "peerDependencies": {
-    "@voyant-travel/bookings": "workspace:^",
-    "@voyant-travel/bookings-contracts": "workspace:^",
-    "@voyant-travel/catalog-contracts": "workspace:^",
-    "@voyant-travel/finance": "workspace:^",
-    "@voyant-travel/public-api": "workspace:^",
     "zod": "^4.0.0"
   },
   "devDependencies": {
-    "@voyant-travel/bookings": "workspace:^",
-    "@voyant-travel/bookings-contracts": "workspace:^",
-    "@voyant-travel/catalog-contracts": "workspace:^",
-    "@voyant-travel/finance": "workspace:^",
-    "@voyant-travel/public-api": "workspace:^",
     "@voyant-travel/voyant-typescript-config": "workspace:^",
     "typescript": "catalog:",
     "vitest": "catalog:",
@@ -57,47 +43,22 @@
         "import": "./dist/index.js",
         "default": "./dist/index.js"
       },
-      "./booking-amendments": {
-        "types": "./dist/booking-amendments.d.ts",
-        "import": "./dist/booking-amendments.js",
-        "default": "./dist/booking-amendments.js"
-      },
-      "./booking-session-v1": {
-        "types": "./dist/booking-session-v1.d.ts",
-        "import": "./dist/booking-session-v1.js",
-        "default": "./dist/booking-session-v1.js"
-      },
-      "./client": {
-        "types": "./dist/client.d.ts",
-        "import": "./dist/client.js",
-        "default": "./dist/client.js"
-      },
-      "./errors": {
-        "types": "./dist/errors.d.ts",
-        "import": "./dist/errors.js",
-        "default": "./dist/errors.js"
-      },
-      "./operations": {
-        "types": "./dist/operations.d.ts",
-        "import": "./dist/operations.js",
-        "default": "./dist/operations.js"
-      },
-      "./schemas": {
-        "types": "./dist/schemas.d.ts",
-        "import": "./dist/schemas.js",
-        "default": "./dist/schemas.js"
-      },
       "./generated": {
         "types": "./dist/generated/index.d.ts",
         "import": "./dist/generated/index.js",
         "default": "./dist/generated/index.js"
+      },
+      "./typed-client": {
+        "types": "./dist/typed-client.d.ts",
+        "import": "./dist/typed-client.js",
+        "default": "./dist/typed-client.js"
       }
     },
     "main": "./dist/index.js",
     "types": "./dist/index.d.ts"
   },
-  "private": true,
   "dependencies": {
+    "@voyant-travel/graph-contracts": "workspace:^",
     "openapi-fetch": "catalog:"
   }
 }

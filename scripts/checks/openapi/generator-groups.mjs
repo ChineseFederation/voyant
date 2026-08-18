@@ -26,10 +26,17 @@ import { availableParallelism } from "node:os"
 /**
  * Commands partitioned so that no two groups write a file in common.
  *
- * @param {ReadonlyArray<{ command: string, files: ReadonlyArray<string> }>} generators
+ * Readers are NOT included here — see `readerCommands`. Unioning a reader with
+ * every command that writes what it reads is correct but collapses the whole
+ * set into one sequential group, because the client generator reads every
+ * document. Running readers in a later phase gives the same guarantee and keeps
+ * the writers parallel.
+ *
+ * @param {ReadonlyArray<{ command: string, files: ReadonlyArray<string>, reads?: ReadonlyArray<string> }>} generators
  * @returns {string[][]} each group is a list of commands that must run in sequence
  */
 export function commandGroups(generators) {
+  const writers = generators.filter((generator) => !generator.reads?.length)
   const parent = new Map()
   const find = (command) => {
     let node = command
@@ -45,12 +52,12 @@ export function commandGroups(generators) {
     if (rootA !== rootB) parent.set(rootA, rootB)
   }
 
-  for (const { command } of generators) {
+  for (const { command } of writers) {
     if (!parent.has(command)) parent.set(command, command)
   }
 
   const writtenBy = new Map()
-  for (const { command, files } of generators) {
+  for (const { command, files } of writers) {
     for (const file of files) {
       const existing = writtenBy.get(file)
       if (existing === undefined) writtenBy.set(file, command)
@@ -59,13 +66,29 @@ export function commandGroups(generators) {
   }
 
   const groups = new Map()
-  for (const { command } of generators) {
+  for (const { command } of writers) {
     const root = find(command)
     const members = groups.get(root) ?? []
     if (!members.includes(command)) members.push(command)
     groups.set(root, members)
   }
   return [...groups.values()]
+}
+
+/**
+ * Commands that consume other generators' artifacts, to run after the writers.
+ *
+ * A reader must never overlap a writer of the same file: both checks work by
+ * writing an artifact and reading back what a generator put there, so a reader
+ * that observed a document mid-rewrite would produce output matching nothing.
+ * Deferring them to a second phase is the cheap way to guarantee that without
+ * serialising the writers against each other.
+ *
+ * @param {ReadonlyArray<{ command: string, reads?: ReadonlyArray<string> }>} generators
+ * @returns {string[]} reader commands, in declaration order
+ */
+export function readerCommands(generators) {
+  return generators.filter((generator) => generator.reads?.length).map(({ command }) => command)
 }
 
 /**

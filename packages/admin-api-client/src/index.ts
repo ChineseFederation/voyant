@@ -17,7 +17,7 @@
  * to be a boundary — the PK/SK split is a property of the public surface, where
  * `@voyant-travel/public-api-client/generated` carries it.
  */
-import { classifyPublicApiKeyToken, PUBLIC_API_KEY_HEADER } from "@voyant-travel/core"
+import { classifyPublicApiKeyToken, PUBLIC_API_KEY_HEADER } from "@voyant-travel/graph-contracts"
 import createClient, { type ClientOptions } from "openapi-fetch"
 
 export class AdminApiClientCredentialError extends Error {

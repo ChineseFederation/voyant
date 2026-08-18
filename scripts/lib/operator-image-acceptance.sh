@@ -109,6 +109,42 @@ operator_image_migrate() {
     node run-generated-migrations.mjs 2>&1 | tee "$log_path"
 }
 
+##
+# Wait for the container to serve /healthz, and SAY WHY if it never does.
+#
+# Without this the failure was silent: `health=$(curl …)` assigns curl's exit
+# status, `set -e` aborts on it, and the script died before printing even the
+# status code — so a production image that migrated fine and then crashed on
+# boot produced no diagnostic at all. The container logs are the only place the
+# reason exists, and nothing was reading them.
+##
+operator_image_await_health() {
+  local container="$1"
+  local port="$2"
+
+  local _
+  for _ in $(seq 1 60); do
+    if curl -sf -o /dev/null "http://localhost:$port/healthz"; then
+      return 0
+    fi
+    # A container that has already exited will never come up; stop waiting out
+    # the full minute for something that is gone.
+    if [ "$(docker inspect -f '{{.State.Running}}' "$container" 2>/dev/null)" = "false" ]; then
+      break
+    fi
+    sleep 1
+  done
+
+  echo "::group::$container did not serve /healthz on port $port"
+  echo "--- docker inspect ---"
+  docker inspect -f 'running={{.State.Running}} exit={{.State.ExitCode}} error={{.State.Error}}' \
+    "$container" 2>&1 || true
+  echo "--- container logs ---"
+  docker logs "$container" 2>&1 | tail -100 || true
+  echo "::endgroup::"
+  return 1
+}
+
 operator_image_boot_and_assert() {
   local image_ref="$1"
   local container="$2"
@@ -118,13 +154,7 @@ operator_image_boot_and_assert() {
   docker run --detach --name "$container" "${OPERATOR_IMAGE_NETWORK_ARGS[@]}" \
     "${OPERATOR_IMAGE_ENV_ARGS[@]}" "$image_ref" >/dev/null
 
-  local _
-  for _ in $(seq 1 60); do
-    if curl -sf -o /dev/null "http://localhost:$port/healthz"; then
-      break
-    fi
-    sleep 1
-  done
+  operator_image_await_health "$container" "$port"
 
   local health
   health=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:$port/healthz")
@@ -152,13 +182,7 @@ operator_image_boot_api_only_and_assert() {
   docker run --detach --name "$container" "${OPERATOR_IMAGE_NETWORK_ARGS[@]}" \
     "${OPERATOR_IMAGE_ENV_ARGS[@]}" "$image_ref" node start-api-only.mjs >/dev/null
 
-  local _
-  for _ in $(seq 1 60); do
-    if curl -sf -o /dev/null "http://localhost:$port/healthz"; then
-      break
-    fi
-    sleep 1
-  done
+  operator_image_await_health "$container" "$port"
 
   local health api admin content_type
   health=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:$port/healthz" || true)

@@ -29,10 +29,7 @@ import {
   publicApiPresentationFxProviderPort,
   publicApiShoppingLiveProviderPort,
 } from "./shopping/provider-ports.js"
-import {
-  publicApiShoppingRuntimePort,
-  publicApiTripSelectionsRuntimePort,
-} from "./shopping/runtime-port.js"
+import { publicApiShoppingRuntimePort } from "./shopping/runtime-port.js"
 
 /** Import-cheap deployment declarations owned by the storefront package. */
 export const publicApiVoyantModule = defineModule({
@@ -52,7 +49,6 @@ export const publicApiVoyantModule = defineModule({
     requirePort(publicApiIntakeRuntimePort),
     requirePort(catalogPublicationRuntimePort),
     requirePort(publicApiShoppingRuntimePort, { optional: true }),
-    requirePort(publicApiTripSelectionsRuntimePort, { optional: true }),
   ],
   subscribers: [
     {

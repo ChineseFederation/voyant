@@ -23,14 +23,15 @@
  * neither a failing run nor a killed one leaves the tree different from how it
  * found it.
  */
-import { execFile } from "node:child_process"
+import { execFile, execFileSync } from "node:child_process"
+import { createHash } from "node:crypto"
 import { existsSync, readFileSync, writeFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
 import { promisify } from "node:util"
 
 import { driftedFiles } from "./assertions.mjs"
-import { CONCURRENCY, commandGroups, inParallel } from "./generator-groups.mjs"
+import { CONCURRENCY, commandGroups, inParallel, readerCommands } from "./generator-groups.mjs"
 
 const run = promisify(execFile)
 const here = dirname(fileURLToPath(import.meta.url))
@@ -66,16 +67,75 @@ for (const signal of ["SIGINT", "SIGTERM"]) {
 
 const byCommand = new Map(generators.map((generator) => [generator.command, generator]))
 
+/**
+ * Digests of what a generator READ, printed when its output drifted.
+ *
+ * A generator that consumes other generators' artifacts can only drift for two
+ * reasons: an input differed, or the tool did. Naming which is the whole
+ * difference between a fix and a guess — the public API client drifted in CI
+ * while regenerating byte-identically on the machine looking into it, and there
+ * was no way to tell the two apart from the failure alone.
+ *
+ * Only the digest, never the content: these documents are hundreds of kilobytes
+ * and the question is which one moved, not what it says.
+ */
+function inputDigests(generator) {
+  if (!generator.reads?.length) return []
+
+  const sha = (bytes) => createHash("sha256").update(bytes).digest("hex").slice(0, 12)
+  const committed = (file) => {
+    try {
+      return execFileSync("git", ["show", `HEAD:${file}`], { maxBuffer: 1 << 28 })
+    } catch {
+      return null
+    }
+  }
+
+  // The question is only ever which of two things happened, so answer it
+  // directly: an input that differs from HEAD means the tree was mutated during
+  // the run, and one that matches means the tool produced different output from
+  // identical bytes. Listing every digest and leaving the reader to compare
+  // across machines is the slow way to the same fact.
+  const mutated = generator.reads.filter((file) => {
+    const onDisk = read(file)
+    const inGit = committed(file)
+    return onDisk !== null && inGit !== null && !onDisk.equals(inGit)
+  })
+
+  if (mutated.length === 0) {
+    return [
+      `      every input matches HEAD — the generator produced different output from identical bytes`,
+    ]
+  }
+  return [
+    `      inputs that DIFFER from HEAD (mutated during this run):`,
+    ...mutated.map((file) => `        ${sha(read(file))}  ${file}`),
+  ]
+}
+
 async function checkGenerator(generator) {
   const before = generator.files.map((file) => ({ file, bytes: read(file) }))
   for (const { file, bytes } of before) inFlight.set(file, bytes)
   try {
     const [command, ...args] = generator.command.split(" ")
-    await run(command, args)
+    const { stdout } = await run(command, args)
     const snapshots = before.map(({ file, bytes }) => ({ file, before: bytes, after: read(file) }))
     const drifted = driftedFiles(snapshots)
     if (drifted.length > 0) {
-      failures.push(...drifted, `    fix with: ${generator.command}`)
+      // The generator's own stdout, which is piped and therefore invisible
+      // otherwise. A generator that reports what it read — how many documents,
+      // what they hashed to — answers "did the input differ?" in the same
+      // output that says the result differed.
+      const said = stdout
+        .split("\n")
+        .filter((line) => line.trim().length > 0)
+        .map((line) => `      | ${line.trim()}`)
+      failures.push(
+        ...drifted,
+        ...inputDigests(generator),
+        ...(said.length > 0 ? [`      the generator reported:`, ...said] : []),
+        `    fix with: ${generator.command}`,
+      )
     }
   } catch (error) {
     failures.push(`${generator.command}: generator failed — ${error.message.split("\n")[0]}`)
@@ -92,6 +152,12 @@ try {
     // Sequential within a group: these commands can write the same file.
     for (const command of group) await checkGenerator(byCommand.get(command))
   })
+  // Readers run only once every writer has finished and restored, so a
+  // generator that consumes other generators' artifacts never observes one
+  // mid-rewrite.
+  for (const command of readerCommands(generators)) {
+    await checkGenerator(byCommand.get(command))
+  }
 } finally {
   restoreInFlight()
 }

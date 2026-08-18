@@ -14,7 +14,7 @@ import {
   type OwnedProductBookingTracerResult,
   type RenewBookingSessionV1,
   type UpdateBookingSessionV1,
-} from "@voyant-travel/public-api-client"
+} from "../legacy-client/index.js"
 
 import { useVoyantPublicApiContext } from "../provider.js"
 

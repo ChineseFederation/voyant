@@ -7,15 +7,17 @@
     "This is not yet a publish gate: ~95 other packages are still published until the",
     "first-party repos have a build path (#4059 item 4).",
     "",
-    "`consumers` and `withdrawn` are the other half — who is standing on this surface,",
+    "`consumers` and `withdrawn` are the other half \u2014 who is standing on this surface,",
     "and what a reader should move to when something leaves it. See #4159 and the",
     "header of public-surface.ts."
   ],
   "extensionSurface": [
+    "@voyant-travel/admin-api-client",
     "@voyant-travel/admin-extension-sdk",
     "@voyant-travel/app-manifest",
     "@voyant-travel/custom-fields-contracts",
     "@voyant-travel/graph-contracts",
+    "@voyant-travel/public-api-client",
     "@voyant-travel/public-api-contracts",
     "@voyant-travel/ui",
     "@voyant-travel/webhook-delivery-contracts"
@@ -43,8 +45,8 @@
     "Listing it is also what arms the check: #4809 shipped it with",
     "`private: true` next to `publishConfig.access: \"public\"`, so changesets",
     "versioned it to 0.2.0, wrote its changelog, published nothing and exited",
-    "zero. Unlisted-and-private is a coherent state here — 101 packages are in",
-    "it deliberately since #4098 — so nothing could object. On the allowlist,",
+    "zero. Unlisted-and-private is a coherent state here \u2014 101 packages are in",
+    "it deliberately since #4098 \u2014 so nothing could object. On the allowlist,",
     "re-adding `private: true` fails as `unpublishable` instead. See #4809.",
     "",
     "The sibling runtime packages insurance and insurance-react stay private:",
@@ -63,7 +65,7 @@
   "$consumers": [
     "Repositories outside this one that install packages this one publishes,",
     "audited 2026-08-04 for #4159. `consumes` is what each declares in the",
-    "@voyant-travel scope, including names this repository does not own —",
+    "@voyant-travel scope, including names this repository does not own \u2014",
     "connect-provider-sdk, connect-sdk, data-sdk, cloud-sdk, cli and max-embed",
     "live in sibling repos and are recorded for inventory, not checked here.",
     "",
@@ -156,15 +158,15 @@
   },
   "$withdrawn": [
     "Packages that were on the public surface and are not any more. Marking a",
-    "package private here does not unpublish it — the last version keeps",
-    "resolving forever — so the failure is silent and lands on whoever pinned it.",
+    "package private here does not unpublish it \u2014 the last version keeps",
+    "resolving forever \u2014 so the failure is silent and lands on whoever pinned it.",
     "This is what those readers have instead of an npm deprecation notice.",
     "",
     "An entry must stay true: the package must really be private, must not also",
     "be on the allowlist, and a successor this repository owns must really be",
     "published. `successor: null` is allowed and requires a reason.",
     "",
-    "There is deliberately no `pms` consumer — that product was cancelled",
+    "There is deliberately no `pms` consumer \u2014 that product was cancelled",
     "2026-07-30 and its pins are not a build to migrate."
   ],
   "withdrawn": {
@@ -181,7 +183,7 @@
     "@voyant-travel/bookings": {
       "successor": null,
       "consumers": ["voyant-travel/plugin-smartbill"],
-      "reason": "No successor. plugin-smartbill builds in process against the operator's runtime modules and needs a build path — #4059 item 4."
+      "reason": "No successor. plugin-smartbill builds in process against the operator's runtime modules and needs a build path \u2014 #4059 item 4."
     },
     "@voyant-travel/core": {
       "successor": null,
@@ -191,7 +193,7 @@
         "voyant-travel/plugin-payload-cms",
         "voyant-travel/plugin-smartbill"
       ],
-      "reason": "No successor. Four repos build in process against it and need a build path — #4059 item 4."
+      "reason": "No successor. Four repos build in process against it and need a build path \u2014 #4059 item 4."
     },
     "@voyant-travel/finance": {
       "successor": null,
@@ -206,7 +208,7 @@
     "@voyant-travel/framework": {
       "successor": null,
       "consumers": ["voyant-travel/cli"],
-      "reason": "No successor. The CLI resolves the framework to scaffold and inspect a deployment; under the image model that relationship is unsettled — #4059 item 4."
+      "reason": "No successor. The CLI resolves the framework to scaffold and inspect a deployment; under the image model that relationship is unsettled \u2014 #4059 item 4."
     },
     "@voyant-travel/hono": {
       "successor": null,

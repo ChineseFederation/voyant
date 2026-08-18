@@ -1,3 +1,5 @@
+export * from "./public-api-key.js"
+
 // agent-quality: file-size exception -- reason: project authoring validation stays import-cheap and centralized with its public serializable contracts.
 /**
  * Import-cheap authoring contracts for package-owned deployment manifests.

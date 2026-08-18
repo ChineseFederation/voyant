@@ -117,3 +117,34 @@ export function securityHeaders<TBindings extends object = VoyantBindings>(
     }
   }
 }
+
+/**
+ * Whether a state-changing public request came from the same origin.
+ *
+ * Public browser mutations have no CSRF token — the capability is the public API
+ * key, which a cross-site page can also read out of the storefront bundle. This
+ * is the check that stops a third-party page driving a mutation with a key it
+ * scraped: `Sec-Fetch-Site: cross-site` is refused outright, and the `Origin`
+ * header must match the request's own origin.
+ *
+ * A **missing** `Origin` is refused too. Every browser sends it on a
+ * cross-origin state-changing request, so its absence means either a non-browser
+ * caller — which should be using a secret key against the same route — or a
+ * browser old enough that the guarantee does not hold. Fail closed either way.
+ *
+ * Lives here rather than beside one route module because two packages need the
+ * same answer: `public-api` guards shopping, `trips` guards trip selections.
+ * Two copies of a security predicate is how the two drift apart.
+ */
+export function isSameOriginMutation(c: {
+  req: { header(name: string): string | undefined; url: string }
+}): boolean {
+  if (c.req.header("sec-fetch-site") === "cross-site") return false
+  const origin = c.req.header("origin")?.trim()
+  if (!origin) return false
+  try {
+    return new URL(origin).origin === new URL(c.req.url).origin
+  } catch {
+    return false
+  }
+}

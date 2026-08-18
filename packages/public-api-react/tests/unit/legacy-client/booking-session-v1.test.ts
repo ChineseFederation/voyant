@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { createVoyantPublicApiClient } from "../../src/index.js"
+import { createVoyantPublicApiClient } from "../../../src/legacy-client/index.js"
 
 const REQUIREMENTS = {
   showsConfigure: true,
@@ -250,7 +250,7 @@ describe("Booking Session v1 SDK", () => {
 
     expect(result.kind).toBe("completed")
     if (result.kind !== "completed") {
-      throw new Error(`expected completed tracer result, received ${result.stage}`)
+      throw new Error(`expected completed tracer result, received ${result.kind}`)
     }
     expect(result.commitOutcome).toMatchObject({
       kind: "commit_result",

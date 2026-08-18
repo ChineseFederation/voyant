@@ -10,10 +10,7 @@ import type { ApiModule } from "@voyant-travel/hono/module"
 import { createPublicApiAdminRoutes } from "./routes-admin.js"
 import { createPublicApiRoutes } from "./routes-public.js"
 import { publicApiIntakeRuntimePort, publicApiOffersRuntimePort } from "./runtime-port.js"
-import {
-  publicApiShoppingRuntimePort,
-  publicApiTripSelectionsRuntimePort,
-} from "./shopping/runtime-port.js"
+import { publicApiShoppingRuntimePort } from "./shopping/runtime-port.js"
 
 export {
   createPublicApiAvailabilityReadModelInvalidationSubscriber,
@@ -238,9 +235,6 @@ export const createPublicApiVoyantRuntime = defineGraphRuntimeFactory(
         shopping: hasPort(publicApiShoppingRuntimePort)
           ? await getPort(publicApiShoppingRuntimePort)
           : undefined,
-        tripSelections: hasPort(publicApiTripSelectionsRuntimePort)
-          ? await getPort(publicApiTripSelectionsRuntimePort)
-          : undefined,
       },
     })
     const selected: ApiModule = { module: configured.module }
@@ -283,14 +277,9 @@ export type {
   PublicApiShoppingRequest,
   PublicApiShoppingResult,
   PublicApiShoppingRuntime,
-  PublicApiTripSelection,
-  PublicApiTripSelectionCreate,
-  PublicApiTripSelectionsRuntime,
-  PublicApiTripSelectionUpdate,
 } from "./shopping/index.js"
 export {
   createPublicApiShoppingGateway,
   PublicApiShoppingUnavailableError,
   publicApiShoppingRuntimePort,
-  publicApiTripSelectionsRuntimePort,
 } from "./shopping/index.js"

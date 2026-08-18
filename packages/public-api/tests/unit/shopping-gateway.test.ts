@@ -9,8 +9,6 @@ import {
   publicApiPresentationMoneySchema,
   publicApiShoppingRequestSchema,
   publicApiShoppingRuntimePort,
-  publicApiTripSelectionsRuntimePort,
-  publicApiTripSelectionUpdateSchema,
 } from "../../src/shopping/index.js"
 
 const context = {
@@ -166,53 +164,6 @@ describe("storefront shopping gateway", () => {
     ).rejects.toThrow(/outside the resolved shopping scope/)
   })
 
-  it("keeps Trip selection mutations opaque and revision checked", async () => {
-    const create = vi.fn(async (_context, input) => ({
-      selectionRef: "selection-ref-00000001",
-      revision: 0,
-      scope: input.scope,
-      items: [{ itemRef: "selection-item-000001", kind: "flight" as const, quantity: 1 }],
-    }))
-    const update = vi.fn(async (_context, input) => ({
-      selectionRef: input.selectionRef,
-      revision: input.expectedRevision + 1,
-      scope,
-      items: [],
-    }))
-    const gateway = createPublicApiShoppingGateway({
-      shopping: { resolveScope: async () => scope, search: vi.fn() },
-      tripSelections: {
-        create,
-        update,
-        book: async () => {
-          throw new Error("not used")
-        },
-      },
-    })
-
-    const created = await gateway.createTripSelection(context, {
-      scope: { currency: "RON" },
-      offers: [{ kind: "flight", offerRef: "flight-offer-000001" }],
-    })
-    const updated = await gateway.updateTripSelection(context, {
-      selectionRef: created.selectionRef,
-      expectedRevision: created.revision,
-      mutation: { kind: "remove", itemRef: created.items[0]?.itemRef },
-    })
-
-    expect(updated.revision).toBe(1)
-    expect(update).toHaveBeenCalledWith(
-      context,
-      expect.objectContaining({ expectedRevision: 0, selectionRef: created.selectionRef }),
-    )
-    expect(() =>
-      publicApiTripSelectionUpdateSchema.parse({
-        selectionRef: created.selectionRef,
-        mutation: { kind: "remove", itemRef: "selection-item-000001" },
-      }),
-    ).toThrow()
-  })
-
   it("fails explicitly when optional deployment providers are absent", async () => {
     const gateway = createPublicApiShoppingGateway({})
     await expect(gateway.search(context, {})).rejects.toBeInstanceOf(
@@ -224,6 +175,5 @@ describe("storefront shopping gateway", () => {
 describe("storefront shopping graph ports", () => {
   it("validate provider method surfaces", () => {
     expect(() => publicApiShoppingRuntimePort.test({} as never)).toThrow(/resolveScope/)
-    expect(() => publicApiTripSelectionsRuntimePort.test({} as never)).toThrow(/create/)
   })
 })

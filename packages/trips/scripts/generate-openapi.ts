@@ -21,7 +21,7 @@ import { stampOpenApiRegistryApiId } from "@voyant-travel/hono"
 import type { OpenApiDocument } from "@voyant-travel/hono/openapi"
 import { generateOpenApiDocument, stampModuleMetadata } from "@voyant-travel/hono/openapi"
 
-import { createTripsRoutes } from "../src/routes.js"
+import { createTripsPublicSurfaceRoutes, createTripsRoutes } from "../src/routes.js"
 
 const options = {
   info: {
@@ -53,6 +53,10 @@ const targets = [
     file: "../openapi/public-api/trips.json",
     prefix: "/v1/public/trips",
     apiId: "@voyant-travel/trips#api.public",
+    // The public surface serves the Trip-selection routes too (voyant#4627).
+    // Composed through the same helper the runtime module uses, so this
+    // document cannot describe a surface the deployment does not serve.
+    surface: "public" as const,
   },
 ] as const
 
@@ -83,12 +87,20 @@ function serialize(document: OpenApiDocument) {
  * reshaped without regenerating.
  */
 await Promise.all(
-  targets.map(({ file, prefix, apiId }) =>
+  targets.map(({ file, prefix, apiId, ...rest }) =>
     writeFile(
       new URL(file, import.meta.url),
       serialize(
         withPrefix(
-          generateOpenApiDocument(stampOpenApiRegistryApiId(createTripsRoutes(), apiId), options),
+          generateOpenApiDocument(
+            stampOpenApiRegistryApiId(
+              "surface" in rest && rest.surface === "public"
+                ? createTripsPublicSurfaceRoutes()
+                : createTripsRoutes(),
+              apiId,
+            ),
+            options,
+          ),
           prefix,
         ),
       ),

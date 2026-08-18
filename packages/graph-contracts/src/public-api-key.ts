@@ -10,9 +10,23 @@
  * bypass in exactly the way a drifted `matchesPublicPath` would be, so both
  * layers import these.
  *
- * Dependency-free by construction: `core` is below both `hono` and `auth`.
+ * Dependency-free by construction, and it lives HERE for that exact reason.
+ *
+ * It cannot stay in `core`: the generated API clients need to classify a token,
+ * and `core` is the framework kernel — container, saga, registry, project — so
+ * publishing it to support a prefix check would commit us to a public API
+ * nobody intended.
+ *
+ * It cannot live in `public-api-contracts` either, which was tried first. That
+ * package depends on `zod` and `schema-kit`, so putting it there and having
+ * `core` re-export it makes the kernel — loaded on every boot path — pull both.
+ * This module has no dependencies and `graph-contracts` has none either, which
+ * is the property worth preserving. `core` already depended on it, so nothing
+ * about the layering changes (voyant#4626).
  */
-import type { VoyantPublicApiKeyKind } from "./env.js"
+
+/** Which credential a request presented, decided by prefix before any lookup. */
+export type VoyantPublicApiKeyKind = "publishable" | "secret"
 
 /** Token prefix per key kind. Deployed clients hold these; they never change. */
 export const PUBLIC_API_KEY_PREFIXES = {

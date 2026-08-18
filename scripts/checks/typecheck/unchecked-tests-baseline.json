@@ -50,7 +50,6 @@
     "@voyant-travel/setup-react",
     "@voyant-travel/storage",
     "@voyant-travel/public-api",
-    "@voyant-travel/public-api-client",
     "@voyant-travel/tools",
     "@voyant-travel/trips",
     "@voyant-travel/trips-react",

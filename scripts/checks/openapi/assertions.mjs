@@ -11,8 +11,40 @@ export function driftedFiles(snapshots) {
   return snapshots.flatMap(({ file, before, after }) => {
     if (after === null) return [`${file}: the generator did not produce this file`]
     if (before === null) return [`${file}: generated but not checked in`]
-    return before.equals(after) ? [] : [`${file}: checked-in document is stale`]
+    if (before.equals(after)) return []
+    return [`${file}: checked-in document is stale`, ...firstDifference(before, after)]
   })
+}
+
+/**
+ * Where the two versions first disagree, and what each says there.
+ *
+ * "Stale" alone is not actionable when the file regenerates identically on the
+ * machine you are standing at — which is exactly the case that matters, because
+ * it means the difference is environmental and you cannot see it locally. The
+ * excerpt is what turns "CI disagrees" into a fact you can act on.
+ *
+ * Capped at a few lines: these documents run to hundreds of kilobytes, and a
+ * full diff in a CI log is as unreadable as no diff at all.
+ */
+function firstDifference(before, after, context = 3) {
+  const oldLines = before.toString("utf8").split("\n")
+  const newLines = after.toString("utf8").split("\n")
+  const limit = Math.max(oldLines.length, newLines.length)
+
+  for (let index = 0; index < limit; index += 1) {
+    if (oldLines[index] === newLines[index]) continue
+    const excerpt = [`      first difference at line ${index + 1}:`]
+    for (let offset = 0; offset < context; offset += 1) {
+      const at = index + offset
+      if (oldLines[at] !== undefined) excerpt.push(`      - ${oldLines[at]}`)
+      if (newLines[at] !== undefined) excerpt.push(`      + ${newLines[at]}`)
+    }
+    excerpt.push(`      (checked-in ${oldLines.length} lines, regenerated ${newLines.length})`)
+    return excerpt
+  }
+  // Same lines, different bytes: a trailing newline or line ending.
+  return [`      lines match; bytes differ (${before.length} vs ${after.length})`]
 }
 /**
  * Pure part of the document-closure check, so the cases that matter can be

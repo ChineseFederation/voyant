@@ -21,6 +21,7 @@ import { fileURLToPath } from "node:url"
 
 import ts from "typescript"
 
+import { clientDocuments } from "./lib/api-client-documents.mjs"
 import { keyKindForPath, readApiBundles } from "./lib/openapi-key-kind.mjs"
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
@@ -63,9 +64,15 @@ const format = (diagnostics) =>
 
 /** A publishable and a secret-only path that share an HTTP method. */
 function pickProbePaths(client, bundles) {
-  const document = JSON.parse(readFileSync(path.join(root, client.document), "utf8"))
+  // Resolved through the shared module, so this exercises the same surface the
+  // client is generated from rather than a document that merely resembles it.
+  const [document] = clientDocuments(client).documents
+  const parsed =
+    typeof document === "object"
+      ? document
+      : JSON.parse(readFileSync(path.join(root, document), "utf8"))
   const byKind = { publishable: [], secret: [] }
-  for (const [route, item] of Object.entries(document.paths ?? {})) {
+  for (const [route, item] of Object.entries(parsed.paths ?? {})) {
     for (const method of Object.keys(item ?? {})) {
       if (!["get", "post", "put", "patch", "delete"].includes(method.toLowerCase())) continue
       byKind[keyKindForPath(bundles, route)]?.push({ route, method: method.toLowerCase() })

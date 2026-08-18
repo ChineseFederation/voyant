@@ -6,7 +6,7 @@ import {
   publicApiLeadIntakeInputSchema,
   publicApiNewsletterSubscribeInputSchema,
   subscribePublicApiNewsletter,
-} from "../../src/index.js"
+} from "../../../src/legacy-client/index.js"
 
 describe("storefront intake operations", () => {
   it("posts lead intake through the public storefront route", async () => {

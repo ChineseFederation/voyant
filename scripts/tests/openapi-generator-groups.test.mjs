@@ -2,7 +2,12 @@ import assert from "node:assert/strict"
 import { readFileSync } from "node:fs"
 import test from "node:test"
 
-import { CONCURRENCY, commandGroups, inParallel } from "../checks/openapi/generator-groups.mjs"
+import {
+  CONCURRENCY,
+  commandGroups,
+  inParallel,
+  readerCommands,
+} from "../checks/openapi/generator-groups.mjs"
 
 test("commands that share no file are independent", () => {
   const groups = commandGroups([
@@ -33,17 +38,17 @@ test("sharing is transitive", () => {
   assert.deepEqual(groups[0].sort(), ["a", "b", "c"])
 })
 
-test("every command appears in exactly one group", () => {
+test("every writer appears in exactly one group", () => {
   const { generators } = JSON.parse(
     readFileSync(new URL("../checks/openapi/generated-specs.json", import.meta.url), "utf8"),
   )
   const groups = commandGroups(generators)
   const flat = groups.flat()
   assert.equal(flat.length, new Set(flat).size, "a command appears twice")
-  assert.deepEqual(
-    [...new Set(flat)].sort(),
-    [...new Set(generators.map((generator) => generator.command))].sort(),
-  )
+  const writers = generators
+    .filter((generator) => !generator.reads?.length)
+    .map((generator) => generator.command)
+  assert.deepEqual([...new Set(flat)].sort(), [...new Set(writers)].sort())
 })
 
 // The property the whole parallelisation rests on: if two groups could write the
@@ -99,4 +104,31 @@ test("inParallel runs no more than the limit at once", async () => {
 
 test("concurrency is bounded, because each lane is a whole pnpm process tree", () => {
   assert.ok(CONCURRENCY >= 1 && CONCURRENCY <= 4, `unexpected concurrency ${CONCURRENCY}`)
+})
+
+// A reader must never overlap a writer of the same file: both checks work by
+// writing an artifact and reading back what a generator put there, so a reader
+// observing a document mid-rewrite would produce output matching nothing.
+// Unioning it into the writers' group is correct but collapses everything into
+// one sequential group, so readers are deferred to a second phase instead.
+test("a reader is kept out of the writer groups and deferred", () => {
+  const input = [
+    { command: "writer", files: ["doc.json"] },
+    { command: "reader", files: ["out.ts"], reads: ["doc.json"] },
+  ]
+  assert.deepEqual(commandGroups(input).flat(), ["writer"])
+  assert.deepEqual(readerCommands(input), ["reader"])
+})
+
+test("the api-client generator is a reader, so it runs after every writer", () => {
+  const { generators } = JSON.parse(
+    readFileSync(new URL("../checks/openapi/generated-specs.json", import.meta.url), "utf8"),
+  )
+  const client = generators.find((generator) => generator.command.includes("generate:api-client"))
+  assert.ok(client?.reads?.length > 50, "the client generator must declare what it reads")
+  assert.deepEqual(readerCommands(generators), [client.command])
+  assert.ok(
+    !commandGroups(generators).flat().includes(client.command),
+    "a reader must not be scheduled alongside the writers",
+  )
 })

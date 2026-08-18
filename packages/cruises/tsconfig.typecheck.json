@@ -1833,19 +1833,12 @@
       "@voyant-travel/proposals/voyant": ["../proposals/dist/voyant.d.ts"],
       "@voyant-travel/public-api": ["../public-api/dist/index.d.ts"],
       "@voyant-travel/public-api-client": ["../public-api-client/dist/index.d.ts"],
-      "@voyant-travel/public-api-client/booking-amendments": [
-        "../public-api-client/dist/booking-amendments.d.ts"
-      ],
-      "@voyant-travel/public-api-client/booking-session-v1": [
-        "../public-api-client/dist/booking-session-v1.d.ts"
-      ],
-      "@voyant-travel/public-api-client/client": ["../public-api-client/dist/client.d.ts"],
-      "@voyant-travel/public-api-client/errors": ["../public-api-client/dist/errors.d.ts"],
       "@voyant-travel/public-api-client/generated": [
         "../public-api-client/dist/generated/index.d.ts"
       ],
-      "@voyant-travel/public-api-client/operations": ["../public-api-client/dist/operations.d.ts"],
-      "@voyant-travel/public-api-client/schemas": ["../public-api-client/dist/schemas.d.ts"],
+      "@voyant-travel/public-api-client/typed-client": [
+        "../public-api-client/dist/typed-client.d.ts"
+      ],
       "@voyant-travel/public-api-contracts": ["../public-api-contracts/dist/index.d.ts"],
       "@voyant-travel/public-api-contracts/bookings": [
         "../public-api-contracts/dist/bookings.d.ts"

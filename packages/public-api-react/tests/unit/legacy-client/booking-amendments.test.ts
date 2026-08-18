@@ -1,7 +1,7 @@
 import type { BookingAmendment } from "@voyant-travel/bookings-contracts"
 import { describe, expect, it } from "vitest"
 
-import { createVoyantPublicApiClient } from "../../src/index.js"
+import { createVoyantPublicApiClient } from "../../../src/legacy-client/index.js"
 
 function amendment(): BookingAmendment {
   return {
