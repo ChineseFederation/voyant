@@ -24,7 +24,7 @@ import {
   TableRow,
 } from "@voyant-travel/ui/components"
 import { useCrmUiMessagesOrDefault } from "../i18n/index.js"
-import { filterInquiryQueue, inquiryPageState } from "../inquiry-ui-model.js"
+import { inquiryPageState } from "../inquiry-ui-model.js"
 
 export type InquirySavedView = InquiryListQueryInput["view"]
 
@@ -34,6 +34,17 @@ export interface InquiryQueueFilters {
   status?: InquiryStatus
   priority?: InquiryPriority
   kind?: InquiryKind
+}
+
+export function withInquiryStatus(
+  filters: InquiryQueueFilters,
+  status: InquiryStatus | undefined,
+): InquiryQueueFilters {
+  return {
+    ...filters,
+    status,
+    view: status === "converted" || status === "closed" ? status : undefined,
+  }
 }
 
 export interface InquiryQueueProps {
@@ -92,7 +103,6 @@ export function InquiryQueue({
   const messages = i18n.inquiryQueue
   const labels = i18n.inquiryLabels
   const patch = (next: Partial<InquiryQueueFilters>) => onFiltersChange({ ...filters, ...next })
-  const visibleInquiries = filterInquiryQueue(inquiries, filters.view, filters.status)
   const page = inquiryPageState(total, limit, offset)
 
   return (
@@ -131,7 +141,7 @@ export function InquiryQueue({
           ariaLabel={messages.statusFilterLabel}
           labels={labels.statuses}
           onChange={(status) =>
-            patch({ status: status as InquiryStatus | undefined, view: undefined })
+            onFiltersChange(withInquiryStatus(filters, status as InquiryStatus | undefined))
           }
         />
         <FilterSelect
@@ -174,14 +184,14 @@ export function InquiryQueue({
                     {messages.loading}
                   </TableCell>
                 </TableRow>
-              ) : visibleInquiries.length === 0 ? (
+              ) : inquiries.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={6} className="h-28 text-center text-muted-foreground">
                     {messages.empty}
                   </TableCell>
                 </TableRow>
               ) : (
-                visibleInquiries.map((inquiry) => (
+                inquiries.map((inquiry) => (
                   <TableRow key={inquiry.id}>
                     <TableCell>
                       <a

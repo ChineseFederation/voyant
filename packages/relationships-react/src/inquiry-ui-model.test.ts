@@ -1,11 +1,6 @@
 import { type InquiryRecord, inquiryRecordSchema } from "@voyant-travel/relationships-contracts"
 import { describe, expect, it } from "vitest"
-import {
-  buildCloseInput,
-  buildTransitionInput,
-  filterInquiryQueue,
-  inquiryPageState,
-} from "./inquiry-ui-model.js"
+import { buildCloseInput, buildTransitionInput, inquiryPageState } from "./inquiry-ui-model.js"
 import { buildInquiriesQueryString } from "./query-options.js"
 
 function record(overrides: Partial<InquiryRecord> = {}): InquiryRecord {
@@ -87,18 +82,6 @@ describe("inquiry UI command model", () => {
       outcome: "other",
       note: "Outside policy",
     })
-  })
-
-  it("keeps terminal records out of the actionable view", () => {
-    const active = record({ id: "inq_active", status: "triaged", ownerId: "usr_1" })
-    const converted = record({
-      id: "inq_done",
-      status: "converted",
-      convertedAt: "2026-08-18T12:00:00.000Z",
-    })
-    expect(filterInquiryQueue([active, converted], "actionable")).toEqual([active])
-    expect(filterInquiryQueue([active, converted], "converted")).toEqual([converted])
-    expect(filterInquiryQueue([active, converted], undefined, "converted")).toEqual([converted])
   })
 
   it("serializes the actionable view and core-supported filters", () => {

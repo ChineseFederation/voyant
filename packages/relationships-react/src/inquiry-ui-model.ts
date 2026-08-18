@@ -1,7 +1,6 @@
 import type {
   CloseInquiryInput,
   InquiryCloseOutcome,
-  InquiryListQueryInput,
   InquiryRecord,
   InquiryStatus,
   TransitionInquiryInput,
@@ -59,31 +58,6 @@ export function buildCloseInput(
     ...(outcome === "duplicate" ? { duplicateOfInquiryId } : {}),
     ...(outcome === "other" ? { note } : {}),
   }
-}
-
-export function filterInquiryQueue(
-  inquiries: InquiryRecord[],
-  view?: InquiryListQueryInput["view"],
-  status?: InquiryStatus,
-) {
-  if (status) return inquiries.filter((inquiry) => inquiry.status === status)
-  if (view === "converted") return inquiries.filter((inquiry) => inquiry.status === "converted")
-  if (view === "closed") return inquiries.filter((inquiry) => inquiry.status === "closed")
-  if (view === "new") return inquiries.filter((inquiry) => inquiry.status === "new")
-  if (view === "unassigned") return inquiries.filter((inquiry) => !inquiry.ownerId)
-  if (view === "overdue") {
-    const now = Date.now()
-    return inquiries.filter(
-      (inquiry) => inquiry.nextActionAt && new Date(inquiry.nextActionAt).getTime() < now,
-    )
-  }
-  if (view === "waiting") {
-    return inquiries.filter((inquiry) => inquiry.status === "waiting_on_customer")
-  }
-  if (view === "qualified") return inquiries.filter((inquiry) => inquiry.status === "qualified")
-  return inquiries.filter(
-    (inquiry) => inquiry.status !== "converted" && inquiry.status !== "closed",
-  )
 }
 
 export function allowedInquiryTransitions(inquiry: InquiryRecord): InquiryStatus[] {
