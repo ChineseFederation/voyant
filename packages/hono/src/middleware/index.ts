@@ -49,6 +49,13 @@ export {
 export { isStaffRbacEnforced, requireActor } from "./require-actor.js"
 export { requirePermission } from "./require-permission.js"
 export {
+  evaluateRequestPermission,
+  installRequestPermissionAuthorizer,
+  requireAdditionalPermission,
+  type RequestPermissionAuthorizer,
+  type RequestPermissionDecision,
+} from "./request-permission.js"
+export {
   type SecurityHeadersOptions,
   type StripeConnectSecurityHeadersScope,
   securityHeaders,
