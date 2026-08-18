@@ -9,6 +9,8 @@ import {
 import {
   addInquiryTargetSchema,
   inquiryCreateResponseSchema,
+  inquiryBookingConversionRefusalSchema,
+  inquiryBookingConversionResultSchema,
   inquiryListResponseSchema,
   inquiryProposalConversionRefusalSchema,
   inquiryProposalConversionResultSchema,
@@ -22,7 +24,9 @@ import {
   type RelationshipsRouteRuntime,
 } from "../route-runtime.js"
 import {
+  convertInquiryToBookingTarget,
   convertInquiryToProposal,
+  InquiryBookingConversionRefusedError,
   InquiryProposalConversionRefusedError,
   InquiryServiceError,
   relationshipsService,
@@ -30,7 +34,7 @@ import {
 import {
   assignInquirySchema,
   closeInquirySchema,
-  convertInquiryToProposalSchema,
+  convertInquirySchema,
   createInquirySchema,
   inquiryListQuerySchema,
   reopenInquirySchema,
@@ -65,13 +69,15 @@ const documentedTransitionSchema: z.ZodObject = transitionInquirySchema
 const documentedAssignSchema: z.ZodObject = assignInquirySchema
 const documentedCloseSchema: z.ZodObject = closeInquirySchema
 const documentedReopenSchema: z.ZodObject = reopenInquirySchema
-const documentedConvertSchema: z.ZodObject = convertInquiryToProposalSchema
+const documentedConvertSchema: z.ZodTypeAny = convertInquirySchema
 const documentedInquiryResponseSchema: z.ZodObject = inquiryResponseSchema
 const documentedInquiryCreateResponseSchema: z.ZodObject = inquiryCreateResponseSchema
 const documentedInquiryListResponseSchema: z.ZodObject = inquiryListResponseSchema
 const inquiryResponse = jsonContent(documentedInquiryResponseSchema)
 const inquiryCreateResponse = jsonContent(documentedInquiryCreateResponseSchema)
-const inquiryConversionResponse = jsonContent(inquiryProposalConversionResultSchema)
+const inquiryConversionResponse = jsonContent(
+  inquiryProposalConversionResultSchema.or(inquiryBookingConversionResultSchema),
+)
 const inquiryTargetResponse = jsonContent(inquiryTargetResponseSchema)
 
 function requireLink(c: Context<Env>): LinkService {
@@ -97,7 +103,6 @@ async function withTargets(
     targets: await relationshipsService.listInquiryTargets(db, link, inquiry.id as string),
   }
 }
-
 function serviceErrorResponse(c: Context<Env>, error: unknown) {
   if (!(error instanceof InquiryServiceError)) throw error
   if (error.code === "INQUIRY_NOT_FOUND") return c.json({ error: error.message }, 404)
@@ -215,10 +220,14 @@ const convertRoute = createRoute({
     201: { description: "Created Inquiry conversion", ...inquiryConversionResponse },
     404: { description: "Inquiry not found", ...jsonContent(errorResponseSchema) },
     409: {
-      description: "Inquiry lifecycle conflict or Proposal refusal",
-      ...jsonContent(inquiryProposalConversionRefusalSchema.or(errorResponseSchema)),
+      description: "Inquiry lifecycle conflict or target-owner refusal",
+      ...jsonContent(
+        inquiryProposalConversionRefusalSchema
+          .or(inquiryBookingConversionRefusalSchema)
+          .or(errorResponseSchema),
+      ),
     },
-    503: { description: "Proposal conversion unavailable", ...jsonContent(errorResponseSchema) },
+    503: { description: "Conversion owner unavailable", ...jsonContent(errorResponseSchema) },
   },
 })
 
@@ -366,24 +375,46 @@ inquiryRoutes.openapi(deleteTargetRoute, async (c) => {
 })
 inquiryRoutes.openapi(convertRoute, async (c) => {
   const actorId = requireUserId(c)
+  const command = await parseJsonBody(c, convertInquirySchema)
   const runtime = c.get("container")?.resolve(RELATIONSHIPS_ROUTE_RUNTIME_CONTAINER_KEY) as
     | RelationshipsRouteRuntime
     | undefined
-  if (!runtime?.proposalInquiryConversion) {
-    return c.json({ error: "Proposal conversion is unavailable" }, 503)
-  }
   try {
-    const result = await convertInquiryToProposal(
-      c.get("db"),
-      runtime.proposalInquiryConversion,
-      c.req.valid("param").id,
-      await parseJsonBody(c, convertInquiryToProposalSchema),
-      actorId,
-    )
+    const inquiryId = c.req.valid("param").id
+    let result
+    if (command.kind === "proposal") {
+      if (!runtime?.proposalInquiryConversion) {
+        return c.json({ error: "Proposal conversion is unavailable" }, 503)
+      }
+      result = await convertInquiryToProposal(
+        c.get("db"),
+        runtime.proposalInquiryConversion,
+        inquiryId,
+        command,
+        actorId,
+      )
+    } else if (command.kind === "booking") {
+      throw new InquiryBookingConversionRefusedError("booking_session_required")
+    } else {
+      if (!runtime?.inquiryBookingSession || !runtime.inquiryBookingTargetResolver) {
+        return c.json({ error: "Booking Session conversion is unavailable" }, 503)
+      }
+      result = await convertInquiryToBookingTarget(
+        c.get("db"),
+        runtime.inquiryBookingSession,
+        runtime.inquiryBookingTargetResolver,
+        inquiryId,
+        command,
+        actorId,
+      )
+    }
     const body = { data: result }
     return result.kind === "created" ? c.json(body, 201) : c.json(body, 200)
   } catch (error) {
     if (error instanceof InquiryProposalConversionRefusedError) {
+      return c.json({ error: error.message, reason: error.reason }, 409)
+    }
+    if (error instanceof InquiryBookingConversionRefusedError) {
       return c.json({ error: error.message, reason: error.reason }, 409)
     }
     return serviceErrorResponse(c, error)

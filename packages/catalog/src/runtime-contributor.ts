@@ -16,6 +16,7 @@ import {
 import { createProductionBookingSessionModule } from "@voyant-travel/catalog/booking-engine"
 import type { CatalogBookingRouteModuleOptions } from "@voyant-travel/catalog/booking-engine/operator-routes"
 import { createDrizzleBookingSessionRepository } from "@voyant-travel/catalog/booking-engine/sessions-drizzle"
+import { bookingSessionsTable } from "@voyant-travel/catalog/booking-engine/sessions-schema"
 import {
   type CatalogIndexer,
   catalogIndexerProviderPort,
@@ -45,7 +46,7 @@ import {
   type FinanceOperatorSettingsRuntime,
   financeOperatorSettingsRuntimePort,
 } from "@voyant-travel/finance/runtime-port"
-import { sql } from "drizzle-orm"
+import { eq, sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import { catalogBookingActionSource } from "./booking-action-source.js"
 import { createCatalogBookingAmendmentRuntime } from "./booking-engine/amendment-runtime.js"
@@ -54,6 +55,10 @@ import {
   type CatalogBookingSessionMaintenanceJobRuntime,
   catalogBookingSessionMaintenanceJobRuntimePort,
 } from "./booking-session-maintenance-job-runtime-port.js"
+import {
+  type CatalogInquiryBookingSessionRuntime,
+  catalogInquiryBookingSessionRuntimePort,
+} from "./inquiry-booking-session-runtime-port.js"
 import {
   type CatalogBookingSessionSettlementRuntime,
   catalogBookingSessionSettlementRuntimePort,
@@ -346,6 +351,53 @@ export function createCatalogRuntimePortContribution(
         )
       },
     } satisfies CatalogCompositeBookingSessionRuntime,
+    [catalogInquiryBookingSessionRuntimePort.id]: {
+      async createForInquiry(input) {
+        const db = input.db as PostgresJsDatabase
+        return db.transaction(async (tx) => {
+          await tx.execute(
+            sql`SELECT pg_advisory_xact_lock(hashtextextended(${`catalog:inquiry-booking-session:${input.idempotencyKey}`}, 0))`,
+          )
+          const [existing] = await tx
+            .select({ id: bookingSessionsTable.id })
+            .from(bookingSessionsTable)
+            .where(eq(bookingSessionsTable.createIdempotencyKey, input.idempotencyKey))
+            .limit(1)
+          if (existing) return { kind: "replayed", bookingSessionId: existing.id }
+
+          const module = await resolveBookingSessionModule(tx)
+          const outcome = await module.createSession(
+            {
+              idempotencyKey: input.idempotencyKey,
+              target: input.target,
+              selection: input.selection,
+            },
+            {
+              actorKind: "staff",
+              principalId: input.actorId,
+              organizationId: input.organizationId ?? undefined,
+              ...(input.channelId ? { storefront: { channelId: input.channelId } } : {}),
+              staffAuthority: { admitted: true, reason: "inquiry_conversion" },
+            },
+          )
+          if (outcome.kind === "session_created") {
+            return { kind: "created", bookingSessionId: outcome.session.id }
+          }
+          if (outcome.kind === "rejected") {
+            return {
+              kind: "refused",
+              reason:
+                outcome.error.kind === "idempotency_conflict"
+                  ? "idempotency_conflict"
+                  : outcome.error.kind === "invalid_selection"
+                    ? "invalid_selection"
+                    : "target_unavailable",
+            }
+          }
+          return { kind: "refused", reason: "target_unavailable" }
+        })
+      },
+    } satisfies CatalogInquiryBookingSessionRuntime,
     [catalogRuntimeServicesPort.id]: contribution.then((runtime) => runtime.services),
     [bookingsSupplierAmendmentRuntimePort.id]: createCatalogBookingAmendmentRuntime({
       async resolveRegistry() {

@@ -231,6 +231,50 @@ export const convertInquiryToProposalSchema = z.object({
   keepInquiryOpen: z.boolean().default(false),
 })
 
+export const convertInquiryToBookingSessionSchema = z.object({
+  kind: z.literal("booking_session"),
+  idempotencyKey: z.string().trim().min(1).max(255),
+  targetLinkId: z.string().min(1),
+  channelId: z.string().min(1).nullable().optional(),
+  selection: z.record(z.string(), z.unknown()).optional(),
+  keepInquiryOpen: z.boolean().default(false),
+})
+
+export const convertInquiryToBookingSchema = z.object({
+  kind: z.literal("booking"),
+  idempotencyKey: z.string().trim().min(1).max(255),
+})
+
+export const convertInquirySchema = z.discriminatedUnion("kind", [
+  convertInquiryToProposalSchema,
+  convertInquiryToBookingSessionSchema,
+  convertInquiryToBookingSchema,
+])
+
+export const inquiryBookingConversionRefusalReasonSchema = z.enum([
+  "booking_session_required",
+  "target_not_found",
+  "unsupported_target",
+  "idempotency_conflict",
+  "invalid_selection",
+  "target_unavailable",
+])
+
+export const inquiryBookingConversionResultSchema = z.object({
+  data: z.object({
+    kind: z.enum(["created", "replayed"]),
+    conversionId: z.string(),
+    inquiryId: z.string(),
+    inquiryStatus: z.enum(["qualified", "converted"]),
+    target: z.object({ kind: z.literal("booking_session"), id: z.string() }),
+  }),
+})
+
+export const inquiryBookingConversionRefusalSchema = z.object({
+  error: z.string(),
+  reason: inquiryBookingConversionRefusalReasonSchema,
+})
+
 export const inquiryProposalConversionRefusalReasonSchema = z.enum([
   "invalid_input",
   "pipeline_not_found",
@@ -331,6 +375,17 @@ export type AssignInquiryInput = z.infer<typeof assignInquirySchema>
 export type CloseInquiryInput = z.infer<typeof closeInquirySchema>
 export type ReopenInquiryInput = z.infer<typeof reopenInquirySchema>
 export type ConvertInquiryToProposalCommand = z.infer<typeof convertInquiryToProposalSchema>
+export type ConvertInquiryToBookingSessionCommand = z.infer<
+  typeof convertInquiryToBookingSessionSchema
+>
+export type ConvertInquiryToBookingCommand = z.infer<typeof convertInquiryToBookingSchema>
+export type ConvertInquiryCommand = z.infer<typeof convertInquirySchema>
+export type InquiryBookingConversionRefusalReason = z.infer<
+  typeof inquiryBookingConversionRefusalReasonSchema
+>
+export type InquiryBookingConversionResult = z.infer<
+  typeof inquiryBookingConversionResultSchema
+>["data"]
 export type InquiryProposalConversionResult = z.infer<
   typeof inquiryProposalConversionResultSchema
 >["data"]

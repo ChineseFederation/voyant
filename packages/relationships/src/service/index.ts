@@ -26,6 +26,15 @@ export {
   convertInquiryToProposal,
   InquiryProposalConversionRefusedError,
 } from "./inquiry-conversions.js"
+export {
+  convertInquiryToBookingTarget,
+  InquiryBookingConversionRefusedError,
+} from "./inquiry-booking-conversions.js"
+export type {
+  InquiryBookingConversionRefusalReason,
+  InquiryBookingTarget,
+  InquiryBookingTargetResolver,
+} from "./inquiry-booking-conversions.js"
 export type {
   CreatePersonDocumentInput,
   PersonDocumentListQuery,

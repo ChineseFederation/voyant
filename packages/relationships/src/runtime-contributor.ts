@@ -2,6 +2,10 @@ import {
   type BookingsRelationshipsRuntime,
   bookingsRelationshipsRuntimePort,
 } from "@voyant-travel/bookings/runtime-port"
+import {
+  type CatalogInquiryBookingSessionRuntime,
+  catalogInquiryBookingSessionRuntimePort,
+} from "@voyant-travel/catalog/inquiry-booking-session-runtime-port"
 import type { VoyantRuntimeHostPrimitives } from "@voyant-travel/core"
 import {
   type CustomFieldsRuntime,
@@ -207,6 +211,14 @@ export function createRelationshipsRuntimePortContribution(
   const inquiryTargetAuthorities = Promise.resolve(
     host.getRuntimePorts?.<InquiryTargetAuthorityRuntime>(inquiryTargetAuthorityRuntimePort) ?? [],
   )
+  const inquiryBookingSession =
+    host.hasRuntimePort?.(catalogInquiryBookingSessionRuntimePort) === true
+      ? Promise.resolve(
+          host.getRuntimePort<CatalogInquiryBookingSessionRuntime>(
+            catalogInquiryBookingSessionRuntimePort,
+          ),
+        )
+      : undefined
   const customFields: CustomFieldValueReaderRuntime = {
     async resolveVisibleValues(db, entity, entityId, channel) {
       const database = db as PostgresJsDatabase
@@ -273,6 +285,15 @@ export function createRelationshipsRuntimePortContribution(
           return (await authority.targetExists(db, targetId)) ? "valid" : "not_found"
         },
       },
+      ...(inquiryBookingSession
+        ? {
+            inquiryBookingSession: {
+              createForInquiry: async (
+                ...args: Parameters<CatalogInquiryBookingSessionRuntime["createForInquiry"]>
+              ) => (await inquiryBookingSession).createForInquiry(...args),
+            },
+          }
+        : {}),
     } satisfies RelationshipsRouteRuntimeOptions,
     [relationshipsMiceRuntimePort.id]: {
       personExists: async (db, personId) =>

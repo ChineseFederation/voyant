@@ -58,6 +58,7 @@
     "./booking-engine/operator-routes": "./src/booking-engine/operator-routes.ts",
     "./runtime-port": "./src/content-runtime-port.ts",
     "./composite-booking-session-runtime-port": "./src/composite-booking-session-runtime-port.ts",
+    "./inquiry-booking-session-runtime-port": "./src/inquiry-booking-session-runtime-port.ts",
     "./booking-session-maintenance-job": "./src/booking-session-maintenance-job.ts",
     "./reindex-job": "./src/reindex-job.ts",
     "./sources-sync-job": "./src/sources-sync-job.ts",
@@ -378,6 +379,11 @@
         "types": "./dist/content-runtime-port.d.ts",
         "import": "./dist/content-runtime-port.js",
         "default": "./dist/content-runtime-port.js"
+      },
+      "./inquiry-booking-session-runtime-port": {
+        "types": "./dist/inquiry-booking-session-runtime-port.d.ts",
+        "import": "./dist/inquiry-booking-session-runtime-port.js",
+        "default": "./dist/inquiry-booking-session-runtime-port.js"
       },
       "./composite-booking-session-runtime-port": {
         "types": "./dist/composite-booking-session-runtime-port.d.ts",

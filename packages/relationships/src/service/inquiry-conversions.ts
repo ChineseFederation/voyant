@@ -23,6 +23,9 @@ function resultFromConversion(
   kind: "created" | "replayed",
   conversion: typeof inquiryConversions.$inferSelect,
 ): InquiryProposalConversionResult {
+  if (conversion.targetSnapshot.kind !== "proposal") {
+    throw new Error("Proposal conversion has a non-Proposal target snapshot")
+  }
   return {
     kind,
     conversionId: conversion.id,

@@ -154,6 +154,11 @@ export interface InquiryProposalTargetSnapshot {
   stageId: string
 }
 
+export interface InquiryBookingSessionTargetSnapshot {
+  kind: "booking_session"
+  targetLinkId: string
+}
+
 /** Durable provenance and replay boundary for every successful Inquiry handoff. */
 export const inquiryConversions = pgTable(
   "inquiry_conversions",
@@ -164,7 +169,9 @@ export const inquiryConversions = pgTable(
       .references(() => inquiries.id, { onDelete: "cascade" }),
     kind: inquiryConversionKindEnum("kind").notNull(),
     targetId: text("target_id").notNull(),
-    targetSnapshot: jsonb("target_snapshot").$type<InquiryProposalTargetSnapshot>().notNull(),
+    targetSnapshot: jsonb("target_snapshot")
+      .$type<InquiryProposalTargetSnapshot | InquiryBookingSessionTargetSnapshot>()
+      .notNull(),
     idempotencyKey: text("idempotency_key").notNull(),
     mode: inquiryConversionModeEnum("mode").notNull(),
     actorId: text("actor_id").notNull(),

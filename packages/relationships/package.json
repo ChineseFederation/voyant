@@ -34,6 +34,7 @@
     "@hono/zod-openapi": "catalog:",
     "@voyant-travel/action-ledger": "workspace:^",
     "@voyant-travel/bookings": "workspace:^",
+    "@voyant-travel/catalog": "workspace:^",
     "@voyant-travel/core": "workspace:^",
     "@voyant-travel/custom-fields": "workspace:^",
     "@voyant-travel/db": "workspace:^",

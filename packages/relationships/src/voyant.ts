@@ -3,6 +3,7 @@ import {
   bookingsCrmSnapshotRuntimePort,
   bookingsRelationshipsRuntimePort,
 } from "@voyant-travel/bookings/runtime-port"
+import { catalogInquiryBookingSessionRuntimePort } from "@voyant-travel/catalog/inquiry-booking-session-runtime-port"
 import { defineModule, providePort, requirePort } from "@voyant-travel/core/project"
 import {
   customFieldsRuntimePort,
@@ -130,7 +131,7 @@ const inquiryConvertedPayloadSchema = {
     id: { type: "string" },
     actorId: { type: "string" },
     conversionId: { type: "string" },
-    kind: { type: "string", enum: ["proposal"] },
+    kind: { type: "string", enum: ["proposal", "booking_session", "booking"] },
     targetId: { type: "string" },
     inquiryStatus: { type: "string", enum: ["qualified", "converted"] },
   },
@@ -177,6 +178,7 @@ export const relationshipsVoyantModule = defineModule({
     // conversion endpoint stays mounted and answers 503 when no provider is selected.
     requirePort(proposalInquiryConversionRuntimePort, { optional: true }),
     requirePort(inquiryTargetAuthorityRuntimePort, { optional: true, cardinality: "many" }),
+    requirePort(catalogInquiryBookingSessionRuntimePort, { optional: true }),
     // Optional so a deployment that selects CRM without Bookings still boots;
     // the enrichment subscriber simply has nothing to read.
     requirePort(bookingsCrmSnapshotRuntimePort, { optional: true }),
