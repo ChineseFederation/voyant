@@ -1,5 +1,5 @@
 import type { VoyantRuntimeHostPrimitives } from "@voyant-travel/core"
-import { inquiryDetailPathTemplate } from "@voyant-travel/relationships-contracts"
+import { inquiryDetailPathTemplate } from "@voyant-travel/relationships-contracts/inquiry-navigation"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 const resolveInvoicePayUrlTemplate = vi.fn<() => Promise<string | null>>()

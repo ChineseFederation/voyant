@@ -20,7 +20,7 @@ import { bookingInquiriesService, bookingsService } from "@voyant-travel/booking
 import { financeInvoiceCoreService } from "@voyant-travel/finance/service-invoice-core"
 import { getOperatorProfile } from "@voyant-travel/operator-settings/service"
 import { relationshipsService } from "@voyant-travel/relationships"
-import { INQUIRY_DETAIL_DESTINATION } from "@voyant-travel/relationships-contracts"
+import { INQUIRY_DETAIL_DESTINATION } from "@voyant-travel/relationships-contracts/inquiry-navigation"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 
 import {

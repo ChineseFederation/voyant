@@ -10,7 +10,7 @@ import {
 import {
   INQUIRY_DETAIL_DESTINATION,
   inquiryDetailPathTemplate,
-} from "@voyant-travel/relationships-contracts"
+} from "@voyant-travel/relationships-contracts/inquiry-navigation"
 import { Building, ClipboardList, Users } from "lucide-react"
 
 // Lean statics only: the client module (fetcher) and the skeletons. Query
