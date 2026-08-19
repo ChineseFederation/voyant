@@ -187,13 +187,7 @@ export async function createMediaAsset(
   const checksum = await computeChecksum(bytes)
 
   const dedupScope = input.dedupScope ?? "library"
-  const existing = await findAssetByChecksum(
-    db,
-    checksum,
-    input.storageClass,
-    dedupScope,
-    storage,
-  )
+  const existing = await findAssetByChecksum(db, checksum, input.storageClass, dedupScope, storage)
   if (existing) {
     return { asset: existing, deduped: true }
   }
@@ -242,13 +236,7 @@ export async function createMediaAsset(
   } catch (error) {
     // Lost a race with a concurrent identical upload: the unique checksum index
     // rejected our insert. Fall back to the row the winner created.
-    const raced = await findAssetByChecksum(
-      db,
-      checksum,
-      input.storageClass,
-      dedupScope,
-      storage,
-    )
+    const raced = await findAssetByChecksum(db, checksum, input.storageClass, dedupScope, storage)
     if (raced) return { asset: raced, deduped: true }
     // The object upload precedes the catalogue insert. If no competing row owns
     // this content-addressed key, compensate so a failed insert cannot leave a
@@ -276,7 +264,9 @@ export async function listMediaAssets(
   storage?: MediaUrlSource,
 ) {
   const conditions = []
-  conditions.push(sql`coalesce(${mediaAsset.providerMeta} #>> '{inquiryAttachment,state}', '') = ''`)
+  conditions.push(
+    sql`coalesce(${mediaAsset.providerMeta} #>> '{inquiryAttachment,state}', '') = ''`,
+  )
   if (query.type) conditions.push(eq(mediaAsset.type, query.type))
   if (query.mimeType) conditions.push(eq(mediaAsset.mimeType, query.mimeType))
   if (query.name) conditions.push(ilike(mediaAsset.name, `%${query.name}%`))

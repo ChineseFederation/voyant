@@ -11964,8 +11964,7 @@
                   },
                   "priority": {
                     "type": "string",
-                    "enum": ["low", "normal", "high", "urgent"],
-                    "default": "normal"
+                    "enum": ["low", "normal", "high", "urgent"]
                   },
                   "personId": {
                     "type": ["string", "null"],
@@ -12134,16 +12133,14 @@
                       "minLength": 1,
                       "maxLength": 100
                     },
-                    "maxItems": 100,
-                    "default": []
+                    "maxItems": 100
                   },
                   "customFields": {
                     "type": "object",
                     "additionalProperties": {
                       "type": "object",
                       "additionalProperties": {}
-                    },
-                    "default": {}
+                    }
                   }
                 }
               }

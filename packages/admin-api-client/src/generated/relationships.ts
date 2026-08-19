@@ -6323,10 +6323,7 @@ export interface operations {
           subject?: string
           /** @enum {string} */
           kind?: "product" | "custom_trip" | "general"
-          /**
-           * @default normal
-           * @enum {string}
-           */
+          /** @enum {string} */
           priority?: "low" | "normal" | "high" | "urgent"
           personId?: string | null
           organizationId?: string | null
@@ -6374,9 +6371,7 @@ export interface operations {
           } | null
           customerMessage?: string | null
           internalSummary?: string | null
-          /** @default [] */
           tags?: string[]
-          /** @default {} */
           customFields?: {
             [key: string]: {
               [key: string]: unknown

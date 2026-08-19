@@ -92,9 +92,7 @@ for (const [packageName, source] of [
 if (deploymentResources.includes("createDeploymentCapabilities")) {
   violations.push("deployment-resources.ts must not define a capability container")
 }
-if (
-  /host\.primitives\.config\.read\([^)]*,\s*["']customFields["']\s*\)/s.test(relationships)
-) {
+if (/host\.primitives\.config\.read\([^)]*,\s*["']customFields["']\s*\)/s.test(relationships)) {
   violations.push(
     "relationships runtime contributor must not restore deployment-configured custom fields",
   )

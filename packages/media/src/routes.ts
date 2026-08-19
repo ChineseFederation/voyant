@@ -142,7 +142,11 @@ const mediaFolderMemberRowSchema = z.object({
 
 function withoutInquiryAttachmentMarker<T extends { providerMeta: unknown }>(asset: T): T {
   const { dedupScope: _dedupScope, ...publicAsset } = asset as T & { dedupScope?: unknown }
-  if (!asset.providerMeta || typeof asset.providerMeta !== "object" || Array.isArray(asset.providerMeta)) {
+  if (
+    !asset.providerMeta ||
+    typeof asset.providerMeta !== "object" ||
+    Array.isArray(asset.providerMeta)
+  ) {
     return publicAsset as T
   }
   const { inquiryAttachment: _privateMarker, ...providerMeta } = asset.providerMeta as Record<

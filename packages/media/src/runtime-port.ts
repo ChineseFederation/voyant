@@ -55,7 +55,11 @@ export interface MediaInquiryAttachmentRuntime {
   ): Promise<PreparedInquiryAttachment>
   finalizePrivateDocument(bindings: unknown, prepared: PreparedInquiryAttachment): Promise<void>
   abortPrivateDocument(bindings: unknown, prepared: PreparedInquiryAttachment): Promise<void>
-  claimPrivateDocument(db: unknown, prepared: PreparedInquiryAttachment, usageId: string): Promise<void>
+  claimPrivateDocument(
+    db: unknown,
+    prepared: PreparedInquiryAttachment,
+    usageId: string,
+  ): Promise<void>
   claimExistingPrivateDocument(db: unknown, assetId: string, usageId: string): Promise<void>
   releasePrivateDocument(db: unknown, assetId: string, usageId: string): Promise<void>
   requestPrivateDocumentPurge(db: unknown, assetId: string): Promise<void>
