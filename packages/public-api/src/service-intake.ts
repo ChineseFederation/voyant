@@ -160,7 +160,7 @@ async function findExistingSignal(
   persistence: PublicApiIntakePersistence,
   context: PublicApiRequestContext,
   input: {
-    kind: PublicApiLeadIntakeInput["kind"]
+    kind: PublicApiIntakeSignal["kind"]
     sourceSubmissionId?: string | null
   },
 ) {
