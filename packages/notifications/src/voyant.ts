@@ -29,8 +29,6 @@ export const notificationsVoyantModule = defineModule({
       id: "@voyant-travel/notifications#config.admin-inquiry-detail-path-template",
       key: "ADMIN_DESTINATION_INQUIRY_DETAIL_PATH_TEMPLATE",
       required: false,
-      description:
-        "Serialized inquiry.detail path template emitted from the selected Relationships admin mount; must contain {inquiryId}.",
     },
   ],
   runtimePorts: [
