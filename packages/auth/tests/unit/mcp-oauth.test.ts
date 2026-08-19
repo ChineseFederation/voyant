@@ -5,6 +5,7 @@ import {
   MCP_OAUTH_SCOPE_WRITE,
   mcpOAuthProviderConfig,
   mcpProtectedResourceMetadata,
+  parseOAuthClientIdClaim,
   parseOAuthScopeClaim,
   resolveMcpGrantScopes,
   withPublicApiEndpoints,
@@ -124,6 +125,22 @@ describe("parseOAuthScopeClaim", () => {
     expect(parseOAuthScopeClaim(undefined)).toEqual([])
     expect(parseOAuthScopeClaim(42)).toEqual([])
     expect(parseOAuthScopeClaim([1, "mcp:read"])).toEqual(["mcp:read"])
+  })
+})
+
+describe("parseOAuthClientIdClaim", () => {
+  it("reads the azp claim carried by signed JWT access tokens", () => {
+    expect(parseOAuthClientIdClaim({ azp: "hosted-client" })).toBe("hosted-client")
+  })
+
+  it("keeps compatibility with introspection's client_id shape", () => {
+    expect(parseOAuthClientIdClaim({ client_id: "introspected-client" })).toBe(
+      "introspected-client",
+    )
+  })
+
+  it("fails closed when two client identifiers disagree", () => {
+    expect(parseOAuthClientIdClaim({ azp: "signed-client", client_id: "other-client" })).toBe("")
   })
 })
 
