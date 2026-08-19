@@ -23,6 +23,7 @@ import {
   inquiryTargetAuthorityRuntimePort,
 } from "@voyant-travel/relationships-contracts/inquiry-target-authority/runtime-port"
 import { and, eq } from "drizzle-orm"
+import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import { checkProductActionLedgerDrift } from "./action-ledger-drift.js"
 import {
   createInventoryPaymentPolicyRuntime,
