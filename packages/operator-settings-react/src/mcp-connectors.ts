@@ -57,7 +57,7 @@ export async function listMcpConnectors(
   baseUrl: string,
   fetcher: McpFetcher,
 ): Promise<McpConnector[]> {
-  const response = await fetcher(`${baseUrl}/auth/oauth2/get-consents`, {
+  const response = await fetcher(`${baseUrl}/auth/admin/oauth2/get-consents`, {
     credentials: "include",
   })
   if (!response.ok) throw new Error("consents")
@@ -67,7 +67,7 @@ export async function listMcpConnectors(
     consents.map(async (consent) => {
       try {
         const clientResponse = await fetcher(
-          `${baseUrl}/auth/oauth2/get-client?client_id=${encodeURIComponent(consent.clientId)}`,
+          `${baseUrl}/auth/admin/oauth2/get-client?client_id=${encodeURIComponent(consent.clientId)}`,
           { credentials: "include" },
         )
         return toMcpConnector(consent, clientResponse.ok ? await clientResponse.json() : null)
@@ -84,7 +84,7 @@ export async function revokeMcpConnector(
   fetcher: McpFetcher,
   consentId: string,
 ): Promise<void> {
-  const response = await fetcher(`${baseUrl}/auth/oauth2/delete-consent`, {
+  const response = await fetcher(`${baseUrl}/auth/admin/oauth2/delete-consent`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     credentials: "include",

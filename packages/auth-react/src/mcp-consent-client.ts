@@ -1,13 +1,14 @@
 /**
  * OAuth calls made by the MCP consent screen.
  *
- * The admin shell's fetcher maps the shared `/auth` prefix into the admin realm.
- * Callers must not spell `/auth/admin` themselves or the request becomes
- * `/api/auth/admin/admin/...`.
+ * These are canonical admin-realm endpoints because the managed consent route
+ * can be mounted above the standard admin provider and therefore receive a raw
+ * deployment fetcher. `createAuthBasePathFetcher` is idempotent for callers
+ * mounted inside the provider, so both contexts resolve to exactly one realm.
  */
 
-export const MCP_CONSENT_PUBLIC_CLIENT_PATH = "/auth/oauth2/public-client"
-export const MCP_CONSENT_DECISION_PATH = "/auth/oauth2/consent"
+export const MCP_CONSENT_PUBLIC_CLIENT_PATH = "/auth/admin/oauth2/public-client"
+export const MCP_CONSENT_DECISION_PATH = "/auth/admin/oauth2/consent"
 
 export type McpConsentFetcher = (input: string, init?: RequestInit) => Promise<Response>
 
