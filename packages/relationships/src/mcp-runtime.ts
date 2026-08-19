@@ -1,4 +1,7 @@
-import type { ActionLedgerRequestContextValues } from "@voyant-travel/action-ledger"
+import {
+  type ActionLedgerRequestContextValues,
+  appendActionLedgerMutation,
+} from "@voyant-travel/action-ledger"
 import type { EventBus, ModuleContainer } from "@voyant-travel/core"
 import { createLinkService } from "@voyant-travel/db/links"
 import {
@@ -10,7 +13,7 @@ import {
 } from "@voyant-travel/tools"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import type { Context } from "hono"
-
+import { INQUIRY_PRIVACY_ERASURE_CAPABILITY } from "./action-ledger-capabilities.js"
 import { emitOrganizationChanged, emitPersonChanged } from "./events.js"
 import { executeInquiryCreateCommand } from "./inquiry-created-command.js"
 import { executeOrganizationCreateCommand } from "./organization-created-command.js"
@@ -29,6 +32,7 @@ import {
   closeInquirySchema,
   convertInquiryToBookingSessionSchema,
   convertInquiryToProposalSchema,
+  eraseInquiryPrivacySchema,
   inquiryListQuerySchema,
   recordInquiryActivitySchema,
   reopenInquirySchema,
@@ -388,6 +392,64 @@ export const voyantToolContextContribution = defineToolContextContribution({
           )
           return { operation: "remove" as const, removedLinkId: String(input.targetLinkId) }
         },
+        async uploadInquiryAttachment({
+          id,
+          contentBase64,
+          ...input
+        }: {
+          id: string
+          contentBase64: string
+          [key: string]: unknown
+        }) {
+          const body = decodeBase64(contentBase64)
+          if (body.byteLength > 25 * 1024 * 1024) {
+            throw new ToolError("Inquiry attachments are limited to 25 MiB.", "INVALID_INPUT")
+          }
+          return relationshipsService.uploadInquiryAttachment(
+            db,
+            id,
+            {
+              operationKey: String(input.operationKey),
+              name: String(input.name),
+              mimeType: typeof input.mimeType === "string" ? input.mimeType : null,
+              caption: typeof input.caption === "string" ? input.caption : null,
+              body,
+            },
+            authorId(),
+            c.env,
+            relationshipsRuntime?.inquiryAttachments,
+          )
+        },
+        async eraseInquiryPrivacy({ id, ...input }: { id: string; [key: string]: unknown }) {
+          const row = await relationshipsService.eraseInquiryPrivacy(
+            db,
+            id,
+            eraseInquiryPrivacySchema.parse(input),
+            authorId(),
+            c.env,
+            relationshipsRuntime?.inquiryAttachments,
+            (tx) =>
+              appendActionLedgerMutation(tx, {
+                context: requestContext,
+                actionName: "relationships.inquiry.privacy_erasure",
+                actionVersion: "v1",
+                actionKind: "delete",
+                evaluatedRisk: "high",
+                targetType: "inquiry",
+                targetId: id,
+                routeOrToolName: "erase_inquiry_privacy",
+                capabilityId: INQUIRY_PRIVACY_ERASURE_CAPABILITY.id,
+                capabilityVersion: INQUIRY_PRIVACY_ERASURE_CAPABILITY.version,
+                authorizationSource: "scope",
+                mutationDetail: {
+                  summary:
+                    "Privacy-erased Inquiry personal data and queued private document purges",
+                  reversalKind: "none",
+                },
+              }),
+          )
+          return withInquiryTargets(row)
+        },
         async startBookingFromInquiry({ id, ...input }: { id: string; [key: string]: unknown }) {
           const sessionRuntime = relationshipsRuntime?.inquiryBookingSession
           if (!sessionRuntime) {
@@ -466,6 +528,19 @@ export const voyantToolContextContribution = defineToolContextContribution({
     }
   },
 })
+
+function decodeBase64(value: string): ArrayBuffer {
+  try {
+    const binary = atob(value)
+    const bytes = new Uint8Array(binary.length)
+    for (let index = 0; index < binary.length; index += 1) {
+      bytes[index] = binary.charCodeAt(index)
+    }
+    return bytes.buffer
+  } catch {
+    throw new ToolError("contentBase64 must be valid base64.", "INVALID_INPUT")
+  }
+}
 
 function relationshipsActionLedgerContext(
   c: Context<RelationshipsMcpEnv>,

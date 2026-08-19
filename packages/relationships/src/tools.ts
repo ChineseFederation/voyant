@@ -39,6 +39,8 @@ import {
   convertInquiryToBookingSessionSchema,
   convertInquiryToProposalSchema,
   createInquirySchema,
+  eraseInquiryPrivacySchema,
+  inquiryAttachmentRecordSchema,
   inquiryBookingConversionResultSchema,
   inquiryListQuerySchema,
   inquiryListResponseSchema,
@@ -256,6 +258,19 @@ const manageInquiryTargetOutputSchema = z.discriminatedUnion("operation", [
   z.object({ operation: z.literal("add"), target: inquiryTargetRecordSchema }),
   z.object({ operation: z.literal("remove"), removedLinkId: z.string() }),
 ])
+const uploadInquiryAttachmentToolInputSchema = inquiryIdSchema.extend({
+  operationKey: z.string().regex(/^[A-Za-z0-9_-]{16,128}$/),
+  name: z.string().trim().min(1).max(500),
+  mimeType: z.string().trim().min(1).max(255).nullable().optional(),
+  caption: z.string().trim().min(1).max(2_000).nullable().optional(),
+  contentBase64: z
+    .string()
+    .min(1)
+    .max(34_952_536)
+    .regex(/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/)
+    .describe("Base64-encoded private document bytes, limited to 25 MiB after decoding."),
+})
+const eraseInquiryPrivacyToolInputSchema = inquiryIdSchema.and(eraseInquiryPrivacySchema)
 const createInquiryOutputSchema = z.object({
   data: inquiryRecordSchema,
   replayed: z.boolean(),
@@ -291,6 +306,8 @@ type UpdateInquiryToolInput = z.infer<typeof updateInquiryToolInputSchema>
 type RecordInquiryActivityToolInput = z.infer<typeof recordInquiryActivityToolInputSchema>
 type QualifyInquiryToolInput = z.infer<typeof qualifyInquiryToolInputSchema>
 type ManageInquiryTargetToolInput = z.infer<typeof manageInquiryTargetToolInputSchema>
+type UploadInquiryAttachmentToolInput = z.infer<typeof uploadInquiryAttachmentToolInputSchema>
+type EraseInquiryPrivacyToolInput = z.infer<typeof eraseInquiryPrivacyToolInputSchema>
 
 /** Request-scoped Relationships operations used by CRM tools. */
 export interface RelationshipsToolServices {
@@ -324,6 +341,8 @@ export interface RelationshipsToolServices {
   recordInquiryActivity(input: RecordInquiryActivityToolInput): Promise<unknown>
   qualifyInquiry(input: QualifyInquiryToolInput): Promise<unknown>
   manageInquiryTarget(input: ManageInquiryTargetToolInput): Promise<unknown>
+  uploadInquiryAttachment(input: UploadInquiryAttachmentToolInput): Promise<unknown>
+  eraseInquiryPrivacy(input: EraseInquiryPrivacyToolInput): Promise<unknown>
   assignInquiry(input: AssignInquiryToolInput): Promise<unknown>
   closeInquiry(input: CloseInquiryToolInput): Promise<unknown>
   convertInquiry(input: ConvertInquiryToolInput): Promise<unknown>
@@ -850,6 +869,55 @@ export const manageInquiryTargetTool = defineTool<
   },
 })
 
+export const uploadInquiryAttachmentTool = defineTool<
+  UploadInquiryAttachmentToolInput,
+  z.infer<typeof inquiryAttachmentRecordSchema>,
+  RelationshipsToolContext
+>({
+  ...sensitiveWriteMetadata,
+  capabilityId: `${OWNER}#tool.upload-inquiry-attachment`,
+  name: "upload_inquiry_attachment",
+  description:
+    "Upload a private document and attach it to an Inquiry. Exact retries reuse the operation key.",
+  inputSchema: uploadInquiryAttachmentToolInputSchema,
+  outputSchema: inquiryAttachmentRecordSchema,
+  annotations: { idempotentHint: true },
+  async handler(input, ctx) {
+    return parseJsonResult(
+      inquiryAttachmentRecordSchema,
+      await crm(ctx).uploadInquiryAttachment(input),
+    )
+  },
+})
+
+export const eraseInquiryPrivacyTool = defineTool<
+  EraseInquiryPrivacyToolInput,
+  z.infer<typeof inquiryRecordSchema>,
+  RelationshipsToolContext
+>({
+  owner: OWNER,
+  capabilityId: `${OWNER}#tool.erase-inquiry-privacy`,
+  capabilityVersion: VERSION,
+  name: "erase_inquiry_privacy",
+  description:
+    "Irreversibly erase personal data from an Inquiry and queue its private documents for purge.",
+  inputSchema: eraseInquiryPrivacyToolInputSchema,
+  outputSchema: inquiryRecordSchema,
+  requiredScopes: ["relationships-pii:delete"],
+  audience: STAFF_AUDIENCE,
+  tier: "destructive",
+  riskPolicy: {
+    destructive: true,
+    reversible: false,
+    dryRunSupported: false,
+    confirmationRequired: true,
+    sideEffects: ["data-write"],
+  },
+  async handler(input, ctx) {
+    return parseJsonResult(inquiryRecordSchema, await crm(ctx).eraseInquiryPrivacy(input))
+  },
+})
+
 export const assignInquiryTool = defineTool<
   AssignInquiryToolInput,
   z.infer<typeof inquiryRecordSchema>,
@@ -984,6 +1052,8 @@ export const relationshipsTools = [
   recordInquiryActivityTool,
   qualifyInquiryTool,
   manageInquiryTargetTool,
+  uploadInquiryAttachmentTool,
+  eraseInquiryPrivacyTool,
   assignInquiryTool,
   closeInquiryTool,
   convertInquiryTool,

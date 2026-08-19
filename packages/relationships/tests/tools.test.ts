@@ -53,6 +53,8 @@ function ctx(
       recordInquiryActivity: unavailable,
       qualifyInquiry: unavailable,
       manageInquiryTarget: unavailable,
+      uploadInquiryAttachment: unavailable,
+      eraseInquiryPrivacy: unavailable,
       assignInquiry: unavailable,
       closeInquiry: unavailable,
       convertInquiry: unavailable,
@@ -292,6 +294,7 @@ describe("relationships (crm) tools", () => {
       "create_inquiry",
       "create_organization",
       "create_person",
+      "erase_inquiry_privacy",
       "get_inquiry",
       "get_organization",
       "get_person",
@@ -313,6 +316,7 @@ describe("relationships (crm) tools", () => {
       "update_relationship_address",
       "update_relationship_contact_method",
       "update_relationship_note",
+      "upload_inquiry_attachment",
     ])
     for (const tool of manifest) {
       expect(tool.capabilityId).toBe(
@@ -414,6 +418,35 @@ describe("relationships (crm) tools", () => {
       ctx({ getInquiry: async (id) => inquiry({ id }) }),
     )
     expect(read).toMatchObject({ id: "inq_1", status: "triaged" })
+
+    const uploaded = await registry().dispatch(
+      "upload_inquiry_attachment",
+      {
+        id: "inq_1",
+        operationKey: "attachment-key-01",
+        name: "request.txt",
+        mimeType: "text/plain",
+        contentBase64: "aGVsbG8=",
+      },
+      ctx({
+        async uploadInquiryAttachment(input) {
+          expect(input).toMatchObject({ id: "inq_1", contentBase64: "aGVsbG8=" })
+          return {
+            linkId: "lnk_1",
+            inquiryId: input.id,
+            assetId: "mast_1",
+            name: input.name,
+            mimeType: input.mimeType ?? null,
+            caption: input.caption ?? null,
+            attachedBy: "staff_1",
+            createdAt: timestamp,
+            updatedAt: timestamp,
+            downloadPath: "/v1/admin/relationships/inquiries/inq_1/attachments/lnk_1/download",
+          }
+        },
+      }),
+    )
+    expect(uploaded).toMatchObject({ inquiryId: "inq_1", assetId: "mast_1" })
 
     const updated = await registry().dispatch(
       "update_inquiry",
