@@ -21,6 +21,11 @@
     "idKeys": ["id"],
     "kind": "admin"
   },
+  "inquiry.first_response_recorded": {
+    "entity": "inquiry",
+    "idKeys": ["id"],
+    "kind": "admin"
+  },
   "inquiry.reopened": { "entity": "inquiry", "idKeys": ["id"], "kind": "admin" },
   "inquiry.status_changed": { "entity": "inquiry", "idKeys": ["id"], "kind": "admin" },
   "inquiry.updated": { "entity": "inquiry", "idKeys": ["id"], "kind": "admin" },

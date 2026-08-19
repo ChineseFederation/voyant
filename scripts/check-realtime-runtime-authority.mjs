@@ -84,7 +84,9 @@ const descriptorEvents = [
   ...runtime.matchAll(/invalidationSubscriber\(\s*"([a-z][a-z0-9._-]+)"\s*,?\s*\)/g),
 ].map((match) => match[1])
 const manifestEntries = [
-  ...manifest.matchAll(/\["([a-z][a-z0-9._-]+)",\s*"(realtime[A-Za-z]+InvalidationSubscriber)"\]/g),
+  ...manifest.matchAll(
+    /\[\s*"([a-z][a-z0-9._-]+)",\s*"(realtime[A-Za-z]+InvalidationSubscriber)"\s*,?\s*\]/g,
+  ),
 ].map((match) => ({ eventType: match[1], exportName: match[2] }))
 
 const duplicates = (values) => values.filter((value, index) => values.indexOf(value) !== index)

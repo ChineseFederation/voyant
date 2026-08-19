@@ -123,6 +123,7 @@ describe("catalog deployment manifest", () => {
       { id: "catalog.search-runtime" },
       { id: "catalog.projection-runtime" },
       { id: "catalog.booking-snapshot-runtime" },
+      { id: "analytics.runtime", optional: true },
       { id: "catalog.booking-session-maintenance-job" },
       { id: "catalog.booking-session-settlement-runtime" },
       { id: "catalog.composite-booking-session.runtime" },

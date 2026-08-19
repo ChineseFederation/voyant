@@ -118,6 +118,7 @@ export const catalogVoyantModule = defineModule({
     requirePort(catalogSearchRuntimePort),
     requirePort(catalogProjectionRuntimePort),
     requirePort(catalogBookingSnapshotRuntimePort),
+    requirePort(analyticsPort, { optional: true }),
     requirePort(catalogBookingSessionMaintenanceJobRuntimePort),
     requirePort(catalogBookingSessionSettlementRuntimePort),
     requirePort(catalogCompositeBookingSessionRuntimePort),
