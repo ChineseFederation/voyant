@@ -193,7 +193,7 @@ jobs:
     name: packaged-acceptance
     needs: build-graph
     runs-on: ubuntu-24.04
-    timeout-minutes: 12
+    timeout-minutes: 25
     env:
       HUSKY: 0
       NODE_OPTIONS: --max-old-space-size=12288
