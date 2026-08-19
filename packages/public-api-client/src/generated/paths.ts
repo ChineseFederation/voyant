@@ -2852,6 +2852,23 @@ export interface paths {
     patch?: never
     trace?: never
   }
+  "/v1/public/relationships/inquiries": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** POST /v1/public/relationships/inquiries */
+    post: operations["postPublicRelationshipsInquiries"]
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
   "/v1/public/trips/health": {
     parameters: {
       query?: never
@@ -18267,7 +18284,7 @@ export interface operations {
            * @default inquiry
            * @enum {string}
            */
-          kind?: "wishlist" | "notify" | "inquiry" | "request_offer" | "referral"
+          kind?: "inquiry" | "request_offer"
           /**
            * @default website
            * @enum {string}
@@ -19602,6 +19619,197 @@ export interface operations {
           [name: string]: unknown
         }
         content?: never
+      }
+    }
+  }
+  postPublicRelationshipsInquiries: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          sourceRef: string
+          subject: string
+          /** @enum {string} */
+          kind: "product" | "custom_trip" | "general"
+          contactSnapshot: {
+            name?: string
+            /** Format: email */
+            email?: string
+            phone?: string
+          }
+          customerMessage?: string | null
+          travelBrief?: {
+            /** @enum {number} */
+            version: 1
+            destinations?: {
+              placeId?: string
+              label: string
+            }[]
+            origin?: {
+              placeId?: string
+              label: string
+            }
+            /** Format: date */
+            startDate?: string
+            /** Format: date */
+            endDate?: string
+            /** @enum {string} */
+            dateFlexibility?: "exact" | "few_days" | "few_weeks" | "open"
+            durationNights?: number
+            adults?: number
+            children?: {
+              age?: number
+            }[]
+            rooms?: number
+            budget?: {
+              amountCents?: number
+              currency: string
+              /** @enum {string} */
+              basis?: "total" | "per_person"
+              /** @enum {string} */
+              flexibility?: "firm" | "approximate" | "unknown"
+            }
+            interests?: string[]
+            accessibilityOrDietaryNotes?: string
+          } | null
+          /** @default [] */
+          targets?: {
+            /** @enum {string} */
+            kind: "product" | "option_unit"
+            targetId: string
+            snapshot: {
+              title: string
+              optionLabel?: string | null
+              /** Format: date */
+              startDate?: string | null
+              /** Format: date */
+              endDate?: string | null
+              /** Format: uri */
+              publicUrl?: string | null
+            }
+          }[]
+          locale?: string | null
+          /** Format: uri */
+          sourceUrl?: string | null
+          /** @default [] */
+          tags?: string[]
+          /** @default {} */
+          customFields?: {
+            [key: string]: {
+              [key: string]: unknown
+            }
+          }
+          consentSnapshot?: {
+            [key: string]: unknown
+          } | null
+        }
+      }
+    }
+    responses: {
+      /** @description Replayed Inquiry intake */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              inquiryId: string
+              /** @enum {string} */
+              status: "new"
+              duplicate: boolean
+              receivedAt: string
+            }
+          }
+        }
+      }
+      /** @description Received Inquiry intake */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              inquiryId: string
+              /** @enum {string} */
+              status: "new"
+              duplicate: boolean
+              receivedAt: string
+            }
+          }
+        }
+      }
+      /** @description Invalid guarded intake request */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Missing active channel or intake guard */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Known Person or target not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Inquiry intake conflict */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Guarded intake rate limit exceeded */
+      429: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Target owner authority unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
       }
     }
   }

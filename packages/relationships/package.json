@@ -46,6 +46,7 @@
     "@voyant-travel/hono": "workspace:^",
     "@voyant-travel/identity": "workspace:^",
     "@voyant-travel/inventory": "workspace:^",
+    "@voyant-travel/media": "workspace:^",
     "@voyant-travel/operations": "workspace:^",
     "@voyant-travel/relationships-contracts": "workspace:^",
     "@voyant-travel/proposals-contracts": "workspace:^",

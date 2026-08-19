@@ -67,6 +67,12 @@ export const crmUiRoInquiryMessages = {
     },
   },
   inquiryDetail: {
+    attachments: "Atașamente",
+    noAttachments: "Nu există încă atașamente.",
+    chooseAttachment: "Alegeți un document privat",
+    attachmentCaption: "Descriere",
+    uploadAttachment: "Încărcați atașamentul",
+    removeAttachment: "Eliminați",
     back: "Înapoi la lista solicitărilor",
     customerRequest: "Cererea clientului",
     context: "Contextul cererii",

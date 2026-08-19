@@ -53,6 +53,12 @@ export interface InquiryWorkspaceProps {
   onTransition: (input: TransitionInquiryInput) => Promise<unknown>
   onClose: (input: CloseInquiryInput) => Promise<unknown>
   onReopen: () => Promise<unknown>
+  onRecordFirstResponse: () => Promise<unknown>
+  isRecordingFirstResponse?: boolean
+  onUploadAttachment?: (file: File, caption?: string) => Promise<unknown>
+  onUpdateAttachmentCaption?: (linkId: string, caption: string | null) => Promise<unknown>
+  onRemoveAttachment?: (linkId: string) => Promise<unknown>
+  isUploadingAttachment?: boolean
   onConvertToProposal: (
     input: InquiryProposalConversionOptions,
   ) => Promise<InquiryProposalConversionOutcome>
@@ -113,6 +119,8 @@ export function InquiryWorkspace(props: InquiryWorkspaceProps) {
   const [activityDirection, setActivityDirection] = useState<"internal" | "inbound" | "outbound">(
     "internal",
   )
+  const [attachmentFile, setAttachmentFile] = useState<File | null>(null)
+  const [attachmentCaption, setAttachmentCaption] = useState("")
   const followUp = nextActionAt
     ? { nextActionAt: new Date(nextActionAt).toISOString() }
     : { noFollowUpExpected }
@@ -248,6 +256,70 @@ export function InquiryWorkspace(props: InquiryWorkspaceProps) {
 
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="flex flex-col gap-4 lg:col-span-2">
+          <Card>
+            <CardHeader>
+              <CardTitle>{messages.attachments}</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {inquiry.attachments.length === 0 ? (
+                <p className="text-sm text-muted-foreground">{messages.noAttachments}</p>
+              ) : (
+                <ul className="space-y-2">
+                  {inquiry.attachments.map((attachment) => (
+                    <li key={attachment.linkId} className="rounded-md border p-3 text-sm">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <a className="font-medium underline" href={attachment.downloadPath}>
+                          {attachment.name}
+                        </a>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          disabled={!props.onRemoveAttachment}
+                          onClick={() => void props.onRemoveAttachment?.(attachment.linkId)}
+                        >
+                          {messages.removeAttachment}
+                        </Button>
+                      </div>
+                      <Input
+                        aria-label={messages.attachmentCaption}
+                        defaultValue={attachment.caption ?? ""}
+                        onBlur={(event) =>
+                          void props.onUpdateAttachmentCaption?.(
+                            attachment.linkId,
+                            event.currentTarget.value.trim() || null,
+                          )
+                        }
+                      />
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <Input
+                type="file"
+                aria-label={messages.chooseAttachment}
+                onChange={(event) => setAttachmentFile(event.currentTarget.files?.[0] ?? null)}
+              />
+              <Input
+                value={attachmentCaption}
+                placeholder={messages.attachmentCaption}
+                onChange={(event) => setAttachmentCaption(event.currentTarget.value)}
+              />
+              <Button
+                type="button"
+                disabled={!attachmentFile || !props.onUploadAttachment || props.isUploadingAttachment}
+                onClick={() => {
+                  if (!attachmentFile || !props.onUploadAttachment) return
+                  void props.onUploadAttachment(attachmentFile, attachmentCaption).then(() => {
+                    setAttachmentFile(null)
+                    setAttachmentCaption("")
+                  })
+                }}
+              >
+                {messages.uploadAttachment}
+              </Button>
+            </CardContent>
+          </Card>
           <Card>
             <CardHeader>
               <CardTitle>{messages.customerRequest}</CardTitle>

@@ -99,6 +99,13 @@
       "when": 1787119200000,
       "tag": "20260819090000_inquiry_legacy_cutover_cursor",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1787166323760,
+      "tag": "20260819190523_inquiry_attachments_privacy",
+      "breakpoints": true
     }
   ]
 }

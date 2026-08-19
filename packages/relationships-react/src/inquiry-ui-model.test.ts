@@ -31,6 +31,7 @@ function record(overrides: Partial<InquiryRecord> = {}): InquiryRecord {
     locale: "en",
     consentSnapshot: null,
     tags: [],
+    targets: [],
     customFields: {},
     createdAt: "2026-08-18T10:00:00.000Z",
     updatedAt: "2026-08-18T10:00:00.000Z",

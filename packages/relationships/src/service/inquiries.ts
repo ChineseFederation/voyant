@@ -2,19 +2,24 @@
 import { generateEventId, type LinkService } from "@voyant-travel/core"
 import { createLinkService } from "@voyant-travel/db/links"
 import { insertOutboxEvents } from "@voyant-travel/db/outbox"
+import type { MediaInquiryAttachmentRuntime } from "@voyant-travel/media/runtime-port"
 import type {
   AddInquiryTargetInput,
+  AttachInquiryAssetInput,
   AssignInquiryInput,
   CloseInquiryInput,
   CreateInquiryInput,
   CreatePublicInquiryInput,
+  EraseInquiryPrivacyInput,
   InquiryListQueryInput,
+  InquiryAttachmentRecord,
   InquiryStatus,
   InquiryTargetRecord,
   RecordInquiryActivityInput,
   ReopenInquiryInput,
   TransitionInquiryInput,
   UpdateInquiryInput,
+  UpdateInquiryAttachmentInput,
 } from "@voyant-travel/relationships-contracts"
 import type { InquiryMaterializedTargetKind } from "@voyant-travel/relationships-contracts/inquiry-target-authority/runtime-port"
 import {
@@ -53,12 +58,17 @@ import {
   activityLinks,
   type Inquiry,
   inquiries,
+  inquiryAttachmentSnapshots,
   inquiryConversions,
   inquiryTargetSnapshots,
   organizations,
   people,
 } from "../schema.js"
-import { inquiryOptionUnitLink, inquiryProductLink } from "../standard-links.js"
+import {
+  inquiryMediaAssetLink,
+  inquiryOptionUnitLink,
+  inquiryProductLink,
+} from "../standard-links.js"
 import { paginate } from "./helpers.js"
 
 export type InquiryServiceErrorCode =
@@ -76,6 +86,7 @@ export type InquiryServiceErrorCode =
   | "INQUIRY_TARGET_IN_USE"
   | "INQUIRY_TARGET_UNSUPPORTED"
   | "INQUIRY_TARGET_VALIDATION_UNAVAILABLE"
+  | "INQUIRY_ATTACHMENT_AUTHORITY_UNAVAILABLE"
 
 export class InquiryServiceError extends Error {
   constructor(
@@ -193,6 +204,17 @@ function serializeTarget(row: typeof inquiryTargetSnapshots.$inferSelect): Inqui
   }
 }
 
+function serializeAttachment(
+  row: typeof inquiryAttachmentSnapshots.$inferSelect,
+): InquiryAttachmentRecord {
+  return {
+    ...row,
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
+    downloadPath: `/v1/admin/relationships/inquiries/${encodeURIComponent(row.inquiryId)}/attachments/${encodeURIComponent(row.linkId)}/download`,
+  }
+}
+
 async function writeInquiryEvent(
   db: PostgresJsDatabase,
   name: string,
@@ -241,8 +263,448 @@ async function recordFirstResponseInTransaction(
   })
   return row
 }
+/** Stable policy map consumed by export/erasure reviews and retention tooling. */
+export const INQUIRY_PRIVACY_CLASSIFICATION = {
+  "inquiry.contactSnapshot": "personal_data",
+  "inquiry.customerMessage": "personal_data",
+  "inquiry.travelBrief": "personal_data",
+  "inquiry.internalSummary": "personal_data",
+  "inquiry.customFields": "personal_data",
+  "inquiry.lifecycle": "operational",
+  "inquiry.privacyErasureReason": "audit_provenance",
+  "inquiry.privacyPurgeAssetIds": "audit_provenance",
+  "activities.freeText": "personal_data",
+  "activities.customFields": "personal_data",
+  "activities.identityAndTimestamps": "audit_provenance",
+  "attachments.bytesAndCaption": "personal_data",
+  "conversions.idsAndTargets": "legal_reference",
+} as const
 
 export const inquiriesService = {
+  async exportInquiryPrivacy(db: PostgresJsDatabase, link: LinkService, inquiryId: string) {
+    const inquiry = await this.getInquiry(db, inquiryId)
+    if (!inquiry) throw new InquiryServiceError("INQUIRY_NOT_FOUND", "Inquiry not found")
+    const [targets, attachments, conversions, activityRows] = await Promise.all([
+      this.listInquiryTargets(db, link, inquiryId),
+      this.listInquiryAttachments(db, link, inquiryId),
+      db
+        .select({
+          id: inquiryConversions.id,
+          kind: inquiryConversions.kind,
+          targetId: inquiryConversions.targetId,
+          createdAt: inquiryConversions.createdAt,
+        })
+        .from(inquiryConversions)
+        .where(eq(inquiryConversions.inquiryId, inquiryId))
+        .orderBy(asc(inquiryConversions.createdAt)),
+      db
+        .select({
+          id: activities.id,
+          subject: activities.subject,
+          description: activities.description,
+          location: activities.location,
+          customFields: activities.customFields,
+          type: activities.type,
+          status: activities.status,
+          ownerId: activities.ownerId,
+          dueAt: activities.dueAt,
+          completedAt: activities.completedAt,
+          createdAt: activities.createdAt,
+          updatedAt: activities.updatedAt,
+        })
+        .from(activityLinks)
+        .innerJoin(activities, eq(activityLinks.activityId, activities.id))
+        .where(and(eq(activityLinks.entityType, "inquiry"), eq(activityLinks.entityId, inquiryId)))
+        .orderBy(asc(activities.createdAt)),
+    ])
+    return {
+      inquiry: { ...inquiry, targets, attachments },
+      conversionProvenance: conversions.map((row) => ({
+        ...row,
+        createdAt: row.createdAt.toISOString(),
+      })),
+      activities: activityRows.map((activity) => ({
+        ...activity,
+        dueAt: activity.dueAt?.toISOString() ?? null,
+        completedAt: activity.completedAt?.toISOString() ?? null,
+        createdAt: activity.createdAt.toISOString(),
+        updatedAt: activity.updatedAt.toISOString(),
+      })),
+      attachmentBinaryManifest: attachments.map((attachment) => ({
+        linkId: attachment.linkId,
+        assetId: attachment.assetId,
+        name: attachment.name,
+        mimeType: attachment.mimeType,
+        downloadPath: attachment.downloadPath,
+        authenticationRequired: true as const,
+      })),
+      activityIds: activityRows.map((row) => row.id),
+      attachmentIds: attachments.map((attachment) => attachment.assetId),
+      classification: INQUIRY_PRIVACY_CLASSIFICATION,
+    }
+  },
+
+  async eraseInquiryPrivacy(
+    db: PostgresJsDatabase,
+    inquiryId: string,
+    input: EraseInquiryPrivacyInput,
+    actorId: string,
+    _bindings?: unknown,
+    authority?: MediaInquiryAttachmentRuntime,
+    appendAudit?: (tx: PostgresJsDatabase) => Promise<unknown>,
+  ) {
+    requireActor(actorId)
+    if (!authority) {
+      throw new InquiryServiceError(
+        "INQUIRY_ATTACHMENT_AUTHORITY_UNAVAILABLE",
+        "Media attachment authority is unavailable",
+      )
+    }
+    const result = await db.transaction(async (tx) => {
+      const inquiry = await lockedInquiry(tx, inquiryId)
+      if (inquiry.privacyErasedAt) {
+        for (const assetId of inquiry.privacyPurgeAssetIds) {
+          await authority.requestPrivateDocumentPurge(tx, assetId)
+        }
+        await appendAudit?.(tx as PostgresJsDatabase)
+        return inquiry
+      }
+      const attachmentRows = await tx
+        .select()
+        .from(inquiryAttachmentSnapshots)
+        .where(eq(inquiryAttachmentSnapshots.inquiryId, inquiryId))
+      const transactionLink = createLinkService(() => tx, [inquiryMediaAssetLink])
+      for (const attachment of attachmentRows) {
+        await transactionLink.delete(inquiryMediaAssetLink.tableName, inquiryId, attachment.assetId)
+        await authority.releasePrivateDocument(tx, attachment.assetId, attachment.linkId)
+        await authority.requestPrivateDocumentPurge(tx, attachment.assetId)
+      }
+      await tx
+        .delete(inquiryAttachmentSnapshots)
+        .where(eq(inquiryAttachmentSnapshots.inquiryId, inquiryId))
+      // Activity identity/timestamps remain audit evidence. Only an Activity
+      // exclusively linked to this Inquiry can have its free text redacted;
+      // shared Activity data belongs to its other Relationship contexts.
+      await tx.execute(sql`UPDATE activities SET subject = 'Redacted inquiry activity', description = NULL, location = NULL, custom_fields = '{}'::jsonb, updated_at = now()
+        WHERE id IN (SELECT activity_id FROM activity_links WHERE entity_type::text = 'inquiry' AND entity_id = ${inquiryId})
+          AND NOT EXISTS (
+            SELECT 1 FROM activity_links other
+            WHERE other.activity_id = activities.id
+              AND NOT (other.entity_type::text = 'inquiry' AND other.entity_id = ${inquiryId})
+          )`)
+      await tx.execute(sql`DELETE FROM activity_links inquiry_link
+        WHERE inquiry_link.entity_type::text = 'inquiry'
+          AND inquiry_link.entity_id = ${inquiryId}
+          AND EXISTS (
+            SELECT 1 FROM activity_links other
+            WHERE other.activity_id = inquiry_link.activity_id AND other.id <> inquiry_link.id
+          )`)
+      const erasedAt = new Date()
+      const [updated] = await tx
+        .update(inquiries)
+        .set({
+          subject: "Redacted inquiry",
+          personId: null,
+          organizationId: null,
+          contactSnapshot: { name: "Redacted" },
+          travelBrief: null,
+          customerMessage: null,
+          internalSummary: null,
+          sourceUrl: null,
+          sourceRef: null,
+          consentSnapshot: null,
+          closeNote: null,
+          unassignedReason: null,
+          locale: null,
+          tags: [],
+          customFields: {},
+          privacyErasedAt: erasedAt,
+          privacyErasedBy: actorId,
+          privacyErasureReason: input.reasonCode,
+          privacyPurgeAssetIds: Array.from(
+            new Set(attachmentRows.map((attachment) => attachment.assetId)),
+          ),
+          updatedAt: erasedAt,
+        })
+        .where(eq(inquiries.id, inquiryId))
+        .returning()
+      if (!updated) throw new InquiryServiceError("INQUIRY_NOT_FOUND", "Inquiry not found")
+      await writeInquiryEvent(tx, INQUIRY_UPDATED_EVENT, {
+        id: inquiryId,
+        actorId,
+        change: "privacy_erased",
+        occurredAt: erasedAt.toISOString(),
+      })
+      await appendAudit?.(tx as PostgresJsDatabase)
+      return updated
+    })
+    return result
+  },
+
+  async listInquiryAttachments(
+    db: PostgresJsDatabase,
+    link: LinkService,
+    inquiryId: string,
+  ): Promise<InquiryAttachmentRecord[]> {
+    const rows = await db
+      .select()
+      .from(inquiryAttachmentSnapshots)
+      .where(eq(inquiryAttachmentSnapshots.inquiryId, inquiryId))
+      .orderBy(asc(inquiryAttachmentSnapshots.createdAt), asc(inquiryAttachmentSnapshots.linkId))
+    const active = new Set(
+      (await link.list(inquiryMediaAssetLink.tableName, { leftId: inquiryId })).map((row) => row.id),
+    )
+    return rows.filter((row) => active.has(row.linkId)).map(serializeAttachment)
+  },
+
+  async resolveInquiryAttachment(
+    db: PostgresJsDatabase,
+    link: LinkService,
+    inquiryId: string,
+    linkId: string,
+  ): Promise<InquiryAttachmentRecord | null> {
+    const [row] = await db
+      .select()
+      .from(inquiryAttachmentSnapshots)
+      .where(
+        and(
+          eq(inquiryAttachmentSnapshots.inquiryId, inquiryId),
+          eq(inquiryAttachmentSnapshots.linkId, linkId),
+        ),
+      )
+      .limit(1)
+    if (!row) return null
+    const active = await link.list(inquiryMediaAssetLink.tableName, { leftId: inquiryId })
+    return active.some((candidate) => candidate.id === linkId) ? serializeAttachment(row) : null
+  },
+
+  async attachInquiryAsset(
+    db: PostgresJsDatabase,
+    inquiryId: string,
+    input: AttachInquiryAssetInput,
+    actorId: string,
+    authority?: MediaInquiryAttachmentRuntime,
+  ): Promise<InquiryAttachmentRecord> {
+    requireActor(actorId)
+    return db.transaction(async (tx) => {
+      await lockedInquiry(tx, inquiryId)
+      if (!authority) {
+        throw new InquiryServiceError(
+          "INQUIRY_ATTACHMENT_AUTHORITY_UNAVAILABLE",
+          "Media attachment authority is unavailable",
+        )
+      }
+      const asset = await authority.resolvePrivateDocument(tx, input.assetId)
+      if (!asset) {
+        throw new InquiryServiceError("INQUIRY_TARGET_NOT_FOUND", "Private document not found")
+      }
+      const transactionLink = createLinkService(() => tx, [inquiryMediaAssetLink])
+      const linked = await transactionLink.create(
+        inquiryMediaAssetLink.tableName,
+        inquiryId,
+        input.assetId,
+      )
+      await authority.claimExistingPrivateDocument(tx, input.assetId, linked.id)
+      const [created] = await tx
+        .insert(inquiryAttachmentSnapshots)
+        .values({
+          linkId: linked.id,
+          inquiryId,
+          assetId: input.assetId,
+          name: input.displayName,
+          mimeType: asset.mimeType,
+          caption: input.caption ?? null,
+          attachedBy: actorId,
+        })
+        .onConflictDoNothing()
+        .returning()
+      const row =
+        created ??
+        (
+          await tx
+            .select()
+            .from(inquiryAttachmentSnapshots)
+            .where(eq(inquiryAttachmentSnapshots.linkId, linked.id))
+            .limit(1)
+        )[0]
+      if (!row) throw new Error("Inquiry attachment metadata could not be persisted")
+      if (created) {
+        await writeInquiryEvent(tx, INQUIRY_UPDATED_EVENT, {
+          id: inquiryId,
+          actorId,
+          change: "attachment_added",
+          linkId: row.linkId,
+          assetId: row.assetId,
+          occurredAt: row.createdAt.toISOString(),
+        })
+      }
+      return serializeAttachment(row)
+    })
+  },
+
+  async uploadInquiryAttachment(
+    db: PostgresJsDatabase,
+    inquiryId: string,
+    input: {
+      operationKey: string
+      name: string
+      mimeType: string | null
+      caption: string | null
+      body: ArrayBuffer
+    },
+    actorId: string,
+    bindings: unknown,
+    authority?: MediaInquiryAttachmentRuntime,
+  ): Promise<InquiryAttachmentRecord> {
+    requireActor(actorId)
+    if (!authority) {
+      throw new InquiryServiceError(
+        "INQUIRY_ATTACHMENT_AUTHORITY_UNAVAILABLE",
+        "Media attachment authority is unavailable",
+      )
+    }
+    const prepared = await authority.preparePrivateDocument(bindings, {
+      operationKey: input.operationKey,
+      name: input.name,
+      mimeType: input.mimeType,
+      body: input.body,
+      createdBy: actorId,
+    })
+    let attachment: InquiryAttachmentRecord
+    try {
+      attachment = await db.transaction(async (tx) => {
+        await lockedInquiry(tx, inquiryId)
+        const transactionLink = createLinkService(() => tx, [inquiryMediaAssetLink])
+        const linked = await transactionLink.create(
+          inquiryMediaAssetLink.tableName,
+          inquiryId,
+          prepared.id,
+        )
+        await authority.claimPrivateDocument(tx, prepared, linked.id)
+        const [row] = await tx
+          .insert(inquiryAttachmentSnapshots)
+          .values({
+            linkId: linked.id,
+            inquiryId,
+            assetId: prepared.id,
+            name: input.name,
+            mimeType: prepared.mimeType,
+            caption: input.caption,
+            attachedBy: actorId,
+          })
+          .onConflictDoNothing()
+          .returning()
+        const stored =
+          row ??
+          (
+            await tx
+              .select()
+              .from(inquiryAttachmentSnapshots)
+              .where(eq(inquiryAttachmentSnapshots.linkId, linked.id))
+              .limit(1)
+          )[0]
+        if (!stored) throw new Error("Inquiry attachment metadata could not be persisted")
+        if (row) {
+          await writeInquiryEvent(tx, INQUIRY_UPDATED_EVENT, {
+            id: inquiryId,
+            actorId,
+            change: "attachment_added",
+            linkId: row.linkId,
+            assetId: row.assetId,
+            occurredAt: row.createdAt.toISOString(),
+          })
+        }
+        return serializeAttachment(stored)
+      })
+    } catch (error) {
+      await authority.abortPrivateDocument(bindings, prepared)
+      throw error
+    }
+    // The link, usage claim, snapshot, and outbox are committed. A finalize
+    // failure must remain retryable and must never trigger abort/deletion.
+    await authority.finalizePrivateDocument(bindings, prepared)
+    return attachment
+  },
+
+  async updateInquiryAttachment(
+    db: PostgresJsDatabase,
+    inquiryId: string,
+    linkId: string,
+    input: UpdateInquiryAttachmentInput,
+    actorId: string,
+  ): Promise<InquiryAttachmentRecord> {
+    requireActor(actorId)
+    return db.transaction(async (tx) => {
+      await lockedInquiry(tx, inquiryId)
+      const [updated] = await tx
+        .update(inquiryAttachmentSnapshots)
+        .set({ caption: input.caption, updatedAt: new Date() })
+        .where(
+          and(
+            eq(inquiryAttachmentSnapshots.inquiryId, inquiryId),
+            eq(inquiryAttachmentSnapshots.linkId, linkId),
+          ),
+        )
+        .returning()
+      if (!updated) {
+        throw new InquiryServiceError("INQUIRY_TARGET_NOT_FOUND", "Inquiry attachment not found")
+      }
+      await writeInquiryEvent(tx, INQUIRY_UPDATED_EVENT, {
+        id: inquiryId,
+        actorId,
+        change: "attachment_caption_updated",
+        linkId,
+        occurredAt: updated.updatedAt.toISOString(),
+      })
+      return serializeAttachment(updated)
+    })
+  },
+
+  async removeInquiryAttachment(
+    db: PostgresJsDatabase,
+    inquiryId: string,
+    linkId: string,
+    actorId: string,
+    authority?: MediaInquiryAttachmentRuntime,
+  ): Promise<void> {
+    requireActor(actorId)
+    if (!authority) {
+      throw new InquiryServiceError(
+        "INQUIRY_ATTACHMENT_AUTHORITY_UNAVAILABLE",
+        "Media attachment authority is unavailable",
+      )
+    }
+    return db.transaction(async (tx) => {
+      await lockedInquiry(tx, inquiryId)
+      const [row] = await tx
+        .select()
+        .from(inquiryAttachmentSnapshots)
+        .where(
+          and(
+            eq(inquiryAttachmentSnapshots.inquiryId, inquiryId),
+            eq(inquiryAttachmentSnapshots.linkId, linkId),
+          ),
+        )
+        .limit(1)
+      if (!row) {
+        throw new InquiryServiceError("INQUIRY_TARGET_NOT_FOUND", "Inquiry attachment not found")
+      }
+      const transactionLink = createLinkService(() => tx, [inquiryMediaAssetLink])
+      await transactionLink.delete(inquiryMediaAssetLink.tableName, inquiryId, row.assetId)
+      await authority.releasePrivateDocument(tx, row.assetId, row.linkId)
+      await authority.requestPrivateDocumentPurge(tx, row.assetId)
+      await tx.delete(inquiryAttachmentSnapshots).where(eq(inquiryAttachmentSnapshots.linkId, linkId))
+      await writeInquiryEvent(tx, INQUIRY_UPDATED_EVENT, {
+        id: inquiryId,
+        actorId,
+        change: "attachment_removed",
+        linkId,
+        assetId: row.assetId,
+        occurredAt: new Date().toISOString(),
+      })
+    })
+  },
+
   async createPublicInquiry(
     db: PostgresJsDatabase,
     input: CreatePublicInquiryInput,

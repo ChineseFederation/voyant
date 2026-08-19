@@ -1,6 +1,7 @@
 import type { CatalogInquiryBookingSessionRuntime } from "@voyant-travel/catalog/inquiry-booking-session-runtime-port"
 import type { CustomFieldRegistryResolver } from "@voyant-travel/core/custom-fields"
 import type { ProposalInquiryConversionRuntime } from "@voyant-travel/proposals-contracts/inquiry-conversion"
+import type { MediaInquiryAttachmentRuntime } from "@voyant-travel/media/runtime-port"
 import type { InquiryMaterializedTargetKind } from "@voyant-travel/relationships-contracts/inquiry-target-authority/runtime-port"
 import { createKmsProviderFromEnv, type KmsProvider } from "@voyant-travel/utils"
 
@@ -53,6 +54,7 @@ export interface RelationshipsRouteRuntime {
   proposalInquiryConversion?: ProposalInquiryConversionRuntime
   inquiryTargetValidation?: InquiryTargetValidationRuntime
   inquiryBookingSession?: CatalogInquiryBookingSessionRuntime
+  inquiryAttachments?: MediaInquiryAttachmentRuntime
   inquiryFirstResponseSlaPolicy: InquiryFirstResponseSlaPolicy
 }
 
@@ -64,6 +66,7 @@ export interface RelationshipsRouteRuntimeOptions {
   proposalInquiryConversion?: ProposalInquiryConversionRuntime
   inquiryTargetValidation?: InquiryTargetValidationRuntime
   inquiryBookingSession?: CatalogInquiryBookingSessionRuntime
+  inquiryAttachments?: MediaInquiryAttachmentRuntime
   resolveInquiryFirstResponseSla?: (
     bindings: Record<string, unknown>,
   ) => InquiryFirstResponseSlaConfiguration | undefined
@@ -109,6 +112,7 @@ export function buildRelationshipsRouteRuntime(
     proposalInquiryConversion: options.proposalInquiryConversion,
     inquiryTargetValidation: options.inquiryTargetValidation,
     inquiryBookingSession: options.inquiryBookingSession,
+    inquiryAttachments: options.inquiryAttachments,
     inquiryFirstResponseSlaPolicy: createInquiryFirstResponseSlaPolicy(
       options.resolveInquiryFirstResponseSla?.(bindings),
     ),

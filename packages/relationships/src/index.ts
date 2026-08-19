@@ -20,7 +20,11 @@ export {
   relationshipsLinkable,
 } from "./linkables.js"
 export type { RelationshipsRoutes } from "./routes/index.js"
-export { inquiryOptionUnitLink, inquiryProductLink } from "./standard-links.js"
+export {
+  inquiryMediaAssetLink,
+  inquiryOptionUnitLink,
+  inquiryProductLink,
+} from "./standard-links.js"
 
 export const relationshipsModule: Module = {
   name: "relationships",

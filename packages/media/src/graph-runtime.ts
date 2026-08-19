@@ -11,7 +11,10 @@
  */
 
 import { defineGraphRuntimeFactory } from "@voyant-travel/core/project"
-import { storageMediaRuntimePort } from "@voyant-travel/storage/runtime-port"
+import {
+  storageMediaRuntimePort,
+  storageObjectRuntimePort,
+} from "@voyant-travel/storage/runtime-port"
 
 import { createMediaLibraryApiModule } from "./routes.js"
 import { mediaSiteClientAuthRuntimePort } from "./runtime-port.js"
@@ -19,8 +22,10 @@ import { mediaSiteClientAuthRuntimePort } from "./runtime-port.js"
 /** Adapter from the graph port registry to the media-library route factory. */
 export const createMediaVoyantRuntime = defineGraphRuntimeFactory(async ({ getPort, hasPort }) => {
   const storage = await getPort(storageMediaRuntimePort)
+  const objectStorage = await getPort(storageObjectRuntimePort)
   return createMediaLibraryApiModule({
     resolveStorage: storage.resolveStorage,
+    resolveDocumentStorage: () => objectStorage.resolve("documents"),
     siteClientAuth: hasPort(mediaSiteClientAuthRuntimePort)
       ? await getPort(mediaSiteClientAuthRuntimePort)
       : undefined,

@@ -76,6 +76,7 @@ type Env = { Variables: { db: PostgresJsDatabase } }
  */
 export interface MediaLibraryRoutesOptions {
   resolveStorage(c: Context): StorageProvider | null
+  resolveDocumentStorage?(c: Context): StorageProvider | null
   siteClientAuth?: MediaSiteClientAuthRuntime
 }
 
@@ -98,6 +99,7 @@ const mediaAssetTranslationRowSchema = z.object({
 const mediaAssetRowSchema = z.object({
   id: z.string(),
   type: mediaAssetTypeSchema,
+  storageClass: z.enum(["media", "documents"]),
   name: z.string(),
   altText: z.string().nullable(),
   defaultLanguageTag: z.string(),
@@ -137,6 +139,28 @@ const mediaFolderMemberRowSchema = z.object({
   folderId: z.string(),
   createdAt: isoTimestamp,
 })
+
+function withoutInquiryAttachmentMarker<T extends { providerMeta: unknown }>(asset: T): T {
+  const { dedupScope: _dedupScope, ...publicAsset } = asset as T & { dedupScope?: unknown }
+  if (!asset.providerMeta || typeof asset.providerMeta !== "object" || Array.isArray(asset.providerMeta)) {
+    return publicAsset as T
+  }
+  const { inquiryAttachment: _privateMarker, ...providerMeta } = asset.providerMeta as Record<
+    string,
+    unknown
+  >
+  return { ...publicAsset, providerMeta } as T
+}
+
+function isInquiryAttachmentAsset(asset: { providerMeta: unknown } | null): boolean {
+  const providerMeta = asset?.providerMeta
+  return Boolean(
+    providerMeta &&
+      typeof providerMeta === "object" &&
+      !Array.isArray(providerMeta) &&
+      "inquiryAttachment" in providerMeta,
+  )
+}
 
 const assetUsageRowSchema = z.object({
   id: z.string(),
@@ -337,9 +361,6 @@ export function createMediaLibraryRoutes(options: MediaLibraryRoutesOptions) {
 
   // --- Create (multipart upload → dedup → store → catalogue) ---
   routes.post("/v1/admin/media-library/assets", async (c) => {
-    const storage = options.resolveStorage(c)
-    if (!storage) return c.json({ error: "Storage not configured" }, 503)
-
     const form = await c.req.parseBody({ all: true })
     const file = form.file
     if (!(file instanceof File)) {
@@ -368,6 +389,7 @@ export function createMediaLibraryRoutes(options: MediaLibraryRoutesOptions) {
 
     const parsed = createMediaAssetSchema.safeParse({
       type: form.type,
+      storageClass: form.storageClass,
       name: (typeof form.name === "string" && form.name.trim()) || file.name,
       altText:
         typeof form.altText === "string"
@@ -388,11 +410,25 @@ export function createMediaLibraryRoutes(options: MediaLibraryRoutesOptions) {
     if (!parsed.success) {
       return c.json({ error: "invalid_request", issues: parsed.error.issues }, 400)
     }
+    if (parsed.data.storageClass === "documents" && parsed.data.type !== "document") {
+      return c.json({ error: "Only document assets may use private document storage" }, 400)
+    }
+    const storage =
+      parsed.data.storageClass === "documents"
+        ? options.resolveDocumentStorage?.(c)
+        : options.resolveStorage(c)
+    if (!storage) return c.json({ error: "Storage not configured" }, 503)
 
     const bytes = new Uint8Array(await file.arrayBuffer())
     try {
       const result = await createMediaAsset(c.get("db"), storage, parsed.data, bytes)
-      return c.json({ data: result.asset, deduped: result.deduped }, result.deduped ? 200 : 201)
+      if (isInquiryAttachmentAsset(result.asset)) {
+        return c.json({ error: "An identical private document belongs to an Inquiry" }, 409)
+      }
+      return c.json(
+        { data: withoutInquiryAttachmentMarker(result.asset), deduped: result.deduped },
+        result.deduped ? 200 : 201,
+      )
     } catch (error) {
       if (error instanceof MediaError && error.code === "invalid_alt_translation") {
         return c.json({ error: error.message }, 400)
@@ -418,7 +454,8 @@ export function createMediaLibraryRoutes(options: MediaLibraryRoutesOptions) {
       asRouteResponse(
         (async () => {
           const query = parseQuery(c, listMediaAssetsQuerySchema)
-          return c.json(await listMediaAssets(c.get("db"), query, options.resolveStorage(c)), 200)
+          const result = await listMediaAssets(c.get("db"), query, options.resolveStorage(c))
+          return c.json({ ...result, data: result.data.map(withoutInquiryAttachmentMarker) }, 200)
         })(),
       ),
     )
@@ -430,14 +467,20 @@ export function createMediaLibraryRoutes(options: MediaLibraryRoutesOptions) {
             c.req.valid("param").assetId,
             options.resolveStorage(c),
           )
-          if (!asset) return c.json({ error: "Media asset not found" }, 404)
-          return c.json({ data: asset }, 200)
+          if (!asset || isInquiryAttachmentAsset(asset)) {
+            return c.json({ error: "Media asset not found" }, 404)
+          }
+          return c.json({ data: withoutInquiryAttachmentMarker(asset) }, 200)
         })(),
       ),
     )
     .openapi(updateAssetRoute, (c) =>
       asRouteResponse(
         (async () => {
+          const current = await getMediaAsset(c.get("db"), c.req.valid("param").assetId)
+          if (!current || isInquiryAttachmentAsset(current)) {
+            return c.json({ error: "Media asset not found" }, 404)
+          }
           const input = await parseJsonBody(c, updateMediaAssetSchema)
           try {
             const asset = await updateMediaAsset(
@@ -447,7 +490,7 @@ export function createMediaLibraryRoutes(options: MediaLibraryRoutesOptions) {
               options.resolveStorage(c),
             )
             if (!asset) return c.json({ error: "Media asset not found" }, 404)
-            return c.json({ data: asset }, 200)
+            return c.json({ data: withoutInquiryAttachmentMarker(asset) }, 200)
           } catch (error) {
             if (error instanceof MediaError && error.code === "invalid_alt_translation") {
               return c.json({ error: error.message }, 400)
@@ -460,12 +503,19 @@ export function createMediaLibraryRoutes(options: MediaLibraryRoutesOptions) {
     .openapi(deleteAssetRoute, (c) =>
       asRouteResponse(
         (async () => {
-          const storage = options.resolveStorage(c)
+          const current = await getMediaAsset(c.get("db"), c.req.valid("param").assetId)
+          if (!current || isInquiryAttachmentAsset(current)) {
+            return c.json({ error: "Media asset not found" }, 404)
+          }
+          const storage =
+            current.storageClass === "documents"
+              ? options.resolveDocumentStorage?.(c)
+              : options.resolveStorage(c)
           if (!storage) return c.json({ error: "Storage not configured" }, 503)
           try {
             const asset = await deleteMediaAsset(c.get("db"), storage, c.req.valid("param").assetId)
             if (!asset) return c.json({ error: "Media asset not found" }, 404)
-            return c.json({ data: asset }, 200)
+            return c.json({ data: withoutInquiryAttachmentMarker(asset) }, 200)
           } catch (error) {
             if (error instanceof MediaError && error.code === "asset_in_use") {
               return c.json({ error: error.message }, 409)

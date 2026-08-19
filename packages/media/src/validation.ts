@@ -51,6 +51,7 @@ const mediaAltTranslationsSchema = z
 export const createMediaAssetSchema = z
   .object({
     type: mediaAssetTypeSchema,
+    storageClass: z.enum(["media", "documents"]).default("media"),
     name: z.string().trim().min(1).max(255),
     altText: z.string().trim().max(1_024).nullish(),
     defaultLanguageTag: mediaLanguageTagSchema.default("en"),

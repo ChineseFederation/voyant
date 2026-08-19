@@ -46,6 +46,7 @@ function loadBaselineSql(): string {
 /** Minimal metadata for an image asset under test. */
 const imageInput = {
   type: "image",
+  storageClass: "media",
   name: "beach.jpg",
   mimeType: "image/jpeg",
   defaultLanguageTag: "en",

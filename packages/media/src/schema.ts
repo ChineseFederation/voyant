@@ -41,6 +41,13 @@ export const mediaAsset = pgTable(
     id: typeId("media_asset"),
     /** `image | video | document` — kept as text (no pg enum / CREATE TYPE). */
     type: text("type").$type<MediaAssetType>().notNull(),
+    /** Logical storage store; sensitive documents never resolve through public media. */
+    storageClass: text("storage_class").$type<"media" | "documents">().notNull().default("media"),
+    /** Owner-controlled content-deduplication domain. Existing rows remain library-owned. */
+    dedupScope: text("dedup_scope")
+      .$type<"library" | "inquiry-private">()
+      .notNull()
+      .default("library"),
     name: text("name").notNull(),
     /** Accessible alternative text in `defaultLanguageTag` — nullable. */
     altText: text("alt"),
@@ -80,7 +87,13 @@ export const mediaAsset = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (table) => [uniqueIndex("uidx_media_asset_checksum").on(table.checksum)],
+  (table) => [
+    uniqueIndex("uidx_media_asset_storage_scope_checksum").on(
+      table.storageClass,
+      table.dedupScope,
+      table.checksum,
+    ),
+  ],
 )
 
 export type MediaAsset = typeof mediaAsset.$inferSelect
@@ -174,3 +187,15 @@ export const assetUsage = pgTable(
 
 export type AssetUsage = typeof assetUsage.$inferSelect
 export type NewAssetUsage = typeof assetUsage.$inferInsert
+
+/** Durable owner ledger for idempotent private-object deletion retries. */
+export const mediaPrivateDocumentDeletion = pgTable("media_private_document_deletion", {
+  assetId: text("asset_id").primaryKey(),
+  storageKey: text("storage_key").notNull(),
+  requestedAt: timestamp("requested_at", { withTimezone: true }).notNull().defaultNow(),
+  nextAttemptAt: timestamp("next_attempt_at", { withTimezone: true }).notNull().defaultNow(),
+  attempts: integer("attempts").notNull().default(0),
+  lastError: text("last_error"),
+})
+
+export type MediaPrivateDocumentDeletion = typeof mediaPrivateDocumentDeletion.$inferSelect

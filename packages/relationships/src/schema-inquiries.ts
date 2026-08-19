@@ -1,6 +1,7 @@
 import type { NamespacedCustomFieldValues } from "@voyant-travel/core/custom-fields"
 import { typeId, typeIdRef } from "@voyant-travel/db/lib/typeid-column"
 import type {
+  InquiryPrivacyErasureReasonCode,
   InquiryTravelBriefV1,
   inquiryContactSnapshotSchema,
 } from "@voyant-travel/relationships-contracts"
@@ -95,6 +96,11 @@ export const inquiries = pgTable(
     qualifiedAt: timestamp("qualified_at", { withTimezone: true }),
     convertedAt: timestamp("converted_at", { withTimezone: true }),
     closedAt: timestamp("closed_at", { withTimezone: true }),
+    /** Explicit policy operation; Person cascade never substitutes for erasure. */
+    privacyErasedAt: timestamp("privacy_erased_at", { withTimezone: true }),
+    privacyErasedBy: text("privacy_erased_by"),
+    privacyErasureReason: text("privacy_erasure_reason").$type<InquiryPrivacyErasureReasonCode>(),
+    privacyPurgeAssetIds: jsonb("privacy_purge_asset_ids").$type<string[]>().notNull().default([]),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -191,6 +197,34 @@ export const inquiryTargetSnapshots = pgTable(
 )
 
 export type InquiryTargetSnapshot = typeof inquiryTargetSnapshots.$inferSelect
+
+/**
+ * Relationships-owned presentation and audit metadata for a Media-owned asset.
+ * Bytes and canonical file metadata remain in Media; the standard-link row is
+ * the association authority. The storage key is intentionally not copied.
+ */
+export const inquiryAttachmentSnapshots = pgTable(
+  "inquiry_attachment_snapshots",
+  {
+    linkId: text("link_id").primaryKey(),
+    inquiryId: typeIdRef("inquiry_id")
+      .notNull()
+      .references(() => inquiries.id, { onDelete: "cascade" }),
+    assetId: text("asset_id").notNull(),
+    name: text("name").notNull(),
+    mimeType: text("mime_type"),
+    caption: text("caption"),
+    attachedBy: text("attached_by").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("uq_inquiry_attachment_asset").on(table.inquiryId, table.assetId),
+    index("idx_inquiry_attachment_inquiry").on(table.inquiryId, table.createdAt),
+  ],
+)
+
+export type InquiryAttachmentSnapshot = typeof inquiryAttachmentSnapshots.$inferSelect
 
 /** Append-only SLA edges. Overdue remains derived from Inquiry timestamps. */
 export const inquirySlaEvents = pgTable(

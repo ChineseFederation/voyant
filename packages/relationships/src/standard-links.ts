@@ -1,5 +1,6 @@
 import { defineLink } from "@voyant-travel/core"
 import { inventoryProductLinkable } from "@voyant-travel/inventory/linkables"
+import { mediaAssetLinkable } from "@voyant-travel/media/linkables"
 import { departureLinkable } from "@voyant-travel/operations/linkables"
 
 import { inquiryLinkable } from "./linkables.js"
@@ -12,5 +13,11 @@ export const inquiryProductLink = defineLink(inquiryLinkable, {
 
 export const inquiryOptionUnitLink = defineLink(inquiryLinkable, {
   linkable: departureLinkable,
+  isList: true,
+})
+
+/** Inquiry attachments remain Media-owned assets; this pivot only records association. */
+export const inquiryMediaAssetLink = defineLink(inquiryLinkable, {
+  linkable: mediaAssetLinkable,
   isList: true,
 })

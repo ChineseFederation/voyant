@@ -3,6 +3,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import {
   type AssignInquiryInput,
+  inquiryAttachmentResponseSchema,
   type CloseInquiryInput,
   type CreateInquiryInput,
   inquiryBookingConversionResultSchema,
@@ -114,6 +115,65 @@ export function useInquiryMutation() {
       commit(id, "/reopen", input),
     onSuccess: settle,
   })
+  const recordFirstResponse = useMutation({
+    mutationFn: ({ id }: { id: string }) => commit(id, "/record-first-response", {}),
+    onSuccess: settle,
+  })
+  const uploadAttachment = useMutation({
+    mutationFn: async ({ id, file, caption }: { id: string; file: File; caption?: string }) => {
+      const form = new FormData()
+      form.set("file", file)
+      const digest = await crypto.subtle.digest("SHA-256", await file.arrayBuffer())
+      const checksum = Array.from(new Uint8Array(digest), (byte) =>
+        byte.toString(16).padStart(2, "0"),
+      ).join("")
+      // Stable across transport retries and browser reloads, but scoped to this
+      // Inquiry so another Inquiry cannot claim an in-flight preparation.
+      form.set("operationKey", `inqatt_${id}_${checksum}`.slice(0, 128))
+      if (caption?.trim()) form.set("caption", caption.trim())
+      const base = client.baseUrl.endsWith("/") ? client.baseUrl.slice(0, -1) : client.baseUrl
+      const uploaded = await client.fetcher(
+        `${base}${basePath}/${encodeURIComponent(id)}/attachments/upload`,
+        {
+        method: "POST",
+        body: form,
+        },
+      )
+      if (!uploaded.ok) throw new Error("Private document upload failed")
+      const { data } = inquiryAttachmentResponseSchema.parse(await uploaded.json())
+      return data
+    },
+    onSuccess: (_data, variables) => {
+      void queryClient.invalidateQueries({ queryKey: relationshipsQueryKeys.inquiry(variables.id) })
+    },
+  })
+  const updateAttachment = useMutation({
+    mutationFn: async ({ id, linkId, caption }: { id: string; linkId: string; caption: string | null }) => {
+      const { data } = await fetchWithValidation(
+        `${basePath}/${encodeURIComponent(id)}/attachments/${encodeURIComponent(linkId)}`,
+        inquiryAttachmentResponseSchema,
+        client,
+        { method: "PATCH", body: JSON.stringify({ caption }) },
+      )
+      return data
+    },
+    onSuccess: (_data, variables) => {
+      void queryClient.invalidateQueries({ queryKey: relationshipsQueryKeys.inquiry(variables.id) })
+    },
+  })
+  const removeAttachment = useMutation({
+    mutationFn: async ({ id, linkId }: { id: string; linkId: string }) => {
+      const base = client.baseUrl.endsWith("/") ? client.baseUrl.slice(0, -1) : client.baseUrl
+      const response = await client.fetcher(
+        `${base}${basePath}/${encodeURIComponent(id)}/attachments/${encodeURIComponent(linkId)}`,
+        { method: "DELETE" },
+      )
+      if (!response.ok) throw new Error("Attachment removal failed")
+    },
+    onSuccess: (_data, variables) => {
+      void queryClient.invalidateQueries({ queryKey: relationshipsQueryKeys.inquiry(variables.id) })
+    },
+  })
   const convertToProposal = useMutation({
     mutationFn: ({ id, input }: { id: string; input: InquiryProposalConversionOptions }) =>
       proposalConversion.run(id, input),
@@ -157,6 +217,10 @@ export function useInquiryMutation() {
     assign,
     close,
     reopen,
+    recordFirstResponse,
+    uploadAttachment,
+    updateAttachment,
+    removeAttachment,
     convertToProposal,
     convertToBookingSession,
     recordActivity,

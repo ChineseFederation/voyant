@@ -36,6 +36,10 @@ import {
   financeStoredInstrumentRuntimePort,
 } from "@voyant-travel/finance/runtime-port"
 import {
+  type MediaInquiryAttachmentRuntime,
+  mediaInquiryAttachmentRuntimePort,
+} from "@voyant-travel/media/runtime-port"
+import {
   type ProposalInquiryConversionRuntime,
   proposalInquiryConversionRuntimePort,
 } from "@voyant-travel/proposals-contracts/inquiry-conversion"
@@ -370,6 +374,12 @@ export function createRelationshipsRuntimePortContribution(
           ),
         )
       : undefined
+  const inquiryAttachments =
+    host.hasRuntimePort?.(mediaInquiryAttachmentRuntimePort) === true
+      ? Promise.resolve(
+          host.getRuntimePort<MediaInquiryAttachmentRuntime>(mediaInquiryAttachmentRuntimePort),
+        )
+      : undefined
   const customFields: CustomFieldValueReaderRuntime = {
     async resolveVisibleValues(db, entity, entityId, channel) {
       const database = db as PostgresJsDatabase
@@ -464,6 +474,39 @@ export function createRelationshipsRuntimePortContribution(
               createForInquiry: async (
                 ...args: Parameters<CatalogInquiryBookingSessionRuntime["createForInquiry"]>
               ) => (await inquiryBookingSession).createForInquiry(...args),
+            },
+          }
+        : {}),
+      ...(inquiryAttachments
+        ? {
+            inquiryAttachments: {
+              preparePrivateDocument: async (
+                ...args: Parameters<MediaInquiryAttachmentRuntime["preparePrivateDocument"]>
+              ) => (await inquiryAttachments).preparePrivateDocument(...args),
+              finalizePrivateDocument: async (
+                ...args: Parameters<MediaInquiryAttachmentRuntime["finalizePrivateDocument"]>
+              ) => (await inquiryAttachments).finalizePrivateDocument(...args),
+              abortPrivateDocument: async (
+                ...args: Parameters<MediaInquiryAttachmentRuntime["abortPrivateDocument"]>
+              ) => (await inquiryAttachments).abortPrivateDocument(...args),
+              claimPrivateDocument: async (
+                ...args: Parameters<MediaInquiryAttachmentRuntime["claimPrivateDocument"]>
+              ) => (await inquiryAttachments).claimPrivateDocument(...args),
+              claimExistingPrivateDocument: async (
+                ...args: Parameters<MediaInquiryAttachmentRuntime["claimExistingPrivateDocument"]>
+              ) => (await inquiryAttachments).claimExistingPrivateDocument(...args),
+              releasePrivateDocument: async (
+                ...args: Parameters<MediaInquiryAttachmentRuntime["releasePrivateDocument"]>
+              ) => (await inquiryAttachments).releasePrivateDocument(...args),
+              requestPrivateDocumentPurge: async (
+                ...args: Parameters<MediaInquiryAttachmentRuntime["requestPrivateDocumentPurge"]>
+              ) => (await inquiryAttachments).requestPrivateDocumentPurge(...args),
+              resolvePrivateDocument: async (
+                ...args: Parameters<MediaInquiryAttachmentRuntime["resolvePrivateDocument"]>
+              ) => (await inquiryAttachments).resolvePrivateDocument(...args),
+              downloadPrivateDocument: async (
+                ...args: Parameters<MediaInquiryAttachmentRuntime["downloadPrivateDocument"]>
+              ) => (await inquiryAttachments).downloadPrivateDocument(...args),
             },
           }
         : {}),

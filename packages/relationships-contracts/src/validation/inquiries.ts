@@ -58,6 +58,35 @@ export const inquiryTargetRecordSchema = addInquiryTargetSchema.extend({
 export const inquiryTargetsResponseSchema = z.object({ data: z.array(inquiryTargetRecordSchema) })
 export const inquiryTargetResponseSchema = z.object({ data: inquiryTargetRecordSchema })
 
+export const attachInquiryAssetSchema = z.object({
+  assetId: z.string().trim().regex(/^mast_/),
+  displayName: z.string().trim().min(1).max(500),
+  caption: z.string().trim().min(1).max(2_000).nullable().optional(),
+})
+
+export const updateInquiryAttachmentSchema = z.object({
+  caption: z.string().trim().min(1).max(2_000).nullable(),
+})
+
+export const inquiryAttachmentRecordSchema = z.object({
+  linkId: z.string(),
+  inquiryId: z.string(),
+  assetId: z.string(),
+  name: z.string(),
+  mimeType: z.string().nullable(),
+  caption: z.string().nullable(),
+  attachedBy: z.string(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+  /** Authenticated Media byte route; never a persisted or public URL. */
+  downloadPath: z.string(),
+})
+
+export const inquiryAttachmentsResponseSchema = z.object({
+  data: z.array(inquiryAttachmentRecordSchema),
+})
+export const inquiryAttachmentResponseSchema = z.object({ data: inquiryAttachmentRecordSchema })
+
 export const inquiryContactSnapshotSchema = z
   .object({
     name: z.string().trim().min(1).max(200).optional(),
@@ -411,9 +440,17 @@ export const inquiryRecordSchema = z.object({
   qualifiedAt: isoTimestampSchema.nullable(),
   convertedAt: isoTimestampSchema.nullable(),
   closedAt: isoTimestampSchema.nullable(),
+  privacyErasedAt: isoTimestampSchema.nullable().default(null),
+  privacyErasedBy: z.string().nullable().default(null),
+  privacyErasureReason: z
+    .enum(["data_subject_request", "retention_expired", "consent_withdrawn", "admin_correction"])
+    .nullable()
+    .default(null),
+  privacyPurgeAssetIds: z.array(z.string()).default([]),
   createdAt: isoTimestampSchema,
   updatedAt: isoTimestampSchema,
   targets: z.array(inquiryTargetRecordSchema),
+  attachments: z.array(inquiryAttachmentRecordSchema).default([]),
 })
 
 export const inquiryResponseSchema = z.object({ data: inquiryRecordSchema })
@@ -428,11 +465,47 @@ export const inquiryListResponseSchema = z.object({
   offset: z.number().int(),
 })
 
+export const eraseInquiryPrivacySchema = z.object({
+  reasonCode: z.enum([
+    "data_subject_request",
+    "retention_expired",
+    "consent_withdrawn",
+    "admin_correction",
+  ]),
+})
+export const inquiryPrivacyExportSchema = z.object({
+  inquiry: inquiryRecordSchema,
+  conversionProvenance: z.array(
+    z.object({ id: z.string(), kind: z.string(), targetId: z.string(), createdAt: z.string() }),
+  ),
+  activities: z.array(inquiryActivityRecordSchema),
+  attachmentBinaryManifest: z.array(
+    z.object({
+      linkId: z.string(),
+      assetId: z.string(),
+      name: z.string(),
+      mimeType: z.string().nullable(),
+      downloadPath: z.string(),
+      authenticationRequired: z.literal(true),
+    }),
+  ),
+  activityIds: z.array(z.string()),
+  attachmentIds: z.array(z.string()),
+  classification: z.record(
+    z.string(),
+    z.enum(["personal_data", "operational", "audit_provenance", "legal_reference"]),
+  ),
+})
+export const inquiryPrivacyExportResponseSchema = z.object({ data: inquiryPrivacyExportSchema })
+
 export type InquiryKind = z.infer<typeof inquiryKindSchema>
 export type InquiryTargetKind = z.infer<typeof inquiryTargetKindSchema>
 export type InquiryTargetSnapshot = z.infer<typeof inquiryTargetSnapshotSchema>
 export type AddInquiryTargetInput = z.infer<typeof addInquiryTargetSchema>
 export type InquiryTargetRecord = z.infer<typeof inquiryTargetRecordSchema>
+export type AttachInquiryAssetInput = z.infer<typeof attachInquiryAssetSchema>
+export type UpdateInquiryAttachmentInput = z.infer<typeof updateInquiryAttachmentSchema>
+export type InquiryAttachmentRecord = z.infer<typeof inquiryAttachmentRecordSchema>
 export type InquiryStatus = z.infer<typeof inquiryStatusSchema>
 export type InquiryPriority = z.infer<typeof inquiryPrioritySchema>
 export type InquirySource = z.infer<typeof inquirySourceSchema>
@@ -468,3 +541,5 @@ export type InquiryProposalConversionRefusalReason = z.infer<
 >
 export type InquiryRecord = z.infer<typeof inquiryRecordSchema>
 export type InquiryCreateResponse = z.infer<typeof inquiryCreateResponseSchema>
+export type EraseInquiryPrivacyInput = z.infer<typeof eraseInquiryPrivacySchema>
+export type InquiryPrivacyErasureReasonCode = EraseInquiryPrivacyInput["reasonCode"]

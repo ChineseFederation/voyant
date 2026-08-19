@@ -86,9 +86,21 @@ function resolveAssetUrl(storageKey: string, storage: MediaUrlSource): string | 
 async function findAssetByChecksum(
   db: PostgresJsDatabase,
   checksum: string,
+  storageClass: "media" | "documents",
+  dedupScope: "library" | "inquiry-private",
   storage: MediaUrlSource,
 ): Promise<MediaAssetWithTranslations | null> {
-  const [row] = await db.select().from(mediaAsset).where(eq(mediaAsset.checksum, checksum)).limit(1)
+  const [row] = await db
+    .select()
+    .from(mediaAsset)
+    .where(
+      and(
+        eq(mediaAsset.checksum, checksum),
+        eq(mediaAsset.storageClass, storageClass),
+        eq(mediaAsset.dedupScope, dedupScope),
+      ),
+    )
+    .limit(1)
   return row ? attachTranslations(db, [row], storage).then((assets) => assets[0] ?? null) : null
 }
 
@@ -120,7 +132,7 @@ async function attachTranslations(
   return assets.map((asset) => ({
     ...asset,
     altTranslations: byAssetId.get(asset.id) ?? [],
-    url: resolveAssetUrl(asset.storageKey, storage),
+    url: asset.storageClass === "documents" ? null : resolveAssetUrl(asset.storageKey, storage),
   }))
 }
 
@@ -165,7 +177,7 @@ function assertAltTranslationsExcludeDefault(
 export async function createMediaAsset(
   db: PostgresJsDatabase,
   storage: StorageProvider,
-  input: CreateMediaAssetInput,
+  input: CreateMediaAssetInput & { dedupScope?: "library" | "inquiry-private" },
   body: StorageUploadBody,
 ): Promise<CreateMediaAssetResult> {
   const defaultLanguageTag = input.defaultLanguageTag ?? "en"
@@ -174,12 +186,19 @@ export async function createMediaAsset(
   const bytes = await toBytes(body)
   const checksum = await computeChecksum(bytes)
 
-  const existing = await findAssetByChecksum(db, checksum, storage)
+  const dedupScope = input.dedupScope ?? "library"
+  const existing = await findAssetByChecksum(
+    db,
+    checksum,
+    input.storageClass,
+    dedupScope,
+    storage,
+  )
   if (existing) {
     return { asset: existing, deduped: true }
   }
 
-  const storageKey = mediaStorageKey(checksum, input.mimeType)
+  const storageKey = mediaStorageKey(checksum, input.mimeType, dedupScope)
   // The upload result's `url` is deliberately discarded: `storageKey` is the
   // durable locator and delivery URLs are derived per read (voyant#3845).
   await storage.upload(bytes, {
@@ -192,6 +211,8 @@ export async function createMediaAsset(
       .insert(mediaAsset)
       .values({
         type: input.type,
+        storageClass: input.storageClass,
+        dedupScope,
         name: input.name,
         altText: input.altText ?? null,
         defaultLanguageTag,
@@ -221,8 +242,18 @@ export async function createMediaAsset(
   } catch (error) {
     // Lost a race with a concurrent identical upload: the unique checksum index
     // rejected our insert. Fall back to the row the winner created.
-    const raced = await findAssetByChecksum(db, checksum, storage)
+    const raced = await findAssetByChecksum(
+      db,
+      checksum,
+      input.storageClass,
+      dedupScope,
+      storage,
+    )
     if (raced) return { asset: raced, deduped: true }
+    // The object upload precedes the catalogue insert. If no competing row owns
+    // this content-addressed key, compensate so a failed insert cannot leave a
+    // permanent rowless object.
+    await storage.delete(storageKey)
     throw error
   }
 }
@@ -245,6 +276,7 @@ export async function listMediaAssets(
   storage?: MediaUrlSource,
 ) {
   const conditions = []
+  conditions.push(sql`coalesce(${mediaAsset.providerMeta} #>> '{inquiryAttachment,state}', '') = ''`)
   if (query.type) conditions.push(eq(mediaAsset.type, query.type))
   if (query.mimeType) conditions.push(eq(mediaAsset.mimeType, query.mimeType))
   if (query.name) conditions.push(ilike(mediaAsset.name, `%${query.name}%`))

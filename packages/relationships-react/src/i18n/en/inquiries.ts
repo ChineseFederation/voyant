@@ -67,6 +67,12 @@ export const crmUiEnInquiryMessages = {
     },
   },
   inquiryDetail: {
+    attachments: "Attachments",
+    noAttachments: "No attachments yet.",
+    chooseAttachment: "Choose a private document",
+    attachmentCaption: "Caption",
+    uploadAttachment: "Upload attachment",
+    removeAttachment: "Remove",
     back: "Back to inquiry queue",
     customerRequest: "Customer request",
     context: "Request context",

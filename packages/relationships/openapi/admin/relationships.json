@@ -8628,7 +8628,7 @@
                   },
                   "kind": {
                     "type": "string",
-                    "enum": ["wishlist", "notify", "inquiry", "request_offer", "referral"]
+                    "enum": ["wishlist", "notify", "referral"]
                   },
                   "source": {
                     "type": "string",
@@ -8976,7 +8976,7 @@
                   },
                   "kind": {
                     "type": "string",
-                    "enum": ["wishlist", "notify", "inquiry", "request_offer", "referral"]
+                    "enum": ["wishlist", "notify", "referral"]
                   },
                   "source": {
                     "type": "string",
@@ -9522,6 +9522,68 @@
         "x-voyant-package-name": "@voyant-travel/relationships"
       }
     },
+    "/v1/admin/relationships/inquiries/{id}/attachments/upload": {
+      "post": {
+        "summary": "Upload and attach a private Inquiry document",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {},
+                  "operationKey": {
+                    "type": "string",
+                    "minLength": 16,
+                    "maxLength": 128
+                  },
+                  "caption": {
+                    "type": "string",
+                    "maxLength": 2000
+                  }
+                },
+                "required": ["operationKey"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Uploaded private document and attached it to the Inquiry"
+          },
+          "400": {
+            "description": "Invalid multipart request"
+          },
+          "404": {
+            "description": "Inquiry not found"
+          },
+          "413": {
+            "description": "Attachment is too large"
+          },
+          "503": {
+            "description": "Private document storage is unavailable"
+          }
+        },
+        "operationId": "postAdminRelationshipsInquiriesByIdAttachmentsUpload",
+        "tags": ["relationships"],
+        "x-voyant-module": "relationships",
+        "x-voyant-surface": "admin",
+        "x-voyant-api-id": "@voyant-travel/relationships#api.admin",
+        "x-voyant-unit-id": "@voyant-travel/relationships",
+        "x-voyant-package-name": "@voyant-travel/relationships"
+      }
+    },
     "/v1/admin/relationships/inquiries": {
       "get": {
         "parameters": [
@@ -9931,6 +9993,32 @@
                           "closedAt": {
                             "type": ["string", "null"]
                           },
+                          "privacyErasedAt": {
+                            "type": ["string", "null"],
+                            "default": null
+                          },
+                          "privacyErasedBy": {
+                            "type": ["string", "null"],
+                            "default": null
+                          },
+                          "privacyErasureReason": {
+                            "type": ["string", "null"],
+                            "enum": [
+                              "data_subject_request",
+                              "retention_expired",
+                              "consent_withdrawn",
+                              "admin_correction",
+                              null
+                            ],
+                            "default": null
+                          },
+                          "privacyPurgeAssetIds": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            },
+                            "default": []
+                          },
                           "createdAt": {
                             "type": "string"
                           },
@@ -10004,6 +10092,57 @@
                                 "createdAt"
                               ]
                             }
+                          },
+                          "attachments": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "linkId": {
+                                  "type": "string"
+                                },
+                                "inquiryId": {
+                                  "type": "string"
+                                },
+                                "assetId": {
+                                  "type": "string"
+                                },
+                                "name": {
+                                  "type": "string"
+                                },
+                                "mimeType": {
+                                  "type": ["string", "null"]
+                                },
+                                "caption": {
+                                  "type": ["string", "null"]
+                                },
+                                "attachedBy": {
+                                  "type": "string"
+                                },
+                                "createdAt": {
+                                  "type": "string"
+                                },
+                                "updatedAt": {
+                                  "type": "string"
+                                },
+                                "downloadPath": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "linkId",
+                                "inquiryId",
+                                "assetId",
+                                "name",
+                                "mimeType",
+                                "caption",
+                                "attachedBy",
+                                "createdAt",
+                                "updatedAt",
+                                "downloadPath"
+                              ]
+                            },
+                            "default": []
                           }
                         },
                         "required": [
@@ -10577,6 +10716,32 @@
                         "closedAt": {
                           "type": ["string", "null"]
                         },
+                        "privacyErasedAt": {
+                          "type": ["string", "null"],
+                          "default": null
+                        },
+                        "privacyErasedBy": {
+                          "type": ["string", "null"],
+                          "default": null
+                        },
+                        "privacyErasureReason": {
+                          "type": ["string", "null"],
+                          "enum": [
+                            "data_subject_request",
+                            "retention_expired",
+                            "consent_withdrawn",
+                            "admin_correction",
+                            null
+                          ],
+                          "default": null
+                        },
+                        "privacyPurgeAssetIds": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "default": []
+                        },
                         "createdAt": {
                           "type": "string"
                         },
@@ -10650,6 +10815,57 @@
                               "createdAt"
                             ]
                           }
+                        },
+                        "attachments": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "linkId": {
+                                "type": "string"
+                              },
+                              "inquiryId": {
+                                "type": "string"
+                              },
+                              "assetId": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "mimeType": {
+                                "type": ["string", "null"]
+                              },
+                              "caption": {
+                                "type": ["string", "null"]
+                              },
+                              "attachedBy": {
+                                "type": "string"
+                              },
+                              "createdAt": {
+                                "type": "string"
+                              },
+                              "updatedAt": {
+                                "type": "string"
+                              },
+                              "downloadPath": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "linkId",
+                              "inquiryId",
+                              "assetId",
+                              "name",
+                              "mimeType",
+                              "caption",
+                              "attachedBy",
+                              "createdAt",
+                              "updatedAt",
+                              "downloadPath"
+                            ]
+                          },
+                          "default": []
                         }
                       },
                       "required": [
@@ -10963,6 +11179,32 @@
                         "closedAt": {
                           "type": ["string", "null"]
                         },
+                        "privacyErasedAt": {
+                          "type": ["string", "null"],
+                          "default": null
+                        },
+                        "privacyErasedBy": {
+                          "type": ["string", "null"],
+                          "default": null
+                        },
+                        "privacyErasureReason": {
+                          "type": ["string", "null"],
+                          "enum": [
+                            "data_subject_request",
+                            "retention_expired",
+                            "consent_withdrawn",
+                            "admin_correction",
+                            null
+                          ],
+                          "default": null
+                        },
+                        "privacyPurgeAssetIds": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "default": []
+                        },
                         "createdAt": {
                           "type": "string"
                         },
@@ -11036,6 +11278,57 @@
                               "createdAt"
                             ]
                           }
+                        },
+                        "attachments": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "linkId": {
+                                "type": "string"
+                              },
+                              "inquiryId": {
+                                "type": "string"
+                              },
+                              "assetId": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "mimeType": {
+                                "type": ["string", "null"]
+                              },
+                              "caption": {
+                                "type": ["string", "null"]
+                              },
+                              "attachedBy": {
+                                "type": "string"
+                              },
+                              "createdAt": {
+                                "type": "string"
+                              },
+                              "updatedAt": {
+                                "type": "string"
+                              },
+                              "downloadPath": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "linkId",
+                              "inquiryId",
+                              "assetId",
+                              "name",
+                              "mimeType",
+                              "caption",
+                              "attachedBy",
+                              "createdAt",
+                              "updatedAt",
+                              "downloadPath"
+                            ]
+                          },
+                          "default": []
                         }
                       },
                       "required": [
@@ -11421,6 +11714,32 @@
                         "closedAt": {
                           "type": ["string", "null"]
                         },
+                        "privacyErasedAt": {
+                          "type": ["string", "null"],
+                          "default": null
+                        },
+                        "privacyErasedBy": {
+                          "type": ["string", "null"],
+                          "default": null
+                        },
+                        "privacyErasureReason": {
+                          "type": ["string", "null"],
+                          "enum": [
+                            "data_subject_request",
+                            "retention_expired",
+                            "consent_withdrawn",
+                            "admin_correction",
+                            null
+                          ],
+                          "default": null
+                        },
+                        "privacyPurgeAssetIds": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "default": []
+                        },
                         "createdAt": {
                           "type": "string"
                         },
@@ -11494,6 +11813,57 @@
                               "createdAt"
                             ]
                           }
+                        },
+                        "attachments": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "linkId": {
+                                "type": "string"
+                              },
+                              "inquiryId": {
+                                "type": "string"
+                              },
+                              "assetId": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "mimeType": {
+                                "type": ["string", "null"]
+                              },
+                              "caption": {
+                                "type": ["string", "null"]
+                              },
+                              "attachedBy": {
+                                "type": "string"
+                              },
+                              "createdAt": {
+                                "type": "string"
+                              },
+                              "updatedAt": {
+                                "type": "string"
+                              },
+                              "downloadPath": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "linkId",
+                              "inquiryId",
+                              "assetId",
+                              "name",
+                              "mimeType",
+                              "caption",
+                              "attachedBy",
+                              "createdAt",
+                              "updatedAt",
+                              "downloadPath"
+                            ]
+                          },
+                          "default": []
                         }
                       },
                       "required": [
@@ -12046,6 +12416,32 @@
                         "closedAt": {
                           "type": ["string", "null"]
                         },
+                        "privacyErasedAt": {
+                          "type": ["string", "null"],
+                          "default": null
+                        },
+                        "privacyErasedBy": {
+                          "type": ["string", "null"],
+                          "default": null
+                        },
+                        "privacyErasureReason": {
+                          "type": ["string", "null"],
+                          "enum": [
+                            "data_subject_request",
+                            "retention_expired",
+                            "consent_withdrawn",
+                            "admin_correction",
+                            null
+                          ],
+                          "default": null
+                        },
+                        "privacyPurgeAssetIds": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "default": []
+                        },
                         "createdAt": {
                           "type": "string"
                         },
@@ -12119,6 +12515,57 @@
                               "createdAt"
                             ]
                           }
+                        },
+                        "attachments": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "linkId": {
+                                "type": "string"
+                              },
+                              "inquiryId": {
+                                "type": "string"
+                              },
+                              "assetId": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "mimeType": {
+                                "type": ["string", "null"]
+                              },
+                              "caption": {
+                                "type": ["string", "null"]
+                              },
+                              "attachedBy": {
+                                "type": "string"
+                              },
+                              "createdAt": {
+                                "type": "string"
+                              },
+                              "updatedAt": {
+                                "type": "string"
+                              },
+                              "downloadPath": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "linkId",
+                              "inquiryId",
+                              "assetId",
+                              "name",
+                              "mimeType",
+                              "caption",
+                              "attachedBy",
+                              "createdAt",
+                              "updatedAt",
+                              "downloadPath"
+                            ]
+                          },
+                          "default": []
                         }
                       },
                       "required": [
@@ -12873,6 +13320,32 @@
                         "closedAt": {
                           "type": ["string", "null"]
                         },
+                        "privacyErasedAt": {
+                          "type": ["string", "null"],
+                          "default": null
+                        },
+                        "privacyErasedBy": {
+                          "type": ["string", "null"],
+                          "default": null
+                        },
+                        "privacyErasureReason": {
+                          "type": ["string", "null"],
+                          "enum": [
+                            "data_subject_request",
+                            "retention_expired",
+                            "consent_withdrawn",
+                            "admin_correction",
+                            null
+                          ],
+                          "default": null
+                        },
+                        "privacyPurgeAssetIds": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "default": []
+                        },
                         "createdAt": {
                           "type": "string"
                         },
@@ -12946,6 +13419,57 @@
                               "createdAt"
                             ]
                           }
+                        },
+                        "attachments": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "linkId": {
+                                "type": "string"
+                              },
+                              "inquiryId": {
+                                "type": "string"
+                              },
+                              "assetId": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "mimeType": {
+                                "type": ["string", "null"]
+                              },
+                              "caption": {
+                                "type": ["string", "null"]
+                              },
+                              "attachedBy": {
+                                "type": "string"
+                              },
+                              "createdAt": {
+                                "type": "string"
+                              },
+                              "updatedAt": {
+                                "type": "string"
+                              },
+                              "downloadPath": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "linkId",
+                              "inquiryId",
+                              "assetId",
+                              "name",
+                              "mimeType",
+                              "caption",
+                              "attachedBy",
+                              "createdAt",
+                              "updatedAt",
+                              "downloadPath"
+                            ]
+                          },
+                          "default": []
                         }
                       },
                       "required": [
@@ -13354,6 +13878,32 @@
                         "closedAt": {
                           "type": ["string", "null"]
                         },
+                        "privacyErasedAt": {
+                          "type": ["string", "null"],
+                          "default": null
+                        },
+                        "privacyErasedBy": {
+                          "type": ["string", "null"],
+                          "default": null
+                        },
+                        "privacyErasureReason": {
+                          "type": ["string", "null"],
+                          "enum": [
+                            "data_subject_request",
+                            "retention_expired",
+                            "consent_withdrawn",
+                            "admin_correction",
+                            null
+                          ],
+                          "default": null
+                        },
+                        "privacyPurgeAssetIds": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "default": []
+                        },
                         "createdAt": {
                           "type": "string"
                         },
@@ -13427,6 +13977,57 @@
                               "createdAt"
                             ]
                           }
+                        },
+                        "attachments": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "linkId": {
+                                "type": "string"
+                              },
+                              "inquiryId": {
+                                "type": "string"
+                              },
+                              "assetId": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "mimeType": {
+                                "type": ["string", "null"]
+                              },
+                              "caption": {
+                                "type": ["string", "null"]
+                              },
+                              "attachedBy": {
+                                "type": "string"
+                              },
+                              "createdAt": {
+                                "type": "string"
+                              },
+                              "updatedAt": {
+                                "type": "string"
+                              },
+                              "downloadPath": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "linkId",
+                              "inquiryId",
+                              "assetId",
+                              "name",
+                              "mimeType",
+                              "caption",
+                              "attachedBy",
+                              "createdAt",
+                              "updatedAt",
+                              "downloadPath"
+                            ]
+                          },
+                          "default": []
                         }
                       },
                       "required": [
@@ -13843,6 +14444,32 @@
                         "closedAt": {
                           "type": ["string", "null"]
                         },
+                        "privacyErasedAt": {
+                          "type": ["string", "null"],
+                          "default": null
+                        },
+                        "privacyErasedBy": {
+                          "type": ["string", "null"],
+                          "default": null
+                        },
+                        "privacyErasureReason": {
+                          "type": ["string", "null"],
+                          "enum": [
+                            "data_subject_request",
+                            "retention_expired",
+                            "consent_withdrawn",
+                            "admin_correction",
+                            null
+                          ],
+                          "default": null
+                        },
+                        "privacyPurgeAssetIds": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "default": []
+                        },
                         "createdAt": {
                           "type": "string"
                         },
@@ -13916,6 +14543,57 @@
                               "createdAt"
                             ]
                           }
+                        },
+                        "attachments": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "linkId": {
+                                "type": "string"
+                              },
+                              "inquiryId": {
+                                "type": "string"
+                              },
+                              "assetId": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "mimeType": {
+                                "type": ["string", "null"]
+                              },
+                              "caption": {
+                                "type": ["string", "null"]
+                              },
+                              "attachedBy": {
+                                "type": "string"
+                              },
+                              "createdAt": {
+                                "type": "string"
+                              },
+                              "updatedAt": {
+                                "type": "string"
+                              },
+                              "downloadPath": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "linkId",
+                              "inquiryId",
+                              "assetId",
+                              "name",
+                              "mimeType",
+                              "caption",
+                              "attachedBy",
+                              "createdAt",
+                              "updatedAt",
+                              "downloadPath"
+                            ]
+                          },
+                          "default": []
                         }
                       },
                       "required": [
@@ -14319,6 +14997,32 @@
                         "closedAt": {
                           "type": ["string", "null"]
                         },
+                        "privacyErasedAt": {
+                          "type": ["string", "null"],
+                          "default": null
+                        },
+                        "privacyErasedBy": {
+                          "type": ["string", "null"],
+                          "default": null
+                        },
+                        "privacyErasureReason": {
+                          "type": ["string", "null"],
+                          "enum": [
+                            "data_subject_request",
+                            "retention_expired",
+                            "consent_withdrawn",
+                            "admin_correction",
+                            null
+                          ],
+                          "default": null
+                        },
+                        "privacyPurgeAssetIds": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "default": []
+                        },
                         "createdAt": {
                           "type": "string"
                         },
@@ -14392,6 +15096,57 @@
                               "createdAt"
                             ]
                           }
+                        },
+                        "attachments": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "linkId": {
+                                "type": "string"
+                              },
+                              "inquiryId": {
+                                "type": "string"
+                              },
+                              "assetId": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "mimeType": {
+                                "type": ["string", "null"]
+                              },
+                              "caption": {
+                                "type": ["string", "null"]
+                              },
+                              "attachedBy": {
+                                "type": "string"
+                              },
+                              "createdAt": {
+                                "type": "string"
+                              },
+                              "updatedAt": {
+                                "type": "string"
+                              },
+                              "downloadPath": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "linkId",
+                              "inquiryId",
+                              "assetId",
+                              "name",
+                              "mimeType",
+                              "caption",
+                              "attachedBy",
+                              "createdAt",
+                              "updatedAt",
+                              "downloadPath"
+                            ]
+                          },
+                          "default": []
                         }
                       },
                       "required": [
@@ -14770,6 +15525,1835 @@
         "x-voyant-package-name": "@voyant-travel/relationships"
       }
     },
+    "/v1/admin/relationships/inquiries/{id}/attachments": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Inquiry attachments",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "linkId": {
+                            "type": "string"
+                          },
+                          "inquiryId": {
+                            "type": "string"
+                          },
+                          "assetId": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "mimeType": {
+                            "type": ["string", "null"]
+                          },
+                          "caption": {
+                            "type": ["string", "null"]
+                          },
+                          "attachedBy": {
+                            "type": "string"
+                          },
+                          "createdAt": {
+                            "type": "string"
+                          },
+                          "updatedAt": {
+                            "type": "string"
+                          },
+                          "downloadPath": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "linkId",
+                          "inquiryId",
+                          "assetId",
+                          "name",
+                          "mimeType",
+                          "caption",
+                          "attachedBy",
+                          "createdAt",
+                          "updatedAt",
+                          "downloadPath"
+                        ]
+                      }
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Inquiry not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "getAdminRelationshipsInquiriesByIdAttachments",
+        "summary": "GET /v1/admin/relationships/inquiries/{id}/attachments",
+        "tags": ["relationships"],
+        "x-voyant-module": "relationships",
+        "x-voyant-surface": "admin",
+        "x-voyant-api-id": "@voyant-travel/relationships#api.admin",
+        "x-voyant-unit-id": "@voyant-travel/relationships",
+        "x-voyant-package-name": "@voyant-travel/relationships"
+      },
+      "post": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "assetId": {
+                    "type": "string",
+                    "pattern": "^mast_"
+                  },
+                  "displayName": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 500
+                  },
+                  "caption": {
+                    "type": ["string", "null"],
+                    "minLength": 1,
+                    "maxLength": 2000
+                  }
+                },
+                "required": ["assetId", "displayName"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Attached Media asset",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "linkId": {
+                          "type": "string"
+                        },
+                        "inquiryId": {
+                          "type": "string"
+                        },
+                        "assetId": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "mimeType": {
+                          "type": ["string", "null"]
+                        },
+                        "caption": {
+                          "type": ["string", "null"]
+                        },
+                        "attachedBy": {
+                          "type": "string"
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        },
+                        "updatedAt": {
+                          "type": "string"
+                        },
+                        "downloadPath": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "linkId",
+                        "inquiryId",
+                        "assetId",
+                        "name",
+                        "mimeType",
+                        "caption",
+                        "attachedBy",
+                        "createdAt",
+                        "updatedAt",
+                        "downloadPath"
+                      ]
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Inquiry or Media asset not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Attachment conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Media attachment authority unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "postAdminRelationshipsInquiriesByIdAttachments",
+        "summary": "POST /v1/admin/relationships/inquiries/{id}/attachments",
+        "tags": ["relationships"],
+        "x-voyant-module": "relationships",
+        "x-voyant-surface": "admin",
+        "x-voyant-api-id": "@voyant-travel/relationships#api.admin",
+        "x-voyant-unit-id": "@voyant-travel/relationships",
+        "x-voyant-package-name": "@voyant-travel/relationships"
+      }
+    },
+    "/v1/admin/relationships/inquiries/{id}/attachments/{linkId}": {
+      "patch": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "required": true,
+            "name": "linkId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "caption": {
+                    "type": ["string", "null"],
+                    "minLength": 1,
+                    "maxLength": 2000
+                  }
+                },
+                "required": ["caption"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated attachment caption",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "linkId": {
+                          "type": "string"
+                        },
+                        "inquiryId": {
+                          "type": "string"
+                        },
+                        "assetId": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "mimeType": {
+                          "type": ["string", "null"]
+                        },
+                        "caption": {
+                          "type": ["string", "null"]
+                        },
+                        "attachedBy": {
+                          "type": "string"
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        },
+                        "updatedAt": {
+                          "type": "string"
+                        },
+                        "downloadPath": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "linkId",
+                        "inquiryId",
+                        "assetId",
+                        "name",
+                        "mimeType",
+                        "caption",
+                        "attachedBy",
+                        "createdAt",
+                        "updatedAt",
+                        "downloadPath"
+                      ]
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Inquiry attachment not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Attachment conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Inquiry service unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "patchAdminRelationshipsInquiriesByIdAttachmentsByLinkId",
+        "summary": "PATCH /v1/admin/relationships/inquiries/{id}/attachments/{linkId}",
+        "tags": ["relationships"],
+        "x-voyant-module": "relationships",
+        "x-voyant-surface": "admin",
+        "x-voyant-api-id": "@voyant-travel/relationships#api.admin",
+        "x-voyant-unit-id": "@voyant-travel/relationships",
+        "x-voyant-package-name": "@voyant-travel/relationships"
+      },
+      "delete": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "required": true,
+            "name": "linkId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Inquiry attachment removed"
+          },
+          "404": {
+            "description": "Inquiry attachment not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "deleteAdminRelationshipsInquiriesByIdAttachmentsByLinkId",
+        "summary": "DELETE /v1/admin/relationships/inquiries/{id}/attachments/{linkId}",
+        "tags": ["relationships"],
+        "x-voyant-module": "relationships",
+        "x-voyant-surface": "admin",
+        "x-voyant-api-id": "@voyant-travel/relationships#api.admin",
+        "x-voyant-unit-id": "@voyant-travel/relationships",
+        "x-voyant-package-name": "@voyant-travel/relationships"
+      }
+    },
+    "/v1/admin/relationships/inquiries/{id}/attachments/{linkId}/download": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "required": true,
+            "name": "linkId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authenticated private Inquiry attachment bytes"
+          },
+          "403": {
+            "description": "Relationship PII grant required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Inquiry attachment not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Media attachment authority unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "getAdminRelationshipsInquiriesByIdAttachmentsByLinkIdDownload",
+        "summary": "GET /v1/admin/relationships/inquiries/{id}/attachments/{linkId}/download",
+        "tags": ["relationships"],
+        "x-voyant-module": "relationships",
+        "x-voyant-surface": "admin",
+        "x-voyant-api-id": "@voyant-travel/relationships#api.admin",
+        "x-voyant-unit-id": "@voyant-travel/relationships",
+        "x-voyant-package-name": "@voyant-travel/relationships"
+      }
+    },
+    "/v1/admin/relationships/inquiries/{id}/privacy-export": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Inquiry privacy export",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "inquiry": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "subject": {
+                              "type": "string"
+                            },
+                            "kind": {
+                              "type": "string",
+                              "enum": ["product", "custom_trip", "general"]
+                            },
+                            "status": {
+                              "type": "string",
+                              "enum": [
+                                "new",
+                                "triaged",
+                                "in_progress",
+                                "waiting_on_customer",
+                                "qualified",
+                                "converted",
+                                "closed"
+                              ]
+                            },
+                            "closeOutcome": {
+                              "type": ["string", "null"],
+                              "enum": [
+                                "lost",
+                                "not_serviceable",
+                                "no_response",
+                                "duplicate",
+                                "spam",
+                                "customer_withdrew",
+                                "other",
+                                null
+                              ]
+                            },
+                            "closeNote": {
+                              "type": ["string", "null"]
+                            },
+                            "duplicateOfInquiryId": {
+                              "type": ["string", "null"]
+                            },
+                            "priority": {
+                              "type": "string"
+                            },
+                            "personId": {
+                              "type": ["string", "null"]
+                            },
+                            "organizationId": {
+                              "type": ["string", "null"]
+                            },
+                            "contactSnapshot": {
+                              "type": "object",
+                              "properties": {
+                                "name": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 200
+                                },
+                                "email": {
+                                  "type": "string",
+                                  "maxLength": 320,
+                                  "format": "email"
+                                },
+                                "phone": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 80
+                                }
+                              }
+                            },
+                            "ownerId": {
+                              "type": ["string", "null"]
+                            },
+                            "teamId": {
+                              "type": ["string", "null"]
+                            },
+                            "unassignedReason": {
+                              "type": ["string", "null"]
+                            },
+                            "nextActionAt": {
+                              "type": ["string", "null"]
+                            },
+                            "firstResponseDueAt": {
+                              "type": ["string", "null"]
+                            },
+                            "firstRespondedAt": {
+                              "type": ["string", "null"]
+                            },
+                            "travelBrief": {
+                              "type": ["object", "null"],
+                              "properties": {
+                                "version": {
+                                  "type": "number",
+                                  "enum": [1]
+                                },
+                                "destinations": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "placeId": {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      "label": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 200
+                                      }
+                                    },
+                                    "required": ["label"]
+                                  },
+                                  "maxItems": 20
+                                },
+                                "origin": {
+                                  "type": "object",
+                                  "properties": {
+                                    "placeId": {
+                                      "type": "string",
+                                      "minLength": 1
+                                    },
+                                    "label": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 200
+                                    }
+                                  },
+                                  "required": ["label"]
+                                },
+                                "startDate": {
+                                  "type": "string",
+                                  "format": "date"
+                                },
+                                "endDate": {
+                                  "type": "string",
+                                  "format": "date"
+                                },
+                                "dateFlexibility": {
+                                  "type": "string",
+                                  "enum": ["exact", "few_days", "few_weeks", "open"]
+                                },
+                                "durationNights": {
+                                  "type": "integer",
+                                  "minimum": 1,
+                                  "maximum": 365
+                                },
+                                "adults": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 100
+                                },
+                                "children": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "age": {
+                                        "type": "integer",
+                                        "minimum": 0,
+                                        "maximum": 17
+                                      }
+                                    }
+                                  },
+                                  "maxItems": 100
+                                },
+                                "rooms": {
+                                  "type": "integer",
+                                  "minimum": 1,
+                                  "maximum": 100
+                                },
+                                "budget": {
+                                  "type": "object",
+                                  "properties": {
+                                    "amountCents": {
+                                      "type": "integer",
+                                      "minimum": 0
+                                    },
+                                    "currency": {
+                                      "type": "string",
+                                      "pattern": "^[A-Z]{3}$"
+                                    },
+                                    "basis": {
+                                      "type": "string",
+                                      "enum": ["total", "per_person"]
+                                    },
+                                    "flexibility": {
+                                      "type": "string",
+                                      "enum": ["firm", "approximate", "unknown"]
+                                    }
+                                  },
+                                  "required": ["currency"]
+                                },
+                                "interests": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 100
+                                  },
+                                  "maxItems": 50
+                                },
+                                "accessibilityOrDietaryNotes": {
+                                  "type": "string",
+                                  "maxLength": 4000
+                                }
+                              },
+                              "required": ["version"]
+                            },
+                            "customerMessage": {
+                              "type": ["string", "null"]
+                            },
+                            "internalSummary": {
+                              "type": ["string", "null"]
+                            },
+                            "source": {
+                              "type": "string"
+                            },
+                            "sourceRef": {
+                              "type": ["string", "null"]
+                            },
+                            "sourceUrl": {
+                              "type": ["string", "null"]
+                            },
+                            "locale": {
+                              "type": ["string", "null"]
+                            },
+                            "consentSnapshot": {
+                              "type": ["object", "null"],
+                              "additionalProperties": {}
+                            },
+                            "tags": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            },
+                            "customFields": {
+                              "type": "object",
+                              "additionalProperties": {
+                                "type": "object",
+                                "additionalProperties": {}
+                              }
+                            },
+                            "lastActivityAt": {
+                              "type": ["string", "null"]
+                            },
+                            "qualifiedAt": {
+                              "type": ["string", "null"]
+                            },
+                            "convertedAt": {
+                              "type": ["string", "null"]
+                            },
+                            "closedAt": {
+                              "type": ["string", "null"]
+                            },
+                            "privacyErasedAt": {
+                              "type": ["string", "null"],
+                              "default": null
+                            },
+                            "privacyErasedBy": {
+                              "type": ["string", "null"],
+                              "default": null
+                            },
+                            "privacyErasureReason": {
+                              "type": ["string", "null"],
+                              "enum": [
+                                "data_subject_request",
+                                "retention_expired",
+                                "consent_withdrawn",
+                                "admin_correction",
+                                null
+                              ],
+                              "default": null
+                            },
+                            "privacyPurgeAssetIds": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              },
+                              "default": []
+                            },
+                            "createdAt": {
+                              "type": "string"
+                            },
+                            "updatedAt": {
+                              "type": "string"
+                            },
+                            "targets": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "kind": {
+                                    "type": "string",
+                                    "enum": ["product", "option_unit", "catalog_item", "trip"]
+                                  },
+                                  "targetId": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 500
+                                  },
+                                  "snapshot": {
+                                    "type": "object",
+                                    "properties": {
+                                      "title": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 500
+                                      },
+                                      "optionLabel": {
+                                        "type": ["string", "null"],
+                                        "minLength": 1,
+                                        "maxLength": 500
+                                      },
+                                      "startDate": {
+                                        "type": ["string", "null"],
+                                        "format": "date"
+                                      },
+                                      "endDate": {
+                                        "type": ["string", "null"],
+                                        "format": "date"
+                                      },
+                                      "publicUrl": {
+                                        "type": ["string", "null"],
+                                        "maxLength": 2000,
+                                        "format": "uri"
+                                      },
+                                      "sourceChannel": {
+                                        "type": ["string", "null"],
+                                        "minLength": 1,
+                                        "maxLength": 200
+                                      }
+                                    },
+                                    "required": ["title"]
+                                  },
+                                  "linkId": {
+                                    "type": "string"
+                                  },
+                                  "inquiryId": {
+                                    "type": "string"
+                                  },
+                                  "createdAt": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "kind",
+                                  "targetId",
+                                  "snapshot",
+                                  "linkId",
+                                  "inquiryId",
+                                  "createdAt"
+                                ]
+                              }
+                            },
+                            "attachments": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "linkId": {
+                                    "type": "string"
+                                  },
+                                  "inquiryId": {
+                                    "type": "string"
+                                  },
+                                  "assetId": {
+                                    "type": "string"
+                                  },
+                                  "name": {
+                                    "type": "string"
+                                  },
+                                  "mimeType": {
+                                    "type": ["string", "null"]
+                                  },
+                                  "caption": {
+                                    "type": ["string", "null"]
+                                  },
+                                  "attachedBy": {
+                                    "type": "string"
+                                  },
+                                  "createdAt": {
+                                    "type": "string"
+                                  },
+                                  "updatedAt": {
+                                    "type": "string"
+                                  },
+                                  "downloadPath": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "linkId",
+                                  "inquiryId",
+                                  "assetId",
+                                  "name",
+                                  "mimeType",
+                                  "caption",
+                                  "attachedBy",
+                                  "createdAt",
+                                  "updatedAt",
+                                  "downloadPath"
+                                ]
+                              },
+                              "default": []
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "subject",
+                            "kind",
+                            "status",
+                            "closeOutcome",
+                            "closeNote",
+                            "duplicateOfInquiryId",
+                            "priority",
+                            "personId",
+                            "organizationId",
+                            "contactSnapshot",
+                            "ownerId",
+                            "teamId",
+                            "unassignedReason",
+                            "nextActionAt",
+                            "firstResponseDueAt",
+                            "firstRespondedAt",
+                            "travelBrief",
+                            "customerMessage",
+                            "internalSummary",
+                            "source",
+                            "sourceRef",
+                            "sourceUrl",
+                            "locale",
+                            "consentSnapshot",
+                            "tags",
+                            "customFields",
+                            "lastActivityAt",
+                            "qualifiedAt",
+                            "convertedAt",
+                            "closedAt",
+                            "createdAt",
+                            "updatedAt",
+                            "targets"
+                          ]
+                        },
+                        "conversionProvenance": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "kind": {
+                                "type": "string"
+                              },
+                              "targetId": {
+                                "type": "string"
+                              },
+                              "createdAt": {
+                                "type": "string"
+                              }
+                            },
+                            "required": ["id", "kind", "targetId", "createdAt"]
+                          }
+                        },
+                        "activities": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "subject": {
+                                "type": "string"
+                              },
+                              "type": {
+                                "type": "string",
+                                "enum": ["call", "email", "meeting", "task", "follow_up", "note"]
+                              },
+                              "ownerId": {
+                                "type": ["string", "null"]
+                              },
+                              "status": {
+                                "type": "string",
+                                "enum": ["planned", "done", "cancelled"]
+                              },
+                              "dueAt": {
+                                "type": ["string", "null"]
+                              },
+                              "completedAt": {
+                                "type": ["string", "null"]
+                              },
+                              "location": {
+                                "type": ["string", "null"]
+                              },
+                              "description": {
+                                "type": ["string", "null"]
+                              },
+                              "customFields": {
+                                "type": "object",
+                                "additionalProperties": {
+                                  "type": "object",
+                                  "additionalProperties": {}
+                                }
+                              },
+                              "createdAt": {
+                                "type": "string"
+                              },
+                              "updatedAt": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "subject",
+                              "type",
+                              "ownerId",
+                              "status",
+                              "dueAt",
+                              "completedAt",
+                              "location",
+                              "description",
+                              "customFields",
+                              "createdAt",
+                              "updatedAt"
+                            ]
+                          }
+                        },
+                        "attachmentBinaryManifest": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "linkId": {
+                                "type": "string"
+                              },
+                              "assetId": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "mimeType": {
+                                "type": ["string", "null"]
+                              },
+                              "downloadPath": {
+                                "type": "string"
+                              },
+                              "authenticationRequired": {
+                                "type": "boolean",
+                                "enum": [true]
+                              }
+                            },
+                            "required": [
+                              "linkId",
+                              "assetId",
+                              "name",
+                              "mimeType",
+                              "downloadPath",
+                              "authenticationRequired"
+                            ]
+                          }
+                        },
+                        "activityIds": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "attachmentIds": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "classification": {
+                          "type": "object",
+                          "additionalProperties": {
+                            "type": "string",
+                            "enum": [
+                              "personal_data",
+                              "operational",
+                              "audit_provenance",
+                              "legal_reference"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "inquiry",
+                        "conversionProvenance",
+                        "activities",
+                        "attachmentBinaryManifest",
+                        "activityIds",
+                        "attachmentIds",
+                        "classification"
+                      ]
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Relationship PII grant required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Inquiry not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Inquiry export conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Inquiry service unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "getAdminRelationshipsInquiriesByIdPrivacyExport",
+        "summary": "GET /v1/admin/relationships/inquiries/{id}/privacy-export",
+        "tags": ["relationships"],
+        "x-voyant-module": "relationships",
+        "x-voyant-surface": "admin",
+        "x-voyant-api-id": "@voyant-travel/relationships#api.admin",
+        "x-voyant-unit-id": "@voyant-travel/relationships",
+        "x-voyant-package-name": "@voyant-travel/relationships"
+      }
+    },
+    "/v1/admin/relationships/inquiries/{id}/privacy-erasure": {
+      "post": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reasonCode": {
+                    "type": "string",
+                    "enum": [
+                      "data_subject_request",
+                      "retention_expired",
+                      "consent_withdrawn",
+                      "admin_correction"
+                    ]
+                  }
+                },
+                "required": ["reasonCode"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Privacy-erased inquiry",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "subject": {
+                          "type": "string"
+                        },
+                        "kind": {
+                          "type": "string",
+                          "enum": ["product", "custom_trip", "general"]
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "new",
+                            "triaged",
+                            "in_progress",
+                            "waiting_on_customer",
+                            "qualified",
+                            "converted",
+                            "closed"
+                          ]
+                        },
+                        "closeOutcome": {
+                          "type": ["string", "null"],
+                          "enum": [
+                            "lost",
+                            "not_serviceable",
+                            "no_response",
+                            "duplicate",
+                            "spam",
+                            "customer_withdrew",
+                            "other",
+                            null
+                          ]
+                        },
+                        "closeNote": {
+                          "type": ["string", "null"]
+                        },
+                        "duplicateOfInquiryId": {
+                          "type": ["string", "null"]
+                        },
+                        "priority": {
+                          "type": "string"
+                        },
+                        "personId": {
+                          "type": ["string", "null"]
+                        },
+                        "organizationId": {
+                          "type": ["string", "null"]
+                        },
+                        "contactSnapshot": {
+                          "type": "object",
+                          "properties": {
+                            "name": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 200
+                            },
+                            "email": {
+                              "type": "string",
+                              "maxLength": 320,
+                              "format": "email"
+                            },
+                            "phone": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 80
+                            }
+                          }
+                        },
+                        "ownerId": {
+                          "type": ["string", "null"]
+                        },
+                        "teamId": {
+                          "type": ["string", "null"]
+                        },
+                        "unassignedReason": {
+                          "type": ["string", "null"]
+                        },
+                        "nextActionAt": {
+                          "type": ["string", "null"]
+                        },
+                        "firstResponseDueAt": {
+                          "type": ["string", "null"]
+                        },
+                        "firstRespondedAt": {
+                          "type": ["string", "null"]
+                        },
+                        "travelBrief": {
+                          "type": ["object", "null"],
+                          "properties": {
+                            "version": {
+                              "type": "number",
+                              "enum": [1]
+                            },
+                            "destinations": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "placeId": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "label": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 200
+                                  }
+                                },
+                                "required": ["label"]
+                              },
+                              "maxItems": 20
+                            },
+                            "origin": {
+                              "type": "object",
+                              "properties": {
+                                "placeId": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "label": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 200
+                                }
+                              },
+                              "required": ["label"]
+                            },
+                            "startDate": {
+                              "type": "string",
+                              "format": "date"
+                            },
+                            "endDate": {
+                              "type": "string",
+                              "format": "date"
+                            },
+                            "dateFlexibility": {
+                              "type": "string",
+                              "enum": ["exact", "few_days", "few_weeks", "open"]
+                            },
+                            "durationNights": {
+                              "type": "integer",
+                              "minimum": 1,
+                              "maximum": 365
+                            },
+                            "adults": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 100
+                            },
+                            "children": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "age": {
+                                    "type": "integer",
+                                    "minimum": 0,
+                                    "maximum": 17
+                                  }
+                                }
+                              },
+                              "maxItems": 100
+                            },
+                            "rooms": {
+                              "type": "integer",
+                              "minimum": 1,
+                              "maximum": 100
+                            },
+                            "budget": {
+                              "type": "object",
+                              "properties": {
+                                "amountCents": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "currency": {
+                                  "type": "string",
+                                  "pattern": "^[A-Z]{3}$"
+                                },
+                                "basis": {
+                                  "type": "string",
+                                  "enum": ["total", "per_person"]
+                                },
+                                "flexibility": {
+                                  "type": "string",
+                                  "enum": ["firm", "approximate", "unknown"]
+                                }
+                              },
+                              "required": ["currency"]
+                            },
+                            "interests": {
+                              "type": "array",
+                              "items": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 100
+                              },
+                              "maxItems": 50
+                            },
+                            "accessibilityOrDietaryNotes": {
+                              "type": "string",
+                              "maxLength": 4000
+                            }
+                          },
+                          "required": ["version"]
+                        },
+                        "customerMessage": {
+                          "type": ["string", "null"]
+                        },
+                        "internalSummary": {
+                          "type": ["string", "null"]
+                        },
+                        "source": {
+                          "type": "string"
+                        },
+                        "sourceRef": {
+                          "type": ["string", "null"]
+                        },
+                        "sourceUrl": {
+                          "type": ["string", "null"]
+                        },
+                        "locale": {
+                          "type": ["string", "null"]
+                        },
+                        "consentSnapshot": {
+                          "type": ["object", "null"],
+                          "additionalProperties": {}
+                        },
+                        "tags": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "customFields": {
+                          "type": "object",
+                          "additionalProperties": {
+                            "type": "object",
+                            "additionalProperties": {}
+                          }
+                        },
+                        "lastActivityAt": {
+                          "type": ["string", "null"]
+                        },
+                        "qualifiedAt": {
+                          "type": ["string", "null"]
+                        },
+                        "convertedAt": {
+                          "type": ["string", "null"]
+                        },
+                        "closedAt": {
+                          "type": ["string", "null"]
+                        },
+                        "privacyErasedAt": {
+                          "type": ["string", "null"],
+                          "default": null
+                        },
+                        "privacyErasedBy": {
+                          "type": ["string", "null"],
+                          "default": null
+                        },
+                        "privacyErasureReason": {
+                          "type": ["string", "null"],
+                          "enum": [
+                            "data_subject_request",
+                            "retention_expired",
+                            "consent_withdrawn",
+                            "admin_correction",
+                            null
+                          ],
+                          "default": null
+                        },
+                        "privacyPurgeAssetIds": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "default": []
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        },
+                        "updatedAt": {
+                          "type": "string"
+                        },
+                        "targets": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "kind": {
+                                "type": "string",
+                                "enum": ["product", "option_unit", "catalog_item", "trip"]
+                              },
+                              "targetId": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 500
+                              },
+                              "snapshot": {
+                                "type": "object",
+                                "properties": {
+                                  "title": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 500
+                                  },
+                                  "optionLabel": {
+                                    "type": ["string", "null"],
+                                    "minLength": 1,
+                                    "maxLength": 500
+                                  },
+                                  "startDate": {
+                                    "type": ["string", "null"],
+                                    "format": "date"
+                                  },
+                                  "endDate": {
+                                    "type": ["string", "null"],
+                                    "format": "date"
+                                  },
+                                  "publicUrl": {
+                                    "type": ["string", "null"],
+                                    "maxLength": 2000,
+                                    "format": "uri"
+                                  },
+                                  "sourceChannel": {
+                                    "type": ["string", "null"],
+                                    "minLength": 1,
+                                    "maxLength": 200
+                                  }
+                                },
+                                "required": ["title"]
+                              },
+                              "linkId": {
+                                "type": "string"
+                              },
+                              "inquiryId": {
+                                "type": "string"
+                              },
+                              "createdAt": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "kind",
+                              "targetId",
+                              "snapshot",
+                              "linkId",
+                              "inquiryId",
+                              "createdAt"
+                            ]
+                          }
+                        },
+                        "attachments": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "linkId": {
+                                "type": "string"
+                              },
+                              "inquiryId": {
+                                "type": "string"
+                              },
+                              "assetId": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "mimeType": {
+                                "type": ["string", "null"]
+                              },
+                              "caption": {
+                                "type": ["string", "null"]
+                              },
+                              "attachedBy": {
+                                "type": "string"
+                              },
+                              "createdAt": {
+                                "type": "string"
+                              },
+                              "updatedAt": {
+                                "type": "string"
+                              },
+                              "downloadPath": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "linkId",
+                              "inquiryId",
+                              "assetId",
+                              "name",
+                              "mimeType",
+                              "caption",
+                              "attachedBy",
+                              "createdAt",
+                              "updatedAt",
+                              "downloadPath"
+                            ]
+                          },
+                          "default": []
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "subject",
+                        "kind",
+                        "status",
+                        "closeOutcome",
+                        "closeNote",
+                        "duplicateOfInquiryId",
+                        "priority",
+                        "personId",
+                        "organizationId",
+                        "contactSnapshot",
+                        "ownerId",
+                        "teamId",
+                        "unassignedReason",
+                        "nextActionAt",
+                        "firstResponseDueAt",
+                        "firstRespondedAt",
+                        "travelBrief",
+                        "customerMessage",
+                        "internalSummary",
+                        "source",
+                        "sourceRef",
+                        "sourceUrl",
+                        "locale",
+                        "consentSnapshot",
+                        "tags",
+                        "customFields",
+                        "lastActivityAt",
+                        "qualifiedAt",
+                        "convertedAt",
+                        "closedAt",
+                        "createdAt",
+                        "updatedAt",
+                        "targets"
+                      ]
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Relationship PII erase grant required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Inquiry not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Inquiry conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Media attachment authority unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "postAdminRelationshipsInquiriesByIdPrivacyErasure",
+        "summary": "POST /v1/admin/relationships/inquiries/{id}/privacy-erasure",
+        "tags": ["relationships"],
+        "x-voyant-module": "relationships",
+        "x-voyant-surface": "admin",
+        "x-voyant-api-id": "@voyant-travel/relationships#api.admin",
+        "x-voyant-unit-id": "@voyant-travel/relationships",
+        "x-voyant-package-name": "@voyant-travel/relationships"
+      }
+    },
     "/v1/admin/relationships/inquiries/{id}/record-first-response": {
       "post": {
         "parameters": [
@@ -15060,6 +17644,32 @@
                         "closedAt": {
                           "type": ["string", "null"]
                         },
+                        "privacyErasedAt": {
+                          "type": ["string", "null"],
+                          "default": null
+                        },
+                        "privacyErasedBy": {
+                          "type": ["string", "null"],
+                          "default": null
+                        },
+                        "privacyErasureReason": {
+                          "type": ["string", "null"],
+                          "enum": [
+                            "data_subject_request",
+                            "retention_expired",
+                            "consent_withdrawn",
+                            "admin_correction",
+                            null
+                          ],
+                          "default": null
+                        },
+                        "privacyPurgeAssetIds": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "default": []
+                        },
                         "createdAt": {
                           "type": "string"
                         },
@@ -15133,6 +17743,57 @@
                               "createdAt"
                             ]
                           }
+                        },
+                        "attachments": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "linkId": {
+                                "type": "string"
+                              },
+                              "inquiryId": {
+                                "type": "string"
+                              },
+                              "assetId": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "mimeType": {
+                                "type": ["string", "null"]
+                              },
+                              "caption": {
+                                "type": ["string", "null"]
+                              },
+                              "attachedBy": {
+                                "type": "string"
+                              },
+                              "createdAt": {
+                                "type": "string"
+                              },
+                              "updatedAt": {
+                                "type": "string"
+                              },
+                              "downloadPath": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "linkId",
+                              "inquiryId",
+                              "assetId",
+                              "name",
+                              "mimeType",
+                              "caption",
+                              "attachedBy",
+                              "createdAt",
+                              "updatedAt",
+                              "downloadPath"
+                            ]
+                          },
+                          "default": []
                         }
                       },
                       "required": [

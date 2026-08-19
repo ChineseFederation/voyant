@@ -132,6 +132,10 @@
                             "type": "string",
                             "enum": ["image", "video", "document"]
                           },
+                          "storageClass": {
+                            "type": "string",
+                            "enum": ["media", "documents"]
+                          },
                           "name": {
                             "type": "string"
                           },
@@ -215,6 +219,7 @@
                         "required": [
                           "id",
                           "type",
+                          "storageClass",
                           "name",
                           "altText",
                           "defaultLanguageTag",
@@ -287,6 +292,10 @@
                         "type": {
                           "type": "string",
                           "enum": ["image", "video", "document"]
+                        },
+                        "storageClass": {
+                          "type": "string",
+                          "enum": ["media", "documents"]
                         },
                         "name": {
                           "type": "string"
@@ -371,6 +380,7 @@
                       "required": [
                         "id",
                         "type",
+                        "storageClass",
                         "name",
                         "altText",
                         "defaultLanguageTag",
@@ -513,6 +523,10 @@
                           "type": "string",
                           "enum": ["image", "video", "document"]
                         },
+                        "storageClass": {
+                          "type": "string",
+                          "enum": ["media", "documents"]
+                        },
                         "name": {
                           "type": "string"
                         },
@@ -596,6 +610,7 @@
                       "required": [
                         "id",
                         "type",
+                        "storageClass",
                         "name",
                         "altText",
                         "defaultLanguageTag",
@@ -689,6 +704,10 @@
                           "type": "string",
                           "enum": ["image", "video", "document"]
                         },
+                        "storageClass": {
+                          "type": "string",
+                          "enum": ["media", "documents"]
+                        },
                         "name": {
                           "type": "string"
                         },
@@ -772,6 +791,7 @@
                       "required": [
                         "id",
                         "type",
+                        "storageClass",
                         "name",
                         "altText",
                         "defaultLanguageTag",

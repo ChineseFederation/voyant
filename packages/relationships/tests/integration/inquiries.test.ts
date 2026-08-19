@@ -1,7 +1,10 @@
 import { generateLinkTableSql } from "@voyant-travel/core"
+import { appendActionLedgerMutation } from "@voyant-travel/action-ledger"
+import { actionLedgerEntries } from "@voyant-travel/action-ledger/schema"
 import { createLinkService } from "@voyant-travel/db/links"
 import { eventOutboxTable } from "@voyant-travel/db/schema"
 import { inquiryListQuerySchema } from "@voyant-travel/relationships-contracts"
+import { mediaAsset } from "@voyant-travel/media/schema"
 import { eq, sql } from "drizzle-orm"
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest"
 
@@ -9,12 +12,19 @@ import {
   activities,
   activityLinks,
   inquiries,
+  inquiryAttachmentSnapshots,
   inquiryConversions,
   inquiryTargetSnapshots,
   people,
 } from "../../src/schema.js"
 import { type InquiryServiceError, inquiriesService } from "../../src/service/inquiries.js"
-import { inquiryOptionUnitLink, inquiryProductLink } from "../../src/standard-links.js"
+import {
+  inquiryMediaAssetLink,
+  inquiryOptionUnitLink,
+  inquiryProductLink,
+} from "../../src/standard-links.js"
+
+const inquiryLinks = [inquiryProductLink, inquiryOptionUnitLink, inquiryMediaAssetLink]
 
 const validTargetValidation = {
   validateTarget: async () => "valid" as const,
@@ -30,7 +40,7 @@ describe.skipIf(!DB_AVAILABLE)("inquiriesService", () => {
     const { createTestDb, cleanupTestDb } = await import("@voyant-travel/db/test-utils")
     db = createTestDb()
     await cleanupTestDb(db)
-    for (const definition of [inquiryProductLink, inquiryOptionUnitLink]) {
+    for (const definition of inquiryLinks) {
       const ddl = generateLinkTableSql(definition)
       await db.execute(sql.raw(ddl.createTable))
       for (const index of ddl.indexes) await db.execute(sql.raw(index))
@@ -40,7 +50,7 @@ describe.skipIf(!DB_AVAILABLE)("inquiriesService", () => {
   beforeEach(async () => {
     const { cleanupTestDb } = await import("@voyant-travel/db/test-utils")
     await cleanupTestDb(db)
-    for (const definition of [inquiryProductLink, inquiryOptionUnitLink]) {
+    for (const definition of inquiryLinks) {
       await db.execute(sql.raw(`DELETE FROM "${definition.tableName}"`))
     }
   })
@@ -78,6 +88,434 @@ describe.skipIf(!DB_AVAILABLE)("inquiriesService", () => {
     expect((await inquiriesService.getInquiry(db, created.id))?.subject).toBe(
       "Custom Japan itinerary",
     )
+  })
+
+  it("aborts a preparation on link failure and replays one claimed attachment", async () => {
+    const abortPrivateDocument = vi.fn(async () => undefined)
+    const finalizePrivateDocument = vi.fn(async () => undefined)
+    const missingAuthority = {
+      preparePrivateDocument: vi.fn(async () => ({
+        id: "mast_missing",
+        name: "brief.pdf",
+        mimeType: "application/pdf",
+        operationKey: "test_missing_operation",
+        ownerToken: "test_missing_owner_token",
+        created: true,
+      })),
+      finalizePrivateDocument,
+      abortPrivateDocument,
+      claimPrivateDocument: vi.fn(async () => undefined),
+      claimExistingPrivateDocument: vi.fn(async () => undefined),
+      releasePrivateDocument: vi.fn(async () => undefined),
+      requestPrivateDocumentPurge: vi.fn(async () => undefined),
+      resolvePrivateDocument: vi.fn(),
+      downloadPrivateDocument: vi.fn(),
+    }
+    await expect(
+      inquiriesService.uploadInquiryAttachment(
+        db,
+        "inq_missing",
+        {
+          operationKey: "test_missing_operation",
+          name: "brief.pdf",
+          mimeType: "application/pdf",
+          caption: null,
+          body: new ArrayBuffer(1),
+        },
+        "user_1",
+        {},
+        missingAuthority,
+      ),
+    ).rejects.toMatchObject({ code: "INQUIRY_NOT_FOUND" })
+    expect(abortPrivateDocument).toHaveBeenCalledOnce()
+    expect(finalizePrivateDocument).not.toHaveBeenCalled()
+
+    const { inquiry } = await inquiriesService.createInquiry(
+      db,
+      {
+        subject: "Attachment replay",
+        kind: "general",
+        contactSnapshot: { email: "attachments@example.com" },
+        source: "admin",
+        tags: [],
+        customFields: {},
+      },
+      "user_1",
+    )
+    const [asset] = await db
+      .insert(mediaAsset)
+      .values({
+        type: "document",
+        storageClass: "documents",
+        name: "brief.pdf",
+        storageKey: "private/brief.pdf",
+        checksum: "attachment-replay-checksum",
+      })
+      .returning()
+    if (!asset) throw new Error("Failed to seed private document")
+    const authority = {
+      ...missingAuthority,
+      preparePrivateDocument: vi.fn(async () => ({
+        id: asset.id,
+        name: asset.name,
+        mimeType: asset.mimeType,
+        operationKey: "test_replay_operation",
+        ownerToken: "test_replay_owner_token",
+        created: false,
+      })),
+    }
+    const input = {
+      operationKey: "test_replay_operation",
+      name: "brief.pdf",
+      mimeType: "application/pdf",
+      caption: "Customer brief",
+      body: new ArrayBuffer(1),
+    }
+    const first = await inquiriesService.uploadInquiryAttachment(
+      db,
+      inquiry.id,
+      input,
+      "user_1",
+      {},
+      authority,
+    )
+    const replay = await inquiriesService.uploadInquiryAttachment(
+      db,
+      inquiry.id,
+      input,
+      "user_1",
+      {},
+      authority,
+    )
+    expect(replay).toEqual(first)
+    expect(
+      await db
+        .select()
+        .from(inquiryAttachmentSnapshots)
+        .where(eq(inquiryAttachmentSnapshots.inquiryId, inquiry.id)),
+    ).toHaveLength(1)
+
+    const { inquiry: secondInquiry } = await inquiriesService.createInquiry(
+      db,
+      {
+        subject: "Second attachment owner",
+        kind: "general",
+        contactSnapshot: { email: "second@example.com" },
+        source: "admin",
+        tags: [],
+        customFields: {},
+      },
+      "user_1",
+    )
+    const second = await inquiriesService.uploadInquiryAttachment(
+      db,
+      secondInquiry.id,
+      { ...input, name: "second-customer-name.pdf", caption: "Second caption" },
+      "user_1",
+      {},
+      authority,
+    )
+    expect(second).toMatchObject({
+      assetId: asset.id,
+      name: "second-customer-name.pdf",
+      caption: "Second caption",
+    })
+
+    abortPrivateDocument.mockClear()
+    authority.finalizePrivateDocument.mockRejectedValueOnce(new Error("finalize unavailable"))
+    await expect(
+      inquiriesService.uploadInquiryAttachment(db, inquiry.id, input, "user_1", {}, authority),
+    ).rejects.toThrow("finalize unavailable")
+    expect(abortPrivateDocument).not.toHaveBeenCalled()
+    expect(
+      await db
+        .select()
+        .from(inquiryAttachmentSnapshots)
+        .where(eq(inquiryAttachmentSnapshots.inquiryId, inquiry.id)),
+    ).toHaveLength(1)
+  })
+
+  it("exports attachment and activity PII, then erases it while retaining conversion provenance", async () => {
+    const { inquiry } = await inquiriesService.createInquiry(
+      db,
+      {
+        subject: "Private anniversary trip",
+        kind: "custom_trip",
+        contactSnapshot: { name: "Ari", email: "ari@example.com" },
+        customerMessage: "Dietary details",
+        travelBrief: { version: 1, accessibilityOrDietaryNotes: "Private note" },
+        source: "admin",
+        sourceRef: "private-customer-reference",
+        locale: "ro-RO",
+        unassignedReason: "Customer requested a specialist",
+        tags: ["vip"],
+        customFields: { relationships: { passportHint: "private" } },
+      },
+      "user_1",
+    )
+    const [conversion] = await db
+      .insert(inquiryConversions)
+      .values({
+        inquiryId: inquiry.id,
+        kind: "proposal",
+        targetId: "prps_preserved",
+        targetSnapshot: { kind: "proposal", pipelineId: "pipe_1", stageId: "stage_1" },
+        idempotencyKey: "privacy-provenance",
+        mode: "created",
+        actorId: "user_1",
+        inquiryStatus: "qualified",
+      })
+      .returning()
+    await db
+      .update(inquiries)
+      .set({ closeNote: "Customer disclosed private circumstances" })
+      .where(eq(inquiries.id, inquiry.id))
+    const [activity] = await db
+      .insert(activities)
+      .values({
+        subject: "Call with Ari",
+        type: "call",
+        status: "done",
+        description: "Discussed dietary details",
+        location: "Private address",
+        customFields: { relationships: { privateNote: "sensitive" } },
+      })
+      .returning()
+    if (!conversion || !activity) throw new Error("Failed to seed privacy provenance")
+    await db.insert(activityLinks).values({
+      activityId: activity.id,
+      entityType: "inquiry",
+      entityId: inquiry.id,
+    })
+    const [attachmentAsset] = await db
+      .insert(mediaAsset)
+      .values({
+        type: "document",
+        storageClass: "documents",
+        name: "private-brief.pdf",
+        storageKey: "private/private-brief.pdf",
+        checksum: "privacy-attachment-checksum",
+      })
+      .returning()
+    if (!attachmentAsset) throw new Error("Failed to seed attachment")
+    const link = createLinkService(() => db, inquiryLinks)
+    const attachmentLink = await link.create(
+      inquiryMediaAssetLink.tableName,
+      inquiry.id,
+      attachmentAsset.id,
+    )
+    await db.insert(inquiryAttachmentSnapshots).values({
+      linkId: attachmentLink.id,
+      inquiryId: inquiry.id,
+      assetId: attachmentAsset.id,
+      name: attachmentAsset.name,
+      mimeType: attachmentAsset.mimeType,
+      caption: "Passport and dietary details",
+      attachedBy: "user_1",
+    })
+
+    const exported = await inquiriesService.exportInquiryPrivacy(db, link, inquiry.id)
+    expect(exported.activities).toEqual([
+      expect.objectContaining({
+        id: activity.id,
+        subject: "Call with Ari",
+        customFields: { relationships: { privateNote: "sensitive" } },
+      }),
+    ])
+    expect(exported.inquiry.attachments).toEqual([
+      expect.objectContaining({
+        assetId: attachmentAsset.id,
+        caption: "Passport and dietary details",
+      }),
+    ])
+
+    const requestPrivateDocumentPurge = vi.fn(async () => undefined)
+    await inquiriesService.eraseInquiryPrivacy(
+      db,
+      inquiry.id,
+      { reasonCode: "data_subject_request" },
+      "privacy_officer",
+      {},
+      {
+        preparePrivateDocument: vi.fn(),
+        finalizePrivateDocument: vi.fn(),
+        abortPrivateDocument: vi.fn(),
+        claimPrivateDocument: vi.fn(),
+        claimExistingPrivateDocument: vi.fn(),
+        releasePrivateDocument: vi.fn(),
+        requestPrivateDocumentPurge,
+        resolvePrivateDocument: vi.fn(),
+        downloadPrivateDocument: vi.fn(),
+      },
+    )
+    expect(requestPrivateDocumentPurge).toHaveBeenCalledWith(expect.anything(), attachmentAsset.id)
+    expect(await inquiriesService.getInquiry(db, inquiry.id)).toMatchObject({
+      sourceRef: null,
+      locale: null,
+      unassignedReason: null,
+      closeNote: null,
+      privacyErasureReason: "data_subject_request",
+    })
+    expect(
+      await db
+        .select({ subject: activities.subject, customFields: activities.customFields })
+        .from(activities)
+        .where(eq(activities.id, activity.id)),
+    ).toEqual([{ subject: "Redacted inquiry activity", customFields: {} }])
+    expect(
+      await db
+        .select({ id: inquiryConversions.id, targetId: inquiryConversions.targetId })
+        .from(inquiryConversions)
+        .where(eq(inquiryConversions.inquiryId, inquiry.id)),
+    ).toEqual([{ id: conversion.id, targetId: "prps_preserved" }])
+  })
+
+  it("detaches a shared Activity without redacting data owned by its Person link", async () => {
+    const person = await seedPerson()
+    const { inquiry } = await inquiriesService.createInquiry(
+      db,
+      {
+        subject: "Shared activity privacy",
+        kind: "general",
+        contactSnapshot: { email: "shared@example.com" },
+        source: "admin",
+        tags: [],
+        customFields: {},
+      },
+      "user_1",
+    )
+    const [activity] = await db
+      .insert(activities)
+      .values({
+        subject: "Person-owned consultation",
+        type: "call",
+        status: "done",
+        description: "Text that belongs to the Person timeline",
+        customFields: { relationships: { personContext: "preserve" } },
+      })
+      .returning()
+    if (!activity) throw new Error("Failed to seed shared Activity")
+    await db.insert(activityLinks).values([
+      { activityId: activity.id, entityType: "inquiry", entityId: inquiry.id },
+      { activityId: activity.id, entityType: "person", entityId: person.id },
+    ])
+
+    await inquiriesService.eraseInquiryPrivacy(
+      db,
+      inquiry.id,
+      { reasonCode: "data_subject_request" },
+      "privacy_officer",
+      {},
+      {
+        preparePrivateDocument: vi.fn(),
+        finalizePrivateDocument: vi.fn(),
+        abortPrivateDocument: vi.fn(),
+        claimPrivateDocument: vi.fn(),
+        claimExistingPrivateDocument: vi.fn(),
+        releasePrivateDocument: vi.fn(),
+        requestPrivateDocumentPurge: vi.fn(),
+        resolvePrivateDocument: vi.fn(),
+        downloadPrivateDocument: vi.fn(),
+      },
+    )
+
+    expect(
+      await db.select().from(activities).where(eq(activities.id, activity.id)),
+    ).toEqual([
+      expect.objectContaining({
+        subject: "Person-owned consultation",
+        description: "Text that belongs to the Person timeline",
+        customFields: { relationships: { personContext: "preserve" } },
+      }),
+    ])
+    expect(
+      await db
+        .select({ entityType: activityLinks.entityType, entityId: activityLinks.entityId })
+        .from(activityLinks)
+        .where(eq(activityLinks.activityId, activity.id)),
+    ).toEqual([{ entityType: "person", entityId: person.id }])
+  })
+
+  it("rolls privacy erasure back when its Action Ledger append fails and retries atomically", async () => {
+    const { inquiry } = await inquiriesService.createInquiry(
+      db,
+      {
+        subject: "Atomic privacy erasure",
+        kind: "general",
+        contactSnapshot: { email: "atomic@example.com" },
+        source: "admin",
+        tags: [],
+        customFields: {},
+      },
+      "user_1",
+    )
+    const authority = {
+      preparePrivateDocument: vi.fn(),
+      finalizePrivateDocument: vi.fn(),
+      abortPrivateDocument: vi.fn(),
+      claimPrivateDocument: vi.fn(),
+      claimExistingPrivateDocument: vi.fn(),
+      releasePrivateDocument: vi.fn(),
+      requestPrivateDocumentPurge: vi.fn(),
+      resolvePrivateDocument: vi.fn(),
+      downloadPrivateDocument: vi.fn(),
+    }
+    let failAfterAppend = true
+    const appendAudit = async (tx: typeof db) => {
+      await appendActionLedgerMutation(tx, {
+        context: { userId: "privacy_officer" },
+        actionName: "relationships.inquiry.privacy_erasure",
+        actionKind: "delete",
+        evaluatedRisk: "high",
+        targetType: "inquiry",
+        targetId: inquiry.id,
+        mutationDetail: { summary: "Privacy erasure", reversalKind: "none" },
+      })
+      if (failAfterAppend) throw new Error("ledger unavailable")
+    }
+
+    await expect(
+      inquiriesService.eraseInquiryPrivacy(
+        db,
+        inquiry.id,
+        { reasonCode: "data_subject_request" },
+        "privacy_officer",
+        {},
+        authority,
+        appendAudit,
+      ),
+    ).rejects.toThrow("ledger unavailable")
+    expect(await inquiriesService.getInquiry(db, inquiry.id)).toMatchObject({
+      subject: "Atomic privacy erasure",
+      privacyErasedAt: null,
+    })
+    expect(
+      await db
+        .select({ id: actionLedgerEntries.id })
+        .from(actionLedgerEntries)
+        .where(eq(actionLedgerEntries.targetId, inquiry.id)),
+    ).toEqual([])
+
+    failAfterAppend = false
+    await inquiriesService.eraseInquiryPrivacy(
+      db,
+      inquiry.id,
+      { reasonCode: "data_subject_request" },
+      "privacy_officer",
+      {},
+      authority,
+      appendAudit,
+    )
+    expect(await inquiriesService.getInquiry(db, inquiry.id)).toMatchObject({
+      subject: "Redacted inquiry",
+      privacyErasureReason: "data_subject_request",
+    })
+    expect(
+      await db
+        .select({ id: actionLedgerEntries.id })
+        .from(actionLedgerEntries)
+        .where(eq(actionLedgerEntries.targetId, inquiry.id)),
+    ).toHaveLength(1)
   })
 
   it("records an owned chronological activity and advances last activity atomically", async () => {

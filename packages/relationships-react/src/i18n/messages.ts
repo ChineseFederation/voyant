@@ -110,6 +110,12 @@ export type CrmUiMessages = {
     sources: Record<"storefront" | "phone" | "email" | "admin" | "import" | "api", string>
   }
   inquiryDetail: {
+    attachments: string
+    noAttachments: string
+    chooseAttachment: string
+    attachmentCaption: string
+    uploadAttachment: string
+    removeAttachment: string
     back: string
     customerRequest: string
     context: string

@@ -662,6 +662,23 @@ export interface paths {
     patch?: never
     trace?: never
   }
+  "/v1/admin/relationships/inquiries/{id}/attachments/upload": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** Upload and attach a private Inquiry document */
+    post: operations["postAdminRelationshipsInquiriesByIdAttachmentsUpload"]
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
   "/v1/admin/relationships/inquiries": {
     parameters: {
       query?: never
@@ -813,6 +830,93 @@ export interface paths {
     post?: never
     /** DELETE /v1/admin/relationships/inquiries/{id}/targets/{linkId} */
     delete: operations["deleteAdminRelationshipsInquiriesByIdTargetsByLinkId"]
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/admin/relationships/inquiries/{id}/attachments": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** GET /v1/admin/relationships/inquiries/{id}/attachments */
+    get: operations["getAdminRelationshipsInquiriesByIdAttachments"]
+    put?: never
+    /** POST /v1/admin/relationships/inquiries/{id}/attachments */
+    post: operations["postAdminRelationshipsInquiriesByIdAttachments"]
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/admin/relationships/inquiries/{id}/attachments/{linkId}": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    post?: never
+    /** DELETE /v1/admin/relationships/inquiries/{id}/attachments/{linkId} */
+    delete: operations["deleteAdminRelationshipsInquiriesByIdAttachmentsByLinkId"]
+    options?: never
+    head?: never
+    /** PATCH /v1/admin/relationships/inquiries/{id}/attachments/{linkId} */
+    patch: operations["patchAdminRelationshipsInquiriesByIdAttachmentsByLinkId"]
+    trace?: never
+  }
+  "/v1/admin/relationships/inquiries/{id}/attachments/{linkId}/download": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** GET /v1/admin/relationships/inquiries/{id}/attachments/{linkId}/download */
+    get: operations["getAdminRelationshipsInquiriesByIdAttachmentsByLinkIdDownload"]
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/admin/relationships/inquiries/{id}/privacy-export": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** GET /v1/admin/relationships/inquiries/{id}/privacy-export */
+    get: operations["getAdminRelationshipsInquiriesByIdPrivacyExport"]
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/admin/relationships/inquiries/{id}/privacy-erasure": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** POST /v1/admin/relationships/inquiries/{id}/privacy-erasure */
+    post: operations["postAdminRelationshipsInquiriesByIdPrivacyErasure"]
+    delete?: never
     options?: never
     head?: never
     patch?: never
@@ -4931,7 +5035,7 @@ export interface operations {
           productId?: string | null
           optionUnitId?: string | null
           /** @enum {string} */
-          kind: "wishlist" | "notify" | "inquiry" | "request_offer" | "referral"
+          kind: "wishlist" | "notify" | "referral"
           /** @enum {string} */
           source: "form" | "phone" | "admin" | "abandoned_cart" | "website" | "booking"
           /**
@@ -5126,7 +5230,7 @@ export interface operations {
           productId?: string | null
           optionUnitId?: string | null
           /** @enum {string} */
-          kind?: "wishlist" | "notify" | "inquiry" | "request_offer" | "referral"
+          kind?: "wishlist" | "notify" | "referral"
           /** @enum {string} */
           source?: "form" | "phone" | "admin" | "abandoned_cart" | "website" | "booking"
           /**
@@ -5334,6 +5438,62 @@ export interface operations {
       }
     }
   }
+  postAdminRelationshipsInquiriesByIdAttachmentsUpload: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "multipart/form-data": {
+          file?: unknown
+          operationKey: string
+          caption?: string
+        }
+      }
+    }
+    responses: {
+      /** @description Uploaded private document and attached it to the Inquiry */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description Invalid multipart request */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description Inquiry not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description Attachment is too large */
+      413: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description Private document storage is unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+    }
+  }
   getAdminRelationshipsInquiries: {
     parameters: {
       query?: {
@@ -5475,6 +5635,22 @@ export interface operations {
               qualifiedAt: string | null
               convertedAt: string | null
               closedAt: string | null
+              /** @default null */
+              privacyErasedAt: string | null
+              /** @default null */
+              privacyErasedBy: string | null
+              /**
+               * @default null
+               * @enum {string|null}
+               */
+              privacyErasureReason:
+                | "data_subject_request"
+                | "retention_expired"
+                | "consent_withdrawn"
+                | "admin_correction"
+                | null
+              /** @default [] */
+              privacyPurgeAssetIds: string[]
               createdAt: string
               updatedAt: string
               targets: {
@@ -5495,6 +5671,19 @@ export interface operations {
                 linkId: string
                 inquiryId: string
                 createdAt: string
+              }[]
+              /** @default [] */
+              attachments: {
+                linkId: string
+                inquiryId: string
+                assetId: string
+                name: string
+                mimeType: string | null
+                caption: string | null
+                attachedBy: string
+                createdAt: string
+                updatedAt: string
+                downloadPath: string
               }[]
             }[]
             total: number
@@ -5694,6 +5883,22 @@ export interface operations {
               qualifiedAt: string | null
               convertedAt: string | null
               closedAt: string | null
+              /** @default null */
+              privacyErasedAt: string | null
+              /** @default null */
+              privacyErasedBy: string | null
+              /**
+               * @default null
+               * @enum {string|null}
+               */
+              privacyErasureReason:
+                | "data_subject_request"
+                | "retention_expired"
+                | "consent_withdrawn"
+                | "admin_correction"
+                | null
+              /** @default [] */
+              privacyPurgeAssetIds: string[]
               createdAt: string
               updatedAt: string
               targets: {
@@ -5714,6 +5919,19 @@ export interface operations {
                 linkId: string
                 inquiryId: string
                 createdAt: string
+              }[]
+              /** @default [] */
+              attachments: {
+                linkId: string
+                inquiryId: string
+                assetId: string
+                name: string
+                mimeType: string | null
+                caption: string | null
+                attachedBy: string
+                createdAt: string
+                updatedAt: string
+                downloadPath: string
               }[]
             }
             replayed: boolean
@@ -5821,6 +6039,22 @@ export interface operations {
               qualifiedAt: string | null
               convertedAt: string | null
               closedAt: string | null
+              /** @default null */
+              privacyErasedAt: string | null
+              /** @default null */
+              privacyErasedBy: string | null
+              /**
+               * @default null
+               * @enum {string|null}
+               */
+              privacyErasureReason:
+                | "data_subject_request"
+                | "retention_expired"
+                | "consent_withdrawn"
+                | "admin_correction"
+                | null
+              /** @default [] */
+              privacyPurgeAssetIds: string[]
               createdAt: string
               updatedAt: string
               targets: {
@@ -5841,6 +6075,19 @@ export interface operations {
                 linkId: string
                 inquiryId: string
                 createdAt: string
+              }[]
+              /** @default [] */
+              attachments: {
+                linkId: string
+                inquiryId: string
+                assetId: string
+                name: string
+                mimeType: string | null
+                caption: string | null
+                attachedBy: string
+                createdAt: string
+                updatedAt: string
+                downloadPath: string
               }[]
             }
             replayed: boolean
@@ -5994,6 +6241,22 @@ export interface operations {
               qualifiedAt: string | null
               convertedAt: string | null
               closedAt: string | null
+              /** @default null */
+              privacyErasedAt: string | null
+              /** @default null */
+              privacyErasedBy: string | null
+              /**
+               * @default null
+               * @enum {string|null}
+               */
+              privacyErasureReason:
+                | "data_subject_request"
+                | "retention_expired"
+                | "consent_withdrawn"
+                | "admin_correction"
+                | null
+              /** @default [] */
+              privacyPurgeAssetIds: string[]
               createdAt: string
               updatedAt: string
               targets: {
@@ -6014,6 +6277,19 @@ export interface operations {
                 linkId: string
                 inquiryId: string
                 createdAt: string
+              }[]
+              /** @default [] */
+              attachments: {
+                linkId: string
+                inquiryId: string
+                assetId: string
+                name: string
+                mimeType: string | null
+                caption: string | null
+                attachedBy: string
+                createdAt: string
+                updatedAt: string
+                downloadPath: string
               }[]
             }
           }
@@ -6211,6 +6487,22 @@ export interface operations {
               qualifiedAt: string | null
               convertedAt: string | null
               closedAt: string | null
+              /** @default null */
+              privacyErasedAt: string | null
+              /** @default null */
+              privacyErasedBy: string | null
+              /**
+               * @default null
+               * @enum {string|null}
+               */
+              privacyErasureReason:
+                | "data_subject_request"
+                | "retention_expired"
+                | "consent_withdrawn"
+                | "admin_correction"
+                | null
+              /** @default [] */
+              privacyPurgeAssetIds: string[]
               createdAt: string
               updatedAt: string
               targets: {
@@ -6231,6 +6523,19 @@ export interface operations {
                 linkId: string
                 inquiryId: string
                 createdAt: string
+              }[]
+              /** @default [] */
+              attachments: {
+                linkId: string
+                inquiryId: string
+                assetId: string
+                name: string
+                mimeType: string | null
+                caption: string | null
+                attachedBy: string
+                createdAt: string
+                updatedAt: string
+                downloadPath: string
               }[]
             }
           }
@@ -6549,6 +6854,22 @@ export interface operations {
               qualifiedAt: string | null
               convertedAt: string | null
               closedAt: string | null
+              /** @default null */
+              privacyErasedAt: string | null
+              /** @default null */
+              privacyErasedBy: string | null
+              /**
+               * @default null
+               * @enum {string|null}
+               */
+              privacyErasureReason:
+                | "data_subject_request"
+                | "retention_expired"
+                | "consent_withdrawn"
+                | "admin_correction"
+                | null
+              /** @default [] */
+              privacyPurgeAssetIds: string[]
               createdAt: string
               updatedAt: string
               targets: {
@@ -6569,6 +6890,19 @@ export interface operations {
                 linkId: string
                 inquiryId: string
                 createdAt: string
+              }[]
+              /** @default [] */
+              attachments: {
+                linkId: string
+                inquiryId: string
+                assetId: string
+                name: string
+                mimeType: string | null
+                caption: string | null
+                attachedBy: string
+                createdAt: string
+                updatedAt: string
+                downloadPath: string
               }[]
             }
           }
@@ -6729,6 +7063,22 @@ export interface operations {
               qualifiedAt: string | null
               convertedAt: string | null
               closedAt: string | null
+              /** @default null */
+              privacyErasedAt: string | null
+              /** @default null */
+              privacyErasedBy: string | null
+              /**
+               * @default null
+               * @enum {string|null}
+               */
+              privacyErasureReason:
+                | "data_subject_request"
+                | "retention_expired"
+                | "consent_withdrawn"
+                | "admin_correction"
+                | null
+              /** @default [] */
+              privacyPurgeAssetIds: string[]
               createdAt: string
               updatedAt: string
               targets: {
@@ -6749,6 +7099,19 @@ export interface operations {
                 linkId: string
                 inquiryId: string
                 createdAt: string
+              }[]
+              /** @default [] */
+              attachments: {
+                linkId: string
+                inquiryId: string
+                assetId: string
+                name: string
+                mimeType: string | null
+                caption: string | null
+                attachedBy: string
+                createdAt: string
+                updatedAt: string
+                downloadPath: string
               }[]
             }
           }
@@ -6917,6 +7280,22 @@ export interface operations {
               qualifiedAt: string | null
               convertedAt: string | null
               closedAt: string | null
+              /** @default null */
+              privacyErasedAt: string | null
+              /** @default null */
+              privacyErasedBy: string | null
+              /**
+               * @default null
+               * @enum {string|null}
+               */
+              privacyErasureReason:
+                | "data_subject_request"
+                | "retention_expired"
+                | "consent_withdrawn"
+                | "admin_correction"
+                | null
+              /** @default [] */
+              privacyPurgeAssetIds: string[]
               createdAt: string
               updatedAt: string
               targets: {
@@ -6937,6 +7316,19 @@ export interface operations {
                 linkId: string
                 inquiryId: string
                 createdAt: string
+              }[]
+              /** @default [] */
+              attachments: {
+                linkId: string
+                inquiryId: string
+                assetId: string
+                name: string
+                mimeType: string | null
+                caption: string | null
+                attachedBy: string
+                createdAt: string
+                updatedAt: string
+                downloadPath: string
               }[]
             }
           }
@@ -7097,6 +7489,22 @@ export interface operations {
               qualifiedAt: string | null
               convertedAt: string | null
               closedAt: string | null
+              /** @default null */
+              privacyErasedAt: string | null
+              /** @default null */
+              privacyErasedBy: string | null
+              /**
+               * @default null
+               * @enum {string|null}
+               */
+              privacyErasureReason:
+                | "data_subject_request"
+                | "retention_expired"
+                | "consent_withdrawn"
+                | "admin_correction"
+                | null
+              /** @default [] */
+              privacyPurgeAssetIds: string[]
               createdAt: string
               updatedAt: string
               targets: {
@@ -7117,6 +7525,19 @@ export interface operations {
                 linkId: string
                 inquiryId: string
                 createdAt: string
+              }[]
+              /** @default [] */
+              attachments: {
+                linkId: string
+                inquiryId: string
+                assetId: string
+                name: string
+                mimeType: string | null
+                caption: string | null
+                attachedBy: string
+                createdAt: string
+                updatedAt: string
+                downloadPath: string
               }[]
             }
           }
@@ -7294,6 +7715,770 @@ export interface operations {
       }
     }
   }
+  getAdminRelationshipsInquiriesByIdAttachments: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Inquiry attachments */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              linkId: string
+              inquiryId: string
+              assetId: string
+              name: string
+              mimeType: string | null
+              caption: string | null
+              attachedBy: string
+              createdAt: string
+              updatedAt: string
+              downloadPath: string
+            }[]
+          }
+        }
+      }
+      /** @description Inquiry not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  postAdminRelationshipsInquiriesByIdAttachments: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          assetId: string
+          displayName: string
+          caption?: string | null
+        }
+      }
+    }
+    responses: {
+      /** @description Attached Media asset */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              linkId: string
+              inquiryId: string
+              assetId: string
+              name: string
+              mimeType: string | null
+              caption: string | null
+              attachedBy: string
+              createdAt: string
+              updatedAt: string
+              downloadPath: string
+            }
+          }
+        }
+      }
+      /** @description Inquiry or Media asset not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Attachment conflict */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Media attachment authority unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  deleteAdminRelationshipsInquiriesByIdAttachmentsByLinkId: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+        linkId: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Inquiry attachment removed */
+      204: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description Inquiry attachment not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  patchAdminRelationshipsInquiriesByIdAttachmentsByLinkId: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+        linkId: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          caption: string | null
+        }
+      }
+    }
+    responses: {
+      /** @description Updated attachment caption */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              linkId: string
+              inquiryId: string
+              assetId: string
+              name: string
+              mimeType: string | null
+              caption: string | null
+              attachedBy: string
+              createdAt: string
+              updatedAt: string
+              downloadPath: string
+            }
+          }
+        }
+      }
+      /** @description Inquiry attachment not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Attachment conflict */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Inquiry service unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getAdminRelationshipsInquiriesByIdAttachmentsByLinkIdDownload: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+        linkId: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Authenticated private Inquiry attachment bytes */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description Relationship PII grant required */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Inquiry attachment not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Media attachment authority unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getAdminRelationshipsInquiriesByIdPrivacyExport: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Inquiry privacy export */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              inquiry: {
+                id: string
+                subject: string
+                /** @enum {string} */
+                kind: "product" | "custom_trip" | "general"
+                /** @enum {string} */
+                status:
+                  | "new"
+                  | "triaged"
+                  | "in_progress"
+                  | "waiting_on_customer"
+                  | "qualified"
+                  | "converted"
+                  | "closed"
+                /** @enum {string|null} */
+                closeOutcome:
+                  | "lost"
+                  | "not_serviceable"
+                  | "no_response"
+                  | "duplicate"
+                  | "spam"
+                  | "customer_withdrew"
+                  | "other"
+                  | null
+                closeNote: string | null
+                duplicateOfInquiryId: string | null
+                priority: string
+                personId: string | null
+                organizationId: string | null
+                contactSnapshot: {
+                  name?: string
+                  /** Format: email */
+                  email?: string
+                  phone?: string
+                }
+                ownerId: string | null
+                teamId: string | null
+                unassignedReason: string | null
+                nextActionAt: string | null
+                firstResponseDueAt: string | null
+                firstRespondedAt: string | null
+                travelBrief: {
+                  /** @enum {number} */
+                  version: 1
+                  destinations?: {
+                    placeId?: string
+                    label: string
+                  }[]
+                  origin?: {
+                    placeId?: string
+                    label: string
+                  }
+                  /** Format: date */
+                  startDate?: string
+                  /** Format: date */
+                  endDate?: string
+                  /** @enum {string} */
+                  dateFlexibility?: "exact" | "few_days" | "few_weeks" | "open"
+                  durationNights?: number
+                  adults?: number
+                  children?: {
+                    age?: number
+                  }[]
+                  rooms?: number
+                  budget?: {
+                    amountCents?: number
+                    currency: string
+                    /** @enum {string} */
+                    basis?: "total" | "per_person"
+                    /** @enum {string} */
+                    flexibility?: "firm" | "approximate" | "unknown"
+                  }
+                  interests?: string[]
+                  accessibilityOrDietaryNotes?: string
+                } | null
+                customerMessage: string | null
+                internalSummary: string | null
+                source: string
+                sourceRef: string | null
+                sourceUrl: string | null
+                locale: string | null
+                consentSnapshot: {
+                  [key: string]: unknown
+                } | null
+                tags: string[]
+                customFields: {
+                  [key: string]: {
+                    [key: string]: unknown
+                  }
+                }
+                lastActivityAt: string | null
+                qualifiedAt: string | null
+                convertedAt: string | null
+                closedAt: string | null
+                /** @default null */
+                privacyErasedAt: string | null
+                /** @default null */
+                privacyErasedBy: string | null
+                /**
+                 * @default null
+                 * @enum {string|null}
+                 */
+                privacyErasureReason:
+                  | "data_subject_request"
+                  | "retention_expired"
+                  | "consent_withdrawn"
+                  | "admin_correction"
+                  | null
+                /** @default [] */
+                privacyPurgeAssetIds: string[]
+                createdAt: string
+                updatedAt: string
+                targets: {
+                  /** @enum {string} */
+                  kind: "product" | "option_unit" | "catalog_item" | "trip"
+                  targetId: string
+                  snapshot: {
+                    title: string
+                    optionLabel?: string | null
+                    /** Format: date */
+                    startDate?: string | null
+                    /** Format: date */
+                    endDate?: string | null
+                    /** Format: uri */
+                    publicUrl?: string | null
+                    sourceChannel?: string | null
+                  }
+                  linkId: string
+                  inquiryId: string
+                  createdAt: string
+                }[]
+                /** @default [] */
+                attachments: {
+                  linkId: string
+                  inquiryId: string
+                  assetId: string
+                  name: string
+                  mimeType: string | null
+                  caption: string | null
+                  attachedBy: string
+                  createdAt: string
+                  updatedAt: string
+                  downloadPath: string
+                }[]
+              }
+              conversionProvenance: {
+                id: string
+                kind: string
+                targetId: string
+                createdAt: string
+              }[]
+              activities: {
+                id: string
+                subject: string
+                /** @enum {string} */
+                type: "call" | "email" | "meeting" | "task" | "follow_up" | "note"
+                ownerId: string | null
+                /** @enum {string} */
+                status: "planned" | "done" | "cancelled"
+                dueAt: string | null
+                completedAt: string | null
+                location: string | null
+                description: string | null
+                customFields: {
+                  [key: string]: {
+                    [key: string]: unknown
+                  }
+                }
+                createdAt: string
+                updatedAt: string
+              }[]
+              attachmentBinaryManifest: {
+                linkId: string
+                assetId: string
+                name: string
+                mimeType: string | null
+                downloadPath: string
+                /** @enum {boolean} */
+                authenticationRequired: true
+              }[]
+              activityIds: string[]
+              attachmentIds: string[]
+              classification: {
+                [key: string]:
+                  | "personal_data"
+                  | "operational"
+                  | "audit_provenance"
+                  | "legal_reference"
+              }
+            }
+          }
+        }
+      }
+      /** @description Relationship PII grant required */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Inquiry not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Inquiry export conflict */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Inquiry service unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  postAdminRelationshipsInquiriesByIdPrivacyErasure: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          /** @enum {string} */
+          reasonCode:
+            | "data_subject_request"
+            | "retention_expired"
+            | "consent_withdrawn"
+            | "admin_correction"
+        }
+      }
+    }
+    responses: {
+      /** @description Privacy-erased inquiry */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              subject: string
+              /** @enum {string} */
+              kind: "product" | "custom_trip" | "general"
+              /** @enum {string} */
+              status:
+                | "new"
+                | "triaged"
+                | "in_progress"
+                | "waiting_on_customer"
+                | "qualified"
+                | "converted"
+                | "closed"
+              /** @enum {string|null} */
+              closeOutcome:
+                | "lost"
+                | "not_serviceable"
+                | "no_response"
+                | "duplicate"
+                | "spam"
+                | "customer_withdrew"
+                | "other"
+                | null
+              closeNote: string | null
+              duplicateOfInquiryId: string | null
+              priority: string
+              personId: string | null
+              organizationId: string | null
+              contactSnapshot: {
+                name?: string
+                /** Format: email */
+                email?: string
+                phone?: string
+              }
+              ownerId: string | null
+              teamId: string | null
+              unassignedReason: string | null
+              nextActionAt: string | null
+              firstResponseDueAt: string | null
+              firstRespondedAt: string | null
+              travelBrief: {
+                /** @enum {number} */
+                version: 1
+                destinations?: {
+                  placeId?: string
+                  label: string
+                }[]
+                origin?: {
+                  placeId?: string
+                  label: string
+                }
+                /** Format: date */
+                startDate?: string
+                /** Format: date */
+                endDate?: string
+                /** @enum {string} */
+                dateFlexibility?: "exact" | "few_days" | "few_weeks" | "open"
+                durationNights?: number
+                adults?: number
+                children?: {
+                  age?: number
+                }[]
+                rooms?: number
+                budget?: {
+                  amountCents?: number
+                  currency: string
+                  /** @enum {string} */
+                  basis?: "total" | "per_person"
+                  /** @enum {string} */
+                  flexibility?: "firm" | "approximate" | "unknown"
+                }
+                interests?: string[]
+                accessibilityOrDietaryNotes?: string
+              } | null
+              customerMessage: string | null
+              internalSummary: string | null
+              source: string
+              sourceRef: string | null
+              sourceUrl: string | null
+              locale: string | null
+              consentSnapshot: {
+                [key: string]: unknown
+              } | null
+              tags: string[]
+              customFields: {
+                [key: string]: {
+                  [key: string]: unknown
+                }
+              }
+              lastActivityAt: string | null
+              qualifiedAt: string | null
+              convertedAt: string | null
+              closedAt: string | null
+              /** @default null */
+              privacyErasedAt: string | null
+              /** @default null */
+              privacyErasedBy: string | null
+              /**
+               * @default null
+               * @enum {string|null}
+               */
+              privacyErasureReason:
+                | "data_subject_request"
+                | "retention_expired"
+                | "consent_withdrawn"
+                | "admin_correction"
+                | null
+              /** @default [] */
+              privacyPurgeAssetIds: string[]
+              createdAt: string
+              updatedAt: string
+              targets: {
+                /** @enum {string} */
+                kind: "product" | "option_unit" | "catalog_item" | "trip"
+                targetId: string
+                snapshot: {
+                  title: string
+                  optionLabel?: string | null
+                  /** Format: date */
+                  startDate?: string | null
+                  /** Format: date */
+                  endDate?: string | null
+                  /** Format: uri */
+                  publicUrl?: string | null
+                  sourceChannel?: string | null
+                }
+                linkId: string
+                inquiryId: string
+                createdAt: string
+              }[]
+              /** @default [] */
+              attachments: {
+                linkId: string
+                inquiryId: string
+                assetId: string
+                name: string
+                mimeType: string | null
+                caption: string | null
+                attachedBy: string
+                createdAt: string
+                updatedAt: string
+                downloadPath: string
+              }[]
+            }
+          }
+        }
+      }
+      /** @description Relationship PII erase grant required */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Inquiry not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Inquiry conflict */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Media attachment authority unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
   postAdminRelationshipsInquiriesByIdRecordFirstResponse: {
     parameters: {
       query?: never
@@ -7410,6 +8595,22 @@ export interface operations {
               qualifiedAt: string | null
               convertedAt: string | null
               closedAt: string | null
+              /** @default null */
+              privacyErasedAt: string | null
+              /** @default null */
+              privacyErasedBy: string | null
+              /**
+               * @default null
+               * @enum {string|null}
+               */
+              privacyErasureReason:
+                | "data_subject_request"
+                | "retention_expired"
+                | "consent_withdrawn"
+                | "admin_correction"
+                | null
+              /** @default [] */
+              privacyPurgeAssetIds: string[]
               createdAt: string
               updatedAt: string
               targets: {
@@ -7430,6 +8631,19 @@ export interface operations {
                 linkId: string
                 inquiryId: string
                 createdAt: string
+              }[]
+              /** @default [] */
+              attachments: {
+                linkId: string
+                inquiryId: string
+                assetId: string
+                name: string
+                mimeType: string | null
+                caption: string | null
+                attachedBy: string
+                createdAt: string
+                updatedAt: string
+                downloadPath: string
               }[]
             }
           }

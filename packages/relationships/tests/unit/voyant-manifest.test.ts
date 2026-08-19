@@ -9,6 +9,7 @@ import {
 import { assertPortConforms } from "@voyant-travel/core/project"
 import { customFieldValueOperationsRuntimePort } from "@voyant-travel/core/runtime-port"
 import { financeStoredInstrumentRuntimePort } from "@voyant-travel/finance/runtime-port"
+import { mediaInquiryAttachmentRuntimePort } from "@voyant-travel/media/runtime-port"
 import { proposalInquiryConversionRuntimePort } from "@voyant-travel/proposals-contracts/inquiry-conversion"
 import { inquiryTargetAuthorityRuntimePort } from "@voyant-travel/relationships-contracts/inquiry-target-authority/runtime-port"
 import { describe, expect, it, vi } from "vitest"
@@ -51,6 +52,7 @@ describe("relationships deployment manifest", () => {
         { id: proposalInquiryConversionRuntimePort.id, optional: true },
         { id: inquiryTargetAuthorityRuntimePort.id, optional: true, cardinality: "many" },
         { id: catalogInquiryBookingSessionRuntimePort.id, optional: true },
+        { id: mediaInquiryAttachmentRuntimePort.id, optional: true },
         // Optional: a deployment can select CRM without Bookings, and then
         // nothing emits `booking.confirmed` for the enrichment subscriber.
         { id: "bookings.crm-snapshot.runtime", optional: true },
@@ -97,6 +99,7 @@ describe("relationships deployment manifest", () => {
         { id: "@voyant-travel/relationships#linkable.person" },
         { id: "@voyant-travel/relationships#link.inquiry-product" },
         { id: "@voyant-travel/relationships#link.inquiry-option-unit" },
+        { id: "@voyant-travel/relationships#link.inquiry-media-asset" },
       ],
     })
     expect(relationshipsVoyantModule.access?.resources).toEqual(
@@ -104,7 +107,10 @@ describe("relationships deployment manifest", () => {
         expect.objectContaining({ resource: "crm" }),
         expect.objectContaining({
           resource: "relationships-pii",
-          actions: [expect.objectContaining({ action: "read", sensitive: true })],
+          actions: expect.arrayContaining([
+            expect.objectContaining({ action: "read", sensitive: true }),
+            expect.objectContaining({ action: "delete", sensitive: true }),
+          ]),
         }),
       ]),
     )
