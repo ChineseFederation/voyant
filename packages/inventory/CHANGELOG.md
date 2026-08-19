@@ -1,5 +1,17 @@
 # @voyant-travel/inventory
 
+## 0.42.26
+
+### Patch Changes
+
+- 2631474: Derive owned accommodation traveler fares from the booking roster, present room selections and supplement labels in the admin summary, and preserve pricing semantics across supplement, all-in, legacy, and sourced booking-engine flows.
+- Updated dependencies [2631474]
+- Updated dependencies [0724ef7]
+- Updated dependencies [4aac60f]
+  - @voyant-travel/bookings@0.250.2
+  - @voyant-travel/finance@0.262.3
+  - @voyant-travel/core@0.144.2
+
 ## 0.42.25
 
 ### Patch Changes

@@ -1,5 +1,17 @@
 # @voyant-travel/auth
 
+## 0.153.4
+
+### Patch Changes
+
+- 3809eaa: Accept the OAuth `azp` claim on signed MCP access tokens so hosted connectors resolve their approved client and receive their permitted tool catalog.
+- 76d8e2f: Restore ChatGPT and Claude remote MCP connector interoperability. Scope-less
+  dynamic registrations now match authorization-server discovery, resource
+  metadata advertises only resource-enforced scopes, and admin-shell OAuth calls
+  are scoped into the admin realm exactly once.
+- Updated dependencies [0724ef7]
+  - @voyant-travel/core@0.144.2
+
 ## 0.153.3
 
 ### Patch Changes

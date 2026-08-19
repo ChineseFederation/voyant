@@ -1,5 +1,18 @@
 # @voyant-travel/public-api-react
 
+## 0.314.0
+
+### Patch Changes
+
+- Updated dependencies [2631474]
+- Updated dependencies [7c10e9b]
+- Updated dependencies [4aac60f]
+- Updated dependencies [7c10e9b]
+  - @voyant-travel/bookings@0.250.2
+  - @voyant-travel/finance@0.262.3
+  - @voyant-travel/public-api-client@0.297.0
+  - @voyant-travel/catalog-react@0.310.0
+
 ## 0.313.0
 
 ### Patch Changes

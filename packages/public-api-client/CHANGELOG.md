@@ -1,5 +1,25 @@
 # @voyant-travel/public-api-client
 
+## 0.297.0
+
+### Minor Changes
+
+- 7c10e9b: Add a Fetch-compatible managed transport seam that routes generated Public API
+  client requests through a Site's canonical same-origin `/v1/public` proxy while
+  preserving the client's operation types. Add an explicit publishable-only
+  `managed: true` authority mode for platform transports so they never need a
+  fake API key and cannot forward a caller-supplied key. Also export
+  stable operation IDs, HTTP methods, paths, and graph-derived credential posture
+  from the composed OpenAPI generation pipeline so Theme manifests can declare
+  requirements without maintaining a parallel capability registry.
+
+### Patch Changes
+
+- 7c10e9b: Correct the public client documentation to use the generated
+  `createPublicApiClient` interface and add runtime/type coverage for credential
+  classification, base URL/custom Fetch configuration, header pinning, and the
+  publishable-versus-secret operation surface.
+
 ## 0.296.0
 
 ### Minor Changes
